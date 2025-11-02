@@ -660,10 +660,6 @@ let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const TARGET_FPS = 90;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
-const FRAME_DROP_THRESHOLD_MS = 1000 / 55; // drop quality if sustained below ~55 FPS
-const FRAME_RECOVERY_THRESHOLD_MS = 1000 / 85; // ease quality back above ~85 FPS
-const FULL_HD_PIXEL_COUNT = 1920 * 1080;
-const MAX_FULL_HD_SCALE = 3;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
@@ -793,10 +789,9 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
-const SPIN_VERTICAL_EFFECT_BOOST = 1.3; // increase perceived top/back spin strength by 30%
-const SPIN_STRENGTH = BALL_R * 0.03125 * SPIN_VERTICAL_EFFECT_BOOST;
+const SPIN_STRENGTH = BALL_R * 0.03125;
 const SPIN_DECAY = 0.88;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * SPIN_VERTICAL_EFFECT_BOOST;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
@@ -870,8 +865,8 @@ const SPIN_BOX_FILL_RATIO =
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
-const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5 * SPIN_VERTICAL_EFFECT_BOOST;
-const TOPSPIN_MULTIPLIER = 1.3 * SPIN_VERTICAL_EFFECT_BOOST;
+const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
+const TOPSPIN_MULTIPLIER = 1.3;
 // angle for cushion cuts guiding balls into pockets (Pool Royale spec now requires 35°)
 const DEFAULT_CUSHION_CUT_ANGLE = 35;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -7762,49 +7757,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const determinePixelRatio = () => {
-        const devicePixelRatio = window.devicePixelRatio || 1;
-        const coarsePointer = window.matchMedia?.('(pointer:coarse)').matches ?? false;
-        const narrowScreen = window.innerWidth <= 1366;
-        const mobileLike = coarsePointer || narrowScreen;
-        if (!mobileLike) {
-          // Allow desktop-class hardware to render with crisper edges up to UHD
-          // while still respecting the device's native pixel density.
-          return Math.min(devicePixelRatio, 2.5);
-        }
-        const cores = navigator.hardwareConcurrency ?? 4;
-        let cap = 1.4;
-        if (cores >= 8) cap = 1.9;
-        else if (cores >= 6) cap = 1.75;
-        else if (cores >= 4) cap = 1.6;
-        const navEntry = performance?.getEntriesByType?.('navigation')?.[0];
-        if (navEntry && navEntry.domComplete > 8000) {
-          cap = Math.min(cap, 1.4);
-        }
-        return Math.min(devicePixelRatio, cap);
-      };
-      const computeFullHdScale = () => {
-        const viewportArea = Math.max(1, host.clientWidth * host.clientHeight);
-        const scale = Math.sqrt(FULL_HD_PIXEL_COUNT / viewportArea);
-        return Math.max(1, Math.min(MAX_FULL_HD_SCALE, scale));
-      };
-      const nativePixelRatio = determinePixelRatio();
-      let pixelRatioFloor = computeFullHdScale();
-      let pixelRatioCeiling = Math.max(nativePixelRatio, pixelRatioFloor);
-      let activePixelRatio = pixelRatioCeiling;
-      const applyPixelRatio = (ratio, { resize = true } = {}) => {
-        const clamped = THREE.MathUtils.clamp(
-          ratio,
-          pixelRatioFloor,
-          pixelRatioCeiling
-        );
-        activePixelRatio = clamped;
-        renderer.setPixelRatio(clamped);
-        if (resize) {
-          renderer.setSize(host.clientWidth, host.clientHeight, false);
-        }
-      };
-      applyPixelRatio(activePixelRatio, { resize: false });
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -12265,55 +12220,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Loop
       let lastStepTime = performance.now();
-      const pixelRatioMonitor = {
-        enabled:
-          pixelRatioCeiling - pixelRatioFloor > 0.05 &&
-          ((window.matchMedia?.('(pointer:coarse)').matches ?? false) ||
-            window.innerWidth <= 1366),
-        sampleWindow: 90,
-        samples: 0,
-        total: 0,
-        last: null,
-        floor: pixelRatioFloor,
-        ceiling: pixelRatioCeiling
-      };
       const step = (now) => {
-        if (pixelRatioMonitor.enabled) {
-          if (pixelRatioMonitor.last != null) {
-            const delta = now - pixelRatioMonitor.last;
-            pixelRatioMonitor.samples += 1;
-            pixelRatioMonitor.total += delta;
-            if (pixelRatioMonitor.samples >= pixelRatioMonitor.sampleWindow) {
-              const avg = pixelRatioMonitor.total / pixelRatioMonitor.samples;
-              if (
-                avg > FRAME_DROP_THRESHOLD_MS &&
-                activePixelRatio > pixelRatioMonitor.floor + 0.01
-              ) {
-                const nextRatio = Math.max(
-                  pixelRatioMonitor.floor,
-                  activePixelRatio * 0.9
-                );
-                if (nextRatio < activePixelRatio - 0.01) {
-                  applyPixelRatio(nextRatio);
-                }
-              } else if (
-                avg < FRAME_RECOVERY_THRESHOLD_MS &&
-                activePixelRatio < pixelRatioMonitor.ceiling - 0.01
-              ) {
-                const nextRatio = Math.min(
-                  pixelRatioMonitor.ceiling,
-                  Math.max(pixelRatioMonitor.floor, activePixelRatio * 1.05)
-                );
-                if (nextRatio > activePixelRatio + 0.01) {
-                  applyPixelRatio(nextRatio);
-                }
-              }
-              pixelRatioMonitor.samples = 0;
-              pixelRatioMonitor.total = 0;
-            }
-          }
-          pixelRatioMonitor.last = now;
-        }
         const rawDelta = Math.max(now - lastStepTime, 0);
         const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
         const appliedDeltaMs = deltaMs;
@@ -13199,29 +13106,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resize
         const onResize = () => {
-          const nextNative = determinePixelRatio();
-          pixelRatioFloor = computeFullHdScale();
-          pixelRatioCeiling = Math.max(nextNative, pixelRatioFloor);
-          pixelRatioMonitor.floor = pixelRatioFloor;
-          pixelRatioMonitor.ceiling = pixelRatioCeiling;
-          pixelRatioMonitor.enabled =
-            pixelRatioCeiling - pixelRatioFloor > 0.05 &&
-            ((window.matchMedia?.('(pointer:coarse)').matches ?? false) ||
-              window.innerWidth <= 1366);
-          if (activePixelRatio > pixelRatioCeiling + 0.01) {
-            applyPixelRatio(pixelRatioCeiling);
-          } else if (activePixelRatio < pixelRatioFloor - 0.01) {
-            applyPixelRatio(pixelRatioFloor);
-          } else if (pixelRatioCeiling - activePixelRatio > 0.12) {
-            const eased = Math.min(pixelRatioCeiling, activePixelRatio * 1.1);
-            if (eased > activePixelRatio + 0.01) {
-              applyPixelRatio(eased);
-            } else {
-              renderer.setSize(host.clientWidth, host.clientHeight);
-            }
-          } else {
-            renderer.setSize(host.clientWidth, host.clientHeight);
-          }
+          renderer.setSize(host.clientWidth, host.clientHeight);
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           const scaleChanged = applyWorldScaleRef.current?.() ?? false;
