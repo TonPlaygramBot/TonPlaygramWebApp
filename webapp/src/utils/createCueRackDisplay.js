@@ -97,8 +97,8 @@ export function createCueRackDisplay({
   disposables.push(frameGeom, { dispose: () => disposeMaterialWithWood(frameMat) });
 
   const clothCanvas = document.createElement('canvas');
-  clothCanvas.width = 1024;
-  clothCanvas.height = 1024;
+  clothCanvas.width = 640;
+  clothCanvas.height = 640;
   const ctx = clothCanvas.getContext('2d');
   if (ctx) {
     ctx.fillStyle = '#1c4a85';
@@ -144,7 +144,7 @@ export function createCueRackDisplay({
   applySRGBColorSpace(clothTexture);
   clothTexture.wrapS = THREE.RepeatWrapping;
   clothTexture.wrapT = THREE.RepeatWrapping;
-  clothTexture.anisotropy = 8;
+  clothTexture.anisotropy = 4;
   const clothMat = new THREE.MeshPhysicalMaterial({
     map: clothTexture,
     roughness: 0.75,
