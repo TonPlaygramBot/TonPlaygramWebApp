@@ -1,4 +1,3 @@
-/* global Image */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -7,123 +6,39 @@ import * as THREE from 'three';
 const lobbyRadius = 11;
 const doorRingRadius = lobbyRadius - 0.9;
 const ceilingHeight = 6;
-
-const hallwayArtwork = {
-  "Texas Hold'em": {
-    image:
-      'https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(0, 0, 0, 0.35)'
-  },
-  'Domino Royal 3D': {
-    image:
-      'https://images.unsplash.com/photo-1611604542873-41102c1e9b96?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(7, 14, 36, 0.45)'
-  },
-  'Black Jack Multiplayer': {
-    image:
-      'https://images.unsplash.com/photo-1504274066651-8d31a536b11a?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(0, 0, 0, 0.45)'
-  },
-  'Pool Royale': {
-    image:
-      'https://images.unsplash.com/photo-1617864064474-0b929be9dca0?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(2, 22, 36, 0.45)'
-  },
-  '3D Snooker': {
-    image:
-      'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(4, 20, 40, 0.5)'
-  },
-  'Goal Rush': {
-    image:
-      'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(0, 0, 0, 0.4)'
-  },
-  'Air Hockey': {
-    image:
-      'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(4, 10, 40, 0.4)'
-  },
-  'Table Tennis': {
-    image:
-      'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(8, 14, 36, 0.5)'
-  },
-  'Free Kick': {
-    image:
-      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(0, 0, 0, 0.45)'
-  },
-  'Snake & Ladder': {
-    image:
-      'https://images.unsplash.com/photo-1527694224012-bea14536c020?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(12, 12, 12, 0.4)'
-  },
-  'Falling Ball': {
-    image:
-      'https://images.unsplash.com/photo-1526413232644-8a50dd3a90b0?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(6, 8, 36, 0.45)'
-  },
-  'Murlan Royale': {
-    image:
-      'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(0, 0, 0, 0.48)'
-  },
-  'Chess Battle Royal': {
-    image:
-      'https://images.unsplash.com/photo-1529694157878-79a1c1f43dcf?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(0, 0, 0, 0.45)'
-  },
-  'Ludo Battle Royal': {
-    image:
-      'https://images.unsplash.com/photo-1610108707352-1a9edb21c0c1?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(10, 14, 52, 0.45)'
-  },
-  default: {
-    image:
-      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1280&q=80',
-    tint: 'rgba(6, 10, 30, 0.45)'
-  }
-};
-
-function drawMonitorScreen(canvas, game, artwork, image) {
+function drawMonitorScreen(canvas, game) {
   const ctx = canvas.getContext('2d');
   const width = canvas.width;
   const height = canvas.height;
   ctx.clearRect(0, 0, width, height);
 
-  if (image) {
-    const scale = Math.max(width / image.width, height / image.height);
-    const scaledWidth = image.width * scale;
-    const scaledHeight = image.height * scale;
-    const dx = (width - scaledWidth) / 2;
-    const dy = (height - scaledHeight) / 2;
-    ctx.drawImage(image, dx, dy, scaledWidth, scaledHeight);
-  } else {
-    const gradient = ctx.createLinearGradient(0, 0, width, height);
-    gradient.addColorStop(0, '#051022');
-    gradient.addColorStop(1, '#031f3b');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-  }
-
-  ctx.fillStyle = artwork.tint || 'rgba(0, 0, 0, 0.4)';
+  const bezelGradient = ctx.createLinearGradient(0, 0, width, height);
+  bezelGradient.addColorStop(0, '#080808');
+  bezelGradient.addColorStop(1, '#0f0f0f');
+  ctx.fillStyle = bezelGradient;
   ctx.fillRect(0, 0, width, height);
+
+  const glowGradient = ctx.createLinearGradient(0, 0, width, height);
+  glowGradient.addColorStop(0, 'rgba(30, 30, 30, 0.85)');
+  glowGradient.addColorStop(1, 'rgba(6, 6, 6, 0.95)');
+  ctx.fillStyle = glowGradient;
+  ctx.fillRect(32, 24, width - 64, height - 48);
 
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = 'bold 60px "Inter", Arial';
   ctx.lineJoin = 'round';
   ctx.lineWidth = 16;
-  ctx.strokeStyle = '#000000';
+  ctx.strokeStyle = '#111111';
   ctx.strokeText(game.name, width / 2, height / 2 - 18);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#ededed';
   ctx.fillText(game.name, width / 2, height / 2 - 18);
 
   ctx.font = '34px "Inter", Arial';
-  ctx.lineWidth = 10;
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#141414';
   ctx.strokeText('Tap to preview the lobby', width / 2, height / 2 + 68);
-  ctx.fillStyle = '#f7f7f7';
+  ctx.fillStyle = '#d7d7d7';
   ctx.fillText('Tap to preview the lobby', width / 2, height / 2 + 68);
 }
 
@@ -345,11 +260,16 @@ export default function GamesHallway({ games, onClose }) {
       frameGradient.addColorStop(1, '#4e2d17');
       ctx.strokeStyle = frameGradient;
       ctx.lineWidth = 28;
+      ctx.lineJoin = 'round';
       ctx.strokeRect(18, 18, 1024 - 36, 256 - 36);
-      ctx.font = 'bold 150px "Inter", Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.lineJoin = 'round';
+      let fontSize = 150;
+      const maxWidth = 1024 - 180;
+      do {
+        ctx.font = `bold ${fontSize}px "Inter", Arial`;
+        fontSize -= 6;
+      } while (fontSize > 96 && ctx.measureText(game.name).width > maxWidth);
       ctx.lineWidth = 26;
       ctx.strokeStyle = '#000000';
       ctx.strokeText(game.name, 512, 134);
@@ -357,7 +277,7 @@ export default function GamesHallway({ games, onClose }) {
       ctx.fillText(game.name, 512, 134);
 
       const signTex = new THREE.CanvasTexture(labelCanvas);
-      const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, transparent: true });
+      const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide });
 
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.1), signMat);
       sign.position.set(0, 2.18, 0.09);
@@ -367,25 +287,14 @@ export default function GamesHallway({ games, onClose }) {
       const screenCanvas = document.createElement('canvas');
       screenCanvas.width = 512;
       screenCanvas.height = 256;
-      const artwork = hallwayArtwork[game.name] || hallwayArtwork.default;
-      drawMonitorScreen(screenCanvas, game, artwork);
+      drawMonitorScreen(screenCanvas, game);
       const screenTex = new THREE.CanvasTexture(screenCanvas);
       screenTex.colorSpace = THREE.SRGBColorSpace;
       const screenMat = new THREE.MeshStandardMaterial({
         map: screenTex,
-        emissive: '#ffffff',
-        emissiveIntensity: 0.42
+        emissive: '#0a0a0a',
+        emissiveIntensity: 0.18
       });
-
-      if (artwork.image) {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          drawMonitorScreen(screenCanvas, game, artwork, img);
-          screenTex.needsUpdate = true;
-        };
-        img.src = artwork.image;
-      }
 
       const infoRadius = doorRingRadius - 2.4;
       const infoGroup = new THREE.Group();

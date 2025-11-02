@@ -1216,24 +1216,24 @@ arenaG.add(wall);
 
 const ARENA_DOOR_DIMENSIONS = Object.freeze({ width: 2.8, height: 3.4, thickness: 0.12 });
 const hallwayDoorTexture = textureLoader.load(
-  'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/cube/skyboxsun25deg/px.jpg'
+  'https://images.unsplash.com/photo-1523419409543-0c1df022bdd5?auto=format&fit=crop&w=1200&q=80'
 );
 hallwayDoorTexture.wrapS = THREE.RepeatWrapping;
 hallwayDoorTexture.wrapT = THREE.RepeatWrapping;
-hallwayDoorTexture.repeat.set(2.5, 1.5);
+hallwayDoorTexture.colorSpace = THREE.SRGBColorSpace;
+hallwayDoorTexture.repeat.set(1.2, 1.2);
 const hallwayDoorMaterial = new THREE.MeshStandardMaterial({
-  color: 0x111317,
+  color: 0x5b3319,
   map: hallwayDoorTexture,
-  roughness: 0.18,
-  metalness: 0.86,
-  envMapIntensity: 1.25
+  roughness: 0.35,
+  metalness: 0.25
 });
 const hallwayHandleMaterial = new THREE.MeshStandardMaterial({
-  color: 0xf6d37f,
+  color: 0xffd700,
   metalness: 1,
-  roughness: 0.12,
+  roughness: 0.2,
   emissive: 0xffe4a3,
-  emissiveIntensity: 0.45
+  emissiveIntensity: 0.2
 });
 const hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
 const hallwayDoorPivot = new THREE.Group();
@@ -1252,7 +1252,20 @@ hallwayDoor.receiveShadow = true;
 hallwayDoor.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, 0);
 hallwayDoorPivot.add(hallwayDoor);
 
-const hallwayHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 16), hallwayHandleMaterial);
+const hallwayHandlePlate = new THREE.Mesh(
+  new THREE.BoxGeometry(0.16, 0.46, 0.02),
+  new THREE.MeshStandardMaterial({ color: 0xc9a35a, metalness: 0.85, roughness: 0.22 })
+);
+hallwayHandlePlate.position.set(
+  ARENA_DOOR_DIMENSIONS.width - 0.6,
+  -0.35,
+  ARENA_DOOR_DIMENSIONS.thickness / 2 - 0.005
+);
+hallwayHandlePlate.castShadow = false;
+hallwayHandlePlate.receiveShadow = false;
+hallwayDoor.add(hallwayHandlePlate);
+
+const hallwayHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 24), hallwayHandleMaterial);
 hallwayHandle.rotation.z = Math.PI / 2;
 hallwayHandle.position.set(ARENA_DOOR_DIMENSIONS.width - 0.6, -0.35, ARENA_DOOR_DIMENSIONS.thickness / 2 + 0.03);
 hallwayHandle.castShadow = true;
@@ -1303,15 +1316,30 @@ walkwayFloor.position.set(
 walkwayFloor.receiveShadow = true;
 arenaG.add(walkwayFloor);
 
+const walkwayRunnerMaterialConfig = {
+  color: new THREE.Color(carpetMat.color.getHex()),
+  roughness: carpetMat.roughness,
+  metalness: carpetMat.metalness
+};
+if (carpetTextures.map) {
+  const walkwayMap = carpetTextures.map.clone();
+  walkwayMap.wrapS = walkwayMap.wrapT = THREE.RepeatWrapping;
+  walkwayMap.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+  walkwayMap.colorSpace = THREE.SRGBColorSpace;
+  walkwayMap.needsUpdate = true;
+  walkwayRunnerMaterialConfig.map = walkwayMap;
+}
+if (carpetTextures.bump) {
+  const walkwayBump = carpetTextures.bump.clone();
+  walkwayBump.wrapS = walkwayBump.wrapT = THREE.RepeatWrapping;
+  walkwayBump.repeat.set(ARENA_WALKWAY_WIDTH / 1.6, ARENA_WALKWAY_LENGTH / 3.2);
+  walkwayBump.needsUpdate = true;
+  walkwayRunnerMaterialConfig.bumpMap = walkwayBump;
+  walkwayRunnerMaterialConfig.bumpScale = 0.18;
+}
 const walkwayRunner = new THREE.Mesh(
   new THREE.PlaneGeometry(ARENA_WALKWAY_WIDTH * 0.42, ARENA_WALKWAY_LENGTH * 0.92),
-  new THREE.MeshStandardMaterial({
-    color: 0x2a1138,
-    roughness: 0.35,
-    metalness: 0.58,
-    emissive: 0x1b0621,
-    emissiveIntensity: 0.38
-  })
+  new THREE.MeshStandardMaterial(walkwayRunnerMaterialConfig)
 );
 walkwayRunner.rotation.x = -Math.PI / 2;
 walkwayRunner.position.set(0, walkwayFloor.position.y + 0.008, walkwayFloor.position.z);
@@ -1336,11 +1364,18 @@ walkwayOuterTrim.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2
 arenaG.add(walkwayOuterTrim);
 
 const walkwaySideGeo = new THREE.BoxGeometry(0.35, 1.2, ARENA_WALKWAY_LENGTH);
+const walkwayWallTexture = textureLoader.load(
+  'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=1600&q=80'
+);
+walkwayWallTexture.wrapS = THREE.RepeatWrapping;
+walkwayWallTexture.wrapT = THREE.RepeatWrapping;
+walkwayWallTexture.colorSpace = THREE.SRGBColorSpace;
+walkwayWallTexture.repeat.set(ARENA_WALKWAY_LENGTH / 2.2, 1.4);
 const walkwaySideMat = new THREE.MeshStandardMaterial({
-  color: 0x1c1a2a,
+  map: walkwayWallTexture,
   roughness: 0.48,
-  metalness: 0.52,
-  envMapIntensity: 0.9
+  metalness: 0.4,
+  envMapIntensity: 0.8
 });
 const walkwaySideAccentGeo = new THREE.BoxGeometry(0.12, 0.9, ARENA_WALKWAY_LENGTH - 0.6);
 const walkwaySideAccentMat = new THREE.MeshStandardMaterial({
