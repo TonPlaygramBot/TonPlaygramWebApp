@@ -424,11 +424,18 @@ export class PoolRoyaleRules {
     });
     const snapshot = serializeAmericanState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
+    const tableClear = snapshot.ballsOnTable.length === 0;
     const hud: HudInfo = {
-      next: lowest != null ? `ball ${lowest}` : 'rack clear',
-      phase: 'rotation',
+      next: lowest != null ? `ball ${lowest}` : tableClear ? 'frame over' : 'rack clear',
+      phase: tableClear ? 'complete' : 'rotation',
       scores: { ...snapshot.scores }
     };
+    let winner: FrameState['winner'];
+    if (tableClear) {
+      if (snapshot.scores.A > snapshot.scores.B) winner = 'A';
+      else if (snapshot.scores.B > snapshot.scores.A) winner = 'B';
+      else winner = 'TIE';
+    }
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -437,7 +444,8 @@ export class PoolRoyaleRules {
         B: { ...state.players.B, score: snapshot.scores.B }
       },
       ballOn: lowest != null ? [`BALL_${lowest}`] : [],
-      frameOver: false,
+      frameOver: tableClear,
+      winner,
       foul: result.foul
         ? {
             points: 0,
