@@ -57,6 +57,9 @@ const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
   return texture;
 };
 
+const textureLoader = new THREE.TextureLoader();
+textureLoader.setCrossOrigin?.('anonymous');
+
 const makeRoughnessMap = (width, height, base, variance) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -95,6 +98,9 @@ const disposeWoodTextures = (material) => {
   }
   material.map = null;
   material.roughnessMap = null;
+  if (material.userData) {
+    delete material.userData.woodTextureUrl;
+  }
 };
 
 export const WOOD_FINISH_PRESETS = Object.freeze([
@@ -137,6 +143,20 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       rotation: Math.PI / 2,
       textureSize: 3072
     }
+  }),
+  Object.freeze({
+    id: 'cafeHardwood',
+    label: 'Café Hardwood',
+    rail: {
+      repeat: { x: 8, y: 8 },
+      rotation: 0,
+      textureUrl: 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg'
+    },
+    frame: {
+      repeat: { x: 8, y: 8 },
+      rotation: 0,
+      textureUrl: 'https://threejs.org/examples/textures/hardwood2_diffuse.jpg'
+    }
   })
 ]);
 
@@ -170,7 +190,8 @@ const makeCacheKey = ({
   roughnessSize,
   roughnessBase,
   roughnessVariance,
-  sharedKey
+  sharedKey,
+  textureUrl
 }) =>
   [
     sharedKey,
@@ -181,7 +202,8 @@ const makeCacheKey = ({
     textureSize,
     roughnessSize,
     roughnessBase,
-    roughnessVariance
+    roughnessVariance,
+    textureUrl
   ]
     .map((value) =>
       typeof value === 'number' ? Number.parseFloat(value).toFixed(6) : String(value ?? '')
@@ -199,7 +221,8 @@ const ensureSharedWoodTextures = ({
   roughnessSize,
   roughnessBase,
   roughnessVariance,
-  sharedKey
+  sharedKey,
+  textureUrl
 }) => {
   const cacheKey = makeCacheKey({
     hue,
@@ -210,11 +233,22 @@ const ensureSharedWoodTextures = ({
     roughnessSize,
     roughnessBase,
     roughnessVariance,
-    sharedKey
+    sharedKey,
+    textureUrl
   });
   let entry = WOOD_TEXTURE_BASE_CACHE.get(cacheKey);
   if (!entry) {
-    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    let map;
+    if (textureUrl) {
+      map = textureLoader.load(textureUrl, (loaded) => {
+        applySRGBColorSpace(loaded);
+        loaded.needsUpdate = true;
+      });
+      applySRGBColorSpace(map);
+      map.anisotropy = 16;
+    } else {
+      map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    }
     const roughnessMap = makeRoughnessMap(
       roughnessSize,
       roughnessSize,
@@ -260,12 +294,13 @@ export const applyWoodTextures = (
     roughnessSize = DEFAULT_WOOD_ROUGHNESS_SIZE,
     roughnessBase = 0.18,
     roughnessVariance = 0.25,
-    sharedKey = null
+    sharedKey = null,
+    textureUrl = undefined
   } = {}
 ) => {
   if (!material) return null;
   disposeWoodTextures(material);
-  const baseTextures = sharedKey
+  const baseTextures = sharedKey || textureUrl
     ? ensureSharedWoodTextures({
         hue,
         sat,
@@ -275,7 +310,8 @@ export const applyWoodTextures = (
         roughnessSize,
         roughnessBase,
         roughnessVariance,
-        sharedKey
+        sharedKey,
+        textureUrl
       })
     : {
         map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
@@ -314,9 +350,15 @@ export const applyWoodTextures = (
     roughnessSize,
     roughnessBase,
     roughnessVariance,
-    sharedKey
+    sharedKey,
+    textureUrl
   };
   material.userData.woodRepeat = new THREE.Vector2(repeatVec.x, repeatVec.y);
+  if (textureUrl) {
+    material.userData.woodTextureUrl = textureUrl;
+  } else if (material.userData.woodTextureUrl) {
+    delete material.userData.woodTextureUrl;
+  }
   return { map, roughnessMap };
 };
 

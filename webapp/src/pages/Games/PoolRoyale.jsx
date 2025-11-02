@@ -660,11 +660,13 @@ const FRICTION = 0.996;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
-const TARGET_FPS = 90;
+const TARGET_FPS = 144;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const FRAME_TIME_SMOOTHING = 0.15;
-const FRAME_DROP_THRESHOLD_MS = 1000 / 55; // drop quality if sustained below ~55 FPS
-const FRAME_RECOVERY_THRESHOLD_MS = 1000 / 85; // ease quality back above ~85 FPS
+const FRAME_DROP_TARGET_RATIO = 55 / 90; // preserve the original drop trigger proportion relative to the target FPS
+const FRAME_RECOVERY_TARGET_RATIO = 85 / 90; // preserve the original recovery proportion relative to the target FPS
+const FRAME_DROP_THRESHOLD_MS = 1000 / (TARGET_FPS * FRAME_DROP_TARGET_RATIO); // drop quality if sustained below ~61% of target FPS
+const FRAME_RECOVERY_THRESHOLD_MS = 1000 / (TARGET_FPS * FRAME_RECOVERY_TARGET_RATIO); // ease quality back above ~94% of target FPS
 const FULL_HD_PIXEL_COUNT = 1920 * 1080;
 const MAX_FULL_HD_SCALE = 3;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
@@ -2136,6 +2138,25 @@ function resolveTextureSize(settings, material) {
   return undefined;
 }
 
+function resolveTextureUrl(settings, material) {
+  if (
+    settings &&
+    typeof settings.textureUrl === 'string' &&
+    settings.textureUrl.trim().length > 0
+  ) {
+    return settings.textureUrl.trim();
+  }
+  const existing = material?.userData?.__woodOptions?.textureUrl;
+  if (typeof existing === 'string' && existing.length > 0) {
+    return existing;
+  }
+  const stored = material?.userData?.woodTextureUrl;
+  if (typeof stored === 'string' && stored.length > 0) {
+    return stored;
+  }
+  return undefined;
+}
+
 function ensureMaterialWoodOptions(material, targetSettings) {
   if (!material) return null;
   const existing = material.userData?.__woodOptions;
@@ -2149,6 +2170,7 @@ function ensureMaterialWoodOptions(material, targetSettings) {
   const repeatVec = targetSettings?.repeat ?? new THREE.Vector2(1, 1);
   const rotation = targetSettings?.rotation ?? 0;
   const textureSize = targetSettings?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE;
+  const textureUrl = targetSettings?.textureUrl;
   applyWoodTextures(material, {
     hue: preset.hue,
     sat: preset.sat,
@@ -2157,6 +2179,7 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     repeat: { x: repeatVec.x, y: repeatVec.y },
     rotation,
     textureSize,
+    textureUrl,
     sharedKey: `pool-wood-${preset.id}`,
     ...SHARED_WOOD_SURFACE_PROPS
   });
@@ -2169,11 +2192,13 @@ function applyWoodTextureToMaterial(material, repeat) {
   const repeatVec = resolveRepeatVector(repeat, material);
   const rotation = resolveRotation(repeat, material);
   const textureSize = resolveTextureSize(repeat, material);
+  const textureUrl = resolveTextureUrl(repeat, material);
   const hadOptions = Boolean(material.userData?.__woodOptions);
   const options = ensureMaterialWoodOptions(material, {
     repeat: repeatVec,
     rotation,
-    textureSize
+    textureSize,
+    textureUrl
   });
   if (options) {
     const repeatChanged =
@@ -2184,12 +2209,30 @@ function applyWoodTextureToMaterial(material, repeat) {
     const textureSizeChanged =
       typeof textureSize === 'number' &&
       Math.abs((options.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE) - textureSize) > 1e-6;
+    const optionTextureUrl =
+      typeof options.textureUrl === 'string' && options.textureUrl.length > 0
+        ? options.textureUrl
+        : undefined;
+    const normalizedTextureUrl = textureUrl;
+    const textureUrlChanged = normalizedTextureUrl !== optionTextureUrl;
+    const nextTextureUrl = textureUrlChanged
+      ? normalizedTextureUrl
+      : optionTextureUrl;
     if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged)) {
       applyWoodTextures(material, {
         ...options,
         repeat: { x: repeatVec.x, y: repeatVec.y },
         rotation,
-        textureSize: textureSize ?? options.textureSize
+        textureSize: textureSize ?? options.textureSize,
+        textureUrl: nextTextureUrl
+      });
+    } else if (hadOptions && textureUrlChanged) {
+      applyWoodTextures(material, {
+        ...options,
+        repeat: { x: repeatVec.x, y: repeatVec.y },
+        rotation,
+        textureSize: textureSize ?? options.textureSize,
+        textureUrl: nextTextureUrl
       });
     }
   } else {
@@ -2220,6 +2263,17 @@ function applyWoodTextureToMaterial(material, repeat) {
   if (typeof textureSize === 'number') {
     material.userData.woodTextureSize = textureSize;
   }
+  const updatedOptions = material.userData.__woodOptions;
+  const storedTextureUrl =
+    textureUrl ??
+    (typeof updatedOptions?.textureUrl === 'string' && updatedOptions.textureUrl.length > 0
+      ? updatedOptions.textureUrl
+      : undefined);
+  if (storedTextureUrl) {
+    material.userData.woodTextureUrl = storedTextureUrl;
+  } else if (material.userData.woodTextureUrl) {
+    delete material.userData.woodTextureUrl;
+  }
 }
 
 function toPlainWoodSurfaceConfig(settings) {
@@ -2243,13 +2297,18 @@ function toPlainWoodSurfaceConfig(settings) {
   const rotation = typeof settings.rotation === 'number' ? settings.rotation : 0;
   const textureSize =
     typeof settings.textureSize === 'number' ? settings.textureSize : undefined;
+  const textureUrl =
+    typeof settings.textureUrl === 'string' && settings.textureUrl.trim().length > 0
+      ? settings.textureUrl.trim()
+      : undefined;
   return {
     repeat: {
       x: Number.isFinite(repeatX) ? repeatX : 1,
       y: Number.isFinite(repeatY) ? repeatY : 1
     },
     rotation,
-    textureSize
+    textureSize,
+    textureUrl
   };
 }
 
@@ -2264,7 +2323,8 @@ function resolveWoodSurfaceConfig(option, fallback) {
       y: resolvedOption?.repeat?.y ?? base.repeat.y
     },
     rotation: resolvedOption?.rotation ?? base.rotation,
-    textureSize: resolvedOption?.textureSize ?? base.textureSize
+    textureSize: resolvedOption?.textureSize ?? base.textureSize,
+    textureUrl: resolvedOption?.textureUrl ?? base.textureUrl
   };
 }
 
@@ -2277,7 +2337,11 @@ function cloneWoodSurfaceConfig(config) {
     },
     rotation: typeof config.rotation === 'number' ? config.rotation : 0,
     textureSize:
-      typeof config.textureSize === 'number' ? config.textureSize : undefined
+      typeof config.textureSize === 'number' ? config.textureSize : undefined,
+    textureUrl:
+      typeof config.textureUrl === 'string' && config.textureUrl.length > 0
+        ? config.textureUrl
+        : undefined
   };
 }
 
@@ -4886,14 +4950,16 @@ function Table3D(
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
     rotation: woodRailSurface.rotation,
-    textureSize: woodRailSurface.textureSize
+    textureSize: woodRailSurface.textureSize,
+    textureUrl: woodRailSurface.textureUrl
   });
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
       rotation: woodRailSurface.rotation,
-      textureSize: woodRailSurface.textureSize
+      textureSize: woodRailSurface.textureSize,
+      textureUrl: woodRailSurface.textureUrl
     });
     mesh.material.needsUpdate = true;
   });
@@ -6324,13 +6390,15 @@ function Table3D(
   applyWoodTextureToMaterial(frameMat, {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
-    textureSize: woodFrameSurface.textureSize
+    textureSize: woodFrameSurface.textureSize,
+    textureUrl: woodFrameSurface.textureUrl
   });
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, {
       repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
       rotation: woodFrameSurface.rotation,
-      textureSize: woodFrameSurface.textureSize
+      textureSize: woodFrameSurface.textureSize,
+      textureUrl: woodFrameSurface.textureUrl
     });
   }
   finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig(woodFrameSurface);
@@ -6339,7 +6407,8 @@ function Table3D(
     applyWoodTextureToMaterial(railMat, {
       repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
       rotation: woodFrameSurface.rotation,
-      textureSize: woodFrameSurface.textureSize
+      textureSize: woodFrameSurface.textureSize,
+      textureUrl: woodFrameSurface.textureUrl
     });
   }
   legPositions.forEach(([lx, lz]) => {
@@ -6487,14 +6556,16 @@ function applyTableFinishToTable(table, finish) {
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
     rotation: nextRailSurface.rotation,
-    textureSize: nextRailSurface.textureSize
+    textureSize: nextRailSurface.textureSize,
+    textureUrl: nextRailSurface.textureUrl
   });
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
       rotation: nextRailSurface.rotation,
-      textureSize: nextRailSurface.textureSize
+      textureSize: nextRailSurface.textureSize,
+      textureUrl: nextRailSurface.textureUrl
     });
     if (mesh.material.color && railMat.color) {
       mesh.material.color.copy(railMat.color);
@@ -6504,13 +6575,15 @@ function applyTableFinishToTable(table, finish) {
   applyWoodTextureToMaterial(frameMat, {
     repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
     rotation: nextFrameSurface.rotation,
-    textureSize: nextFrameSurface.textureSize
+    textureSize: nextFrameSurface.textureSize,
+    textureUrl: nextFrameSurface.textureUrl
   });
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize
+      textureSize: nextFrameSurface.textureSize,
+      textureUrl: nextFrameSurface.textureUrl
     });
   }
   if (!resolvedWoodOption?.rail) {
