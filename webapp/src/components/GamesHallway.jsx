@@ -1,3 +1,4 @@
+/* global Image */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -6,6 +7,125 @@ import * as THREE from 'three';
 const lobbyRadius = 11;
 const doorRingRadius = lobbyRadius - 0.9;
 const ceilingHeight = 6;
+
+const hallwayArtwork = {
+  "Texas Hold'em": {
+    image:
+      'https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(0, 0, 0, 0.35)'
+  },
+  'Domino Royal 3D': {
+    image:
+      'https://images.unsplash.com/photo-1611604542873-41102c1e9b96?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(7, 14, 36, 0.45)'
+  },
+  'Black Jack Multiplayer': {
+    image:
+      'https://images.unsplash.com/photo-1504274066651-8d31a536b11a?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(0, 0, 0, 0.45)'
+  },
+  'Pool Royale': {
+    image:
+      'https://images.unsplash.com/photo-1617864064474-0b929be9dca0?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(2, 22, 36, 0.45)'
+  },
+  '3D Snooker': {
+    image:
+      'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(4, 20, 40, 0.5)'
+  },
+  'Goal Rush': {
+    image:
+      'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(0, 0, 0, 0.4)'
+  },
+  'Air Hockey': {
+    image:
+      'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(4, 10, 40, 0.4)'
+  },
+  'Table Tennis': {
+    image:
+      'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(8, 14, 36, 0.5)'
+  },
+  'Free Kick': {
+    image:
+      'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(0, 0, 0, 0.45)'
+  },
+  'Snake & Ladder': {
+    image:
+      'https://images.unsplash.com/photo-1527694224012-bea14536c020?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(12, 12, 12, 0.4)'
+  },
+  'Falling Ball': {
+    image:
+      'https://images.unsplash.com/photo-1526413232644-8a50dd3a90b0?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(6, 8, 36, 0.45)'
+  },
+  'Murlan Royale': {
+    image:
+      'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(0, 0, 0, 0.48)'
+  },
+  'Chess Battle Royal': {
+    image:
+      'https://images.unsplash.com/photo-1529694157878-79a1c1f43dcf?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(0, 0, 0, 0.45)'
+  },
+  'Ludo Battle Royal': {
+    image:
+      'https://images.unsplash.com/photo-1610108707352-1a9edb21c0c1?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(10, 14, 52, 0.45)'
+  },
+  default: {
+    image:
+      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1280&q=80',
+    tint: 'rgba(6, 10, 30, 0.45)'
+  }
+};
+
+function drawMonitorScreen(canvas, game, artwork, image) {
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  ctx.clearRect(0, 0, width, height);
+
+  if (image) {
+    const scale = Math.max(width / image.width, height / image.height);
+    const scaledWidth = image.width * scale;
+    const scaledHeight = image.height * scale;
+    const dx = (width - scaledWidth) / 2;
+    const dy = (height - scaledHeight) / 2;
+    ctx.drawImage(image, dx, dy, scaledWidth, scaledHeight);
+  } else {
+    const gradient = ctx.createLinearGradient(0, 0, width, height);
+    gradient.addColorStop(0, '#051022');
+    gradient.addColorStop(1, '#031f3b');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+  }
+
+  ctx.fillStyle = artwork.tint || 'rgba(0, 0, 0, 0.4)';
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = 'bold 60px "Inter", Arial';
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = 16;
+  ctx.strokeStyle = '#000000';
+  ctx.strokeText(game.name, width / 2, height / 2 - 18);
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(game.name, width / 2, height / 2 - 18);
+
+  ctx.font = '34px "Inter", Arial';
+  ctx.lineWidth = 10;
+  ctx.strokeText('Tap to preview the lobby', width / 2, height / 2 + 68);
+  ctx.fillStyle = '#f7f7f7';
+  ctx.fillText('Tap to preview the lobby', width / 2, height / 2 + 68);
+}
 
 function useBodyScrollLock(isLocked) {
   useEffect(() => {
@@ -52,9 +172,10 @@ export default function GamesHallway({ games, onClose }) {
     if (!container) return undefined;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0c0d18');
+    scene.background = new THREE.Color('#05060f');
 
     const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
 
     const camera = new THREE.PerspectiveCamera(
       65,
@@ -74,35 +195,48 @@ export default function GamesHallway({ games, onClose }) {
     container.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = 'none';
 
-    const ambient = new THREE.AmbientLight(0xfff4d6, 0.45);
+    const ambient = new THREE.AmbientLight(0xfff4d6, 0.6);
     scene.add(ambient);
 
-    const centerGlow = new THREE.PointLight(0xffd27a, 3.4, 60, 2);
-    centerGlow.position.set(0, ceilingHeight - 0.4, 0);
+    const hemiLight = new THREE.HemisphereLight(0xfff8e7, 0x0a0d21, 0.45);
+    scene.add(hemiLight);
+
+    const centerGlow = new THREE.PointLight(0xffd27a, 3.8, 65, 1.6);
+    centerGlow.position.set(0, ceilingHeight - 0.3, 0);
     scene.add(centerGlow);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.55);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
     dirLight.position.set(6, 12, 4);
     scene.add(dirLight);
 
-    const floorTex = loader.load('https://threejsfundamentals.org/threejs/resources/images/checker.png');
+    const floorTex = loader.load(
+      'https://images.unsplash.com/photo-1591083832398-8829a66b8125?auto=format&fit=crop&w=1600&q=80'
+    );
     floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-    floorTex.repeat.set(8, 8);
+    floorTex.repeat.set(6, 6);
+    floorTex.colorSpace = THREE.SRGBColorSpace;
     const floorMat = new THREE.MeshStandardMaterial({
       map: floorTex,
-      color: '#20223f',
-      roughness: 0.85,
-      metalness: 0.08
+      roughness: 0.3,
+      metalness: 0.25
     });
     const floor = new THREE.Mesh(new THREE.CircleGeometry(lobbyRadius, 72), floorMat);
     floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const wallTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@master/examples/textures/brick_diffuse.jpg');
+    const wallTex = loader.load(
+      'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=1600&q=80'
+    );
     wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-    wallTex.repeat.set(12, 3);
-    const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: 0.75, side: THREE.BackSide });
+    wallTex.repeat.set(16, 4);
+    wallTex.colorSpace = THREE.SRGBColorSpace;
+    const wallMat = new THREE.MeshStandardMaterial({
+      map: wallTex,
+      roughness: 0.6,
+      metalness: 0.15,
+      side: THREE.BackSide
+    });
     const walls = new THREE.Mesh(new THREE.CylinderGeometry(lobbyRadius, lobbyRadius, ceilingHeight, 96, 1, true), wallMat);
     walls.position.y = ceilingHeight / 2;
     walls.receiveShadow = true;
@@ -116,11 +250,26 @@ export default function GamesHallway({ games, onClose }) {
 
     const centerRing = new THREE.Mesh(
       new THREE.TorusGeometry(lobbyRadius - 2, 0.12, 16, 128),
-      new THREE.MeshStandardMaterial({ color: '#ffd45e', emissive: '#c48a16', emissiveIntensity: 0.35, roughness: 0.4 })
+      new THREE.MeshStandardMaterial({ color: '#ffd45e', emissive: '#f5c86b', emissiveIntensity: 0.42, roughness: 0.35 })
     );
     centerRing.rotation.x = Math.PI / 2;
     centerRing.position.y = 0.02;
     scene.add(centerRing);
+
+    const baseboard = new THREE.Mesh(
+      new THREE.CylinderGeometry(lobbyRadius - 0.15, lobbyRadius - 0.15, 0.35, 128, 1, true),
+      new THREE.MeshStandardMaterial({ color: '#1a1a2d', metalness: 0.4, roughness: 0.45, side: THREE.DoubleSide })
+    );
+    baseboard.position.y = 0.17;
+    scene.add(baseboard);
+
+    const coveLight = new THREE.Mesh(
+      new THREE.TorusGeometry(lobbyRadius - 1.2, 0.06, 16, 128),
+      new THREE.MeshBasicMaterial({ color: '#ffe7a3' })
+    );
+    coveLight.rotation.x = Math.PI / 2;
+    coveLight.position.y = ceilingHeight - 0.25;
+    scene.add(coveLight);
 
     const playerPad = new THREE.Mesh(
       new THREE.CylinderGeometry(1.1, 1.1, 0.2, 48),
@@ -137,9 +286,17 @@ export default function GamesHallway({ games, onClose }) {
     playerGlow.position.y = 0.01;
     scene.add(playerGlow);
 
-    const doorTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/wood/oak_planks_diff_1k.jpg');
+    const doorTex = loader.load(
+      'https://images.unsplash.com/photo-1523419409543-0c1df022bdd5?auto=format&fit=crop&w=1200&q=80'
+    );
+    doorTex.colorSpace = THREE.SRGBColorSpace;
     const goldHandleMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 });
-    const doorMat = new THREE.MeshStandardMaterial({ map: doorTex, roughness: 0.4, metalness: 0.2 });
+    const doorMat = new THREE.MeshStandardMaterial({
+      map: doorTex,
+      color: '#5b3319',
+      roughness: 0.35,
+      metalness: 0.25
+    });
     const doorGeo = new THREE.BoxGeometry(2.8, 3.4, 0.12);
 
     const interactable = [];
@@ -164,67 +321,71 @@ export default function GamesHallway({ games, onClose }) {
       doorGroup.add(door);
       interactable.push(door);
 
-      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 16), goldHandleMat);
+      const handlePlate = new THREE.Mesh(
+        new THREE.BoxGeometry(0.12, 0.42, 0.015),
+        new THREE.MeshStandardMaterial({ color: '#f4d77d', metalness: 0.85, roughness: 0.18 })
+      );
+      handlePlate.position.set(1.05, 1.32, 0.01);
+      door.add(handlePlate);
+
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.34, 24), goldHandleMat);
       handle.rotation.z = Math.PI / 2;
-      handle.position.set(1.05, 1.3, 0);
+      handle.position.set(1.05, 1.32, 0.05);
       door.add(handle);
 
       const labelCanvas = document.createElement('canvas');
       labelCanvas.width = 1024;
       labelCanvas.height = 256;
       const ctx = labelCanvas.getContext('2d');
-      ctx.fillStyle = '#ffe55a';
+      ctx.fillStyle = '#10121e';
       ctx.fillRect(0, 0, 1024, 256);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 32;
-      ctx.strokeRect(16, 16, 1024 - 32, 256 - 32);
-      ctx.font = 'bold 140px "Inter", Arial';
+      const frameGradient = ctx.createLinearGradient(0, 0, 1024, 0);
+      frameGradient.addColorStop(0, '#4e2d17');
+      frameGradient.addColorStop(0.5, '#c58c43');
+      frameGradient.addColorStop(1, '#4e2d17');
+      ctx.strokeStyle = frameGradient;
+      ctx.lineWidth = 28;
+      ctx.strokeRect(18, 18, 1024 - 36, 256 - 36);
+      ctx.font = 'bold 150px "Inter", Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.lineJoin = 'round';
-      ctx.lineWidth = 22;
+      ctx.lineWidth = 26;
       ctx.strokeStyle = '#000000';
-      ctx.strokeText(game.name, 512, 128);
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillText(game.name, 512, 128);
+      ctx.strokeText(game.name, 512, 134);
+      ctx.fillStyle = '#ffe55a';
+      ctx.fillText(game.name, 512, 134);
 
       const signTex = new THREE.CanvasTexture(labelCanvas);
       const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide, transparent: true });
 
       const sign = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 1.1), signMat);
-      sign.position.set(0, 1.96, 0.09);
+      sign.position.set(0, 2.18, 0.09);
       sign.rotation.y = Math.PI;
       door.add(sign);
 
       const screenCanvas = document.createElement('canvas');
       screenCanvas.width = 512;
       screenCanvas.height = 256;
-      const sctx = screenCanvas.getContext('2d');
-      sctx.fillStyle = '#021024';
-      sctx.fillRect(0, 0, 512, 256);
-      sctx.strokeStyle = '#000000';
-      sctx.lineWidth = 12;
-      sctx.strokeRect(6, 6, 512 - 12, 256 - 12);
-      sctx.textAlign = 'center';
-      sctx.textBaseline = 'middle';
-      sctx.font = 'bold 56px "Inter", Arial';
-      sctx.lineJoin = 'round';
-      sctx.strokeStyle = '#000000';
-      sctx.lineWidth = 16;
-      sctx.strokeText(game.name, 256, 96);
-      sctx.fillStyle = '#0affff';
-      sctx.fillText(game.name, 256, 96);
-      sctx.font = '32px "Inter", Arial';
-      sctx.lineWidth = 10;
-      sctx.strokeText('Tap to enter the game', 256, 178);
-      sctx.fillStyle = '#9fffe8';
-      sctx.fillText('Tap to enter the game', 256, 178);
+      const artwork = hallwayArtwork[game.name] || hallwayArtwork.default;
+      drawMonitorScreen(screenCanvas, game, artwork);
       const screenTex = new THREE.CanvasTexture(screenCanvas);
+      screenTex.colorSpace = THREE.SRGBColorSpace;
       const screenMat = new THREE.MeshStandardMaterial({
         map: screenTex,
-        emissive: '#00ffaa',
-        emissiveIntensity: 1.1
+        emissive: '#ffffff',
+        emissiveIntensity: 0.42
       });
+
+      if (artwork.image) {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          drawMonitorScreen(screenCanvas, game, artwork, img);
+          screenTex.needsUpdate = true;
+        };
+        img.src = artwork.image;
+      }
 
       const infoRadius = doorRingRadius - 2.4;
       const infoGroup = new THREE.Group();
