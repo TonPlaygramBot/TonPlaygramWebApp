@@ -489,13 +489,14 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
+const TABLE_REDUCTION = 0.78; // shrink the entire 3D build by ~22% while keeping proportions identical
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 1.17; // reduce snooker build to Pool Royale footprint without altering proportions
+const TABLE_SCALE = 1.17 * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -3059,8 +3060,8 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405; // glide the player camera slightly closer to the cloth
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405 / TABLE_REDUCTION; // keep orbit distance consistent after scaling the table down
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08 / TABLE_REDUCTION;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
@@ -6650,15 +6651,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
-  const [pocketLinerId, setPocketLinerId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerPocketLiner');
-      if (stored && POCKET_LINER_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_POCKET_LINER_OPTION_ID;
-  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -6666,12 +6658,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
-  );
-  const activePocketLinerOption = useMemo(
-    () =>
-      POCKET_LINER_OPTIONS.find((opt) => opt.id === pocketLinerId) ??
-      POCKET_LINER_OPTIONS[0],
-    [pocketLinerId]
   );
   const activeWoodTexture = useMemo(
     () =>
@@ -6943,7 +6929,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const chromeSelection = activeChromeOption;
     const clothSelection = activeClothOption;
     const woodSelection = activeWoodTexture;
-    const linerSelection = activePocketLinerOption;
+    const linerSelection = POCKET_LINER_OPTIONS[0];
     return {
       ...baseFinish,
       clothDetail:
@@ -6992,13 +6978,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [
-    tableFinishId,
-    activeChromeOption,
-    activeClothOption,
-    activeWoodTexture,
-    activePocketLinerOption
-  ]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -7022,11 +7002,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerPocketLiner', pocketLinerId);
-    }
-  }, [pocketLinerId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
@@ -13612,46 +13587,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                             style={{ backgroundColor: toHexColor(option.color) }}
                             aria-hidden="true"
                           />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Pocket Liners
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {POCKET_LINER_OPTIONS.map((option) => {
-                    const active = option.id === pocketLinerId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setPocketLinerId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="flex h-3.5 w-6 overflow-hidden rounded-full border border-white/40"
-                            aria-hidden="true"
-                          >
-                            <span
-                              className="h-full w-1/2"
-                              style={{ backgroundColor: toHexColor(option.jawColor) }}
-                            />
-                            <span
-                              className="h-full w-1/2"
-                              style={{ backgroundColor: toHexColor(option.rimColor) }}
-                            />
-                          </span>
                           {option.label}
                         </span>
                       </button>
