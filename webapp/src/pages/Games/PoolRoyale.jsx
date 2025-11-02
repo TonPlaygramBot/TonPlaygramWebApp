@@ -527,7 +527,9 @@ const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the c
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
-const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
+const POCKET_JAW_SEGMENT_MIN = 144; // base tessellation for smoother arcs
+const POCKET_JAW_CURVE_SEGMENTS_MIN = 96;
+const POCKET_RIM_CURVE_SEGMENTS_MIN = 72;
 const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
@@ -647,7 +649,7 @@ const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
-const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
+const BALL_SEGMENTS = Object.freeze({ width: 96, height: 72 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
@@ -2671,9 +2673,9 @@ function softenOuterExtrudeEdges(geometry, depth, radiusRatio = 0.25, options = 
 
 const CARPET_QUALITY = (() => {
   const defaults = {
-    textureSize: 1024,
-    anisotropy: 8,
-    bumpAnisotropy: 6,
+    textureSize: 768,
+    anisotropy: 6,
+    bumpAnisotropy: 4,
     generateMipmaps: true
   };
 
@@ -2697,9 +2699,9 @@ const CARPET_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 768,
-      anisotropy: 6,
-      bumpAnisotropy: 4
+      textureSize: 512,
+      anisotropy: 4,
+      bumpAnisotropy: 3
     };
   }
 
@@ -2715,14 +2717,20 @@ const CARPET_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 896 : 640,
-      anisotropy: highDensity ? 6 : 4,
-      bumpAnisotropy: highDensity ? 4 : 3,
+      textureSize: highDensity ? 640 : 480,
+      anisotropy: highDensity ? 4 : 3,
+      bumpAnisotropy: highDensity ? 3 : 2,
       generateMipmaps: true
     };
   }
 
-  return defaults;
+  const desktopHighDensity = dpr >= 2;
+  return {
+    textureSize: desktopHighDensity ? 896 : 704,
+    anisotropy: desktopHighDensity ? 6 : 5,
+    bumpAnisotropy: desktopHighDensity ? 4 : 3,
+    generateMipmaps: true
+  };
 })();
 
 const createCarpetTextures = (() => {
@@ -3109,21 +3117,21 @@ const createTripodBroadcastCamera = (() => {
     envMapIntensity: 1.5
   });
 
-  const hubGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.05, 16);
-  const legGeo = new THREE.CylinderGeometry(0.03, 0.015, 1.2, 12);
-  const footGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.02, 12);
-  const braceGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.7, 8);
-  const ballGeo = new THREE.SphereGeometry(0.07, 16, 16);
+  const hubGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.05, 12);
+  const legGeo = new THREE.CylinderGeometry(0.03, 0.015, 1.2, 8);
+  const footGeo = new THREE.CylinderGeometry(0.045, 0.045, 0.02, 8);
+  const braceGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.7, 6);
+  const ballGeo = new THREE.SphereGeometry(0.07, 12, 10);
   const plateGeo = new THREE.BoxGeometry(0.22, 0.02, 0.14);
   const mountGeo = new THREE.BoxGeometry(0.2, 0.02, 0.12);
-  const handleGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.35, 8);
-  const gripGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.12, 10);
+  const handleGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.35, 6);
+  const gripGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.12, 8);
   const bodyGeo = new THREE.BoxGeometry(0.42, 0.22, 0.2);
-  const lensTubeGeo = new THREE.CylinderGeometry(0.06, 0.065, 0.16, 24);
-  const lensGlassGeo = new THREE.CircleGeometry(0.058, 24);
+  const lensTubeGeo = new THREE.CylinderGeometry(0.06, 0.065, 0.16, 16);
+  const lensGlassGeo = new THREE.CircleGeometry(0.058, 16);
   const hoodGeo = new THREE.BoxGeometry(0.12, 0.09, 0.12);
   const vfGeo = new THREE.BoxGeometry(0.14, 0.08, 0.08);
-  const topHandleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.24, 12);
+  const topHandleGeo = new THREE.CylinderGeometry(0.015, 0.015, 0.24, 8);
 
   const LEG_SPREAD = 0.45;
   const LEG_TILT = 0.38;
@@ -3248,7 +3256,7 @@ const createTripodBroadcastCamera = (() => {
       new THREE.Vector3(-0.2, 0.1, 0.15),
       new THREE.Vector3(-0.25, 0.02, 0.0)
     );
-    const cableGeo = new THREE.TubeGeometry(cableCurve, 20, 0.005, 6, false);
+    const cableGeo = new THREE.TubeGeometry(cableCurve, 12, 0.005, 6, false);
     const cable = new THREE.Mesh(cableGeo, rubber);
     cable.castShadow = true;
     cameraAssembly.add(cable);
@@ -5122,7 +5130,7 @@ function Table3D(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
     TABLE.THICK,
-    48,
+    72,
     1,
     true
   );
@@ -5141,7 +5149,7 @@ function Table3D(
   const pocketShroudGeo = new THREE.RingGeometry(
     POCKET_TOP_R * 0.9,
     POCKET_TOP_R * 1.14,
-    96
+    144
   );
   pocketShroudGeo.rotateX(-Math.PI / 2);
   const pocketBaseMat = new THREE.MeshStandardMaterial({
@@ -5149,7 +5157,7 @@ function Table3D(
     metalness: 0.16,
     roughness: 0.68
   });
-  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 64);
+  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 96);
   pocketBaseGeo.rotateX(-Math.PI / 2);
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
@@ -5992,7 +6000,10 @@ function Table3D(
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
-      curveSegments: Math.max(64, Math.ceil(localJawAngle / (Math.PI / 48))),
+      curveSegments: Math.max(
+        POCKET_JAW_CURVE_SEGMENTS_MIN,
+        Math.ceil((localJawAngle / Math.PI) * 192)
+      ),
       steps: 1
     });
     jawGeom.rotateX(-Math.PI / 2);
@@ -6014,7 +6025,10 @@ function Table3D(
       const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
         depth: rimDepth,
         bevelEnabled: false,
-        curveSegments: Math.max(48, Math.ceil(localJawAngle / (Math.PI / 64))),
+        curveSegments: Math.max(
+          POCKET_RIM_CURVE_SEGMENTS_MIN,
+          Math.ceil((localJawAngle / Math.PI) * 160)
+        ),
         steps: 1
       });
       rimGeom.rotateX(-Math.PI / 2);
@@ -8035,6 +8049,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const host = mountRef.current;
     if (!host) return;
     const cueRackDisposers = [];
+    const environmentDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
         if (pocketCameraStateRef.current === active) return;
@@ -8157,13 +8172,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         speed = 220
       } = {}) => {
         const canvas = document.createElement('canvas');
-        canvas.width = 2048;
-        canvas.height = 320;
+        canvas.width = 1536;
+        canvas.height = 256;
         const ctx = canvas.getContext('2d');
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 4;
+        texture.anisotropy = 2;
         applySRGBColorSpace(texture);
         let offset = 0;
         return {
@@ -8194,7 +8209,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const createMatchTvEntry = () => {
         const baseWidth = 1024;
         const baseHeight = 512;
-        const resolutionScale = 1;
+        const resolutionScale = 0.75;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(baseWidth * resolutionScale);
         canvas.height = Math.round(baseHeight * resolutionScale);
@@ -8202,7 +8217,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const texture = new THREE.CanvasTexture(canvas);
         texture.minFilter = THREE.LinearFilter;
         texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 8;
+        texture.anisotropy = 4;
         applySRGBColorSpace(texture);
         let pulse = 0;
         const createAvatarStore = () => ({
@@ -8476,6 +8491,35 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         roughness: 0.88,
         metalness: 0.06
       });
+      if (typeof document !== 'undefined') {
+        const wallCanvas = document.createElement('canvas');
+        wallCanvas.width = 256;
+        wallCanvas.height = 128;
+        const wallCtx = wallCanvas.getContext('2d');
+        if (wallCtx) {
+          const grad = wallCtx.createLinearGradient(0, 0, 0, wallCanvas.height);
+          grad.addColorStop(0, '#d3ecff');
+          grad.addColorStop(1, '#8bb6d6');
+          wallCtx.fillStyle = grad;
+          wallCtx.fillRect(0, 0, wallCanvas.width, wallCanvas.height);
+          wallCtx.globalAlpha = 0.15;
+          wallCtx.fillStyle = '#ffffff';
+          for (let y = 0; y < wallCanvas.height; y += 8) {
+            wallCtx.fillRect(0, y, wallCanvas.width, 2);
+          }
+          wallCtx.globalAlpha = 1;
+        }
+        const wallTexture = new THREE.CanvasTexture(wallCanvas);
+        wallTexture.minFilter = THREE.LinearFilter;
+        wallTexture.magFilter = THREE.LinearFilter;
+        wallTexture.anisotropy = 2;
+        wallTexture.wrapS = wallTexture.wrapT = THREE.RepeatWrapping;
+        wallTexture.repeat.set(1, 1);
+        applySRGBColorSpace(wallTexture);
+        wallMat.map = wallTexture;
+        wallMat.needsUpdate = true;
+        environmentDisposers.push(() => wallTexture.dispose());
+      }
 
       const makeWall = (width, height, depth) => {
         const wall = new THREE.Mesh(
@@ -13492,6 +13536,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
           chalkAssistTargetRef.current = false;
+          while (environmentDisposers.length) {
+            const dispose = environmentDisposers.pop();
+            try {
+              dispose?.();
+            } catch {}
+          }
           while (cueRackDisposers.length) {
             const dispose = cueRackDisposers.pop();
             try {
