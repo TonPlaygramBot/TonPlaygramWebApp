@@ -141,15 +141,15 @@ export default function GamesHallway({ games, onClose }) {
     scene.add(floor);
 
     const wallTex = loader.load(
-      'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=1600&q=80'
+      'https://images.unsplash.com/photo-1528222354212-a29573cdb844?auto=format&fit=crop&w=1600&q=80'
     );
     wallTex.wrapS = wallTex.wrapT = THREE.RepeatWrapping;
-    wallTex.repeat.set(16, 4);
+    wallTex.repeat.set(12, 3.5);
     wallTex.colorSpace = THREE.SRGBColorSpace;
     const wallMat = new THREE.MeshStandardMaterial({
       map: wallTex,
-      roughness: 0.6,
-      metalness: 0.15,
+      roughness: 0.55,
+      metalness: 0.18,
       side: THREE.BackSide
     });
     const walls = new THREE.Mesh(new THREE.CylinderGeometry(lobbyRadius, lobbyRadius, ceilingHeight, 96, 1, true), wallMat);
@@ -163,6 +163,34 @@ export default function GamesHallway({ games, onClose }) {
     ceiling.position.y = ceilingHeight;
     scene.add(ceiling);
 
+    const ceilingLights = new THREE.Group();
+    const ceilingLightMaterial = new THREE.MeshStandardMaterial({
+      color: '#fef7dc',
+      emissive: '#fff2c4',
+      emissiveIntensity: 1.4,
+      roughness: 0.3
+    });
+    const ceilingLightGeometry = new THREE.PlaneGeometry(1.1, 1.1);
+    const ceilingLightPositions = [
+      [-2.5, -2.5],
+      [-2.5, 2.5],
+      [2.5, -2.5],
+      [2.5, 2.5],
+      [0, -3.8],
+      [0, 3.8]
+    ];
+    ceilingLightPositions.forEach(([x, z]) => {
+      const lightPanel = new THREE.Mesh(ceilingLightGeometry, ceilingLightMaterial);
+      lightPanel.position.set(x, ceilingHeight - 0.12, z);
+      lightPanel.rotation.x = Math.PI / 2;
+      ceilingLights.add(lightPanel);
+
+      const glow = new THREE.PointLight(0xfff6d1, 1.4, 10, 1.8);
+      glow.position.set(x, ceilingHeight - 0.08, z);
+      ceilingLights.add(glow);
+    });
+    scene.add(ceilingLights);
+
     const centerRing = new THREE.Mesh(
       new THREE.TorusGeometry(lobbyRadius - 2, 0.12, 16, 128),
       new THREE.MeshStandardMaterial({ color: '#ffd45e', emissive: '#f5c86b', emissiveIntensity: 0.42, roughness: 0.35 })
@@ -170,6 +198,20 @@ export default function GamesHallway({ games, onClose }) {
     centerRing.rotation.x = Math.PI / 2;
     centerRing.position.y = 0.02;
     scene.add(centerRing);
+
+    const carpet = new THREE.Mesh(
+      new THREE.CircleGeometry(3.4, 72),
+      new THREE.MeshStandardMaterial({
+        color: '#a30e2d',
+        emissive: '#320207',
+        emissiveIntensity: 0.08,
+        roughness: 0.58,
+        metalness: 0.12
+      })
+    );
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = 0.021;
+    scene.add(carpet);
 
     const baseboard = new THREE.Mesh(
       new THREE.CylinderGeometry(lobbyRadius - 0.15, lobbyRadius - 0.15, 0.35, 128, 1, true),
@@ -201,17 +243,17 @@ export default function GamesHallway({ games, onClose }) {
     playerGlow.position.y = 0.01;
     scene.add(playerGlow);
 
-    const doorTex = loader.load(
-      'https://images.unsplash.com/photo-1523419409543-0c1df022bdd5?auto=format&fit=crop&w=1200&q=80'
-    );
+    const doorTex = loader.load('https://em-content.zobj.net/thumbs/240/apple/354/door_1f6aa.png');
     doorTex.colorSpace = THREE.SRGBColorSpace;
+    doorTex.anisotropy = 4;
     const goldHandleMat = new THREE.MeshStandardMaterial({ color: 0xffd700, metalness: 1, roughness: 0.2 });
     const doorMat = new THREE.MeshStandardMaterial({
       map: doorTex,
-      color: '#5b3319',
-      roughness: 0.35,
-      metalness: 0.25
+      transparent: true,
+      roughness: 0.32,
+      metalness: 0.18
     });
+    doorMat.alphaTest = 0.15;
     const doorGeo = new THREE.BoxGeometry(2.8, 3.4, 0.12);
 
     const interactable = [];
