@@ -816,6 +816,11 @@ export default function SnakeAndLadder() {
   }, [isMultiplayer, tableId]);
 
   useEffect(() => {
+    if (!isMultiplayer || watchOnly || !setupPhase) return;
+    setWaitingForPlayers(playersNeeded > 0);
+  }, [isMultiplayer, playersNeeded, setupPhase, watchOnly]);
+
+  useEffect(() => {
     if (!isMultiplayer) return;
     const myAccountId = accountId || getPlayerId();
     const name = myName;
@@ -2235,7 +2240,7 @@ export default function SnakeAndLadder() {
           );
         })()}
       </div>
-      {waitingForPlayers && (
+      {waitingForPlayers && playersNeeded > 0 && (
         <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 text-white">
           <p className="text-lg mb-2">
             Waiting for {playersNeeded} more player{playersNeeded === 1 ? '' : 's'}...
