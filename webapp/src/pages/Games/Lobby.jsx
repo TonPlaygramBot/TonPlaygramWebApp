@@ -239,7 +239,10 @@ export default function Lobby() {
 
   const startGame = async (flagOverride = flags) => {
     const params = new URLSearchParams();
-    if (table) params.set('table', table.id);
+    if (table) {
+      params.set('table', table.id);
+      if (table.capacity) params.set('capacity', String(table.capacity));
+    }
 
     if (game === 'snake' && table && table.id !== 'single') {
       const accountId = await ensureAccountId().catch(() => null);
@@ -296,6 +299,7 @@ export default function Lobby() {
 
     if (game === 'snake' && table && table.id !== 'single') {
       params.set('table', table.id);
+      if (table.capacity) params.set('capacity', String(table.capacity));
     }
     startedRef.current = true;
     navigate(`/games/${game}?${params.toString()}`);
