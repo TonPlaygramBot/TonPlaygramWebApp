@@ -280,6 +280,7 @@ const pendingInvites = new Map();
 app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
+const poolRooms = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
@@ -903,6 +904,10 @@ io.on('connection', (socket) => {
           : null;
       if (board) socket.emit('boardData', board);
     } catch {}
+    const poolRoom = poolRooms.get(roomId);
+    if (poolRoom?.state) {
+      socket.emit('pool:state', { roomId, state: poolRoom.state });
+    }
     io.to(roomId).emit('watchCount', { roomId, count: set.size });
   });
 
@@ -915,6 +920,182 @@ io.on('connection', (socket) => {
       const count = set.size;
       if (count === 0) tableWatchers.delete(roomId);
       io.to(roomId).emit('watchCount', { roomId, count });
+    }
+  });
+
+  socket.on('pool:join', async (payload = {}, cb) => {
+    try {
+      const {
+        roomId,
+        accountId,
+        name,
+        avatar,
+        variant,
+        tableSize,
+        token,
+        amount
+      } = payload;
+      if (!roomId || !accountId) {
+        cb && cb({ success: false, error: 'missing room or account' });
+        return;
+      }
+      let room = poolRooms.get(roomId);
+      if (!room) {
+        room = {
+          id: roomId,
+          players: {},
+          variant: variant || 'uk',
+          tableSize: tableSize || 'standard',
+          stake: {
+            token:
+              typeof token === 'string' && token.trim().length > 0
+                ? token.trim()
+                : 'TPC',
+            amount:
+              Number.isFinite(Number(amount)) && Number(amount) >= 0
+                ? Number(amount)
+                : 0
+          },
+          state: null,
+          updatedAt: Date.now()
+        };
+        poolRooms.set(roomId, room);
+      } else {
+        if (variant) room.variant = variant;
+        if (tableSize) room.tableSize = tableSize;
+        if (token !== undefined || amount !== undefined) {
+          const currentStake = room.stake || { token: 'TPC', amount: 0 };
+          room.stake = {
+            token:
+              typeof token === 'string' && token.trim().length > 0
+                ? token.trim()
+                : currentStake.token,
+            amount:
+              amount !== undefined && Number.isFinite(Number(amount)) && Number(amount) >= 0
+                ? Number(amount)
+                : currentStake.amount ?? 0
+          };
+        }
+      }
+      let role = null;
+      const existingA = room.players.A;
+      const existingB = room.players.B;
+      if (existingA && existingA.accountId === accountId) role = 'A';
+      else if (existingB && existingB.accountId === accountId) role = 'B';
+      else if (!existingA) role = 'A';
+      else if (!existingB) role = 'B';
+      else {
+        cb && cb({ success: false, error: 'table full' });
+        return;
+      }
+      const displayName = name || `Player ${role}`;
+      room.players[role] = {
+        accountId,
+        name: displayName,
+        avatar: avatar || '',
+        socketId: socket.id
+      };
+      room.updatedAt = Date.now();
+      socket.join(roomId);
+      socket.data.playerId = accountId;
+      socket.data.poolRoomId = roomId;
+      socket.data.poolRole = role;
+      await registerConnection({
+        userId: String(accountId),
+        roomId,
+        socketId: socket.id
+      }).catch(() => {});
+      User.updateOne({ accountId }, { currentTableId: roomId }).catch(() => {});
+      const opponentRole = role === 'A' ? 'B' : 'A';
+      const opponent = room.players[opponentRole]
+        ? {
+            role: opponentRole,
+            accountId: room.players[opponentRole].accountId,
+            name: room.players[opponentRole].name,
+            avatar: room.players[opponentRole].avatar
+          }
+        : null;
+      cb &&
+        cb({
+          success: true,
+          role,
+          state: room.state,
+          opponent,
+          ready: Boolean(room.players.A && room.players.B),
+          stake: room.stake,
+          variant: room.variant,
+          tableSize: room.tableSize
+        });
+      socket.to(roomId).emit('pool:playerJoined', {
+        roomId,
+        role,
+        player: {
+          accountId,
+          name: displayName,
+          avatar: avatar || ''
+        },
+        ready: Boolean(room.players.A && room.players.B)
+      });
+      if (room.players.A && room.players.B) {
+        io.to(roomId).emit('pool:ready', { roomId });
+      }
+    } catch (err) {
+      console.error('pool:join failed:', err.message);
+      cb && cb({ success: false, error: 'internal error' });
+    }
+  });
+
+  socket.on('pool:state', (payload = {}) => {
+    const { roomId, state, meta, variant, tableSize, stake } = payload;
+    if (!roomId || !state) return;
+    const room = poolRooms.get(roomId);
+    if (!room) return;
+    const role = socket.data.poolRole;
+    const playerEntry = role ? room.players?.[role] : null;
+    if (!playerEntry || playerEntry.socketId !== socket.id) {
+      return;
+    }
+    if (variant) room.variant = variant;
+    if (tableSize) room.tableSize = tableSize;
+    if (stake && (stake.token !== undefined || stake.amount !== undefined)) {
+      const currentStake = room.stake || { token: 'TPC', amount: 0 };
+      room.stake = {
+        token:
+          typeof stake.token === 'string' && stake.token.trim().length > 0
+            ? stake.token.trim()
+            : currentStake.token,
+        amount:
+          stake.amount !== undefined && Number.isFinite(Number(stake.amount)) &&
+          Number(stake.amount) >= 0
+            ? Number(stake.amount)
+            : currentStake.amount ?? 0
+      };
+    }
+    room.state = state;
+    room.updatedAt = Date.now();
+    socket.to(roomId).emit('pool:state', { roomId, state, meta, from: role });
+  });
+
+  socket.on('pool:leave', async ({ roomId } = {}) => {
+    const targetRoomId = roomId || socket.data.poolRoomId;
+    if (!targetRoomId) return;
+    const room = poolRooms.get(targetRoomId);
+    if (!room) return;
+    const role = socket.data.poolRole;
+    if (role && room.players[role]) {
+      const accountId = room.players[role].accountId;
+      delete room.players[role];
+      await removeConnection(socket.id).catch(() => {});
+      User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});
+      socket.leave(targetRoomId);
+      io.to(targetRoomId).emit('pool:playerLeft', { roomId: targetRoomId, role });
+      if (!room.players.A && !room.players.B) {
+        poolRooms.delete(targetRoomId);
+      }
+    }
+    if (socket.data.poolRoomId === targetRoomId) {
+      socket.data.poolRoomId = null;
+      socket.data.poolRole = null;
     }
   });
 
@@ -1044,6 +1225,23 @@ io.on('connection', (socket) => {
       User.updateOne({ accountId: pid }, { currentTableId: null }).catch(
         () => {}
       );
+    }
+    const poolRoomId = socket.data.poolRoomId;
+    const poolRole = socket.data.poolRole;
+    if (poolRoomId && poolRole) {
+      const room = poolRooms.get(poolRoomId);
+      if (room && room.players[poolRole]) {
+        const accountId = room.players[poolRole].accountId;
+        delete room.players[poolRole];
+        io.to(poolRoomId).emit('pool:playerLeft', {
+          roomId: poolRoomId,
+          role: poolRole
+        });
+        User.updateOne({ accountId }, { currentTableId: null }).catch(() => {});
+        if (!room.players.A && !room.players.B) {
+          poolRooms.delete(poolRoomId);
+        }
+      }
     }
     for (const roomId of socket.rooms) {
       if (tableSeats.has(roomId)) {
