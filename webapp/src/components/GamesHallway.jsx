@@ -36,13 +36,6 @@ export default function GamesHallway({ games, onClose }) {
   const navigate = useNavigate();
   const [selectedGame, setSelectedGame] = useState(null);
   const overlayRootRef = useRef(null);
-  const controlsRef = useRef({
-    moveForward: () => {},
-    moveBackward: () => {},
-    zoomIn: () => {},
-    zoomOut: () => {}
-  });
-  const holdIntervalRef = useRef(null);
 
   useEffect(() => {
     if (!overlayRootRef.current) {
@@ -131,21 +124,6 @@ export default function GamesHallway({ games, onClose }) {
     const floor = new THREE.Mesh(new THREE.CircleGeometry(20, 128), floorMat);
     floor.rotation.x = -Math.PI / 2;
     scene.add(floor);
-
-    const inlay = new THREE.Mesh(
-      new THREE.CircleGeometry(6, 96),
-      new THREE.MeshStandardMaterial({ color: '#f3d7b0', metalness: 0.35, roughness: 0.32, emissive: '#f7e6c9', emissiveIntensity: 0.15 })
-    );
-    inlay.rotation.x = -Math.PI / 2;
-    inlay.position.y = 0.01;
-    scene.add(inlay);
-
-    const centerPedestal = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.8, 2.2, 0.7, 48),
-      new THREE.MeshStandardMaterial({ color: '#1f1b18', metalness: 0.6, roughness: 0.38 })
-    );
-    centerPedestal.position.y = 0.35;
-    scene.add(centerPedestal);
 
     const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
     wallTex.wrapS = THREE.RepeatWrapping;
@@ -480,7 +458,6 @@ export default function GamesHallway({ games, onClose }) {
     let dragging = false;
     let pointerMoved = false;
     let lastX = 0;
-    let lastY = 0;
     const pointerDown = new THREE.Vector2();
     const CLICK_THRESHOLD = 6;
     let lastInteraction = performance.now();
@@ -526,7 +503,6 @@ export default function GamesHallway({ games, onClose }) {
       dragging = true;
       pointerMoved = false;
       lastX = event.clientX;
-      lastY = event.clientY;
       pointerDown.set(event.clientX, event.clientY);
       renderer.domElement.setPointerCapture(event.pointerId);
       renderer.domElement.style.cursor = 'grabbing';
@@ -539,11 +515,8 @@ export default function GamesHallway({ games, onClose }) {
       markInteraction();
       pointerMoved = true;
       const dx = event.clientX - lastX;
-      const dy = event.clientY - lastY;
       lastX = event.clientX;
-      lastY = event.clientY;
       targetYaw = wrapAngle(targetYaw - dx * 0.005);
-      targetPitch = clampPitch(targetPitch - dy * 0.003);
     };
 
     const finalizePointer = (event, allowClick = true) => {
@@ -578,13 +551,6 @@ export default function GamesHallway({ games, onClose }) {
       renderer.domElement.style.cursor = 'grab';
     };
 
-    const handleWheel = (event) => {
-      event.preventDefault();
-      markInteraction();
-      const delta = Math.sign(event.deltaY);
-      targetRadius = clampRadius(targetRadius + delta * 0.9);
-    };
-
     const handleResize = () => {
       camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
@@ -601,29 +567,12 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.addEventListener('pointerleave', handlePointerLeave);
     renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
     renderer.domElement.addEventListener('lostpointercapture', handleLostPointerCapture);
+    const handleWheel = (event) => {
+      event.preventDefault();
+    };
     renderer.domElement.addEventListener('wheel', handleWheel, { passive: false });
     renderer.domElement.addEventListener('contextmenu', contextMenuHandler);
     window.addEventListener('resize', handleResize);
-
-    const yawStep = THREE.MathUtils.degToRad(18);
-    controlsRef.current = {
-      moveForward: () => {
-        markInteraction();
-        targetYaw = wrapAngle(targetYaw - yawStep);
-      },
-      moveBackward: () => {
-        markInteraction();
-        targetYaw = wrapAngle(targetYaw + yawStep);
-      },
-      zoomIn: () => {
-        markInteraction();
-        targetRadius = clampRadius(targetRadius - 1.1);
-      },
-      zoomOut: () => {
-        markInteraction();
-        targetRadius = clampRadius(targetRadius + 1.1);
-      }
-    };
 
     const clock = new THREE.Clock();
     let animationId = 0;
@@ -657,12 +606,6 @@ export default function GamesHallway({ games, onClose }) {
 
     return () => {
       cancelAnimationFrame(animationId);
-      controlsRef.current = {
-        moveForward: () => {},
-        moveBackward: () => {},
-        zoomIn: () => {},
-        zoomOut: () => {}
-      };
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       renderer.domElement.removeEventListener('pointerup', handlePointerUp);
@@ -689,42 +632,13 @@ export default function GamesHallway({ games, onClose }) {
     };
   }, [games, navigate]);
 
-  const handlePointerHoldStart = (direction) => (event) => {
-    event.preventDefault();
-    const action = direction === 'clockwise' ? 'moveForward' : 'moveBackward';
-    controlsRef.current[action]?.();
-    if (holdIntervalRef.current) return;
-    holdIntervalRef.current = setInterval(() => {
-      controlsRef.current[action]?.();
-    }, 180);
-  };
-
-  const handleZoomPress = (direction) => {
-    const action = direction === 'in' ? 'zoomIn' : 'zoomOut';
-    controlsRef.current[action]?.();
-  };
-
-  const handlePointerHoldEnd = () => {
-    if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
-    }
-  };
-
-  useEffect(() => () => {
-    if (holdIntervalRef.current) {
-      clearInterval(holdIntervalRef.current);
-      holdIntervalRef.current = null;
-    }
-  }, []);
-
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur">
       <div className="flex items-center justify-between px-4 py-3 text-text">
         <div>
           <h3 className="text-lg font-semibold">TonPlaygram Luxury Hallway</h3>
           <p className="text-xs text-subtext">
-            Drag to look around, tap a golden door to enter, or tap its illuminated sign to preview the lobby first.
+            Drag left or right to browse the golden doors, tap one to enter instantly, or tap its illuminated sign to preview the lobby first.
           </p>
         </div>
         <button
@@ -737,97 +651,7 @@ export default function GamesHallway({ games, onClose }) {
       </div>
       <div className="relative flex-1">
         <div ref={containerRef} className="absolute inset-0" />
-        <div className="pointer-events-none absolute inset-0 flex flex-col justify-end">
-          <div className="pointer-events-auto mx-auto mb-8 flex w-full max-w-[320px] flex-wrap items-center justify-center gap-5 px-6">
-            <button
-              type="button"
-              onPointerDown={handlePointerHoldStart('counterclockwise')}
-              onPointerUp={handlePointerHoldEnd}
-              onPointerLeave={handlePointerHoldEnd}
-              onPointerCancel={handlePointerHoldEnd}
-              onClick={(event) => {
-                if (event.detail === 0) {
-                  controlsRef.current.moveBackward();
-                }
-              }}
-              className="flex h-14 w-14 items-center justify-center rounded-full border border-white/25 bg-black/70 text-white shadow-xl backdrop-blur transition active:scale-95"
-              aria-label="Rotate left"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-6 w-6"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 5l-7 7 7 7" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onPointerDown={handlePointerHoldStart('clockwise')}
-              onPointerUp={handlePointerHoldEnd}
-              onPointerLeave={handlePointerHoldEnd}
-              onPointerCancel={handlePointerHoldEnd}
-              onClick={(event) => {
-                if (event.detail === 0) {
-                  controlsRef.current.moveForward();
-                }
-              }}
-              className="flex h-16 w-16 items-center justify-center rounded-full border border-[rgba(255,215,0,0.35)] bg-gradient-to-br from-[#ffe27a] via-[#ffd141] to-[#ffb347] text-black shadow-[0_12px_30px_rgba(255,174,0,0.35)] transition active:scale-95"
-              aria-label="Rotate right"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-7 w-7"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="m9 5 7 7-7 7" />
-              </svg>
-            </button>
-            <div className="flex items-center gap-4">
-              <button
-                type="button"
-                onClick={() => handleZoomPress('out')}
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-black/70 text-white shadow-lg backdrop-blur transition active:scale-95"
-                aria-label="Zoom out"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="h-5 w-5"
-                >
-                  <path strokeLinecap="round" d="M5 12h14" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleZoomPress('in')}
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-[rgba(255,215,0,0.4)] bg-gradient-to-br from-[#ffe27a] via-[#ffd141] to-[#ffb347] text-black shadow-[0_10px_24px_rgba(255,174,0,0.35)] transition active:scale-95"
-                aria-label="Zoom in"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className="h-5 w-5"
-                >
-                  <path strokeLinecap="round" d="M12 5v14" />
-                  <path strokeLinecap="round" d="M5 12h14" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
+        <div className="pointer-events-none absolute inset-0" />
       </div>
       {selectedGame && overlayRootRef.current &&
         createPortal(
