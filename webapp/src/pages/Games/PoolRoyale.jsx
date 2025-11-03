@@ -18,7 +18,7 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
-import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import { DEFAULT_TABLE_SIZE_ID, resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
@@ -707,9 +707,10 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
   POCKET_VIS_R * 5.2 +
   BALL_R * 3.7;
+const POCKET_CAMERA_ALIGNMENT_THRESHOLD = 0.9;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
-  dotThreshold: 0.3,
+  dotThreshold: POCKET_CAMERA_ALIGNMENT_THRESHOLD,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
@@ -6921,6 +6922,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     [tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
+  const defaultTableScaleRef = useRef(
+    resolveTableSize(DEFAULT_TABLE_SIZE_ID).scale ?? 1
+  );
+  const defaultWorldScaleRef = useRef(
+    defaultTableScaleRef.current * WORLD_SCALE
+  );
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerTableFinish');
@@ -8082,6 +8089,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let cue;
       let clothMat;
       let cushionMat;
+      let target = null;
+      let aimIndicator = null;
       const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
       const baseSurfaceWorldY = tableSurfaceY * WORLD_SCALE;
       let shooting = false; // track when a shot is in progress
@@ -8096,6 +8105,34 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let lastShotPower = 0;
       let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
+      const getAimScaleRatio = () => {
+        const defaultWorldScale =
+          defaultWorldScaleRef.current &&
+          Number.isFinite(defaultWorldScaleRef.current)
+            ? defaultWorldScaleRef.current
+            : WORLD_SCALE;
+        const ratio =
+          defaultWorldScale > 1e-6
+            ? worldScaleFactor / defaultWorldScale
+            : 1;
+        return Number.isFinite(ratio) ? Math.max(ratio, 0.25) : 1;
+      };
+      const updateAimVisualScale = () => {
+        if (!target && !aimIndicator) return;
+        const safeRatio = getAimScaleRatio();
+        if (target?.material?.isLineDashedMaterial) {
+          const dash = BALL_R * 1.6 * safeRatio;
+          const gap = BALL_R * 1.2 * safeRatio;
+          if (Math.abs(target.material.dashSize - dash) > 1e-4) {
+            target.material.dashSize = dash;
+          }
+          if (Math.abs(target.material.gapSize - gap) > 1e-4) {
+            target.material.gapSize = gap;
+          }
+          target.material.needsUpdate = true;
+          target.computeLineDistances();
+        }
+      };
       const DYNAMIC_TEXTURE_MIN_INTERVAL = 1 / 45;
       const dynamicTextureEntries = [];
       const registerDynamicTexture = (entry) => {
@@ -9283,58 +9320,34 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
 
-        const updateBroadcastCameras = ({
-          railDir = 1,
-          targetWorld = null,
-          focusWorld = null,
-          lerp = 1
-        } = {}) => {
+        const updateBroadcastCameras = ({ railDir = 1 } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
           const focusTarget =
-            focusWorld ??
-            targetWorld ??
             rig.defaultFocusWorld ??
             rig.defaultFocus ??
-            null;
-          const applyFocus = (unit, lookAt, t) => {
+            cameraTarget.set(
+              0,
+              TABLE_Y + TABLE.THICK + BALL_R * 2.5,
+              0
+            );
+          const applyFocus = (unit) => {
             if (!unit) return;
             if (unit.slider) {
-              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
-              const limit = Math.max(
-                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
-                0
-              );
-              const targetX = lookAt
-                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
-                : 0;
-              unit.slider.position.x = THREE.MathUtils.lerp(
-                unit.slider.position.x,
-                targetX,
-                settle
-              );
-              unit.slider.position.z = THREE.MathUtils.lerp(
-                unit.slider.position.z,
-                0,
-                settle
-              );
+              unit.slider.position.x = 0;
+              unit.slider.position.z = 0;
             }
-            if (lookAt && unit.head) {
-              unit.head.lookAt(lookAt);
+            if (focusTarget && unit.head) {
+              unit.head.lookAt(focusTarget);
             }
           };
-          const frontUnits = [rig.cameras.front].filter(Boolean);
-          const backUnits = [rig.cameras.back].filter(Boolean);
-          const activeUnits = railDir >= 0 ? backUnits : frontUnits;
-          const idleUnits = railDir >= 0 ? frontUnits : backUnits;
-          activeUnits.forEach((unit) =>
-            applyFocus(unit, focusTarget, lerpFactor)
-          );
-          const idleFocus = rig.defaultFocusWorld ?? focusTarget;
-          idleUnits.forEach((unit) =>
-            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
-          );
+          if (railDir >= 0) {
+            applyFocus(rig.cameras.back);
+            applyFocus(rig.cameras.front);
+          } else {
+            applyFocus(rig.cameras.front);
+            applyFocus(rig.cameras.back);
+          }
         };
 
         const updateCamera = () => {
@@ -10296,7 +10309,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               best = { center, dist, pocketDir };
             }
           }
-          if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
+          if (!best || bestScore < POCKET_CAMERA_ALIGNMENT_THRESHOLD) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
@@ -10350,6 +10363,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             shotPrediction?.ballId === ballId && shotPrediction?.dir
               ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
               : null;
+          if (
+            predictedAlignment != null &&
+            predictedAlignment < POCKET_CAMERA_ALIGNMENT_THRESHOLD
+          ) {
+            return null;
+          }
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
@@ -10922,6 +10941,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (changed) {
           world.updateMatrixWorld(true);
         }
+        updateAimVisualScale();
         return changed;
       };
       applyWorldScale();
@@ -11017,22 +11037,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
       table.add(aim);
-      const tickGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(),
-        new THREE.Vector3()
-      ]);
-      const tick = new THREE.Line(
-        tickGeom,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
+      const aimIndicatorMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      aimIndicator = new THREE.Mesh(
+        new THREE.RingGeometry(BALL_R * 0.72, BALL_R * 1.02, 48),
+        aimIndicatorMaterial
       );
-      tick.visible = false;
-      table.add(tick);
+      aimIndicator.rotation.x = -Math.PI / 2;
+      aimIndicator.visible = false;
+      aimIndicator.renderOrder = 2;
+      table.add(aimIndicator);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
       ]);
-      const target = new THREE.Line(
+      target = new THREE.Line(
         targetGeom,
         new THREE.LineDashedMaterial({
           color: 0xffffff,
@@ -11044,6 +11069,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       );
       target.visible = false;
       table.add(target);
+      updateAimVisualScale();
 
       const chalkPrecisionArea = new THREE.Mesh(
         new THREE.CircleGeometry(CHALK_TARGET_RING_RADIUS, 48),
@@ -12889,11 +12915,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
-          tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(1.4)),
-            end.clone().add(perp.clone().multiplyScalar(-1.4))
-          ]);
-          tick.visible = true;
+          if (aimIndicator) {
+            aimIndicator.visible = true;
+            aimIndicator.position.set(
+              end.x,
+              tableSurfaceY + 0.005,
+              end.z
+            );
+          }
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
@@ -13035,10 +13064,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
           if (afterDir) {
+            const followDistance = 30 * getAimScaleRatio();
             const tEnd = new THREE.Vector3(
-              end.x + afterDir.x * 30,
+              end.x + afterDir.x * followDistance,
               BALL_R,
-              end.z + afterDir.y * 30
+              end.z + afterDir.y * followDistance
             );
             targetGeom.setFromPoints([end, tEnd]);
             target.visible = true;
@@ -13048,7 +13078,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
-          tick.visible = false;
+          if (aimIndicator) aimIndicator.visible = false;
           target.visible = false;
           updateChalkVisibility(null);
           const planDir = activeAiPlan.aimDir
@@ -13105,7 +13135,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
-          tick.visible = false;
+          if (aimIndicator) aimIndicator.visible = false;
           target.visible = false;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
