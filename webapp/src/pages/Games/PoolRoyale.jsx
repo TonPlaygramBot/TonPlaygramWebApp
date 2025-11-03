@@ -21,6 +21,7 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
+import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
@@ -4139,8 +4140,10 @@ function reflectRails(ball) {
   const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
-  const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const pocketGuard =
+    POCKET_VIS_R * 0.72 * POCKET_VISUAL_EXPANSION + BALL_R * 0.05;
+  const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
+  const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cos, -sy * sin);
@@ -4149,7 +4152,7 @@ function reflectRails(ball) {
     if (distNormal >= BALL_R) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral < pocketGuard) continue;
+    if (lateral < guardClearance) continue;
     if (distNormal < -cornerDepthLimit) continue;
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(TMP_VEC2_B, push);
@@ -4177,8 +4180,8 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.6;
-  const sideDepthLimit = POCKET_VIS_R * 1.2 * POCKET_VISUAL_EXPANSION;
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.45;
+  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
     TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
@@ -4218,8 +4221,9 @@ function reflectRails(ball) {
   }
 
   // If the ball is entering a pocket capture zone, skip straight rail reflections
+  const nearPocketRadius = POCKET_VIS_R + BALL_R * 0.25;
   const nearPocket = pocketCenters().some(
-    (c) => ball.pos.distanceTo(c) < POCKET_VIS_R + BALL_R * 0.5
+    (c) => ball.pos.distanceTo(c) < nearPocketRadius
   );
   if (nearPocket) return null;
   let collided = null;
@@ -12119,7 +12123,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             return fallback;
           }
         };
-        const evaluateShotOptions = () => {
+        const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
           const legalTargetsRaw = Array.isArray(state?.ballOn)
@@ -12249,6 +12253,227 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             bestPot: potShots[0] ?? null,
             bestSafety: safetyShots[0] ?? null
           };
+        };
+
+        const mapBallIdToUkAiColour = (colorId) => {
+          if (!colorId) return null;
+          const upper = colorId.toUpperCase();
+          if (upper === 'CUE') return 'cue';
+          if (upper.startsWith('YELLOW') || upper.startsWith('BLUE')) return 'blue';
+          if (upper.startsWith('RED')) return 'red';
+          if (upper.startsWith('BLACK')) return 'black';
+          return null;
+        };
+
+        const resolveUkBallOnColour = (frameSnapshot, metaState) => {
+          if (!metaState || metaState.isOpenTable) return null;
+          const assignments = metaState.assignments ?? {};
+          const current = metaState.currentPlayer ?? 'A';
+          const assigned = assignments[current];
+          if (assigned === 'blue' || assigned === 'yellow') return 'blue';
+          if (assigned === 'red') return 'red';
+          if (assigned === 'black') return 'black';
+          const raw = Array.isArray(frameSnapshot?.ballOn)
+            ? frameSnapshot.ballOn
+            : [];
+          const normalized = raw
+            .map((entry) => (typeof entry === 'string' ? entry.toUpperCase() : ''))
+            .filter(Boolean);
+          if (normalized.includes('BLACK')) return 'black';
+          if (normalized.some((entry) => entry === 'YELLOW' || entry === 'BLUE')) {
+            return 'blue';
+          }
+          if (normalized.includes('RED')) return 'red';
+          return null;
+        };
+
+        const mapLocalPocketToAi = (id) => {
+          if (id === 'TM') return 'ML';
+          if (id === 'BM') return 'MR';
+          return id;
+        };
+
+        const mapAiPocketToLocal = (name) => {
+          if (!name) return null;
+          if (name === 'ML') return 'TM';
+          if (name === 'MR') return 'BM';
+          return POCKET_IDS.includes(name) ? name : null;
+        };
+
+        const mapAiColourToTargetId = (colour) => {
+          if (!colour) return null;
+          switch (colour) {
+            case 'blue':
+              return 'YELLOW';
+            case 'red':
+              return 'RED';
+            case 'black':
+              return 'BLACK';
+            default:
+              return colour.toUpperCase();
+          }
+        };
+
+        const mapSpeedPresetScale = (speed) => {
+          switch (speed) {
+            case 'soft':
+              return 0.78;
+            case 'firm':
+              return 1.18;
+            case 'med':
+            default:
+              return 1;
+          }
+        };
+
+        const mapSpinPreset = (preset) => {
+          switch (preset) {
+            case 'followS':
+              return { x: 0, y: -0.18 };
+            case 'followL':
+              return { x: 0, y: -0.32 };
+            case 'drawS':
+              return { x: 0, y: 0.22 };
+            case 'drawL':
+              return { x: 0, y: 0.42 };
+            case 'sideL':
+              return { x: -0.35, y: -0.06 };
+            case 'sideR':
+              return { x: 0.35, y: -0.06 };
+            default:
+              return { x: 0, y: 0 };
+          }
+        };
+
+        const computeUkAdvancedPlan = (allBalls, cueBall, frameSnapshot) => {
+          if (!cueBall?.active) return null;
+          const variantId = activeVariantRef.current?.id ?? variantKey;
+          if (variantId !== 'uk') return null;
+          const meta = frameSnapshot?.meta;
+          if (!meta || meta.variant !== 'uk' || !meta.state) return null;
+          const snapshot = meta.state;
+          const width = PLAY_W;
+          const height = PLAY_H;
+          const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
+          const pocketPositions = pocketCenters();
+          const pockets = pocketPositions.map((center, idx) => {
+            const aiPos = toAi(center);
+            const localId = POCKET_IDS[idx] ?? `P${idx}`;
+            return { x: aiPos.x, y: aiPos.y, name: mapLocalPocketToAi(localId) };
+          });
+          const aiBalls = [];
+          allBalls.forEach((ball) => {
+            const colourId = toBallColorId(ball.id);
+            const aiColour = mapBallIdToUkAiColour(colourId);
+            if (!aiColour) return;
+            const pos = toAi(ball.pos);
+            aiBalls.push({
+              id: ball.id,
+              colour: aiColour,
+              x: pos.x,
+              y: pos.y,
+              pocketed: !ball.active
+            });
+          });
+          if (!aiBalls.some((ball) => ball.colour === 'cue' && !ball.pocketed)) {
+            return null;
+          }
+          const ballOnColour = resolveUkBallOnColour(frameSnapshot, snapshot);
+          const baulkLineLocal =
+            typeof baulkZ === 'number' ? baulkZ : -PLAY_H / 2 + BAULK_FROM_BAULK;
+          const aiState = {
+            balls: aiBalls,
+            pockets,
+            width,
+            height,
+            ballRadius: BALL_R,
+            ballOn: ballOnColour,
+            isOpenTable: snapshot.isOpenTable,
+            shotsRemaining: snapshot.shotsRemaining,
+            mustPlayFromBaulk: snapshot.mustPlayFromBaulk,
+            baulkLineX: baulkLineLocal + height / 2
+          };
+          try {
+            const plan = selectUkAiShot(aiState, {});
+            if (!plan) return null;
+            const aimPoint = new THREE.Vector2(
+              plan.aimPoint.x - width / 2,
+              plan.aimPoint.y - height / 2
+            );
+            const aimDir = aimPoint.clone().sub(cueBall.pos);
+            if (aimDir.lengthSq() < 1e-6) aimDir.set(0, 1);
+            aimDir.normalize();
+            const targetBall =
+              allBalls.find(
+                (b) => String(b.id) === String(plan.targetId)
+              ) ||
+              allBalls.find(
+                (b) =>
+                  b.active &&
+                  mapBallIdToUkAiColour(toBallColorId(b.id)) === plan.targetBall
+              ) ||
+              null;
+            const targetColor = mapAiColourToTargetId(plan.targetBall);
+            const localPocketId = mapAiPocketToLocal(plan.pocket);
+            const pocketIndex =
+              localPocketId != null ? POCKET_IDS.indexOf(localPocketId) : -1;
+            const pocketCenter =
+              pocketIndex >= 0 ? pocketPositions[pocketIndex].clone() : null;
+            const cueToAim = cueBall.pos.distanceTo(aimPoint);
+            const pocketDistance =
+              targetBall && pocketCenter
+                ? targetBall.pos.distanceTo(pocketCenter)
+                : 0;
+            const basePower = computePowerFromDistance(cueToAim + pocketDistance);
+            const power = THREE.MathUtils.clamp(
+              basePower * mapSpeedPresetScale(plan.cueParams?.speed),
+              0.3,
+              0.95
+            );
+            const spin = mapSpinPreset(plan.cueParams?.spin);
+            return {
+              type: plan.actionType === 'pot' ? 'pot' : 'safety',
+              aimDir,
+              power,
+              target: targetColor ?? 'SAFETY',
+              targetBall,
+              pocketId: localPocketId ?? 'SAFETY',
+              pocketCenter: pocketCenter ? pocketCenter.clone() : null,
+              difficulty:
+                typeof plan.EV === 'number' ? (1 - plan.EV) * 1000 : undefined,
+              cueToTarget: targetBall
+                ? cueBall.pos.distanceTo(targetBall.pos)
+                : cueToAim,
+              targetToPocket: pocketDistance,
+              spin,
+              aiMeta: {
+                EV: plan.EV ?? null,
+                notes: plan.notes ?? null,
+                source: 'advanced'
+              }
+            };
+          } catch (err) {
+            console.warn('advanced UK AI planning failed', err);
+            return null;
+          }
+        };
+
+        const evaluateShotOptions = () => {
+          const baseline = evaluateShotOptionsBaseline();
+          const variantId = activeVariantRef.current?.id ?? variantKey;
+          if (variantId !== 'uk' || !cue?.active) return baseline;
+          const stateSnapshot = frameRef.current ?? frameState;
+          const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+          if (!advancedPlan) return baseline;
+          const result = { ...baseline };
+          if (advancedPlan.type === 'pot') {
+            result.bestPot = advancedPlan;
+            if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
+          } else {
+            result.bestSafety = advancedPlan;
+            if (!result.bestPot) result.bestPot = baseline.bestPot;
+          }
+          return result;
         };
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
           const summary = summarizePlan(plan);
