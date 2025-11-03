@@ -344,11 +344,75 @@ export default function GamesHallway({ games, onClose }) {
       signCanvas.width = 2048;
       signCanvas.height = 512;
       const ctx = signCanvas.getContext('2d');
-      ctx.fillStyle = signBackgroundColor;
+
+      const patternCanvas = document.createElement('canvas');
+      patternCanvas.width = 128;
+      patternCanvas.height = 128;
+      const patternCtx = patternCanvas.getContext('2d');
+      patternCtx.fillStyle = '#050505';
+      patternCtx.fillRect(0, 0, patternCanvas.width, patternCanvas.height);
+      patternCtx.fillStyle = '#0f0f0f';
+      patternCtx.fillRect(0, 0, patternCanvas.width / 2, patternCanvas.height / 2);
+      patternCtx.fillRect(patternCanvas.width / 2, patternCanvas.height / 2, patternCanvas.width / 2, patternCanvas.height / 2);
+      patternCtx.fillStyle = '#1a1a1a';
+      patternCtx.beginPath();
+      patternCtx.moveTo(patternCanvas.width / 2, 0);
+      patternCtx.lineTo(patternCanvas.width, 0);
+      patternCtx.lineTo(0, patternCanvas.height);
+      patternCtx.lineTo(0, patternCanvas.height / 2);
+      patternCtx.closePath();
+      patternCtx.fill();
+      patternCtx.beginPath();
+      patternCtx.moveTo(patternCanvas.width, patternCanvas.height / 2);
+      patternCtx.lineTo(patternCanvas.width, patternCanvas.height);
+      patternCtx.lineTo(patternCanvas.width / 2, patternCanvas.height);
+      patternCtx.closePath();
+      patternCtx.fill();
+
+      const carbonPattern = ctx.createPattern(patternCanvas, 'repeat');
+      if (carbonPattern) {
+        ctx.fillStyle = carbonPattern;
+      } else {
+        ctx.fillStyle = signBackgroundColor;
+      }
       ctx.fillRect(0, 0, signCanvas.width, signCanvas.height);
       ctx.strokeStyle = signBorderColor;
       ctx.lineWidth = 20;
       ctx.strokeRect(12, 12, signCanvas.width - 24, signCanvas.height - 24);
+      const screwRadius = 36;
+      const screwMarginX = 110;
+      const screwMarginY = 90;
+      const screwPositions = [
+        [screwMarginX, screwMarginY],
+        [signCanvas.width - screwMarginX, screwMarginY],
+        [signCanvas.width - screwMarginX, signCanvas.height - screwMarginY],
+        [screwMarginX, signCanvas.height - screwMarginY]
+      ];
+      screwPositions.forEach(([x, y]) => {
+        const gradient = ctx.createRadialGradient(
+          x - screwRadius * 0.3,
+          y - screwRadius * 0.3,
+          screwRadius * 0.2,
+          x,
+          y,
+          screwRadius
+        );
+        gradient.addColorStop(0, '#fff4c2');
+        gradient.addColorStop(0.4, '#f1cf64');
+        gradient.addColorStop(0.7, '#c99c2e');
+        gradient.addColorStop(1, '#8a641a');
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, screwRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.lineWidth = 8;
+        ctx.strokeStyle = '#5a3e10';
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.fillStyle = '#f9d87d';
+        ctx.arc(x - screwRadius * 0.2, y - screwRadius * 0.2, screwRadius * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      });
       ctx.fillStyle = signTextColor;
       ctx.font = 'bold 240px "Inter", Arial';
       ctx.textAlign = 'center';
