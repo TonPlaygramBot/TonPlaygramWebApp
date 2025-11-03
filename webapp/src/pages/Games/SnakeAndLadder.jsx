@@ -816,7 +816,11 @@ export default function SnakeAndLadder() {
   }, [isMultiplayer, tableId]);
 
   useEffect(() => {
-    if (!isMultiplayer || watchOnly || !setupPhase) return;
+    if (!isMultiplayer || watchOnly) return;
+    if (!setupPhase) {
+      setWaitingForPlayers(false);
+      return;
+    }
     setWaitingForPlayers(playersNeeded > 0);
   }, [isMultiplayer, playersNeeded, setupPhase, watchOnly]);
 
