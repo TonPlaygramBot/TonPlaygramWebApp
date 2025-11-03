@@ -460,7 +460,7 @@ function buildChromePlateGeometry({
     bevelSegments: 3,
     bevelSize,
     bevelThickness,
-    curveSegments: 64
+    curveSegments: 96
   });
   geo = softenOuterExtrudeEdges(geo, thickness, 0.55);
   geo.rotateX(-Math.PI / 2);
@@ -489,7 +489,7 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_REDUCTION = 0.78; // shrink the entire 3D build by ~22% while keeping proportions identical
+const TABLE_REDUCTION = 0.72; // shrink the entire 3D build by roughly 28% (an additional ~8%) while keeping proportions identical
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
@@ -534,8 +534,8 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.36; // ease the middle jaw span back slightly so the wooden arc reads tighter than the chrome fascia
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.003; // rein in the jaw radius a touch so the wood trim stays narrower while matching the chrome cut
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.28; // pull the middle jaw span in further so the wood arch reads noticeably tighter than the chrome fascia
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.996; // ease the jaw radius down a hair so the wooden trim keeps a smaller, crisper arch in the middle pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaw depth identical to the corners for a uniform vertical profile
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.015; // drop the middle jaw crowns slightly so they finish level with the surrounding rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -4531,7 +4531,7 @@ function createAccentMesh(accent, dims) {
   const geom = new THREE.ExtrudeGeometry(shape, {
     depth: height,
     bevelEnabled: false,
-    curveSegments: 48
+    curveSegments: 72
   });
   const mesh = new THREE.Mesh(geom, accent.material);
   mesh.rotation.x = -Math.PI / 2;
@@ -4937,7 +4937,7 @@ function Table3D(
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_THICKNESS,
     bevelEnabled: false,
-    curveSegments: 64,
+    curveSegments: 96,
     steps: 1
   });
   clothGeo.translate(0, 0, -CLOTH_THICKNESS);
@@ -4955,7 +4955,7 @@ function Table3D(
   const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
     depth: CLOTH_UNDERLAY_THICKNESS,
     bevelEnabled: false,
-    curveSegments: 48,
+    curveSegments: 72,
     steps: 1
   });
   underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
@@ -5034,7 +5034,7 @@ function Table3D(
   const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
     depth: CLOTH_SHADOW_COVER_THICKNESS,
     bevelEnabled: false,
-    curveSegments: 32,
+    curveSegments: 64,
     steps: 1
   });
   shadowCoverGeo.translate(0, 0, -CLOTH_SHADOW_COVER_THICKNESS);
@@ -5996,7 +5996,7 @@ function Table3D(
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
-      curveSegments: Math.max(64, Math.ceil(localJawAngle / (Math.PI / 48))),
+      curveSegments: Math.max(96, Math.ceil(localJawAngle / (Math.PI / 64))),
       steps: 1
     });
     jawGeom.rotateX(-Math.PI / 2);
@@ -6018,7 +6018,7 @@ function Table3D(
       const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
         depth: rimDepth,
         bevelEnabled: false,
-        curveSegments: Math.max(48, Math.ceil(localJawAngle / (Math.PI / 64))),
+        curveSegments: Math.max(72, Math.ceil(localJawAngle / (Math.PI / 80))),
         steps: 1
       });
       rimGeom.rotateX(-Math.PI / 2);
@@ -6261,7 +6261,7 @@ function Table3D(
   let railsGeom = new THREE.ExtrudeGeometry(railsOuter, {
     depth: railH,
     bevelEnabled: false,
-    curveSegments: 96
+    curveSegments: 128
   });
   railsGeom = softenOuterExtrudeEdges(railsGeom, railH, RAIL_OUTER_EDGE_RADIUS_RATIO, {
     innerBounds: {
@@ -6399,8 +6399,8 @@ function Table3D(
       bevelEnabled: true,
       bevelThickness: cushionBevel * 0.6,
       bevelSize: cushionBevel,
-      bevelSegments: 2,
-      curveSegments: 8
+      bevelSegments: 4,
+      curveSegments: 16
     });
 
     const pos = geo.attributes.position;
