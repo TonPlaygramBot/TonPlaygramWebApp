@@ -147,14 +147,6 @@ export default function GamesHallway({ games, onClose }) {
     centerPedestal.position.y = 0.35;
     scene.add(centerPedestal);
 
-    const lightHalo = new THREE.Mesh(
-      new THREE.TorusGeometry(3.4, 0.08, 24, 128),
-      new THREE.MeshBasicMaterial({ color: '#ffe7ba' })
-    );
-    lightHalo.rotation.x = Math.PI / 2;
-    lightHalo.position.y = 3.2;
-    scene.add(lightHalo);
-
     const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
     wallTex.wrapS = THREE.RepeatWrapping;
     wallTex.wrapT = THREE.RepeatWrapping;
@@ -204,19 +196,6 @@ export default function GamesHallway({ games, onClose }) {
     const chandelier = new THREE.Group();
     chandelier.position.y = 6.6;
     scene.add(chandelier);
-
-    const chandelierFrame = new THREE.Mesh(
-      new THREE.TorusGeometry(2.2, 0.1, 24, 128),
-      new THREE.MeshStandardMaterial({
-        color: '#f5d598',
-        emissive: '#ffe0aa',
-        emissiveIntensity: 0.5,
-        metalness: 0.85,
-        roughness: 0.2
-      })
-    );
-    chandelierFrame.rotation.x = Math.PI / 2;
-    chandelier.add(chandelierFrame);
 
     const chandelierShade = new THREE.Mesh(
       new THREE.CylinderGeometry(1.35, 1.75, 1.15, 64, 1, true),
@@ -412,7 +391,7 @@ export default function GamesHallway({ games, onClose }) {
     };
 
     const clampPitch = (value) => THREE.MathUtils.clamp(value, -Math.PI / 8, Math.PI / 4);
-    const clampRadius = (value) => THREE.MathUtils.clamp(value, 10, 18);
+    const clampRadius = (value) => THREE.MathUtils.clamp(value, 3.6, 14);
     const wrapAngle = (value) => {
       const twoPi = Math.PI * 2;
       let next = value % twoPi;
@@ -430,7 +409,7 @@ export default function GamesHallway({ games, onClose }) {
 
     let yaw = wrapAngle(Math.PI / 6);
     let pitch = clampPitch(-0.08);
-    let radius = 14;
+    let radius = 4.2;
     let targetYaw = yaw;
     let targetPitch = pitch;
     let targetRadius = radius;
@@ -452,7 +431,7 @@ export default function GamesHallway({ games, onClose }) {
       const horizontalRadius = Math.cos(clampedPitch) * radius;
       const cx = Math.sin(yaw) * horizontalRadius;
       const cz = Math.cos(yaw) * horizontalRadius;
-      const cy = 2 + Math.sin(clampedPitch) * 3;
+      const cy = 3 + Math.sin(clampedPitch) * 2;
       camera.position.set(cx, cy, cz);
       camera.lookAt(0, 2, 0);
     };
