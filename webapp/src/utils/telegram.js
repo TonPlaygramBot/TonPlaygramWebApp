@@ -30,22 +30,29 @@ export function getTelegramId() {
   return null;
 }
 
-export function getPlayerId() {
-  if (typeof window !== 'undefined') {
-    const aid = localStorage.getItem('accountId');
-    if (aid) return aid;
+function generateAccountId() {
+  if (typeof window === 'undefined') return null;
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
   }
-  return getTelegramId();
+  const random = Math.random().toString(36).slice(2, 11);
+  const timestamp = Date.now().toString(36);
+  return `tpc-${timestamp}-${random}`;
+}
+
+export function getPlayerId() {
+  if (typeof window === 'undefined') return null;
+  let id = localStorage.getItem('accountId');
+  if (!id) {
+    id = generateAccountId();
+    if (id) localStorage.setItem('accountId', id);
+  }
+  return id;
 }
 
 export async function ensureAccountId() {
   if (typeof window === 'undefined') return null;
-  let id = localStorage.getItem('accountId');
-  if (!id) {
-    id = crypto.randomUUID();
-    localStorage.setItem('accountId', id);
-  }
-  return id;
+  return getPlayerId();
 }
 
 export function getTelegramUsername() {

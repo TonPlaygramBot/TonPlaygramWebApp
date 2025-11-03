@@ -2440,6 +2440,7 @@ function updateTokens(
   players.forEach((player, index) => {
     keep.add(index);
     let token = existing.get(index);
+    const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
     if (!token) {
       token = new THREE.Group();
       const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
@@ -2593,9 +2594,9 @@ function updateTokens(
       baseVector.y += TOKEN_HEIGHT * 0.02;
       worldPos = baseVector;
     } else {
-      const fallbackHomeIndex = seatHomes.length > 0 ? index % seatHomes.length : -1;
+      const fallbackHomeIndex = seatHomes.length > 0 ? seatIndex % seatHomes.length : -1;
       const home =
-        seatHomes[index] || (fallbackHomeIndex >= 0 ? seatHomes[fallbackHomeIndex] : null) || null;
+        seatHomes[seatIndex] || (fallbackHomeIndex >= 0 ? seatHomes[fallbackHomeIndex] : null) || null;
       if (home?.position) {
         worldPos = home.position.clone();
       } else {
