@@ -33,7 +33,7 @@ export default function Games() {
           <div className="space-y-2">
             <h3 className="text-lg font-semibold">3D Hallway Experience</h3>
             <p className="text-sm text-subtext">
-              Step into our immersive corridor and pick your favorite game by entering through its door or tapping the monitors.
+              Explore the luxury hallway and pick your favorite game by stepping through its golden door or tapping the illuminated sign.
             </p>
           </div>
           <button
