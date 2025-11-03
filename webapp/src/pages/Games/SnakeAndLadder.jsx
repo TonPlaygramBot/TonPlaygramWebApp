@@ -966,6 +966,7 @@ export default function SnakeAndLadder() {
       }
     };
     const onStarted = () => {
+      setSetupPhase(false);
       setWaitingForPlayers(false);
       if (myAccountId) {
         unseatTable(myAccountId, tableId).catch(() => {});
