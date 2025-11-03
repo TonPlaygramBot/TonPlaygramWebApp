@@ -31,6 +31,7 @@ test('open table selects higher EV colour', () => {
   const plan = selectShot(state, {});
   assert.equal(plan.targetBall, 'red');
   assert.equal(plan.actionType, 'pot');
+  assert.equal(plan.targetId, 2);
 });
 
 test('falls back to safety when pot not viable', () => {
