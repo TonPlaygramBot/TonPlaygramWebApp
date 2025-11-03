@@ -3,55 +3,31 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 
-const lobbyRadius = 11;
-const doorRingRadius = lobbyRadius - 0.9;
-const ceilingHeight = 6;
-function drawMonitorScreen(canvas, game) {
-  const ctx = canvas.getContext('2d');
-  const width = canvas.width;
-  const height = canvas.height;
-  ctx.clearRect(0, 0, width, height);
-
-  const bezelGradient = ctx.createLinearGradient(0, 0, width, height);
-  bezelGradient.addColorStop(0, '#080808');
-  bezelGradient.addColorStop(1, '#0f0f0f');
-  ctx.fillStyle = bezelGradient;
-  ctx.fillRect(0, 0, width, height);
-
-  const glowGradient = ctx.createLinearGradient(0, 0, width, height);
-  glowGradient.addColorStop(0, 'rgba(30, 30, 30, 0.85)');
-  glowGradient.addColorStop(1, 'rgba(6, 6, 6, 0.95)');
-  ctx.fillStyle = glowGradient;
-  ctx.fillRect(32, 24, width - 64, height - 48);
-
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = 'bold 60px "Inter", Arial';
-  ctx.lineJoin = 'round';
-  ctx.lineWidth = 16;
-  ctx.strokeStyle = '#111111';
-  ctx.strokeText(game.name, width / 2, height / 2 - 18);
-  ctx.fillStyle = '#ededed';
-  ctx.fillText(game.name, width / 2, height / 2 - 18);
-
-  ctx.font = '34px "Inter", Arial';
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = '#141414';
-  ctx.strokeText('Tap to preview the lobby', width / 2, height / 2 + 68);
-  ctx.fillStyle = '#d7d7d7';
-  ctx.fillText('Tap to preview the lobby', width / 2, height / 2 + 68);
-}
+const fallbackGameNames = [
+  'Chess Arena',
+  'Ludo Royale',
+  'Dice Duel',
+  'Snake & Ladder',
+  'Horse Racing',
+  'Snooker',
+  'Free Kick',
+  'Table Tennis',
+  'Texas Holdem',
+  'Domino Royal 3D',
+  'Blackjack Multi',
+  'Goal Rush'
+];
 
 function useBodyScrollLock(isLocked) {
   useEffect(() => {
-    if (isLocked) {
-      const previous = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = previous;
-      };
+    if (!isLocked) {
+      return undefined;
     }
-    return undefined;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previous;
+    };
   }, [isLocked]);
 }
 
@@ -84,561 +60,424 @@ export default function GamesHallway({ games, onClose }) {
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return undefined;
+    if (!container) {
+      return undefined;
+    }
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#05060f');
-
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin('anonymous');
-
-    const camera = new THREE.PerspectiveCamera(
-      65,
-      container.clientWidth / container.clientHeight,
-      0.1,
-      200
-    );
-    camera.position.set(0, 1.6, 0);
-    const defaultLookAt = new THREE.Vector3(0, 1.6, -1.2);
-    camera.lookAt(defaultLookAt);
+    scene.background = new THREE.Color('#fffaf3');
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.05;
-    renderer.physicallyCorrectLights = true;
+    renderer.toneMappingExposure = 1.85;
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setSize(container.clientWidth, container.clientHeight);
-    container.appendChild(renderer.domElement);
     renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.cursor = 'grab';
+    container.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xfff4d6, 0.6);
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      container.clientWidth / container.clientHeight,
+      0.1,
+      200
+    );
+    camera.position.set(0, 3, 10);
+
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+
+    const ambient = new THREE.AmbientLight(0xffffff, 1.2);
     scene.add(ambient);
 
-    const hemiLight = new THREE.HemisphereLight(0xfff8e7, 0x0a0d21, 0.45);
-    scene.add(hemiLight);
+    const ceilingTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/water.jpg');
+    ceilingTex.wrapS = THREE.RepeatWrapping;
+    ceilingTex.wrapT = THREE.RepeatWrapping;
+    ceilingTex.repeat.set(4, 4);
+    ceilingTex.colorSpace = THREE.SRGBColorSpace;
 
-    const centerGlow = new THREE.PointLight(0xffd27a, 3.8, 65, 1.6);
-    centerGlow.position.set(0, ceilingHeight - 0.3, 0);
-    scene.add(centerGlow);
+    const ceilingMat = new THREE.MeshStandardMaterial({
+      color: '#fdf8ef',
+      emissive: '#f0e8d0',
+      emissiveIntensity: 0.5,
+      metalness: 0.25,
+      roughness: 0.1,
+      map: ceilingTex
+    });
+    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(18, 64), ceilingMat);
+    ceiling.position.set(0, 8.3, 0);
+    ceiling.rotation.x = Math.PI / 2;
+    scene.add(ceiling);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
-    dirLight.position.set(6, 12, 4);
-    scene.add(dirLight);
+    const modernSpot = new THREE.SpotLight(0xfff0c9, 1.2, 40, Math.PI / 4, 0.3, 1.5);
+    modernSpot.position.set(0, 8, 0);
+    scene.add(modernSpot);
 
-    const floorTex = loader.load(
-      'https://images.unsplash.com/photo-1591083832398-8829a66b8125?auto=format&fit=crop&w=1600&q=80'
-    );
-    floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping;
-    floorTex.repeat.set(6, 6);
-    floorTex.colorSpace = THREE.SRGBColorSpace;
+    const carpetTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/checker.png');
+    carpetTex.wrapS = THREE.RepeatWrapping;
+    carpetTex.wrapT = THREE.RepeatWrapping;
+    carpetTex.repeat.set(48, 48);
+    carpetTex.colorSpace = THREE.SRGBColorSpace;
+
     const floorMat = new THREE.MeshStandardMaterial({
-      map: floorTex,
+      color: '#8b0000',
+      map: carpetTex,
+      roughness: 0.45,
+      metalness: 0.2,
+      emissive: '#2b0000',
+      emissiveIntensity: 0.3
+    });
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(20, 128), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+
+    const inlay = new THREE.Mesh(
+      new THREE.CircleGeometry(6, 96),
+      new THREE.MeshStandardMaterial({ color: '#f3d7b0', metalness: 0.35, roughness: 0.32, emissive: '#f7e6c9', emissiveIntensity: 0.15 })
+    );
+    inlay.rotation.x = -Math.PI / 2;
+    inlay.position.y = 0.01;
+    scene.add(inlay);
+
+    const centerPedestal = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.8, 2.2, 0.7, 48),
+      new THREE.MeshStandardMaterial({ color: '#1f1b18', metalness: 0.6, roughness: 0.38 })
+    );
+    centerPedestal.position.y = 0.35;
+    scene.add(centerPedestal);
+
+    const lightHalo = new THREE.Mesh(
+      new THREE.TorusGeometry(3.4, 0.08, 24, 128),
+      new THREE.MeshBasicMaterial({ color: '#ffe7ba' })
+    );
+    lightHalo.rotation.x = Math.PI / 2;
+    lightHalo.position.y = 3.2;
+    scene.add(lightHalo);
+
+    const wallTex = loader.load('https://threejs.org/examples/textures/brick_diffuse.jpg');
+    wallTex.wrapS = THREE.RepeatWrapping;
+    wallTex.wrapT = THREE.RepeatWrapping;
+    wallTex.repeat.set(14, 8);
+    wallTex.colorSpace = THREE.SRGBColorSpace;
+
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: '#fff5d8',
+      map: wallTex,
+      side: THREE.BackSide,
+      roughness: 0.25,
+      metalness: 0.1
+    });
+    const walls = new THREE.Mesh(new THREE.CylinderGeometry(20, 20, 8, 96, 1, true), wallMat);
+    walls.position.y = 4;
+    scene.add(walls);
+
+    const cornice = new THREE.Mesh(
+      new THREE.TorusGeometry(19.1, 0.12, 24, 256),
+      new THREE.MeshStandardMaterial({ color: '#c4a26c', metalness: 0.75, roughness: 0.28 })
+    );
+    cornice.rotation.x = Math.PI / 2;
+    cornice.position.y = 7.9;
+    scene.add(cornice);
+
+    const baseboard = new THREE.Mesh(
+      new THREE.CylinderGeometry(19.2, 19.2, 0.3, 128, 1, true),
+      new THREE.MeshStandardMaterial({ color: '#b78a54', metalness: 0.6, roughness: 0.4, side: THREE.DoubleSide })
+    );
+    baseboard.position.y = 0.15;
+    scene.add(baseboard);
+
+    const chandelierStem = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.18, 1.6, 24),
+      new THREE.MeshStandardMaterial({ color: '#d8b070', metalness: 0.9, roughness: 0.25 })
+    );
+    chandelierStem.position.y = 7.2;
+    scene.add(chandelierStem);
+
+    const chandelier = new THREE.Mesh(
+      new THREE.TorusGeometry(2.2, 0.15, 24, 128),
+      new THREE.MeshStandardMaterial({ color: '#ffe0a1', emissive: '#ffd06f', emissiveIntensity: 0.6, metalness: 0.8, roughness: 0.2 })
+    );
+    chandelier.rotation.x = Math.PI / 2;
+    chandelier.position.y = 6.6;
+    scene.add(chandelier);
+
+    const chandelierGlow = new THREE.PointLight(0xffe6b0, 2.4, 28, 1.6);
+    chandelierGlow.position.set(0, 6.6, 0);
+    scene.add(chandelierGlow);
+
+    const floorGlow = new THREE.PointLight(0xffc890, 0.6, 16, 2.2);
+    floorGlow.position.set(0, 1.2, 0);
+    scene.add(floorGlow);
+
+    const woodTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/wood/mahogany_diffuse.jpg');
+    woodTex.colorSpace = THREE.SRGBColorSpace;
+
+    const handleTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/metal/Brass_Albedo.jpg');
+    handleTex.colorSpace = THREE.SRGBColorSpace;
+
+    const doorMat = new THREE.MeshStandardMaterial({
+      map: woodTex,
+      color: '#7b4a1a',
       roughness: 0.3,
       metalness: 0.25
     });
-    const floor = new THREE.Mesh(new THREE.CircleGeometry(lobbyRadius, 72), floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    scene.add(floor);
-
-    const wallMat = new THREE.MeshStandardMaterial({
-      color: '#bcdfff',
-      roughness: 0.32,
-      metalness: 0.12,
-      emissive: '#a3d1ff',
-      emissiveIntensity: 0.08,
-      side: THREE.BackSide
-    });
-    const walls = new THREE.Mesh(new THREE.CylinderGeometry(lobbyRadius, lobbyRadius, ceilingHeight, 96, 1, true), wallMat);
-    walls.position.y = ceilingHeight / 2;
-    walls.receiveShadow = true;
-    scene.add(walls);
-
-    const ceilingMat = new THREE.MeshStandardMaterial({
-      color: '#10131f',
-      roughness: 0.28,
-      metalness: 0.55,
-      emissive: '#0f1526',
-      emissiveIntensity: 0.18
-    });
-    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(lobbyRadius, 72), ceilingMat);
-    ceiling.rotation.x = Math.PI / 2;
-    ceiling.position.y = ceilingHeight;
-    scene.add(ceiling);
-
-    const ceilingLights = new THREE.Group();
-    const trackMaterial = new THREE.MeshStandardMaterial({
-      color: '#1a2132',
-      roughness: 0.48,
-      metalness: 0.76
-    });
-    const lightMaterial = new THREE.MeshStandardMaterial({
-      color: '#f1f6ff',
-      emissive: '#f6fbff',
-      emissiveIntensity: 1.65,
-      roughness: 0.18
-    });
-    const lightBarGeometry = new THREE.PlaneGeometry(3.8, 0.58);
-    const trackRing = new THREE.Mesh(
-      new THREE.TorusGeometry(lobbyRadius - 1.1, 0.06, 24, 128),
-      trackMaterial
-    );
-    trackRing.rotation.x = Math.PI / 2;
-    trackRing.position.y = ceilingHeight - 0.18;
-    ceilingLights.add(trackRing);
-
-    const lightSegments = 8;
-    for (let i = 0; i < lightSegments; i += 1) {
-      const angle = (i / lightSegments) * Math.PI * 2;
-      const radius = lobbyRadius - 1.4;
-      const x = Math.cos(angle) * radius;
-      const z = Math.sin(angle) * radius;
-      const lightPanel = new THREE.Mesh(lightBarGeometry, lightMaterial);
-      lightPanel.position.set(x, ceilingHeight - 0.1, z);
-      lightPanel.rotation.x = Math.PI / 2;
-      lightPanel.lookAt(0, ceilingHeight - 0.1, 0);
-      ceilingLights.add(lightPanel);
-
-      const downLight = new THREE.SpotLight(0xf5f8ff, 1.35, 22, Math.PI / 4, 0.4, 1.8);
-      downLight.castShadow = true;
-      downLight.position.set(x, ceilingHeight - 0.05, z);
-      downLight.target.position.set(x * 0.6, 0.4, z * 0.6);
-      scene.add(downLight.target);
-      ceilingLights.add(downLight);
-    }
-    scene.add(ceilingLights);
-
-    const centerRing = new THREE.Mesh(
-      new THREE.TorusGeometry(lobbyRadius - 2, 0.12, 16, 128),
-      new THREE.MeshStandardMaterial({ color: '#ffd45e', emissive: '#f5c86b', emissiveIntensity: 0.42, roughness: 0.35 })
-    );
-    centerRing.rotation.x = Math.PI / 2;
-    centerRing.position.y = 0.02;
-    scene.add(centerRing);
-
-    const carpet = new THREE.Mesh(
-      new THREE.CircleGeometry(3.4, 72),
-      new THREE.MeshStandardMaterial({
-        color: '#a30e2d',
-        emissive: '#320207',
-        emissiveIntensity: 0.08,
-        roughness: 0.58,
-        metalness: 0.12
-      })
-    );
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.021;
-    scene.add(carpet);
-
-    const baseboard = new THREE.Mesh(
-      new THREE.CylinderGeometry(lobbyRadius - 0.15, lobbyRadius - 0.15, 0.35, 128, 1, true),
-      new THREE.MeshStandardMaterial({ color: '#1a1a2d', metalness: 0.4, roughness: 0.45, side: THREE.DoubleSide })
-    );
-    baseboard.position.y = 0.17;
-    scene.add(baseboard);
-
-    const coveLight = new THREE.Mesh(
-      new THREE.TorusGeometry(lobbyRadius - 1.2, 0.06, 16, 128),
-      new THREE.MeshBasicMaterial({ color: '#ffe7a3' })
-    );
-    coveLight.rotation.x = Math.PI / 2;
-    coveLight.position.y = ceilingHeight - 0.25;
-    scene.add(coveLight);
-
-    const playerPad = new THREE.Mesh(
-      new THREE.CylinderGeometry(1.1, 1.1, 0.2, 48),
-      new THREE.MeshStandardMaterial({ color: '#0f111f', metalness: 0.25, roughness: 0.6 })
-    );
-    playerPad.position.y = 0.1;
-    scene.add(playerPad);
-
-    const playerGlow = new THREE.Mesh(
-      new THREE.CircleGeometry(1.6, 48),
-      new THREE.MeshBasicMaterial({ color: '#ffd45e', transparent: true, opacity: 0.22 })
-    );
-    playerGlow.rotation.x = -Math.PI / 2;
-    playerGlow.position.y = 0.01;
-    scene.add(playerGlow);
-
-    const doorDimensions = { width: 2.8, height: 3.35, depth: 0.16 };
-    const frameThickness = 0.22;
-    const railThickness = 0.16;
-    const doorFrameMaterial = new THREE.MeshStandardMaterial({
-      color: '#1f2b3a',
-      metalness: 0.92,
-      roughness: 0.24
-    });
-    const doorAccentMaterial = new THREE.MeshStandardMaterial({
-      color: '#31435a',
-      metalness: 0.78,
-      roughness: 0.18
-    });
-    const glassMaterial = new THREE.MeshPhysicalMaterial({
-      color: '#d8ecff',
-      metalness: 0.05,
-      roughness: 0.08,
-      transmission: 0.92,
-      thickness: 0.18,
-      envMapIntensity: 0.85,
-      clearcoat: 0.5,
-      clearcoatRoughness: 0.08
-    });
-    const handleMaterial = new THREE.MeshStandardMaterial({
-      color: '#f0d284',
+    const handleMat = new THREE.MeshStandardMaterial({
+      map: handleTex,
+      color: '#ffd700',
       metalness: 1,
-      roughness: 0.22,
-      emissive: '#fce79c',
-      emissiveIntensity: 0.18
+      roughness: 0.1
     });
+    const frameMat = new THREE.MeshStandardMaterial({ color: '#c4a26c', metalness: 0.8, roughness: 0.2 });
+
+    const signBackgroundColor = '#000000';
+    const signBorderColor = '#d4af37';
+    const signTextColor = '#ffcc33';
+
+    const doorEntries = Array.isArray(games) && games.length > 0
+      ? games
+      : fallbackGameNames.map((name) => ({ name }));
 
     const interactable = [];
-    const rotationStep = THREE.MathUtils.degToRad(18);
-    const doorCount = Math.max(games.length, 1);
+    const handleGeom = new THREE.CylinderGeometry(0.07, 0.07, 0.4, 32);
 
-    games.forEach((game, index) => {
-      const angle = (index / doorCount) * Math.PI * 2;
-      const x = Math.cos(angle) * doorRingRadius;
-      const z = Math.sin(angle) * doorRingRadius;
+    doorEntries.forEach((game, index) => {
+      const label = String(game?.name || fallbackGameNames[index % fallbackGameNames.length]);
+      const angle = (index / doorEntries.length) * Math.PI * 2;
+      const radius = 18;
+      const dx = Math.cos(angle) * radius;
+      const dz = Math.sin(angle) * radius;
+      const rotY = -(angle + Math.PI / 2);
 
       const doorGroup = new THREE.Group();
-      doorGroup.position.set(x, 0, z);
-      doorGroup.lookAt(0, 1.7, 0);
-      doorGroup.rotateY(Math.PI);
+      doorGroup.position.set(dx, 2.6, dz);
+      doorGroup.rotation.y = rotY;
+      doorGroup.userData = { type: 'door', route: game?.route ?? null, game };
 
-      const door = new THREE.Group();
-      door.position.set(0, 1.7, 0.02);
-      door.userData = { type: 'door', route: game.route };
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(4.6, 5.2, 0.25), frameMat);
+      frame.castShadow = true;
+      frame.receiveShadow = true;
+      frame.userData = { type: 'door', route: game?.route ?? null, game };
+      doorGroup.add(frame);
+      interactable.push(frame);
 
-      const frameGroup = new THREE.Group();
-      const verticalGeo = new THREE.BoxGeometry(frameThickness, doorDimensions.height, doorDimensions.depth);
-      const horizontalGeo = new THREE.BoxGeometry(doorDimensions.width, frameThickness, doorDimensions.depth);
+      const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(2, 4.8, 0.12), doorMat);
+      const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(2, 4.8, 0.12), doorMat);
+      leftDoor.position.set(-1.05, 0, 0.12);
+      rightDoor.position.set(1.05, 0, 0.12);
+      [leftDoor, rightDoor].forEach((doorPanel) => {
+        doorPanel.castShadow = true;
+        doorPanel.receiveShadow = true;
+        doorPanel.userData = { type: 'door', route: game?.route ?? null, game };
+        interactable.push(doorPanel);
+      });
+      doorGroup.add(leftDoor);
+      doorGroup.add(rightDoor);
 
-      const leftFrame = new THREE.Mesh(verticalGeo, doorFrameMaterial);
-      leftFrame.position.set(-doorDimensions.width / 2 + frameThickness / 2, 0, 0);
-      leftFrame.castShadow = true;
-      leftFrame.receiveShadow = true;
-      frameGroup.add(leftFrame);
+      const leftHandle = new THREE.Mesh(handleGeom, handleMat);
+      const rightHandle = leftHandle.clone();
+      leftHandle.rotation.z = Math.PI / 2;
+      rightHandle.rotation.z = Math.PI / 2;
+      leftHandle.position.set(0.85, 0, 0.16);
+      rightHandle.position.set(-0.85, 0, 0.16);
+      [leftHandle, rightHandle].forEach((handle) => {
+        handle.castShadow = true;
+        handle.receiveShadow = false;
+        handle.userData = { type: 'door', route: game?.route ?? null, game };
+        interactable.push(handle);
+      });
+      leftDoor.add(leftHandle);
+      rightDoor.add(rightHandle);
 
-      const rightFrame = leftFrame.clone();
-      rightFrame.position.x = doorDimensions.width / 2 - frameThickness / 2;
-      frameGroup.add(rightFrame);
-
-      const topFrame = new THREE.Mesh(horizontalGeo, doorFrameMaterial);
-      topFrame.position.set(0, doorDimensions.height / 2 - frameThickness / 2, 0);
-      topFrame.castShadow = true;
-      topFrame.receiveShadow = true;
-      frameGroup.add(topFrame);
-
-      const bottomFrame = new THREE.Mesh(horizontalGeo, doorFrameMaterial);
-      bottomFrame.position.set(0, -doorDimensions.height / 2 + frameThickness / 2, 0);
-      bottomFrame.castShadow = true;
-      bottomFrame.receiveShadow = true;
-      frameGroup.add(bottomFrame);
-
-      const midRail = new THREE.Mesh(
-        new THREE.BoxGeometry(doorDimensions.width - frameThickness * 1.6, railThickness, doorDimensions.depth * 0.9),
-        doorAccentMaterial
-      );
-      midRail.position.set(0, -0.2, 0);
-      midRail.castShadow = true;
-      midRail.receiveShadow = true;
-      frameGroup.add(midRail);
-
-      const upperRail = midRail.clone();
-      upperRail.scale.y = 0.6;
-      upperRail.position.y = 0.85;
-      frameGroup.add(upperRail);
-
-      door.add(frameGroup);
-
-      const glassPanel = new THREE.Mesh(
-        new THREE.BoxGeometry(
-          doorDimensions.width - frameThickness * 2.2,
-          doorDimensions.height - frameThickness * 2.4,
-          doorDimensions.depth * 0.3
-        ),
-        glassMaterial
-      );
-      glassPanel.position.set(0, 0.1, 0.01);
-      glassPanel.castShadow = false;
-      glassPanel.receiveShadow = false;
-      door.add(glassPanel);
-
-      const handlePlate = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.48, 0.05),
-        doorAccentMaterial
-      );
-      handlePlate.position.set(doorDimensions.width / 2 - frameThickness * 1.1, 0.05, doorDimensions.depth / 2 + 0.005);
-      door.add(handlePlate);
-
-      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.36, 28), handleMaterial);
-      handle.rotation.z = Math.PI / 2;
-      handle.position.set(doorDimensions.width / 2 - frameThickness * 1.1, 0.05, doorDimensions.depth / 2 + 0.08);
-      handle.castShadow = true;
-      door.add(handle);
-
-      doorGroup.add(door);
-      interactable.push(door);
-
-      const labelCanvas = document.createElement('canvas');
-      labelCanvas.width = 2048;
-      labelCanvas.height = 512;
-      const ctx = labelCanvas.getContext('2d');
-      ctx.fillStyle = '#111525';
-      ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
-      const frameGradient = ctx.createLinearGradient(0, 0, labelCanvas.width, 0);
-      frameGradient.addColorStop(0, '#4b6ea3');
-      frameGradient.addColorStop(0.5, '#8fb5ff');
-      frameGradient.addColorStop(1, '#4b6ea3');
-      ctx.strokeStyle = frameGradient;
-      ctx.lineWidth = 48;
-      ctx.lineJoin = 'round';
-      ctx.strokeRect(36, 36, labelCanvas.width - 72, labelCanvas.height - 72);
+      const signCanvas = document.createElement('canvas');
+      signCanvas.width = 2048;
+      signCanvas.height = 512;
+      const ctx = signCanvas.getContext('2d');
+      ctx.fillStyle = signBackgroundColor;
+      ctx.fillRect(0, 0, signCanvas.width, signCanvas.height);
+      ctx.strokeStyle = signBorderColor;
+      ctx.lineWidth = 20;
+      ctx.strokeRect(12, 12, signCanvas.width - 24, signCanvas.height - 24);
+      ctx.fillStyle = signTextColor;
+      ctx.font = 'bold 240px "Inter", Arial';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      let fontSize = 340;
-      const maxWidth = labelCanvas.width - 460;
-      do {
+      let fontSize = 240;
+      const maxWidth = signCanvas.width - 360;
+      while (fontSize > 120) {
         ctx.font = `bold ${fontSize}px "Inter", Arial`;
-        fontSize -= 6;
-      } while (fontSize > 96 && ctx.measureText(game.name).width > maxWidth);
-      ctx.lineWidth = 40;
-      ctx.strokeStyle = '#03040a';
-      ctx.strokeText(game.name, labelCanvas.width / 2, labelCanvas.height / 2 + 12);
-      ctx.fillStyle = '#f7fbff';
-      ctx.fillText(game.name, labelCanvas.width / 2, labelCanvas.height / 2 + 12);
-
-      const signTex = new THREE.CanvasTexture(labelCanvas);
-      signTex.colorSpace = THREE.SRGBColorSpace;
-      const signMat = new THREE.MeshBasicMaterial({ map: signTex, side: THREE.DoubleSide });
-
-      const sign = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.45), signMat);
-      sign.position.set(0, 2.28, doorDimensions.depth / 2 + 0.08);
-      sign.rotation.y = Math.PI;
-      door.add(sign);
-
-      const screenCanvas = document.createElement('canvas');
-      screenCanvas.width = 512;
-      screenCanvas.height = 256;
-      drawMonitorScreen(screenCanvas, game);
-      const screenTex = new THREE.CanvasTexture(screenCanvas);
-      screenTex.colorSpace = THREE.SRGBColorSpace;
-      const screenMat = new THREE.MeshStandardMaterial({
-        map: screenTex,
-        emissive: '#0a0a0a',
-        emissiveIntensity: 0.18
-      });
-
-      const infoRadius = doorRingRadius - 2.4;
-      const infoGroup = new THREE.Group();
-      infoGroup.position.set(Math.cos(angle) * infoRadius, 0, Math.sin(angle) * infoRadius);
-      infoGroup.lookAt(0, 1.4, 0);
-
-      const tableBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.95, 0.95, 0.22, 36),
-        new THREE.MeshStandardMaterial({ color: '#0b0b0f', roughness: 0.7, metalness: 0.25 })
-      );
-      tableBase.position.y = 0.11;
-      infoGroup.add(tableBase);
-
-      const tableSurface = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.82, 0.82, 0.08, 36),
-        new THREE.MeshStandardMaterial({ color: '#ffe55a', roughness: 0.6, metalness: 0.18 })
-      );
-      tableSurface.position.y = 0.25;
-      infoGroup.add(tableSurface);
-
-      const tableRim = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.84, 0.84, 0.1, 36, 1, true),
-        new THREE.MeshStandardMaterial({ color: '#000000', metalness: 0.35, roughness: 0.5, side: THREE.DoubleSide })
-      );
-      tableRim.position.y = 0.25;
-      infoGroup.add(tableRim);
-
-      const screen = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1), screenMat);
-      screen.position.set(0, 1.55, 0);
-      infoGroup.add(screen);
-      screen.userData = { type: 'monitor', game };
-      interactable.push(screen);
-
-      const doorLight = new THREE.PointLight(0xffe49a, 1.6, 14, 2.2);
-      doorLight.position.set(Math.cos(angle) * (doorRingRadius - 0.2), 3.4, Math.sin(angle) * (doorRingRadius - 0.2));
-      scene.add(doorLight);
+        if (ctx.measureText(label).width <= maxWidth) {
+          break;
+        }
+        fontSize -= 10;
+      }
+      ctx.font = `bold ${fontSize}px "Inter", Arial`;
+      ctx.fillText(label, signCanvas.width / 2, signCanvas.height / 2);
+      const signTexture = new THREE.CanvasTexture(signCanvas);
+      signTexture.colorSpace = THREE.SRGBColorSpace;
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(6.5, 2), new THREE.MeshBasicMaterial({ map: signTexture }));
+      sign.position.set(0, 3, -0.25);
+      sign.userData = { type: 'sign', route: game?.route ?? null, game };
+      doorGroup.add(sign);
+      interactable.push(sign);
 
       scene.add(doorGroup);
-      scene.add(infoGroup);
     });
 
     const raycaster = new THREE.Raycaster();
     const pointer = new THREE.Vector2();
+    const disposeMaterial = (material) => {
+      if (!material) {
+        return;
+      }
+      ['map', 'emissiveMap', 'roughnessMap', 'metalnessMap', 'normalMap', 'alphaMap'].forEach((key) => {
+        const value = material[key];
+        if (value?.dispose) {
+          value.dispose();
+        }
+      });
+      material.dispose?.();
+    };
+
+    const clampPitch = (value) => THREE.MathUtils.clamp(value, -Math.PI / 8, Math.PI / 4);
+    const clampRadius = (value) => THREE.MathUtils.clamp(value, 10, 18);
+    const wrapAngle = (value) => {
+      const twoPi = Math.PI * 2;
+      let next = value % twoPi;
+      if (next > Math.PI) {
+        next -= twoPi;
+      } else if (next < -Math.PI) {
+        next += twoPi;
+      }
+      return next;
+    };
+    const lerpAngle = (start, end, alpha) => {
+      const difference = wrapAngle(end - start);
+      return wrapAngle(start + difference * alpha);
+    };
+
+    let yaw = wrapAngle(Math.PI / 6);
+    let pitch = clampPitch(-0.08);
+    let radius = 14;
+    let targetYaw = yaw;
+    let targetPitch = pitch;
+    let targetRadius = radius;
+    let dragging = false;
+    let pointerMoved = false;
+    let lastX = 0;
+    let lastY = 0;
+    const pointerDown = new THREE.Vector2();
+    const CLICK_THRESHOLD = 6;
+    let lastInteraction = performance.now();
+
+    const markInteraction = () => {
+      lastInteraction = performance.now();
+    };
+
+    const updateCamera = () => {
+      const clampedPitch = clampPitch(pitch);
+      pitch = clampedPitch;
+      const horizontalRadius = Math.cos(clampedPitch) * radius;
+      const cx = Math.sin(yaw) * horizontalRadius;
+      const cz = Math.cos(yaw) * horizontalRadius;
+      const cy = 2 + Math.sin(clampedPitch) * 3;
+      camera.position.set(cx, cy, cz);
+      camera.lookAt(0, 2, 0);
+    };
+
     const handleInteraction = (event) => {
       const rect = renderer.domElement.getBoundingClientRect();
       pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
       raycaster.setFromCamera(pointer, camera);
       const intersects = raycaster.intersectObjects(interactable, true);
-      if (intersects.length > 0) {
-        const { type, route, game } = intersects[0].object.userData;
-        if (type === 'door' && route) {
+      if (!intersects.length) {
+        return;
+      }
+      const { type, route, game } = intersects[0].object.userData || {};
+      if (type === 'door') {
+        if (route) {
           navigate(route);
-        } else if (type === 'monitor' && game) {
+        } else if (game) {
           setSelectedGame(game);
         }
-      }
-    };
-
-    const pointerDown = { x: 0, y: 0 };
-    const lastPointer = { x: 0, y: 0 };
-    let isPointerDown = false;
-    let isDragging = false;
-    let targetYaw = camera.rotation.y;
-    const defaultPitch = camera.rotation.x;
-    let targetPitch = defaultPitch;
-    const minFov = 38;
-    const maxFov = 80;
-    let targetFov = THREE.MathUtils.clamp(camera.fov, minFov, maxFov);
-    const dragThreshold = 6;
-    const yawSensitivity = 0.003;
-    const zoomStep = 3;
-
-    const clampFov = (value) => THREE.MathUtils.clamp(value, minFov, maxFov);
-    const adjustZoom = (delta) => {
-      targetFov = clampFov(targetFov + delta);
-    };
-
-    const wrapYaw = (value) => {
-      const fullRotation = Math.PI * 2;
-      let next = value % fullRotation;
-      if (next > Math.PI) {
-        next -= fullRotation;
-      } else if (next < -Math.PI) {
-        next += fullRotation;
-      }
-      return next;
-    };
-
-    const activePointers = new Map();
-    let isTouchZoom = false;
-    let lastPinchDistance = null;
-
-    const updateTouchPointer = (event) => {
-      if (event.pointerType !== 'touch') return;
-      activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (activePointers.size === 2) {
-        const [first, second] = [...activePointers.values()];
-        const dx = first.x - second.x;
-        const dy = first.y - second.y;
-        lastPinchDistance = Math.hypot(dx, dy);
-        isTouchZoom = true;
-        isDragging = false;
+      } else if (type === 'sign' && game) {
+        setSelectedGame(game);
       }
     };
 
     const handlePointerDown = (event) => {
-      updateTouchPointer(event);
-      isPointerDown = true;
-      isDragging = false;
-      targetYaw = wrapYaw(camera.rotation.y);
-      targetPitch = defaultPitch;
-      pointerDown.x = event.clientX;
-      pointerDown.y = event.clientY;
-      lastPointer.x = event.clientX;
-      lastPointer.y = event.clientY;
-      renderer.domElement.setPointerCapture?.(event.pointerId);
+      markInteraction();
+      dragging = true;
+      pointerMoved = false;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      pointerDown.set(event.clientX, event.clientY);
+      renderer.domElement.setPointerCapture(event.pointerId);
+      renderer.domElement.style.cursor = 'grabbing';
     };
 
     const handlePointerMove = (event) => {
-      if (event.pointerType === 'touch') {
-        updateTouchPointer(event);
-        if (isTouchZoom && activePointers.size >= 2) {
-          const [first, second] = [...activePointers.values()];
-          const dx = first.x - second.x;
-          const dy = first.y - second.y;
-          const distance = Math.hypot(dx, dy);
-          if (lastPinchDistance) {
-            const pinchDelta = (lastPinchDistance - distance) * 0.05;
-            adjustZoom(pinchDelta);
-          }
-          lastPinchDistance = distance;
-          return;
-        }
+      if (!dragging) {
+        return;
       }
+      markInteraction();
+      pointerMoved = true;
+      const dx = event.clientX - lastX;
+      const dy = event.clientY - lastY;
+      lastX = event.clientX;
+      lastY = event.clientY;
+      targetYaw = wrapAngle(targetYaw - dx * 0.005);
+      targetPitch = clampPitch(targetPitch - dy * 0.003);
+    };
 
-      if (!isPointerDown) return;
-
-      const dx = event.clientX - lastPointer.x;
-
-      if (!isDragging) {
-        const totalDx = event.clientX - pointerDown.x;
-        const totalDy = event.clientY - pointerDown.y;
-        if (Math.hypot(totalDx, totalDy) > dragThreshold) {
-          isDragging = true;
-        }
+    const finalizePointer = (event, allowClick = true) => {
+      if (dragging && renderer.domElement.hasPointerCapture?.(event.pointerId)) {
+        renderer.domElement.releasePointerCapture(event.pointerId);
       }
-
-      if (isDragging) {
-        targetYaw = wrapYaw(targetYaw - dx * yawSensitivity);
-        targetPitch = defaultPitch;
+      dragging = false;
+      renderer.domElement.style.cursor = 'grab';
+      const distance = Math.hypot(event.clientX - pointerDown.x, event.clientY - pointerDown.y);
+      if (allowClick && (!pointerMoved || distance <= CLICK_THRESHOLD)) {
+        handleInteraction(event);
       }
-
-      lastPointer.x = event.clientX;
-      lastPointer.y = event.clientY;
+      pointerMoved = false;
     };
 
     const handlePointerUp = (event) => {
-      if (event.pointerType === 'touch') {
-        activePointers.delete(event.pointerId);
-        if (activePointers.size < 2) {
-          isTouchZoom = false;
-          lastPinchDistance = null;
-        }
-      }
-      if (!isPointerDown) return;
-      renderer.domElement.releasePointerCapture?.(event.pointerId);
-      isPointerDown = false;
-      if (!isDragging) {
-        handleInteraction(event);
-      }
+      markInteraction();
+      finalizePointer(event, true);
     };
 
-    const handlePointerLeave = (event) => {
-      if (event.pointerType === 'touch') {
-        activePointers.delete(event.pointerId);
-        if (activePointers.size < 2) {
-          isTouchZoom = false;
-          lastPinchDistance = null;
-        }
-      }
-      if (!isPointerDown) return;
-      renderer.domElement.releasePointerCapture?.(event.pointerId);
-      isPointerDown = false;
+    const handlePointerLeave = () => {
+      dragging = false;
+      renderer.domElement.style.cursor = 'grab';
     };
 
     const handlePointerCancel = (event) => {
-      renderer.domElement.releasePointerCapture?.(event.pointerId);
-      activePointers.delete(event.pointerId);
-      if (activePointers.size < 2) {
-        isTouchZoom = false;
-        lastPinchDistance = null;
-      }
-      isPointerDown = false;
+      finalizePointer(event, false);
+    };
+
+    const handleLostPointerCapture = () => {
+      dragging = false;
+      renderer.domElement.style.cursor = 'grab';
     };
 
     const handleWheel = (event) => {
       event.preventDefault();
-      const delta = event.deltaY * 0.015;
-      adjustZoom(delta);
+      markInteraction();
+      const delta = Math.sign(event.deltaY);
+      targetRadius = clampRadius(targetRadius + delta * 0.9);
     };
 
-    const handleLostPointerCapture = (event) => {
-      activePointers.delete(event.pointerId);
-      if (activePointers.size < 2) {
-        isTouchZoom = false;
-        lastPinchDistance = null;
-      }
-      isPointerDown = false;
+    const handleResize = () => {
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    };
+
+    const contextMenuHandler = (event) => {
+      event.preventDefault();
     };
 
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
@@ -648,46 +487,58 @@ export default function GamesHallway({ games, onClose }) {
     renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
     renderer.domElement.addEventListener('lostpointercapture', handleLostPointerCapture);
     renderer.domElement.addEventListener('wheel', handleWheel, { passive: false });
+    renderer.domElement.addEventListener('contextmenu', contextMenuHandler);
+    window.addEventListener('resize', handleResize);
 
-    let animationId;
+    const yawStep = THREE.MathUtils.degToRad(18);
+    controlsRef.current = {
+      moveForward: () => {
+        markInteraction();
+        targetYaw = wrapAngle(targetYaw - yawStep);
+      },
+      moveBackward: () => {
+        markInteraction();
+        targetYaw = wrapAngle(targetYaw + yawStep);
+      },
+      zoomIn: () => {
+        markInteraction();
+        targetRadius = clampRadius(targetRadius - 1.1);
+      },
+      zoomOut: () => {
+        markInteraction();
+        targetRadius = clampRadius(targetRadius + 1.1);
+      }
+    };
+
     const clock = new THREE.Clock();
+    let animationId = 0;
+
     const animate = () => {
       animationId = requestAnimationFrame(animate);
       const delta = clock.getDelta();
-      camera.rotation.y = THREE.MathUtils.damp(camera.rotation.y, targetYaw, 6, delta);
-      camera.rotation.x = THREE.MathUtils.damp(camera.rotation.x, targetPitch, 6, delta);
-      const nextFov = THREE.MathUtils.damp(camera.fov, targetFov, 8, delta);
-      if (Math.abs(nextFov - camera.fov) > 0.001) {
-        camera.fov = nextFov;
-        camera.updateProjectionMatrix();
+      const now = performance.now();
+
+      targetPitch = clampPitch(targetPitch);
+      targetRadius = clampRadius(targetRadius);
+      targetYaw = wrapAngle(targetYaw);
+
+      if (!dragging && now - lastInteraction > 4500) {
+        targetYaw = wrapAngle(targetYaw - THREE.MathUtils.degToRad(4) * delta);
       }
+
+      const yawLerp = 1 - Math.exp(-delta * 4.5);
+      const pitchLerp = 1 - Math.exp(-delta * 5.5);
+      const radiusLerp = 1 - Math.exp(-delta * 5);
+      yaw = lerpAngle(yaw, targetYaw, yawLerp);
+      pitch = THREE.MathUtils.lerp(pitch, targetPitch, pitchLerp);
+      radius = THREE.MathUtils.lerp(radius, targetRadius, radiusLerp);
+
+      updateCamera();
       renderer.render(scene, camera);
     };
+
+    updateCamera();
     animate();
-
-    controlsRef.current = {
-      moveForward: () => {
-        targetYaw = wrapYaw(targetYaw + rotationStep);
-      },
-      moveBackward: () => {
-        targetYaw = wrapYaw(targetYaw - rotationStep);
-      },
-      zoomIn: () => {
-        adjustZoom(-zoomStep);
-      },
-      zoomOut: () => {
-        adjustZoom(zoomStep);
-      }
-    };
-
-    const handleResize = () => {
-      if (!container) return;
-      camera.aspect = container.clientWidth / container.clientHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(container.clientWidth, container.clientHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
 
     return () => {
       cancelAnimationFrame(animationId);
@@ -704,24 +555,22 @@ export default function GamesHallway({ games, onClose }) {
       renderer.domElement.removeEventListener('pointercancel', handlePointerCancel);
       renderer.domElement.removeEventListener('lostpointercapture', handleLostPointerCapture);
       renderer.domElement.removeEventListener('wheel', handleWheel);
+      renderer.domElement.removeEventListener('contextmenu', contextMenuHandler);
       window.removeEventListener('resize', handleResize);
       renderer.dispose();
       container.removeChild(renderer.domElement);
       scene.traverse((child) => {
         if (child.isMesh) {
           child.geometry?.dispose?.();
-          if (child.material) {
-            if (Array.isArray(child.material)) {
-              child.material.forEach((mat) => mat.dispose?.());
-            } else {
-              child.material.dispose?.();
-            }
+          const { material } = child;
+          if (Array.isArray(material)) {
+            material.forEach(disposeMaterial);
+          } else {
+            disposeMaterial(material);
           }
         }
-        if (child.material?.map) {
-          child.material.map.dispose?.();
-        }
       });
+      handleGeom.dispose();
     };
   }, [games, navigate]);
 
@@ -747,21 +596,21 @@ export default function GamesHallway({ games, onClose }) {
     }
   };
 
-  useEffect(() => {
-    return () => {
-      if (holdIntervalRef.current) {
-        clearInterval(holdIntervalRef.current);
-        holdIntervalRef.current = null;
-      }
-    };
+  useEffect(() => () => {
+    if (holdIntervalRef.current) {
+      clearInterval(holdIntervalRef.current);
+      holdIntervalRef.current = null;
+    }
   }, []);
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 backdrop-blur">
       <div className="flex items-center justify-between px-4 py-3 text-text">
         <div>
-          <h3 className="text-lg font-semibold">TonPlaygram Circular Lobby</h3>
-          <p className="text-xs text-subtext">Doors surround you in the lobby. Tap a door to enter the game or a monitor to preview its lobby options.</p>
+          <h3 className="text-lg font-semibold">TonPlaygram Luxury Hallway</h3>
+          <p className="text-xs text-subtext">
+            Drag to look around, tap a golden door to enter, or tap its illuminated sign to preview the lobby first.
+          </p>
         </div>
         <button
           type="button"
@@ -877,7 +726,9 @@ export default function GamesHallway({ games, onClose }) {
                 <button
                   type="button"
                   onClick={() => {
-                    navigate(selectedGame.route);
+                    if (selectedGame.route) {
+                      navigate(selectedGame.route);
+                    }
                     setSelectedGame(null);
                   }}
                   className="w-full rounded-full bg-primary px-6 py-3 text-base font-semibold text-black"
