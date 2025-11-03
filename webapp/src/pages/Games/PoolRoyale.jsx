@@ -272,7 +272,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.075; // relax the wooden rail arches slightly more so the relief keeps pace with the larger chrome cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.03; // tighten the middle rail arches slightly so the wood relief stays slimmer than the chrome cut
 
 function buildChromePlateGeometry({
   width,
@@ -534,8 +534,8 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.428; // pull the middle jaw span in a touch more so the slimmer jaws clear the cushion shoulders cleanly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.006; // let the jaw radius follow the subtly tightened chrome cut toward the rail profile
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.36; // ease the middle jaw span back slightly so the wooden arc reads tighter than the chrome fascia
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.003; // rein in the jaw radius a touch so the wood trim stays narrower while matching the chrome cut
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaw depth identical to the corners for a uniform vertical profile
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.015; // drop the middle jaw crowns slightly so they finish level with the surrounding rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
