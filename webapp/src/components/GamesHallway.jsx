@@ -191,19 +191,91 @@ export default function GamesHallway({ games, onClose }) {
       new THREE.CylinderGeometry(0.12, 0.18, 1.6, 24),
       new THREE.MeshStandardMaterial({ color: '#d8b070', metalness: 0.9, roughness: 0.25 })
     );
-    chandelierStem.position.y = 7.2;
+    chandelierStem.position.y = 7.6;
     scene.add(chandelierStem);
 
-    const chandelier = new THREE.Mesh(
-      new THREE.TorusGeometry(2.2, 0.15, 24, 128),
-      new THREE.MeshStandardMaterial({ color: '#ffe0a1', emissive: '#ffd06f', emissiveIntensity: 0.6, metalness: 0.8, roughness: 0.2 })
+    const chandelierMount = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.65, 0.3, 32),
+      new THREE.MeshStandardMaterial({ color: '#d6b378', metalness: 0.88, roughness: 0.28 })
     );
-    chandelier.rotation.x = Math.PI / 2;
+    chandelierMount.position.y = 8.15;
+    scene.add(chandelierMount);
+
+    const chandelier = new THREE.Group();
     chandelier.position.y = 6.6;
     scene.add(chandelier);
 
-    const chandelierGlow = new THREE.PointLight(0xffe6b0, 2.4, 28, 1.6);
-    chandelierGlow.position.set(0, 6.6, 0);
+    const chandelierFrame = new THREE.Mesh(
+      new THREE.TorusGeometry(2.2, 0.1, 24, 128),
+      new THREE.MeshStandardMaterial({
+        color: '#f5d598',
+        emissive: '#ffe0aa',
+        emissiveIntensity: 0.5,
+        metalness: 0.85,
+        roughness: 0.2
+      })
+    );
+    chandelierFrame.rotation.x = Math.PI / 2;
+    chandelier.add(chandelierFrame);
+
+    const chandelierShade = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.35, 1.75, 1.15, 64, 1, true),
+      new THREE.MeshStandardMaterial({
+        color: '#fff2ce',
+        emissive: '#ffe5b1',
+        emissiveIntensity: 0.65,
+        metalness: 0.2,
+        roughness: 0.32,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.92
+      })
+    );
+    chandelierShade.position.y = -0.05;
+    chandelier.add(chandelierShade);
+
+    const chandelierShadeInner = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.15, 1.55, 1.1, 64, 1, true),
+      new THREE.MeshStandardMaterial({
+        color: '#fff0c3',
+        emissive: '#ffdca1',
+        emissiveIntensity: 0.4,
+        metalness: 0.12,
+        roughness: 0.4,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.55
+      })
+    );
+    chandelierShadeInner.position.y = -0.05;
+    chandelier.add(chandelierShadeInner);
+
+    const chandelierDiffuser = new THREE.Mesh(
+      new THREE.CircleGeometry(1.35, 48),
+      new THREE.MeshStandardMaterial({
+        color: '#fff4cf',
+        emissive: '#ffe7b4',
+        emissiveIntensity: 0.7,
+        metalness: 0.15,
+        roughness: 0.28,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.95
+      })
+    );
+    chandelierDiffuser.rotation.x = Math.PI / 2;
+    chandelierDiffuser.position.y = -0.6;
+    chandelier.add(chandelierDiffuser);
+
+    const chandelierCap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.4, 0.6, 0.3, 32),
+      new THREE.MeshStandardMaterial({ color: '#d8b070', metalness: 0.9, roughness: 0.25 })
+    );
+    chandelierCap.position.y = 0.55;
+    chandelier.add(chandelierCap);
+
+    const chandelierGlow = new THREE.PointLight(0xffe6b0, 2.6, 28, 1.6);
+    chandelierGlow.position.set(0, chandelier.position.y - 0.15, 0);
     scene.add(chandelierGlow);
 
     const floorGlow = new THREE.PointLight(0xffc890, 0.6, 16, 2.2);
