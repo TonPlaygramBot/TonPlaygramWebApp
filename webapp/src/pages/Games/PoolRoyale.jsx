@@ -709,7 +709,7 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   BALL_R * 3.7;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
-  dotThreshold: 0.92,
+  dotThreshold: 0.3,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
@@ -4280,10 +4280,7 @@ function applySpinImpulse(ball, scale = 1) {
 }
 
 // calculate impact point and post-collision direction for aiming guide
-function calcTarget(cue, dir, balls, options = {}) {
-  const tableScale = Number.isFinite(options?.tableScale)
-    ? options.tableScale
-    : 1;
+function calcTarget(cue, dir, balls) {
   if (!cue) {
     return {
       impact: new THREE.Vector2(),
@@ -4345,8 +4342,7 @@ function calcTarget(cue, dir, balls, options = {}) {
     }
   });
 
-  const fallbackDistance =
-    Math.sqrt(PLAY_W * PLAY_W + PLAY_H * PLAY_H) * Math.max(tableScale, 0.01);
+  const fallbackDistance = Math.sqrt(PLAY_W * PLAY_W + PLAY_H * PLAY_H);
   let travel = Number.isFinite(tHit) ? tHit : fallbackDistance;
   if (travel <= 0) {
     travel = fallbackDistance;
@@ -9287,30 +9283,58 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
 
-        const updateBroadcastCameras = ({ railDir = 1 } = {}) => {
+        const updateBroadcastCameras = ({
+          railDir = 1,
+          targetWorld = null,
+          focusWorld = null,
+          lerp = 1
+        } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          const normalizedRailDir = Math.sign(railDir) || 1;
-          const baseFocus =
+          const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
+          const focusTarget =
+            focusWorld ??
+            targetWorld ??
             rig.defaultFocusWorld ??
             rig.defaultFocus ??
-            new THREE.Vector3();
-          const applyFocus = (unit) => {
+            null;
+          const applyFocus = (unit, lookAt, t) => {
             if (!unit) return;
             if (unit.slider) {
-              unit.slider.position.x = 0;
-              unit.slider.position.z = 0;
+              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
+              const limit = Math.max(
+                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
+                0
+              );
+              const targetX = lookAt
+                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
+                : 0;
+              unit.slider.position.x = THREE.MathUtils.lerp(
+                unit.slider.position.x,
+                targetX,
+                settle
+              );
+              unit.slider.position.z = THREE.MathUtils.lerp(
+                unit.slider.position.z,
+                0,
+                settle
+              );
             }
-            if (unit.head) {
-              unit.head.lookAt(baseFocus);
+            if (lookAt && unit.head) {
+              unit.head.lookAt(lookAt);
             }
           };
           const frontUnits = [rig.cameras.front].filter(Boolean);
           const backUnits = [rig.cameras.back].filter(Boolean);
-          const activeUnits = normalizedRailDir >= 0 ? backUnits : frontUnits;
-          const idleUnits = normalizedRailDir >= 0 ? frontUnits : backUnits;
-          activeUnits.forEach((unit) => applyFocus(unit));
-          idleUnits.forEach((unit) => applyFocus(unit));
+          const activeUnits = railDir >= 0 ? backUnits : frontUnits;
+          const idleUnits = railDir >= 0 ? frontUnits : backUnits;
+          activeUnits.forEach((unit) =>
+            applyFocus(unit, focusTarget, lerpFactor)
+          );
+          const idleFocus = rig.defaultFocusWorld ?? focusTarget;
+          idleUnits.forEach((unit) =>
+            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
+          );
         };
 
         const updateCamera = () => {
@@ -9627,7 +9651,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   : activeShotView.broadcastRailDir ?? railDir;
               activeShotView.broadcastRailDir = broadcastRailDir;
               broadcastArgs = {
-                railDir: Math.sign(broadcastRailDir) || 1,
+                railDir: broadcastRailDir,
                 targetWorld: desiredPosition ?? null,
                 focusWorld: focusTargetVec3 ?? null,
                 lerp: lerpT
@@ -9697,7 +9721,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             }
             activeShotView.broadcastRailDir = broadcastRailDir;
             broadcastArgs = {
-              railDir: Math.sign(broadcastRailDir ?? railDir) || 1,
+              railDir: broadcastRailDir ?? railDir,
               targetWorld: null,
               focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
               lerp: 0.25
@@ -11750,9 +11774,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           firstHit = null;
           clearInterval(timerRef.current);
           const aimDir = aimDirRef.current.clone();
-          const prediction = calcTarget(cue, aimDir.clone(), balls, {
-            tableScale
-          });
+          const prediction = calcTarget(cue, aimDir.clone(), balls);
           const predictedTravelRaw = prediction.targetBall
             ? cue.pos.distanceTo(prediction.targetBall.pos)
             : prediction.tHit;
@@ -11930,8 +11952,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
-            balls,
-            { tableScale }
+            balls
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
@@ -12778,7 +12799,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           Math.max(1, Math.ceil(frameScale))
         );
         const subStepScale = frameScale / physicsSubsteps;
-        const tableScale = tableSizeRef.current?.scale ?? 1;
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
@@ -12816,8 +12836,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
-            balls,
-            { tableScale }
+            balls
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
@@ -12870,18 +12889,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
-          const tickHalfLength = Math.max(BALL_R, 1e-4);
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(tickHalfLength)),
-            end.clone().add(perp.clone().multiplyScalar(-tickHalfLength))
+            end.clone().add(perp.clone().multiplyScalar(1.4)),
+            end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
-            balls,
-            { tableScale }
+            balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const pull = Math.min(desiredPull, maxPull);
@@ -13050,8 +13067,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const backInfo = calcTarget(
             cue,
             planDir.clone().multiplyScalar(-1),
-            balls,
-            { tableScale }
+            balls
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
