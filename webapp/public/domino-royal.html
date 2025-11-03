@@ -899,6 +899,79 @@ function adjustHexColor(hex, amount) {
   return `#${base.getHexString()}`;
 }
 
+function createCarbonFiberTexture(
+  renderer,
+  {
+    tile = 4,
+    primary = '#171c24',
+    secondary = '#10141c',
+    highlight = 'rgba(255, 255, 255, 0.08)'
+  } = {}
+) {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+
+  ctx.fillStyle = secondary;
+  ctx.fillRect(0, 0, size, size);
+
+  const cell = size / 16;
+  for (let y = 0; y < size; y += cell) {
+    for (let x = 0; x < size; x += cell) {
+      const evenCell = ((x + y) / cell) % 2 === 0;
+      ctx.fillStyle = evenCell ? primary : secondary;
+      ctx.fillRect(x, y, cell, cell);
+
+      ctx.fillStyle = evenCell ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.25)';
+      ctx.beginPath();
+      ctx.moveTo(x, y + cell * 0.15);
+      ctx.lineTo(x + cell * 0.85, y + cell);
+      ctx.lineTo(x + cell, y + cell * 0.85);
+      ctx.lineTo(x + cell * 0.15, y);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  ctx.globalAlpha = 0.35;
+  ctx.strokeStyle = highlight;
+  ctx.lineWidth = cell * 0.18;
+  for (let offset = -size; offset <= size * 2; offset += cell * 2) {
+    ctx.beginPath();
+    ctx.moveTo(offset, 0);
+    ctx.lineTo(offset + size, size);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+  for (let offset = -size; offset <= size * 2; offset += cell * 2) {
+    ctx.beginPath();
+    ctx.moveTo(offset + cell, 0);
+    ctx.lineTo(offset + size + cell, size);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(tile, tile);
+  const maxAnisotropy =
+    (renderer?.capabilities && typeof renderer.capabilities.getMaxAnisotropy === 'function'
+      ? renderer.capabilities.getMaxAnisotropy()
+      : renderer?.capabilities?.anisotropy) || 4;
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
 function createChairClothTexture(option, renderer) {
   if (typeof document === "undefined") {
     return null;
@@ -1215,25 +1288,28 @@ wall.castShadow = false;
 arenaG.add(wall);
 
 const ARENA_DOOR_DIMENSIONS = Object.freeze({ width: 2.8, height: 3.4, thickness: 0.12 });
-const hallwayDoorTexture = textureLoader.load(
-  'https://images.unsplash.com/photo-1523419409543-0c1df022bdd5?auto=format&fit=crop&w=1200&q=80'
-);
-hallwayDoorTexture.wrapS = THREE.RepeatWrapping;
-hallwayDoorTexture.wrapT = THREE.RepeatWrapping;
-hallwayDoorTexture.colorSpace = THREE.SRGBColorSpace;
-hallwayDoorTexture.repeat.set(1.2, 1.2);
-const hallwayDoorMaterial = new THREE.MeshStandardMaterial({
-  color: 0x5b3319,
-  map: hallwayDoorTexture,
-  roughness: 0.35,
-  metalness: 0.25
-});
+const carbonFiberTextureBase = createCarbonFiberTexture(renderer, { tile: 4.5 });
+const hallwayDoorTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+if (hallwayDoorTexture) {
+  hallwayDoorTexture.repeat.set(2.6, 2.8);
+  hallwayDoorTexture.needsUpdate = true;
+}
+const hallwayDoorMaterialConfig = {
+  color: 0x1a1f26,
+  roughness: 0.32,
+  metalness: 0.55,
+  envMapIntensity: 1.05
+};
+if (hallwayDoorTexture) {
+  hallwayDoorMaterialConfig.map = hallwayDoorTexture;
+}
+const hallwayDoorMaterial = new THREE.MeshStandardMaterial(hallwayDoorMaterialConfig);
 const hallwayHandleMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffd700,
+  color: 0xffd87c,
   metalness: 1,
-  roughness: 0.2,
-  emissive: 0xffe4a3,
-  emissiveIntensity: 0.2
+  roughness: 0.18,
+  emissive: 0xffeab5,
+  emissiveIntensity: 0.28
 });
 const hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
 const hallwayDoorPivot = new THREE.Group();
@@ -1254,7 +1330,13 @@ hallwayDoorPivot.add(hallwayDoor);
 
 const hallwayHandlePlate = new THREE.Mesh(
   new THREE.BoxGeometry(0.16, 0.46, 0.02),
-  new THREE.MeshStandardMaterial({ color: 0xc9a35a, metalness: 0.85, roughness: 0.22 })
+  new THREE.MeshStandardMaterial({
+    color: 0xffd87c,
+    metalness: 0.95,
+    roughness: 0.18,
+    emissive: 0xffe6aa,
+    emissiveIntensity: 0.32
+  })
 );
 hallwayHandlePlate.position.set(
   ARENA_DOOR_DIMENSIONS.width - 0.6,
@@ -1279,11 +1361,11 @@ const hallwayDoorFrame = new THREE.Mesh(
     ARENA_DOOR_DIMENSIONS.thickness * 0.8
   ),
   new THREE.MeshStandardMaterial({
-    color: 0x2c1b0f,
-    roughness: 0.42,
-    metalness: 0.55,
-    emissive: 0x140904,
-    emissiveIntensity: 0.3
+    color: 0xf2d79b,
+    roughness: 0.18,
+    metalness: 0.94,
+    emissive: 0xffe4b5,
+    emissiveIntensity: 0.4
   })
 );
 hallwayDoorFrame.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, -ARENA_DOOR_DIMENSIONS.thickness * 0.45);
@@ -1433,15 +1515,25 @@ function createWalkwaySide(offsetX) {
 const walkwaySideLeft = createWalkwaySide(-ARENA_WALKWAY_WIDTH / 2 - 0.175);
 const walkwaySideRight = createWalkwaySide(ARENA_WALKWAY_WIDTH / 2 + 0.175);
 
+const walkwayPortalHeaderTexture = carbonFiberTextureBase ? carbonFiberTextureBase.clone() : null;
+if (walkwayPortalHeaderTexture) {
+  walkwayPortalHeaderTexture.repeat.set((ARENA_WALKWAY_WIDTH + 0.4) / 1.4, 1.6);
+  walkwayPortalHeaderTexture.needsUpdate = true;
+}
+const walkwayPortalHeaderMaterialConfig = {
+  color: 0x1c1f26,
+  metalness: 0.68,
+  roughness: 0.28,
+  emissive: 0x140812,
+  emissiveIntensity: 0.35,
+  envMapIntensity: 0.9
+};
+if (walkwayPortalHeaderTexture) {
+  walkwayPortalHeaderMaterialConfig.map = walkwayPortalHeaderTexture;
+}
 const walkwayPortalHeader = new THREE.Mesh(
   new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.4, 0.22, 0.5),
-  new THREE.MeshStandardMaterial({
-    color: 0x201224,
-    metalness: 0.66,
-    roughness: 0.28,
-    emissive: 0x140812,
-    emissiveIntensity: 0.35
-  })
+  new THREE.MeshStandardMaterial(walkwayPortalHeaderMaterialConfig)
 );
 walkwayPortalHeader.position.set(0, 1.42, hallwayDoorZ - 0.05);
 walkwayPortalHeader.castShadow = true;
