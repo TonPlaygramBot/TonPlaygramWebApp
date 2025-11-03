@@ -13,7 +13,8 @@ import {
   getProfile,
   getAccountBalance,
   addTransaction,
-  getSnakeLobby
+  getSnakeLobby,
+  getSnakeLobbies
 } from '../../utils/api.js';
 import {
   getPlayerId,
@@ -53,6 +54,8 @@ export default function Lobby() {
     setConfirmed(false);
     setReadyList([]);
     setJoinedTableId(null);
+    setPlayers([]);
+    setCurrentTurn(null);
   }, [game, table]);
 
   useEffect(() => {
@@ -90,14 +93,48 @@ export default function Lobby() {
   }, []);
 
   useEffect(() => {
-    if (game === 'snake') {
-      setTables([
-        { id: 'single', label: 'Single Player vs AI', capacity: 1 },
-        { id: 'snake-2', label: 'Table 2 Players', capacity: 2, disabled: true },
-        { id: 'snake-3', label: 'Table 3 Players', capacity: 3, disabled: true },
-        { id: 'snake-4', label: 'Table 4 Players', capacity: 4, disabled: true }
-      ]);
-    }
+    if (game !== 'snake') return undefined;
+    let cancelled = false;
+    const singleTable = { id: 'single', label: 'Single Player vs AI', capacity: 1 };
+
+    const applyTables = (lobbies = []) => {
+      if (cancelled) return;
+      const multiplayer = lobbies
+        .map((entry) => ({
+          id: entry.id,
+          label: `Table ${entry.capacity} Players`,
+          capacity: entry.capacity,
+          players: entry.players || 0
+        }))
+        .sort((a, b) => a.capacity - b.capacity);
+      const nextTables = [singleTable, ...multiplayer];
+      setTables(nextTables);
+      setTable((current) => {
+        if (!nextTables.length) return null;
+        if (!current) return nextTables[0];
+        const stillExists = nextTables.some((t) => t.id === current.id);
+        return stillExists ? current : nextTables[0];
+      });
+    };
+
+    const fetchTables = () => {
+      getSnakeLobbies()
+        .then((list) => applyTables(Array.isArray(list) ? list : []))
+        .catch(() => {
+          applyTables([
+            { id: 'snake-2', capacity: 2, players: 0 },
+            { id: 'snake-3', capacity: 3, players: 0 },
+            { id: 'snake-4', capacity: 4, players: 0 }
+          ]);
+        });
+    };
+
+    fetchTables();
+    const interval = setInterval(fetchTables, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [game]);
 
   useEffect(() => {
@@ -181,6 +218,20 @@ export default function Lobby() {
     };
   }, [table, stake, game, navigate, joinedTableId, confirmed]);
 
+  useEffect(() => {
+    if (game !== 'snake' || !table || table.id === 'single') return;
+    setTables((prev) =>
+      prev.map((t) =>
+        t.id === table.id
+          ? {
+              ...t,
+              players: players.length
+            }
+          : t
+      )
+    );
+  }, [players, game, table]);
+
   // Automatic game start previously triggered when all seats were filled.
   // This prevented players from selecting their preferred stake before the
   // match began. The logic has been removed so that each participant must
@@ -258,6 +309,8 @@ export default function Lobby() {
       aiType === 'flags' &&
       flags.length !== aiCount);
 
+  const readyIds = new Set(readyList.map((id) => String(id)));
+
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center capitalize">{game} Lobby</h2>
@@ -304,6 +357,55 @@ export default function Lobby() {
                 Flags
               </button>
             ))}
+          </div>
+        </div>
+      )}
+      {game === 'snake' && table?.id !== 'single' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Players in lobby</h3>
+          <div className="space-y-2">
+            {players.length === 0 && (
+              <p className="text-sm text-subtext text-center">Waiting for players to join…</p>
+            )}
+            {players.map((p, index) => {
+              const avatarSrc = getAvatarUrl(p.avatar);
+              const isReady = readyIds.has(String(p.id));
+              const isTurn = currentTurn != null && String(currentTurn) === String(p.id);
+              return (
+                <div
+                  key={`${p.id}-${index}`}
+                  className="flex items-center justify-between rounded-lg border border-border bg-surface px-3 py-2 shadow-sm"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 rounded-full bg-border overflow-hidden flex items-center justify-center text-sm font-semibold text-background/80">
+                      {avatarSrc ? (
+                        <img
+                          src={avatarSrc}
+                          alt={p.name || `Player ${index + 1}`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        String(p.name || '?').charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold leading-tight">{p.name || `Player ${index + 1}`}</p>
+                      <p className="text-xs text-subtext leading-tight">ID: {p.id}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {isTurn && <span className="text-xs font-semibold text-primary">Rolling next</span>}
+                    <span
+                      className={`text-xs font-semibold ${
+                        isReady ? 'text-emerald-400' : 'text-subtext'
+                      }`}
+                    >
+                      {isReady ? 'Ready' : 'Waiting'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

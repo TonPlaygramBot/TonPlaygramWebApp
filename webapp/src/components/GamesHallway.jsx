@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
+import { getOnlineCount } from '../utils/api.js';
 
 const fallbackGameNames = [
   'Chess Arena',
@@ -36,6 +37,7 @@ export default function GamesHallway({ games, onClose }) {
   const navigate = useNavigate();
   const [selectedGame, setSelectedGame] = useState(null);
   const overlayRootRef = useRef(null);
+  const [onlineCount, setOnlineCount] = useState(0);
 
   useEffect(() => {
     if (!overlayRootRef.current) {
@@ -50,6 +52,25 @@ export default function GamesHallway({ games, onClose }) {
   }, []);
 
   useBodyScrollLock(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const updateCount = () => {
+      getOnlineCount()
+        .then((data) => {
+          if (!cancelled && typeof data?.count === 'number') {
+            setOnlineCount(data.count);
+          }
+        })
+        .catch(() => {});
+    };
+    updateCount();
+    const interval = setInterval(updateCount, 20000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -651,7 +672,15 @@ export default function GamesHallway({ games, onClose }) {
       </div>
       <div className="relative flex-1">
         <div ref={containerRef} className="absolute inset-0" />
-        <div className="pointer-events-none absolute inset-0" />
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute top-6 inset-x-0 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full bg-black/55 px-4 py-2 text-xs font-semibold tracking-wide text-white shadow-lg shadow-black/40 backdrop-blur-sm">
+              <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+              <span className="text-sm font-semibold text-white">{onlineCount}</span>
+              <span className="text-[0.65rem] uppercase text-white/80">online</span>
+            </div>
+          </div>
+        </div>
       </div>
       {selectedGame && overlayRootRef.current &&
         createPortal(
