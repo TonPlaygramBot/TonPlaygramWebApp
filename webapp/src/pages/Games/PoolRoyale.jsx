@@ -22,6 +22,7 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
+import { socket } from '../../utils/socket.js';
 import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
@@ -6908,10 +6909,22 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({ variantKey, tableSizeKey }) {
+function PoolRoyaleGame({
+  variantKey,
+  tableSizeKey,
+  mode = 'ai',
+  stake = { token: 'TPC', amount: 0 },
+  roomId,
+  accountId,
+  defaultPlayerName,
+  defaultPlayerAvatar,
+  watchOnly = false
+}) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
+  const isOnline = mode === 'online';
+  const isSpectator = isOnline && (watchOnly || !accountId);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
     [variantKey]
@@ -6921,6 +6934,60 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     [tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
+  const [onlineRole, setOnlineRole] = useState('A');
+  const onlineRoleRef = useRef(onlineRole);
+  useEffect(() => {
+    onlineRoleRef.current = onlineRole;
+  }, [onlineRole]);
+  const [opponent, setOpponent] = useState(() =>
+    isOnline
+      ? {
+          name: isSpectator ? 'Watching match…' : 'Waiting for opponent…',
+          avatar: ''
+        }
+      : { name: 'AI', avatar: '' }
+  );
+  const opponentRef = useRef(opponent);
+  useEffect(() => {
+    opponentRef.current = opponent;
+  }, [opponent]);
+  const [roomStatus, setRoomStatus] = useState(() =>
+    isOnline ? (isSpectator ? 'watching' : 'connecting') : 'offline'
+  );
+  const stakeRef = useRef(stake);
+  useEffect(() => {
+    stakeRef.current = stake;
+  }, [stake]);
+  const buildInitialFrame = useCallback(
+    (role, localName, opponentName) => {
+      const safeLocal = localName || 'Player';
+      const safeOpponent =
+        opponentName || (isOnline ? 'Opponent' : 'AI');
+      if (role === 'B') {
+        return rules.getInitialFrame(safeOpponent, safeLocal);
+      }
+      return rules.getInitialFrame(safeLocal, safeOpponent);
+    },
+    [isOnline, rules]
+  );
+  const broadcastState = useCallback(
+    (state, meta = {}) => {
+      if (!isOnline || isSpectator || !roomId || !state) return;
+      const stakeInfo = stakeRef.current || {};
+      socket.emit('pool:state', {
+        roomId,
+        state,
+        meta,
+        variant: variantKey,
+        tableSize: tableSizeKey,
+        stake: {
+          token: stakeInfo.token,
+          amount: stakeInfo.amount
+        }
+      });
+    },
+    [isOnline, isSpectator, roomId, tableSizeKey, variantKey]
+  );
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerTableFinish');
@@ -7337,11 +7404,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [configOpen]);
   const applyFinishRef = useRef(() => {});
   const [frameState, setFrameState] = useState(() =>
-    rules.getInitialFrame('Player', 'AI')
+    buildInitialFrame(
+      playerInfoRef.current?.role || onlineRoleRef.current || 'A',
+      playerInfoRef.current?.name || 'Player',
+      opponentRef.current?.name || (isOnline ? 'Opponent' : 'AI')
+    )
   );
   useEffect(() => {
-    setFrameState(rules.getInitialFrame('Player', 'AI'));
-  }, [rules]);
+    const role = playerInfoRef.current?.role || onlineRoleRef.current || 'A';
+    const localName = playerInfoRef.current?.name || 'Player';
+    const opponentName =
+      opponentRef.current?.name || (isOnline ? 'Opponent' : 'AI');
+    setFrameState(buildInitialFrame(role, localName, opponentName));
+  }, [buildInitialFrame, isOnline]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -7453,10 +7528,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     if (!slider) return;
     const hudState = hudRef.current;
     const shouldLock =
-      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
+      hudState?.turn !== 0 ||
+      hudState?.over ||
+      shootingRef.current ||
+      isSpectator;
     if (shouldLock) slider.lock();
     else slider.unlock();
-  }, []);
+  }, [isSpectator]);
   useEffect(() => {
     applySliderLock();
   }, [applySliderLock, hud.turn, hud.over, shotActive]);
@@ -7560,11 +7638,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
-  const [player, setPlayer] = useState({ name: '', avatar: '' });
-  const playerInfoRef = useRef(player);
+  const [player, setPlayer] = useState(() => ({
+    name: defaultPlayerName || getTelegramUsername() || 'Player',
+    avatar: defaultPlayerAvatar || getTelegramPhotoUrl()
+  }));
+  const playerInfoRef = useRef({
+    ...player,
+    role: isSpectator ? null : onlineRoleRef.current
+  });
   useEffect(() => {
-    playerInfoRef.current = player;
-  }, [player]);
+    playerInfoRef.current = {
+      ...player,
+      role: isSpectator ? null : onlineRoleRef.current
+    };
+  }, [isSpectator, player, onlineRole]);
   const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
 
@@ -7697,24 +7784,273 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     document.title = 'Pool Royale 3D';
   }, []);
   useEffect(() => {
-    setPlayer({
-      name: getTelegramUsername() || 'Player',
-      avatar: getTelegramPhotoUrl()
+    setPlayer((prev) => {
+      const nextName =
+        defaultPlayerName || getTelegramUsername() || 'Player';
+      const nextAvatar =
+        defaultPlayerAvatar || getTelegramPhotoUrl();
+      if (prev.name === nextName && prev.avatar === nextAvatar) {
+        return prev;
+      }
+      return { name: nextName, avatar: nextAvatar };
     });
-  }, []);
+  }, [defaultPlayerName, defaultPlayerAvatar]);
   useEffect(() => {
+    if (!isOnline) return;
+    if (!roomId) {
+      setErr('Missing table identifier for online match.');
+      setRoomStatus('error');
+      return;
+    }
+    let active = true;
+
+    const handleState = ({ roomId: rid, state }) => {
+      if (rid !== roomId || !state) return;
+      frameRef.current = state;
+      setFrameState(state);
+      if (isSpectator && state.players) {
+        const playerA = state.players.A || {};
+        const playerB = state.players.B || {};
+        setPlayer((prev) => {
+          const nextName = playerA.name || prev.name || 'Player';
+          const nextAvatar =
+            playerA.avatar != null && playerA.avatar !== ''
+              ? playerA.avatar
+              : prev.avatar || '';
+          if (prev.name === nextName && prev.avatar === nextAvatar) {
+            return prev;
+          }
+          return { name: nextName, avatar: nextAvatar };
+        });
+        setOpponent((prev) => {
+          const nextName =
+            playerB.name || prev.name || (isOnline ? 'Opponent' : 'AI');
+          const nextAvatar =
+            playerB.avatar != null && playerB.avatar !== ''
+              ? playerB.avatar
+              : prev.avatar || '';
+          if (prev.name === nextName && prev.avatar === nextAvatar) {
+            return prev;
+          }
+          return { name: nextName, avatar: nextAvatar };
+        });
+      }
+      setRoomStatus(isSpectator ? 'watching' : 'playing');
+    };
+
+    const handlePlayerJoined = ({ roomId: rid, role, player: joined, ready }) => {
+      if (rid !== roomId) return;
+      if (isSpectator) {
+        if (joined) {
+          if (role === 'A') {
+            setPlayer((prev) => {
+              const nextName = joined.name || prev.name || 'Player';
+              const nextAvatar =
+                joined.avatar != null && joined.avatar !== ''
+                  ? joined.avatar
+                  : prev.avatar || '';
+              if (prev.name === nextName && prev.avatar === nextAvatar) {
+                return prev;
+              }
+              return { name: nextName, avatar: nextAvatar };
+            });
+          } else if (role === 'B') {
+            setOpponent((prev) => {
+              const nextName = joined.name || prev.name || 'Opponent';
+              const nextAvatar =
+                joined.avatar != null && joined.avatar !== ''
+                  ? joined.avatar
+                  : prev.avatar || '';
+              if (prev.name === nextName && prev.avatar === nextAvatar) {
+                return prev;
+              }
+              return { name: nextName, avatar: nextAvatar };
+            });
+          }
+        }
+        setRoomStatus('watching');
+        return;
+      }
+      const localRole = playerInfoRef.current?.role || onlineRoleRef.current || 'A';
+      if (role && role !== localRole && joined) {
+        setOpponent({
+          name: joined.name || (isOnline ? 'Opponent' : 'AI'),
+          avatar: joined.avatar || ''
+        });
+      }
+      if (ready) {
+        setRoomStatus('ready');
+        if (localRole === 'A') {
+          broadcastState(frameRef.current ?? frameState, { sync: 'ready' });
+        }
+      } else {
+        setRoomStatus('waiting');
+      }
+    };
+
+    const handleReady = ({ roomId: rid }) => {
+      if (rid !== roomId) return;
+      if (isSpectator) {
+        setRoomStatus('watching');
+        return;
+      }
+      setRoomStatus('ready');
+      const localRole = playerInfoRef.current?.role || onlineRoleRef.current || 'A';
+      if (localRole === 'A') {
+        broadcastState(frameRef.current ?? frameState, { sync: 'ready' });
+      }
+    };
+
+    const handlePlayerLeft = ({ roomId: rid, role }) => {
+      if (rid !== roomId) return;
+      if (isSpectator) {
+        if (role === 'A') {
+          setPlayer((prev) => ({
+            name: 'Waiting for player…',
+            avatar: prev.avatar || ''
+          }));
+        } else if (role === 'B') {
+          setOpponent({ name: 'Waiting for opponent…', avatar: '' });
+        }
+        setRoomStatus('watching');
+        return;
+      }
+      const localRole = playerInfoRef.current?.role || onlineRoleRef.current || 'A';
+      if (role && role !== localRole) {
+        setOpponent({ name: 'Waiting for opponent…', avatar: '' });
+        setRoomStatus('waiting');
+      }
+    };
+
+    const handleError = ({ roomId: rid, error }) => {
+      if (rid !== roomId) return;
+      setErr(error || 'Online play error');
+      setRoomStatus('error');
+    };
+
+    const registerHandlers = () => {
+      socket.on('pool:state', handleState);
+      socket.on('pool:playerJoined', handlePlayerJoined);
+      socket.on('pool:playerLeft', handlePlayerLeft);
+      socket.on('pool:ready', handleReady);
+      socket.on('pool:error', handleError);
+    };
+
+    const unregisterHandlers = () => {
+      socket.off('pool:state', handleState);
+      socket.off('pool:playerJoined', handlePlayerJoined);
+      socket.off('pool:playerLeft', handlePlayerLeft);
+      socket.off('pool:ready', handleReady);
+      socket.off('pool:error', handleError);
+    };
+
+    registerHandlers();
+
+    const cleanup = () => {
+      active = false;
+      unregisterHandlers();
+      if (isSpectator) {
+        socket.emit('leaveWatch', { roomId });
+      } else {
+        socket.emit('pool:leave', { roomId });
+      }
+    };
+
+    if (isSpectator) {
+      setErr(null);
+      setRoomStatus('watching');
+      socket.emit('watchRoom', { roomId });
+      return cleanup;
+    }
+
+    const joinPayload = {
+      roomId,
+      accountId,
+      name: playerInfoRef.current?.name || player.name || 'Player',
+      avatar: playerInfoRef.current?.avatar || player.avatar || '',
+      variant: variantKey,
+      tableSize: tableSizeKey,
+      token: stakeRef.current?.token,
+      amount: stakeRef.current?.amount
+    };
+
+    setRoomStatus('connecting');
+    socket.emit('pool:join', joinPayload, (res) => {
+      if (!active) return;
+      if (!res?.success) {
+        setErr(res?.error || 'Failed to join online table.');
+        setRoomStatus('error');
+        return;
+      }
+      setErr(null);
+      if (res.role) {
+        setOnlineRole(res.role);
+      }
+      if (res.opponent) {
+        setOpponent({
+          name: res.opponent.name || (isOnline ? 'Opponent' : 'AI'),
+          avatar: res.opponent.avatar || ''
+        });
+      }
+      if (res.state) {
+        frameRef.current = res.state;
+        setFrameState(res.state);
+      }
+      setRoomStatus(res.ready ? 'ready' : res.state ? 'playing' : 'waiting');
+    });
+
+    return cleanup;
+  }, [
+    accountId,
+    broadcastState,
+    isOnline,
+    isSpectator,
+    roomId,
+    tableSizeKey,
+    variantKey
+  ]);
+  useEffect(() => {
+    if (!isOnline || isSpectator) return;
     setFrameState((prev) => {
+      if (!prev?.players) return prev;
+      const role = playerInfoRef.current?.role || onlineRoleRef.current || 'A';
+      const key = role === 'B' ? 'B' : 'A';
+      const current = prev.players[key] || {};
       const nextName = player.name || 'Player';
-      if (prev.players.A.name === nextName) return prev;
+      const nextAvatar = player.avatar || current.avatar;
+      if (current.name === nextName && (current.avatar || '') === (nextAvatar || '')) {
+        return prev;
+      }
       return {
         ...prev,
         players: {
           ...prev.players,
-          A: { ...prev.players.A, name: nextName }
+          [key]: { ...current, name: nextName, avatar: nextAvatar }
         }
       };
     });
-  }, [player.name]);
+  }, [isOnline, isSpectator, player.name, player.avatar]);
+  useEffect(() => {
+    if (!isOnline || isSpectator) return;
+    setFrameState((prev) => {
+      if (!prev?.players) return prev;
+      const role = playerInfoRef.current?.role || onlineRoleRef.current || 'A';
+      const key = role === 'A' ? 'B' : 'A';
+      const current = prev.players[key] || {};
+      const nextName = opponent.name || (isOnline ? 'Opponent' : current.name);
+      const nextAvatar = opponent.avatar || current.avatar;
+      if (current.name === nextName && (current.avatar || '') === (nextAvatar || '')) {
+        return prev;
+      }
+      return {
+        ...prev,
+        players: {
+          ...prev.players,
+          [key]: { ...current, name: nextName, avatar: nextAvatar }
+        }
+      };
+    });
+  }, [isOnline, isSpectator, opponent.name, opponent.avatar]);
   useEffect(() => {
     muteRef.current = isGameMuted();
     volumeRef.current = getGameVolume();
@@ -7808,15 +8144,22 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const scoreB = hudMeta?.scores?.B ?? frameState.players.B.score;
       const players = frameState.players ?? {};
       const playerInfo = playerInfoRef.current ?? {};
-      const localName =
+      const preferredRole = playerInfo.role;
+      let localName =
         typeof playerInfo.name === 'string' && playerInfo.name.trim()
           ? playerInfo.name
-          : players.A?.name;
-      let localId = 'A';
-      if (players.A?.name && players.A.name === localName) {
-        localId = 'A';
-      } else if (players.B?.name && players.B.name === localName) {
-        localId = 'B';
+          : preferredRole && players[preferredRole]?.name
+            ? players[preferredRole]?.name
+            : players.A?.name;
+      let localId = preferredRole;
+      if (localId !== 'A' && localId !== 'B') {
+        if (players.A?.name && players.A.name === localName) {
+          localId = 'A';
+        } else if (players.B?.name && players.B.name === localName) {
+          localId = 'B';
+        } else {
+          localId = 'A';
+        }
       }
       const activeId = frameState.activePlayer === 'B' ? 'B' : 'A';
       const isPlayerTurn = activeId === localId;
@@ -7889,15 +8232,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const panels = panelsRef.current;
     if (!panels) return;
     const { A, B, C, D, logo, playerImg } = panels;
+    const opponentInfo = opponentRef.current || {};
+    const opponentName =
+      opponentInfo.name || (isOnline ? 'Opponent' : 'AI');
     drawHudPanel(A.ctx, logo, playerImg, player.name, hud.A, timer);
     A.tex.needsUpdate = true;
-    drawHudPanel(B.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
+    const opponentEmoji = isOnline ? undefined : aiFlag;
+    drawHudPanel(B.ctx, logo, null, opponentName, hud.B, timer, opponentEmoji);
     B.tex.needsUpdate = true;
     drawHudPanel(C.ctx, logo, playerImg, player.name, hud.A, timer);
     C.tex.needsUpdate = true;
-    drawHudPanel(D.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
+    drawHudPanel(D.ctx, logo, null, opponentName, hud.B, timer, opponentEmoji);
     D.tex.needsUpdate = true;
-  }, [hud.A, hud.B, timer, player.name, aiFlag]);
+  }, [hud.A, hud.B, isOnline, timer, player.name, aiFlag]);
 
   useEffect(() => {
     updateHudPanels();
@@ -7962,7 +8309,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   };
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || isOnline) return;
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
@@ -7993,10 +8340,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock]);
+  }, [hud.turn, hud.over, isOnline, playTurnKnock]);
 
   useEffect(() => {
     if (hud.over) {
+      stopAiThinkingRef.current?.();
+      setAiPlanning(null);
+      aiPlanRef.current = null;
+      return;
+    }
+    if (isOnline) {
       stopAiThinkingRef.current?.();
       setAiPlanning(null);
       aiPlanRef.current = null;
@@ -8017,23 +8370,23 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [hud.turn, hud.over]);
+  }, [hud.turn, hud.over, isOnline]);
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || isOnline) return;
     if (hud.turn === 0) {
       suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, isOnline]);
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || isOnline) return;
     if (hud.turn === 1) {
       startAiThinkingRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, isOnline]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -11741,7 +12094,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           !cue?.active ||
           currentHud?.inHand ||
           !allStopped(balls) ||
-          currentHud?.over
+          currentHud?.over ||
+          (isOnline && currentHud?.turn !== 0)
         )
           return;
         const forcedCueView = aiShotCueViewRef.current;
@@ -12683,6 +13037,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         frameRef.current = nextState;
         setFrameState(nextState);
+        if (isOnline && !isSpectator) {
+          broadcastState(nextState, {
+            shotEvents,
+            context: shotContext
+          });
+          setRoomStatus('playing');
+        } else if (isSpectator) {
+          setRoomStatus('watching');
+        }
         const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
         colourNames.forEach((name) => {
           const simBall = colors[name];
@@ -13751,7 +14114,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
   const sliderRef = useRef(null);
-  const showPowerSlider = !hud.over;
+  const showPowerSlider = !isSpectator && !hud.over;
   useEffect(() => {
     if (!showPowerSlider) {
       return undefined;
@@ -13781,7 +14144,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
-  const showPlayerControls = isPlayerTurn && !hud.over;
+  const showPlayerControls = !isSpectator && isPlayerTurn && !hud.over;
 
   // Spin controller interactions
   useEffect(() => {
@@ -13938,6 +14301,28 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {isOnline && !isSpectator && roomStatus !== 'playing' && (
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 px-4 text-center text-sm">
+          <div className="text-lg font-semibold">
+            {roomStatus === 'connecting'
+              ? 'Connecting to table…'
+              : roomStatus === 'waiting'
+              ? 'Waiting for opponent…'
+              : roomStatus === 'ready'
+              ? 'Opponent ready. Break when you are!'
+              : roomStatus === 'error'
+              ? err || 'Online session unavailable.'
+              : 'Synchronizing table…'}
+          </div>
+          {stakeRef.current?.amount > 0 && (
+            <div className="mt-2 text-xs text-white/80">
+              Pot: {stakeRef.current.amount}{' '}
+              {String(stakeRef.current.token || 'TPC').toUpperCase()}
+            </div>
+          )}
+        </div>
+      )}
 
       {cueGalleryActive && (
         <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
@@ -14248,5 +14633,42 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
-  return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
+  const params = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search]
+  );
+  const mode = params.get('mode') || 'ai';
+  const playType = params.get('type') || 'regular';
+  const tokenParam = params.get('token') || 'TPC';
+  const amountParam = Number.parseFloat(params.get('amount') || '0');
+  const watchParam = params.get('watch');
+  const stake = {
+    token: tokenParam,
+    amount: Number.isFinite(amountParam) ? amountParam : 0
+  };
+  const watchOnly =
+    typeof watchParam === 'string' &&
+    ['1', 'true', 'yes', 'watch'].includes(watchParam.toLowerCase());
+  const roomId = params.get('table');
+  const accountId = params.get('accountId');
+  const telegramId = params.get('tgId');
+  const defaultPlayerName =
+    params.get('name') || getTelegramUsername() || 'Player';
+  const defaultPlayerAvatar =
+    params.get('avatar') || getTelegramPhotoUrl();
+  return (
+    <PoolRoyaleGame
+      variantKey={variantKey}
+      tableSizeKey={tableSizeKey}
+      mode={mode}
+      playType={playType}
+      stake={stake}
+      roomId={roomId}
+      accountId={accountId}
+      telegramId={telegramId}
+      defaultPlayerName={defaultPlayerName}
+      defaultPlayerAvatar={defaultPlayerAvatar}
+      watchOnly={watchOnly}
+    />
+  );
 }
