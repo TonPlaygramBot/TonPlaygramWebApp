@@ -73,7 +73,7 @@ const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
 
 const TILE_GAP = 0.015;
 const TILE_SIZE = RAW_BOARD_SIZE / BASE_LEVEL_TILES;
-const PYRAMID_HEIGHT_MULTIPLIER = 1.2;
+const PYRAMID_HEIGHT_MULTIPLIER = 1.2 * 1.2; // Raise pyramid tiers ~20% taller
 const MAX_DICE = 2;
 const DICE_SIZE = TILE_SIZE * 0.675 * 1.3;
 const DICE_CORNER_RADIUS = DICE_SIZE * 0.18;
@@ -123,6 +123,9 @@ const PYRAMID_CONCRETE_LIGHT = new THREE.Color('#e7e5e4');
 const PYRAMID_CONCRETE_SHADOW = new THREE.Color('#a8a29e');
 const PYRAMID_CONCRETE_ACCENT = new THREE.Color('#f4f4f5');
 const PYRAMID_CONCRETE_BASE = new THREE.Color('#e2e8f0');
+const PYRAMID_WALL_LIGHT = new THREE.Color('#d4d4d8');
+const PYRAMID_WALL_DARK = new THREE.Color('#4b5563');
+const PYRAMID_WALL_ACCENT = new THREE.Color('#9ca3af');
 
 const PYRAMID_PLATFORM_THICKNESS = TILE_SIZE * 0.48 * PYRAMID_HEIGHT_MULTIPLIER;
 const PYRAMID_LEVEL_GAP = TILE_SIZE * 0.12 * PYRAMID_HEIGHT_MULTIPLIER;
@@ -1998,14 +2001,15 @@ function buildSnakeBoard(
   PYRAMID_LEVELS.forEach((size, levelIndex) => {
     const dimension = size * TILE_SIZE;
     const t = levelIndex / Math.max(1, PYRAMID_LEVELS.length - 1);
-    const tone = PYRAMID_CONCRETE_LIGHT.clone().lerp(PYRAMID_CONCRETE_SHADOW, t * 0.85);
+    const wallColor = PYRAMID_WALL_LIGHT.clone().lerp(PYRAMID_WALL_DARK, t * 0.85);
+    const wallGlowBase = PYRAMID_WALL_ACCENT.clone().lerp(PYRAMID_WALL_DARK, t * 0.35);
     const rimTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.65);
     const topTone = PYRAMID_CONCRETE_ACCENT.clone().lerp(PYRAMID_CONCRETE_LIGHT, t * 0.1);
     const wallMaterial = new THREE.MeshStandardMaterial({
-      color: tone,
+      color: wallColor,
       roughness: 0.76,
       metalness: 0.08,
-      emissive: rimTone.clone().multiplyScalar(0.18),
+      emissive: wallGlowBase.clone().multiplyScalar(0.18),
       emissiveIntensity: 0.14
     });
     const topMaterial = new THREE.MeshStandardMaterial({
