@@ -9298,27 +9298,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             rig.defaultFocusWorld ??
             rig.defaultFocus ??
             null;
-          const applyFocus = (unit, lookAt, t) => {
+          const applyFocus = (unit, lookAt) => {
             if (!unit) return;
             if (unit.slider) {
-              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
-              const limit = Math.max(
-                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
-                0
-              );
-              const targetX = lookAt
-                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
-                : 0;
-              unit.slider.position.x = THREE.MathUtils.lerp(
-                unit.slider.position.x,
-                targetX,
-                settle
-              );
-              unit.slider.position.z = THREE.MathUtils.lerp(
-                unit.slider.position.z,
-                0,
-                settle
-              );
+              unit.slider.position.x = 0;
+              unit.slider.position.z = 0;
             }
             if (lookAt && unit.head) {
               unit.head.lookAt(lookAt);
@@ -9328,12 +9312,70 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const backUnits = [rig.cameras.back].filter(Boolean);
           const activeUnits = railDir >= 0 ? backUnits : frontUnits;
           const idleUnits = railDir >= 0 ? frontUnits : backUnits;
-          activeUnits.forEach((unit) =>
-            applyFocus(unit, focusTarget, lerpFactor)
-          );
+          activeUnits.forEach((unit) => applyFocus(unit, focusTarget));
           const idleFocus = rig.defaultFocusWorld ?? focusTarget;
-          idleUnits.forEach((unit) =>
-            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
+          idleUnits.forEach((unit) => applyFocus(unit, idleFocus));
+        };
+
+        const ensureActionViewPlacement = (view, cueBall, targetBall) => {
+          if (!view || !camera) return;
+          const baseDistance = Number.isFinite(view.baseDistance)
+            ? view.baseDistance
+            : computeShortRailBroadcastDistance(camera);
+          if (!Number.isFinite(baseDistance) || baseDistance <= 0) {
+            return;
+          }
+          view.baseDistance = baseDistance;
+          const baseHeight = Number.isFinite(view.baseHeight)
+            ? view.baseHeight
+            : TABLE_Y + TABLE.THICK + ACTION_CAM.heightOffset;
+          view.baseHeight = baseHeight;
+          if (!view.focusPoint) {
+            if (targetBall) {
+              view.focusPoint = new THREE.Vector3(
+                (cueBall.pos.x + targetBall.pos.x) * 0.5,
+                BALL_CENTER_Y,
+                (cueBall.pos.y + targetBall.pos.y) * 0.5
+              );
+            } else {
+              const fallbackDir = cueBall.launchDir?.clone?.() ?? aimDirRef.current.clone();
+              if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
+              fallbackDir.normalize();
+              view.focusPoint = new THREE.Vector3(
+                cueBall.pos.x + fallbackDir.x * BALL_R * 4,
+                BALL_CENTER_Y,
+                cueBall.pos.y + fallbackDir.y * BALL_R * 4
+              );
+            }
+          }
+          const railDir = Math.sign(view.railDir || 1) || 1;
+          const cameraPos = new THREE.Vector3(
+            0,
+            baseHeight,
+            railDir * baseDistance
+          ).multiplyScalar(worldScaleFactor);
+          const focusWorld = view.focusPoint
+            ? view.focusPoint.clone().multiplyScalar(worldScaleFactor)
+            : new THREE.Vector3(0, BALL_CENTER_Y, 0).multiplyScalar(worldScaleFactor);
+          view.fixedCameraPos = cameraPos;
+          view.fixedLookAt = focusWorld;
+        };
+
+        const isBallVisibleFromCamera = (cam, ball) => {
+          if (!cam || !ball?.pos) return true;
+          const ballWorld = new THREE.Vector3(
+            ball.pos.x,
+            BALL_CENTER_Y,
+            ball.pos.y
+          ).multiplyScalar(worldScaleFactor);
+          const projected = ballWorld.clone().project(cam);
+          return (
+            projected.x >= -1 &&
+            projected.x <= 1 &&
+            projected.y >= -1 &&
+            projected.y <= 1 &&
+            projected.z >= -1 &&
+            projected.z <= 1
           );
         };
 
@@ -9396,284 +9438,56 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
             broadcastArgs.targetWorld = null;
           } else if (activeShotView?.mode === 'action') {
-            const ballsList = ballsRef.current || [];
-            const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
-            if (!cueBall?.active) {
-              activeShotView = null;
-            } else {
-              const now = performance.now();
-              const lastUpdate = activeShotView.lastUpdate ?? now;
-              const dt = Math.min(0.25, Math.max(0, (now - lastUpdate) / 1000));
-              activeShotView.lastUpdate = now;
-              const smoothTime =
-                activeShotView.stage === 'followCue'
-                  ? ACTION_CAM.followSmoothingTime
-                  : ACTION_CAM.smoothingTime;
-              const lerpT =
-                smoothTime > 0
-                  ? THREE.MathUtils.clamp(1 - Math.exp(-dt / smoothTime), 0, 1)
-                  : 1;
-              const cuePos2 = new THREE.Vector2(cueBall.pos.x, cueBall.pos.y);
-              let focusTargetVec3 = null;
-              let desiredPosition = null;
-              const axis = activeShotView.axis ?? 'short';
-              let railDir = activeShotView.railDir;
-              if (!Number.isFinite(railDir) || railDir === 0) {
-                railDir =
-                  axis === 'side'
-                    ? signed(
-                        cueBall.pos.x ??
-                          cueBall.launchDir?.x ??
-                          activeShotView.railNormal?.x ??
-                          1
-                      )
-                    : signed(
-                        cueBall.pos.y ??
-                          cueBall.launchDir?.y ??
-                          activeShotView.railNormal?.y ??
-                          1
-                      );
-                activeShotView.railDir = railDir;
-              }
-              if (!activeShotView.hasSwitchedRail) {
-                const cueMoving = cueBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
-                if (shooting || cueMoving) {
-                  const fallbackRailDir =
-                    axis === 'side'
-                      ? signed(
-                          cueBall.pos.x ??
-                            cueBall.launchDir?.x ??
-                            activeShotView.railNormal?.x ??
-                            1,
-                          1
-                        )
-                      : signed(
-                          cueBall.pos.y ??
-                            cueBall.launchDir?.y ??
-                            activeShotView.railNormal?.y ??
-                            1,
-                          1
-                        );
-                  const currentDir = signed(railDir, fallbackRailDir);
-                  railDir = -currentDir;
-                  activeShotView.railDir = railDir;
-                  activeShotView.hasSwitchedRail = true;
-                }
-              }
-              const heightBase = TABLE_Y + TABLE.THICK;
-              if (activeShotView.stage === 'pair') {
-                const targetBall =
-                  activeShotView.targetId != null
-                    ? ballsList.find((b) => b.id === activeShotView.targetId)
-                    : null;
-                let targetPos2;
-                if (targetBall?.active) {
-                  targetPos2 = new THREE.Vector2(targetBall.pos.x, targetBall.pos.y);
-                  activeShotView.targetLastPos = targetPos2.clone();
-                } else if (activeShotView.targetLastPos) {
-                  targetPos2 = activeShotView.targetLastPos.clone();
-                } else {
-                  targetPos2 = cuePos2.clone().add(new THREE.Vector2(0, BALL_R * 6));
-                }
-                const mid = cuePos2.clone().add(targetPos2).multiplyScalar(0.5);
-                const span = Math.max(targetPos2.distanceTo(cuePos2), BALL_R * 4);
-                const forward = targetPos2.clone().sub(cuePos2);
-                if (forward.lengthSq() < 1e-6) forward.set(0, 1);
-                forward.normalize();
-                const side = new THREE.Vector2(-forward.y, forward.x);
-                const distance = THREE.MathUtils.clamp(
-                  span * ACTION_CAM.pairDistanceScale + BALL_R * 8,
-                  ACTION_CAM.pairMinDistance,
-                  ACTION_CAM.pairMaxDistance
-                );
-                const offsetSide = side.multiplyScalar(distance * ACTION_CAM.sideBias);
-                const offsetBack = forward.multiplyScalar(
-                  -distance * ACTION_CAM.forwardBias
-                );
-                const anchor = new THREE.Vector3(
-                  mid.x,
-                  BALL_CENTER_Y + BALL_R * 0.3,
-                  mid.y
-                );
-                if (axis === 'short') {
-                  const lateralClamp = CAMERA_LATERAL_CLAMP.short;
-                  const cueOffsetX = THREE.MathUtils.clamp(
-                    anchor.x + offsetSide.x * 0.6 + offsetBack.x * 0.25,
-                    -lateralClamp,
-                    lateralClamp
-                  );
-                  const longShotPullback =
-                    activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
-                  const heightLift =
-                    activeShotView.longShot ? BALL_R * 2.5 : 0;
-                  const baseDistance = computeShortRailBroadcastDistance(camera);
-                  const desiredDistance = baseDistance + longShotPullback;
-                  const desired = new THREE.Vector3(
-                    0,
-                    heightBase + ACTION_CAM.heightOffset + heightLift,
-                    railDir * desiredDistance
-                  );
-                  const lookAnchor = anchor.clone();
-                  if (activeShotView.longShot) {
-                    lookAnchor.x = THREE.MathUtils.lerp(
-                      lookAnchor.x,
-                      0,
-                      0.35
-                    );
+          const ballsList = ballsRef.current || [];
+          const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
+          const targetBall =
+            activeShotView.targetId != null
+              ? ballsList.find((b) => b.id === activeShotView.targetId) || null
+              : null;
+          if (!cueBall?.active) {
+            activeShotView = null;
+          } else {
+            activeShotView.lastUpdate = performance.now();
+            const railDir = Math.sign(activeShotView.railDir || 1) || 1;
+            activeShotView.railDir = railDir;
+            activeShotView.broadcastRailDir = railDir;
+            ensureActionViewPlacement(activeShotView, cueBall, targetBall);
+            if (activeShotView.fixedCameraPos && activeShotView.fixedLookAt) {
+              camera.position.copy(activeShotView.fixedCameraPos);
+              camera.lookAt(activeShotView.fixedLookAt);
+              camera.updateMatrixWorld();
+              renderCamera = camera;
+              lookTarget = activeShotView.fixedLookAt.clone();
+              const cueVisible = isBallVisibleFromCamera(camera, cueBall);
+              const targetVisible = targetBall
+                ? isBallVisibleFromCamera(camera, targetBall)
+                : true;
+              if (!cueVisible || !targetVisible) {
+                const flipped = (-railDir) || 1;
+                if (flipped !== railDir) {
+                  activeShotView.railDir = flipped;
+                  activeShotView.broadcastRailDir = flipped;
+                  ensureActionViewPlacement(activeShotView, cueBall, targetBall);
+                  if (activeShotView.fixedCameraPos && activeShotView.fixedLookAt) {
+                    camera.position.copy(activeShotView.fixedCameraPos);
+                    camera.lookAt(activeShotView.fixedLookAt);
+                    camera.updateMatrixWorld();
+                    lookTarget = activeShotView.fixedLookAt.clone();
                   }
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
-                  const focusShiftSign = signed(
-                    cueOffsetX,
-                    signed(anchor.x, 1)
-                  );
-                  lookAnchor.x +=
-                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  lookAnchor.z = THREE.MathUtils.lerp(
-                    lookAnchor.z,
-                    -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4),
-                    0.65
-                  );
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
-                } else {
-                  const lateralClamp = CAMERA_LATERAL_CLAMP.side;
-                  const baseZ = THREE.MathUtils.clamp(
-                    anchor.z + offsetSide.y * 0.6 + offsetBack.y * 0.25,
-                    -lateralClamp,
-                    lateralClamp
-                  );
-                  const desired = new THREE.Vector3(
-                    railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                    heightBase + ACTION_CAM.heightOffset,
-                    baseZ
-                  );
-                  const lookAnchor = anchor.clone();
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.65);
-                  lookAnchor.x += -railDir * BALL_R * 4;
-                  lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
-                }
-              } else {
-                const cueVel = cueBall.vel.clone();
-                let dir = cueVel.clone();
-                if (dir.lengthSq() > 1e-6) {
-                  dir.normalize();
-                  activeShotView.lastCueDir = dir.clone();
-                } else if (activeShotView.lastCueDir) {
-                  dir.copy(activeShotView.lastCueDir);
-                } else if (cueBall.launchDir) {
-                  dir.copy(cueBall.launchDir.clone().normalize());
-                  activeShotView.lastCueDir = dir.clone();
-                } else {
-                  dir.set(0, 1);
-                }
-                const lookAhead = activeShotView.cueLookAhead ?? BALL_R * 6;
-                const anchor = new THREE.Vector3(
-                  cueBall.pos.x + dir.x * lookAhead,
-                  BALL_CENTER_Y + BALL_R * 0.3,
-                  cueBall.pos.y + dir.y * lookAhead
-                );
-                const perp = new THREE.Vector2(-dir.y, dir.x);
-                const distance = THREE.MathUtils.clamp(
-                  ACTION_CAM.followDistance,
-                  ACTION_CAM.pairMinDistance,
-                  ACTION_CAM.pairMaxDistance
-                );
-                const lateral = perp.multiplyScalar(BALL_R * 6);
-                if (axis === 'short') {
-                  const lateralClamp = CAMERA_LATERAL_CLAMP.short;
-                  const cueOffsetX = THREE.MathUtils.clamp(
-                    anchor.x - dir.x * BALL_R * 6 + lateral.x,
-                    -lateralClamp,
-                    lateralClamp
-                  );
-                  const longShotPullback =
-                    activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
-                  const heightLift =
-                    activeShotView.longShot ? BALL_R * 2.2 : 0;
-                  const baseDistance = computeShortRailBroadcastDistance(camera);
-                  const desiredDistance = baseDistance + longShotPullback;
-                  const desired = new THREE.Vector3(
-                    0,
-                    heightBase + ACTION_CAM.followHeightOffset + heightLift,
-                    railDir * desiredDistance
-                  );
-                  const lookAnchor = anchor.clone();
-                  if (activeShotView.longShot) {
-                    lookAnchor.x = THREE.MathUtils.lerp(
-                      lookAnchor.x,
-                      0,
-                      0.35
-                    );
-                  }
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
-                  const focusShiftSign = signed(
-                    cueOffsetX,
-                    signed(anchor.x, 1)
-                  );
-                  lookAnchor.x +=
-                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  lookAnchor.z = THREE.MathUtils.lerp(
-                    lookAnchor.z,
-                    -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5),
-                    0.65
-                  );
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
-                } else {
-                  const lateralClamp = CAMERA_LATERAL_CLAMP.side;
-                  const baseZ = THREE.MathUtils.clamp(
-                    anchor.z - dir.y * distance + lateral.y,
-                    -lateralClamp,
-                    lateralClamp
-                  );
-                  const desired = new THREE.Vector3(
-                    railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                    heightBase + ACTION_CAM.followHeightOffset,
-                    baseZ
-                  );
-                  const lookAnchor = anchor.clone();
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.65);
-                  lookAnchor.x += -railDir * BALL_R * 4;
-                  lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
               }
-              const broadcastRailDir =
-                activeShotView.axis === 'short'
-                  ? railDir
-                  : activeShotView.broadcastRailDir ?? railDir;
-              activeShotView.broadcastRailDir = broadcastRailDir;
+              activeShotView.smoothedPos = activeShotView.fixedCameraPos?.clone();
+              activeShotView.smoothedTarget =
+                activeShotView.fixedLookAt?.clone() ?? activeShotView.smoothedTarget;
               broadcastArgs = {
-                railDir: broadcastRailDir,
-                targetWorld: desiredPosition ?? null,
-                focusWorld: focusTargetVec3 ?? null,
-                lerp: lerpT
+                railDir: activeShotView.railDir,
+                targetWorld: activeShotView.fixedCameraPos?.clone() ?? null,
+                focusWorld: activeShotView.fixedLookAt?.clone() ?? null,
+                lerp: 1
               };
-              if (focusTargetVec3 && desiredPosition) {
-                if (!activeShotView.smoothedPos) {
-                  activeShotView.smoothedPos = desiredPosition.clone();
-                } else {
-                  activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
-                }
-                if (!activeShotView.smoothedTarget) {
-                  activeShotView.smoothedTarget = focusTargetVec3.clone();
-                } else {
-                  activeShotView.smoothedTarget.lerp(focusTargetVec3, lerpT);
-                }
-                camera.position.copy(activeShotView.smoothedPos);
-                camera.lookAt(activeShotView.smoothedTarget);
-                lookTarget = activeShotView.smoothedTarget;
-                renderCamera = camera;
-              }
             }
-          } else if (activeShotView?.mode === 'pocket') {
+          }
+        } else if (activeShotView?.mode === 'pocket') {
             const ballsList = ballsRef.current || [];
             const focusBall = ballsList.find(
               (b) => b.id === activeShotView.ballId
@@ -10199,6 +10013,25 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             targetId != null
               ? ballsList.find((b) => b.id === targetId) || null
               : null;
+          const computeFocusPoint = () => {
+            if (targetBall) {
+              return new THREE.Vector3(
+                (cueBall.pos.x + targetBall.pos.x) * 0.5,
+                BALL_CENTER_Y,
+                (cueBall.pos.y + targetBall.pos.y) * 0.5
+              );
+            }
+            const fallbackDir = cueBall.launchDir?.clone?.() ?? aimDirRef.current.clone();
+            if (fallbackDir.lengthSq() < 1e-6) {
+              fallbackDir.set(0, 1);
+            }
+            fallbackDir.normalize();
+            return new THREE.Vector3(
+              cueBall.pos.x + fallbackDir.x * BALL_R * 4,
+              BALL_CENTER_Y,
+              cueBall.pos.y + fallbackDir.y * BALL_R * 4
+            );
+          };
           const orbitSnapshot = followView?.orbitSnapshot
             ? {
                 radius: followView.orbitSnapshot.radius,
@@ -10235,6 +10068,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
               )
             : 0;
+          const focusPoint = computeFocusPoint();
+          const baseDistance = computeShortRailBroadcastDistance(camera);
+          const baseHeight = TABLE_Y + TABLE.THICK + ACTION_CAM.heightOffset;
           return {
             mode: 'action',
             cueId: cueBall.id,
@@ -10265,7 +10101,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
-              : null
+              : null,
+            focusPoint,
+            baseDistance,
+            baseHeight
           };
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
@@ -11004,17 +10843,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       ballsRef.current = balls;
 
       // Aiming visuals
-      const aimMat = new THREE.LineBasicMaterial({
+      const aimMat = new THREE.MeshBasicMaterial({
         color: 0xffffff,
-        linewidth: 2,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.9,
+        side: THREE.DoubleSide,
+        depthWrite: false
       });
-      const aimGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(),
-        new THREE.Vector3()
-      ]);
-      const aim = new THREE.Line(aimGeom, aimMat);
+      const aimGeom = new THREE.PlaneGeometry(1, 1);
+      const aim = new THREE.Mesh(aimGeom, aimMat);
+      aim.rotation.x = -Math.PI / 2;
+      aim.renderOrder = 3;
       aim.visible = false;
       table.add(aim);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
@@ -12844,7 +12683,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
-          aimGeom.setFromPoints([start, end]);
+          const length = Math.max(start.distanceTo(end), 1e-4);
+          const mid = start.clone().add(end).multiplyScalar(0.5);
+          const ballDiameter = BALL_R * 2;
+          aim.position.copy(mid);
+          aim.scale.set(length, ballDiameter, 1);
+          const yaw = Math.atan2(dir.x, dir.z);
+          aim.rotation.set(-Math.PI / 2, yaw, 0);
           aim.visible = true;
           const slowAssistEnabled = chalkAssistEnabledRef.current;
           const hasTarget = slowAssistEnabled && (targetBall || railNormal);
@@ -12890,8 +12735,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(1.4)),
-            end.clone().add(perp.clone().multiplyScalar(-1.4))
+            end.clone().add(perp.clone().multiplyScalar(BALL_R)),
+            end.clone().add(perp.clone().multiplyScalar(-BALL_R))
           ]);
           tick.visible = true;
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
