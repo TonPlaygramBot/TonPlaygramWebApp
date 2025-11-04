@@ -537,10 +537,13 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.548; // trim the middle jaw span so it stops where the wooden rail arch ends
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.472; // trim the middle jaw span so it stops where the wooden rail arch ends
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // mirror the corner jaw radius so the side fascia matches the cushion arch perfectly
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaw depth identical to the corners for a uniform vertical profile
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.015; // drop the middle jaw crowns slightly so they finish level with the surrounding rails
+const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.62; // begin trimming the side pocket jaw shoulders roughly two thirds toward each chrome plate
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // blend the outer radius toward the inner lip to visually shave the jaw edges
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.35; // ease the trim-in blend so the side jaw taper feels progressive instead of abrupt
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -5796,7 +5799,8 @@ function Table3D(
     outerExpansion = 0,
     taperHoldOverride,
     edgeTaperScaleOverride,
-    edgeProfilePowerOverride
+    edgeProfilePowerOverride,
+    edgeTrim
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -5936,6 +5940,21 @@ function Table3D(
         outerRadius = Math.min(maxOuterRadius, outerRadius + outerExpansionAmount);
         outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
       }
+      if (edgeTrim && edgeTrim.scale < 1) {
+        const trimStart = THREE.MathUtils.clamp(edgeTrim.start ?? 0.6, 0, 0.95);
+        if (trimStart < 1 - MICRO_EPS && clamped > trimStart) {
+          const trimCurve = THREE.MathUtils.clamp(edgeTrim.curve ?? 1, 1, 4);
+          const trimT = THREE.MathUtils.clamp(
+            (clamped - trimStart) / (1 - trimStart),
+            0,
+            1
+          );
+          const trimWeight = Math.pow(trimT, trimCurve);
+          const trimFactor = THREE.MathUtils.lerp(1, edgeTrim.scale, trimWeight);
+          const trimmedOuterRadius = innerBaseRadius + (outerRadius - innerBaseRadius) * trimFactor;
+          outerRadius = Math.min(outerRadius, trimmedOuterRadius);
+        }
+      }
 
       let innerRadius = THREE.MathUtils.lerp(
         innerBaseRadius,
@@ -6035,7 +6054,14 @@ function Table3D(
       outerExpansion: outerExpansion,
       taperHoldOverride,
       edgeTaperScaleOverride,
-      edgeProfilePowerOverride
+      edgeProfilePowerOverride,
+      edgeTrim: wide
+        ? {
+            start: SIDE_POCKET_JAW_EDGE_TRIM_START,
+            scale: SIDE_POCKET_JAW_EDGE_TRIM_SCALE,
+            curve: SIDE_POCKET_JAW_EDGE_TRIM_CURVE
+          }
+        : null
     });
     if (!jawShape) {
       return null;
