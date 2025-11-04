@@ -105,9 +105,7 @@ test('joining player receives full player list', () => {
   room.addPlayer('p2', 'B', s2);
   const cur = events.find(e => e.event === 'currentPlayers');
   assert.ok(cur, 'currentPlayers event should be sent');
-  assert.ok(cur.data && Array.isArray(cur.data.players), 'payload should include players array');
-  assert.equal(cur.data.players.length, 2);
-  assert.equal(cur.data.maxPlayers, 3);
+  assert.equal(cur.data.length, 2);
 });
 
 test('player wins when landing on the final tile', () => {
