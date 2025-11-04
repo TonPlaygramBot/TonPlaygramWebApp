@@ -489,7 +489,7 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_REDUCTION = 0.6; // shrink the entire 3D build an additional ~17% (overall ~40%) while keeping proportions identical
+const TABLE_REDUCTION = 0.5; // shrink the entire 3D build a further ~17% (overall ~50%) while keeping proportions identical
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
@@ -3363,8 +3363,8 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405 / TABLE_REDUCTION; // keep orbit distance consistent after scaling the table down
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08 / TABLE_REDUCTION;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405; // let the orbit camera follow the table footprint as it scales
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
@@ -3407,6 +3407,10 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.04; // keep a touch of clearance above the aim line
+const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.085); // scale aim line thickness with the smaller ball size
+const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.7); // keep the impact tick proportional to the cue ball
+const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.55);
+const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.45);
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -11006,7 +11010,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
         color: 0xffffff,
-        linewidth: 2,
+        linewidth: AIM_LINE_WIDTH,
         transparent: true,
         opacity: 0.9
       });
@@ -11036,8 +11040,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         targetGeom,
         new THREE.LineDashedMaterial({
           color: 0xffffff,
-          dashSize: 1,
-          gapSize: 1,
+          linewidth: AIM_LINE_WIDTH,
+          dashSize: AIM_DASH_SIZE,
+          gapSize: AIM_GAP_SIZE,
           transparent: true,
           opacity: 0.5
         })
@@ -12890,8 +12895,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(1.4)),
-            end.clone().add(perp.clone().multiplyScalar(-1.4))
+            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
+            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
