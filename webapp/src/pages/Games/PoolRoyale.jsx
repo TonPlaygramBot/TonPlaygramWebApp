@@ -489,7 +489,7 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_REDUCTION = 0.88; // trim the entire 3D build by roughly 12% so the arena stays compact without distorting proportions
+const TABLE_REDUCTION = 0.84; // trim the entire 3D build by roughly 16% so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
@@ -506,12 +506,13 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1; // keep the side jaw clamp identical to the chrome pocket rims without any inset
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // match the side jaw clamp to the chrome plates so the fascia reaches the cushions
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match the middle pocket jaw thickness to the corner profile for identical mass
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
+const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the middle pocket fascia hugging the cushions just like the corners
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
@@ -535,8 +536,8 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.22; // rein in the middle jaw span so the fascia tucks nearer the table centre without floating away from the rails
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.988; // shave the jaw radius a touch further so the middle pocket trim looks slimmer while hugging the wood
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; // extend the middle jaw span so it hugs the cushions identically to the corners
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // mirror the corner jaw radius so the side fascia matches the cushion arch perfectly
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep the middle jaw depth identical to the corners for a uniform vertical profile
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.015; // drop the middle jaw crowns slightly so they finish level with the surrounding rails
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
@@ -782,7 +783,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 22; // keep at least half the field visible from the short rails
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -3364,17 +3365,17 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405; // let the orbit camera follow the table footprint as it scales
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043; // keep the orbit camera safely back after the table footprint shrinks
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.34;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
-const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
-const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
-const BROADCAST_PAIR_MARGIN = BALL_R * 3; // keep the cue/target pair safely framed within the broadcast crop
+const BROADCAST_MARGIN_WIDTH = BALL_R * 8;
+const BROADCAST_MARGIN_LENGTH = BALL_R * 8;
+const BROADCAST_PAIR_MARGIN = BALL_R * 4; // keep the cue/target pair safely framed within the broadcast crop
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -3408,11 +3409,11 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
-const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.04; // keep a touch of clearance above the aim line
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.085); // scale aim line thickness with the smaller ball size
-const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.7); // keep the impact tick proportional to the cue ball
-const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.55);
-const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.45);
+const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.06; // keep extra clearance above the aim line for the tighter orbit distance
+const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.095); // slightly thicken the aiming guides to offset the smaller table footprint
+const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.78); // keep the impact tick proportional to the cue ball
+const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.6);
+const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
@@ -3568,7 +3569,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Lean the standing radius closer to the cloth while preserving enough headroom to keep
   // the cushion tops in frame across aspect ratios.
-  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.65 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
@@ -6184,7 +6185,8 @@ function Table3D(
         orientationAngle,
         wide: true,
         isMiddle: true,
-        clampOuter: sideJawOuterLimit
+        clampOuter: sideJawOuterLimit,
+        outerExpansion: SIDE_POCKET_JAW_OUTER_EXPANSION
       });
     });
   }
