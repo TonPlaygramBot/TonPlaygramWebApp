@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
 
-const BALL_TEXTURE_SIZE = 1024;
+const BALL_TEXTURE_SIZE = 2048; // double resolution for sharper billiard ball textures
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
 
