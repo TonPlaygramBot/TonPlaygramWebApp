@@ -588,7 +588,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.74; // ease the middle pockets slightly further toward centre so the jaw shoulders and chrome cuts sit tighter to the rails
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.88; // pull the middle pockets a little further toward centre so the jaw shoulders and chrome cuts sit tighter to the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -604,11 +604,11 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.006; // keep the middle pocket mouth only fractionally wider than the corner spec
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996; // pinch the middle pocket mouth so the jaws read tighter than before
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
-  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth slightly wider while preserving the corner-to-side ratio
+  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -667,7 +667,7 @@ const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
-const TARGET_FPS = 120;
+const TARGET_FPS = 144;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
