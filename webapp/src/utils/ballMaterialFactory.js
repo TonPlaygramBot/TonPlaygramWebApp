@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
 
-const BALL_TEXTURE_SIZE = 2048; // double resolution for sharper billiard ball textures
+const BALL_TEXTURE_SIZE = 4096; // ultra high resolution so glossy billiard balls stay razor sharp up close
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
 
@@ -123,7 +123,62 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
     ctx.fillRect(0, stripeY, size, stripeHeight);
+
+    ctx.save();
+    ctx.globalCompositeOperation = 'multiply';
+    const stripeShade = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
+    stripeShade.addColorStop(0, lighten(baseHex, 0.22));
+    stripeShade.addColorStop(0.5, lighten(baseHex, 0.05));
+    stripeShade.addColorStop(1, darken(baseHex, 0.08));
+    ctx.fillStyle = stripeShade;
+    ctx.fillRect(0, stripeY, size, stripeHeight);
+    ctx.restore();
   }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  const bodyShade = ctx.createRadialGradient(
+    size * 0.32,
+    size * 0.32,
+    size * 0.06,
+    size * 0.52,
+    size * 0.58,
+    size * 0.56
+  );
+  bodyShade.addColorStop(0, lighten(baseHex, pattern === 'stripe' ? 0.18 : 0.32));
+  bodyShade.addColorStop(0.55, lighten(baseHex, pattern === 'stripe' ? 0.08 : 0.12));
+  bodyShade.addColorStop(1, darken(baseHex, 0.12));
+  ctx.fillStyle = bodyShade;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const highlight = ctx.createRadialGradient(
+    size * 0.3,
+    size * 0.26,
+    size * 0.05,
+    size * 0.3,
+    size * 0.26,
+    size * 0.32
+  );
+  highlight.addColorStop(0, 'rgba(255,255,255,0.98)');
+  highlight.addColorStop(0.6, 'rgba(255,255,255,0.35)');
+  highlight.addColorStop(1, 'rgba(255,255,255,0.06)');
+  ctx.fillStyle = highlight;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  const horizonShade = ctx.createLinearGradient(0, size * 0.58, 0, size);
+  horizonShade.addColorStop(0, 'rgba(0,0,0,0)');
+  horizonShade.addColorStop(1, 'rgba(0,0,0,0.28)');
+  ctx.fillStyle = horizonShade;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  addNoise(ctx, size, 0.025, 5200);
 
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
@@ -244,7 +299,7 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   }
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 16;
+  texture.anisotropy = 32;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -280,19 +335,23 @@ export function getBallMaterial({
           color: 0xffffff,
           map,
           clearcoat: 1,
-          clearcoatRoughness: 0.05,
-          metalness: 0.05,
-          roughness: 0.13,
-          reflectivity: 0.9
+          clearcoatRoughness: 0.03,
+          metalness: 0.12,
+          roughness: 0.09,
+          reflectivity: 0.96,
+          envMapIntensity: 1.25,
+          specularIntensity: 1.1
         })
       : new THREE.MeshPhysicalMaterial({
           color: 0xffffff,
           map,
           clearcoat: 1,
-          clearcoatRoughness: 0.04,
-          metalness: 0.1,
-          roughness: 0.12,
-          reflectivity: 1
+          clearcoatRoughness: 0.02,
+          metalness: 0.22,
+          roughness: 0.06,
+          reflectivity: 0.98,
+          envMapIntensity: 1.35,
+          specularIntensity: 1.2
         });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
