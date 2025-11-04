@@ -489,7 +489,7 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_REDUCTION = 0.72; // shrink the entire 3D build by roughly 28% (an additional ~8%) while keeping proportions identical
+const TABLE_REDUCTION = 0.6; // shrink the entire 3D build an additional ~17% (overall ~40%) while keeping proportions identical
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
