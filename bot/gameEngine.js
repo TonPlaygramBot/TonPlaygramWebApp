@@ -10,6 +10,56 @@ import { CheckersGame } from './logic/checkersGame.js';
 
 import GameRoomModel from './models/GameRoom.js';
 
+function toNumberSet(values) {
+  return new Set(values.map((v) => Number(v)));
+}
+
+function generateDiceCells(snakes, ladders) {
+  const boardSize = FINAL_TILE - 1;
+  const diceValues = [1, 2, 1];
+  const diceCells = {};
+  const used = toNumberSet([
+    ...Object.keys(snakes || {}),
+    ...Object.values(snakes || {}),
+    ...Object.keys(ladders || {}),
+    ...Object.values(ladders || {})
+  ]);
+
+  const isCellBlocked = (cell) =>
+    used.has(cell) ||
+    diceCells[cell] != null ||
+    cell <= 1 ||
+    cell >= FINAL_TILE;
+
+  for (const value of diceValues) {
+    let attempts = 0;
+    let cell;
+    do {
+      cell = Math.floor(Math.random() * boardSize) + 1;
+      attempts += 1;
+      if (attempts > boardSize * 3) break;
+    } while (isCellBlocked(cell));
+    if (!isCellBlocked(cell)) {
+      diceCells[cell] = value;
+      used.add(cell);
+    }
+  }
+
+  return diceCells;
+}
+
+function normalizeDiceCells(cells = {}) {
+  const normalized = {};
+  for (const [key, value] of Object.entries(cells)) {
+    const cell = Number(key);
+    if (!Number.isFinite(cell)) continue;
+    const val = Number(value);
+    if (!Number.isFinite(val)) continue;
+    normalized[cell] = val;
+  }
+  return normalized;
+}
+
 function generateBoard() {
   const boardSize = FINAL_TILE - 1;
   const snakeCount = 6 + Math.floor(Math.random() * 3);
@@ -44,7 +94,8 @@ function generateBoard() {
     usedL.add(start);
     usedL.add(end);
   }
-  return { snakes, ladders };
+  const diceCells = generateDiceCells(snakes, ladders);
+  return { snakes, ladders, diceCells };
 }
 
 export class GameRoom {
@@ -59,11 +110,15 @@ export class GameRoom {
       if (board.snakes && board.ladders) {
         this.snakes = board.snakes;
         this.ladders = board.ladders;
+        this.diceCells = normalizeDiceCells(board.diceCells);
       } else {
         const b = generateBoard();
         this.snakes = b.snakes;
         this.ladders = b.ladders;
+        this.diceCells = normalizeDiceCells(b.diceCells);
       }
+      if (!this.diceCells) this.diceCells = {};
+      this.initialDiceCells = { ...this.diceCells };
     }
     this.rollCooldown = ROLL_COOLDOWN_MS;
     this.reconnectGrace = RECONNECT_GRACE_MS;
@@ -72,7 +127,11 @@ export class GameRoom {
     this.startTimer = null;
     this.cheatWarnings = {};
     if (this.gameType === 'snake') {
-      this.game = new SnakeGame({ snakes: this.snakes, ladders: this.ladders });
+      this.game = new SnakeGame({
+        snakes: this.snakes,
+        ladders: this.ladders,
+        diceCells: { ...this.diceCells }
+      });
     } else {
       this.game = new CheckersGame();
     }
@@ -122,6 +181,7 @@ export class GameRoom {
           this.startTimer = null;
           this.startGame();
         }, this.gameStartDelay);
+        if (this.startTimer?.unref) this.startTimer.unref();
       }
     } else if (this.status === 'playing') {
       socket.emit('gameStarted');
@@ -131,7 +191,7 @@ export class GameRoom {
       success: true,
       board:
         this.gameType === 'snake'
-          ? { snakes: this.snakes, ladders: this.ladders }
+          ? { snakes: this.snakes, ladders: this.ladders, diceCells: this.diceCells }
           : this.gameType === 'checkers'
           ? { board: this.game.board }
           : undefined
@@ -149,6 +209,8 @@ export class GameRoom {
     if (this.gameType === 'snake') {
       this.game.snakes = this.snakes;
       this.game.ladders = this.ladders;
+      this.diceCells = { ...this.initialDiceCells };
+      this.game.diceCells = { ...this.diceCells };
     }
     this.game.currentTurn = 0;
     this.game.finished = false;
@@ -180,6 +242,7 @@ export class GameRoom {
           this.rollDice(sock);
         }
       }, 15000);
+      if (this.turnTimer?.unref) this.turnTimer.unref();
     }
   }
 
@@ -247,6 +310,16 @@ export class GameRoom {
         }
       });
 
+      this.diceCells = { ...this.game.diceCells };
+      if (result.bonusCell != null) {
+        this.io.to(this.id).emit('diceCellsUpdate', {
+          diceCells: this.diceCells,
+          playerId: player.playerId,
+          cell: result.bonusCell,
+          value: result.bonus
+        });
+      }
+
       if (result.finished) {
         this.status = 'finished';
         GameResult.create({
@@ -305,6 +378,7 @@ export class GameRoom {
     player.disconnectTimer = setTimeout(() => {
       this.finalizeDisconnect(player);
     }, this.reconnectGrace);
+    if (player.disconnectTimer?.unref) player.disconnectTimer.unref();
   }
 
   finalizeDisconnect(player) {
@@ -333,14 +407,17 @@ export class GameRoom {
       { roomId: this.id },
       {
         players: this.players.map((p) => ({
-        playerId: p.playerId,
-        name: p.name,
-        position: p.position,
-        isActive: p.isActive,
-        disconnected: p.disconnected,
-      })),
+          playerId: p.playerId,
+          name: p.name,
+          position: p.position,
+          isActive: p.isActive,
+          disconnected: p.disconnected
+        })),
         status: this.status,
         currentTurn: this.currentTurn,
+        snakes: this.snakes,
+        ladders: this.ladders,
+        diceCells: this.diceCells
       },
       { upsert: true }
     ).catch(() => {});
@@ -358,7 +435,8 @@ export class GameRoomManager {
     for (const doc of docs) {
       const room = new GameRoom(doc.roomId, this.io, doc.capacity, {
         snakes: Object.fromEntries(doc.snakes),
-        ladders: Object.fromEntries(doc.ladders)
+        ladders: Object.fromEntries(doc.ladders),
+        diceCells: Object.fromEntries(doc.diceCells || [])
       }, doc.gameType || 'snake');
       room.players = doc.players.map((p) => ({
         ...p.toObject(),
@@ -380,6 +458,7 @@ export class GameRoomManager {
       currentTurn: room.currentTurn,
       snakes: room.snakes,
       ladders: room.ladders,
+      diceCells: room.diceCells,
       players: room.players.map((p) => ({
         playerId: p.playerId,
         name: p.name,
@@ -400,7 +479,8 @@ export class GameRoomManager {
       if (record) {
         room = new GameRoom(id, this.io, record.capacity, {
           snakes: Object.fromEntries(record.snakes),
-          ladders: Object.fromEntries(record.ladders)
+          ladders: Object.fromEntries(record.ladders),
+          diceCells: Object.fromEntries(record.diceCells || [])
         }, record.gameType || 'snake');
         room.players = record.players.map((p) => ({
           ...p.toObject(),
@@ -424,6 +504,7 @@ export class GameRoomManager {
             currentTurn: room.currentTurn,
             snakes: room.snakes,
             ladders: room.ladders,
+            diceCells: room.diceCells,
             players: []
           },
           { upsert: true }

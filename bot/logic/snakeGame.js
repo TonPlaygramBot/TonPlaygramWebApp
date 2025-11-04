@@ -84,8 +84,11 @@ export class SnakeGame {
     }
 
     let extraTurn = false;
+    let bonus = null;
+    let bonusCell = null;
     if (this.diceCells[player.position]) {
-      const bonus = this.diceCells[player.position];
+      bonus = this.diceCells[player.position];
+      bonusCell = player.position;
       player.bonus = bonus;
       delete this.diceCells[player.position];
       extraTurn = true;
@@ -108,6 +111,8 @@ export class SnakeGame {
       position: player.position,
       extraTurn,
       finished: this.finished,
+      bonus,
+      bonusCell,
     };
   }
 }

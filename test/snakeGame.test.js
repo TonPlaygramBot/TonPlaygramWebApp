@@ -197,3 +197,33 @@ test('landing on another player sends them to start', () => {
   assert.ok(resetEvent && resetEvent.data.playerId === 'p2');
 });
 
+test('dice cells are shared across players', () => {
+  const io = new DummyIO();
+  const socket = { id: 'diceSock', join: () => {}, emit: () => {} };
+  const room = new GameRoom('dice', io, 1, {
+    snakes: {},
+    ladders: {},
+    diceCells: { 5: 2 }
+  });
+  room.rollCooldown = 0;
+  room.gameStartDelay = 0;
+  room.addPlayer('p1', 'Player', socket);
+  room.startGame();
+
+  room.players[0].position = 4;
+  room.players[0].isActive = true;
+
+  room.rollDice(socket, 1);
+
+  assert.equal(room.players[0].position, 5);
+  assert.strictEqual(room.diceCells[5], undefined, 'dice cell should be removed');
+  const update = io.emitted.find((e) => e.event === 'diceCellsUpdate');
+  assert.ok(update, 'diceCellsUpdate event should be emitted');
+  assert.equal(update.data.cell, 5);
+  assert.equal(update.data.value, 2);
+  if (room.turnTimer) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+  }
+});
+

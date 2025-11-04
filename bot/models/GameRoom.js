@@ -20,6 +20,7 @@ const gameRoomSchema = new mongoose.Schema({
   currentTurn: { type: Number, default: 0 },
   snakes: { type: Map, of: Number, default: {} },
   ladders: { type: Map, of: Number, default: {} },
+  diceCells: { type: Map, of: Number, default: {} },
   players: { type: [playerSchema], default: [] }
 });
 
