@@ -266,13 +266,13 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.28; // widen the middle fascia
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 0.992; // let the rounded chrome corner cut open a touch more for a larger reveal
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.065; // open the middle chrome arch a touch more so the rounded cut mirrors the photo reference
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.04; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.03; // tighten the middle rail arches slightly so the wood relief stays slimmer than the chrome cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.012; // ease the middle rail arches only fractionally so the wood relief nearly matches the tightened chrome cut
 
 function buildChromePlateGeometry({
   width,
@@ -512,7 +512,7 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match the 
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // lock the middle jaw rims to the same span as the chrome pocket rims
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the middle pocket fascia hugging the cushions just like the corners
+const SIDE_POCKET_JAW_OUTER_EXPANSION = 0; // keep the middle pocket fascia flush with the wood rail so it no longer creeps over the cloth
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
