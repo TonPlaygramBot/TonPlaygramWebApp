@@ -489,7 +489,7 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_SIZE_SHRINK = 0.88; // additional 12% reduction keeps the table footprint slimmer without altering proportions
+const TABLE_SIZE_SHRINK = 0.93; // settle on a 7% reduction to preserve proportions while tightening the footprint
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy 16% trim plus the new shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -584,7 +584,7 @@ console.assert(
   'Pool table inner ratio must match 2:1 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 1.02; // tiny boost so balls read slightly larger against the tighter pockets
+const BALL_SIZE_SCALE = 0.816; // 20% reduction from the previous boost keeps the visuals aligned with the new table scale
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -3343,7 +3343,7 @@ function applySnookerScaling({
     }
   }
   if (Array.isArray(balls)) {
-    const expectedRadius = BALL_D_REF * mmToUnits * 0.5;
+    const expectedRadius = BALL_D_REF * mmToUnits * BALL_SIZE_SCALE * 0.5;
     balls.forEach((ball) => {
       if (!ball) return;
       ball.colliderRadius = expectedRadius;
@@ -3371,17 +3371,17 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.043; // keep the orbit camera safely back after the table footprint shrinks
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.038; // pull the orbit slightly closer so the tighter table still fills the frame
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.34;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
-const BROADCAST_MARGIN_WIDTH = BALL_R * 8;
-const BROADCAST_MARGIN_LENGTH = BALL_R * 8;
-const BROADCAST_PAIR_MARGIN = BALL_R * 4; // keep the cue/target pair safely framed within the broadcast crop
+const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
+const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
+const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -3415,10 +3415,10 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
-const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.06; // keep extra clearance above the aim line for the tighter orbit distance
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.095); // slightly thicken the aiming guides to offset the smaller table footprint
-const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.78); // keep the impact tick proportional to the cue ball
-const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.6);
+const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
+const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
+const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
+const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
 const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
