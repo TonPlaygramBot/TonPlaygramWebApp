@@ -8287,7 +8287,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const createMatchTvEntry = () => {
         const baseWidth = 1024;
         const baseHeight = 512;
-        const resolutionScale = 1;
+        const resolutionScale = 0.96;
         const canvas = document.createElement('canvas');
         canvas.width = Math.round(baseWidth * resolutionScale);
         canvas.height = Math.round(baseHeight * resolutionScale);
