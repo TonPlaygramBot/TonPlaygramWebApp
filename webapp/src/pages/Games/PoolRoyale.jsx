@@ -533,7 +533,7 @@ const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the c
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
-const POCKET_JAW_SEGMENT_MIN = 96; // base tessellation for smoother arcs
+const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
 const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
@@ -584,7 +584,7 @@ console.assert(
   'Pool table inner ratio must match 2:1 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.816; // 20% reduction from the previous boost keeps the visuals aligned with the new table scale
+const BALL_SIZE_SCALE = 0.8976; // 10% size boost over the previous scale keeps the visuals aligned with the larger balls
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -656,7 +656,7 @@ const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
-const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
+const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
