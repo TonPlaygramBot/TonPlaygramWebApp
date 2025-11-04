@@ -1773,6 +1773,92 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
+const BROADCAST_CAMERA_TYPES = Object.freeze([
+  Object.freeze({
+    id: 'classicShortRail',
+    label: 'Classic Short Rail',
+    description: 'Neutral TV truck locked to the short rail centerline.',
+    common: Object.freeze({}),
+    short: Object.freeze({}),
+    side: Object.freeze({})
+  }),
+  Object.freeze({
+    id: 'grandstandWide',
+    label: 'Grandstand Wide',
+    description: 'Pulls back and rises slightly for a panoramic showcase.',
+    common: Object.freeze({}),
+    short: Object.freeze({
+      distanceMultiplier: 1.18,
+      heightOffset: BALL_R * 2.4,
+      focusHeightOffset: BALL_R * 0.9
+    }),
+    side: Object.freeze({
+      distanceMultiplier: 1.1,
+      heightOffset: BALL_R * 2,
+      focusHeightOffset: BALL_R * 0.8
+    })
+  }),
+  Object.freeze({
+    id: 'railIntimate',
+    label: 'Rail Intimate',
+    description: 'Hugs the baulk rail for a dramatic, tighter framing.',
+    common: Object.freeze({}),
+    short: Object.freeze({
+      distanceMultiplier: 0.9,
+      minDistanceMultiplier: 0.85,
+      heightOffset: BALL_R * 1.2,
+      focusForwardOffset: -BALL_R * 2.5,
+      focusHeightOffset: BALL_R * 0.5
+    }),
+    side: Object.freeze({
+      distanceMultiplier: 0.94,
+      minDistanceMultiplier: 0.88,
+      heightOffset: BALL_R * 1.1,
+      focusForwardOffset: -BALL_R * 2,
+      focusHeightOffset: BALL_R * 0.45
+    })
+  }),
+  Object.freeze({
+    id: 'directorsLeft',
+    label: "Director's Left",
+    description: 'Slides camera-left for an editorial cutaway.',
+    common: Object.freeze({}),
+    short: Object.freeze({
+      lateralOffset: BALL_R * 3.4,
+      focusLateralOffset: -BALL_R * 2.4,
+      heightOffset: BALL_R * 1.5
+    }),
+    side: Object.freeze({
+      lateralOffset: BALL_R * 2.8,
+      focusLateralOffset: -BALL_R * 2,
+      heightOffset: BALL_R * 1.3
+    })
+  }),
+  Object.freeze({
+    id: 'vipGallery',
+    label: 'VIP Gallery',
+    description: 'High gallery perch with softened motion for replays.',
+    common: Object.freeze({ lerpMultiplier: 0.85 }),
+    short: Object.freeze({
+      distanceMultiplier: 1.05,
+      heightOffset: BALL_R * 3.6,
+      focusHeightOffset: BALL_R * 1.6
+    }),
+    side: Object.freeze({
+      distanceMultiplier: 1.02,
+      heightOffset: BALL_R * 3.2,
+      focusHeightOffset: BALL_R * 1.4
+    })
+  })
+]);
+
+const BROADCAST_CAMERA_TYPE_BY_ID = Object.freeze(
+  Object.fromEntries(BROADCAST_CAMERA_TYPES.map((entry) => [entry.id, entry]))
+);
+
+const DEFAULT_BROADCAST_CAMERA_TYPE_ID =
+  BROADCAST_CAMERA_TYPES[0]?.id ?? 'classicShortRail';
+
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
     id: 'walnutPocket',
@@ -3637,6 +3723,73 @@ const computeShortRailBroadcastDistance = (camera) => {
   const lengthDistance = halfLength / Math.tan(halfVertical);
   const required = Math.max(widthDistance, lengthDistance);
   return Math.max(SHORT_RAIL_CAMERA_DISTANCE, required);
+};
+
+const applyBroadcastCameraProfileModifiers = ({
+  profile,
+  axis = 'short',
+  railDir = 1,
+  position = null,
+  focus = null
+} = {}) => {
+  if (!profile) return null;
+  const axisKey = axis === 'side' ? 'side' : 'short';
+  const axisProfile = {
+    ...(profile.common ?? {}),
+    ...((axisKey === 'side' ? profile.side : profile.short) ?? {})
+  };
+  if (!axisProfile || Object.keys(axisProfile).length === 0) {
+    return null;
+  }
+  const dirSign = railDir >= 0 ? 1 : -1;
+  const result = {};
+  if (position) {
+    const distanceKey = axisKey === 'side' ? 'x' : 'z';
+    const lateralKey = axisKey === 'side' ? 'z' : 'x';
+    const baseDistance = Math.abs(position[distanceKey] ?? 0);
+    if (baseDistance > 1e-6) {
+      let nextDistance = baseDistance;
+      if (Number.isFinite(axisProfile.distanceMultiplier)) {
+        nextDistance *= axisProfile.distanceMultiplier;
+      }
+      if (Number.isFinite(axisProfile.distanceOffset)) {
+        nextDistance += axisProfile.distanceOffset;
+      }
+      if (Number.isFinite(axisProfile.minDistanceMultiplier)) {
+        const clampMultiplier = Math.max(axisProfile.minDistanceMultiplier, 0);
+        nextDistance = Math.max(baseDistance * clampMultiplier, nextDistance);
+      }
+      if (Number.isFinite(axisProfile.minDistance)) {
+        nextDistance = Math.max(axisProfile.minDistance, nextDistance);
+      }
+      if (Number.isFinite(nextDistance) && nextDistance > 1e-4) {
+        position[distanceKey] = dirSign * nextDistance;
+      }
+    }
+    if (Number.isFinite(axisProfile.heightOffset)) {
+      position.y += axisProfile.heightOffset;
+    }
+    if (Number.isFinite(axisProfile.lateralOffset)) {
+      position[lateralKey] += dirSign * axisProfile.lateralOffset;
+    }
+  }
+  if (focus) {
+    const forwardKey = axisKey === 'side' ? 'x' : 'z';
+    const lateralFocusKey = axisKey === 'side' ? 'z' : 'x';
+    if (Number.isFinite(axisProfile.focusHeightOffset)) {
+      focus.y += axisProfile.focusHeightOffset;
+    }
+    if (Number.isFinite(axisProfile.focusForwardOffset)) {
+      focus[forwardKey] += dirSign * axisProfile.focusForwardOffset;
+    }
+    if (Number.isFinite(axisProfile.focusLateralOffset)) {
+      focus[lateralFocusKey] += dirSign * axisProfile.focusLateralOffset;
+    }
+  }
+  if (Number.isFinite(axisProfile.lerpMultiplier) && axisProfile.lerpMultiplier > 0) {
+    result.lerpMultiplier = axisProfile.lerpMultiplier;
+  }
+  return Object.keys(result).length ? result : null;
 };
 
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
@@ -6961,6 +7114,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [broadcastCameraTypeId, setBroadcastCameraTypeId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolBroadcastCameraType');
+      if (stored && BROADCAST_CAMERA_TYPE_BY_ID[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_BROADCAST_CAMERA_TYPE_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -6969,6 +7131,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
   );
+  const broadcastCameraType = useMemo(
+    () =>
+      BROADCAST_CAMERA_TYPE_BY_ID[broadcastCameraTypeId] ??
+      BROADCAST_CAMERA_TYPE_BY_ID[DEFAULT_BROADCAST_CAMERA_TYPE_ID],
+    [broadcastCameraTypeId]
+  );
+  const broadcastCameraProfileRef = useRef(broadcastCameraType);
+  useEffect(() => {
+    broadcastCameraProfileRef.current = broadcastCameraType;
+  }, [broadcastCameraType]);
   const activeWoodTexture = useMemo(
     () =>
       WOOD_GRAIN_OPTIONS_BY_ID[woodTextureId] ??
@@ -7317,6 +7489,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolBroadcastCameraType', broadcastCameraTypeId);
+    }
+  }, [broadcastCameraTypeId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -9465,6 +9642,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
+              let broadcastProfileAdjustment = null;
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -9538,6 +9716,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                     0.65
                   );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  const adjustment = applyBroadcastCameraProfileModifiers({
+                    profile: broadcastCameraProfileRef.current,
+                    axis: 'short',
+                    railDir,
+                    position: desired,
+                    focus: lookAnchor
+                  });
+                  if (adjustment) {
+                    broadcastProfileAdjustment = adjustment;
+                  }
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -9557,6 +9745,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   lookAnchor.x += -railDir * BALL_R * 4;
                   lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  const adjustment = applyBroadcastCameraProfileModifiers({
+                    profile: broadcastCameraProfileRef.current,
+                    axis: 'side',
+                    railDir,
+                    position: desired,
+                    focus: lookAnchor
+                  });
+                  if (adjustment) {
+                    broadcastProfileAdjustment = adjustment;
+                  }
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
@@ -9626,6 +9824,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                     0.65
                   );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  const adjustment = applyBroadcastCameraProfileModifiers({
+                    profile: broadcastCameraProfileRef.current,
+                    axis: 'short',
+                    railDir,
+                    position: desired,
+                    focus: lookAnchor
+                  });
+                  if (adjustment) {
+                    broadcastProfileAdjustment = adjustment;
+                  }
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -9645,6 +9853,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   lookAnchor.x += -railDir * BALL_R * 4;
                   lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  const adjustment = applyBroadcastCameraProfileModifiers({
+                    profile: broadcastCameraProfileRef.current,
+                    axis: 'side',
+                    railDir,
+                    position: desired,
+                    focus: lookAnchor
+                  });
+                  if (adjustment) {
+                    broadcastProfileAdjustment = adjustment;
+                  }
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
@@ -9660,6 +9878,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 focusWorld: focusTargetVec3 ?? null,
                 lerp: lerpT
               };
+              if (
+                broadcastProfileAdjustment?.lerpMultiplier &&
+                Number.isFinite(broadcastProfileAdjustment.lerpMultiplier)
+              ) {
+                const multiplier = Math.max(
+                  0.01,
+                  Math.min(5, broadcastProfileAdjustment.lerpMultiplier)
+                );
+                broadcastArgs.lerp = THREE.MathUtils.clamp(
+                  broadcastArgs.lerp * multiplier,
+                  0.01,
+                  1
+                );
+              }
               if (focusTargetVec3 && desiredPosition) {
                 if (!activeShotView.smoothedPos) {
                   activeShotView.smoothedPos = desiredPosition.clone();
@@ -14032,6 +14264,38 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                         }`}
                       >
                         {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast Camera
+                </h3>
+                <div className="mt-2 flex flex-col gap-2">
+                  {BROADCAST_CAMERA_TYPES.map((option) => {
+                    const active = option.id === broadcastCameraTypeId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastCameraTypeId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/95 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/15'
+                        }`}
+                      >
+                        <span className="flex flex-col items-start gap-1 leading-tight">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.24em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-medium tracking-[0.08em] text-emerald-100/70">
+                            {option.description}
+                          </span>
+                        </span>
                       </button>
                     );
                   })}
