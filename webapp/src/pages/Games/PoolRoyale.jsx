@@ -783,8 +783,6 @@ const ACTION_CAM = Object.freeze({
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
-const STATIC_SHORT_RAIL_CAMERA_HEIGHT = TABLE_Y + TABLE.THICK + BALL_R * 11.5;
-const STATIC_SHORT_RAIL_CAMERA_PULLBACK = BALL_R * 6;
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
@@ -8647,7 +8645,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const shortRailSlideLimit = CAMERA_LATERAL_CLAMP.short * 0.92;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: STATIC_SHORT_RAIL_CAMERA_HEIGHT,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
@@ -9353,43 +9351,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             lerp: 0.18
           };
           const galleryState = cueGalleryStateRef.current;
-          const hudState = hudRef.current ?? null;
-          const staticFocusTarget = broadcastCamerasRef.current?.defaultFocusWorld
-            ? broadcastCamerasRef.current.defaultFocusWorld.clone()
-            : new THREE.Vector3(
-                0,
-                (TABLE_Y + TABLE.THICK * 0.5) * worldScaleFactor,
-                0
-              );
-          const staticBaseDistance =
-            (SHORT_RAIL_CAMERA_DISTANCE + STATIC_SHORT_RAIL_CAMERA_PULLBACK) *
-            worldScaleFactor;
-          const staticDistance = hudState?.inHand
-            ? staticBaseDistance * IN_HAND_CAMERA_RADIUS_MULTIPLIER
-            : staticBaseDistance;
-          const staticHeight = STATIC_SHORT_RAIL_CAMERA_HEIGHT * worldScaleFactor;
-          if (!galleryState?.active && !topViewRef.current) {
-            TMP_VEC3_A.set(0, staticHeight, staticDistance);
-            camera.position.copy(TMP_VEC3_A);
-            camera.lookAt(staticFocusTarget);
-            renderCamera = camera;
-            lookTarget = staticFocusTarget.clone();
-            broadcastArgs = {
-              railDir: 1,
-              targetWorld: lookTarget.clone(),
-              focusWorld: lookTarget.clone(),
-              lerp: 1
-            };
-            const sph = sphRef.current;
-            if (sph) {
-              TMP_VEC3_A.copy(camera.position).sub(lookTarget);
-              TMP_SPH.setFromVector3(TMP_VEC3_A);
-              sph.radius = TMP_SPH.radius;
-              sph.phi = TMP_SPH.phi;
-              sph.theta = TMP_SPH.theta;
-              syncBlendToSpherical();
-            }
-          } else if (galleryState?.active) {
+          if (galleryState?.active) {
             const basePosition =
               galleryState.basePosition ?? galleryState.position ?? null;
             const baseTarget =
