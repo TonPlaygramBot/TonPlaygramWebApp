@@ -89,7 +89,10 @@ export class GameRoom {
       if (existing.disconnectTimer) {
         clearTimeout(existing.disconnectTimer);
         existing.disconnectTimer = null;
-        this.io.to(this.id).emit('playerRejoined', { playerId });
+        this.io.to(this.id).emit('playerRejoined', {
+          playerId,
+          maxPlayers: this.capacity
+        });
       }
     } else {
       if (this.players.length >= this.capacity || this.status !== 'waiting') {
@@ -111,10 +114,19 @@ export class GameRoom {
       position: p.position,
       avatar: p.avatar || ''
     }));
-    socket.emit('currentPlayers', list);
-    this.io.to(this.id).emit('currentPlayers', list);
+    const payload = {
+      players: list,
+      maxPlayers: this.capacity
+    };
+    socket.emit('currentPlayers', payload);
+    this.io.to(this.id).emit('currentPlayers', payload);
     if (!existing) {
-      this.io.to(this.id).emit('playerJoined', { playerId, name });
+      this.io.to(this.id).emit('playerJoined', {
+        playerId,
+        name,
+        avatar: player.avatar || '',
+        maxPlayers: this.capacity
+      });
       if (this.players.length === this.capacity) {
         if (this.startTimer) clearTimeout(this.startTimer);
         this.io.to(this.id).emit('gameStarting', { startIn: this.gameStartDelay });
@@ -287,7 +299,10 @@ export class GameRoom {
     const player = this.players[idx];
     player.disconnected = true;
     player.socketId = null;
-    this.io.to(this.id).emit('playerDisconnected', { playerId: player.playerId });
+    this.io.to(this.id).emit('playerDisconnected', {
+      playerId: player.playerId,
+      maxPlayers: this.capacity
+    });
     if (this.status === 'waiting' && this.startTimer) {
       clearTimeout(this.startTimer);
       this.startTimer = null;
@@ -313,7 +328,10 @@ export class GameRoom {
       player.position = 0;
     }
     player.disconnectTimer = null;
-    this.io.to(this.id).emit('playerLeft', { playerId: player.playerId });
+    this.io.to(this.id).emit('playerLeft', {
+      playerId: player.playerId,
+      maxPlayers: this.capacity
+    });
     if (this.status === 'playing') {
       const active = this.players.filter((p) => !p.disconnected);
       if (active.length === 1) {
