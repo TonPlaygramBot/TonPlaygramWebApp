@@ -584,7 +584,7 @@ console.assert(
   'Pool table inner ratio must match 2:1 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.9896; // 5% larger than the previous Pool Royale build (now ~20.5% over the original baseline)
+const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -5191,7 +5191,7 @@ function Table3D(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
     TABLE.THICK,
-    96,
+    48,
     1,
     true
   );
@@ -5210,7 +5210,7 @@ function Table3D(
   const pocketShroudGeo = new THREE.RingGeometry(
     POCKET_TOP_R * 0.9,
     POCKET_TOP_R * 1.14,
-    144
+    96
   );
   pocketShroudGeo.rotateX(-Math.PI / 2);
   const pocketBaseMat = new THREE.MeshStandardMaterial({
@@ -5218,7 +5218,7 @@ function Table3D(
     metalness: 0.16,
     roughness: 0.68
   });
-  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 128);
+  const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 64);
   pocketBaseGeo.rotateX(-Math.PI / 2);
   const pocketMeshes = [];
   pocketCenters().forEach((p) => {
