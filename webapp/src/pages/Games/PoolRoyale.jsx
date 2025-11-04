@@ -584,7 +584,7 @@ console.assert(
   'Pool table inner ratio must match 2:1 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.8976; // 10% size boost over the previous scale keeps the visuals aligned with the larger balls
+const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -1363,25 +1363,25 @@ const applySnookerStyleWoodPreset = (materials, finishId) => {
 const createPocketMaterials = () => ({
   pocketJaw: new THREE.MeshPhysicalMaterial({
     color: 0x6d7177,
-    metalness: 0.05,
-    roughness: 0.68,
-    clearcoat: 0.18,
-    clearcoatRoughness: 0.48,
-    sheen: 0.52,
-    sheenColor: new THREE.Color(0x8f949b),
-    sheenRoughness: 0.58,
-    envMapIntensity: 0.28
+    metalness: 0.18,
+    roughness: 0.42,
+    clearcoat: 0.34,
+    clearcoatRoughness: 0.26,
+    sheen: 0.48,
+    sheenColor: new THREE.Color(0xa4aab4),
+    sheenRoughness: 0.44,
+    envMapIntensity: 0.46
   }),
   pocketRim: new THREE.MeshPhysicalMaterial({
     color: 0x383b40,
-    metalness: 0.06,
-    roughness: 0.76,
-    clearcoat: 0.14,
-    clearcoatRoughness: 0.54,
-    sheen: 0.44,
-    sheenColor: new THREE.Color(0x6f747b),
-    sheenRoughness: 0.62,
-    envMapIntensity: 0.24
+    metalness: 0.32,
+    roughness: 0.38,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.22,
+    sheen: 0.4,
+    sheenColor: new THREE.Color(0x88909a),
+    sheenRoughness: 0.5,
+    envMapIntensity: 0.52
   })
 });
 
@@ -6011,7 +6011,7 @@ function Table3D(
     let localClampOuter = clampOuter;
     let localJawAngle = jawAngle;
     let depthMultiplier = 1;
-    let steps = wide ? 88 : 68;
+    let steps = wide ? 132 : 104;
 
     if (isMiddle) {
       localJawAngle *= SIDE_POCKET_JAW_LATERAL_EXPANSION;
@@ -6084,7 +6084,7 @@ function Table3D(
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
-      curveSegments: Math.max(96, Math.ceil(localJawAngle / (Math.PI / 64))),
+      curveSegments: Math.max(144, Math.ceil(localJawAngle / (Math.PI / 96))),
       steps: 1
     });
     jawGeom.rotateX(-Math.PI / 2);
@@ -6106,7 +6106,7 @@ function Table3D(
       const rimGeom = new THREE.ExtrudeGeometry(rimShape, {
         depth: rimDepth,
         bevelEnabled: false,
-        curveSegments: Math.max(72, Math.ceil(localJawAngle / (Math.PI / 80))),
+        curveSegments: Math.max(128, Math.ceil(localJawAngle / (Math.PI / 112))),
         steps: 1
       });
       rimGeom.rotateX(-Math.PI / 2);
