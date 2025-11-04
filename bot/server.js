@@ -603,7 +603,11 @@ app.get('/api/snake/board/:id', async (req, res) => {
   const room = await gameManager.getRoom(id, cap);
   // Persist the board so all players receive the same layout
   await gameManager.saveRoom(room).catch(() => {});
-  res.json({ snakes: room.snakes, ladders: room.ladders });
+  res.json({
+    snakes: room.snakes,
+    ladders: room.ladders,
+    diceCells: room.diceCells
+  });
 });
 app.get('/api/watchers/count/:id', (req, res) => {
   const set = tableWatchers.get(req.params.id);
@@ -897,7 +901,7 @@ io.on('connection', (socket) => {
       const room = await gameManager.getRoom(roomId);
       const board =
         room.gameType === 'snake'
-          ? { snakes: room.snakes, ladders: room.ladders }
+          ? { snakes: room.snakes, ladders: room.ladders, diceCells: room.diceCells }
           : room.gameType === 'checkers'
           ? { board: room.game.board }
           : null;

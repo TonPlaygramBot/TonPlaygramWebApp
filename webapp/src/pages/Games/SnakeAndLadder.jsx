@@ -2,10 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import coinConfetti from "../../utils/coinConfetti";
 import DiceRoller from "../../components/DiceRoller.jsx";
 import SnakeBoard3D from "../../components/SnakeBoard3D.jsx";
-import {
-  FINAL_TILE as BOARD_FINAL_TILE,
-  BOARD_CELL_COUNT as SNAKE_BOARD_CELL_COUNT,
-} from "../../components/SnakeBoard.jsx";
+import { FINAL_TILE as BOARD_FINAL_TILE } from "../../components/SnakeBoard.jsx";
 import {
   dropSound,
   snakeSound,
@@ -228,7 +225,47 @@ function generateBoardLocal() {
     usedL.add(start);
     usedL.add(end);
   }
-  return { snakes, ladders };
+  const diceCells = generateDiceCellsLocal(snakes, ladders);
+  return { snakes, ladders, diceCells };
+}
+
+function normalizeDiceCells(cells = {}) {
+  const normalized = {};
+  Object.entries(cells).forEach(([key, value]) => {
+    const cell = Number(key);
+    const val = Number(value);
+    if (Number.isFinite(cell) && Number.isFinite(val)) normalized[cell] = val;
+  });
+  return normalized;
+}
+
+function generateDiceCellsLocal(snakes = {}, ladders = {}) {
+  const boardSize = FINAL_TILE - 1;
+  const diceValues = [1, 2, 1];
+  const diceCells = {};
+  const used = new Set([
+    ...Object.keys(snakes),
+    ...Object.values(snakes),
+    ...Object.keys(ladders),
+    ...Object.values(ladders)
+  ].map((v) => Number(v)));
+
+  const isBlocked = (cell) =>
+    used.has(cell) || diceCells[cell] != null || cell <= 1 || cell >= FINAL_TILE;
+
+  diceValues.forEach((value) => {
+    let attempts = 0;
+    let cell;
+    do {
+      cell = Math.floor(Math.random() * boardSize) + 1;
+      attempts += 1;
+      if (attempts > boardSize * 3) return;
+    } while (isBlocked(cell));
+    diceCells[cell] = value;
+    used.add(cell);
+  });
+
+  return diceCells;
 }
 
 export default function SnakeAndLadder() {
@@ -746,7 +783,7 @@ export default function SnakeAndLadder() {
       ? getSnakeBoard(table)
       : Promise.resolve(generateBoardLocal());
     boardPromise
-      .then(({ snakes: snakesObj = {}, ladders: laddersObj = {} }) => {
+      .then(({ snakes: snakesObj = {}, ladders: laddersObj = {}, diceCells: diceCellsObj = {} }) => {
         const limit = (obj) => {
           return Object.fromEntries(Object.entries(obj).slice(0, 8));
         };
@@ -765,30 +802,11 @@ export default function SnakeAndLadder() {
         });
         setSnakeOffsets(snk);
         setLadderOffsets(lad);
-
-        const boardSize = SNAKE_BOARD_CELL_COUNT;
-        const diceMap = {};
-        const diceValues = [1, 2, 1];
-        const usedD = new Set([
-          ...Object.keys(snakesLim),
-          ...Object.keys(laddersLim),
-          ...Object.values(snakesLim),
-          ...Object.values(laddersLim),
-        ]);
-        diceValues.forEach((val) => {
-          let cell;
-          do {
-            cell = Math.floor(Math.random() * boardSize) + 1;
-          } while (
-            usedD.has(String(cell)) ||
-            usedD.has(cell) ||
-            cell === FINAL_TILE ||
-            cell === 1
-          );
-          diceMap[cell] = val;
-          usedD.add(cell);
-        });
-        setDiceCells(diceMap);
+        const normalizedDice = normalizeDiceCells(diceCellsObj);
+        const diceSource = Object.keys(normalizedDice).length
+          ? normalizedDice
+          : generateDiceCellsLocal(snakesObj, laddersObj);
+        setDiceCells(diceSource);
       })
       .catch(() => {});
   }, []);
@@ -1088,7 +1106,7 @@ export default function SnakeAndLadder() {
     socket.on('diceRolled', onRolled);
     socket.on('gameWon', onWon);
     socket.on('currentPlayers', onCurrentPlayers);
-    socket.on('boardData', ({ snakes: sn, ladders: lad }) => {
+    socket.on('boardData', ({ snakes: sn, ladders: lad, diceCells: diceObj }) => {
       const limit = (obj) => Object.fromEntries(Object.entries(obj).slice(0, 8));
       const snakesLim = limit(sn || {});
       const laddersLim = limit(lad || {});
@@ -1105,6 +1123,12 @@ export default function SnakeAndLadder() {
       });
       setSnakeOffsets(snk);
       setLadderOffsets(ladOff);
+      if (diceObj) {
+        setDiceCells(normalizeDiceCells(diceObj));
+      }
+    });
+    socket.on('diceCellsUpdate', ({ diceCells: updated }) => {
+      setDiceCells(normalizeDiceCells(updated || {}));
     });
 
     if (watchOnly) {
@@ -1151,6 +1175,7 @@ export default function SnakeAndLadder() {
       socket.off('gameWon', onWon);
       socket.off('currentPlayers', onCurrentPlayers);
       socket.off('boardData');
+      socket.off('diceCellsUpdate');
       if (watchOnly) {
         socket.emit('leaveWatch', { roomId: tableId });
       } else {
