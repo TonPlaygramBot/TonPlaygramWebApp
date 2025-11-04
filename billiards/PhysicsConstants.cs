@@ -11,16 +11,16 @@ public static class PhysicsConstants
     // pocket edges fully absorb balls (no bounce)
     public const double PocketRestitution = 0.0;
     public const double Mu = 0.2;                      // linear damping (m/s^2)
-    public const double TableWidth = 2.84;             // 9ft table internal size
-    public const double TableHeight = 1.42;
+    public const double TableWidth = 2.627;            // 9ft table reduced by ~7.5%
+    public const double TableHeight = 1.3135;
     public const double FixedDt = 1.0 / 120.0;         // simulation step
     public const double Epsilon = 1e-9;                // numerical epsilon
     public const double MaxPreviewTime = 30.0;         // safeguard for CCD
 
     // Pocket geometry derived from WPA spec (metres)
-    public const double CornerPocketMouth = 0.1143;    // 4.5" mouth between cushion noses
-    public const double SidePocketMouth = 0.127;       // 5" mouth between cushion noses
-    public const double PocketCaptureRadius = 0.095;   // radius where balls fall through
+    public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
+    public const double SidePocketMouth = 0.117475;    // scaled with table reduction
+    public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;

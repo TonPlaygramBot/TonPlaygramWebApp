@@ -123,22 +123,25 @@ public class BilliardsSolver
         for (int i = 0; i <= segments; i++)
         {
             double t = (double)i / segments;
-            double eased = 0.5 - Math.Cos(t * Math.PI) * 0.5;
+            double angle = Math.PI * (1.0 - t);
+            double mouthOffset = halfMouth * Math.Cos(angle);
+            double depthOffset = depth * Math.Sin(angle);
+
             if (vertical)
             {
-                double y = center.Y + (t - 0.5) * 2.0 * halfMouth;
-                double x = center.X + (positive ? depth : -depth) * (0.5 - eased);
+                double y = center.Y + mouthOffset;
+                double x = center.X + (positive ? depthOffset : -depthOffset);
                 pts.Add(new Vec2(x, y));
             }
             else
             {
-                double x = center.X + (t - 0.5) * 2.0 * halfMouth;
-                double y = center.Y + (positive ? depth : -depth) * (0.5 - eased);
+                double x = center.X + mouthOffset;
+                double y = center.Y + (positive ? depthOffset : -depthOffset);
                 pts.Add(new Vec2(x, y));
             }
         }
 
-        Vec2 hint = vertical ? new Vec2(positive ? -1 : 1, 0) : new Vec2(0, positive ? 1 : -1);
+        Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
         for (int i = 0; i < pts.Count - 1; i++)
         {
             AddCushionSegment(pts[i], pts[i + 1], hint);
