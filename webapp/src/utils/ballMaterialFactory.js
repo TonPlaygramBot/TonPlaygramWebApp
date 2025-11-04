@@ -114,150 +114,16 @@ function drawPoolNumberBadge(ctx, size, number) {
 
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
-  const centerX = size * 0.5;
-  const centerY = size * 0.5;
 
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
   ctx.fillRect(0, 0, size, size);
 
   if (pattern === 'stripe') {
-    const stripeHeight = size * 0.46;
+    ctx.fillStyle = baseHex;
+    const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
-
-    const shellGrad = ctx.createRadialGradient(
-      centerX - size * 0.08,
-      centerY - size * 0.14,
-      size * 0.12,
-      centerX,
-      centerY + size * 0.3,
-      size * 0.62
-    );
-    shellGrad.addColorStop(0, 'rgba(255,255,255,1)');
-    shellGrad.addColorStop(0.45, 'rgba(238,238,238,1)');
-    shellGrad.addColorStop(1, 'rgba(210,210,210,1)');
-    ctx.fillStyle = shellGrad;
-    ctx.fillRect(0, 0, size, size);
-
-    const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.3));
-    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.08));
-    stripeGrad.addColorStop(1, darken(baseHex, 0.12));
-    ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
-    const stripeShadow = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeShadow.addColorStop(0, 'rgba(0,0,0,0.18)');
-    stripeShadow.addColorStop(0.5, 'rgba(0,0,0,0)');
-    stripeShadow.addColorStop(1, 'rgba(0,0,0,0.16)');
-    ctx.fillStyle = stripeShadow;
-    ctx.fillRect(0, stripeY, size, stripeHeight);
-    ctx.restore();
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    const stripeHighlight = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeHighlight.addColorStop(0, 'rgba(255,255,255,0.55)');
-    stripeHighlight.addColorStop(0.5, 'rgba(255,255,255,0.12)');
-    stripeHighlight.addColorStop(1, 'rgba(255,255,255,0.4)');
-    ctx.fillStyle = stripeHighlight;
-    ctx.fillRect(0, stripeY, size, stripeHeight);
-    ctx.restore();
-
-    ctx.lineWidth = size * 0.016;
-    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-    ctx.beginPath();
-    ctx.moveTo(0, stripeY);
-    ctx.lineTo(size, stripeY);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(0, stripeY + stripeHeight);
-    ctx.lineTo(size, stripeY + stripeHeight);
-    ctx.stroke();
-  } else {
-    const bodyGrad = ctx.createRadialGradient(
-      centerX - size * 0.16,
-      centerY - size * 0.18,
-      size * 0.08,
-      centerX,
-      centerY + size * 0.32,
-      size * 0.65
-    );
-    bodyGrad.addColorStop(0, lighten(baseHex, 0.36));
-    bodyGrad.addColorStop(0.45, lighten(baseHex, 0.14));
-    bodyGrad.addColorStop(1, darken(baseHex, 0.12));
-    ctx.fillStyle = bodyGrad;
-    ctx.fillRect(0, 0, size, size);
   }
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'multiply';
-  const edgeVignette = ctx.createRadialGradient(
-    centerX,
-    centerY + size * 0.12,
-    size * 0.36,
-    centerX,
-    centerY + size * 0.12,
-    size * 0.66
-  );
-  edgeVignette.addColorStop(0, 'rgba(0,0,0,0)');
-  edgeVignette.addColorStop(1, 'rgba(0,0,0,0.22)');
-  ctx.fillStyle = edgeVignette;
-  ctx.fillRect(0, 0, size, size);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  const rimHighlight = ctx.createRadialGradient(
-    centerX,
-    centerY,
-    size * 0.25,
-    centerX,
-    centerY,
-    size * 0.5
-  );
-  rimHighlight.addColorStop(0, 'rgba(255,255,255,0)');
-  rimHighlight.addColorStop(0.7, 'rgba(255,255,255,0.18)');
-  rimHighlight.addColorStop(1, 'rgba(255,255,255,0.45)');
-  ctx.fillStyle = rimHighlight;
-  ctx.fillRect(0, 0, size, size);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  const specHighlight = ctx.createRadialGradient(
-    centerX - size * 0.2,
-    centerY - size * 0.24,
-    size * 0.05,
-    centerX - size * 0.12,
-    centerY - size * 0.16,
-    size * 0.18
-  );
-  specHighlight.addColorStop(0, 'rgba(255,255,255,1)');
-  specHighlight.addColorStop(0.4, 'rgba(255,255,255,0.32)');
-  specHighlight.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = specHighlight;
-  ctx.fillRect(0, 0, size, size);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'multiply';
-  const lowerShadow = ctx.createRadialGradient(
-    centerX + size * 0.16,
-    centerY + size * 0.32,
-    size * 0.12,
-    centerX + size * 0.16,
-    centerY + size * 0.32,
-    size * 0.48
-  );
-  lowerShadow.addColorStop(0, 'rgba(0,0,0,0.05)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.26)');
-  ctx.fillStyle = lowerShadow;
-  ctx.fillRect(0, 0, size, size);
-  ctx.restore();
-
-  addNoise(ctx, size, 0.014, 5400);
 
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
