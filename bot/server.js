@@ -385,8 +385,7 @@ async function seatTableSocket(
     tableId,
     players: table.players,
     currentTurn: table.currentTurn,
-    ready: Array.from(table.ready),
-    maxPlayers: table.maxPlayers
+    ready: Array.from(table.ready)
   });
   return table;
 }
@@ -457,8 +456,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
       tableId,
       players: table.players,
       currentTurn: table.currentTurn,
-      ready: Array.from(table.ready || []),
-      maxPlayers: table.maxPlayers
+      ready: Array.from(table.ready || [])
     });
     if (accountId && table.currentTurn && table.currentTurn !== accountId) {
       io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
