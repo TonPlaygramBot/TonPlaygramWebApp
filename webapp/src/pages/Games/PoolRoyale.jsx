@@ -533,7 +533,7 @@ const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the c
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
-const POCKET_JAW_SEGMENT_MIN = 208; // ultra high tessellation for razor-sharp pocket jaws
+const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
 const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
@@ -584,7 +584,7 @@ console.assert(
   'Pool table inner ratio must match 2:1 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.989604; // 5% larger than the previous Pool Royale build (roughly 21.6% over the original baseline)
+const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -656,7 +656,7 @@ const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
-const BALL_SEGMENTS = Object.freeze({ width: 96, height: 72 });
+const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
@@ -5626,7 +5626,7 @@ function Table3D(
       Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
-    const circle = circlePoly(cx, 0, radius, 320);
+    const circle = circlePoly(cx, 0, radius, 256);
     const useThroat =
       throatLength > MICRO_EPS && throatHeight > MICRO_EPS && throatRadius > MICRO_EPS;
 
@@ -5640,7 +5640,7 @@ function Table3D(
       Math.abs(throatLength),
       throatHeight,
       throatRadius,
-      224
+      192
     );
     const union = polygonClipping.union(circle, throat);
     return adjustSideNotchDepth(union);
@@ -5701,7 +5701,7 @@ function Table3D(
     );
 
   const chromePlates = new THREE.Group();
-  const chromePlateShapeSegments = 176;
+  const chromePlateShapeSegments = 128;
   // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
