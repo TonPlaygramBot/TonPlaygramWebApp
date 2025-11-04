@@ -489,14 +489,15 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_REDUCTION = 0.5; // shrink the entire 3D build a further ~17% (overall ~50%) while keeping proportions identical
+const TABLE_REDUCTION = 0.88; // trim the entire 3D build by roughly 12% so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 1.17 * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
+const TABLE_BASE_SCALE = 1.17;
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -3373,6 +3374,7 @@ const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
+const BROADCAST_PAIR_MARGIN = BALL_R * 3; // keep the cue/target pair safely framed within the broadcast crop
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -3637,6 +3639,41 @@ const computeShortRailBroadcastDistance = (camera) => {
   const lengthDistance = halfLength / Math.tan(halfVertical);
   const required = Math.max(widthDistance, lengthDistance);
   return Math.max(SHORT_RAIL_CAMERA_DISTANCE, required);
+};
+
+const computeShortRailPairFraming = (camera, cuePos, targetPos = null, margin = BROADCAST_PAIR_MARGIN) => {
+  if (!camera || !cuePos) {
+    return null;
+  }
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov || STANDING_VIEW_FOV);
+  const aspect = camera.aspect || 1;
+  const halfVertical = Math.max(verticalFov / 2, 1e-3);
+  const halfHorizontal = Math.max(Math.atan(Math.tan(halfVertical) * aspect), 1e-3);
+  const centerX = targetPos ? (cuePos.x + targetPos.x) * 0.5 : cuePos.x;
+  const centerZ = targetPos ? (cuePos.y + targetPos.y) * 0.5 : cuePos.y;
+  const safeMargin = Math.max(margin, BALL_R);
+  let halfWidth = safeMargin;
+  let halfLength = safeMargin;
+  const accumulate = (pt) => {
+    if (!pt) return;
+    const dx = Math.abs(pt.x - centerX);
+    const dz = Math.abs(pt.y - centerZ);
+    if (dx + safeMargin > halfWidth) halfWidth = dx + safeMargin;
+    if (dz + safeMargin > halfLength) halfLength = dz + safeMargin;
+  };
+  accumulate(cuePos);
+  accumulate(targetPos);
+  const widthDistance = halfWidth / Math.tan(halfHorizontal);
+  const lengthDistance = halfLength / Math.tan(halfVertical);
+  return {
+    centerX,
+    centerZ,
+    halfWidth,
+    halfLength,
+    halfHorizontal,
+    halfVertical,
+    requiredDistance: Math.max(widthDistance, lengthDistance)
+  };
 };
 
 function checkSpinLegality2D(cueBall, spinVec, balls = [], options = {}) {
@@ -9511,7 +9548,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.5 : 0;
                   const baseDistance = computeShortRailBroadcastDistance(camera);
-                  const desiredDistance = baseDistance + longShotPullback;
+                  const pairFraming = computeShortRailPairFraming(
+                    camera,
+                    cuePos2,
+                    targetPos2
+                  );
+                  const desiredDistance = Math.max(
+                    baseDistance + longShotPullback,
+                    pairFraming ? pairFraming.requiredDistance : 0
+                  );
                   const desired = new THREE.Vector3(
                     0,
                     heightBase + ACTION_CAM.heightOffset + heightLift,
@@ -9532,9 +9577,32 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   lookAnchor.x +=
                     focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                  let clampedZTarget = -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
+                  if (pairFraming) {
+                    const horizontalAllowance = Math.max(
+                      0,
+                      Math.tan(pairFraming.halfHorizontal) * desiredDistance -
+                        pairFraming.halfWidth
+                    );
+                    const depthAllowance = Math.max(
+                      0,
+                      Math.tan(pairFraming.halfVertical) * desiredDistance -
+                        pairFraming.halfLength
+                    );
+                    const minX = pairFraming.centerX - horizontalAllowance;
+                    const maxX = pairFraming.centerX + horizontalAllowance;
+                    lookAnchor.x = THREE.MathUtils.clamp(lookAnchor.x, minX, maxX);
+                    const minZ = pairFraming.centerZ - depthAllowance;
+                    const maxZ = pairFraming.centerZ + depthAllowance;
+                    clampedZTarget = THREE.MathUtils.clamp(
+                      clampedZTarget,
+                      minZ,
+                      maxZ
+                    );
+                  }
                   lookAnchor.z = THREE.MathUtils.lerp(
                     lookAnchor.z,
-                    -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4),
+                    clampedZTarget,
                     0.65
                   );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
@@ -9599,7 +9667,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   const heightLift =
                     activeShotView.longShot ? BALL_R * 2.2 : 0;
                   const baseDistance = computeShortRailBroadcastDistance(camera);
-                  const desiredDistance = baseDistance + longShotPullback;
+                  const cueFraming = computeShortRailPairFraming(camera, cuePos2);
+                  const desiredDistance = Math.max(
+                    baseDistance + longShotPullback,
+                    cueFraming ? cueFraming.requiredDistance : 0
+                  );
                   const desired = new THREE.Vector3(
                     0,
                     heightBase + ACTION_CAM.followHeightOffset + heightLift,
@@ -9620,9 +9692,32 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   );
                   lookAnchor.x +=
                     focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                  let clampedZTarget = -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
+                  if (cueFraming) {
+                    const horizontalAllowance = Math.max(
+                      0,
+                      Math.tan(cueFraming.halfHorizontal) * desiredDistance -
+                        cueFraming.halfWidth
+                    );
+                    const depthAllowance = Math.max(
+                      0,
+                      Math.tan(cueFraming.halfVertical) * desiredDistance -
+                        cueFraming.halfLength
+                    );
+                    const minX = cueFraming.centerX - horizontalAllowance;
+                    const maxX = cueFraming.centerX + horizontalAllowance;
+                    lookAnchor.x = THREE.MathUtils.clamp(lookAnchor.x, minX, maxX);
+                    const minZ = cueFraming.centerZ - depthAllowance;
+                    const maxZ = cueFraming.centerZ + depthAllowance;
+                    clampedZTarget = THREE.MathUtils.clamp(
+                      clampedZTarget,
+                      minZ,
+                      maxZ
+                    );
+                  }
                   lookAnchor.z = THREE.MathUtils.lerp(
                     lookAnchor.z,
-                    -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5),
+                    clampedZTarget,
                     0.65
                   );
                   applyStandingViewElevation(desired, lookAnchor, heightBase);
