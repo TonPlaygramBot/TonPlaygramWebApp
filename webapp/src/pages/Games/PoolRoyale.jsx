@@ -3355,13 +3355,13 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.82; // lift the standing orbit a touch higher for a clearer overview
+const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep right as the aim line height is reached
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405; // let the orbit camera follow the table footprint as it scales
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
@@ -3406,7 +3406,7 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
-const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.02; // keep a slimmer clearance above the aim line so the clamp meets the cue height
+const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.04; // keep a touch of clearance above the aim line
 const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.085); // scale aim line thickness with the smaller ball size
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.7); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.55);
