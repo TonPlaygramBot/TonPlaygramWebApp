@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
 
-const BALL_TEXTURE_SIZE = 4096; // ultra high resolution for sharper billiard ball textures
+const BALL_TEXTURE_SIZE = 8192; // ultra high resolution for razor-sharp billiard ball textures
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
 
@@ -245,7 +245,7 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   }
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 32;
+  texture.anisotropy = 64;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -281,25 +281,25 @@ export function getBallMaterial({
           color: 0xffffff,
           map,
           clearcoat: 1,
-          clearcoatRoughness: 0.02,
-          metalness: 0.16,
-          roughness: 0.07,
+          clearcoatRoughness: 0.012,
+          metalness: 0.26,
+          roughness: 0.04,
           reflectivity: 1,
-          sheen: 0.12,
+          sheen: 0.18,
           sheenColor: new THREE.Color(0xf6f7ff),
-          envMapIntensity: 1.1
+          envMapIntensity: 1.32
         })
       : new THREE.MeshPhysicalMaterial({
           color: 0xffffff,
           map,
           clearcoat: 1,
-          clearcoatRoughness: 0.015,
-          metalness: 0.24,
-          roughness: 0.06,
+          clearcoatRoughness: 0.008,
+          metalness: 0.34,
+          roughness: 0.032,
           reflectivity: 1,
-          sheen: 0.18,
+          sheen: 0.24,
           sheenColor: new THREE.Color(0xf8f9ff),
-          envMapIntensity: 1.18
+          envMapIntensity: 1.48
         });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);

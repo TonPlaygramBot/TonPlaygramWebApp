@@ -584,7 +584,7 @@ console.assert(
   'Pool table inner ratio must match 2:1 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
+const BALL_SIZE_SCALE = 0.989604; // bumped another 5% over the previous Pool Royale build for a bolder ball silhouette
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
@@ -656,7 +656,7 @@ const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
-const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
+const BALL_SEGMENTS = Object.freeze({ width: 96, height: 72 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
@@ -667,7 +667,7 @@ const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
-const TARGET_FPS = 90;
+const TARGET_FPS = 144;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
@@ -1172,12 +1172,12 @@ const CLOTH_SOFT_BLEND = 0.46;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
-    textureSize: 4096,
-    anisotropy: 48,
+    textureSize: 8192,
+    anisotropy: 64,
     generateMipmaps: true,
-    bumpScaleMultiplier: 1,
+    bumpScaleMultiplier: 1.08,
     sheen: 0.95,
-    sheenRoughness: 0.66
+    sheenRoughness: 0.62
   };
 
   const detectLowRefresh = () => {
@@ -1200,11 +1200,11 @@ const CLOTH_QUALITY = (() => {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
-      textureSize: 2048,
-      anisotropy: 16,
-      bumpScaleMultiplier: 0.88,
+      textureSize: 4096,
+      anisotropy: 24,
+      bumpScaleMultiplier: 0.9,
       sheen: 0.9,
-      sheenRoughness: 0.72
+      sheenRoughness: 0.7
     };
   }
 
@@ -1221,23 +1221,23 @@ const CLOTH_QUALITY = (() => {
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
     return {
-      textureSize: highDensity ? 1536 : 1152,
-      anisotropy: highDensity ? 16 : 12,
+      textureSize: highDensity ? 2048 : 1536,
+      anisotropy: highDensity ? 24 : 16,
       generateMipmaps: true,
-      bumpScaleMultiplier: highDensity ? 0.82 : 0.74,
-      sheen: 0.78,
-      sheenRoughness: 0.82
+      bumpScaleMultiplier: highDensity ? 0.86 : 0.78,
+      sheen: 0.8,
+      sheenRoughness: 0.8
     };
   }
 
   if (hardwareConcurrency <= 6 || dpr < 1.75) {
     return {
-      textureSize: 3072,
-      anisotropy: 32,
+      textureSize: 4096,
+      anisotropy: 40,
       generateMipmaps: true,
-      bumpScaleMultiplier: 0.95,
-      sheen: 0.9,
-      sheenRoughness: 0.7
+      bumpScaleMultiplier: 1,
+      sheen: 0.92,
+      sheenRoughness: 0.68
     };
   }
 
