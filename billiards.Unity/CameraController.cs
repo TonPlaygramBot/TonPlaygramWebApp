@@ -27,24 +27,24 @@ public class CameraController : MonoBehaviour
     // Minimum distance the camera should maintain when hugging the table so the
     // framing ends up closer to the cue ball without drifting toward the butt of
     // the cue stick.
-    public float minimumCueViewDistance = 1.45f;
+    public float minimumCueViewDistance = 1.34125f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 1.9f;
     // Default distance of the camera from the table centre when fully raised to
     // provide a broad overview of the action.
-    public float distanceFromCenter = 3.8f;
+    public float distanceFromCenter = 3.515f;
     // Minimum distance from the table centre allowed when the camera is pulled
     // down toward the rails for a closer look.
-    public float minDistanceFromCenter = 2.15f;
+    public float minDistanceFromCenter = 1.98875f;
     // Extra distance the camera is allowed to shed as it hugs the table so the
     // cue ball fills more of the view during low-angle aiming.
-    public float lowHeightDistanceReduction = 0.45f;
+    public float lowHeightDistanceReduction = 0.41625f;
     // Extra pullback applied when the camera is raised to its maximum height so
     // the player gets a slightly wider view while aiming.
-    public float zoomOutWhenRaised = 0.25f;
+    public float zoomOutWhenRaised = 0.23125f;
     // Buffer that keeps the camera just outside the rails even at the closest
     // zoom level.
-    public float railBuffer = 0.02f;
+    public float railBuffer = 0.0185f;
     // Slight height offset so the camera looks just above the table centre
     // to reduce the viewing angle and give a lower perspective.
     public float lookAtHeightOffset = 0.08f;
@@ -54,13 +54,13 @@ public class CameraController : MonoBehaviour
     public float lowHeightLookUpOffset = 0.12f;
     // When the camera moves close to the table corners pull back slightly so
     // the rails remain visible and aiming is easier.
-    public float cornerXThreshold = 2.6f;
-    public float cornerZThreshold = 1.3f;
-    public float cornerPullback = 0.5f;
+    public float cornerXThreshold = 2.405f;
+    public float cornerZThreshold = 1.2025f;
+    public float cornerPullback = 0.4625f;
     // Range beyond the thresholds where the pullback gradually reaches the
     // maximum value.  This avoids a sudden jump in zoom when approaching a
     // corner and gives a smoother transition.
-    public float cornerBlendRange = 0.4f;
+    public float cornerBlendRange = 0.37f;
     // Optional reference to the active player (usually the cue ball). When set,
     // corner pullback is based on the player's position instead of the camera
     // so that approaching a rail gives a better view of the shot.

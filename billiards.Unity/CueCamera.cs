@@ -19,6 +19,9 @@ public class CueCamera : MonoBehaviour
     // infer which way the stick is pointing.  When supplied the camera blends
     // toward that axis while staying in front of the plastic butt cap.
     public Transform CueButtReference;
+    // Optional list of every ball on the table so the broadcast view keeps
+    // the full rolling action inside the frame.
+    public Transform[] Balls;
 
     [Header("Cue aim view")]
     // Distance from the cue ball when the camera is fully raised above the cue.
@@ -116,10 +119,10 @@ public class CueCamera : MonoBehaviour
 
     [Header("Broadcast view")]
     // Distance and height for the short-rail broadcast view used once a shot begins.
-    public float broadcastDistance = 1.05f;
+    public float broadcastDistance = 0.97125f;
     public float broadcastHeight = 0.5f;
     // Bounds that encompass the full playing surface including rails and pockets.
-    public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.778f, 0.72f, 3.569f));
+    public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.64465f, 0.72f, 3.301325f));
     // Keep a small margin inside the camera frame so the rails never touch the
     // edge of the screen during broadcast shots.
     [Range(0f, 0.25f)]
@@ -127,8 +130,8 @@ public class CueCamera : MonoBehaviour
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
-    public float broadcastMinDistance = 1.2f;
-    public float broadcastMaxDistance = 5.5f;
+    public float broadcastMinDistance = 1.11f;
+    public float broadcastMaxDistance = 5.0875f;
     // Blend between the table centre and the active focus (cue ball or target)
     // when aiming the broadcast view. Keeps the play interesting while still
     // framing the entire table.
@@ -659,16 +662,103 @@ public class CueCamera : MonoBehaviour
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
 
+        Bounds broadcastBounds = GetBroadcastBounds(focus);
         focus.x = 0f;
+        focus.z = broadcastBounds.center.z;
 
-        float distance = ComputeBroadcastDistance(focus, height, forward, cam);
+        float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
 
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
     }
 
-    private float ComputeBroadcastDistance(Vector3 focus, float height, Vector3 forward, Camera cam)
+    private Bounds GetBroadcastBounds(Vector3 focus)
+    {
+        float minHalfLength = tableBounds.extents.z * 0.5f;
+        float zRange = Mathf.Max(0f, tableBounds.extents.z - minHalfLength);
+        float clampedZ = Mathf.Clamp(focus.z, tableBounds.center.z - zRange, tableBounds.center.z + zRange);
+        Bounds baseBounds = new Bounds(
+            new Vector3(0f, tableBounds.center.y, clampedZ),
+            new Vector3(tableBounds.size.x, tableBounds.size.y, minHalfLength * 2f)
+        );
+
+        Bounds movingBounds;
+        if (!TryGetMovingBounds(out movingBounds))
+        {
+            return baseBounds;
+        }
+
+        float radius = Mathf.Max(0f, cueBallRadius);
+        Vector3 extents = movingBounds.extents;
+        extents.x = Mathf.Max(extents.x + radius, tableBounds.extents.x);
+        extents.y = tableBounds.extents.y;
+        extents.z = Mathf.Max(extents.z + radius, minHalfLength);
+
+        float zLimit = Mathf.Max(0f, tableBounds.extents.z - extents.z);
+        Vector3 centre = movingBounds.center;
+        centre.x = 0f;
+        centre.y = tableBounds.center.y;
+        centre.z = Mathf.Clamp(centre.z, tableBounds.center.z - zLimit, tableBounds.center.z + zLimit);
+
+        return new Bounds(centre, extents * 2f);
+    }
+
+    private bool TryGetMovingBounds(out Bounds bounds)
+    {
+        bounds = new Bounds();
+        bool hasBounds = false;
+
+        if (CueBall != null && CueBall.gameObject.activeInHierarchy && IsMoving(CueBall))
+        {
+            bounds = new Bounds(CueBall.position, Vector3.zero);
+            hasBounds = true;
+        }
+
+        if (TargetBall != null && TargetBall.gameObject.activeInHierarchy && TargetBall != CueBall && IsMoving(TargetBall))
+        {
+            if (hasBounds)
+            {
+                bounds.Encapsulate(TargetBall.position);
+            }
+            else
+            {
+                bounds = new Bounds(TargetBall.position, Vector3.zero);
+                hasBounds = true;
+            }
+        }
+
+        if (Balls != null)
+        {
+            for (int i = 0; i < Balls.Length; i++)
+            {
+                Transform ball = Balls[i];
+                if (ball == null || !ball.gameObject.activeInHierarchy || ball == CueBall || ball == TargetBall)
+                {
+                    continue;
+                }
+
+                if (!IsMoving(ball))
+                {
+                    continue;
+                }
+
+                if (hasBounds)
+                {
+                    bounds.Encapsulate(ball.position);
+                }
+                else
+                {
+                    bounds = new Bounds(ball.position, Vector3.zero);
+                    hasBounds = true;
+                }
+            }
+        }
+
+        return hasBounds;
+    }
+
+    private float ComputeBroadcastDistance(Vector3 focus, float height, Vector3 forward, Camera cam, Bounds bounds)
     {
         float minDistance = Mathf.Max(0.1f, broadcastMinDistance);
         float maxDistance = Mathf.Max(minDistance + 0.01f, broadcastMaxDistance);
@@ -683,7 +773,7 @@ public class CueCamera : MonoBehaviour
         {
             float mid = 0.5f * (low + high);
             Vector3 cameraPos = focus - forward * mid + Vector3.up * height;
-            if (TableFitsAt(cameraPos, lookTarget, cam))
+            if (TableFitsAt(cameraPos, lookTarget, cam, bounds))
             {
                 best = mid;
                 high = mid;
@@ -697,7 +787,7 @@ public class CueCamera : MonoBehaviour
         best = Mathf.Clamp(best, minDistance, maxDistance);
 
         Vector3 finalPos = focus - forward * best + Vector3.up * height;
-        if (!TableFitsAt(finalPos, lookTarget, cam))
+        if (!TableFitsAt(finalPos, lookTarget, cam, bounds))
         {
             best = maxDistance;
         }
@@ -705,7 +795,7 @@ public class CueCamera : MonoBehaviour
         return Mathf.Clamp(best, minDistance, maxDistance);
     }
 
-    private bool TableFitsAt(Vector3 cameraPosition, Vector3 lookTarget, Camera cam)
+    private bool TableFitsAt(Vector3 cameraPosition, Vector3 lookTarget, Camera cam, Bounds bounds)
     {
         Vector3 forward = lookTarget - cameraPosition;
         if (forward.sqrMagnitude < 0.0001f)
@@ -718,8 +808,8 @@ public class CueCamera : MonoBehaviour
         Matrix4x4 projection = Matrix4x4.Perspective(cam.fieldOfView, cam.aspect, cam.nearClipPlane, cam.farClipPlane);
         Matrix4x4 vp = projection * view;
 
-        Vector3 centre = tableBounds.center;
-        Vector3 extents = tableBounds.extents;
+        Vector3 centre = bounds.center;
+        Vector3 extents = bounds.extents;
         float margin = Mathf.Clamp01(broadcastSafeMargin);
 
         for (int i = 0; i < 8; i++)
