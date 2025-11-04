@@ -49,16 +49,30 @@
       }
       .ball {
         position: absolute;
-        width: 40px;
-        height: 40px;
+        width: 42px;
+        height: 42px;
         border-radius: 50%;
-        background: #fff;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
+        --ball-color: #fff;
+        background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.6) 30%, rgba(255,255,255,0) 65%),
+          radial-gradient(circle at 50% 60%, var(--ball-color) 0%, var(--ball-color) 70%, rgba(0,0,0,0.25) 100%);
+        box-shadow: inset 0 4px 8px rgba(255,255,255,0.55), inset 0 -6px 10px rgba(0,0,0,0.45), 0 6px 10px rgba(0,0,0,0.35);
+      }
+      .ball::after {
+        content: '';
+        position: absolute;
+        top: 18%;
+        left: 20%;
+        width: 45%;
+        height: 45%;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255,255,255,0.9), rgba(255,255,255,0));
+        filter: blur(0.5px);
       }
       .target-ball {
-        background: #f33;
+        --ball-color: #f33;
       }
       .spin-dot {
         position: absolute;
@@ -141,7 +155,7 @@
     <div class="stage">
       <img
         class="bg"
-        src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAwIDE1MDAiPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiMwMDgwMDAiLz48L3N2Zz4="
+        src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNjAwIDkwMCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9Indvb2QiIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNWMzYjFkIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMC41IiBzdG9wLWNvbG9yPSIjN2E0ZDI2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzRhMmIxNSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iY2xvdGgiIGN4PSI1MCUiIGN5PSI0NSUiIHI9IjY1JSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzJjYTE2NCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjAuNDUiIHN0b3AtY29sb3I9IiMxODg2NGUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMGQ1YzMyIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJjdXNoaW9uIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzFmNmYzZCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjAuNSIgc3RvcC1jb2xvcj0iIzE1NTkzMCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxMDQzMjYiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9InBvY2tldCIgY3g9IjUwJSIgY3k9IjUwJSIgcj0iNTAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmQyZDJkIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMC41NSIgc3RvcC1jb2xvcj0iIzBlMGUwZSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMDAiLz4KICAgIDwvcmFkaWFsR3JhZGllbnQ+CiAgICA8ZmlsdGVyIGlkPSJjbG90aFRleHR1cmUiIHg9Ii0xMCUiIHk9Ii0xMCUiIHdpZHRoPSIxMjAlIiBoZWlnaHQ9IjEyMCUiPgogICAgICA8ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC45IiBudW1PY3RhdmVzPSIyIiBzZWVkPSIxMiIgcmVzdWx0PSJub2lzZSIvPgogICAgICA8ZmVDb2xvck1hdHJpeCBpbj0ibm9pc2UiIHR5cGU9Im1hdHJpeCIgdmFsdWVzPSIwIDAgMCAwIDAgIDAgMCAwIDAgMCAgMCAwIDAgMCAwICAwIDAgMCAwLjMgMCIgcmVzdWx0PSJncmFpbiIvPgogICAgICA8ZmVCbGVuZCBpbj0iU291cmNlR3JhcGhpYyIgaW4yPSJncmFpbiIgbW9kZT0ibXVsdGlwbHkiLz4KICAgIDwvZmlsdGVyPgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iMTYwMCIgaGVpZ2h0PSI5MDAiIGZpbGw9InVybCgjd29vZCkiLz4KICA8cmVjdCB4PSIxMjAiIHk9IjkwIiB3aWR0aD0iMTM2MCIgaGVpZ2h0PSI3MjAiIHJ4PSI5MCIgcnk9IjkwIiBmaWxsPSJ1cmwoI2N1c2hpb24pIi8+CiAgPHJlY3QgeD0iMjAwIiB5PSIxNjAiIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjU4MCIgcng9IjYwIiByeT0iNjAiIGZpbGw9InVybCgjY2xvdGgpIiBmaWx0ZXI9InVybCgjY2xvdGhUZXh0dXJlKSIvPgogIDxnIGZpbGw9InVybCgjcG9ja2V0KSI+CiAgICA8Y2lyY2xlIGN4PSIyMDAiIGN5PSIxNjAiIHI9IjYwIi8+CiAgICA8Y2lyY2xlIGN4PSI4MDAiIGN5PSIxNjAiIHI9IjY0Ii8+CiAgICA8Y2lyY2xlIGN4PSIxNDAwIiBjeT0iMTYwIiByPSI2MCIvPgogICAgPGNpcmNsZSBjeD0iMjAwIiBjeT0iNzQwIiByPSI2MCIvPgogICAgPGNpcmNsZSBjeD0iODAwIiBjeT0iNzQwIiByPSI2NCIvPgogICAgPGNpcmNsZSBjeD0iMTQwMCIgY3k9Ijc0MCIgcj0iNjAiLz4KICA8L2c+CiAgPHJlY3QgeD0iMjAwIiB5PSIxNjAiIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjU4MCIgcng9IjYwIiByeT0iNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZjEyIiBzdHJva2Utd2lkdGg9IjYiLz4KPC9zdmc+"
         alt="Pool table"
       />
       <svg id="frame" class="overlay debug-marker" viewBox="0 0 1000 1500"></svg>
