@@ -408,6 +408,23 @@ export default function SnakeAndLadder() {
     },
     []
   );
+  const updateMpPlayers = useCallback(
+    (updater, capacityValue) => {
+      setMpPlayers((prev) => {
+        const base = Array.isArray(prev) ? prev : [];
+        const next = typeof updater === 'function' ? updater(base) : updater;
+        if (!Array.isArray(next)) {
+          playersRef.current = base;
+          refreshPlayersNeeded(base, capacityValue);
+          return base;
+        }
+        playersRef.current = next;
+        refreshPlayersNeeded(next, capacityValue);
+        return next;
+      });
+    },
+    [refreshPlayersNeeded]
+  );
   const applyTableCapacity = useCallback(
     (value) => {
       const cap = Number(value);
@@ -812,13 +829,6 @@ export default function SnakeAndLadder() {
   }, []);
 
   useEffect(() => {
-    playersRef.current = mpPlayers;
-    if (isMultiplayer) {
-      refreshPlayersNeeded(mpPlayers);
-    }
-  }, [mpPlayers, isMultiplayer, refreshPlayersNeeded]);
-
-  useEffect(() => {
     tableCapacityRef.current = tableCapacity;
     if (isMultiplayer) {
       refreshPlayersNeeded(playersRef.current, tableCapacity);
@@ -864,22 +874,18 @@ export default function SnakeAndLadder() {
       handleCapacity(maxPlayers);
       const name = joinedName || `Player`;
       const photoUrl = avatar || '/assets/icons/profile.svg';
-      setMpPlayers((p) => {
+      updateMpPlayers((p) => {
         if (p.some((pl) => pl.id === playerId)) {
-          refreshPlayersNeeded(p, maxPlayers);
           return p;
         }
-        const arr = [...p, { id: playerId, name, photoUrl, position: 0 }];
-        refreshPlayersNeeded(arr, maxPlayers);
-        return arr;
-      });
+        return [...p, { id: playerId, name, photoUrl, position: 0 }];
+      }, maxPlayers);
     };
     const onLeft = ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
-      setMpPlayers((p) => {
+      updateMpPlayers((p) => {
         const leaving = p.find((pl) => pl.id === playerId);
         const arr = p.filter((pl) => pl.id !== playerId);
-        refreshPlayersNeeded(arr, maxPlayers);
         if (leaving && !ranking.some((r) => r.name === leaving.name)) {
           setRanking((r) => [...r, { name: leaving.name, photoUrl: leaving.photoUrl, amount: 0 }]);
         }
@@ -894,11 +900,11 @@ export default function SnakeAndLadder() {
           }
         }
         return arr;
-      });
+      }, maxPlayers);
     };
     const onMove = ({ playerId, from = 0, to }) => {
       const updatePosition = (pos) => {
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
         if (playerId === myAccountId) setPos(pos);
       };
       const ctx = {
@@ -931,7 +937,7 @@ export default function SnakeAndLadder() {
     };
     const onSnakeOrLadder = ({ playerId, from, to }) => {
       const updatePosition = (pos) => {
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
+        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
         if (playerId === myAccountId) setPos(pos);
       };
       const ctx = {
@@ -972,7 +978,7 @@ export default function SnakeAndLadder() {
       }
       setTimeout(() => {
         setBurning((b) => b.filter((v) => v !== idx));
-        setMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
+        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
         if (playerId === myAccountId) setPos(0);
       }, 1000);
     };
@@ -1055,8 +1061,7 @@ export default function SnakeAndLadder() {
         photoUrl: p.avatar || p.photoUrl || '/assets/icons/profile.svg',
         position: p.position || 0
       }));
-      setMpPlayers(arr);
-      refreshPlayersNeeded(arr, capValue);
+      updateMpPlayers(arr, capValue);
     };
 
     socket.on('playerJoined', onJoined);
@@ -1098,8 +1103,7 @@ export default function SnakeAndLadder() {
         photoUrl: p.avatar || '/assets/icons/profile.svg',
         position: p.position || 0
       }));
-      setMpPlayers(arr);
-      refreshPlayersNeeded(arr, maxPlayers);
+      updateMpPlayers(arr, maxPlayers);
     });
     socket.on('gameStart', onStarted);
     socket.on('gameStarted', onStarted);
@@ -1147,8 +1151,7 @@ export default function SnakeAndLadder() {
               return { id: p.id, name: n, photoUrl, position: 0 };
             })
           ).then((arr) => {
-            setMpPlayers(arr);
-            refreshPlayersNeeded(arr, capacityHint);
+            updateMpPlayers(arr, capacityHint);
           });
         })
         .catch(() => {});
@@ -1184,7 +1187,7 @@ export default function SnakeAndLadder() {
         }
       }
     };
-  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, tableId, watchOnly]);
+  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, tableId, updateMpPlayers, watchOnly]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
