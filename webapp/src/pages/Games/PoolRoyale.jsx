@@ -489,7 +489,8 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_REDUCTION = 0.84; // trim the entire 3D build by roughly 16% so the arena stays compact without distorting proportions
+const TABLE_SIZE_SHRINK = 0.88; // additional 12% reduction keeps the table footprint slimmer without altering proportions
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy 16% trim plus the new shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
@@ -3499,6 +3500,23 @@ const resolveShortRailBroadcastDirection = ({
   const fromBallVel = resolveComponent(ballVel?.y, fallback);
   if (fromBallVel != null) return fromBallVel;
   return signed(fallback, 1);
+};
+const resolveOppositeShortRailCamera = ({ cueBall = null, fallback = 1 } = {}) => {
+  if (!cueBall) {
+    return -signed(fallback, 1);
+  }
+  const references = [
+    Number.isFinite(cueBall.pos?.y) ? cueBall.pos.y : null,
+    Number.isFinite(cueBall.launchDir?.y) ? cueBall.launchDir.y : null,
+    Number.isFinite(cueBall.vel?.y) ? cueBall.vel.y : null
+  ];
+  const meaningful = references.find(
+    (value) => Number.isFinite(value) && Math.abs(value) > BALL_R * 0.1
+  );
+  if (meaningful != null) {
+    return -signed(meaningful, fallback);
+  }
+  return -signed(fallback, 1);
 };
 const computeStandingViewHeight = (
   targetHeight,
@@ -9345,16 +9363,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             if (!unit) return;
             if (unit.slider) {
               const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
-              const limit = Math.max(
-                unit.slider.userData?.slideLimit ?? rig.slideLimit ?? 0,
-                0
-              );
-              const targetX = lookAt
-                ? THREE.MathUtils.clamp(lookAt.x * 0.25, -limit, limit)
-                : 0;
               unit.slider.position.x = THREE.MathUtils.lerp(
                 unit.slider.position.x,
-                targetX,
+                0,
                 settle
               );
               unit.slider.position.z = THREE.MathUtils.lerp(
@@ -9748,7 +9759,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               }
               const broadcastRailDir =
                 activeShotView.axis === 'short'
-                  ? railDir
+                  ? resolveOppositeShortRailCamera({
+                      cueBall,
+                      fallback: Number.isFinite(railDir) && railDir !== 0 ? railDir : 1
+                    })
                   : activeShotView.broadcastRailDir ?? railDir;
               activeShotView.broadcastRailDir = broadcastRailDir;
               broadcastArgs = {
