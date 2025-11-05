@@ -199,49 +199,49 @@ function createDefaultPocketJawMaterial() {
   });
 }
 
-const POCKET_VISUAL_EXPANSION = 1.05;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08;
-const CHROME_CORNER_EXPANSION_SCALE = 1.02;
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1;
-const CHROME_CORNER_FIELD_TRIM_SCALE = 0;
+const POCKET_VISUAL_EXPANSION = 1.012;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028;
+const CHROME_CORNER_EXPANSION_SCALE = 1.002;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
+const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.9; // widen the field-side trim to scoop out the lingering chrome wedge
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 1.1; // push the trim deeper along the short rail so the notch fully clears the plate
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1.015;
-const CHROME_CORNER_WIDTH_SCALE = 0.99; // gently shrink chrome plates along the long rails
-const CHROME_CORNER_HEIGHT_SCALE = 0.99; // gently shrink chrome plates along the short rails
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0.82;
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // align chrome fascia trim with Pool Royale geometry
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1;
+const CHROME_CORNER_WIDTH_SCALE = 0.982;
+const CHROME_CORNER_HEIGHT_SCALE = 0.962;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.0313; // reuse Pool Royale side pocket arch width
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const WOOD_CORNER_CUT_SCALE = 0.993; // tighten wooden rail corner cutouts to better match the chrome plates
-const WOOD_SIDE_CUT_SCALE = 0.995; // gently shrink side pocket cutouts on the wooden rails
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1;
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = 1;
-const POCKET_JAW_CORNER_INNER_SCALE = 1.11;
-const POCKET_JAW_SIDE_INNER_SCALE = 0.962;
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.723;
-const POCKET_JAW_SIDE_OUTER_SCALE = 1.78;
-const POCKET_JAW_DEPTH_SCALE = 0.63;
-const POCKET_JAW_EDGE_FLUSH_START = 0.14;
+const WOOD_CORNER_CUT_SCALE = 0.988; // mirror Pool Royale wood relief inset for corner cuts
+const WOOD_SIDE_CUT_SCALE = 1.012; // align side rail apertures with Pool Royale chrome reveal
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
+const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
+const POCKET_JAW_DEPTH_SCALE = 0.52;
+const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.24;
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.72;
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.9;
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42;
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66;
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
-const POCKET_JAW_SEGMENT_MIN = 96;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 0.9;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.5;
-const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
-const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.9;
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.5;
+const POCKET_JAW_SEGMENT_MIN = 144;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.426;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982;
+const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.86;
+const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const CORNER_JAW_ARC_DEG = 120;
-const SIDE_JAW_ARC_DEG = 150;
+const SIDE_JAW_ARC_DEG = 120;
 
 function buildChromePlateGeometry({
   width,
@@ -464,16 +464,19 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// shrink the inside rails so their exposed width is roughly 30% of the cushion depth
+// reuse Pool Royale rail inset so cushion noses share the same spacing
 const WIDTH_REF = 3569;
 const HEIGHT_REF = 1778;
-const BALL_D_REF = 52.5;
+const BALL_D_REF = 57.15;
+const BALL_SIZE_SCALE = 0.94248;
 const BAULK_FROM_BAULK_REF = 737;
 const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 324;
-const CORNER_MOUTH_REF = 89;
-const SIDE_MOUTH_REF = 109;
-const SIDE_RAIL_INNER_REDUCTION = 0.8;
+const CORNER_MOUTH_REF = 114.3;
+const SIDE_MOUTH_REF = 127;
+const CORNER_POCKET_SCALE_BOOST = 0.985;
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996;
+const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
 const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
@@ -494,7 +497,7 @@ console.assert(
   'Snooker table inner ratio must match 3569:1778 after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
-const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS;
+const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const CHALK_TOP_COLOR = 0x1f6d86;
@@ -511,12 +514,20 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH = CORNER_MOUTH_REF * MM_TO_UNITS;
-const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS;
+const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST;
+const POCKET_SIDE_MOUTH_SCALE =
+  (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
+  POCKET_CORNER_MOUTH_SCALE *
+  SIDE_POCKET_MOUTH_REDUCTION_SCALE;
+const POCKET_CORNER_MOUTH =
+  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
+const POCKET_SIDE_MOUTH =
+  SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
+const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.64 * POCKET_VISUAL_EXPANSION; // pull chrome plates, jaws, and rims further onto the cloth
+  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -541,17 +552,17 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = 1.12; // widen cloth openings further to trim stray cloth around the pockets
+const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures with Pool Royale pocket interior
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
   envMapIntensityMax: 0.22
 });
 const POCKET_HOLE_R =
-  POCKET_VIS_R * 1.3 * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
+  POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius for pocket openings
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
-const BALL_SEGMENTS = Object.freeze({ width: 64, height: 48 });
+const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
@@ -570,10 +581,10 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.18; // hidden plywood deck to catch shadows before they reach the carpet
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // hidden plywood deck to catch shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // leave a thin air gap between the cloth and plywood
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // match the playable field footprint while remaining hidden via colorWrite=false
-const CLOTH_UNDERLAY_HOLE_SCALE = 1.06; // open pocket holes wider on the underlay to avoid clipping pocket interiors
+const CLOTH_UNDERLAY_HOLE_SCALE = 1; // align underlay apertures with Pool Royale pocket layout
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = 0; // keep cushion bases resting directly on the cloth plane
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -587,7 +598,7 @@ const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_SCALE = 0.55;
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION;
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.8 * POCKET_VISUAL_EXPANSION;
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
@@ -757,9 +768,9 @@ const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
 // angle for cushion cuts guiding balls into pockets
-const CUSHION_CUT_ANGLE = 29;
+const CUSHION_CUT_ANGLE = 35;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.09; // pull cushions slightly closer to centre for a tighter pocket entry
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // mirror Pool Royale cushion placement
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 const UI_SCALE = SIZE_REDUCTION;
@@ -1310,14 +1321,7 @@ const TABLE_FINISHES = Object.freeze({
 });
 
 const TABLE_FINISH_OPTIONS = Object.freeze([
-  TABLE_FINISHES.royalWalnut,
-  TABLE_FINISHES.royalObsidian,
-  TABLE_FINISHES.nordicBirch,
-  TABLE_FINISHES.goldenMaple,
-  TABLE_FINISHES.classicWood,
-  TABLE_FINISHES.twoToneHybrid,
-  TABLE_FINISHES.matteGraphite,
-  TABLE_FINISHES.matteGraphiteNeon
+  TABLE_FINISHES.matteGraphite
 ].filter(Boolean));
 
 const DEFAULT_CHROME_COLOR_ID = 'chrome';
@@ -2430,8 +2434,10 @@ function applySnookerScaling({
     Math.abs(ratio - TARGET_RATIO) < 1e-4,
     'applySnookerScaling: table aspect ratio must remain 3569:1778.'
   );
-  const expectedCornerMouth = CORNER_MOUTH_REF * mmToUnits;
-  const expectedSideMouth = SIDE_MOUTH_REF * mmToUnits;
+  const expectedCornerMouth =
+    CORNER_MOUTH_REF * mmToUnits * POCKET_CORNER_MOUTH_SCALE;
+  const expectedSideMouth =
+    SIDE_MOUTH_REF * mmToUnits * POCKET_SIDE_MOUTH_SCALE;
   const actualCornerMouth = POCKET_VIS_R * 2;
   const actualSideMouth = SIDE_POCKET_RADIUS * 2;
   console.assert(
