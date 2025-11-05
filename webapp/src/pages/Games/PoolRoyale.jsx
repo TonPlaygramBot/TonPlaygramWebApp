@@ -1782,25 +1782,28 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'performance',
-    label: 'Performance',
+    id: 'hd',
+    label: 'HD Quality',
     fps: 60,
-    description: 'Prioritize battery life while keeping motion fluid.'
+    resolution: '1280×720',
+    description: 'Energy-friendly profile tuned for HD displays.'
   },
   {
-    id: 'balanced',
-    label: 'Balanced',
+    id: 'fullHd',
+    label: 'Full HD',
     fps: 90,
-    description: 'Blend detail and motion for most modern displays.'
+    resolution: '1920×1080',
+    description: 'Enhanced clarity and effects for Full HD setups.'
   },
   {
-    id: 'ultra',
-    label: 'Ultra',
+    id: 'ultraHd',
+    label: 'Ultra HD',
     fps: 144,
-    description: 'Max out high-refresh devices with the smoothest play.'
+    resolution: '3840×2160',
+    description: 'Maximum fidelity with the sharpest Ultra HD finish.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'ultra';
+const DEFAULT_FRAME_RATE_ID = 'ultraHd';
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
@@ -14361,7 +14364,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                             {option.label}
                           </span>
                           <span className="text-xs font-semibold tracking-wide">
-                            {option.fps} FPS
+                            {option.resolution
+                              ? `${option.resolution} • ${option.fps} FPS`
+                              : `${option.fps} FPS`}
                           </span>
                         </span>
                         {option.description ? (
