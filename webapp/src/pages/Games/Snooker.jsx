@@ -803,7 +803,9 @@ const SNOOKER_WOOD_PRESET_FOR_FINISH = Object.freeze({
   nordicBirch: 'birch',
   matteGraphite: 'smokedOak',
   matteGraphiteNeon: 'smokedOak',
-  twoToneHybrid: 'teak'
+  twoToneHybrid: 'teak',
+  royalWalnut: 'walnut',
+  royalObsidian: 'smokedOak'
 });
 const SNOOKER_WOOD_REPEAT = Object.freeze({
   x: CUE_WOOD_REPEAT.x,
@@ -839,6 +841,133 @@ const applySnookerWoodPreset = (materials, finishId) => {
 };
 
 const TABLE_FINISHES = Object.freeze({
+  royalWalnut: {
+    id: 'royalWalnut',
+    label: 'Royal Walnut',
+    colors: makeColorPalette({
+      cloth: 0x33b277,
+      rail: 0x4c2e1d,
+      base: 0x3b2213,
+      markings: 0xfbead4
+    }),
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#4b2f1d');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.2,
+        roughness: 0.35,
+        clearcoat: 0.32,
+        clearcoatRoughness: 0.2,
+        sheen: 0.16,
+        sheenRoughness: 0.48,
+        reflectivity: 0.48,
+        envMapIntensity: 0.8
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0.01, 0.06, 0.12),
+        metalness: 0.24,
+        roughness: 0.34,
+        clearcoat: 0.34,
+        clearcoatRoughness: 0.22,
+        sheen: 0.18,
+        sheenRoughness: 0.5,
+        reflectivity: 0.54,
+        envMapIntensity: 0.86
+      });
+      const leg = frame.clone();
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xe0be83,
+        metalness: 0.78,
+        roughness: 0.34,
+        clearcoat: 0.4,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 1.04
+      });
+      const materials = {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: null
+      };
+      applySnookerWoodPreset(materials, 'royalWalnut');
+      return materials;
+    }
+  },
+  royalObsidian: {
+    id: 'royalObsidian',
+    label: 'Royal Obsidian',
+    colors: makeColorPalette({
+      cloth: 0x2ebd74,
+      rail: 0x1c222c,
+      base: 0x12161d,
+      markings: 0x8bd3ff
+    }),
+    createMaterials: () => {
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: 0x141820,
+        metalness: 0.4,
+        roughness: 0.4,
+        clearcoat: 0.28,
+        clearcoatRoughness: 0.26,
+        sheen: 0.08,
+        sheenRoughness: 0.48,
+        reflectivity: 0.52,
+        envMapIntensity: 0.94
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: 0x1c222c,
+        metalness: 0.58,
+        roughness: 0.32,
+        clearcoat: 0.32,
+        clearcoatRoughness: 0.24,
+        sheen: 0.06,
+        sheenRoughness: 0.42,
+        reflectivity: 0.6,
+        envMapIntensity: 1.02
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: 0x0d1116,
+        metalness: 0.42,
+        roughness: 0.38,
+        clearcoat: 0.24,
+        clearcoatRoughness: 0.3,
+        sheen: 0.06,
+        sheenRoughness: 0.5
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0x202a36,
+        metalness: 0.86,
+        roughness: 0.3,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.26,
+        envMapIntensity: 1.18
+      });
+      const neon = new THREE.Color('#00d7ff');
+      const accentMaterial = new THREE.MeshStandardMaterial({
+        color: neon,
+        emissive: neon.clone().multiplyScalar(0.7),
+        emissiveIntensity: 1.5,
+        metalness: 0.34,
+        roughness: 0.28
+      });
+      const materials = {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: {
+          material: accentMaterial,
+          thickness: 0.05,
+          height: 0.024,
+          inset: 0.058,
+          verticalOffset: 0.76
+        }
+      };
+      applySnookerWoodPreset(materials, 'royalObsidian');
+      return materials;
+    }
+  },
   classicWood: {
     id: 'classicWood',
     label: 'Classic Wood',
@@ -1181,6 +1310,8 @@ const TABLE_FINISHES = Object.freeze({
 });
 
 const TABLE_FINISH_OPTIONS = Object.freeze([
+  TABLE_FINISHES.royalWalnut,
+  TABLE_FINISHES.royalObsidian,
   TABLE_FINISHES.nordicBirch,
   TABLE_FINISHES.goldenMaple,
   TABLE_FINISHES.classicWood,
@@ -5315,10 +5446,19 @@ function SnookerGame() {
   const rules = useMemo(() => new UnitySnookerRules(), []);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerTableFinish');
-      if (stored && TABLE_FINISHES[stored]) {
-        return stored;
-      }
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get('finish');
+        if (requested && TABLE_FINISHES[requested]) {
+          return requested;
+        }
+      } catch {}
+      try {
+        const stored = window.localStorage.getItem('snookerTableFinish');
+        if (stored && TABLE_FINISHES[stored]) {
+          return stored;
+        }
+      } catch {}
     }
     return DEFAULT_TABLE_FINISH_ID;
   });
