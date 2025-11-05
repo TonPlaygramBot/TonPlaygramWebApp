@@ -667,9 +667,7 @@ const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
-const TARGET_FPS = 144;
-const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
-const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
+const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
@@ -1780,6 +1778,29 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   }
 ]);
+
+const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'performance',
+    label: 'Performance',
+    fps: 60,
+    description: 'Prioritize battery life while keeping motion fluid.'
+  },
+  {
+    id: 'balanced',
+    label: 'Balanced',
+    fps: 90,
+    description: 'Blend detail and motion for most modern displays.'
+  },
+  {
+    id: 'ultra',
+    label: 'Ultra',
+    fps: 144,
+    description: 'Max out high-refresh devices with the smoothest play.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'ultra';
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
@@ -7046,6 +7067,21 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
+  const activeFrameRateOption = useMemo(
+    () =>
+      FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
+      FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -7061,6 +7097,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       WOOD_GRAIN_OPTIONS[0],
     [woodTextureId]
   );
+  const resolvedFrameTiming = useMemo(() => {
+    const fallbackFps =
+      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
+        ? FRAME_RATE_OPTIONS[0].fps
+        : 60;
+    const fps =
+      Number.isFinite(activeFrameRateOption?.fps) && activeFrameRateOption.fps > 0
+        ? activeFrameRateOption.fps
+        : fallbackFps;
+    const targetMs = 1000 / fps;
+    return {
+      id: activeFrameRateOption?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      targetMs,
+      maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
+    };
+  }, [activeFrameRateOption]);
+  const frameTimingRef = useRef(resolvedFrameTiming);
+  useEffect(() => {
+    frameTimingRef.current = resolvedFrameTiming;
+  }, [resolvedFrameTiming]);
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
@@ -7402,6 +7459,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    }
+  }, [frameRateId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -12922,8 +12984,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       // Loop
       let lastStepTime = performance.now();
       const step = (now) => {
+        const frameTiming = frameTimingRef.current;
+        const targetFrameTime =
+          frameTiming && Number.isFinite(frameTiming.targetMs)
+            ? frameTiming.targetMs
+            : 1000 / 60;
+        const maxFrameTime =
+          frameTiming && Number.isFinite(frameTiming.maxMs)
+            ? frameTiming.maxMs
+            : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
         const rawDelta = Math.max(now - lastStepTime, 0);
-        const deltaMs = Math.min(rawDelta, MAX_FRAME_TIME_MS);
+        const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
         coinTicker.update(deltaSeconds);
@@ -12936,7 +13007,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           entry.accumulator = 0;
           entry.update(elapsed);
         });
-        const frameScaleBase = appliedDeltaMs / TARGET_FRAME_TIME_MS;
+        const frameScaleBase =
+          targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
         const frameScale = Math.max(frameScaleBase, MIN_FRAME_SCALE);
         const physicsSubsteps = Math.min(
           MAX_PHYSICS_SUBSTEPS,
@@ -14260,6 +14332,43 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Graphics
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-xs font-semibold tracking-wide">
+                            {option.fps} FPS
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
