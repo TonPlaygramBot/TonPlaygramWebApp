@@ -18,6 +18,7 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
+import { useViewportHeight } from '../../hooks/useViewportHeight.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
@@ -267,7 +268,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.016; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.028; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.024; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.036; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -539,8 +540,8 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.362; // pull the middle jaw span tighter so the fascia clears the rounded rail cut
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.962; // shave the middle jaw radius further so the pocket mouth presents narrower than before
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.332; // pull the middle jaw span further toward centre so the fascia clears the rounded rail cut
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.948; // shave the middle jaw radius further so the pocket mouth presents narrower than before
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982; // let the middle jaw depth follow the slimmer profile instead of matching the corners exactly
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.028; // lower the middle jaw crowns more so their top edge aligns with the corner jaw altitude
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.62; // begin trimming the side pocket jaw shoulders roughly two thirds toward each chrome plate
@@ -7020,6 +7021,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     [tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
+  const viewportHeight = useViewportHeight();
+  const viewportStyle = useMemo(
+    () =>
+      viewportHeight > 0
+        ? {
+            minHeight: `${viewportHeight}px`,
+            height: `${viewportHeight}px`
+          }
+        : undefined,
+    [viewportHeight]
+  );
+  const [renderSession, setRenderSession] = useState(0);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerTableFinish');
@@ -8186,7 +8199,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
-      screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -8197,18 +8209,39 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.35 : 1.9;
-      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
+      const updateRendererPixelRatio = () => {
+        const dpr = window.devicePixelRatio || 1;
+        const cap = window.innerWidth <= 1366 ? 1.35 : 1.9;
+        renderer.setPixelRatio(Math.min(cap, dpr));
+      };
+      updateRendererPixelRatio();
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
       host.appendChild(renderer.domElement);
-      renderer.domElement.addEventListener('webglcontextlost', (e) =>
-        e.preventDefault()
+      let contextLost = false;
+      const handleContextLost = (e) => {
+        e.preventDefault();
+        contextLost = true;
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
+      };
+      const handleContextRestored = () => {
+        if (!contextLost) return;
+        contextLost = false;
+        setRenderSession((prev) => prev + 1);
+      };
+      renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
+      renderer.domElement.addEventListener(
+        'webglcontextrestored',
+        handleContextRestored
       );
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
@@ -13868,6 +13901,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       // Resize
         const onResize = () => {
+          updateRendererPixelRatio();
           renderer.setSize(host.clientWidth, host.clientHeight);
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
@@ -13890,12 +13924,33 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             entry.camera.updateProjectionMatrix();
           });
         };
-      window.addEventListener('resize', onResize);
+        let resizeFrame = 0;
+        const queueResize = () => {
+          if (resizeFrame) {
+            cancelAnimationFrame(resizeFrame);
+          }
+          resizeFrame = requestAnimationFrame(() => {
+            resizeFrame = 0;
+            onResize();
+          });
+        };
+        const viewport = window.visualViewport;
+        window.addEventListener('resize', queueResize);
+        window.addEventListener('orientationchange', queueResize);
+        viewport?.addEventListener('resize', queueResize);
+        viewport?.addEventListener('scroll', queueResize);
+        queueResize();
 
         return () => {
           applyWorldScaleRef.current = () => {};
           cancelAnimationFrame(rafRef.current);
-          window.removeEventListener('resize', onResize);
+          if (resizeFrame) {
+            cancelAnimationFrame(resizeFrame);
+          }
+          window.removeEventListener('resize', queueResize);
+          window.removeEventListener('orientationchange', queueResize);
+          viewport?.removeEventListener('resize', queueResize);
+          viewport?.removeEventListener('scroll', queueResize);
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
@@ -13903,6 +13958,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
+            renderer.domElement.removeEventListener(
+              'webglcontextlost',
+              handleContextLost
+            );
+            renderer.domElement.removeEventListener(
+              'webglcontextrestored',
+              handleContextRestored
+            );
             host.removeChild(renderer.domElement);
           } catch {}
           dom.removeEventListener('mousedown', down);
@@ -13946,7 +14009,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         console.error(e);
         setErr(e?.message || String(e));
       }
-  }, []);
+  }, [renderSession]);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -14140,7 +14203,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
 
   return (
-    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
+    <div
+      className="relative w-full bg-black text-white overflow-hidden select-none min-h-[100vh]"
+      style={viewportStyle}
+    >
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
