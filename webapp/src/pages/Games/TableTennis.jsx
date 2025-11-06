@@ -13,7 +13,11 @@ export default function TableTennis() {
     avatar: params.get('avatar') || '/assets/icons/profile.svg'
   };
   const flag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-  const ai = { name: avatarToName(flag) || 'AI', avatar: flag };
+  const ai = {
+    name: avatarToName(flag) || 'AI',
+    avatar: flag,
+    difficulty: params.get('difficulty') || 'pro',
+  };
   return <TableTennis3D player={player} ai={ai} />;
 }
 
