@@ -375,6 +375,16 @@ Run `npm run refund-withdrawals` to return all pending withdrawal amounts to use
 
 Run `npm run reset-db` to drop the existing MongoDB database and start with a clean one where all user balances are reset to zero. `MONGO_URI` must point to your MongoDB instance.
 
+### Backfill wallet addresses
+
+After deploying a new version you can populate missing user wallet addresses with:
+
+```
+npm run backfill-wallet-addresses
+```
+
+The command connects to the configured MongoDB instance and generates a wallet address for every `User` document where `walletAddress` is absent. Run this once after deployment to ensure all users have an associated address.
+
 ### Deploying the claim wallet
 
 1. **Compile the contract**. Install the FunC compiler and Fift tools, then run:
