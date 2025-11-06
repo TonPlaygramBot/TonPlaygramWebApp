@@ -509,13 +509,11 @@ const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so th
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // match the side jaw clamp to the chrome plates so the fascia reaches the cushions
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE =
-  POCKET_JAW_CORNER_INNER_SCALE * 0.988; // ease the middle pocket jaw thickness so it sits fractionally leaner than the corners
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
-const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 0.986; // tighten the middle jaw fascia span so the visible bite narrows without affecting the corner profile
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // keep the fascia span identical to the corner jaws
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const SIDE_POCKET_JAW_OUTER_EXPANSION = 0; // keep the middle pocket fascia flush with the wood rail so it no longer creeps over the cloth
+const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
@@ -539,13 +537,13 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.318; // pull the middle jaw span tighter so the fascia clears the rounded rail cut while nudging it closer to centre
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.962; // shave the middle jaw radius further so the pocket mouth presents narrower than before
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982; // let the middle jaw depth follow the slimmer profile instead of matching the corners exactly
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.028; // lower the middle jaw crowns more so their top edge aligns with the corner jaw altitude
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.62; // begin trimming the side pocket jaw shoulders roughly two thirds toward each chrome plate
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // blend the outer radius toward the inner lip to visually shave the jaw edges
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.35; // ease the trim-in blend so the side jaw taper feels progressive instead of abrupt
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; // align middle pocket spread with the rounded rail cuts
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the pocket mouth radius identical to the corner profile
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // match the depth profile to the corners for a unified jaw silhouette
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep the middle jaw crowns level with the corners
+const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1; // unused when trim scale keeps the trim disabled
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -1316,12 +1314,13 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 const DEFAULT_WOOD_PRESET_ID = 'walnut';
 
-const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
+const DEFAULT_TABLE_FINISH_ID = 'hybridTwoTone';
 
 const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   classicWood: 'walnut',
   goldenMaple: 'maple',
-  matteGraphite: 'smokedOak'
+  matteGraphite: 'smokedOak',
+  hybridTwoTone: 'wenge'
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
@@ -1484,6 +1483,83 @@ const TABLE_FINISHES = Object.freeze({
       return { ...materials, ...createPocketMaterials() };
     }
   },
+  hybridTwoTone: {
+    id: 'hybridTwoTone',
+    label: 'Hybrid Two-Tone',
+    colors: makeColorPalette({
+      cloth: 0x33a86a,
+      rail: 0x4b2f22,
+      base: 0x1b1f25
+    }),
+    createMaterials: () => {
+      const railColor = new THREE.Color('#4b2f22');
+      const frameColor = new THREE.Color('#1b1f25');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.18,
+        roughness: 0.4,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.24,
+        sheen: 0.12,
+        sheenRoughness: 0.58,
+        reflectivity: 0.4,
+        envMapIntensity: 0.72
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.2,
+        roughness: 0.32,
+        clearcoat: 0.34,
+        clearcoatRoughness: 0.18,
+        sheen: 0.16,
+        sheenRoughness: 0.52,
+        reflectivity: 0.46,
+        envMapIntensity: 0.86
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(-0.015, 0.06, -0.04),
+        metalness: 0.2,
+        roughness: 0.46,
+        clearcoat: 0.24,
+        clearcoatRoughness: 0.28,
+        sheen: 0.08,
+        sheenRoughness: 0.62,
+        reflectivity: 0.34,
+        envMapIntensity: 0.7
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xc8ad86,
+        metalness: 0.74,
+        roughness: 0.32,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.22,
+        envMapIntensity: 0.96
+      });
+      const accentMaterial = new THREE.MeshPhysicalMaterial({
+        color: 0x2c3a45,
+        metalness: 0.42,
+        roughness: 0.38,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 0.88
+      });
+      const materials = {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: {
+          material: accentMaterial,
+          thickness: 0.08,
+          height: 0.045,
+          inset: 0.18,
+          verticalOffset: 0.78
+        }
+      };
+      applySnookerStyleWoodPreset(materials, 'hybridTwoTone');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
   matteGraphite: {
     id: 'matteGraphite',
     label: 'Matte Graphite',
@@ -1541,6 +1617,7 @@ const TABLE_FINISHES = Object.freeze({
 
 const TABLE_FINISH_OPTIONS = Object.freeze(
   [
+    TABLE_FINISHES.hybridTwoTone,
     TABLE_FINISHES.goldenMaple,
     TABLE_FINISHES.classicWood,
     TABLE_FINISHES.matteGraphite
@@ -5872,19 +5949,20 @@ function Table3D(
       steps,
       sideThinFactor: wide ? POCKET_JAW_SIDE_EDGE_FACTOR : POCKET_JAW_CORNER_EDGE_FACTOR,
       middleThinFactor: wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR,
-      centerEase: wide ? 0.28 : 0.36,
+      centerEase: 0.36,
       clampOuter: localClampOuter,
       outerExpansion: outerExpansion,
       taperHoldOverride,
       edgeTaperScaleOverride,
       edgeProfilePowerOverride,
-      edgeTrim: wide
-        ? {
-            start: SIDE_POCKET_JAW_EDGE_TRIM_START,
-            scale: SIDE_POCKET_JAW_EDGE_TRIM_SCALE,
-            curve: SIDE_POCKET_JAW_EDGE_TRIM_CURVE
-          }
-        : null
+      edgeTrim:
+        wide && SIDE_POCKET_JAW_EDGE_TRIM_SCALE < 1
+          ? {
+              start: SIDE_POCKET_JAW_EDGE_TRIM_START,
+              scale: SIDE_POCKET_JAW_EDGE_TRIM_SCALE,
+              curve: SIDE_POCKET_JAW_EDGE_TRIM_CURVE
+            }
+          : null
     });
     if (!jawShape) {
       return null;
