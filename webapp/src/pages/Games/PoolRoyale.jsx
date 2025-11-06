@@ -513,7 +513,7 @@ const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match midd
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // keep the fascia span identical to the corner jaws
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
+const SIDE_POCKET_JAW_OUTER_EXPANSION = 0; // trim the middle pocket fascia so it stops at the rounded rail cut without touching the cushions
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
@@ -1320,7 +1320,7 @@ const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   classicWood: 'walnut',
   goldenMaple: 'maple',
   matteGraphite: 'smokedOak',
-  hybridTwoTone: 'wenge'
+  hybridTwoTone: 'teak'
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
@@ -1488,60 +1488,60 @@ const TABLE_FINISHES = Object.freeze({
     label: 'Hybrid Two-Tone',
     colors: makeColorPalette({
       cloth: 0x33a86a,
-      rail: 0x4b2f22,
-      base: 0x1b1f25
+      rail: 0xa26d3e,
+      base: 0x4a3424
     }),
     createMaterials: () => {
-      const railColor = new THREE.Color('#4b2f22');
-      const frameColor = new THREE.Color('#1b1f25');
+      const railColor = new THREE.Color('#a26d3e');
+      const frameColor = new THREE.Color('#4a3424');
       const frame = new THREE.MeshPhysicalMaterial({
         color: frameColor,
-        metalness: 0.18,
-        roughness: 0.4,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.24,
-        sheen: 0.12,
-        sheenRoughness: 0.58,
-        reflectivity: 0.4,
-        envMapIntensity: 0.72
+        metalness: 0.16,
+        roughness: 0.34,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.22,
+        sheen: 0.22,
+        sheenRoughness: 0.52,
+        reflectivity: 0.46,
+        envMapIntensity: 0.82
       });
       const rail = new THREE.MeshPhysicalMaterial({
         color: railColor,
-        metalness: 0.2,
-        roughness: 0.32,
-        clearcoat: 0.34,
-        clearcoatRoughness: 0.18,
-        sheen: 0.16,
-        sheenRoughness: 0.52,
-        reflectivity: 0.46,
-        envMapIntensity: 0.86
+        metalness: 0.18,
+        roughness: 0.26,
+        clearcoat: 0.4,
+        clearcoatRoughness: 0.16,
+        sheen: 0.28,
+        sheenRoughness: 0.48,
+        reflectivity: 0.52,
+        envMapIntensity: 0.94
       });
       const leg = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(-0.015, 0.06, -0.04),
-        metalness: 0.2,
-        roughness: 0.46,
-        clearcoat: 0.24,
-        clearcoatRoughness: 0.28,
-        sheen: 0.08,
-        sheenRoughness: 0.62,
-        reflectivity: 0.34,
-        envMapIntensity: 0.7
+        color: frameColor.clone().offsetHSL(-0.02, 0.04, -0.06),
+        metalness: 0.18,
+        roughness: 0.42,
+        clearcoat: 0.28,
+        clearcoatRoughness: 0.26,
+        sheen: 0.14,
+        sheenRoughness: 0.58,
+        reflectivity: 0.38,
+        envMapIntensity: 0.78
       });
       const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xc8ad86,
-        metalness: 0.74,
-        roughness: 0.32,
-        clearcoat: 0.46,
-        clearcoatRoughness: 0.22,
-        envMapIntensity: 0.96
+        color: 0xd9b37a,
+        metalness: 0.72,
+        roughness: 0.28,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 1.02
       });
       const accentMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0x2c3a45,
-        metalness: 0.42,
-        roughness: 0.38,
-        clearcoat: 0.36,
-        clearcoatRoughness: 0.2,
-        envMapIntensity: 0.88
+        color: 0x745437,
+        metalness: 0.36,
+        roughness: 0.34,
+        clearcoat: 0.32,
+        clearcoatRoughness: 0.18,
+        envMapIntensity: 0.9
       });
       const materials = {
         frame,
