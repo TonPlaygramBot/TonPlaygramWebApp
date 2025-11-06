@@ -110,19 +110,41 @@ import { RoomEnvironment } from "https://esm.sh/three@0.160.0/examples/jsm/envir
 import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
 
 /* ---------- Audio (SFX) ---------- */
+function createSfx(url) {
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  audio.crossOrigin = 'anonymous';
+  return audio;
+}
 const SFX = {
-  place: new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_7dc2b2.mp3?filename=click-124467.mp3"),
-  draw:  new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_b2f7c5.mp3?filename=pop-124476.mp3")
+  place: createSfx("https://cdn.pixabay.com/download/audio/2022/03/15/audio_7dc2b2.mp3?filename=click-124467.mp3"),
+  draw: createSfx("https://cdn.pixabay.com/download/audio/2022/03/15/audio_b2f7c5.mp3?filename=pop-124476.mp3"),
+  pass: createSfx("https://cdn.pixabay.com/download/audio/2022/10/11/audio_5b4d94.mp3?filename=airy-whoosh-124467.mp3")
 };
-SFX.place.volume = 0.7; SFX.draw.volume = 0.7;
+SFX.place.volume = 0.7;
+SFX.draw.volume = 0.7;
+SFX.pass.volume = 0.55;
+SFX.pass.playbackRate = 0.92;
+
+function playPassSfx() {
+  try {
+    SFX.pass.currentTime = 0;
+    void SFX.pass.play();
+  } catch {}
+}
 
 /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.25, 3));
+renderer.setPixelRatio(devicePixelRatioTarget);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.autoUpdate = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.12;
 function setRendererSize(){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
   renderer.setSize(w, h, false);
@@ -842,14 +864,193 @@ const TABLE_BASE_OPTIONS = Object.freeze([
   { id: "desertGold", label: "Bazë Shkretëtirë", base: "#1c1a12", column: "#0f0d06", trim: "#5a4524" }
 ]);
 
+const DOMINO_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'imperialIvory',
+    label: 'Imperial Ivory',
+    preview: ['#f7f1e4', '#d8af37'],
+    body: {
+      color: '#f7f1e4',
+      roughness: 0.16,
+      metalness: 0.24,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      reflectivity: 0.72,
+      sheen: 0.35,
+      sheenColor: '#fff7d1'
+    },
+    pip: {
+      color: '#121314',
+      metalness: 0.55,
+      roughness: 0.22,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.05,
+      emissive: '#080808',
+      emissiveIntensity: 0.12,
+      sheen: 0.12
+    },
+    accent: {
+      color: '#d8af37',
+      emissive: '#7a5300',
+      emissiveIntensity: 0.52,
+      metalness: 1.0,
+      roughness: 0.22,
+      reflectivity: 1.0,
+      ringInner: 0.104,
+      ringOuter: 0.122
+    }
+  },
+  {
+    id: 'obsidianPlatinum',
+    label: 'Obsidian Platinum',
+    preview: ['#090909', '#c5ccd9'],
+    body: {
+      color: '#0b0c10',
+      roughness: 0.24,
+      metalness: 0.32,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      reflectivity: 0.6,
+      sheen: 0.25,
+      sheenColor: '#1f2937'
+    },
+    pip: {
+      color: '#dce6ff',
+      metalness: 0.74,
+      roughness: 0.18,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.03,
+      emissive: '#6b87ff',
+      emissiveIntensity: 0.08,
+      sheen: 0.18
+    },
+    accent: {
+      color: '#d7dce3',
+      emissive: '#5b636f',
+      emissiveIntensity: 0.38,
+      metalness: 1.0,
+      roughness: 0.14,
+      reflectivity: 1.0,
+      ringInner: 0.106,
+      ringOuter: 0.124
+    }
+  },
+  {
+    id: 'midnightRose',
+    label: 'Midnight Rose',
+    preview: ['#0d1533', '#c27c6a'],
+    body: {
+      color: '#101b38',
+      roughness: 0.2,
+      metalness: 0.26,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      reflectivity: 0.66,
+      sheen: 0.42,
+      sheenColor: '#27446d'
+    },
+    pip: {
+      color: '#f1f2f8',
+      metalness: 0.35,
+      roughness: 0.14,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.05,
+      emissive: '#2a3f63',
+      emissiveIntensity: 0.1,
+      sheen: 0.2
+    },
+    accent: {
+      color: '#c27c6a',
+      emissive: '#5b3126',
+      emissiveIntensity: 0.46,
+      metalness: 1.0,
+      roughness: 0.18,
+      reflectivity: 1.0,
+      ringInner: 0.105,
+      ringOuter: 0.123
+    }
+  },
+  {
+    id: 'auroraJade',
+    label: 'Aurora Jade',
+    preview: ['#0e3b2c', '#d0b58f'],
+    body: {
+      color: '#0e3b2c',
+      roughness: 0.22,
+      metalness: 0.28,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      reflectivity: 0.68,
+      sheen: 0.36,
+      sheenColor: '#1c6d53'
+    },
+    pip: {
+      color: '#f1f5f2',
+      metalness: 0.42,
+      roughness: 0.16,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.04,
+      emissive: '#215544',
+      emissiveIntensity: 0.08,
+      sheen: 0.16
+    },
+    accent: {
+      color: '#d0b58f',
+      emissive: '#7a5b36',
+      emissiveIntensity: 0.44,
+      metalness: 0.92,
+      roughness: 0.19,
+      reflectivity: 0.96,
+      ringInner: 0.104,
+      ringOuter: 0.121
+    }
+  },
+  {
+    id: 'frostedOpal',
+    label: 'Frosted Opal',
+    preview: ['#e8eef4', '#7a93d2'],
+    body: {
+      color: '#e8eef4',
+      roughness: 0.18,
+      metalness: 0.22,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.05,
+      reflectivity: 0.7,
+      sheen: 0.4,
+      sheenColor: '#ffffff'
+    },
+    pip: {
+      color: '#182235',
+      metalness: 0.58,
+      roughness: 0.2,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.04,
+      emissive: '#1c3a6b',
+      emissiveIntensity: 0.09,
+      sheen: 0.18
+    },
+    accent: {
+      color: '#7a93d2',
+      emissive: '#31497a',
+      emissiveIntensity: 0.42,
+      metalness: 0.95,
+      roughness: 0.17,
+      reflectivity: 1.0,
+      ringInner: 0.106,
+      ringOuter: 0.123
+    }
+  }
+]);
+
 const TABLE_SETUP_SECTIONS = [
   { key: "tableWood", label: "Dru i Tavolinës", options: TABLE_WOOD_OPTIONS },
   { key: "tableCloth", label: "Rroba e Tavolinës", options: TABLE_CLOTH_OPTIONS },
   { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
+  { key: "dominoStyle", label: "Domino", options: DOMINO_STYLE_OPTIONS },
   { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
 ];
 
-const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, chairTheme: 0 };
+const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, dominoStyle: 0, chairTheme: 0 };
 const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
 const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
 let appearance = { ...DEFAULT_APPEARANCE };
@@ -861,6 +1062,7 @@ function normalizeAppearance(raw) {
     ["tableWood", TABLE_WOOD_OPTIONS.length],
     ["tableCloth", TABLE_CLOTH_OPTIONS.length],
     ["tableBase", TABLE_BASE_OPTIONS.length],
+    ["dominoStyle", DOMINO_STYLE_OPTIONS.length],
     ["chairTheme", CHAIR_THEME_OPTIONS.length]
   ];
   limits.forEach(([key, max]) => {
@@ -2057,37 +2259,137 @@ const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0012;
 const CHAIN_TILE_Y = CLOTH_TOP + 0.02;
 
 /* ---------- Materials ---------- */
-const porcelainMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf8f8fb,
-  roughness: 0.12,
-  metalness: 0.2,
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.05,
-  reflectivity: 0.6,
-});
-const pipMat = new THREE.MeshPhysicalMaterial({
-  color: 0x0a0a0a,
-  roughness: 0.05,
-  metalness: 0.6,
-  clearcoat: 0.9,
-  clearcoatRoughness: 0.04,
-});
-const SHARED_DOMINO_MATERIALS = new Set([pipMat]);
-const goldMat = new THREE.MeshPhysicalMaterial({
-  color: 0xFFD700,                 // brighter gold
-  emissive: 0x3a2a00,              // warm self-light so it never looks black
-  emissiveIntensity: 0.55,
-  metalness: 1.0,
-  roughness: 0.18,
-  reflectivity: 1.0,
-  envMapIntensity: 1.4,
-  transmission: 0.0,
-  side: THREE.DoubleSide,
-  polygonOffset: true,
-  polygonOffsetFactor: -1,
-  polygonOffsetUnits: -1,
-});
+const SHARED_DOMINO_MATERIALS = new Set();
+let porcelainMat = null;
+let pipMat = null;
+let accentMat = null;
+let currentDominoStyleOption = DOMINO_STYLE_OPTIONS[DEFAULT_APPEARANCE.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0];
+let dominoStyleProfile = {
+  ringInner: currentDominoStyleOption?.accent?.ringInner ?? 0.107,
+  ringOuter: currentDominoStyleOption?.accent?.ringOuter ?? 0.12,
+  midlineDepth: currentDominoStyleOption?.accent?.midlineDepth ?? 0.01,
+  pipRadius: currentDominoStyleOption?.pip?.radius ?? 0.085,
+  ringEmissiveIntensity: currentDominoStyleOption?.accent?.ringEmissiveIntensity ?? 0.55
+};
+
+function disposeDominoBaseMaterials() {
+  if (porcelainMat) {
+    porcelainMat.dispose?.();
+    porcelainMat = null;
+  }
+  if (accentMat) {
+    accentMat.dispose?.();
+    accentMat = null;
+  }
+  if (pipMat) {
+    SHARED_DOMINO_MATERIALS.delete(pipMat);
+    pipMat.dispose?.();
+    pipMat = null;
+  }
+}
+
+function buildDominoMaterial(options = {}, defaults = {}) {
+  const params = { ...defaults, ...options };
+  const material = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(params.color ?? defaults.color ?? '#ffffff'),
+    roughness: params.roughness ?? 0.2,
+    metalness: params.metalness ?? 0.2,
+    clearcoat: params.clearcoat ?? 1.0,
+    clearcoatRoughness: params.clearcoatRoughness ?? 0.05,
+    reflectivity: params.reflectivity ?? 0.6,
+    transmission: params.transmission ?? 0,
+    thickness: params.thickness ?? 0,
+    iridescence: params.iridescence ?? 0,
+    iridescenceIOR: params.iridescenceIOR ?? 1.3,
+    sheen: params.sheen ?? 0,
+    sheenRoughness: params.sheenRoughness ?? 0.7,
+    specularIntensity: params.specularIntensity ?? 1.0
+  });
+  if (params.emissive) {
+    material.emissive.set(params.emissive);
+  }
+  if (typeof params.emissiveIntensity === 'number') {
+    material.emissiveIntensity = params.emissiveIntensity;
+  }
+  if (params.sheenColor) {
+    material.sheenColor.set(params.sheenColor);
+  }
+  if (params.specularColor) {
+    material.specularColor.set(params.specularColor);
+  }
+  if (typeof params.envMapIntensity === 'number') {
+    material.envMapIntensity = params.envMapIntensity;
+  }
+  if (typeof params.ior === 'number') {
+    material.ior = params.ior;
+  }
+  if (typeof params.opacity === 'number') {
+    material.opacity = params.opacity;
+  }
+  if (typeof params.transparent === 'boolean') {
+    material.transparent = params.transparent;
+  }
+  if (typeof params.side === 'number') {
+    material.side = params.side;
+  }
+  return material;
+}
+
+function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
+  const style = option ?? DOMINO_STYLE_OPTIONS[0];
+  currentDominoStyleOption = style;
+  disposeDominoBaseMaterials();
+  porcelainMat = buildDominoMaterial(style.body, {
+    color: '#f8f8fb',
+    roughness: 0.12,
+    metalness: 0.2,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.05,
+    reflectivity: 0.68,
+    sheen: 0.25,
+    sheenColor: '#fefaf2',
+    envMapIntensity: 1.18
+  });
+  pipMat = buildDominoMaterial(style.pip, {
+    color: '#0a0a0a',
+    roughness: 0.05,
+    metalness: 0.6,
+    clearcoat: 0.9,
+    clearcoatRoughness: 0.04,
+    sheen: 0.12,
+    envMapIntensity: 0.85
+  });
+  accentMat = buildDominoMaterial(style.accent, {
+    color: '#d7b03b',
+    emissive: '#593d00',
+    emissiveIntensity: 0.55,
+    metalness: 1.0,
+    roughness: 0.18,
+    reflectivity: 1.0,
+    envMapIntensity: 1.42,
+    side: THREE.DoubleSide
+  });
+  accentMat.polygonOffset = true;
+  accentMat.polygonOffsetFactor = -1;
+  accentMat.polygonOffsetUnits = -1;
+  SHARED_DOMINO_MATERIALS.add(pipMat);
+  dominoStyleProfile = {
+    ringInner: style.accent?.ringInner ?? 0.107,
+    ringOuter: style.accent?.ringOuter ?? 0.12,
+    midlineDepth: style.accent?.midlineDepth ?? 0.01,
+    pipRadius: style.pip?.radius ?? 0.085,
+    ringEmissiveIntensity: style.accent?.ringEmissiveIntensity ?? accentMat.emissiveIntensity ?? 0.55
+  };
+}
+
+applyDominoStyle(currentDominoStyleOption);
 const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55 });
+
+/* ---------- Game Collections (pre-declare for style refresh) ---------- */
+let N = 4;
+let players = [];
+let boneyard = [];
+let chain = [];
 
 const boneyardStackG = new THREE.Group();
 const BONEYARD_STACK_POSITION = new THREE.Vector3(0, CLOTH_TOP + 0.0075, CLOTH_RADIUS * 0.45);
@@ -2189,7 +2491,9 @@ function saveAppearance() {
 
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = normalizeAppearance(appearance);
+  clearExistingDominoMeshes();
   updateTableMaterials();
+  applyDominoStyle(DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]);
   Object.values(tableMaterials).forEach((material) => {
     if (material && typeof material.needsUpdate === 'boolean') {
       material.needsUpdate = true;
@@ -2202,6 +2506,9 @@ function applyAppearanceChange({ refresh = true } = {}) {
     }
   });
   buildChairs(CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME);
+  renderHands();
+  renderChain();
+  renderBoneyardStack();
   saveAppearance();
   if (refresh) {
     refreshConfigUI();
@@ -2253,6 +2560,42 @@ function createOptionPreview(key, option) {
       break;
     case 'tableBase':
       swatch.style.background = `linear-gradient(135deg, ${option.base}, ${option.trim})`;
+      break;
+    case 'dominoStyle':
+      swatch.style.position = 'relative';
+      swatch.style.overflow = 'hidden';
+      {
+        const [topColor, bottomColor] = Array.isArray(option.preview) && option.preview.length >= 2
+          ? option.preview
+          : ['#1f2937', '#0f172a'];
+        swatch.style.background = `linear-gradient(135deg, ${topColor}, ${bottomColor})`;
+      }
+      {
+        const pip = document.createElement('div');
+        pip.style.position = 'absolute';
+        pip.style.width = '0.58rem';
+        pip.style.height = '0.58rem';
+        pip.style.borderRadius = '50%';
+        pip.style.left = '0.5rem';
+        pip.style.top = '0.46rem';
+        pip.style.background = option.pip?.color ?? '#111827';
+        pip.style.boxShadow = `0 0 0 2px ${option.accent?.color ?? '#d8af37'}`;
+        pip.style.opacity = '0.95';
+        pip.style.pointerEvents = 'none';
+        swatch.appendChild(pip);
+      }
+      {
+        const inset = document.createElement('div');
+        inset.style.position = 'absolute';
+        inset.style.inset = 'auto 0.4rem 0.3rem 0.4rem';
+        inset.style.height = '0.22rem';
+        inset.style.borderRadius = '999px';
+        inset.style.background = option.accent?.color ?? '#d8af37';
+        inset.style.opacity = '0.9';
+        inset.style.boxShadow = '0 0.15rem 0.35rem rgba(0,0,0,0.32)';
+        inset.style.pointerEvents = 'none';
+        swatch.appendChild(inset);
+      }
       break;
     case 'chairTheme':
       swatch.style.background = option.seatColor;
@@ -2443,7 +2786,7 @@ function pipPositions(){
 }
 const INDEX_SETS = { 0: [], 1: [4], 2: [0,8], 3: [0,4,8], 4: [0,2,6,8], 5: [0,2,4,6,8], 6: [0,2,3,5,6,8] };
 
-function addGoldPerimeter(domino){
+function addAccentPerimeter(domino){
   const inset = 0.04;
   const w = 1 - inset*2;
   const h = 2 - inset*2;
@@ -2461,8 +2804,10 @@ function addGoldPerimeter(domino){
   hole.lineTo(-w/2 + t,  h/2 - t);
   hole.lineTo(-w/2 + t, -h/2 + t);
   shape.holes.push(hole);
-  const extrude = new THREE.ExtrudeGeometry(shape, { depth: 0.01, bevelEnabled: false });
-  const frame = new THREE.Mesh(extrude, goldMat.clone());
+  const frameDepth = Math.max(0.004, dominoStyleProfile.midlineDepth ?? 0.01);
+  const extrude = new THREE.ExtrudeGeometry(shape, { depth: frameDepth, bevelEnabled: false });
+  const frame = new THREE.Mesh(extrude, accentMat.clone());
+  frame.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? frame.material.emissiveIntensity;
   frame.position.z = 0.11;
   frame.renderOrder = 5; // sit on top
   domino.add(frame);
@@ -2471,18 +2816,20 @@ function addGoldPerimeter(domino){
 function addPips(dominoFace, count, yOffset){
   const positions = pipPositions();
   const idxs = INDEX_SETS[Math.max(0, Math.min(6, count))];
-  const pipGeo = new THREE.SphereGeometry(0.085, 24, 24);
+  const pipRadius = dominoStyleProfile.pipRadius ?? 0.085;
+  const pipGeo = new THREE.SphereGeometry(pipRadius, 32, 32);
   idxs.forEach(i => {
     const [px, py] = positions[i];
     const sphere = new THREE.Mesh(pipGeo, pipMat);
     sphere.position.set(px, py + yOffset, 0.11);
     dominoFace.add(sphere);
 
-    // Unazë ari rreth pikes (gold)
-    const innerR = 0.107;
-    const outerR = 0.120;
+    // Luxury accent ring around each pip
+    const innerR = dominoStyleProfile.ringInner ?? 0.107;
+    const outerR = dominoStyleProfile.ringOuter ?? 0.120;
     const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
-    const ring = new THREE.Mesh(ringGeo, goldMat.clone());
+    const ring = new THREE.Mesh(ringGeo, accentMat.clone());
+    ring.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? ring.material.emissiveIntensity;
     ring.position.set(px, py + yOffset, 0.11);
     ring.renderOrder = 6; // above porcelain & pip
     dominoFace.add(ring);
@@ -2500,22 +2847,26 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
 
   // Trupi SAKTËSISHT si në kodin tënd
   const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, 4, 0.06);
-  const body = new THREE.Mesh(bodyGeo, porcelainMat.clone());
+  const bodyMaterial = porcelainMat.clone();
+  bodyMaterial.envMapIntensity = porcelainMat.envMapIntensity;
+  const body = new THREE.Mesh(bodyGeo, bodyMaterial);
   body.castShadow = true; body.receiveShadow = true;
 
-  // Vijë mesi — GOLD
+  // Vijë mesi — accent
   const midW = 1 - 0.08;         // sipas kodit
   const midH = 0.03;
   const midR = 0.06;
   const midShape = roundedRectAbs(midW, midH, Math.min(midR, midH/2));
-  const midGeo = new THREE.ExtrudeGeometry(midShape, { depth: 0.01, bevelEnabled: false });
-  const midLine = new THREE.Mesh(midGeo, goldMat.clone());
+  const midDepth = Math.max(0.004, dominoStyleProfile.midlineDepth ?? 0.01);
+  const midGeo = new THREE.ExtrudeGeometry(midShape, { depth: midDepth, bevelEnabled: false });
+  const midLine = new THREE.Mesh(midGeo, accentMat.clone());
+  midLine.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? midLine.material.emissiveIntensity;
   midLine.position.z = 0.11;
   midLine.renderOrder = 5;
   body.add(midLine);
 
-  // Kornizë ari rrethuese — GOLD
-  addGoldPerimeter(body);
+  // Kornizë luksoze rrethuese — accent
+  addAccentPerimeter(body);
 
   // Pikat sipas kodit — faqe sipër & poshtë (në koordinata të trupit)
   if(faceUp){
@@ -2555,7 +2906,6 @@ const panelRules = document.getElementById('rules');
 const closeRules = document.getElementById('closeRules');
 
 let statusPrefix = '';
-let N = 4; let players = []; let boneyard = []; let chain = [];
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0; let human = 0;
 let markers = {L:null, R:null}; let selectedTile = null;
@@ -3161,13 +3511,43 @@ function placeOnBoard(tile, side, options = {}){
   let [dx, dz] = end.dir;
   let nx = end.x + dx * STEP;
   let nz = end.z + dz * STEP;
-  if(Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX){
-    const ndx = -dz;
-    const ndz = dx;
-    dx = ndx;
-    dz = ndz;
-    nx = end.x + dx * STEP;
-    nz = end.z + dz * STEP;
+  const railMargin = STEP * 0.65;
+  const nearRail = Math.abs(nx) > (XMAX - railMargin) || Math.abs(nz) > (ZMAX - railMargin);
+  if(Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX || nearRail){
+    const centerVecX = -end.x;
+    const centerVecZ = -end.z;
+    const candidates = [
+      { dx: -dz, dz: dx },
+      { dx: dz, dz: -dx }
+    ];
+    let best = null;
+    let bestScore = -Infinity;
+    for(const candidate of candidates){
+      const candX = end.x + candidate.dx * STEP;
+      const candZ = end.z + candidate.dz * STEP;
+      const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
+      const towardCenter = candidate.dx * centerVecX + candidate.dz * centerVecZ;
+      const distance = Math.hypot(candX, candZ);
+      let score = towardCenter - distance * 0.02;
+      if(exceeds){
+        score -= STEP * 25;
+      }
+      if(score > bestScore){
+        bestScore = score;
+        best = { dx: candidate.dx, dz: candidate.dz, x: candX, z: candZ, exceeds };
+      }
+    }
+    if(best){
+      dx = best.dx;
+      dz = best.dz;
+      nx = best.x;
+      nz = best.z;
+      if(best.exceeds){
+        // fallback: clamp within limits if still slightly over the rail
+        nx = Math.max(-XMAX + DOMINO_CHAIN_GAP, Math.min(XMAX - DOMINO_CHAIN_GAP, nx));
+        nz = Math.max(-ZMAX + DOMINO_CHAIN_GAP, Math.min(ZMAX - DOMINO_CHAIN_GAP, nz));
+      }
+    }
   }
   const isDouble = (a === b);
   const isHorizontal = Math.abs(dx) >= Math.abs(dz);
@@ -3217,9 +3597,39 @@ function placeOnBoard(tile, side, options = {}){
   return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
-  let {x,z,dir:[dx,dz]}=end; let ang=Math.atan2(dz,dx);
+  let {x,z,dir:[dx,dz]}=end;
   let nx=x+dx*STEP, nz=z+dz*STEP;
-  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; ang=Math.atan2(dz,dx); nx=x+dx*STEP; nz=z+dz*STEP; }
+  const railMargin = STEP * 0.65;
+  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX || Math.abs(nx) > (XMAX - railMargin) || Math.abs(nz) > (ZMAX - railMargin)){
+    const centerVecX = -x;
+    const centerVecZ = -z;
+    const candidates = [
+      { dx: -dz, dz: dx },
+      { dx: dz, dz: -dx }
+    ];
+    let best = { dx, dz, x: nx, z: nz, exceeds: (Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX) };
+    let bestScore = -Infinity;
+    for(const candidate of candidates){
+      const candX = x + candidate.dx * STEP;
+      const candZ = z + candidate.dz * STEP;
+      const exceeds = Math.abs(candX) > XMAX || Math.abs(candZ) > ZMAX;
+      const towardCenter = candidate.dx * centerVecX + candidate.dz * centerVecZ;
+      const distance = Math.hypot(candX, candZ);
+      let score = towardCenter - distance * 0.02;
+      if(exceeds){
+        score -= STEP * 25;
+      }
+      if(score > bestScore){
+        bestScore = score;
+        best = { dx: candidate.dx, dz: candidate.dz, x: candX, z: candZ, exceeds };
+      }
+    }
+    dx = best.dx;
+    dz = best.dz;
+    nx = best.exceeds ? Math.max(-XMAX + DOMINO_CHAIN_GAP, Math.min(XMAX - DOMINO_CHAIN_GAP, best.x)) : best.x;
+    nz = best.exceeds ? Math.max(-ZMAX + DOMINO_CHAIN_GAP, Math.min(ZMAX - DOMINO_CHAIN_GAP, best.z)) : best.z;
+  }
+  const ang=Math.atan2(dz,dx);
   return {nx,nz,rot:ang,dx,dz};
 }
 
@@ -3294,7 +3704,14 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
   }
   clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw.currentTime=0; SFX.draw.play(); }
 });
-btnPass.addEventListener('click',()=>{ if(current===human && !gameFinished){ clearMarkers(); selectedTile=null; nextTurn(); }});
+btnPass.addEventListener('click',()=>{
+  if(current===human && !gameFinished){
+    clearMarkers();
+    selectedTile=null;
+    playPassSfx();
+    nextTurn();
+  }
+});
 
 startGame();
 
@@ -3423,9 +3840,11 @@ function cpuPlay(){
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
+        playPassSfx();
         nextTurn();
       }
     } else {
+      playPassSfx();
       nextTurn();
     }
     return;
@@ -3456,9 +3875,11 @@ function cpuPlay(){
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
+      playPassSfx();
       nextTurn();
     }
   } else {
+    playPassSfx();
     nextTurn();
   }
 }
