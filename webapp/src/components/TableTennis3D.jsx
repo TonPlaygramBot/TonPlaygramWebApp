@@ -3,6 +3,229 @@ import * as THREE from "three";
 import { createArenaCarpetMaterial, createArenaWallMaterial } from "../utils/arenaDecor.js";
 import { applySRGBColorSpace } from "../utils/colorSpace.js";
 
+const GAME_VARIANTS = [
+  {
+    id: "pro-arena",
+    name: "Pro Arena Broadcast",
+    badge: "Broadcast Classic",
+    tagline: "ACES-toned championship lighting with balanced bounce and spin.",
+    renderer: { exposure: 1.85 },
+    scene: { background: 0x0b0e14 },
+    lighting: {
+      hemisphere: { sky: 0xffffff, ground: 0x1b2233, intensity: 0.95 },
+      sun: { color: 0xffffff, intensity: 0.95, position: [-16, 28, 18] },
+      rim: { color: 0x99ccff, intensity: 0.35, position: [20, 14, -12] },
+      spotlights: [
+        { position: [-8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        { position: [8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        { position: [-8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        { position: [8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+      ],
+    },
+    materials: {
+      table: { color: 0x1e3a8a, roughness: 0.6 },
+      lines: { color: 0xffffff, roughness: 0.35 },
+      metal: { color: 0x9aa4b2, roughness: 0.45, metalness: 0.6 },
+      wheel: { color: 0x111111, roughness: 0.9 },
+      paddles: { player: 0xff4d6d, opponent: 0x49dcb1 },
+    },
+    carpet: { color: 0xb01224, emissive: 0x2d020a, emissiveIntensity: 0.18, bumpScale: 0.24 },
+    floor: { color: 0x0f1222 },
+    walls: { color: 0xeeeeee },
+    ball: {
+      color: 0xfff1cc,
+      emissive: 0xffd7a1,
+      emissiveIntensity: 0.55,
+      glowColor: 0xffd7a1,
+      glowIntensity: 0.85,
+      glowDistance: 4.2,
+      shadowColor: 0x000000,
+      shadowOpacity: 0.22,
+      roughness: 0.6,
+    },
+    trail: { color: 0xfff1cc, minOpacity: 0.18, maxOpacity: 0.62, speedFactor: 0.045, count: 18 },
+    camera: { dist: 3.46, minDist: 3.18, height: 2.04, minHeight: 1.82, pitch: 0.34, forwardBias: 0.06, yawBase: 0, yawRange: 0.38 },
+    physics: { air: 0.9965, magnus: 0.23, tableRest: 0.89, paddleRest: 1.1, netRest: 0.37, serveTimers: { player: 0.45, opponent: 0.6 } },
+    ai: { speed: 1, vertical: 1, react: 1 },
+  },
+  {
+    id: "neon",
+    name: "Neon Synthwave Run",
+    badge: "Neon Velocity",
+    tagline: "Futuristic neon rig with extra spin and arcade-grade tempo.",
+    renderer: { exposure: 2.1 },
+    scene: { background: 0x040018 },
+    lighting: {
+      hemisphere: { sky: 0x7a9dff, ground: 0x12041f, intensity: 1.05 },
+      sun: { color: 0xff5fb7, intensity: 0.95, position: [-12, 24, 16] },
+      rim: { color: 0x4bf9ff, intensity: 0.65, position: [18, 12, -14] },
+      spotlights: [
+        { position: [-8, 6.5, -7], color: 0xff63d1, intensity: 0.92, angle: Math.PI / 4.4, penumbra: 0.55 },
+        { position: [8, 6.5, -7], color: 0x55f7ff, intensity: 0.92, angle: Math.PI / 4.6, penumbra: 0.55 },
+        { position: [-8, 6.5, 7], color: 0xff63d1, intensity: 0.88, angle: Math.PI / 4.3, penumbra: 0.5 },
+        { position: [8, 6.5, 7], color: 0x55f7ff, intensity: 0.88, angle: Math.PI / 4.3, penumbra: 0.5 },
+      ],
+    },
+    materials: {
+      table: { color: 0x1b1540, roughness: 0.38, metalness: 0.08 },
+      lines: { color: 0x7fffd4, roughness: 0.25 },
+      metal: { color: 0x293460, roughness: 0.32, metalness: 0.7 },
+      wheel: { color: 0x070b1a, roughness: 0.7 },
+      paddles: { player: 0xff5c8a, opponent: 0x4df3ff },
+    },
+    carpet: { color: 0x1a0835, emissive: 0x531575, emissiveIntensity: 0.35, bumpScale: 0.28 },
+    floor: { color: 0x05030d },
+    walls: { color: 0x1b1d45 },
+    ball: {
+      color: 0xfff8f0,
+      emissive: 0xff78f3,
+      emissiveIntensity: 0.9,
+      glowColor: 0xff78f3,
+      glowIntensity: 1.35,
+      glowDistance: 5.2,
+      shadowColor: 0x120416,
+      shadowOpacity: 0.28,
+      roughness: 0.45,
+    },
+    trail: { color: 0xff4bf1, minOpacity: 0.22, maxOpacity: 0.82, speedFactor: 0.06, count: 22 },
+    camera: { dist: 3.58, minDist: 3.22, height: 2.12, minHeight: 1.9, pitch: 0.36, forwardBias: 0.12, yawBase: 0, yawRange: 0.52 },
+    physics: { air: 0.9972, magnus: 0.28, tableRest: 0.9, paddleRest: 1.16, netRest: 0.35, serveTimers: { player: 0.43, opponent: 0.58 } },
+    ai: { speed: 1.08, vertical: 1.04, react: 0.94 },
+  },
+  {
+    id: "zen",
+    name: "Zen Garden Invitational",
+    badge: "Zen Control",
+    tagline: "Warm studio palette with softer physics for technical rallies.",
+    renderer: { exposure: 1.72 },
+    scene: { background: 0x0e1b12 },
+    lighting: {
+      hemisphere: { sky: 0xfff7e6, ground: 0x1a2c1f, intensity: 0.98 },
+      sun: { color: 0xffd08a, intensity: 1.08, position: [-14, 26, 14] },
+      rim: { color: 0x90d4a8, intensity: 0.32, position: [16, 12, -10] },
+      spotlights: [
+        { position: [-7.5, 6.2, -7.5], color: 0xffc28a, intensity: 0.82, angle: Math.PI / 4.8, penumbra: 0.38 },
+        { position: [7.5, 6.2, -7.5], color: 0xffd6a3, intensity: 0.82, angle: Math.PI / 4.8, penumbra: 0.38 },
+        { position: [-7.5, 6.2, 7.5], color: 0xffc28a, intensity: 0.78, angle: Math.PI / 4.9, penumbra: 0.36 },
+        { position: [7.5, 6.2, 7.5], color: 0xffd6a3, intensity: 0.78, angle: Math.PI / 4.9, penumbra: 0.36 },
+      ],
+    },
+    materials: {
+      table: { color: 0x126b55, roughness: 0.58 },
+      lines: { color: 0xfdf8e1, roughness: 0.3 },
+      metal: { color: 0xc89f72, roughness: 0.52, metalness: 0.55 },
+      wheel: { color: 0x382f2a, roughness: 0.85 },
+      paddles: { player: 0xff8562, opponent: 0x4dbb84 },
+    },
+    carpet: { color: 0x214234, emissive: 0x11261c, emissiveIntensity: 0.22, bumpScale: 0.22 },
+    floor: { color: 0x1b2a20 },
+    walls: { color: 0xe4d8c4 },
+    ball: {
+      color: 0xfff6dd,
+      emissive: 0xffc9a1,
+      emissiveIntensity: 0.48,
+      glowColor: 0xffcfa4,
+      glowIntensity: 0.72,
+      glowDistance: 3.8,
+      shadowColor: 0x1a1309,
+      shadowOpacity: 0.24,
+      roughness: 0.58,
+    },
+    trail: { color: 0xfff1c0, minOpacity: 0.16, maxOpacity: 0.54, speedFactor: 0.036, count: 18 },
+    camera: { dist: 3.32, minDist: 3.05, height: 1.98, minHeight: 1.78, pitch: 0.32, forwardBias: 0.05, yawBase: 0, yawRange: 0.34 },
+    physics: { air: 0.9955, magnus: 0.2, tableRest: 0.91, paddleRest: 1.08, netRest: 0.38, serveTimers: { player: 0.47, opponent: 0.62 } },
+    ai: { speed: 0.94, vertical: 0.96, react: 1.05 },
+  },
+  {
+    id: "midnight",
+    name: "Midnight Championship",
+    badge: "Midnight Finals",
+    tagline: "Theatre spotlights with explosive trails for dramatic finals.",
+    renderer: { exposure: 1.65 },
+    scene: { background: 0x030304 },
+    lighting: {
+      hemisphere: { sky: 0x6b768f, ground: 0x04050a, intensity: 0.88 },
+      sun: { color: 0xffe0c2, intensity: 0.75, position: [-10, 30, 12] },
+      rim: { color: 0x4a8bff, intensity: 0.48, position: [24, 18, -16] },
+      spotlights: [
+        { position: [-7.2, 7, -7.2], color: 0xffa35a, intensity: 0.96, angle: Math.PI / 5.2, penumbra: 0.44 },
+        { position: [7.2, 7, -7.2], color: 0xf0f4ff, intensity: 0.9, angle: Math.PI / 5.2, penumbra: 0.44 },
+        { position: [-7.2, 7, 7.2], color: 0xffa35a, intensity: 0.92, angle: Math.PI / 5.4, penumbra: 0.42 },
+        { position: [7.2, 7, 7.2], color: 0xf0f4ff, intensity: 0.92, angle: Math.PI / 5.4, penumbra: 0.42 },
+      ],
+    },
+    materials: {
+      table: { color: 0x0e1b37, roughness: 0.46 },
+      lines: { color: 0xffffff, roughness: 0.28 },
+      metal: { color: 0x5c6f8f, roughness: 0.35, metalness: 0.7 },
+      wheel: { color: 0x0c0f19, roughness: 0.78 },
+      paddles: { player: 0xff5f3d, opponent: 0x3fa0ff },
+    },
+    carpet: { color: 0x1c0c1c, emissive: 0x2f072f, emissiveIntensity: 0.28, bumpScale: 0.27 },
+    floor: { color: 0x07070a },
+    walls: { color: 0xcfd5e4 },
+    ball: {
+      color: 0xffe0c4,
+      emissive: 0xff9b42,
+      emissiveIntensity: 0.82,
+      glowColor: 0xff933b,
+      glowIntensity: 1.28,
+      glowDistance: 5,
+      shadowColor: 0x050304,
+      shadowOpacity: 0.3,
+      roughness: 0.5,
+    },
+    trail: { color: 0xff8b3d, minOpacity: 0.24, maxOpacity: 0.86, speedFactor: 0.055, count: 20 },
+    camera: { dist: 3.7, minDist: 3.32, height: 2.22, minHeight: 2, pitch: 0.35, forwardBias: 0.08, yawBase: 0, yawRange: 0.4 },
+    physics: { air: 0.9968, magnus: 0.26, tableRest: 0.92, paddleRest: 1.14, netRest: 0.32, serveTimers: { player: 0.44, opponent: 0.59 } },
+    ai: { speed: 1.12, vertical: 1.08, react: 0.92 },
+  },
+  {
+    id: "analytic",
+    name: "Analytic Coach Suite",
+    badge: "Coach Vision",
+    tagline: "Top-down tactical view with extended trails for match analysis.",
+    renderer: { exposure: 1.78 },
+    scene: { background: 0x0a1018 },
+    lighting: {
+      hemisphere: { sky: 0xc7d7ff, ground: 0x060b12, intensity: 1.02 },
+      sun: { color: 0xf5fbff, intensity: 0.68, position: [-18, 32, 10] },
+      rim: { color: 0x7fd9ff, intensity: 0.42, position: [14, 18, -18] },
+      spotlights: [
+        { position: [-8.5, 7.5, -6.5], color: 0xa3c4ff, intensity: 0.82, angle: Math.PI / 5, penumbra: 0.48 },
+        { position: [8.5, 7.5, -6.5], color: 0xb1f0ff, intensity: 0.82, angle: Math.PI / 5, penumbra: 0.48 },
+        { position: [-8.5, 7.5, 6.5], color: 0xa3c4ff, intensity: 0.78, angle: Math.PI / 5.2, penumbra: 0.46 },
+        { position: [8.5, 7.5, 6.5], color: 0xb1f0ff, intensity: 0.78, angle: Math.PI / 5.2, penumbra: 0.46 },
+      ],
+    },
+    materials: {
+      table: { color: 0x1f3d70, roughness: 0.42 },
+      lines: { color: 0xf2f7ff, roughness: 0.22 },
+      metal: { color: 0x6a7fab, roughness: 0.36, metalness: 0.65 },
+      wheel: { color: 0x1a2337, roughness: 0.68 },
+      paddles: { player: 0x4d9eff, opponent: 0x8df29b },
+    },
+    carpet: { color: 0x10223b, emissive: 0x0b1b32, emissiveIntensity: 0.25, bumpScale: 0.26 },
+    floor: { color: 0x0b0f19 },
+    walls: { color: 0xd3deff },
+    ball: {
+      color: 0xf5f7ff,
+      emissive: 0x64a6ff,
+      emissiveIntensity: 0.95,
+      glowColor: 0x64a6ff,
+      glowIntensity: 1.2,
+      glowDistance: 5.6,
+      shadowColor: 0x050a16,
+      shadowOpacity: 0.26,
+      roughness: 0.38,
+    },
+    trail: { color: 0x6cb8ff, minOpacity: 0.14, maxOpacity: 0.55, speedFactor: 0.034, count: 28 },
+    camera: { dist: 3.1, minDist: 2.9, height: 2.62, minHeight: 2.38, pitch: 0.48, forwardBias: 0.03, yawBase: 0, yawRange: 0.24 },
+    physics: { air: 0.994, magnus: 0.18, tableRest: 0.9, paddleRest: 1.05, netRest: 0.4, serveTimers: { player: 0.49, opponent: 0.64 } },
+    ai: { speed: 0.9, vertical: 0.92, react: 1.08 },
+  },
+];
+
 /**
  * TABLE TENNIS 3D — Mobile Portrait (1:1)
  * --------------------------------------
@@ -17,6 +240,10 @@ import { applySRGBColorSpace } from "../utils/colorSpace.js";
 export default function TableTennis3D({ player, ai }){
   const hostRef = useRef(null);
   const raf = useRef(0);
+  const menuRef = useRef(null);
+  const [variantIndex, setVariantIndex] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const variant = GAME_VARIANTS[variantIndex] || GAME_VARIANTS[0];
 
   const playerLabel = player?.name || 'You';
   const aiLabel = ai?.name || 'AI';
@@ -35,6 +262,30 @@ export default function TableTennis3D({ player, ai }){
   const uiRef = useRef(ui);
   useEffect(() => { uiRef.current = ui; }, [ui]);
 
+  const handleVariantSelect = (index) => {
+    setVariantIndex(index);
+    setMenuOpen(false);
+    const nextServer = Math.random() < 0.5 ? 'P' : 'O';
+    setUi(createUiState(nextServer));
+    setResetKey(k => k + 1);
+  };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onPointer = (event) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+    };
+  }, [menuOpen]);
+
   const difficulty = useMemo(() => {
     const tag = (ai?.difficulty || ai?.level || 'pro').toString().toLowerCase();
     const presets = {
@@ -52,6 +303,41 @@ export default function TableTennis3D({ player, ai }){
     const host = hostRef.current; if (!host) return;
     const timers = [];
 
+    const rendererSettings = variant.renderer ?? {};
+    const sceneSettings = variant.scene ?? {};
+    const lightingSettings = variant.lighting ?? {};
+    const hemiSettings = lightingSettings.hemisphere ?? {};
+    const sunSettings = lightingSettings.sun ?? {};
+    const rimSettings = lightingSettings.rim ?? {};
+    const spotlightSpecs = (lightingSettings.spotlights && lightingSettings.spotlights.length)
+      ? lightingSettings.spotlights
+      : [
+          { position: [-8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+          { position: [8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+          { position: [-8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+          { position: [8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        ];
+    const materialsSettings = variant.materials ?? {};
+    const tableSettings = materialsSettings.table ?? {};
+    const lineSettings = materialsSettings.lines ?? {};
+    const metalSettings = materialsSettings.metal ?? {};
+    const wheelSettings = materialsSettings.wheel ?? {};
+    const paddleSettings = materialsSettings.paddles ?? {};
+    const carpetSettings = variant.carpet ?? {};
+    const floorSettings = variant.floor ?? {};
+    const wallSettings = variant.walls ?? {};
+    const ballSettings = variant.ball ?? {};
+    const trailSettings = variant.trail ?? {};
+    const cameraSettings = variant.camera ?? {};
+    const physicsSettings = variant.physics ?? {};
+    const aiSettings = variant.ai ?? {};
+    const serveTimers = physicsSettings.serveTimers ?? { player: 0.45, opponent: 0.6 };
+    const TRAIL_COUNT = trailSettings.count ?? 18;
+    const minTrailOpacity = trailSettings.minOpacity ?? 0.18;
+    const maxTrailOpacity = trailSettings.maxOpacity ?? 0.62;
+    const trailSpeedFactor = trailSettings.speedFactor ?? 0.045;
+    const baseShadowFactor = (ballSettings.shadowOpacity ?? 0.22) / 0.22;
+
     // Prevent overscroll on mobile
     const prevOver = document.documentElement.style.overscrollBehavior;
     document.documentElement.style.overscrollBehavior = 'none';
@@ -60,7 +346,7 @@ export default function TableTennis3D({ player, ai }){
     const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
     renderer.setPixelRatio(Math.min(2.5, window.devicePixelRatio||1));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.85;
+    renderer.toneMappingExposure = rendererSettings.exposure ?? 1.85;
     // Disable real-time shadow mapping to avoid dark artifacts on the
     // arena walls and table surface. Shadow maps from the multiple
     // spotlights were causing the entire scene to appear black in some
@@ -74,33 +360,35 @@ export default function TableTennis3D({ player, ai }){
     host.appendChild(renderer.domElement);
 
     // ---------- Scene & Lights ----------
-    const scene = new THREE.Scene(); scene.background = new THREE.Color(0x0b0e14);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x1b2233, 0.95));
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(sceneSettings.background ?? 0x0b0e14);
+    const hemi = new THREE.HemisphereLight(
+      hemiSettings.sky ?? 0xffffff,
+      hemiSettings.ground ?? 0x1b2233,
+      hemiSettings.intensity ?? 0.95
+    );
+    scene.add(hemi);
     // Directional key light. Shadow casting is disabled because shadow
     // maps are turned off above; keeping it false prevents accidental
     // blackening of surfaces.
-    const sun = new THREE.DirectionalLight(0xffffff, 0.95);
-    sun.position.set(-16, 28, 18);
+    const sun = new THREE.DirectionalLight(sunSettings.color ?? 0xffffff, sunSettings.intensity ?? 0.95);
+    sun.position.set(
+      ...(sunSettings.position ?? [-16, 28, 18])
+    );
     sun.castShadow = false;
     scene.add(sun);
-    const rim = new THREE.DirectionalLight(0x99ccff, 0.35); rim.position.set(20, 14, -12); scene.add(rim);
+    const rim = new THREE.DirectionalLight(rimSettings.color ?? 0x99ccff, rimSettings.intensity ?? 0.35);
+    rim.position.set(...(rimSettings.position ?? [20, 14, -12]));
+    scene.add(rim);
 
     // arena spotlights
-    const spotPositions = [
-      [-8, 6, -8],
-      [8, 6, -8],
-      [-8, 6, 8],
-      [8, 6, 8]
-    ];
-    spotPositions.forEach(p => {
-      const s = new THREE.SpotLight(0xffffff, 0.7);
-      s.position.set(p[0], p[1], p[2]);
-      s.angle = Math.PI / 5;
-      s.penumbra = 0.3;
-      // Spotlights are purely cosmetic; disable shadow casting to keep
-      // the table and walls lit evenly.
+    spotlightSpecs.forEach(spec => {
+      const s = new THREE.SpotLight(spec.color ?? 0xffffff, spec.intensity ?? 0.7);
+      s.position.set(spec.position?.[0] ?? 0, spec.position?.[1] ?? 6, spec.position?.[2] ?? 0);
+      s.angle = spec.angle ?? Math.PI / 5;
+      s.penumbra = spec.penumbra ?? 0.3;
       s.castShadow = false;
-      s.target.position.set(0, 1, 0);
+      const target = spec.target ?? [0, 1, 0];
+      s.target.position.set(target[0], target[1], target[2]);
       scene.add(s);
       scene.add(s.target);
     });
@@ -109,17 +397,17 @@ export default function TableTennis3D({ player, ai }){
     const camera = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 500);
     scene.add(camera);
     const camRig = {
-      dist: 3.46,
-      minDist: 3.18,
-      height: 2.04,
-      minHeight: 1.82,
-      pitch: 0.34,
-      forwardBias: 0.06,
-      yawBase: 0,
-      yawRange: 0.38,
-      curYaw: 0,
-      curDist: 3.46,
-      curHeight: 2.04,
+      dist: cameraSettings.dist ?? 3.46,
+      minDist: cameraSettings.minDist ?? 3.18,
+      height: cameraSettings.height ?? 2.04,
+      minHeight: cameraSettings.minHeight ?? 1.82,
+      pitch: cameraSettings.pitch ?? 0.34,
+      forwardBias: cameraSettings.forwardBias ?? 0.06,
+      yawBase: cameraSettings.yawBase ?? 0,
+      yawRange: cameraSettings.yawRange ?? 0.38,
+      curYaw: cameraSettings.yawBase ?? 0,
+      curDist: cameraSettings.dist ?? 3.46,
+      curHeight: cameraSettings.height ?? 2.04,
     };
     const applyCam = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
@@ -135,10 +423,26 @@ export default function TableTennis3D({ player, ai }){
     tableG.scale.set(S, S, S);
     scene.add(tableG);
 
-    const tableMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, roughness: 0.6 });
-    const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 });
-    const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.45, metalness: 0.6 });
-    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+    const tableMat = new THREE.MeshStandardMaterial({
+      color: tableSettings.color ?? 0x1e3a8a,
+      roughness: tableSettings.roughness ?? 0.6,
+      metalness: tableSettings.metalness ?? 0,
+    });
+    const whiteMat = new THREE.MeshStandardMaterial({
+      color: lineSettings.color ?? 0xffffff,
+      roughness: lineSettings.roughness ?? 0.35,
+      metalness: lineSettings.metalness ?? 0,
+    });
+    const steelMat = new THREE.MeshStandardMaterial({
+      color: metalSettings.color ?? 0x9aa4b2,
+      roughness: metalSettings.roughness ?? 0.45,
+      metalness: metalSettings.metalness ?? 0.6,
+    });
+    const wheelMat = new THREE.MeshStandardMaterial({
+      color: wheelSettings.color ?? 0x111111,
+      roughness: wheelSettings.roughness ?? 0.9,
+      metalness: wheelSettings.metalness ?? 0,
+    });
     const paddleWoodTex = makePaddleWoodTexture();
     paddleWoodTex.anisotropy = 8;
     applySRGBColorSpace(paddleWoodTex);
@@ -235,7 +539,11 @@ export default function TableTennis3D({ player, ai }){
     const carpetSize = 24;
     const baseFloor = new THREE.Mesh(
       new THREE.PlaneGeometry(floorSize, floorSize),
-      new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 })
+      new THREE.MeshStandardMaterial({
+        color: floorSettings.color ?? 0x0f1222,
+        roughness: floorSettings.roughness ?? 0.95,
+        metalness: floorSettings.metalness ?? 0.05,
+      })
     );
     baseFloor.rotation.x = -Math.PI / 2;
     baseFloor.position.y = 0;
@@ -243,6 +551,18 @@ export default function TableTennis3D({ player, ai }){
     scene.add(baseFloor);
 
     const carpetMat = createArenaCarpetMaterial();
+    if (carpetSettings.color !== undefined) {
+      carpetMat.color.setHex(carpetSettings.color);
+    }
+    if (carpetSettings.bumpScale !== undefined) {
+      carpetMat.bumpScale = carpetSettings.bumpScale;
+    }
+    if (carpetSettings.emissive !== undefined) {
+      carpetMat.emissive.setHex(carpetSettings.emissive);
+    }
+    if (carpetSettings.emissiveIntensity !== undefined) {
+      carpetMat.emissiveIntensity = carpetSettings.emissiveIntensity;
+    }
     const carpet = new THREE.Mesh(new THREE.PlaneGeometry(carpetSize, carpetSize), carpetMat);
     carpet.rotation.x = -Math.PI / 2;
     carpet.position.y = 0.01;
@@ -251,6 +571,15 @@ export default function TableTennis3D({ player, ai }){
 
     // walls (reuse Chess Battle Royal material)
     const wallMat = createArenaWallMaterial();
+    if (wallSettings.color !== undefined) {
+      wallMat.color.setHex(wallSettings.color);
+    }
+    if (wallSettings.roughness !== undefined) {
+      wallMat.roughness = wallSettings.roughness;
+    }
+    if (wallSettings.metalness !== undefined) {
+      wallMat.metalness = wallSettings.metalness;
+    }
     const wallHeight = 6;
     const wallThickness = 0.2;
     const wallOffset = floorSize / 2;
@@ -426,8 +755,8 @@ export default function TableTennis3D({ player, ai }){
       return g;
     }
 
-    const player = makePaddle(0xff4d6d, 1); tableG.add(player);
-    const opp    = makePaddle(0x49dcb1, -1); tableG.add(opp);
+    const player = makePaddle(paddleSettings.player ?? 0xff4d6d, 1); tableG.add(player);
+    const opp    = makePaddle(paddleSettings.opponent ?? 0x49dcb1, -1); tableG.add(opp);
     const playerBaseZ = T.L/2 - 0.325;
     const oppBaseZ = -T.L/2 + 0.325;
     player.position.z =  playerBaseZ; player.position.x = 0;
@@ -446,27 +775,52 @@ export default function TableTennis3D({ player, ai }){
     const spinProjection = new THREE.Vector3();
 
     // ---------- Ball ----------
+    const ballMaterial = new THREE.MeshStandardMaterial({
+      color: ballSettings.color ?? 0xfff1cc,
+      roughness: ballSettings.roughness ?? 0.6,
+      metalness: ballSettings.metalness ?? 0,
+    });
+    if (ballSettings.emissive !== undefined) {
+      ballMaterial.emissive.setHex(ballSettings.emissive);
+    }
+    if (ballSettings.emissiveIntensity !== undefined) {
+      ballMaterial.emissiveIntensity = ballSettings.emissiveIntensity;
+    }
     const ball = new THREE.Mesh(
       new THREE.SphereGeometry(BALL_R, 42, 32),
-      new THREE.MeshStandardMaterial({ color: 0xfff1cc, roughness: 0.6 })
+      ballMaterial
     );
     ball.castShadow = true;
-    const ballGlow = new THREE.PointLight(0xffd7a1, 0.85, 4.2);
+    const ballGlow = new THREE.PointLight(
+      ballSettings.glowColor ?? ballSettings.emissive ?? ballSettings.color ?? 0xffd7a1,
+      ballSettings.glowIntensity ?? 0.85,
+      ballSettings.glowDistance ?? 4.2
+    );
+    if (ballSettings.glowDecay !== undefined) {
+      ballGlow.decay = ballSettings.glowDecay;
+    }
     ball.add(ballGlow);
     tableG.add(ball);
     const ballShadow = new THREE.Mesh(
-      new THREE.CircleGeometry(BALL_R * 1.6, 24),
-      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.22 })
+      new THREE.CircleGeometry(BALL_R * (ballSettings.shadowScale ?? 1.6), 24),
+      new THREE.MeshBasicMaterial({
+        color: ballSettings.shadowColor ?? 0x000000,
+        transparent: true,
+        opacity: ballSettings.shadowOpacity ?? 0.22,
+      })
     );
     ballShadow.rotation.x = -Math.PI / 2;
     ballShadow.position.y = T.H + 0.005;
     tableG.add(ballShadow);
 
-    const TRAIL_COUNT = 18;
     const trailPositions = new Float32Array(TRAIL_COUNT * 3);
     const trailGeometry = new THREE.BufferGeometry();
     trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
-    const trailMaterial = new THREE.LineBasicMaterial({ color: 0xfff1cc, transparent: true, opacity: 0.42 });
+    const trailMaterial = new THREE.LineBasicMaterial({
+      color: trailSettings.color ?? 0xfff1cc,
+      transparent: true,
+      opacity: minTrailOpacity,
+    });
     const ballTrail = new THREE.Line(trailGeometry, trailMaterial);
     ballTrail.frustumCulled = false;
     tableG.add(ballTrail);
@@ -476,17 +830,17 @@ export default function TableTennis3D({ player, ai }){
     const Sx = {
       v: new THREE.Vector3(0,0,0),
       w: new THREE.Vector3(0,0,0), // spin (rad/s) — very simplified Magnus
-      gravity: new THREE.Vector3(0,-9.81,0),
-      air: 0.9965,
-      magnus: 0.23,
-      tableRest: 0.89,
-      paddleRest: 1.1,
-      netRest: 0.37,
+      gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -9.81, 0),
+      air: physicsSettings.air ?? 0.9965,
+      magnus: physicsSettings.magnus ?? 0.23,
+      tableRest: physicsSettings.tableRest ?? 0.89,
+      paddleRest: physicsSettings.paddleRest ?? 1.1,
+      netRest: physicsSettings.netRest ?? 0.37,
       state: 'serve', // serve | rally | dead
       lastTouch: null, // 'P' or 'O'
       bounces: { P: 0, O: 0 },
       serveProgress: 'awaitServeHit',
-      serveTimer: 0.45,
+      serveTimer: serveTimers.player,
       tmpV: new THREE.Vector3(),
       tmpN: new THREE.Vector3(),
       tmpSpin: new THREE.Vector3(),
@@ -503,7 +857,7 @@ export default function TableTennis3D({ player, ai }){
       Sx.bounces.P = 0;
       Sx.bounces.O = 0;
       Sx.serveProgress = 'awaitServeHit';
-      Sx.serveTimer = Srv.side === 'P' ? 0.45 : 0.6;
+      Sx.serveTimer = Srv.side === 'P' ? serveTimers.player : serveTimers.opponent;
       const side = Srv.side;
       if (side==='P'){
         ball.position.set(player.position.x, T.H + 0.14, playerBaseZ - 0.09);
@@ -520,7 +874,7 @@ export default function TableTennis3D({ player, ai }){
         trailPositions[idx + 2] = ball.position.z;
       }
       trailGeometry.attributes.position.needsUpdate = true;
-      trailMaterial.opacity = 0.18;
+      trailMaterial.opacity = minTrailOpacity;
       setUi(prev => ({
         ...prev,
         msg: `${side === 'P' ? playerLabel : aiLabel} to serve`,
@@ -661,13 +1015,16 @@ export default function TableTennis3D({ player, ai }){
     };
 
     // ---------- AI ----------
+    const aiSpeedBase = difficulty.speed * (aiSettings.speed ?? 1);
+    const aiVerticalBase = difficulty.vertical * (aiSettings.vertical ?? 1);
+    const aiReactBase = difficulty.react * (aiSettings.react ?? 1);
     const AI = {
-      baseSpeed: difficulty.speed,
-      baseVertical: difficulty.vertical,
-      baseReact: difficulty.react,
-      speed: difficulty.speed,
-      vertical: difficulty.vertical,
-      react: difficulty.react,
+      baseSpeed: aiSpeedBase,
+      baseVertical: aiVerticalBase,
+      baseReact: aiReactBase,
+      speed: aiSpeedBase,
+      vertical: aiVerticalBase,
+      react: aiReactBase,
       targetX: 0,
       targetZ: oppBaseZ,
       timer: 0,
@@ -1067,7 +1424,7 @@ export default function TableTennis3D({ player, ai }){
         const sh = THREE.MathUtils.clamp(1 - (ball.position.y - T.H), 0.3, 1.05);
         ballShadow.scale.set(sh, sh, 1);
         const shadowOpacity = THREE.MathUtils.clamp(0.9 - (ball.position.y - T.H) * 1.3, 0.28, 0.88);
-        ballShadow.material.opacity = shadowOpacity;
+        ballShadow.material.opacity = THREE.MathUtils.clamp(shadowOpacity * baseShadowFactor, 0, 1);
         for (let i = TRAIL_COUNT - 1; i > 0; i--){
           const src = (i - 1) * 3;
           const dst = i * 3;
@@ -1080,7 +1437,11 @@ export default function TableTennis3D({ player, ai }){
         trailPositions[2] = ball.position.z;
         trailGeometry.attributes.position.needsUpdate = true;
         const velocityMag = Sx.v.length();
-        trailMaterial.opacity = THREE.MathUtils.clamp(0.18 + velocityMag * 0.045, 0.18, 0.62);
+        trailMaterial.opacity = THREE.MathUtils.clamp(
+          minTrailOpacity + velocityMag * trailSpeedFactor,
+          minTrailOpacity,
+          maxTrailOpacity
+        );
       }
 
       renderer.render(scene, camera);
@@ -1114,7 +1475,7 @@ export default function TableTennis3D({ player, ai }){
       renderer.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey]);
+  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey, variantIndex]);
 
   const resetAll = ()=>{
     const next = Math.random() < 0.5 ? 'P' : 'O';
@@ -1126,11 +1487,66 @@ export default function TableTennis3D({ player, ai }){
     <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
       {/* HUD */}
       <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 backdrop-blur rounded px-3 py-2 flex flex-col items-center gap-[2px] text-center min-w-[220px]">
+        <div className="text-[9px] uppercase tracking-[0.24em] text-white/70">{variant.badge}</div>
         <div className="font-semibold">{playerLabel} {ui.pScore} : {ui.oScore} {aiLabel}</div>
         <div className="text-[10px] sm:text-[11px]">
           {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
         </div>
         <div className="text-[10px] sm:text-[11px] opacity-80">{ui.msg}</div>
+        <div className="text-[9px] sm:text-[10px] opacity-70 leading-tight max-w-[240px]">{variant.tagline}</div>
+      </div>
+      <div ref={menuRef} className="absolute top-2 right-2 z-20 flex flex-col items-end gap-2">
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1 rounded-full border border-white/10 bg-black/40 text-white/70 text-[10px] uppercase tracking-[0.2em] backdrop-blur-sm shadow-sm">
+            {variant.name}
+          </div>
+          <button
+            type="button"
+            onClick={() => setMenuOpen(prev => !prev)}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors shadow-lg border border-white/10"
+            aria-label="Toggle game configuration menu"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              className="w-5 h-5"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M10.5 3.75L9.75 6a7.5 7.5 0 00-1.5.87L6 6.75l-1.5 2.6 1.74 1.26a7.5 7.5 0 000 1.74L4.5 13.35 6 15.94l2.25-.12c.45.34.94.63 1.5.87l.75 2.25h3l.75-2.25c.53-.24 1.03-.53 1.5-.87l2.25.12 1.5-2.59-1.74-1.26c.06-.57.06-1.16 0-1.74l1.74-1.26-1.5-2.6-2.25.12a7.5 7.5 0 00-1.5-.87l-.75-2.25h-3z"
+              />
+              <circle cx="12" cy="12" r="2.25" />
+            </svg>
+          </button>
+        </div>
+        {menuOpen && (
+          <div className="w-72 max-w-[80vw] bg-black/80 text-white rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl px-3 py-3 flex flex-col gap-2">
+            {GAME_VARIANTS.map((option, idx) => {
+              const active = idx === variantIndex;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => handleVariantSelect(idx)}
+                  className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-semibold">{option.name}</span>
+                    {active && (
+                      <span className="text-[10px] uppercase tracking-[0.26em] text-white/80">Active</span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.tagline}</div>
+                  <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
       {!ui.gameOver && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
