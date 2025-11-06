@@ -267,7 +267,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.016; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.028; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.024; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.032; // push the middle chrome cut farther toward centre so the rounded plate opening tracks the tighter jaw position
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -588,7 +588,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.92; // draw the middle pockets closer to centre so the jaw shoulders and chrome cuts align with the new inward target
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.74; // pull the middle pockets slightly further toward centre so the jaw shoulders and chrome cuts align with the tighter layout
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -1320,9 +1320,7 @@ const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   classicWood: 'walnut',
   goldenMaple: 'maple',
-  nordicBirch: 'birch',
   matteGraphite: 'smokedOak',
-  matteGraphiteNeon: 'smokedOak',
   twoToneHybrid: 'teak'
 });
 
@@ -1486,57 +1484,6 @@ const TABLE_FINISHES = Object.freeze({
       return { ...materials, ...createPocketMaterials() };
     }
   },
-  nordicBirch: {
-    id: 'nordicBirch',
-    label: 'Nordic Birch',
-    colors: makeColorPalette({
-      cloth: 0x33a86a,
-      rail: 0xd8b47c,
-      base: 0xd2a86a
-    }),
-    createMaterials: () => {
-      const frameColor = new THREE.Color('#d8b47c');
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: frameColor,
-        metalness: 0.12,
-        roughness: 0.26,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.14,
-        sheen: 0.18,
-        sheenRoughness: 0.44,
-        reflectivity: 0.48,
-        envMapIntensity: 0.9
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0.02, 0.04, 0.1),
-        metalness: 0.16,
-        roughness: 0.28,
-        clearcoat: 0.42,
-        clearcoatRoughness: 0.18,
-        sheen: 0.2,
-        sheenRoughness: 0.4,
-        reflectivity: 0.5,
-        envMapIntensity: 0.95
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xf4e0b8,
-        metalness: 0.6,
-        roughness: 0.32,
-        clearcoat: 0.46,
-        clearcoatRoughness: 0.22,
-        envMapIntensity: 1.05
-      });
-      const materials = {
-        frame,
-        rail,
-        leg: frame,
-        trim,
-        accent: null
-      };
-      applySnookerStyleWoodPreset(materials, 'nordicBirch');
-      return { ...materials, ...createPocketMaterials() };
-    }
-  },
   matteGraphite: {
     id: 'matteGraphite',
     label: 'Matte Graphite',
@@ -1587,73 +1534,6 @@ const TABLE_FINISHES = Object.freeze({
         accent: null
       };
       applySnookerStyleWoodPreset(materials, 'matteGraphite');
-      return { ...materials, ...createPocketMaterials() };
-    }
-  },
-  matteGraphiteNeon: {
-    id: 'matteGraphiteNeon',
-    label: 'Matte Graphite Neon',
-    colors: makeColorPalette({
-      cloth: 0x33a86a,
-      rail: 0x2f2f2f,
-      base: 0x2b2b2b
-    }),
-    createMaterials: () => {
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: 0x2b2b2b,
-        metalness: 0.22,
-        roughness: 0.6,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.46,
-        sheen: 0.05,
-        sheenRoughness: 0.72
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: 0x303030,
-        metalness: 0.28,
-        roughness: 0.54,
-        clearcoat: 0.12,
-        clearcoatRoughness: 0.4,
-        sheen: 0.04,
-        sheenRoughness: 0.64
-      });
-      const leg = new THREE.MeshPhysicalMaterial({
-        color: 0x232323,
-        metalness: 0.26,
-        roughness: 0.58,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.44
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0x11161c,
-        metalness: 0.78,
-        roughness: 0.32,
-        clearcoat: 0.22,
-        clearcoatRoughness: 0.34,
-        envMapIntensity: 1.1
-      });
-      const neon = new THREE.Color('#00c8ff');
-      const accentMaterial = new THREE.MeshStandardMaterial({
-        color: neon,
-        emissive: neon.clone().multiplyScalar(0.55),
-        emissiveIntensity: 1.4,
-        metalness: 0.32,
-        roughness: 0.34
-      });
-      const materials = {
-        frame,
-        rail,
-        leg,
-        trim,
-        accent: {
-          material: accentMaterial,
-          thickness: 0.055,
-          height: 0.028,
-          inset: 0.045,
-          verticalOffset: 0.82
-        }
-      };
-      applySnookerStyleWoodPreset(materials, 'matteGraphiteNeon');
       return { ...materials, ...createPocketMaterials() };
     }
   },
@@ -1727,12 +1607,10 @@ const TABLE_FINISHES = Object.freeze({
 
 const TABLE_FINISH_OPTIONS = Object.freeze(
   [
-    TABLE_FINISHES.nordicBirch,
     TABLE_FINISHES.goldenMaple,
     TABLE_FINISHES.classicWood,
     TABLE_FINISHES.twoToneHybrid,
-    TABLE_FINISHES.matteGraphite,
-    TABLE_FINISHES.matteGraphiteNeon
+    TABLE_FINISHES.matteGraphite
   ].filter(Boolean)
 );
 
@@ -8254,86 +8132,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         });
         return entry.texture;
       };
-      const coinTicker = (() => {
-        const coins = [
-          'BTC',
-          'ETH',
-          'BNB',
-          'SOL',
-          'XRP',
-          'ADA',
-          'DOGE',
-          'AVAX',
-          'DOT',
-          'TRX'
-        ];
-        const prices = coins.map(() => 1000 + Math.random() * 45000);
-        let accumulator = 0;
-        return {
-          update(delta) {
-            accumulator += delta;
-            const step = 0.25;
-            while (accumulator >= step) {
-              accumulator -= step;
-              for (let i = 0; i < prices.length; i++) {
-                const drift = (Math.random() - 0.5) * 120;
-                prices[i] = Math.max(0, prices[i] + drift);
-              }
-            }
-          },
-          list() {
-            return coins.map((symbol, index) => ({
-              symbol,
-              price: prices[index] ?? 0
-            }));
-          },
-          text() {
-            return this.list()
-              .map(({ symbol, price }) => `${symbol}: $${price.toFixed(0)}`)
-              .join('   ');
-          }
-        };
-      })();
-      const createTickerEntry = ({
-        color = '#34d399',
-        background = '#020617',
-        fontSize = 88,
-        speed = 220
-      } = {}) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = 2048;
-        canvas.height = 320;
-        const ctx = canvas.getContext('2d');
-        const texture = new THREE.CanvasTexture(canvas);
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = 4;
-        applySRGBColorSpace(texture);
-        let offset = 0;
-        return {
-          texture,
-          minInterval: 1 / 45,
-          update(delta) {
-            if (!ctx) return;
-            const text = coinTicker.text();
-            const tileText = `${text}     `;
-            ctx.fillStyle = background;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = color;
-            ctx.font = `bold ${fontSize}px "Segoe UI", "Helvetica Neue", sans-serif`;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            const tileWidth = Math.max(1, ctx.measureText(tileText).width);
-            offset = (offset + speed * delta) % tileWidth;
-            let x = -offset;
-            const centerY = canvas.height / 2;
-            while (x < canvas.width + tileWidth) {
-              ctx.fillText(tileText, x, centerY);
-              x += tileWidth;
-            }
-            texture.needsUpdate = true;
-          }
-        };
       };
       const createMatchTvEntry = () => {
         const baseWidth = 1024;
@@ -8644,69 +8442,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
       rightWall.position.x = roomWidth / 2;
-
-      const billboardTexture = registerDynamicTexture(createTickerEntry());
-      const signageFrameMat = new THREE.MeshStandardMaterial({
-        color: 0x1f2937,
-        roughness: 0.5,
-        metalness: 0.6
-      });
-      const signageScale = 3;
-      const billboardScale = 0.8;
-      const signageDepth = 0.8 * signageScale * billboardScale;
-      const signageWidth =
-        Math.min(roomWidth * 0.58, 52) * signageScale * billboardScale;
-      const signageHeight =
-        Math.min(wallHeight * 0.28, 12) * signageScale * billboardScale;
-      const makeScreenMaterial = (texture) => {
-        const material = new THREE.MeshBasicMaterial({ toneMapped: false });
-        if (texture) {
-          material.map = texture;
-        } else {
-          material.color = new THREE.Color(0x0f172a);
-        }
-        return material;
-      };
-      const createBillboardAssembly = () => {
-        const assembly = new THREE.Group();
-        const frame = new THREE.Mesh(
-          new THREE.BoxGeometry(signageWidth, signageHeight, signageDepth),
-          signageFrameMat
-        );
-        frame.castShadow = false;
-        frame.receiveShadow = true;
-        assembly.add(frame);
-        const billboardScreen = new THREE.Mesh(
-          new THREE.PlaneGeometry(signageWidth * 0.94, signageHeight * 0.82),
-          makeScreenMaterial(billboardTexture)
-        );
-        billboardScreen.position.z = signageDepth / 2 + 0.03;
-        assembly.add(billboardScreen);
-        return assembly;
-      };
-      const signageGap = BALL_R * 3.2;
-      const signageHalfHeight = signageHeight / 2;
-      const signageY = floorY + signageGap + signageHalfHeight;
+      const loungeFeatureWidth = Math.min(roomWidth * 0.58, 52) * 2.4;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
       const backInterior = roomDepth / 2 - wallInset;
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
-      [
-        {
-          position: [leftInterior, signageY, 0],
-          rotationY: Math.PI / 2
-        },
-        {
-          position: [rightInterior, signageY, 0],
-          rotationY: -Math.PI / 2
-        }
-      ].forEach(({ position, rotationY }) => {
-        const signage = createBillboardAssembly();
-        signage.position.set(position[0], position[1], position[2]);
-        signage.rotation.y = rotationY;
-        world.add(signage);
-      });
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -8747,12 +8488,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const cueRackHalfWidth = cueRackDimensions.width / 2;
       const availableHalfDepth =
         roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
-      const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
+      const desiredOffset = loungeFeatureWidth / 2 + cueRackHalfWidth + BALL_R * 4;
       const cueRackOffset = Math.max(
         cueRackHalfWidth,
         Math.min(availableHalfDepth, desiredOffset)
       );
-      const cueRackGap = signageGap;
+      const cueRackGap = BALL_R * 3.2;
       const cueRackY = floorY + cueRackGap + cueRackDimensions.height / 2;
       const cueRackPlacements = [
         { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
@@ -12986,7 +12727,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const deltaMs = Math.min(rawDelta, maxFrameTime);
         const appliedDeltaMs = deltaMs;
         const deltaSeconds = appliedDeltaMs / 1000;
-        coinTicker.update(deltaSeconds);
         dynamicTextureEntries.forEach((entry) => {
           entry.accumulator += deltaSeconds;
           if (entry.accumulator < entry.minInterval) {
@@ -13560,14 +13300,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 activeShotView.stage = 'followCue';
                 activeShotView.holdUntil = now + ACTION_CAM.followHoldMs;
               } else if (activeShotView.hitConfirmed) {
-                const targetSpeed = targetBall.vel.length() * frameScale;
+                const targetSpeed = targetBall.vel.length() * subStepScale;
                 if (targetSpeed <= STOP_EPS) {
                   activeShotView.stage = 'followCue';
                   activeShotView.holdUntil = now + ACTION_CAM.followHoldMs;
                 }
               }
             } else if (activeShotView.stage === 'followCue') {
-              const cueSpeed = cueBall.vel.length() * frameScale;
+              const cueSpeed = cueBall.vel.length() * subStepScale;
               if (cueSpeed > STOP_EPS) {
                 activeShotView.holdUntil = now + ACTION_CAM.followHoldMs;
               } else if (
@@ -13605,7 +13345,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             pocketSwitchIntentRef.current = null;
           }
           const movingBalls = ballsList.filter(
-            (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+            (b) => b.active && b.vel.length() * subStepScale >= STOP_EPS
           );
           const movingCount = movingBalls.length;
           const lastPocketBall = lastPocketBallRef.current;
@@ -13789,7 +13529,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 const approachDir = toPocket.clone().normalize();
                 pocketView.approach.copy(approachDir);
               }
-              const speed = focusBall.vel.length() * frameScale;
+              const speed = focusBall.vel.length() * subStepScale;
               if (speed > STOP_EPS) {
                 const extendTo = now + POCKET_VIEW_ACTIVE_EXTENSION_MS;
                 pocketView.holdUntil =
@@ -13812,7 +13552,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         // Fund i goditjes
           if (shooting) {
             const any = balls.some(
-              (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+              (b) => b.active && b.vel.length() * subStepScale >= STOP_EPS
             );
             if (!any) resolve();
           }
