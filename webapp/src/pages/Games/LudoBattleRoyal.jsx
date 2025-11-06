@@ -239,11 +239,105 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 6;
 
+const BOARD_PALETTE_OPTIONS = [
+  {
+    id: 'classicRoyale',
+    label: 'Classic Royale',
+    track: { base: 0xfef9ef, accent: '#fbbf24' },
+    safe: { base: 0xf4e3bd, accent: '#f59e0b' },
+    playerColors: DEFAULT_PLAYER_COLORS.map((value) => value),
+    center: { base: '#ffffff', accent: '#b91c1c' }
+  },
+  {
+    id: 'midnightAurora',
+    label: 'Midnight Aurora',
+    track: { base: 0x0f172a, accent: '#38bdf8' },
+    safe: { base: 0x111c33, accent: '#60a5fa' },
+    playerColors: [0xf97316, 0x22d3ee, 0xf472b6, 0x60a5fa],
+    center: { base: '#0b1120', accent: '#38bdf8' }
+  },
+  {
+    id: 'roseMarble',
+    label: 'Rose Marble',
+    track: { base: 0xfdf2f8, accent: '#f472b6' },
+    safe: { base: 0xfce7f3, accent: '#fb7185' },
+    playerColors: [0xf97316, 0x34d399, 0xec4899, 0x6366f1],
+    center: { base: '#fff7ed', accent: '#fb7185' }
+  }
+];
+
+const TOKEN_STYLE_OPTIONS = [
+  { id: 'imperialRook', label: 'Imperial Rook', builder: 'rook' },
+  { id: 'celestialBishop', label: 'Celestial Bishop', builder: 'bishop' },
+  { id: 'dynastyKnight', label: 'Dynasty Knight', builder: 'knight' }
+];
+
+const DICE_STYLE_OPTIONS = [
+  {
+    id: 'ivoryInlay',
+    label: 'Ivory Inlay',
+    bodyColor: '#ffffff',
+    pipColor: '#0a0a0a',
+    rimColor: '#ffd700',
+    metalness: 0.25,
+    roughness: 0.35
+  },
+  {
+    id: 'obsidianMirror',
+    label: 'Obsidian Mirror',
+    bodyColor: '#0f172a',
+    pipColor: '#e2e8f0',
+    rimColor: '#38bdf8',
+    metalness: 0.65,
+    roughness: 0.22
+  },
+  {
+    id: 'crystalFrost',
+    label: 'Crystal Frost',
+    bodyColor: '#e0f2fe',
+    pipColor: '#0f172a',
+    rimColor: '#0284c7',
+    metalness: 0.38,
+    roughness: 0.18
+  }
+];
+
+const CAMERA_STYLE_OPTIONS = [
+  {
+    id: 'grandArena',
+    label: 'Grand Arena',
+    radiusMultiplier: 1,
+    elevation: 1.12,
+    azimuthOffset: 0,
+    tiltOffset: 0
+  },
+  {
+    id: 'skyboxBroadcast',
+    label: 'Skybox Broadcast',
+    radiusMultiplier: 1.22,
+    elevation: 1.85,
+    azimuthOffset: THREE.MathUtils.degToRad(-18),
+    tiltOffset: THREE.MathUtils.degToRad(-8)
+  },
+  {
+    id: 'courtsideDolly',
+    label: 'Courtside Dolly',
+    radiusMultiplier: 0.86,
+    elevation: 0.82,
+    azimuthOffset: THREE.MathUtils.degToRad(24),
+    tiltOffset: THREE.MathUtils.degToRad(6)
+  }
+];
+
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
-  tableShape: 0
+  tableShape: 0,
+  boardPalette: 0,
+  tokenStyle: 0,
+  diceStyle: 0,
+  cameraStyle: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -251,7 +345,11 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
   { key: 'chairColor', label: 'Ngjyra e Karrigeve', options: CHAIR_COLOR_OPTIONS },
   { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Forma e Tavolinës', options: TABLE_SHAPE_OPTIONS }
+  { key: 'tableShape', label: 'Forma e Tavolinës', options: TABLE_SHAPE_OPTIONS },
+  { key: 'boardPalette', label: 'Stili i Fushës', options: BOARD_PALETTE_OPTIONS },
+  { key: 'tokenStyle', label: 'Pjesët e Shahut', options: TOKEN_STYLE_OPTIONS },
+  { key: 'diceStyle', label: 'Zarët Luks', options: DICE_STYLE_OPTIONS },
+  { key: 'cameraStyle', label: 'Kamerat e Transmetimit', options: CAMERA_STYLE_OPTIONS }
 ];
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
@@ -267,7 +365,11 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_OPTIONS.length],
+    ['boardPalette', BOARD_PALETTE_OPTIONS.length],
+    ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
+    ['diceStyle', DICE_STYLE_OPTIONS.length],
+    ['cameraStyle', CAMERA_STYLE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -537,46 +639,33 @@ const HOME_COLUMN_COORDS = Object.freeze([
   Object.freeze([
     [7, 13],
     [7, 12],
-    [7, 11],
-    [7, 10],
-    [7, 9],
-    [7, 8]
+    [7, 11]
   ]),
   Object.freeze([
     [1, 7],
     [2, 7],
-    [3, 7],
-    [4, 7],
-    [5, 7],
-    [6, 7]
+    [3, 7]
   ]),
   Object.freeze([
     [7, 1],
     [7, 2],
-    [7, 3],
-    [7, 4],
-    [7, 5],
-    [7, 6]
+    [7, 3]
   ]),
   Object.freeze([
     [13, 7],
     [12, 7],
-    [11, 7],
-    [10, 7],
-    [9, 7],
-    [8, 7]
+    [11, 7]
   ])
 ]);
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
 const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
-const BOARD_COLORS = Object.freeze([0xfef08a, 0x22c55e, 0xef4444, 0x3b82f6]);
+const DEFAULT_BOARD_COLORS = Object.freeze([0xfef08a, 0x22c55e, 0xef4444, 0x3b82f6]);
 const PLAYER_COLOR_ORDER = Object.freeze([2, 1, 0, 3]);
-const PLAYER_COLORS = Object.freeze(
-  PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
+const DEFAULT_PLAYER_COLORS = Object.freeze(
+  PLAYER_COLOR_ORDER.map((boardIndex) => DEFAULT_BOARD_COLORS[boardIndex])
 );
-const TOKEN_COLORS = PLAYER_COLORS;
 const TOKEN_TRACK_SURFACE_OFFSET = 0.002;
 const TOKEN_HOME_SURFACE_OFFSET = 0.008;
 const TOKEN_GOAL_SURFACE_OFFSET = 0.0065;
@@ -783,6 +872,8 @@ function makeDice() {
     setDiceOrientation(dice, val);
   };
   dice.userData.currentValue = 1;
+  dice.userData.styleId = styleOption?.id ?? 'ivoryInlay';
+  dice.userData.styleOption = styleOption;
   return dice;
 }
 
@@ -1010,23 +1101,43 @@ function createHomeLabelMesh(size) {
   return mesh;
 }
 
-function addCenterHome(scene) {
+function addCenterHome(scene, { playerColors = DEFAULT_PLAYER_COLORS, centerPalette } = {}) {
   const size = LUDO_TILE * 3;
   const half = size / 2;
   const baseHeight = PLAYFIELD_HEIGHT + CENTER_HOME_BASE_OFFSET;
+  const baseColor = centerPalette?.base ?? '#ffffff';
+  const accentColor = centerPalette?.accent ?? '#b91c1c';
 
-  const base = new THREE.Mesh(
-    new THREE.PlaneGeometry(size, size),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.78 })
-  );
-  base.rotation.x = -Math.PI / 2;
-  base.position.set(0, baseHeight, 0);
-  base.receiveShadow = true;
-  scene.add(base);
+  const baseMaterial = new THREE.MeshStandardMaterial({ color: baseColor, roughness: 0.78 });
+  const baseGroup = new THREE.Group();
 
+  const centralSquare = new THREE.Mesh(new THREE.PlaneGeometry(size, size), baseMaterial);
+  centralSquare.rotation.x = -Math.PI / 2;
+  centralSquare.position.set(0, baseHeight, 0);
+  centralSquare.receiveShadow = true;
+  baseGroup.add(centralSquare);
+
+  const armLength = LUDO_TILE * 7;
+  const armThickness = LUDO_TILE;
+
+  const horizontalArm = new THREE.Mesh(new THREE.PlaneGeometry(armLength, armThickness), baseMaterial);
+  horizontalArm.rotation.x = -Math.PI / 2;
+  horizontalArm.position.set(0, baseHeight - 0.0002, 0);
+  horizontalArm.receiveShadow = true;
+  baseGroup.add(horizontalArm);
+
+  const verticalArm = new THREE.Mesh(new THREE.PlaneGeometry(armThickness, armLength), baseMaterial);
+  verticalArm.rotation.x = -Math.PI / 2;
+  verticalArm.position.set(0, baseHeight - 0.0002, 0);
+  verticalArm.receiveShadow = true;
+  baseGroup.add(verticalArm);
+
+  scene.add(baseGroup);
+
+  const overlayMeshes = [];
   const triangleDefs = [
     {
-      color: BOARD_COLORS[0],
+      color: playerColors[0] ?? DEFAULT_PLAYER_COLORS[0],
       vertices: new Float32Array([
         -half,
         0,
@@ -1040,7 +1151,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: BOARD_COLORS[1],
+      color: playerColors[1] ?? DEFAULT_PLAYER_COLORS[1],
       vertices: new Float32Array([
         -half,
         0,
@@ -1054,7 +1165,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: BOARD_COLORS[2],
+      color: playerColors[2] ?? DEFAULT_PLAYER_COLORS[2],
       vertices: new Float32Array([
         half,
         0,
@@ -1068,7 +1179,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: BOARD_COLORS[3],
+      color: playerColors[3] ?? DEFAULT_PLAYER_COLORS[3],
       vertices: new Float32Array([
         -half,
         0,
@@ -1097,13 +1208,59 @@ function addCenterHome(scene) {
     mesh.position.y = baseHeight + 0.0006;
     mesh.receiveShadow = true;
     scene.add(mesh);
+    overlayMeshes.push(mesh);
   });
+
+  const armMaterial = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.65, metalness: 0.12 });
+  const armHighlight = new THREE.MeshStandardMaterial({
+    color: adjustHexColor(accentColor, 0.18),
+    roughness: 0.62,
+    metalness: 0.18
+  });
+
+  const createArmOverlay = (color, x, z, width, depth) => {
+    const mat = new THREE.MeshStandardMaterial({
+      color,
+      roughness: 0.68,
+      metalness: 0.08
+    });
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), mat);
+    plane.rotation.x = -Math.PI / 2;
+    plane.position.set(x, baseHeight + 0.0008, z);
+    plane.receiveShadow = true;
+    scene.add(plane);
+    overlayMeshes.push(plane);
+  };
+
+  const armOffset = LUDO_TILE * 2.5;
+  const armWidth = LUDO_TILE * 2;
+  const armDepth = LUDO_TILE;
+  createArmOverlay(playerColors[0] ?? DEFAULT_PLAYER_COLORS[0], armOffset, 0, armWidth, armDepth);
+  createArmOverlay(playerColors[2] ?? DEFAULT_PLAYER_COLORS[2], -armOffset, 0, armWidth, armDepth);
+  createArmOverlay(playerColors[1] ?? DEFAULT_PLAYER_COLORS[1], 0, -armOffset, armDepth, armWidth);
+  createArmOverlay(playerColors[3] ?? DEFAULT_PLAYER_COLORS[3], 0, armOffset, armDepth, armWidth);
+
+  const accentRing = new THREE.Mesh(new THREE.RingGeometry(size * 0.45, size * 0.55, 48), armMaterial);
+  accentRing.rotation.x = -Math.PI / 2;
+  accentRing.position.set(0, baseHeight + 0.0004, 0);
+  accentRing.receiveShadow = true;
+  scene.add(accentRing);
+  overlayMeshes.push(accentRing);
+
+  const highlightRing = new THREE.Mesh(new THREE.RingGeometry(size * 0.38, size * 0.4, 48), armHighlight);
+  highlightRing.rotation.x = -Math.PI / 2;
+  highlightRing.position.set(0, baseHeight + 0.0005, 0);
+  scene.add(highlightRing);
+  overlayMeshes.push(highlightRing);
 
   const homeLabel = createHomeLabelMesh(LUDO_TILE * 1.2);
   if (homeLabel) {
     homeLabel.position.set(0, baseHeight + 0.001, 0);
     scene.add(homeLabel);
+    overlayMeshes.push(homeLabel);
   }
+
+  return { baseGroup, overlays: overlayMeshes, baseMaterial, armMaterial, highlightMaterial: armHighlight };
 }
 
 function getArrowAngle(dx, dz) {
@@ -1121,10 +1278,14 @@ function getTrackDirectionAngle(index) {
   return getArrowAngle(dx, dz);
 }
 
-function addBoardMarkers(scene, cellToWorld) {
-  if (typeof document === 'undefined') return;
+function addBoardMarkers(scene, cellToWorld, playerColors = DEFAULT_PLAYER_COLORS, palette = {}) {
+  if (typeof document === 'undefined') return null;
   const group = new THREE.Group();
   scene.add(group);
+
+  const startMarkers = [];
+  const safeStarMeshes = [];
+  const homeArrows = [];
 
   const safeKeyToPlayer = new Map();
   PLAYER_START_INDEX.forEach((startIndex, playerIdx) => {
@@ -1141,14 +1302,10 @@ function addBoardMarkers(scene, cellToWorld) {
     const safeOwner = safeKeyToPlayer.get(key);
     const position = cellToWorld(r, c).clone();
     const angle = getTrackDirectionAngle(index);
-    const baseColor =
-      startOwner != null
-        ? PLAYER_COLORS[startOwner]
-        : safeOwner != null
-        ? PLAYER_COLORS[safeOwner]
-        : '#0f172a';
-    const isStartTile = startOwner != null;
-    if (!isStartTile) {
+    const startColor = startOwner != null ? playerColors[startOwner] ?? DEFAULT_PLAYER_COLORS[startOwner] : null;
+    const safeColor = safeOwner != null ? playerColors[safeOwner] ?? DEFAULT_PLAYER_COLORS[safeOwner] : null;
+    const baseColor = startColor ?? safeColor ?? palette.trackBase ?? '#0f172a';
+    if (startOwner == null) {
       return;
     }
     const marker = createMarkerMesh({
@@ -1162,7 +1319,10 @@ function addBoardMarkers(scene, cellToWorld) {
       textColor: resolveColorStyle(baseColor),
       arrowColor: baseColor
     });
-    if (marker) group.add(marker);
+    if (marker) {
+      group.add(marker);
+      startMarkers.push(marker);
+    }
   });
 
   PLAYER_START_INDEX.forEach((startIndex, playerIdx) => {
@@ -1170,12 +1330,14 @@ function addBoardMarkers(scene, cellToWorld) {
     const [safeR, safeC] = TRACK_COORDS[safeIndex];
     const safePosition = cellToWorld(safeR, safeC).clone();
     const star = createStarMarkerMesh({
-      color: PLAYER_COLORS[playerIdx],
+      color: playerColors[playerIdx] ?? DEFAULT_PLAYER_COLORS[playerIdx],
       position: safePosition,
       size: LUDO_TILE * 0.88
     });
-    if (star) group.add(star);
-
+    if (star) {
+      group.add(star);
+      safeStarMeshes.push(star);
+    }
   });
 
   HOME_COLUMN_COORDS.forEach((coords, playerIdx) => {
@@ -1186,19 +1348,25 @@ function addBoardMarkers(scene, cellToWorld) {
       if (isHorizontal) {
         arrowAngle = -arrowAngle;
       }
+      const arrowColor = playerColors[playerIdx] ?? DEFAULT_PLAYER_COLORS[playerIdx];
       const arrowMarker = createMarkerMesh({
         label: '',
-        color: PLAYER_COLORS[playerIdx],
+        color: arrowColor,
         position: homePos,
         angle: arrowAngle,
         size: LUDO_TILE * 0.88,
         arrow: true,
         backgroundColor: 'transparent',
-        arrowColor: PLAYER_COLORS[playerIdx]
+        arrowColor: arrowColor
       });
-      if (arrowMarker) group.add(arrowMarker);
+      if (arrowMarker) {
+        group.add(arrowMarker);
+        homeArrows.push(arrowMarker);
+      }
     });
   });
+
+  return { group, startMarkers, safeStarMeshes, homeArrows };
 }
 
 function setDiceOrientation(dice, val) {
@@ -1387,6 +1555,26 @@ function createTokenTexture(color) {
   return texture;
 }
 
+function decorateBoardTile(mesh) {
+  if (!mesh) return;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  const mat = mesh.material;
+  const baseEmissive = mat?.emissive?.clone?.() ?? new THREE.Color(0x000000);
+  const baseIntensity = mat?.emissiveIntensity ?? 0;
+  const baseColor = mat?.color?.clone?.() ?? new THREE.Color(0xffffff);
+  const highlightEmissive = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.6);
+  mesh.userData = {
+    ...mesh.userData,
+    boardTile: {
+      baseEmissive,
+      baseIntensity,
+      highlightEmissive,
+      highlightIntensity: Math.max(baseIntensity + 0.7, 0.75)
+    }
+  };
+}
+
 function makeTokenMaterial(color) {
   const tone = new THREE.Color(color);
   const texture = createTokenTexture(tone);
@@ -1471,6 +1659,138 @@ function makeRook(mat) {
 
   g.add(base, body, collar, crownBase, crownTop, finial);
   return g;
+}
+
+function makeBishop(mat) {
+  const g = new THREE.Group();
+  const accent = mat.clone();
+  if (accent.color) {
+    accent.color = accent.color.clone().lerp(new THREE.Color(0xffffff), 0.24);
+  }
+  accent.metalness = Math.min(0.6, (accent.metalness ?? 0.2) + 0.25);
+  accent.roughness = Math.max(0.16, (accent.roughness ?? 0.32) - 0.1);
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.034, 0.02, 48), mat);
+  base.position.y = 0.01;
+  base.castShadow = true;
+  base.receiveShadow = true;
+
+  const taper = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.03, 48), mat);
+  taper.position.y = 0.03;
+  taper.castShadow = true;
+  taper.receiveShadow = true;
+
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.019, 48, 32), mat);
+  body.scale.set(1, 1.3, 1);
+  body.position.y = 0.055;
+  body.castShadow = true;
+  body.receiveShadow = true;
+
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.0026, 18, 48), accent);
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = 0.048;
+  collar.castShadow = true;
+  collar.receiveShadow = true;
+
+  const mitre = new THREE.Mesh(new THREE.SphereGeometry(0.016, 32, 24), accent);
+  mitre.scale.set(0.92, 1.35, 0.92);
+  mitre.position.y = 0.078;
+  mitre.castShadow = true;
+  mitre.receiveShadow = true;
+
+  const slit = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.0024, 0.009), new THREE.MeshBasicMaterial({ color: '#101010' }));
+  slit.position.y = mitre.position.y;
+  slit.renderOrder = 40;
+
+  const finial = new THREE.Mesh(new THREE.SphereGeometry(0.005, 24, 18), accent.clone());
+  finial.position.y = 0.097;
+  finial.castShadow = true;
+  finial.receiveShadow = true;
+
+  const label = createTokenCountLabel();
+  if (label) {
+    g.add(label);
+    g.userData.countLabel = label;
+  }
+  const tokenColorHex = mat?.color?.getHexString?.();
+  if (tokenColorHex) {
+    g.userData.tokenColor = `#${tokenColorHex}`;
+  }
+
+  g.add(base, taper, collar, body, mitre, slit, finial);
+  return g;
+}
+
+function makeKnight(mat) {
+  const g = new THREE.Group();
+  const accent = mat.clone();
+  if (accent.color) {
+    accent.color = accent.color.clone().lerp(new THREE.Color(0xffffff), 0.18);
+  }
+  accent.metalness = Math.min(0.55, (accent.metalness ?? 0.2) + 0.18);
+  accent.roughness = Math.max(0.15, (accent.roughness ?? 0.32) - 0.08);
+
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.035, 0.02, 48), mat);
+  base.position.y = 0.01;
+  base.castShadow = true;
+  base.receiveShadow = true;
+
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.028, 0.028, 32), mat);
+  body.position.y = 0.034;
+  body.castShadow = true;
+  body.receiveShadow = true;
+
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.017, 0.018, 32), accent);
+  neck.position.y = 0.052;
+  neck.castShadow = true;
+  neck.receiveShadow = true;
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.04, 0.02), mat);
+  head.position.set(0.01, 0.082, 0);
+  head.rotation.y = THREE.MathUtils.degToRad(20);
+  head.castShadow = true;
+  head.receiveShadow = true;
+
+  const snout = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, 0.028, 24), mat);
+  snout.position.set(0.032, 0.09, 0);
+  snout.rotation.z = THREE.MathUtils.degToRad(90);
+  snout.castShadow = true;
+  snout.receiveShadow = true;
+
+  const mane = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.05, 0.024), accent);
+  mane.position.set(-0.01, 0.082, 0);
+  mane.castShadow = true;
+  mane.receiveShadow = true;
+
+  const eyeMaterial = new THREE.MeshBasicMaterial({ color: '#111827' });
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.004, 16, 12), eyeMaterial);
+  eye.position.set(0.02, 0.09, 0.01);
+
+  const label = createTokenCountLabel();
+  if (label) {
+    g.add(label);
+    g.userData.countLabel = label;
+  }
+  const tokenColorHex = mat?.color?.getHexString?.();
+  if (tokenColorHex) {
+    g.userData.tokenColor = `#${tokenColorHex}`;
+  }
+
+  g.add(base, body, neck, head, snout, mane, eye);
+  return g;
+}
+
+function createTokenByStyle(styleOption, material) {
+  const builder = styleOption?.builder;
+  switch (builder) {
+    case 'bishop':
+      return makeBishop(material);
+    case 'knight':
+      return makeKnight(material);
+    case 'rook':
+    default:
+      return makeRook(material);
+  }
 }
 
 function ease(t) {
@@ -1589,9 +1909,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     turnCycle: 0
   });
 
-  const playerColorsHex = useMemo(
-    () => PLAYER_COLORS.map((value) => colorNumberToHex(value)),
-    []
+  const [playerColorsHex, setPlayerColorsHex] = useState(() =>
+    DEFAULT_PLAYER_COLORS.map((value) => colorNumberToHex(value))
   );
 
   const aiFlags = useMemo(() => {
@@ -1886,6 +2205,66 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
           </div>
         );
       }
+      case 'boardPalette': {
+        const colors = option?.playerColors ?? DEFAULT_PLAYER_COLORS;
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 grid grid-cols-4">
+              {colors.map((value, idx) => (
+                <div
+                  key={`palette-color-${option.id}-${idx}`}
+                  style={{ backgroundColor: `#${value.toString(16).padStart(6, '0')}` }}
+                />
+              ))}
+            </div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] uppercase tracking-wide text-white/80">
+                Lux Palette
+              </span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/60" />
+          </div>
+        );
+      }
+      case 'tokenStyle':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-sm font-semibold tracking-wide text-white/80">
+                {option.label.split(' ')[1] || option.label}
+              </span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/50" />
+          </div>
+        );
+      case 'diceStyle': {
+        const accent = adjustHexColor(option.bodyColor, -0.2);
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div
+                className="h-10 w-10 rotate-45 rounded-lg border border-white/10 shadow-inner"
+                style={{
+                  background: `linear-gradient(135deg, ${option.bodyColor}, ${accent})`,
+                  boxShadow: 'inset 0 0 12px rgba(0,0,0,0.35)'
+                }}
+              />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/50" />
+          </div>
+        );
+      }
+      case 'cameraStyle':
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-[0.6rem] font-semibold uppercase tracking-[0.3em] text-sky-200/80">
+                POV
+              </span>
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-400/20 via-transparent to-black/60" />
+          </div>
+        );
       default:
         return null;
     }
@@ -1959,7 +2338,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       ? indicator.material[0]
       : indicator.material;
     if (!material) return;
-    const color = new THREE.Color(PLAYER_COLORS[player]);
+    const paletteColors = stateRef.current?.playerColors ?? DEFAULT_PLAYER_COLORS;
+    const colorValue = paletteColors[player] ?? DEFAULT_PLAYER_COLORS[player];
+    const color = new THREE.Color(colorValue);
     material.color.set(color);
     if (material.emissive) {
       material.emissive.set(color.clone().multiplyScalar(0.3));
@@ -2202,6 +2583,121 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       applyRailLayout();
     }, [applyRailLayout]);
 
+  const refreshBoardAssets = useCallback(
+    ({ paletteOption, tokenStyleOption, diceStyleOption }) => {
+      const arena = arenaRef.current;
+      const prevState = stateRef.current;
+      if (!arena || !prevState || !arena.boardGroup) return;
+
+      const boardGroup = arena.boardGroup;
+      while (boardGroup.children.length) {
+        const child = boardGroup.children.pop();
+        if (child) {
+          boardGroup.remove(child);
+        }
+      }
+
+      const boardData = buildLudoBoard(boardGroup, {
+        palette: paletteOption,
+        tokenStyle: tokenStyleOption,
+        diceStyle: diceStyleOption
+      });
+
+      diceRef.current = boardData.dice;
+      turnIndicatorRef.current = boardData.turnIndicator;
+      configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs: arena.chairs, tableInfo: arena.tableInfo });
+
+      const rawProgress = prevState.progress?.map((row) => row.slice()) ??
+        Array.from({ length: DEFAULT_PLAYER_COUNT }, () => Array(4).fill(-1));
+      const progress = rawProgress.map((row) =>
+        row.map((value) => {
+          if (!Number.isFinite(value) || value < 0) return -1;
+          if (value > GOAL_PROGRESS) return GOAL_PROGRESS;
+          return value;
+        })
+      );
+      const turn = prevState.turn ?? 0;
+      const winner = prevState.winner ?? null;
+
+      stateRef.current = {
+        ...prevState,
+        paths: boardData.paths,
+        startPads: boardData.startPads,
+        homeColumns: boardData.homeColumns,
+        goalSlots: boardData.goalSlots,
+        tokens: boardData.tokens,
+        turnIndicator: boardData.turnIndicator,
+        trackTiles: boardData.trackTiles,
+        homeColumnTiles: boardData.homeColumnTiles,
+        playerColors: boardData.playerColors,
+        palette: boardData.palette,
+        centerHome: boardData.centerHome,
+        markers: boardData.markers,
+        progress,
+        turn,
+        winner,
+        animation: null
+      };
+
+      setPlayerColorsHex(
+        boardData.playerColors.map((value, idx) =>
+          colorNumberToHex(value ?? DEFAULT_PLAYER_COLORS[idx] ?? DEFAULT_PLAYER_COLORS[0])
+        )
+      );
+
+      for (let player = 0; player < DEFAULT_PLAYER_COUNT; player += 1) {
+        for (let tokenIndex = 0; tokenIndex < 4; tokenIndex += 1) {
+          const token = boardData.tokens[player]?.[tokenIndex];
+          if (!token) continue;
+          const progressValue = progress[player]?.[tokenIndex] ?? -1;
+          let targetPosition;
+          if (progressValue < 0) {
+            targetPosition = boardData.startPads[player][tokenIndex].clone();
+            targetPosition.y = getTokenRailHeight(player);
+          } else {
+            const safeProgress = Math.min(progressValue, GOAL_PROGRESS);
+            targetPosition = getWorldForProgress(player, safeProgress, tokenIndex);
+          }
+          token.position.copy(targetPosition);
+          token.rotation.set(0, 0, 0);
+        }
+      }
+
+      updateTokenStacks();
+      arena.palette = paletteOption;
+      arena.tokenStyle = tokenStyleOption;
+      arena.diceStyle = diceStyleOption;
+
+      moveDiceToRail(turn, true);
+      updateTurnIndicator(turn, true);
+    },
+    [configureDiceAnchors, moveDiceToRail, updateTokenStacks, updateTurnIndicator]
+  );
+
+  const applyCameraStyle = useCallback((styleOption, immediate = false) => {
+    const arena = arenaRef.current;
+    if (!arena) return;
+    const camera = arena.camera;
+    const controls = arena.controls;
+    const target = arena.boardLookTarget ?? new THREE.Vector3();
+    if (!camera || !controls) return;
+
+    const radius = CAMERA_BASE_RADIUS * (styleOption?.radiusMultiplier ?? 1);
+    const azimuth = Math.PI / 2 + (styleOption?.azimuthOffset ?? 0);
+    const offset = new THREE.Vector3(Math.cos(azimuth) * radius, 0, Math.sin(azimuth) * radius);
+    const height = target.y + (styleOption?.elevation ?? 1.12);
+    const desired = target.clone().add(offset);
+    desired.y = height;
+
+    if (immediate) {
+      camera.position.copy(desired);
+    } else {
+      camera.position.lerp(desired, 0.35);
+    }
+    controls.target.copy(target);
+    controls.update();
+  }, []);
+
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
@@ -2266,6 +2762,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const paletteOption = BOARD_PALETTE_OPTIONS[safe.boardPalette] ?? BOARD_PALETTE_OPTIONS[0];
+    const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const diceStyleOption = DICE_STYLE_OPTIONS[safe.diceStyle] ?? DICE_STYLE_OPTIONS[0];
+    const cameraStyleOption = CAMERA_STYLE_OPTIONS[safe.cameraStyle] ?? CAMERA_STYLE_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, DEFAULT_PLAYER_COUNT);
 
     if (shapeOption) {
@@ -2335,7 +2835,25 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         arena.legMaterial = nextLeg;
       }
     }
-  }, [appearance]);
+
+    const paletteChanged = arena.palette?.id !== paletteOption.id;
+    const tokenStyleChanged = arena.tokenStyle?.id !== tokenStyleOption.id;
+    const diceStyleChanged = arena.diceStyle?.id !== diceStyleOption.id;
+    if (paletteChanged || tokenStyleChanged || diceStyleChanged) {
+      refreshBoardAssets({
+        paletteOption,
+        tokenStyleOption,
+        diceStyleOption
+      });
+    }
+
+    const cameraChanged = arena.cameraStyle?.id !== cameraStyleOption.id;
+    if (cameraChanged) {
+      arena.cameraStyle = cameraStyleOption;
+      applyCameraStyle(cameraStyleOption, true);
+    }
+
+    }, [appearance, applyCameraStyle, configureDiceAnchors, moveDiceToRail, refreshBoardAssets]);
 
   useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
@@ -2456,6 +2974,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const clothOption = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const boardPalette = BOARD_PALETTE_OPTIONS[initialAppearance.boardPalette] ?? BOARD_PALETTE_OPTIONS[0];
+    const tokenStyleOption = TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const diceStyleOption = DICE_STYLE_OPTIONS[initialAppearance.diceStyle] ?? DICE_STYLE_OPTIONS[0];
+    const cameraStyleOption = CAMERA_STYLE_OPTIONS[initialAppearance.cameraStyle] ?? CAMERA_STYLE_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(initialAppearance.tableShape, DEFAULT_PLAYER_COUNT);
 
     const tableInfo = createMurlanStyleTable({
@@ -2581,7 +3103,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       chairs.push({ group, anchor: avatarAnchor, meshes: [seatMesh, backMesh, ...armMeshes], legMesh: legBase });
     }
 
-    const boardData = buildLudoBoard(boardGroup);
+    const boardData = buildLudoBoard(boardGroup, {
+      palette: boardPalette,
+      tokenStyle: tokenStyleOption,
+      diceStyle: diceStyleOption
+    });
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -2597,11 +3123,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       turnIndicator: boardData.turnIndicator,
       trackTiles: boardData.trackTiles,
       homeColumnTiles: boardData.homeColumnTiles,
+      playerColors: boardData.playerColors,
+      palette: boardData.palette,
+      centerHome: boardData.centerHome,
+      markers: boardData.markers,
       progress: Array.from({ length: 4 }, () => Array(4).fill(-1)),
       turn: 0,
       winner: null,
       animation: null
     };
+
+    setPlayerColorsHex(
+      boardData.playerColors.map((value, idx) =>
+        colorNumberToHex(value ?? DEFAULT_PLAYER_COLORS[idx] ?? DEFAULT_PLAYER_COLORS[0])
+      )
+    );
 
     updateTokenStacks();
 
@@ -2623,8 +3159,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       chairMaterial,
       legMaterial,
       chairs,
-      seatAnchors: chairs.map((chair) => chair.anchor)
+      seatAnchors: chairs.map((chair) => chair.anchor),
+      palette: boardPalette,
+      tokenStyle: tokenStyleOption,
+      diceStyle: diceStyleOption,
+      cameraStyle: cameraStyleOption
     };
+
+    applyCameraStyle(cameraStyleOption, true);
 
     const attemptDiceRoll = (clientX, clientY) => {
       const dice = diceRef.current;
@@ -3671,7 +4213,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   );
 }
 
-function buildLudoBoard(boardGroup) {
+function buildLudoBoard(boardGroup, { palette, tokenStyle, diceStyle } = {}) {
   const scene = boardGroup;
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
@@ -3679,25 +4221,16 @@ function buildLudoBoard(boardGroup) {
     new Array(HOME_STEPS).fill(null)
   );
 
-  const registerTile = (mesh) => {
-    if (!mesh) return;
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    const mat = mesh.material;
-    const baseEmissive = mat?.emissive?.clone?.() ?? new THREE.Color(0x000000);
-    const baseIntensity = mat?.emissiveIntensity ?? 0;
-    const baseColor = mat?.color?.clone?.() ?? new THREE.Color(0xffffff);
-    const highlightEmissive = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.6);
-    mesh.userData = {
-      ...mesh.userData,
-      boardTile: {
-        baseEmissive,
-        baseIntensity,
-        highlightEmissive,
-        highlightIntensity: Math.max(baseIntensity + 0.7, 0.75)
-      }
-    };
-  };
+  const playerColors = Array.isArray(palette?.playerColors)
+    ? palette.playerColors.map((value, idx) => value ?? DEFAULT_PLAYER_COLORS[idx])
+    : DEFAULT_PLAYER_COLORS;
+  const trackBase = palette?.track?.base ?? 0xfef9ef;
+  const trackAccent = palette?.track?.accent ?? '#fbbf24';
+  const safeBase = palette?.safe?.base ?? 0xf4e3bd;
+  const safeAccent = palette?.safe?.accent ?? '#f59e0b';
+  const centerPalette = palette?.center ?? { base: '#ffffff', accent: '#b91c1c' };
+  const tokenStyleOption = tokenStyle ?? TOKEN_STYLE_OPTIONS[0];
+  const diceStyleOption = diceStyle ?? DICE_STYLE_OPTIONS[0];
 
   const half = (LUDO_GRID * LUDO_TILE) / 2;
   const cellToWorld = (r, c) => {
@@ -3743,11 +4276,11 @@ function buildLudoBoard(boardGroup) {
         continue;
       }
       if (columnIndex !== -1) {
-        const baseColor = PLAYER_COLORS[columnIndex];
+        const baseColor = playerColors[columnIndex] ?? DEFAULT_PLAYER_COLORS[columnIndex];
         const accent = adjustHexColor(colorNumberToHex(baseColor), 0.2);
         const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
         mesh.position.copy(pos);
-        registerTile(mesh);
+        decorateBoardTile(mesh);
         const stepIndex = HOME_COLUMN_KEY_TO_STEP.get(key);
         if (stepIndex != null) {
           homeColumnTiles[columnIndex][stepIndex] = mesh;
@@ -3757,11 +4290,11 @@ function buildLudoBoard(boardGroup) {
       }
       if (TRACK_KEY_SET.has(key)) {
         const isSafe = SAFE_TRACK_KEY_SET.has(key);
-        const baseColor = isSafe ? 0xf4e3bd : 0xfef9ef;
-        const accent = isSafe ? '#f59e0b' : '#fbbf24';
+        const baseColor = isSafe ? safeBase : trackBase;
+        const accent = isSafe ? safeAccent : trackAccent;
         const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
         mesh.position.copy(pos);
-        registerTile(mesh);
+        decorateBoardTile(mesh);
         const trackIndex = TRACK_INDEX_BY_KEY.get(key);
         if (trackIndex != null) {
           trackTileMeshes[trackIndex] = mesh;
@@ -3775,32 +4308,37 @@ function buildLudoBoard(boardGroup) {
     }
   }
 
-  addCenterHome(scene);
-  addBoardMarkers(scene, cellToWorld);
+  const centerHome = addCenterHome(scene, { playerColors, centerPalette });
+  const markers = addBoardMarkers(scene, cellToWorld, playerColors, {
+    trackBase,
+    safeBase,
+    safeAccent
+  });
 
-  const tokens = TOKEN_COLORS.map((color, playerIdx) => {
+  const tokens = playerColors.map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
-      const rook = makeRook(makeTokenMaterial(color));
-      rook.userData = {
-        ...(rook.userData || {}),
+      const material = makeTokenMaterial(color);
+      const tokenGroup = createTokenByStyle(tokenStyleOption, material);
+      tokenGroup.userData = {
+        ...(tokenGroup.userData || {}),
         playerIndex: playerIdx,
         tokenIndex: i
       };
-      rook.traverse((node) => {
+      tokenGroup.traverse((node) => {
         if (!node.userData) node.userData = {};
-        node.userData.tokenGroup = rook;
+        node.userData.tokenGroup = tokenGroup;
         node.userData.playerIndex = playerIdx;
         node.userData.tokenIndex = i;
       });
       const homePos = startPads[playerIdx][i].clone();
       homePos.y = getTokenRailHeight(playerIdx);
-      rook.position.copy(homePos);
-      scene.add(rook);
-      return rook;
+      tokenGroup.position.copy(homePos);
+      scene.add(tokenGroup);
+      return tokenGroup;
     });
   });
 
-  const dice = makeDice();
+  const dice = makeDice(diceStyleOption);
   dice.userData.homeLandingTargets = diceRollTargets.map((target) => target.clone());
   dice.userData.rollTargets = diceRollTargets.map((target) => target.clone());
   const clothHalf = BOARD_CLOTH_HALF;
@@ -3835,9 +4373,10 @@ function buildLudoBoard(boardGroup) {
     target: diceLightTarget
   };
 
+  const firstColor = playerColors[0] ?? DEFAULT_PLAYER_COLORS[0];
   const indicatorMat = new THREE.MeshStandardMaterial({
-    color: PLAYER_COLORS[0],
-    emissive: new THREE.Color(PLAYER_COLORS[0]).multiplyScalar(0.3),
+    color: firstColor,
+    emissive: new THREE.Color(firstColor).multiplyScalar(0.3),
     emissiveIntensity: 0.9,
     metalness: 0.45,
     roughness: 0.35,
@@ -3860,7 +4399,11 @@ function buildLudoBoard(boardGroup) {
     dice,
     turnIndicator,
     trackTiles: trackTileMeshes,
-    homeColumnTiles
+    homeColumnTiles,
+    playerColors,
+    palette: { id: palette?.id ?? 'default', trackBase, trackAccent, safeBase, safeAccent, center: centerPalette },
+    centerHome,
+    markers
   };
 }
 
