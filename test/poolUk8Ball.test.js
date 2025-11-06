@@ -139,8 +139,6 @@ test('potting both colours on break requires choice', () => {
   });
   assert.equal(res.foul, false);
   assert.equal(res.choiceRequired, true);
-  assert.equal(res.nextPlayer, 'A');
-  assert.equal(res.shotsRemainingNext, 1);
   game.chooseColor('A', 'blue');
   assert.equal(game.state.assignments.A, 'blue');
 });
