@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
 import { createArenaCarpetMaterial, createArenaWallMaterial } from "../utils/arenaDecor.js";
 import { applySRGBColorSpace } from "../utils/colorSpace.js";
@@ -18,15 +18,35 @@ export default function TableTennis3D({ player, ai }){
   const hostRef = useRef(null);
   const raf = useRef(0);
 
-  const [ui, setUi] = useState({
+  const playerLabel = player?.name || 'You';
+  const aiLabel = ai?.name || 'AI';
+  const initialServer = useMemo(() => (Math.random() < 0.5 ? 'P' : 'O'), []);
+  const createUiState = (serving = initialServer) => ({
     pScore: 0,
     oScore: 0,
-    serving: 'P', // P or O
-    msg: 'Drag to move',
+    serving,
+    msg: `${serving === 'P' ? playerLabel : aiLabel} to serve`,
     gameOver: false,
+    winner: null,
   });
+
+  const [ui, setUi] = useState(() => createUiState());
+  const [resetKey, setResetKey] = useState(0);
   const uiRef = useRef(ui);
   useEffect(() => { uiRef.current = ui; }, [ui]);
+
+  const difficulty = useMemo(() => {
+    const tag = (ai?.difficulty || ai?.level || 'pro').toString().toLowerCase();
+    const presets = {
+      easy:   { speed: 3.1, vertical: 2.3, react: 0.055 },
+      medium: { speed: 3.6, vertical: 2.7, react: 0.042 },
+      normal: { speed: 3.6, vertical: 2.7, react: 0.042 },
+      pro:    { speed: 4.1, vertical: 3.1, react: 0.028 },
+      hard:   { speed: 4.1, vertical: 3.1, react: 0.028 },
+      legend: { speed: 4.5, vertical: 3.4, react: 0.022 },
+    };
+    return presets[tag] || presets.pro;
+  }, [ai?.difficulty, ai?.level]);
 
   useEffect(()=>{
     const host = hostRef.current; if (!host) return;
@@ -39,6 +59,8 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Renderer ----------
     const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
     renderer.setPixelRatio(Math.min(2.5, window.devicePixelRatio||1));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.85;
     // Disable real-time shadow mapping to avoid dark artifacts on the
     // arena walls and table surface. Shadow maps from the multiple
     // spotlights were causing the entire scene to appear black in some
@@ -459,6 +481,12 @@ export default function TableTennis3D({ player, ai }){
       }
       ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
       ballShadow.scale.set(1, 1, 1);
+      setUi(prev => ({
+        ...prev,
+        msg: `${side === 'P' ? playerLabel : aiLabel} to serve`,
+        gameOver: false,
+        winner: null,
+      }));
     }
 
     // ---------- Input: Drag to move (player) ----------
@@ -593,9 +621,12 @@ export default function TableTennis3D({ player, ai }){
 
     // ---------- AI ----------
     const AI = {
-      speed: 4.1,
-      vertical: 3.1,
-      react: 0.028,
+      baseSpeed: difficulty.speed,
+      baseVertical: difficulty.vertical,
+      baseReact: difficulty.react,
+      speed: difficulty.speed,
+      vertical: difficulty.vertical,
+      react: difficulty.react,
       targetX: 0,
       targetZ: oppBaseZ,
       timer: 0,
@@ -640,6 +671,17 @@ export default function TableTennis3D({ player, ai }){
     }
 
     function stepAI(dt){
+      const scoreboard = uiRef.current;
+      const diff = scoreboard.oScore - scoreboard.pScore;
+      const pressure = THREE.MathUtils.clamp(diff / 6, -0.8, 0.8);
+      const targetSpeed = AI.baseSpeed + pressure * 1.1;
+      const targetVertical = AI.baseVertical + pressure * 0.7;
+      const targetReact = AI.baseReact - pressure * 0.012;
+      AI.speed += (targetSpeed - AI.speed) * 0.18;
+      AI.vertical += (targetVertical - AI.vertical) * 0.18;
+      AI.react += (targetReact - AI.react) * 0.22;
+      AI.react = THREE.MathUtils.clamp(AI.react, 0.018, 0.08);
+
       AI.timer -= dt;
       const baseZ = oppBaseZ - 0.015;
       if (AI.timer <= 0){
@@ -801,7 +843,15 @@ export default function TableTennis3D({ player, ai }){
       const currentServer = state.serving;
       const nextServing = shouldSwap ? (currentServer === 'P' ? 'O' : 'P') : currentServer;
       const gameOver = (newP >= 11 || newO >= 11) && Math.abs(newP - newO) >= 2;
-      const statusMsg = gameOver ? 'Game Over — Tap Reset' : 'Drag to move';
+      const leader = newP === newO ? null : (newP > newO ? 'P' : 'O');
+      let statusMsg = 'Drag to move';
+      if (gameOver){
+        const winnerLabel = winner === 'P' ? playerLabel : aiLabel;
+        statusMsg = `${winnerLabel} wins — Tap Reset`;
+      } else if (deuce && Math.abs(newP - newO) === 1){
+        const edgeLabel = leader === 'P' ? playerLabel : aiLabel;
+        statusMsg = `${edgeLabel} has game point`;
+      }
 
       setUi({
         pScore: newP,
@@ -809,6 +859,7 @@ export default function TableTennis3D({ player, ai }){
         serving: nextServing,
         msg: statusMsg,
         gameOver,
+        winner: gameOver ? winner : null,
       });
 
       Sx.state = 'dead';
@@ -981,19 +1032,35 @@ export default function TableTennis3D({ player, ai }){
       renderer.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ui.serving, ui.gameOver]);
+  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey]);
 
-  const resetAll = ()=> window.location.reload();
+  const resetAll = ()=>{
+    const next = Math.random() < 0.5 ? 'P' : 'O';
+    setUi(createUiState(next));
+    setResetKey(k => k + 1);
+  };
 
   return (
     <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
       {/* HUD */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 rounded px-2 py-1 whitespace-nowrap">
-        {(player?.name || 'You')} {ui.pScore} : {ui.oScore} {(ai?.name || 'AI')} • Serve: {ui.serving==='P'?(player?.name || 'You'):(ai?.name || 'AI')} — {ui.msg}
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 backdrop-blur rounded px-3 py-2 flex flex-col items-center gap-[2px] text-center min-w-[220px]">
+        <div className="font-semibold">{playerLabel} {ui.pScore} : {ui.oScore} {aiLabel}</div>
+        <div className="text-[10px] sm:text-[11px]">
+          {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
+        </div>
+        <div className="text-[10px] sm:text-[11px] opacity-80">{ui.msg}</div>
       </div>
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
-        <button onClick={resetAll} className="text-white text-[11px] bg-white/10 hover:bg-white/20 rounded px-2 py-1">Reset</button>
-      </div>
+      {!ui.gameOver && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
+          <button onClick={resetAll} className="text-white text-[11px] bg-white/10 hover:bg-white/20 rounded px-2 py-1">Reset</button>
+        </div>
+      )}
+      {ui.gameOver && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <p className="text-white text-sm sm:text-base font-semibold">{ui.winner === 'P' ? playerLabel : aiLabel} takes the game!</p>
+          <button onClick={resetAll} className="text-white text-sm bg-rose-500/80 hover:bg-rose-500 rounded-full px-5 py-2 shadow-lg">Play Again</button>
+        </div>
+      )}
     </div>
   );
 }
