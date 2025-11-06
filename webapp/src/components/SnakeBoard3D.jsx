@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
@@ -113,11 +113,11 @@ const CAM = {
 
 const TILE_COLOR_A = new THREE.Color(0xe7e2d3);
 const TILE_COLOR_B = new THREE.Color(0x776a5a);
-const HIGHLIGHT_COLORS = {
+const DEFAULT_HIGHLIGHT_COLORS = Object.freeze({
   normal: new THREE.Color(0xf59e0b),
   snake: new THREE.Color(0xdc2626),
   ladder: new THREE.Color(0x22c55e)
-};
+});
 
 const PYRAMID_CONCRETE_LIGHT = new THREE.Color('#e7e5e4');
 const PYRAMID_CONCRETE_SHADOW = new THREE.Color('#a8a29e');
@@ -259,6 +259,27 @@ const DICE_SEAT_ADJUSTMENTS = [
 
 const DEFAULT_COLORS = ['#f97316', '#22d3ee', '#22c55e', '#a855f7'];
 
+const toThreeColor = (value, fallback) => {
+  if (value instanceof THREE.Color) return value.clone();
+  try {
+    if (typeof value === 'string' || typeof value === 'number') {
+      return new THREE.Color(value);
+    }
+  } catch {}
+  if (fallback instanceof THREE.Color) return fallback.clone();
+  try {
+    return new THREE.Color(fallback ?? '#ffffff');
+  } catch {
+    return new THREE.Color('#ffffff');
+  }
+};
+
+const createHighlightColors = (boardTheme = {}) => ({
+  normal: toThreeColor(boardTheme.highlightNormal, DEFAULT_HIGHLIGHT_COLORS.normal),
+  snake: toThreeColor(boardTheme.highlightSnake, DEFAULT_HIGHLIGHT_COLORS.snake),
+  ladder: toThreeColor(boardTheme.highlightLadder, DEFAULT_HIGHLIGHT_COLORS.ladder)
+});
+
 const LADDER_BASE_LIFT = TILE_SIZE * 0.32;
 const LADDER_ARCH_BASE = TILE_SIZE * 0.96;
 const LADDER_ARCH_SCALE = TILE_SIZE * 0.0125;
@@ -342,11 +363,12 @@ function addChromeRailings(
     entrySide = 'front',
     addNet = false
   },
-  meshes
+  meshes,
+  theme = {}
 ) {
   const created = [];
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0xf3f4f6,
+    color: toThreeColor(theme.metal, 0xf3f4f6),
     metalness: 1,
     roughness: 0.18,
     clearcoat: 0.35,
@@ -440,7 +462,10 @@ function addChromeRailings(
     const length = Math.abs(endCoord - startCoord);
     const height = Math.max(0, upperY - topY);
     if (length < 1e-4 || height < 1e-4) return;
-    const net = new THREE.Mesh(new THREE.PlaneGeometry(length, height), createRailNetMaterial());
+    const net = new THREE.Mesh(
+      new THREE.PlaneGeometry(length, height),
+      createRailNetMaterial(theme)
+    );
     net.castShadow = false;
     net.receiveShadow = false;
     net.position.y = topY + height / 2;
@@ -964,13 +989,13 @@ function setDiceOrientation(dice, val, quaternion) {
   return q;
 }
 
-function makeDice() {
+function makeDice(theme = {}) {
   const dice = new THREE.Group();
 
-  const dieMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    metalness: 0.25,
-    roughness: 0.35,
+  const bodyMaterial = new THREE.MeshPhysicalMaterial({
+    color: toThreeColor(theme.body, '#ffffff'),
+    metalness: Number.isFinite(theme.bodyMetalness) ? theme.bodyMetalness : 0.25,
+    roughness: Number.isFinite(theme.bodyRoughness) ? theme.bodyRoughness : 0.35,
     clearcoat: 1,
     clearcoatRoughness: 0.15,
     reflectivity: 0.75,
@@ -978,17 +1003,19 @@ function makeDice() {
   });
 
   const pipMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x0a0a0a,
-    roughness: 0.05,
-    metalness: 0.6,
+    color: toThreeColor(theme.pip, '#0a0a0a'),
+    roughness: Number.isFinite(theme.pipRoughness) ? theme.pipRoughness : 0.05,
+    metalness: Number.isFinite(theme.pipMetalness) ? theme.pipMetalness : 0.6,
     clearcoat: 0.9,
     clearcoatRoughness: 0.04,
-    envMapIntensity: 1.1
+    envMapIntensity: 1.1,
+    emissive: toThreeColor(theme.pipEmissive, '#0f172a'),
+    emissiveIntensity: 0.35
   });
 
-  const pipRimMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xffd700,
-    emissive: 0x3a2a00,
+  const rimMaterial = new THREE.MeshPhysicalMaterial({
+    color: toThreeColor(theme.rim, '#ffd700'),
+    emissive: toThreeColor(theme.rimEmissive, '#3a2a00'),
     emissiveIntensity: 0.55,
     metalness: 1,
     roughness: 0.18,
@@ -1002,7 +1029,7 @@ function makeDice() {
 
   const body = new THREE.Mesh(
     new RoundedBoxGeometry(DICE_SIZE, DICE_SIZE, DICE_SIZE, 6, DICE_CORNER_RADIUS),
-    dieMaterial
+    bodyMaterial
   );
   body.castShadow = true;
   body.receiveShadow = true;
@@ -1092,7 +1119,7 @@ function makeDice() {
       pip.quaternion.copy(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), n));
       dice.add(pip);
 
-      const rim = new THREE.Mesh(pipRimGeo, pipRimMaterial);
+      const rim = new THREE.Mesh(pipRimGeo, rimMaterial);
       rim.receiveShadow = true;
       rim.renderOrder = 6;
       rim.position.copy(base).addScaledVector(n, DICE_PIP_RIM_OFFSET);
@@ -1100,6 +1127,12 @@ function makeDice() {
       dice.add(rim);
     });
   });
+
+  dice.userData.materials = {
+    body: bodyMaterial,
+    pip: pipMaterial,
+    rim: rimMaterial
+  };
 
   dice.userData.setValue = (val, { immediate = true } = {}) => {
     dice.userData.currentValue = val;
@@ -1446,38 +1479,45 @@ function createTileLabel(number) {
   return mesh;
 }
 
-function createTileMaterialSet(baseColor) {
-  const topColor = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.08);
-  const sideColor = TILE_SIDE_COLOR.clone().lerp(topColor, 0.35);
-  const bottomColor = TILE_BOTTOM_COLOR.clone().lerp(topColor, 0.2);
+function createTileMaterialSet(baseColor, palette = {}) {
+  const topBlend = Number.isFinite(palette.topBlend) ? palette.topBlend : 0.08;
+  const topColor = palette.topColor
+    ? toThreeColor(palette.topColor, baseColor)
+    : baseColor.clone().lerp(new THREE.Color(0xffffff), topBlend);
+  const sideBase = toThreeColor(palette.side, TILE_SIDE_COLOR);
+  const bottomBase = toThreeColor(palette.bottom, TILE_BOTTOM_COLOR);
+  const sideColor = sideBase.clone().lerp(topColor.clone(), Number.isFinite(palette.sideBlend) ? palette.sideBlend : 0.35);
+  const bottomColor = bottomBase
+    .clone()
+    .lerp(topColor.clone(), Number.isFinite(palette.bottomBlend) ? palette.bottomBlend : 0.2);
 
   const topMaterial = new THREE.MeshStandardMaterial({
     color: topColor,
-    roughness: 0.48,
-    metalness: 0.18,
-    emissive: new THREE.Color(0x101321),
-    emissiveIntensity: 0.18,
-    envMapIntensity: 0.45
+    roughness: Number.isFinite(palette.topRoughness) ? palette.topRoughness : 0.48,
+    metalness: Number.isFinite(palette.topMetalness) ? palette.topMetalness : 0.18,
+    emissive: toThreeColor(palette.topEmissive, 0x101321),
+    emissiveIntensity: Number.isFinite(palette.topEmissiveIntensity) ? palette.topEmissiveIntensity : 0.18,
+    envMapIntensity: Number.isFinite(palette.topEnvMapIntensity) ? palette.topEnvMapIntensity : 0.45
   });
   topMaterial.shadowSide = THREE.DoubleSide;
 
   const sideMaterial = new THREE.MeshStandardMaterial({
     color: sideColor,
-    roughness: 0.62,
-    metalness: 0.12,
-    emissive: new THREE.Color(0x080c18),
-    emissiveIntensity: 0.14,
-    envMapIntensity: 0.32
+    roughness: Number.isFinite(palette.sideRoughness) ? palette.sideRoughness : 0.62,
+    metalness: Number.isFinite(palette.sideMetalness) ? palette.sideMetalness : 0.12,
+    emissive: toThreeColor(palette.sideEmissive, 0x080c18),
+    emissiveIntensity: Number.isFinite(palette.sideEmissiveIntensity) ? palette.sideEmissiveIntensity : 0.14,
+    envMapIntensity: Number.isFinite(palette.sideEnvMapIntensity) ? palette.sideEnvMapIntensity : 0.32
   });
   sideMaterial.shadowSide = THREE.FrontSide;
 
   const bottomMaterial = new THREE.MeshStandardMaterial({
     color: bottomColor,
-    roughness: 0.7,
-    metalness: 0.08,
-    emissive: new THREE.Color(0x05070e),
-    emissiveIntensity: 0.1,
-    envMapIntensity: 0.24
+    roughness: Number.isFinite(palette.bottomRoughness) ? palette.bottomRoughness : 0.7,
+    metalness: Number.isFinite(palette.bottomMetalness) ? palette.bottomMetalness : 0.08,
+    emissive: toThreeColor(palette.bottomEmissive, 0x05070e),
+    emissiveIntensity: Number.isFinite(palette.bottomEmissiveIntensity) ? palette.bottomEmissiveIntensity : 0.1,
+    envMapIntensity: Number.isFinite(palette.bottomEnvMapIntensity) ? palette.bottomEnvMapIntensity : 0.24
   });
 
   return {
@@ -1526,37 +1566,50 @@ function applyTileHighlight(tile, color, intensity = 1) {
   }
 }
 
-function makeRailTexture() {
+function makeRailTexture(theme = {}) {
+  const woodLight = theme.woodLight ?? '#b08968';
+  const woodDark = theme.woodDark ?? '#8b5e34';
+  const highlight = theme.woodHighlight ?? 'rgba(255,255,255,0.06)';
   const c = document.createElement('canvas');
   c.width = 128;
   c.height = 64;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#b08968';
+  ctx.fillStyle = woodLight;
   ctx.fillRect(0, 0, 128, 64);
-  ctx.fillStyle = '#8b5e34';
+  ctx.fillStyle = woodDark;
   for (let i = 0; i < 16; i++) {
     ctx.fillRect(0, i * 4 + (i % 2 ? 1 : 0), 128, 2);
   }
-  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.fillStyle = highlight;
   for (let i = 0; i < 12; i++) {
     ctx.fillRect(0, i * 6, 128, 1);
   }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(6, 1);
+  tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
-let railNetTextureCache = null;
+let railNetTextureCache = { key: null, texture: null };
 
-function getRailNetTexture() {
-  if (railNetTextureCache) return railNetTextureCache;
+function getRailNetTexture(theme = {}) {
+  const key = JSON.stringify({
+    netPrimary: theme.netPrimary,
+    netSecondary: theme.netSecondary,
+    netOpacity: theme.netOpacity,
+    netColor: theme.netColor
+  });
+  if (railNetTextureCache.texture && railNetTextureCache.key === key) {
+    return railNetTextureCache.texture;
+  }
+  railNetTextureCache.texture?.dispose?.();
   const c = document.createElement('canvas');
   c.width = 128;
   c.height = 128;
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, c.width, c.height);
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.7)';
+  ctx.strokeStyle = theme.netPrimary ?? 'rgba(148, 163, 184, 0.7)';
   ctx.lineWidth = 2;
   const spacing = 16;
   for (let i = 0; i <= c.width; i += spacing) {
@@ -1571,7 +1624,7 @@ function getRailNetTexture() {
     ctx.lineTo(c.width, j + 0.5);
     ctx.stroke();
   }
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.35)';
+  ctx.strokeStyle = theme.netSecondary ?? 'rgba(15, 23, 42, 0.35)';
   ctx.lineWidth = 1;
   for (let i = 0; i <= c.width; i += spacing / 2) {
     ctx.beginPath();
@@ -1590,31 +1643,34 @@ function getRailNetTexture() {
   tex.repeat.set(4, 3);
   tex.anisotropy = 4;
   tex.colorSpace = THREE.SRGBColorSpace;
-  railNetTextureCache = tex;
+  railNetTextureCache = { key, texture: tex };
   return tex;
 }
 
-function createRailNetMaterial() {
+function createRailNetMaterial(theme = {}) {
   return new THREE.MeshStandardMaterial({
-    map: getRailNetTexture(),
-    color: 0xf8fafc,
+    map: getRailNetTexture(theme),
+    color: toThreeColor(theme.netColor, 0xf8fafc),
     roughness: 0.68,
     metalness: 0.18,
     transparent: true,
-    opacity: 0.58,
+    opacity: Number.isFinite(theme.netOpacity) ? theme.netOpacity : 0.58,
     side: THREE.DoubleSide,
     depthWrite: false
   });
 }
 
-function makeSnakeTexture() {
+function makeSnakeTexture(theme = {}) {
+  const base = theme.base ?? '#0f5132';
+  const diamondColor = theme.diamond ?? '#198754';
+  const stroke = theme.stroke ?? 'rgba(255,255,255,0.08)';
   const c = document.createElement('canvas');
   c.width = 256;
   c.height = 128;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#0f5132';
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, 256, 128);
-  ctx.fillStyle = '#198754';
+  ctx.fillStyle = diamondColor;
   const diamond = (cx, cy, w, h) => {
     ctx.beginPath();
     ctx.moveTo(cx, cy - h);
@@ -1631,7 +1687,7 @@ function makeSnakeTexture() {
       diamond(cx, cy, 6, 4);
     }
   }
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.strokeStyle = stroke;
   for (let y = 0; y <= 128; y += 8) {
     ctx.beginPath();
     ctx.moveTo(0, y + 0.5);
@@ -1642,31 +1698,39 @@ function makeSnakeTexture() {
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(4, 2);
   tex.anisotropy = 4;
+  tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
-function makeFloorTexture() {
+function makeFloorTexture(theme = {}) {
   const size = 512;
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const ctx = c.getContext('2d');
 
-  ctx.fillStyle = '#111827';
+  const base = theme.base ?? '#111827';
+  const secondary = theme.secondary ?? '#1f2937';
+  const accent = theme.accent ?? '#1a2433';
+  const highlight = theme.highlight ?? 'rgba(255,255,255,0.06)';
+  const gridPrimary = theme.gridPrimary ?? 'rgba(148, 163, 184, 0.18)';
+  const gridSecondary = theme.gridSecondary ?? 'rgba(15, 23, 42, 0.22)';
+
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
 
   const tile = 64;
   for (let y = 0; y < size; y += tile) {
     for (let x = 0; x < size; x += tile) {
-      const shade = (x / tile + y / tile) % 2 === 0 ? '#1f2937' : '#1a2433';
+      const shade = (x / tile + y / tile) % 2 === 0 ? secondary : accent;
       ctx.fillStyle = shade;
       ctx.fillRect(x, y, tile, tile);
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.fillStyle = highlight;
       ctx.fillRect(x, y, tile, 1.5);
       ctx.fillRect(x, y, 1.5, tile);
     }
   }
 
-  ctx.strokeStyle = 'rgba(148, 163, 184, 0.18)';
+  ctx.strokeStyle = gridPrimary;
   ctx.lineWidth = 2;
   for (let y = 0; y <= size; y += tile) {
     ctx.beginPath();
@@ -1681,7 +1745,7 @@ function makeFloorTexture() {
     ctx.stroke();
   }
 
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.22)';
+  ctx.strokeStyle = gridSecondary;
   ctx.lineWidth = 1;
   for (let i = 0; i <= size; i += tile / 2) {
     ctx.beginPath();
@@ -1745,26 +1809,42 @@ function parseJumpMap(data = {}) {
   return entries;
 }
 
-function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
-  scene.background = new THREE.Color('#030712');
+function buildArena(scene, renderer, host, cameraRef, disposeHandlers, appearanceOptions = {}) {
+  const arenaTheme = appearanceOptions.arena ?? {};
+  const lightsTheme = arenaTheme.lights ?? {};
 
-  const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+  scene.background = toThreeColor(arenaTheme.background, '#030712');
+
+  const ambient = new THREE.AmbientLight(
+    toThreeColor(lightsTheme.ambientColor, 0xffffff),
+    Number.isFinite(lightsTheme.ambient) ? lightsTheme.ambient : 1.08
+  );
   scene.add(ambient);
-  const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+  const spot = new THREE.SpotLight(
+    toThreeColor(lightsTheme.spot, 0xffffff),
+    Number.isFinite(lightsTheme.spotIntensity) ? lightsTheme.spotIntensity : 4.8384,
+    TABLE_RADIUS * 10,
+    Math.PI / 3,
+    0.35,
+    1
+  );
   spot.position.set(3, 7, 3);
   spot.castShadow = true;
   scene.add(spot);
-  const rim = new THREE.PointLight(0x33ccff, 1.728);
+  const rim = new THREE.PointLight(
+    toThreeColor(lightsTheme.rim, 0x33ccff),
+    Number.isFinite(lightsTheme.rimIntensity) ? lightsTheme.rimIntensity : 1.728
+  );
   rim.position.set(-4, 3, -4);
   scene.add(rim);
 
   const arenaGroup = new THREE.Group();
   scene.add(arenaGroup);
 
-  const floorTexture = makeFloorTexture();
+  const floorTexture = makeFloorTexture(arenaTheme.floor);
   floorTexture.center.set(0.5, 0.5);
   const floorMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color('#111827'),
+    color: toThreeColor(arenaTheme.floor?.base, '#111827'),
     roughness: 0.92,
     metalness: 0.08,
     map: floorTexture
@@ -1776,7 +1856,10 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
 
   const carpet = new THREE.Mesh(
     new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
-    createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
+    createArenaCarpetMaterial(
+      toThreeColor(arenaTheme.carpet?.primary, '#0f172a'),
+      toThreeColor(arenaTheme.carpet?.accent, '#1e3a8a')
+    )
   );
   carpet.rotation.x = -Math.PI / 2;
   carpet.position.y = 0.01;
@@ -1792,7 +1875,7 @@ function buildArena(scene, renderer, host, cameraRef, disposeHandlers) {
       1,
       true
     ),
-    createArenaWallMaterial('#1f2937', '#64748b')
+    createArenaWallMaterial(arenaTheme.wall?.base ?? '#1f2937', arenaTheme.wall?.accent ?? '#64748b')
   );
   wall.position.y = ARENA_WALL_CENTER_Y;
   arenaGroup.add(wall);
@@ -1967,7 +2050,8 @@ function buildSnakeBoard(
   boardGroup,
   boardLookTarget,
   disposeHandlers = [],
-  onTargetChange = null
+  onTargetChange = null,
+  appearanceOptions = {}
 ) {
   const boardRoot = new THREE.Group();
   boardGroup.add(boardRoot);
@@ -1977,6 +2061,14 @@ function buildSnakeBoard(
 
   const tileGroup = new THREE.Group();
   boardRoot.add(tileGroup);
+
+  const boardTheme = appearanceOptions.board ?? {};
+  const railTheme = appearanceOptions.rail ?? {};
+  const snakeTheme = appearanceOptions.snakeSkin ?? {};
+  const diceTheme = appearanceOptions.dice ?? {};
+  const highlightColors = createHighlightColors(boardTheme);
+  const tileLightBase = toThreeColor(boardTheme.light, TILE_COLOR_A);
+  const tileDarkBase = toThreeColor(boardTheme.dark, TILE_COLOR_B);
 
   const tileMeshes = new Map();
   const indexToPosition = new Map();
@@ -2096,8 +2188,8 @@ function buildSnakeBoard(
     const perimeter = buildPerimeterSequence(size);
     perimeter.forEach(({ row, col }, seqIndex) => {
       const idx = offset + seqIndex + 1;
-      const baseColor = (row + col) % 2 === 0 ? TILE_COLOR_A : TILE_COLOR_B;
-      const materialSet = createTileMaterialSet(baseColor);
+      const baseColor = (row + col) % 2 === 0 ? tileLightBase.clone() : tileDarkBase.clone();
+      const materialSet = createTileMaterialSet(baseColor, boardTheme);
       const baseX = -half + (col + 0.5) * TILE_SIZE;
       const baseZ = -half + ((size - 1 - row) + 0.5) * TILE_SIZE;
       const tilePosition = new THREE.Vector3(baseX, tileCenterY, baseZ);
@@ -2164,7 +2256,8 @@ function buildSnakeBoard(
         entrySide: entryConfig.side,
         addNet: levelIndex > 0
       },
-      platformMeshes
+      platformMeshes,
+      railTheme
     );
   });
 
@@ -2274,7 +2367,7 @@ function buildSnakeBoard(
   const diceSpacing = DICE_SIZE * 1.35;
   const diceSet = [];
   for (let i = 0; i < MAX_DICE; i += 1) {
-    const die = makeDice();
+    const die = makeDice(diceTheme);
     die.visible = true;
     const offsetX = (i - (MAX_DICE - 1) / 2) * diceSpacing;
     die.position.set(offsetX, diceBaseY, diceAnchorZ);
@@ -2287,12 +2380,24 @@ function buildSnakeBoard(
   diceLightTarget.position.set(0, diceBaseY, diceAnchorZ);
   boardRoot.add(diceLightTarget);
 
-  const diceAccent = new THREE.SpotLight(0xfff1c1, 2.25, RAW_BOARD_SIZE * 1.2, Math.PI / 5, 0.42, 1.25);
+  const diceAccent = new THREE.SpotLight(
+    toThreeColor(diceTheme.rim, 0xfff1c1),
+    2.25,
+    RAW_BOARD_SIZE * 1.2,
+    Math.PI / 5,
+    0.42,
+    1.25
+  );
   diceAccent.userData.offset = new THREE.Vector3(DICE_SIZE * 2.6, DICE_SIZE * 7.5, DICE_SIZE * 3.4);
   diceAccent.target = diceLightTarget;
   boardRoot.add(diceAccent);
 
-  const diceFill = new THREE.PointLight(0xffe4a3, 1.18, RAW_BOARD_SIZE * 0.9, 2.2);
+  const diceFill = new THREE.PointLight(
+    toThreeColor(diceTheme.body, 0xffe4a3),
+    1.18,
+    RAW_BOARD_SIZE * 0.9,
+    2.2
+  );
   diceFill.userData.offset = new THREE.Vector3(-DICE_SIZE * 3.2, DICE_SIZE * 6.2, -DICE_SIZE * 3.6);
   boardRoot.add(diceFill);
 
@@ -2346,11 +2451,14 @@ function buildSnakeBoard(
       accent: diceAccent,
       fill: diceFill,
       target: diceLightTarget
-    }
+    },
+    highlightColors
   };
 }
 
-function updateTilesHighlight(tileMeshes, highlight, trail) {
+function updateTilesHighlight(tileMeshes, highlight, trail, highlightColors = DEFAULT_HIGHLIGHT_COLORS) {
+  if (!tileMeshes) return;
+  const colors = highlightColors || DEFAULT_HIGHLIGHT_COLORS;
   tileMeshes.forEach((tile) => {
     resetTileAppearance(tile);
   });
@@ -2358,14 +2466,14 @@ function updateTilesHighlight(tileMeshes, highlight, trail) {
     trail.forEach((segment) => {
       const tile = tileMeshes.get(segment.cell);
       if (!tile) return;
-      const color = HIGHLIGHT_COLORS[segment.type] ?? HIGHLIGHT_COLORS.normal;
+      const color = colors[segment.type] ?? colors.normal;
       applyTileHighlight(tile, color, 0.35);
     });
   }
   if (highlight) {
     const tile = tileMeshes.get(highlight.cell);
     if (tile) {
-      const color = HIGHLIGHT_COLORS[highlight.type] ?? HIGHLIGHT_COLORS.normal;
+      const color = colors[highlight.type] ?? colors.normal;
       applyTileHighlight(tile, color);
     }
   }
@@ -2382,7 +2490,8 @@ function updateTokens(
     currentTurn = null,
     boardRoot = null,
     seatAnchors = [],
-    baseLevelTop = 0
+    baseLevelTop = 0,
+    tokenTheme = {}
   } = {}
 ) {
   if (!tokensGroup) return;
@@ -2437,6 +2546,23 @@ function updateTokens(
     });
   }
 
+  const accentTarget = toThreeColor(tokenTheme.accentTarget, TOKEN_ACCENT_TARGET);
+  const sheenBlend = Number.isFinite(tokenTheme.sheenBlend) ? tokenTheme.sheenBlend : 0.55;
+  const accentBlend = Number.isFinite(tokenTheme.accentBlend) ? tokenTheme.accentBlend : sheenBlend;
+  const coreRoughness = Number.isFinite(tokenTheme.coreRoughness) ? tokenTheme.coreRoughness : 0.32;
+  const coreMetalness = Number.isFinite(tokenTheme.coreMetalness) ? tokenTheme.coreMetalness : 0.45;
+  const coreClearcoat = Number.isFinite(tokenTheme.coreClearcoat) ? tokenTheme.coreClearcoat : 0.36;
+  const coreClearcoatRoughness = Number.isFinite(tokenTheme.coreClearcoatRoughness)
+    ? tokenTheme.coreClearcoatRoughness
+    : 0.22;
+  const coreSheen = Number.isFinite(tokenTheme.coreSheen) ? tokenTheme.coreSheen : 0.35;
+  const accentRoughness = Number.isFinite(tokenTheme.accentRoughness) ? tokenTheme.accentRoughness : 0.24;
+  const accentMetalness = Number.isFinite(tokenTheme.accentMetalness) ? tokenTheme.accentMetalness : 0.82;
+  const accentClearcoat = Number.isFinite(tokenTheme.accentClearcoat) ? tokenTheme.accentClearcoat : 0.18;
+  const accentClearcoatRoughness = Number.isFinite(tokenTheme.accentClearcoatRoughness)
+    ? tokenTheme.accentClearcoatRoughness
+    : 0.25;
+
   players.forEach((player, index) => {
     keep.add(index);
     let token = existing.get(index);
@@ -2446,19 +2572,19 @@ function updateTokens(
       const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
       const coreMaterial = new THREE.MeshPhysicalMaterial({
         color: baseColor.clone(),
-        roughness: 0.32,
-        metalness: 0.45,
-        clearcoat: 0.36,
-        clearcoatRoughness: 0.22,
-        sheen: 0.35,
-        sheenColor: baseColor.clone().lerp(new THREE.Color('#ffffff'), 0.55)
+        roughness: coreRoughness,
+        metalness: coreMetalness,
+        clearcoat: coreClearcoat,
+        clearcoatRoughness: coreClearcoatRoughness,
+        sheen: coreSheen,
+        sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
       });
       const accentMaterial = new THREE.MeshPhysicalMaterial({
-        color: baseColor.clone().lerp(TOKEN_ACCENT_TARGET, 0.55),
-        roughness: 0.24,
-        metalness: 0.82,
-        clearcoat: 0.18,
-        clearcoatRoughness: 0.25
+        color: baseColor.clone().lerp(accentTarget, accentBlend),
+        roughness: accentRoughness,
+        metalness: accentMetalness,
+        clearcoat: accentClearcoat,
+        clearcoatRoughness: accentClearcoatRoughness
       });
 
       const baseHeight = TOKEN_HEIGHT * 0.24;
@@ -2530,12 +2656,21 @@ function updateTokens(
     if (mat) {
       mat.color.copy(targetColor);
       if (mat.sheenColor) {
-        mat.sheenColor.copy(targetColor.clone().lerp(new THREE.Color('#ffffff'), 0.5));
+        mat.sheenColor.copy(targetColor.clone().lerp(accentTarget, sheenBlend));
       }
+      mat.roughness = coreRoughness;
+      mat.metalness = coreMetalness;
+      mat.clearcoat = coreClearcoat;
+      mat.clearcoatRoughness = coreClearcoatRoughness;
+      mat.sheen = coreSheen;
     }
     if (accentMat) {
-      const accentColor = targetColor.clone().lerp(TOKEN_ACCENT_TARGET, 0.55);
+      const accentColor = targetColor.clone().lerp(accentTarget, accentBlend);
       accentMat.color.copy(accentColor);
+      accentMat.roughness = accentRoughness;
+      accentMat.metalness = accentMetalness;
+      accentMat.clearcoat = accentClearcoat;
+      accentMat.clearcoatRoughness = accentClearcoatRoughness;
     }
 
     let emissiveHex = 0x000000;
@@ -2562,7 +2697,7 @@ function updateTokens(
 
     if (accentMat) {
       if (emissiveHex === 0x000000) {
-        const glow = targetColor.clone().lerp(TOKEN_ACCENT_TARGET, 0.6).multiplyScalar(0.15);
+        const glow = targetColor.clone().lerp(accentTarget, 0.6).multiplyScalar(0.15);
         accentMat.emissive.copy(glow);
         accentMat.emissiveIntensity = 1;
       } else {
@@ -2624,7 +2759,7 @@ function updateTokens(
   });
 }
 
-function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, railTexture) {
+function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, railTexture, theme = {}) {
   while (group.children.length) {
     const child = group.children.pop();
     if (child) {
@@ -2643,12 +2778,12 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
 
   const matRail = new THREE.MeshStandardMaterial({
     map: railTexture,
-    color: 0xffffff,
+    color: toThreeColor(theme.ladderRail, 0xffffff),
     roughness: 0.6,
     metalness: 0.05
   });
   const matRung = new THREE.MeshStandardMaterial({
-    color: 0xeab308,
+    color: toThreeColor(theme.ladderRung, 0xeab308),
     roughness: 0.55,
     metalness: 0.05
   });
@@ -2761,7 +2896,7 @@ function updateLadders(group, ladders, indexToPosition, serpentineIndexToXZ, rai
     });
 }
 
-function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snakeTexture) {
+function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snakeTexture, theme = {}) {
   while (group.children.length) {
     const child = group.children.pop();
     if (child) {
@@ -2780,23 +2915,23 @@ function updateSnakes(group, snakes, indexToPosition, serpentineIndexToXZ, snake
 
   const matBody = new THREE.MeshStandardMaterial({
     map: snakeTexture,
-    color: 0xffffff,
+    color: toThreeColor(theme.body, 0xffffff),
     roughness: 0.45,
     metalness: 0.05
   });
   const matHead = new THREE.MeshStandardMaterial({
-    color: 0x14532d,
+    color: toThreeColor(theme.head, 0x14532d),
     roughness: 0.4,
     metalness: 0.05
   });
   const matTail = new THREE.MeshStandardMaterial({
-    color: 0x1b8060,
+    color: toThreeColor(theme.tail, 0x1b8060),
     roughness: 0.55,
     metalness: 0.05
   });
   const matTongue = new THREE.MeshStandardMaterial({
-    color: 0xff0000,
-    emissive: 0x440000,
+    color: toThreeColor(theme.tongue, 0xff0000),
+    emissive: toThreeColor(theme.tongueEmissive, 0x440000),
     roughness: 0.3,
     metalness: 0.05
   });
@@ -2928,7 +3063,10 @@ export default function SnakeBoard3D({
   onSlideComplete,
   diceEvent,
   onSeatPositionsChange,
-  onDiceAnchorChange
+  onDiceAnchorChange,
+  appearance = {},
+  appearanceKey,
+  frameRate = 90
 }) {
   const mountRef = useRef(null);
   const cameraRef = useRef(null);
@@ -2946,6 +3084,20 @@ export default function SnakeBoard3D({
   const prevPlayerPositionsRef = useRef([]);
   const cameraRestoreRef = useRef(null);
   const lastFrameTimeRef = useRef(0);
+  const frameRateRef = useRef(Math.max(30, frameRate || 90));
+  const frameAccumulatorRef = useRef(0);
+  const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
+  const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
+  const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
+  const tokenTheme = appearanceMemo?.token;
+  const railTheme = appearanceMemo?.rail;
+  const snakeTheme = appearanceMemo?.snakeSkin;
+
+  useEffect(() => {
+    frameRateRef.current = Math.max(30, frameRate || 90);
+    frameAccumulatorRef.current = 0;
+    lastFrameTimeRef.current = 0;
+  }, [frameRate]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -2986,12 +3138,13 @@ export default function SnakeBoard3D({
     const handlers = disposeHandlers.current;
     handlers.length = 0;
 
-    const arena = buildArena(scene, renderer, mount, cameraRef, handlers);
+    const arena = buildArena(scene, renderer, mount, cameraRef, handlers, appearanceMemo);
     const board = buildSnakeBoard(
       arena.boardGroup,
       arena.boardLookTarget,
       handlers,
-      arena.updateCameraTarget
+      arena.updateCameraTarget,
+      appearanceMemo
     );
     boardRef.current = {
       ...board,
@@ -3000,19 +3153,35 @@ export default function SnakeBoard3D({
       seatAnchors: arena.seatAnchors ?? []
     };
 
-    railTextureRef.current = makeRailTexture();
-    snakeTextureRef.current = makeSnakeTexture();
+    railTextureRef.current?.dispose?.();
+    snakeTextureRef.current?.dispose?.();
+    railTextureRef.current = makeRailTexture(appearanceMemo.rail);
+    snakeTextureRef.current = makeSnakeTexture(appearanceMemo.snakeSkin);
 
     fitRef.current = arena.fit;
     arena.fit();
 
     lastFrameTimeRef.current = 0;
+    frameAccumulatorRef.current = 0;
 
     renderer.setAnimationLoop((time) => {
       const now = typeof time === 'number' ? time : performance.now();
       const last = lastFrameTimeRef.current || now;
-      const deltaSeconds = Math.min(0.2, Math.max(0, (now - last) / 1000));
+      const elapsed = now - last;
+      const targetMs = 1000 / Math.max(30, frameRateRef.current || 60);
+      let carry = frameAccumulatorRef.current + elapsed;
+      if (!lastFrameTimeRef.current) {
+        carry = targetMs;
+      }
+      if (carry < targetMs) {
+        frameAccumulatorRef.current = carry;
+        lastFrameTimeRef.current = now;
+        return;
+      }
+      const effectiveMs = Math.min(carry, targetMs * 2);
+      frameAccumulatorRef.current = Math.max(0, carry - targetMs);
       lastFrameTimeRef.current = now;
+      const deltaSeconds = Math.min(0.2, Math.max(0, effectiveMs / 1000));
       const active = animationsRef.current;
       for (let i = active.length - 1; i >= 0; i -= 1) {
         const anim = active[i];
@@ -3131,7 +3300,9 @@ export default function SnakeBoard3D({
         mount.removeChild(renderer.domElement);
       }
       railTextureRef.current?.dispose?.();
+      railTextureRef.current = null;
       snakeTextureRef.current?.dispose?.();
+      snakeTextureRef.current = null;
       renderer.dispose();
       scene.traverse((obj) => {
         if (obj.isMesh) {
@@ -3141,20 +3312,23 @@ export default function SnakeBoard3D({
         }
       });
       lastFrameTimeRef.current = 0;
+      frameAccumulatorRef.current = 0;
     };
-  }, []);
+  }, [keyForEffect]);
 
   useEffect(() => {
     if (!boardRef.current) return;
-    updateTilesHighlight(boardRef.current.tileMeshes, highlight, trail);
+    const board = boardRef.current;
+    const colors = board.highlightColors || DEFAULT_HIGHLIGHT_COLORS;
+    updateTilesHighlight(board.tileMeshes, highlight, trail, colors);
     if (offsetPopup) {
-      const tile = boardRef.current.tileMeshes.get(offsetPopup.cell);
+      const tile = board.tileMeshes.get(offsetPopup.cell);
       if (tile) {
-        const color = offsetPopup.type === 'snake' ? HIGHLIGHT_COLORS.snake : HIGHLIGHT_COLORS.ladder;
+        const color = offsetPopup.type === 'snake' ? colors.snake : colors.ladder;
         applyTileHighlight(tile, color);
       }
     }
-  }, [highlight, trail, offsetPopup]);
+  }, [highlight, trail, offsetPopup, keyForEffect]);
 
   useEffect(() => {
     if (!boardRef.current) return;
@@ -3165,7 +3339,8 @@ export default function SnakeBoard3D({
       currentTurn,
       boardRoot: board.root,
       seatAnchors: board.seatAnchors,
-      baseLevelTop: board.baseLevelTop
+      baseLevelTop: board.baseLevelTop,
+      tokenTheme
     });
 
     const sanitizedPositions = players.map((player) => {
@@ -3215,7 +3390,7 @@ export default function SnakeBoard3D({
         if (followAnimation) animationsRef.current.push(followAnimation);
       }
     }
-  }, [players, burning, rollingIndex, currentTurn, tokenType]);
+  }, [players, burning, rollingIndex, currentTurn, tokenType, keyForEffect, tokenTheme]);
 
   useEffect(() => {
     if (!boardRef.current || !railTextureRef.current) return;
@@ -3224,9 +3399,10 @@ export default function SnakeBoard3D({
       ladders,
       boardRef.current.indexToPosition,
       boardRef.current.serpentineIndexToXZ,
-      railTextureRef.current
+      railTextureRef.current,
+      railTheme
     );
-  }, [ladders, ladderOffsets]);
+  }, [ladders, ladderOffsets, keyForEffect, railTheme]);
 
   useEffect(() => {
     if (!boardRef.current || !snakeTextureRef.current) return;
@@ -3235,9 +3411,10 @@ export default function SnakeBoard3D({
       snakes,
       boardRef.current.indexToPosition,
       boardRef.current.serpentineIndexToXZ,
-      snakeTextureRef.current
+      snakeTextureRef.current,
+      snakeTheme
     );
-  }, [snakes, snakeOffsets]);
+  }, [snakes, snakeOffsets, keyForEffect, snakeTheme]);
 
   useEffect(() => {
     if (!slide || !boardRef.current) return;
