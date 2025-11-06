@@ -201,7 +201,7 @@ function createDefaultPocketJawMaterial() {
 
 const POCKET_VISUAL_EXPANSION = 1.012;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.052; // pull the rounded chrome cut deeper toward the table centre
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
