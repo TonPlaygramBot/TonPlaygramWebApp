@@ -489,7 +489,7 @@ function addPocketCuts(parent, clothPlane) {
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_SIZE_SHRINK = 0.93; // settle on a 7% reduction to preserve proportions while tightening the footprint
+const TABLE_SIZE_SHRINK = 0.78; // deepen the shrink so the full table silhouette comes in ~16% tighter without distorting the cloth footprint
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy 16% trim plus the new shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -541,9 +541,9 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.955; // trim the middle jaw reach so the fascia meets the cushions without overshoot
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // tighten the outer radius to accompany the shorter fascia length
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.985; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.94; // pull the middle jaw shoulders a touch toward centre so the fascia no longer overshoots the cushions
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.978; // tighten the outer radius to accompany the shorter fascia length
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.98; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep the middle jaw crowns level with the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
@@ -590,7 +590,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.92; // draw the middle pockets closer to centre so the jaw shoulders and chrome cuts align with the new inward target
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.6; // draw the middle pockets closer to centre so the jaw shoulders and chrome cuts align with the new inward target
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -12696,93 +12696,111 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           noCushionAfterContact,
           variant: variantId
         };
-        const nextState = rules.applyShot(currentState, shotEvents, shotContext);
+        let safeState = currentState;
+        let shotResolved = false;
+        try {
+          const resolved = rules.applyShot(currentState, shotEvents, shotContext);
+          if (resolved && typeof resolved === 'object') {
+            safeState = resolved;
+          }
+          shotResolved = true;
+        } catch (err) {
+          console.error('Pool Royale shot resolution failed:', err);
+        }
         shotContextRef.current = {
           placedFromHand: false,
           contactMade: false,
           cushionAfterContact: false
         };
-        if (nextState.foul) {
-          const foulPoints = nextState.foul.points ?? 4;
-          const foulVol = clamp(foulPoints / 7, 0, 1);
-          playShock(Math.max(0.4, foulVol));
-        } else {
-          const deltaA =
-            (nextState.players?.A?.score ?? 0) - (currentState.players?.A?.score ?? 0);
-          const deltaB =
-            (nextState.players?.B?.score ?? 0) - (currentState.players?.B?.score ?? 0);
-          const scored = Math.max(deltaA, deltaB);
-          if (scored > 0) {
-            const cheerVol = clamp(scored / 7, 0, 1);
-            playCheer(Math.max(0.35, cheerVol));
-          } else if (nextState.frameOver) {
-            playCheer(1);
-          }
-        }
-        frameRef.current = nextState;
-        setFrameState(nextState);
-        const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
-        colourNames.forEach((name) => {
-          const simBall = colors[name];
-          const stateBall = nextState.balls.find(
-            (b) => b.color === name.toUpperCase()
-          );
-          if (!simBall || !stateBall) return;
-          if (stateBall.onTable) {
-            if (!simBall.active) {
-              pocketDropRef.current.delete(simBall.id);
-              simBall.mesh.scale.set(1, 1, 1);
-              const [sx, sy] = SPOTS[name];
-              simBall.active = true;
-              simBall.mesh.visible = true;
-              simBall.pos.set(sx, sy);
-              simBall.mesh.position.set(sx, BALL_CENTER_Y, sy);
-              simBall.vel.set(0, 0);
-              simBall.spin?.set(0, 0);
-              simBall.pendingSpin?.set(0, 0);
-              simBall.spinMode = 'standard';
-            }
-          } else {
-            simBall.active = false;
-            pocketDropRef.current.delete(simBall.id);
-            simBall.mesh.visible = false;
-          }
-        });
-        if (cueBallPotted) {
-          cue.active = false;
-          pocketDropRef.current.delete(cue.id);
-          const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
-          if (fallback) {
-            updateCuePlacement(fallback);
-          } else {
-            cue.mesh.visible = true;
-          }
-          cue.vel.set(0, 0);
-          cue.spin?.set(0, 0);
-          cue.pendingSpin?.set(0, 0);
-          cue.spinMode = 'standard';
-          cue.impacted = false;
-          cue.launchDir = null;
-        }
-        const nextMeta = nextState.meta;
         let nextInHand = cueBallPotted;
-        if (nextMeta && typeof nextMeta === 'object') {
-          if (nextMeta.variant === 'american' && nextMeta.state) {
-            nextInHand = Boolean(nextMeta.state.ballInHand);
-          } else if (nextMeta.variant === '9ball' && nextMeta.state) {
-            nextInHand = Boolean(nextMeta.state.ballInHand);
-          } else if (nextMeta.variant === 'uk' && nextMeta.state) {
-            nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
+        try {
+          if (shotResolved) {
+            if (safeState.foul) {
+              const foulPoints = safeState.foul.points ?? 4;
+              const foulVol = clamp(foulPoints / 7, 0, 1);
+              playShock(Math.max(0.4, foulVol));
+            } else {
+              const deltaA =
+                (safeState.players?.A?.score ?? 0) -
+                (currentState.players?.A?.score ?? 0);
+              const deltaB =
+                (safeState.players?.B?.score ?? 0) -
+                (currentState.players?.B?.score ?? 0);
+              const scored = Math.max(deltaA, deltaB);
+              if (scored > 0) {
+                const cheerVol = clamp(scored / 7, 0, 1);
+                playCheer(Math.max(0.35, cheerVol));
+              } else if (safeState.frameOver) {
+                playCheer(1);
+              }
+            }
+            const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
+            colourNames.forEach((name) => {
+              const simBall = colors[name];
+              const stateBall = safeState.balls.find(
+                (b) => b.color === name.toUpperCase()
+              );
+              if (!simBall || !stateBall) return;
+              if (stateBall.onTable) {
+                if (!simBall.active) {
+                  pocketDropRef.current.delete(simBall.id);
+                  simBall.mesh.scale.set(1, 1, 1);
+                  const [sx, sy] = SPOTS[name];
+                  simBall.active = true;
+                  simBall.mesh.visible = true;
+                  simBall.pos.set(sx, sy);
+                  simBall.mesh.position.set(sx, BALL_CENTER_Y, sy);
+                  simBall.vel.set(0, 0);
+                  simBall.spin?.set(0, 0);
+                  simBall.pendingSpin?.set(0, 0);
+                  simBall.spinMode = 'standard';
+                }
+              } else {
+                simBall.active = false;
+                pocketDropRef.current.delete(simBall.id);
+                simBall.mesh.visible = false;
+              }
+            });
+            if (cueBallPotted) {
+              cue.active = false;
+              pocketDropRef.current.delete(cue.id);
+              const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+              if (fallback) {
+                updateCuePlacement(fallback);
+              } else {
+                cue.mesh.visible = true;
+              }
+              cue.vel.set(0, 0);
+              cue.spin?.set(0, 0);
+              cue.pendingSpin?.set(0, 0);
+              cue.spinMode = 'standard';
+              cue.impacted = false;
+              cue.launchDir = null;
+            }
+            const nextMeta = safeState.meta;
+            if (nextMeta && typeof nextMeta === 'object') {
+              if (nextMeta.variant === 'american' && nextMeta.state) {
+                nextInHand = Boolean(nextMeta.state.ballInHand);
+              } else if (nextMeta.variant === '9ball' && nextMeta.state) {
+                nextInHand = Boolean(nextMeta.state.ballInHand);
+              } else if (nextMeta.variant === 'uk' && nextMeta.state) {
+                nextInHand = Boolean(nextMeta.state.mustPlayFromBaulk);
+              }
+            }
           }
-        }
-        setHud((prev) => ({ ...prev, inHand: nextInHand }));
-        setShootingState(false);
-        shotPrediction = null;
-        activeShotView = null;
-        suspendedActionView = null;
-        pocketSwitchIntentRef.current = null;
-        lastPocketBallRef.current = null;
-        updatePocketCameraState(false);
+        } catch (err) {
+          console.error('Pool Royale post-resolution update failed:', err);
+        } finally {
+          frameRef.current = safeState;
+          setFrameState(safeState);
+          setHud((prev) => ({ ...prev, inHand: nextInHand }));
+          setShootingState(false);
+          shotPrediction = null;
+          activeShotView = null;
+          suspendedActionView = null;
+          pocketSwitchIntentRef.current = null;
+          lastPocketBallRef.current = null;
+          updatePocketCameraState(false);
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
@@ -12812,6 +12830,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           firstHit = null;
           lastShotPower = 0;
         }
+      }
 
       // Loop
       let lastStepTime = performance.now();
