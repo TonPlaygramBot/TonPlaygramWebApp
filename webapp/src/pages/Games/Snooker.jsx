@@ -18,7 +18,6 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { UnitySnookerRules } from '../../../../src/rules/UnitySnookerRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
-import { useViewportHeight } from '../../hooks/useViewportHeight.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import {
@@ -216,20 +215,6 @@ const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.0313; // reuse Pool Royale side pocket
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
-const CHROME_PLATE_THICKNESS_SCALE = 0.42;
-const CHROME_PLATE_RENDER_ORDER = 3.5;
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.5;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.48;
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.28;
-const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
-const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008;
-const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
-const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.036;
 const WOOD_CORNER_CUT_SCALE = 0.988; // mirror Pool Royale wood relief inset for corner cuts
 const WOOD_SIDE_CUT_SCALE = 1.012; // align side rail apertures with Pool Royale chrome reveal
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
@@ -249,8 +234,8 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.332;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.948;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.426;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.86;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
@@ -4127,14 +4112,10 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE;
+  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
-  const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
-  const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
-  const chromeCornerFieldExtension =
-    POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
   const cushionInnerX = halfW - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const cushionInnerZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_CENTER_NUDGE;
   const chromePlateInnerLimitX = Math.max(0, cushionInnerX);
@@ -4170,16 +4151,11 @@ function Table3D(
   );
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE -
-      chromeCornerEdgeTrim -
-      chromeOuterFlushTrim * 2
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE
   );
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE -
-      chromeCornerEdgeTrim +
-      chromeCornerFieldExtension -
-      chromeOuterFlushTrim * 2
+    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
@@ -4188,28 +4164,16 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
-  const chromeCornerCenterOutset =
-    TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
-  const chromeCornerShortRailShift =
-    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE;
-  const chromeCornerShortRailCenterPull =
-    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE;
-  const sidePocketCutCenterPull =
-    TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-  const sidePlatePocketWidth =
-    sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
+  const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
-      TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
-      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE -
-      chromeOuterFlushTrim * 2
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -4220,16 +4184,12 @@ function Table3D(
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
   const sideChromePlateHeight = Math.min(
-    Math.max(
-      MICRO_EPS,
-      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2
-    ),
+    chromePlateHeight * 0.94,
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
     chromePlateRadius * 0.3,
-    Math.min(sideChromePlateWidth, sideChromePlateHeight) *
-      CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
+    Math.min(sideChromePlateWidth, sideChromePlateHeight) * 0.04
   );
 
   const innerHalfW = halfWext;
@@ -4408,12 +4368,8 @@ function Table3D(
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
-    const centerX =
-      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterOutset) -
-      sx * chromeCornerShortRailCenterPull;
-    const centerZ =
-      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
-      sz * chromeCornerShortRailShift;
+    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
+    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
     const notchLocalMP = cornerNotchMP(sx, sz).map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
@@ -4431,10 +4387,9 @@ function Table3D(
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
+    plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
-    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
@@ -4446,9 +4401,7 @@ function Table3D(
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
     const notchLocalMP = sideNotchMP(sx).map((poly) =>
-      poly.map((ring) =>
-        ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
-      )
+      poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
     );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
@@ -4462,10 +4415,9 @@ function Table3D(
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
+    plate.position.set(centerX, chromePlateY, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
-    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
@@ -5498,18 +5450,6 @@ function SnookerGame() {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const rules = useMemo(() => new UnitySnookerRules(), []);
-  const viewportHeight = useViewportHeight();
-  const viewportStyle = useMemo(
-    () =>
-      viewportHeight > 0
-        ? {
-            minHeight: `${viewportHeight}px`,
-            height: `${viewportHeight}px`
-          }
-        : undefined,
-    [viewportHeight]
-  );
-  const [renderSession, setRenderSession] = useState(0);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -6487,6 +6427,7 @@ function SnookerGame() {
         setPocketCameraActive(active);
       };
       updatePocketCameraState(false);
+      screen.orientation?.lock?.('portrait').catch(() => {});
       // Renderer
       const renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -6497,38 +6438,17 @@ function SnookerGame() {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const updateRendererPixelRatio = () => {
-        const dpr = window.devicePixelRatio || 1;
-        const cap = window.innerWidth <= 1366 ? 1.5 : 2;
-        renderer.setPixelRatio(Math.min(cap, dpr));
-      };
-      updateRendererPixelRatio();
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
       renderer.setSize(host.clientWidth, host.clientHeight);
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
       host.appendChild(renderer.domElement);
-      let contextLost = false;
-      const handleContextLost = (e) => {
-        e.preventDefault();
-        contextLost = true;
-        if (rafRef.current) {
-          cancelAnimationFrame(rafRef.current);
-          rafRef.current = null;
-        }
-      };
-      const handleContextRestored = () => {
-        if (!contextLost) return;
-        contextLost = false;
-        setRenderSession((prev) => prev + 1);
-      };
-      renderer.domElement.addEventListener('webglcontextlost', handleContextLost);
-      renderer.domElement.addEventListener(
-        'webglcontextrestored',
-        handleContextRestored
+      renderer.domElement.addEventListener('webglcontextlost', (e) =>
+        e.preventDefault()
       );
       rendererRef.current = renderer;
       renderer.domElement.style.transformOrigin = 'top left';
@@ -11545,7 +11465,6 @@ function SnookerGame() {
 
       // Resize
         const onResize = () => {
-          updateRendererPixelRatio();
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           renderer.setSize(host.clientWidth, host.clientHeight);
@@ -11565,32 +11484,11 @@ function SnookerGame() {
             entry.camera.updateProjectionMatrix();
           });
         };
-        let resizeFrame = 0;
-        const queueResize = () => {
-          if (resizeFrame) {
-            cancelAnimationFrame(resizeFrame);
-          }
-          resizeFrame = requestAnimationFrame(() => {
-            resizeFrame = 0;
-            onResize();
-          });
-        };
-        const viewport = window.visualViewport;
-        window.addEventListener('resize', queueResize);
-        window.addEventListener('orientationchange', queueResize);
-        viewport?.addEventListener('resize', queueResize);
-        viewport?.addEventListener('scroll', queueResize);
-        queueResize();
+      window.addEventListener('resize', onResize);
 
         return () => {
           cancelAnimationFrame(rafRef.current);
-          if (resizeFrame) {
-            cancelAnimationFrame(resizeFrame);
-          }
-          window.removeEventListener('resize', queueResize);
-          window.removeEventListener('orientationchange', queueResize);
-          viewport?.removeEventListener('resize', queueResize);
-          viewport?.removeEventListener('scroll', queueResize);
+          window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
@@ -11598,14 +11496,6 @@ function SnookerGame() {
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
-            renderer.domElement.removeEventListener(
-              'webglcontextlost',
-              handleContextLost
-            );
-            renderer.domElement.removeEventListener(
-              'webglcontextrestored',
-              handleContextRestored
-            );
             host.removeChild(renderer.domElement);
           } catch {}
           dom.removeEventListener('mousedown', down);
@@ -11645,7 +11535,7 @@ function SnookerGame() {
         console.error(e);
         setErr(e?.message || String(e));
       }
-  }, [renderSession]);
+  }, []);
 
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
@@ -11825,10 +11715,7 @@ function SnookerGame() {
   const isOpponentTurn = hud.turn === 1;
 
   return (
-    <div
-      className="relative w-full bg-black text-white overflow-hidden select-none min-h-[100vh]"
-      style={viewportStyle}
-    >
+    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
