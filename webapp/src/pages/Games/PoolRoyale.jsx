@@ -493,7 +493,8 @@ const TABLE_SIZE_SHRINK = 0.93; // settle on a 7% reduction to preserve proporti
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy 16% trim plus the new shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
+const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer so the arena feels more intimate without distorting proportions
+const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
@@ -507,11 +508,13 @@ const TABLE = {
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // match the side jaw clamp to the chrome plates so the fascia reaches the cushions
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
+  POCKET_JAW_CORNER_OUTER_LIMIT_SCALE * 0.986; // ease the side jaw clamp so it finishes flush with the side rails
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE; // keep the fascia span identical to the corner jaws
+const POCKET_JAW_SIDE_OUTER_SCALE =
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.952; // shorten the middle pocket fascia so it no longer overhangs the rail line
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
@@ -537,9 +540,10 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION; // align middle pocket spread with the rounded rail cuts
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the pocket mouth radius identical to the corner profile
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // match the depth profile to the corners for a unified jaw silhouette
+const SIDE_POCKET_JAW_LATERAL_EXPANSION =
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.955; // trim the middle jaw reach so the fascia meets the cushions without overshoot
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // tighten the outer radius to accompany the shorter fascia length
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.985; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep the middle jaw crowns level with the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
@@ -669,6 +673,7 @@ const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up wh
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
+const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // thicken the plywood deck beneath the cloth to sell the wooden sub-structure
@@ -1488,60 +1493,60 @@ const TABLE_FINISHES = Object.freeze({
     label: 'Hybrid Two-Tone',
     colors: makeColorPalette({
       cloth: 0x33a86a,
-      rail: 0x4b2f22,
-      base: 0x1b1f25
+      rail: 0x9a6036,
+      base: 0x3b281c
     }),
     createMaterials: () => {
-      const railColor = new THREE.Color('#4b2f22');
-      const frameColor = new THREE.Color('#1b1f25');
+      const railColor = new THREE.Color('#9a6036');
+      const frameColor = new THREE.Color('#3b281c');
       const frame = new THREE.MeshPhysicalMaterial({
         color: frameColor,
-        metalness: 0.18,
-        roughness: 0.4,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.24,
-        sheen: 0.12,
-        sheenRoughness: 0.58,
-        reflectivity: 0.4,
-        envMapIntensity: 0.72
+        metalness: 0.2,
+        roughness: 0.34,
+        clearcoat: 0.34,
+        clearcoatRoughness: 0.22,
+        sheen: 0.16,
+        sheenRoughness: 0.5,
+        reflectivity: 0.44,
+        envMapIntensity: 0.8
       });
       const rail = new THREE.MeshPhysicalMaterial({
         color: railColor,
-        metalness: 0.2,
-        roughness: 0.32,
-        clearcoat: 0.34,
-        clearcoatRoughness: 0.18,
-        sheen: 0.16,
-        sheenRoughness: 0.52,
-        reflectivity: 0.46,
-        envMapIntensity: 0.86
+        metalness: 0.24,
+        roughness: 0.28,
+        clearcoat: 0.42,
+        clearcoatRoughness: 0.16,
+        sheen: 0.2,
+        sheenRoughness: 0.46,
+        reflectivity: 0.5,
+        envMapIntensity: 0.94
       });
       const leg = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(-0.015, 0.06, -0.04),
-        metalness: 0.2,
-        roughness: 0.46,
-        clearcoat: 0.24,
-        clearcoatRoughness: 0.28,
-        sheen: 0.08,
-        sheenRoughness: 0.62,
-        reflectivity: 0.34,
-        envMapIntensity: 0.7
+        color: frameColor.clone().offsetHSL(0.01, 0.08, 0.12),
+        metalness: 0.22,
+        roughness: 0.42,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.24,
+        sheen: 0.12,
+        sheenRoughness: 0.54,
+        reflectivity: 0.38,
+        envMapIntensity: 0.78
       });
       const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xc8ad86,
-        metalness: 0.74,
-        roughness: 0.32,
-        clearcoat: 0.46,
-        clearcoatRoughness: 0.22,
-        envMapIntensity: 0.96
+        color: 0xe2c49a,
+        metalness: 0.72,
+        roughness: 0.28,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 1.02
       });
       const accentMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0x2c3a45,
-        metalness: 0.42,
-        roughness: 0.38,
-        clearcoat: 0.36,
-        clearcoatRoughness: 0.2,
-        envMapIntensity: 0.88
+        color: 0x4b5a66,
+        metalness: 0.48,
+        roughness: 0.34,
+        clearcoat: 0.32,
+        clearcoatRoughness: 0.18,
+        envMapIntensity: 0.9
       });
       const materials = {
         frame,
@@ -8113,10 +8118,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       let cushionMat;
       const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
       const baseSurfaceWorldY = tableSurfaceY * WORLD_SCALE;
+      const getNow = () =>
+        typeof performance !== 'undefined' && typeof performance.now === 'function'
+          ? performance.now()
+          : Date.now();
       let shooting = false; // track when a shot is in progress
+      let shotStartedAt = 0;
       const setShootingState = (value) => {
         if (shooting === value) return;
         shooting = value;
+        shotStartedAt = shooting ? getNow() : 0;
         setShotActive(value);
       };
       let activeShotView = null;
@@ -13649,7 +13660,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             const any = balls.some(
               (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
             );
-            if (!any) resolve();
+            if (!any) {
+              resolve();
+            } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
+              console.warn('Shot timeout reached; forcing resolve to prevent a stuck frame.');
+              balls.forEach((ball) => {
+                if (!ball) return;
+                if (ball.vel) ball.vel.set(0, 0);
+                if (ball.spin) ball.spin.set(0, 0);
+                if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+                ball.launchDir = null;
+                ball.impacted = false;
+              });
+              resolve();
+            }
           }
           if (pocketDropRef.current.size > 0) {
             pocketDropRef.current.forEach((entry, key) => {
