@@ -191,6 +191,340 @@ function mixHexColor(base, target, amount) {
 const lightenHex = (hex, amount = 0.25) => mixHexColor(hex, '#ffffff', amount);
 const darkenHex = (hex, amount = 0.25) => mixHexColor(hex, '#000000', amount);
 
+const ARENA_THEME_OPTIONS = Object.freeze([
+  {
+    id: 'nebulaAtrium',
+    label: 'Nebula Atrium',
+    floor: {
+      base: '#0b1120',
+      secondary: '#111827',
+      accent: '#1a2433',
+      gridPrimary: 'rgba(148, 163, 184, 0.24)',
+      gridSecondary: 'rgba(15, 23, 42, 0.22)'
+    },
+    carpet: { primary: '#0f172a', accent: '#1e3a8a' },
+    wall: { base: '#1f2937', accent: '#64748b' },
+    lights: { rim: '#38bdf8', rimIntensity: 1.72, spot: '#f8fafc', ambient: 1.08 }
+  },
+  {
+    id: 'crystalLagoon',
+    label: 'Crystal Lagoon',
+    floor: {
+      base: '#031418',
+      secondary: '#052933',
+      accent: '#0d3b47',
+      gridPrimary: 'rgba(45, 212, 191, 0.28)',
+      gridSecondary: 'rgba(6, 95, 70, 0.28)'
+    },
+    carpet: { primary: '#0f766e', accent: '#14b8a6' },
+    wall: { base: '#0f172a', accent: '#0891b2' },
+    lights: { rim: '#22d3ee', rimIntensity: 1.92, spot: '#bbf7d0', ambient: 1.15 }
+  },
+  {
+    id: 'royalEmber',
+    label: 'Royal Ember',
+    floor: {
+      base: '#1b0f0f',
+      secondary: '#2e1515',
+      accent: '#3f1d1d',
+      gridPrimary: 'rgba(248, 113, 113, 0.32)',
+      gridSecondary: 'rgba(127, 29, 29, 0.28)'
+    },
+    carpet: { primary: '#3f1d5b', accent: '#f97316' },
+    wall: { base: '#2c1b1b', accent: '#fb923c' },
+    lights: { rim: '#fb7185', rimIntensity: 1.58, spot: '#fde68a', ambient: 1.05 }
+  }
+]);
+
+const BOARD_PALETTE_OPTIONS = Object.freeze([
+  {
+    id: 'desertMarble',
+    label: 'Desert Marble',
+    light: '#f3ebe0',
+    dark: '#9c7b5a',
+    side: '#8b5e34',
+    bottom: '#3d2514',
+    topEmissive: '#101321',
+    sideEmissive: '#0b0f1b',
+    bottomEmissive: '#05070e',
+    topRoughness: 0.45,
+    topMetalness: 0.22,
+    highlightNormal: '#f59e0b',
+    highlightSnake: '#dc2626',
+    highlightLadder: '#22c55e'
+  },
+  {
+    id: 'glacierGlass',
+    label: 'Glacier Glass',
+    light: '#e2f3ff',
+    dark: '#3b82f6',
+    side: '#1f2937',
+    bottom: '#0f172a',
+    topEmissive: '#0b1f3f',
+    sideEmissive: '#051225',
+    bottomEmissive: '#020a14',
+    topRoughness: 0.35,
+    topMetalness: 0.32,
+    highlightNormal: '#38bdf8',
+    highlightSnake: '#f43f5e',
+    highlightLadder: '#34d399'
+  },
+  {
+    id: 'jadeSanctum',
+    label: 'Jade Sanctum',
+    light: '#ecfdf5',
+    dark: '#10b981',
+    side: '#065f46',
+    bottom: '#022c22',
+    topEmissive: '#042f2e',
+    sideEmissive: '#02201d',
+    bottomEmissive: '#011412',
+    topRoughness: 0.38,
+    topMetalness: 0.28,
+    highlightNormal: '#14b8a6',
+    highlightSnake: '#ef4444',
+    highlightLadder: '#facc15'
+  }
+]);
+
+const DICE_THEME_OPTIONS = Object.freeze([
+  {
+    id: 'imperialIvory',
+    label: 'Imperial Ivory',
+    body: '#f8fafc',
+    pip: '#111827',
+    rim: '#fbbf24',
+    bodyRoughness: 0.32,
+    bodyMetalness: 0.28,
+    pipEmissive: '#0f172a',
+    rimEmissive: '#3a2a00'
+  },
+  {
+    id: 'onyxChrome',
+    label: 'Onyx Chrome',
+    body: '#111827',
+    pip: '#f8fafc',
+    rim: '#60a5fa',
+    bodyRoughness: 0.28,
+    bodyMetalness: 0.45,
+    pipEmissive: '#f1f5f9',
+    rimEmissive: '#1d4ed8'
+  },
+  {
+    id: 'auroraQuartz',
+    label: 'Aurora Quartz',
+    body: '#0f172a',
+    pip: '#22d3ee',
+    rim: '#f472b6',
+    bodyRoughness: 0.26,
+    bodyMetalness: 0.52,
+    pipEmissive: '#0ea5e9',
+    rimEmissive: '#be185d'
+  }
+]);
+
+const RAIL_THEME_OPTIONS = Object.freeze([
+  {
+    id: 'platinumOak',
+    label: 'Platinum & Oak',
+    metal: '#f3f4f6',
+    woodLight: '#d6b68c',
+    woodDark: '#8b5e34',
+    netColor: '#f8fafc',
+    netPrimary: 'rgba(148, 163, 184, 0.7)',
+    netSecondary: 'rgba(15, 23, 42, 0.35)',
+    netOpacity: 0.58,
+    ladderRail: '#ffffff',
+    ladderRung: '#eab308'
+  },
+  {
+    id: 'obsidianSteel',
+    label: 'Obsidian Steel',
+    metal: '#e5e7eb',
+    woodLight: '#4b5563',
+    woodDark: '#1f2937',
+    netColor: '#cbd5f5',
+    netPrimary: 'rgba(96, 165, 250, 0.75)',
+    netSecondary: 'rgba(37, 99, 235, 0.35)',
+    netOpacity: 0.52,
+    ladderRail: '#cbd5f5',
+    ladderRung: '#60a5fa'
+  },
+  {
+    id: 'emberBrass',
+    label: 'Ember Brass',
+    metal: '#fbbf24',
+    woodLight: '#fb923c',
+    woodDark: '#7c2d12',
+    netColor: '#fee2e2',
+    netPrimary: 'rgba(248, 113, 113, 0.7)',
+    netSecondary: 'rgba(185, 28, 28, 0.4)',
+    netOpacity: 0.6,
+    ladderRail: '#fcd34d',
+    ladderRung: '#fb7185'
+  }
+]);
+
+const TOKEN_FINISH_OPTIONS = Object.freeze([
+  {
+    id: 'ceramicSheen',
+    label: 'Ceramic Sheen',
+    accentTarget: '#f8fafc',
+    coreRoughness: 0.32,
+    coreMetalness: 0.45,
+    coreClearcoat: 0.36,
+    coreClearcoatRoughness: 0.22,
+    coreSheen: 0.35,
+    sheenBlend: 0.55,
+    accentRoughness: 0.24,
+    accentMetalness: 0.82,
+    accentClearcoat: 0.18,
+    accentClearcoatRoughness: 0.25
+  },
+  {
+    id: 'matteVelvet',
+    label: 'Matte Velvet',
+    accentTarget: '#f1f5f9',
+    coreRoughness: 0.58,
+    coreMetalness: 0.22,
+    coreClearcoat: 0.22,
+    coreClearcoatRoughness: 0.35,
+    coreSheen: 0.48,
+    sheenBlend: 0.62,
+    accentRoughness: 0.36,
+    accentMetalness: 0.46,
+    accentClearcoat: 0.22,
+    accentClearcoatRoughness: 0.32
+  },
+  {
+    id: 'holographicPulse',
+    label: 'Holographic Pulse',
+    accentTarget: '#e0f2fe',
+    coreRoughness: 0.24,
+    coreMetalness: 0.62,
+    coreClearcoat: 0.52,
+    coreClearcoatRoughness: 0.16,
+    coreSheen: 0.52,
+    sheenBlend: 0.68,
+    accentRoughness: 0.18,
+    accentMetalness: 0.88,
+    accentClearcoat: 0.42,
+    accentClearcoatRoughness: 0.18
+  }
+]);
+
+const SNAKE_SKIN_OPTIONS = Object.freeze([
+  {
+    id: 'emeraldScales',
+    label: 'Emerald Scales',
+    base: '#0f5132',
+    diamond: '#198754',
+    stroke: 'rgba(255,255,255,0.08)'
+  },
+  {
+    id: 'midnightCobra',
+    label: 'Midnight Cobra',
+    base: '#0b1120',
+    diamond: '#312e81',
+    stroke: 'rgba(96,165,250,0.18)'
+  },
+  {
+    id: 'emberSerpent',
+    label: 'Ember Serpent',
+    base: '#3f0e11',
+    diamond: '#f97316',
+    stroke: 'rgba(248,113,113,0.2)'
+  }
+]);
+
+const SNAKE_CUSTOMIZATION_SECTIONS = [
+  { key: 'arenaTheme', label: 'Arena Atmosphere', options: ARENA_THEME_OPTIONS },
+  { key: 'boardPalette', label: 'Board Palette', options: BOARD_PALETTE_OPTIONS },
+  { key: 'snakeSkin', label: 'Snake Skins', options: SNAKE_SKIN_OPTIONS },
+  { key: 'diceTheme', label: 'Dice Finish', options: DICE_THEME_OPTIONS },
+  { key: 'railTheme', label: 'Rails & Nets', options: RAIL_THEME_OPTIONS },
+  { key: 'tokenFinish', label: 'Token Finish', options: TOKEN_FINISH_OPTIONS }
+];
+
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'performance90',
+    label: 'Performance',
+    description: 'Optimized rendering for all devices',
+    fps: 90
+  },
+  {
+    id: 'ultra120',
+    label: 'Ultra Smooth',
+    description: 'High-refresh animation at 120 FPS',
+    fps: 120
+  },
+  {
+    id: 'elite144',
+    label: 'Elite Fidelity',
+    description: '144 FPS for flagship displays',
+    fps: 144
+  }
+]);
+
+const APPEARANCE_STORAGE_KEY = 'snakeAppearanceConfig';
+const FRAME_RATE_STORAGE_KEY = 'snakeFrameRateId';
+
+const DEFAULT_APPEARANCE = Object.freeze({
+  arenaTheme: 0,
+  boardPalette: 0,
+  snakeSkin: 0,
+  diceTheme: 0,
+  railTheme: 0,
+  tokenFinish: 0
+});
+
+const DEFAULT_FRAME_RATE_ID = FRAME_RATE_OPTIONS[0]?.id ?? 'performance90';
+
+function normalizeAppearance(value = {}) {
+  const normalized = { ...DEFAULT_APPEARANCE };
+  const entries = [
+    ['arenaTheme', ARENA_THEME_OPTIONS.length],
+    ['boardPalette', BOARD_PALETTE_OPTIONS.length],
+    ['snakeSkin', SNAKE_SKIN_OPTIONS.length],
+    ['diceTheme', DICE_THEME_OPTIONS.length],
+    ['railTheme', RAIL_THEME_OPTIONS.length],
+    ['tokenFinish', TOKEN_FINISH_OPTIONS.length]
+  ];
+  entries.forEach(([key, max]) => {
+    const raw = Number(value?.[key]);
+    if (Number.isFinite(raw)) {
+      normalized[key] = Math.min(Math.max(0, Math.round(raw)), Math.max(0, max - 1));
+    }
+  });
+  return normalized;
+}
+
+function resolveAppearance(appearance) {
+  const normalized = normalizeAppearance(appearance);
+  const arena = ARENA_THEME_OPTIONS[normalized.arenaTheme] ?? ARENA_THEME_OPTIONS[0];
+  const board = BOARD_PALETTE_OPTIONS[normalized.boardPalette] ?? BOARD_PALETTE_OPTIONS[0];
+  const dice = DICE_THEME_OPTIONS[normalized.diceTheme] ?? DICE_THEME_OPTIONS[0];
+  const rail = RAIL_THEME_OPTIONS[normalized.railTheme] ?? RAIL_THEME_OPTIONS[0];
+  const token = TOKEN_FINISH_OPTIONS[normalized.tokenFinish] ?? TOKEN_FINISH_OPTIONS[0];
+  const snakeSkin = SNAKE_SKIN_OPTIONS[normalized.snakeSkin] ?? SNAKE_SKIN_OPTIONS[0];
+  return {
+    arena: {
+      floor: { ...arena.floor },
+      carpet: { ...arena.carpet },
+      wall: { ...arena.wall },
+      lights: { ...arena.lights }
+    },
+    board: { ...board },
+    dice: { ...dice },
+    rail: { ...rail },
+    token: { ...token },
+    snakeSkin: { ...snakeSkin }
+  };
+}
+
+const buildAppearanceKey = (appearance) => JSON.stringify(normalizeAppearance(appearance));
+
 function generateBoardLocal() {
   const boardSize = FINAL_TILE - 1;
   const snakeCount = 6 + Math.floor(Math.random() * 3);
@@ -361,6 +695,28 @@ export default function SnakeAndLadder() {
   const [muted, setMuted] = useState(isGameMuted());
   const [showConfig, setShowConfig] = useState(false);
   const [showTrailEnabled, setShowTrailEnabled] = useState(true);
+  const [appearance, setAppearance] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return DEFAULT_APPEARANCE;
+      const stored = window.localStorage.getItem(APPEARANCE_STORAGE_KEY);
+      if (!stored) return DEFAULT_APPEARANCE;
+      const parsed = JSON.parse(stored);
+      return normalizeAppearance(parsed);
+    } catch {
+      return DEFAULT_APPEARANCE;
+    }
+  });
+  const [frameRateId, setFrameRateId] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return DEFAULT_FRAME_RATE_ID;
+      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      if (!stored) return DEFAULT_FRAME_RATE_ID;
+      const option = FRAME_RATE_OPTIONS.find((opt) => opt.id === stored);
+      return option ? option.id : DEFAULT_FRAME_RATE_ID;
+    } catch {
+      return DEFAULT_FRAME_RATE_ID;
+    }
+  });
   const [snakes, setSnakes] = useState({});
   const [ladders, setLadders] = useState({});
   const [snakeOffsets, setSnakeOffsets] = useState({});
@@ -398,6 +754,31 @@ export default function SnakeAndLadder() {
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [watchOnly, setWatchOnly] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
+  const normalizedAppearance = useMemo(() => normalizeAppearance(appearance), [appearance]);
+  const appearanceKey = useMemo(() => buildAppearanceKey(appearance), [appearance]);
+  const resolvedAppearance = useMemo(() => resolveAppearance(appearance), [appearance]);
+  const activeFrameRateOption = useMemo(
+    () => FRAME_RATE_OPTIONS.find((option) => option.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
+  const frameRateValue = activeFrameRateOption?.fps ?? FRAME_RATE_OPTIONS[0]?.fps ?? 90;
+
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      window.localStorage.setItem(
+        APPEARANCE_STORAGE_KEY,
+        JSON.stringify(normalizeAppearance(appearance))
+      );
+    } catch {}
+  }, [appearanceKey]);
+
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    } catch {}
+  }, [frameRateId]);
   const playersRef = useRef([]);
   const refreshPlayersNeeded = useCallback(
     (playersList = playersRef.current, capacityValue) => {
@@ -1970,6 +2351,125 @@ export default function SnakeAndLadder() {
     diceRollerDivRef.current?.click();
   };
 
+  const renderPreview = (key, option) => {
+    switch (key) {
+      case 'arenaTheme': {
+        const wallTop = option.wall?.base ?? '#1f2937';
+        const wallBottom = option.wall?.accent ?? wallTop;
+        const carpetPrimary = option.carpet?.primary ?? '#0f172a';
+        const carpetAccent = option.carpet?.accent ?? carpetPrimary;
+        return (
+          <div className="w-full h-16 rounded-xl overflow-hidden border border-white/10 shadow-inner flex">
+            <div
+              className="w-1/2 h-full"
+              style={{
+                background: `linear-gradient(145deg, ${carpetAccent}, ${carpetPrimary})`
+              }}
+            />
+            <div
+              className="w-1/2 h-full"
+              style={{ background: `linear-gradient(180deg, ${wallTop}, ${wallBottom})` }}
+            />
+          </div>
+        );
+      }
+      case 'boardPalette': {
+        const light = option.light ?? '#f3ebe0';
+        const dark = option.dark ?? '#9c7b5a';
+        return (
+          <div
+            className="w-full h-16 rounded-xl border border-white/10"
+            style={{
+              backgroundColor: dark,
+              backgroundImage: `linear-gradient(45deg, ${light} 25%, transparent 25%), linear-gradient(-45deg, ${light} 25%, transparent 25%), linear-gradient(45deg, transparent 75%, ${light} 75%), linear-gradient(-45deg, transparent 75%, ${light} 75%)`,
+              backgroundSize: '20px 20px',
+              backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0'
+            }}
+          />
+        );
+      }
+      case 'snakeSkin': {
+        const base = option.base ?? '#0f5132';
+        const diamond = option.diamond ?? '#198754';
+        const stroke = option.stroke ?? 'rgba(255,255,255,0.08)';
+        return (
+          <div
+            className="w-full h-16 rounded-xl border border-white/10"
+            style={{
+              backgroundColor: base,
+              backgroundImage: `radial-gradient(circle at 25% 25%, ${diamond} 30%, transparent 31%), radial-gradient(circle at 75% 75%, ${diamond} 30%, transparent 31%), linear-gradient(${stroke}, ${stroke})`,
+              backgroundSize: '24px 24px'
+            }}
+          />
+        );
+      }
+      case 'diceTheme': {
+        const body = option.body ?? '#f8fafc';
+        const pip = option.pip ?? '#111827';
+        const rim = option.rim ?? '#fbbf24';
+        return (
+          <div className="w-full h-16 flex items-center justify-center">
+            <div
+              className="relative w-12 h-12 rounded-2xl shadow-[0_8px_20px_rgba(15,23,42,0.55)]"
+              style={{ background: body, boxShadow: `0 6px 16px ${rim}44` }}
+            >
+              <span
+                className="absolute left-2 top-2 block h-2.5 w-2.5 rounded-full"
+                style={{ background: pip, boxShadow: `0 0 0 2px ${rim}` }}
+              />
+              <span
+                className="absolute right-2 bottom-2 block h-2.5 w-2.5 rounded-full"
+                style={{ background: pip, boxShadow: `0 0 0 2px ${rim}` }}
+              />
+            </div>
+          </div>
+        );
+      }
+      case 'railTheme': {
+        const metal = option.metal ?? '#f3f4f6';
+        const woodLight = option.woodLight ?? '#d6b68c';
+        const woodDark = option.woodDark ?? '#8b5e34';
+        return (
+          <div className="w-full h-16 rounded-xl border border-white/10 flex flex-col justify-center gap-2 px-3">
+            <div
+              className="h-2 rounded-full"
+              style={{ background: `linear-gradient(90deg, ${metal}, ${lightenHex(metal, 0.2)})` }}
+            />
+            <div
+              className="h-2 rounded-full"
+              style={{ background: `linear-gradient(90deg, ${woodLight}, ${woodDark})` }}
+            />
+            <div
+              className="h-2 rounded-full"
+              style={{ background: `linear-gradient(90deg, ${metal}, ${darkenHex(metal, 0.2)})` }}
+            />
+          </div>
+        );
+      }
+      case 'tokenFinish': {
+        const accent = option.accentTarget ?? '#f8fafc';
+        return (
+          <div className="w-full h-16 flex items-center justify-center">
+            <div
+              className="relative h-14 w-14 rounded-full"
+              style={{
+                background: `radial-gradient(circle at 30% 30%, ${accent}, ${darkenHex(accent, 0.65)})`,
+                boxShadow: `0 10px 25px ${accent}33`
+              }}
+            >
+              <div
+                className="absolute inset-2 rounded-full border border-white/20"
+                style={{ boxShadow: `inset 0 0 12px ${lightenHex(accent, 0.3)}55` }}
+              />
+            </div>
+          </div>
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
   // determine ranking numbers based on board positions
   const rankMap = {};
   players
@@ -2001,6 +2501,9 @@ export default function SnakeAndLadder() {
           diceEvent={diceBoardEvent}
           onSeatPositionsChange={setSeatAnchors}
           onDiceAnchorChange={setDiceAnchor}
+          appearance={resolvedAppearance}
+          appearanceKey={appearanceKey}
+          frameRate={frameRateValue}
         />
       </div>
       <div className="absolute top-3 right-3 z-30 pointer-events-auto">
@@ -2014,49 +2517,128 @@ export default function SnakeAndLadder() {
             ⚙️
           </button>
           {showConfig && (
-            <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-black/85 p-4 text-xs text-gray-100 shadow-2xl backdrop-blur-xl">
+            <div className="absolute right-0 mt-2 w-[min(22rem,80vw)] rounded-2xl border border-white/10 bg-black/85 p-4 text-xs text-gray-100 shadow-[0_20px_60px_rgba(2,6,23,0.55)] backdrop-blur-xl">
               <div className="flex items-center justify-between">
-                <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-gray-300">
-                  Konfigurime
+                <span className="text-[0.6rem] font-semibold uppercase tracking-[0.4em] text-sky-200/80">
+                  Table Setup
                 </span>
                 <button
                   type="button"
                   aria-label="Mbyll konfigurimet"
                   onClick={() => setShowConfig(false)}
-                  className="rounded-full p-1 text-gray-400 transition hover:text-gray-100"
+                  className="rounded-full p-1 text-white/60 transition hover:text-white"
                 >
                   ✕
                 </button>
               </div>
-              <label className="mt-3 flex items-center justify-between text-[0.7rem] text-gray-200">
-                <span>Ndalo tingujt</span>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                  checked={muted}
-                  onChange={(event) => {
-                    const next = event.target.checked;
-                    setMuted(next);
-                    setGameMuted(next);
+              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+                {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                  <div key={key} className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                    <div className="grid grid-cols-1 gap-2">
+                      {options.map((option, idx) => {
+                        const selected = normalizedAppearance[key] === idx;
+                        return (
+                          <button
+                            key={option.id ?? idx}
+                            type="button"
+                            onClick={() =>
+                              setAppearance((prev) => normalizeAppearance({ ...prev, [key]: idx }))
+                            }
+                            aria-pressed={selected}
+                            className={`flex flex-col items-center gap-2 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              selected
+                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_18px_rgba(56,189,248,0.45)]'
+                                : 'border-white/10 bg-white/5 hover:border-white/20'
+                            }`}
+                          >
+                            {renderPreview(key, option)}
+                            <span className="block w-full text-center text-[0.65rem] font-semibold text-gray-200">
+                              {option.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 space-y-3">
+                <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                  <span>Ndalo tingujt</span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                    checked={muted}
+                    onChange={(event) => {
+                      const next = event.target.checked;
+                      setMuted(next);
+                      setGameMuted(next);
+                    }}
+                  />
+                </label>
+                <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                  <span>Shfaq gjurmën e lëvizjes</span>
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                    checked={showTrailEnabled}
+                    onChange={(event) => setShowTrailEnabled(event.target.checked)}
+                  />
+                </label>
+              </div>
+              <div className="mt-4 space-y-2">
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</h3>
+                <div className="grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-xs font-semibold tracking-wide">{option.fps} FPS</span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-4 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAppearance({ ...DEFAULT_APPEARANCE });
+                    setFrameRateId(DEFAULT_FRAME_RATE_ID);
                   }}
-                />
-              </label>
-              <label className="mt-3 flex items-center justify-between text-[0.7rem] text-gray-200">
-                <span>Shfaq gjurmën e lëvizjes</span>
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                  checked={showTrailEnabled}
-                  onChange={(event) => setShowTrailEnabled(event.target.checked)}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="mt-3 w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-              >
-                Rifillo lojën
-              </button>
+                  className="w-full rounded-lg border border-white/10 bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
+                >
+                  Reseto personalizimin
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                >
+                  Rifillo lojën
+                </button>
+              </div>
             </div>
           )}
         </div>
