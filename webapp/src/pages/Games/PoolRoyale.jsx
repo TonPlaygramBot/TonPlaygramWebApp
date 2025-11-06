@@ -265,14 +265,14 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.28; // widen the middle fascia further so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.004; // open the rounded chrome corner cut slightly more so the reveal grows a hair
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.008; // open the rounded chrome corner cut a touch further so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.04; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // keep the middle chrome cut aligned with the outward-shifted arches so it no longer creeps toward centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.016; // nudge the middle chrome cut back toward centre so the rounded plate opening hugs the inward-shifted jaws
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.988; // pull only the wooden corner relief slightly farther toward the cloth
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.012; // ease the middle rail arches only fractionally so the wood relief nearly matches the tightened chrome cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.006; // trim the middle rail arches slightly more so the wood relief shrinks with the tightened middle pocket cut
 
 function buildChromePlateGeometry({
   width,
@@ -588,7 +588,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.93; // pull the middle pockets a fraction further toward centre so the jaw shoulders and chrome cuts sit tighter to the rails
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.78; // draw the middle pockets a hair closer to centre so the jaw shoulders and chrome cuts align with the new inward target
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
