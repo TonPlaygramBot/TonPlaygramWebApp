@@ -267,7 +267,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.016; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.028; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.024; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.036; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -539,7 +539,7 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.362; // pull the middle jaw span tighter so the fascia clears the rounded rail cut
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.318; // pull the middle jaw span tighter so the fascia clears the rounded rail cut while nudging it closer to centre
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.962; // shave the middle jaw radius further so the pocket mouth presents narrower than before
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982; // let the middle jaw depth follow the slimmer profile instead of matching the corners exactly
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.028; // lower the middle jaw crowns more so their top edge aligns with the corner jaw altitude
@@ -669,6 +669,7 @@ let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
+const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
@@ -1320,10 +1321,7 @@ const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
 const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   classicWood: 'walnut',
   goldenMaple: 'maple',
-  nordicBirch: 'birch',
-  matteGraphite: 'smokedOak',
-  matteGraphiteNeon: 'smokedOak',
-  twoToneHybrid: 'teak'
+  matteGraphite: 'smokedOak'
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
@@ -1486,57 +1484,6 @@ const TABLE_FINISHES = Object.freeze({
       return { ...materials, ...createPocketMaterials() };
     }
   },
-  nordicBirch: {
-    id: 'nordicBirch',
-    label: 'Nordic Birch',
-    colors: makeColorPalette({
-      cloth: 0x33a86a,
-      rail: 0xd8b47c,
-      base: 0xd2a86a
-    }),
-    createMaterials: () => {
-      const frameColor = new THREE.Color('#d8b47c');
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: frameColor,
-        metalness: 0.12,
-        roughness: 0.26,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.14,
-        sheen: 0.18,
-        sheenRoughness: 0.44,
-        reflectivity: 0.48,
-        envMapIntensity: 0.9
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0.02, 0.04, 0.1),
-        metalness: 0.16,
-        roughness: 0.28,
-        clearcoat: 0.42,
-        clearcoatRoughness: 0.18,
-        sheen: 0.2,
-        sheenRoughness: 0.4,
-        reflectivity: 0.5,
-        envMapIntensity: 0.95
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xf4e0b8,
-        metalness: 0.6,
-        roughness: 0.32,
-        clearcoat: 0.46,
-        clearcoatRoughness: 0.22,
-        envMapIntensity: 1.05
-      });
-      const materials = {
-        frame,
-        rail,
-        leg: frame,
-        trim,
-        accent: null
-      };
-      applySnookerStyleWoodPreset(materials, 'nordicBirch');
-      return { ...materials, ...createPocketMaterials() };
-    }
-  },
   matteGraphite: {
     id: 'matteGraphite',
     label: 'Matte Graphite',
@@ -1589,150 +1536,14 @@ const TABLE_FINISHES = Object.freeze({
       applySnookerStyleWoodPreset(materials, 'matteGraphite');
       return { ...materials, ...createPocketMaterials() };
     }
-  },
-  matteGraphiteNeon: {
-    id: 'matteGraphiteNeon',
-    label: 'Matte Graphite Neon',
-    colors: makeColorPalette({
-      cloth: 0x33a86a,
-      rail: 0x2f2f2f,
-      base: 0x2b2b2b
-    }),
-    createMaterials: () => {
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: 0x2b2b2b,
-        metalness: 0.22,
-        roughness: 0.6,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.46,
-        sheen: 0.05,
-        sheenRoughness: 0.72
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: 0x303030,
-        metalness: 0.28,
-        roughness: 0.54,
-        clearcoat: 0.12,
-        clearcoatRoughness: 0.4,
-        sheen: 0.04,
-        sheenRoughness: 0.64
-      });
-      const leg = new THREE.MeshPhysicalMaterial({
-        color: 0x232323,
-        metalness: 0.26,
-        roughness: 0.58,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.44
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0x11161c,
-        metalness: 0.78,
-        roughness: 0.32,
-        clearcoat: 0.22,
-        clearcoatRoughness: 0.34,
-        envMapIntensity: 1.1
-      });
-      const neon = new THREE.Color('#00c8ff');
-      const accentMaterial = new THREE.MeshStandardMaterial({
-        color: neon,
-        emissive: neon.clone().multiplyScalar(0.55),
-        emissiveIntensity: 1.4,
-        metalness: 0.32,
-        roughness: 0.34
-      });
-      const materials = {
-        frame,
-        rail,
-        leg,
-        trim,
-        accent: {
-          material: accentMaterial,
-          thickness: 0.055,
-          height: 0.028,
-          inset: 0.045,
-          verticalOffset: 0.82
-        }
-      };
-      applySnookerStyleWoodPreset(materials, 'matteGraphiteNeon');
-      return { ...materials, ...createPocketMaterials() };
-    }
-  },
-  twoToneHybrid: {
-    id: 'twoToneHybrid',
-    label: 'Two-Tone Hybrid',
-    colors: makeColorPalette({
-      cloth: 0x33a86a,
-      rail: 0x151a1f,
-      base: 0x1c2026
-    }),
-    createMaterials: () => {
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: 0x1c2026,
-        metalness: 0.58,
-        roughness: 0.38,
-        clearcoat: 0.26,
-        clearcoatRoughness: 0.32,
-        sheen: 0.08,
-        sheenRoughness: 0.52
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: 0x13171d,
-        metalness: 0.72,
-        roughness: 0.32,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.28,
-        sheen: 0.06,
-        sheenRoughness: 0.46
-      });
-      const leg = new THREE.MeshPhysicalMaterial({
-        color: 0x302218,
-        metalness: 0.22,
-        roughness: 0.52,
-        clearcoat: 0.18,
-        clearcoatRoughness: 0.42
-      });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xc9a65c,
-        metalness: 0.86,
-        roughness: 0.26,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.24,
-        envMapIntensity: 1.18
-      });
-      const accentMaterial = new THREE.MeshStandardMaterial({
-        color: 0xffd369,
-        emissive: new THREE.Color(0xffd369).multiplyScalar(0.22),
-        emissiveIntensity: 0.9,
-        metalness: 0.48,
-        roughness: 0.38
-      });
-      const materials = {
-        frame,
-        rail,
-        leg,
-        trim,
-        accent: {
-          material: accentMaterial,
-          thickness: 0.05,
-          height: 0.024,
-          inset: 0.06,
-          verticalOffset: 0.74
-        }
-      };
-      applySnookerStyleWoodPreset(materials, 'twoToneHybrid');
-      return { ...materials, ...createPocketMaterials() };
-    }
   }
 });
 
 const TABLE_FINISH_OPTIONS = Object.freeze(
   [
-    TABLE_FINISHES.nordicBirch,
     TABLE_FINISHES.goldenMaple,
     TABLE_FINISHES.classicWood,
-    TABLE_FINISHES.twoToneHybrid,
-    TABLE_FINISHES.matteGraphite,
-    TABLE_FINISHES.matteGraphiteNeon
+    TABLE_FINISHES.matteGraphite
   ].filter(Boolean)
 );
 
@@ -8645,68 +8456,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const rightWall = makeWall(wallThickness, wallHeight, roomDepth);
       rightWall.position.x = roomWidth / 2;
 
-      const billboardTexture = registerDynamicTexture(createTickerEntry());
-      const signageFrameMat = new THREE.MeshStandardMaterial({
-        color: 0x1f2937,
-        roughness: 0.5,
-        metalness: 0.6
-      });
-      const signageScale = 3;
-      const billboardScale = 0.8;
-      const signageDepth = 0.8 * signageScale * billboardScale;
-      const signageWidth =
-        Math.min(roomWidth * 0.58, 52) * signageScale * billboardScale;
-      const signageHeight =
-        Math.min(wallHeight * 0.28, 12) * signageScale * billboardScale;
-      const makeScreenMaterial = (texture) => {
-        const material = new THREE.MeshBasicMaterial({ toneMapped: false });
-        if (texture) {
-          material.map = texture;
-        } else {
-          material.color = new THREE.Color(0x0f172a);
-        }
-        return material;
-      };
-      const createBillboardAssembly = () => {
-        const assembly = new THREE.Group();
-        const frame = new THREE.Mesh(
-          new THREE.BoxGeometry(signageWidth, signageHeight, signageDepth),
-          signageFrameMat
-        );
-        frame.castShadow = false;
-        frame.receiveShadow = true;
-        assembly.add(frame);
-        const billboardScreen = new THREE.Mesh(
-          new THREE.PlaneGeometry(signageWidth * 0.94, signageHeight * 0.82),
-          makeScreenMaterial(billboardTexture)
-        );
-        billboardScreen.position.z = signageDepth / 2 + 0.03;
-        assembly.add(billboardScreen);
-        return assembly;
-      };
-      const signageGap = BALL_R * 3.2;
-      const signageHalfHeight = signageHeight / 2;
-      const signageY = floorY + signageGap + signageHalfHeight;
       const wallInset = wallThickness / 2 + 0.2;
       const frontInterior = -roomDepth / 2 + wallInset;
       const backInterior = roomDepth / 2 - wallInset;
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
-      [
-        {
-          position: [leftInterior, signageY, 0],
-          rotationY: Math.PI / 2
-        },
-        {
-          position: [rightInterior, signageY, 0],
-          rotationY: -Math.PI / 2
-        }
-      ].forEach(({ position, rotationY }) => {
-        const signage = createBillboardAssembly();
-        signage.position.set(position[0], position[1], position[2]);
-        signage.rotation.y = rotationY;
-        world.add(signage);
-      });
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -8747,12 +8501,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const cueRackHalfWidth = cueRackDimensions.width / 2;
       const availableHalfDepth =
         roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
-      const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
+      const desiredOffset = cueRackHalfWidth + BALL_R * 8;
       const cueRackOffset = Math.max(
         cueRackHalfWidth,
         Math.min(availableHalfDepth, desiredOffset)
       );
-      const cueRackGap = signageGap;
+      const cueRackGap = BALL_R * 3.2;
       const cueRackY = floorY + cueRackGap + cueRackDimensions.height / 2;
       const cueRackPlacements = [
         { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
@@ -12998,7 +12752,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         });
         const frameScaleBase =
           targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
-        const frameScale = Math.max(frameScaleBase, MIN_FRAME_SCALE);
+        const frameScale = Math.min(
+          MAX_FRAME_SCALE,
+          Math.max(frameScaleBase, MIN_FRAME_SCALE)
+        );
         const physicsSubsteps = Math.min(
           MAX_PHYSICS_SUBSTEPS,
           Math.max(1, Math.ceil(frameScale))
