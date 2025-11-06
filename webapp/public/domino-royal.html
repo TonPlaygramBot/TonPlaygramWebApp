@@ -122,7 +122,11 @@ const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPref
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMappingExposure = 1.12;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.physicallyCorrectLights = true;
+renderer.setClearColor(0x06070a, 1);
 function setRendererSize(){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
   renderer.setSize(w, h, false);
@@ -325,10 +329,12 @@ function positionCameraForViewport({ force = false } = {}) {
 
 
 /* ---------- Lights ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.55));
-const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
-const rimLight = new THREE.DirectionalLight(0xffffff, 0.55); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+scene.add(new THREE.HemisphereLight(0xf8f2e8, 0x1b2436, 0.65));
+const key = new THREE.DirectionalLight(0xfff6e1, 1.8); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(4096,4096); key.shadow.bias = -0.00018; key.shadow.normalBias = 0.002; scene.add(key);
+const rimLight = new THREE.DirectionalLight(0xdbe6ff, 0.65); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
+const fillLight = new THREE.DirectionalLight(0xffd8b0, 0.9); fillLight.position.set(-1.1,4.2,3.4); scene.add(fillLight);
+const bounceLight = new THREE.PointLight(0x3b4f7f, 0.4, 12, 2); bounceLight.position.set(-2.6,1.2,2.4); scene.add(bounceLight);
 
 const getPoolCarpetTextures = (() => {
   let cache = null;
@@ -846,10 +852,11 @@ const TABLE_SETUP_SECTIONS = [
   { key: "tableWood", label: "Dru i Tavolinës", options: TABLE_WOOD_OPTIONS },
   { key: "tableCloth", label: "Rroba e Tavolinës", options: TABLE_CLOTH_OPTIONS },
   { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
+  { key: "dominoStyle", label: "Stili i Dominos", options: DOMINO_STYLE_OPTIONS },
   { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
 ];
 
-const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, chairTheme: 0 };
+const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, dominoStyle: 0, chairTheme: 0 };
 const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
 const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
 let appearance = { ...DEFAULT_APPEARANCE };
@@ -861,6 +868,7 @@ function normalizeAppearance(raw) {
     ["tableWood", TABLE_WOOD_OPTIONS.length],
     ["tableCloth", TABLE_CLOTH_OPTIONS.length],
     ["tableBase", TABLE_BASE_OPTIONS.length],
+    ["dominoStyle", DOMINO_STYLE_OPTIONS.length],
     ["chairTheme", CHAIR_THEME_OPTIONS.length]
   ];
   limits.forEach(([key, max]) => {
@@ -970,6 +978,524 @@ function createCarbonFiberTexture(
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.needsUpdate = true;
   return texture;
+}
+
+function createPearlescentTexture(
+  renderer,
+  {
+    size = 512,
+    base = '#f4f1ff',
+    highlight = '#ffffff',
+    lowlight = '#d5daec',
+    shimmer = 0.22,
+    noise = 0.1
+  } = {}
+) {
+  if (typeof document === 'undefined') {
+    return { map: null, roughnessMap: null };
+  }
+
+  const dimension = Math.max(128, Math.floor(size));
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = dimension;
+  const ctx = canvas.getContext('2d');
+
+  const gradient = ctx.createLinearGradient(0, 0, dimension, dimension);
+  gradient.addColorStop(0, highlight);
+  gradient.addColorStop(0.5, base);
+  gradient.addColorStop(1, lowlight);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, dimension, dimension);
+
+  const image = ctx.getImageData(0, 0, dimension, dimension);
+  const data = image.data;
+  const shimmerScale = Math.max(0, Math.min(1, shimmer));
+  const noiseScale = Math.max(0, Math.min(1, noise));
+  for (let y = 0; y < dimension; y++) {
+    for (let x = 0; x < dimension; x++) {
+      const idx = (y * dimension + x) * 4;
+      const wave = Math.sin((x / dimension) * Math.PI * 3.2 + (y / dimension) * Math.PI * 2.4);
+      const swirl = Math.cos(((x + y) / dimension) * Math.PI * 1.6);
+      const shimmerMix = (wave * 0.6 + swirl * 0.4) * shimmerScale;
+      const seed = Math.sin((x * 12.9898 + y * 78.233) * 43758.5453);
+      const pseudoNoise = (seed - Math.floor(seed)) * noiseScale;
+      const tint = (shimmerMix * 0.5 + pseudoNoise * 0.4);
+      data[idx] = Math.max(0, Math.min(255, data[idx] + tint * 45));
+      data[idx + 1] = Math.max(0, Math.min(255, data[idx + 1] + tint * 28));
+      data[idx + 2] = Math.max(0, Math.min(255, data[idx + 2] + tint * 60));
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2.25, 2.25);
+  const maxAnisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? renderer?.capabilities?.anisotropy ?? 8;
+  texture.anisotropy = Math.min(maxAnisotropy, 16);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+
+  const roughCanvas = document.createElement('canvas');
+  roughCanvas.width = roughCanvas.height = dimension;
+  const roughCtx = roughCanvas.getContext('2d');
+  roughCtx.fillStyle = '#ffffff';
+  roughCtx.fillRect(0, 0, dimension, dimension);
+  const roughImage = roughCtx.getImageData(0, 0, dimension, dimension);
+  const roughData = roughImage.data;
+  for (let y = 0; y < dimension; y++) {
+    for (let x = 0; x < dimension; x++) {
+      const idx = (y * dimension + x) * 4;
+      const seed = Math.sin((x * 19.19 + y * 41.41) * 318.133 + x * 0.35);
+      const roughNoise = (seed - Math.floor(seed));
+      const band = Math.abs(Math.sin((x / dimension) * Math.PI * 2.6 + (y / dimension) * Math.PI * 1.2));
+      const value = 180 + band * 45 + roughNoise * 55;
+      const clamped = Math.max(90, Math.min(255, value));
+      roughData[idx] = roughData[idx + 1] = roughData[idx + 2] = clamped;
+      roughData[idx + 3] = 255;
+    }
+  }
+  roughCtx.putImageData(roughImage, 0, 0);
+
+  const roughnessMap = new THREE.CanvasTexture(roughCanvas);
+  roughnessMap.wrapS = roughnessMap.wrapT = THREE.RepeatWrapping;
+  roughnessMap.repeat.set(2.25, 2.25);
+  roughnessMap.anisotropy = texture.anisotropy;
+  roughnessMap.colorSpace = THREE.LinearSRGBColorSpace;
+  roughnessMap.needsUpdate = true;
+
+  return { map: texture, roughnessMap };
+}
+
+const DOMINO_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'porcelainGold',
+    label: 'Porcelan Royale',
+    body: {
+      color: '#f8f8fb',
+      roughness: 0.12,
+      metalness: 0.18,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      reflectivity: 0.64,
+      sheenColor: '#ffffff',
+      sheenRoughness: 0.36
+    },
+    pip: {
+      color: '#0b0b10',
+      roughness: 0.12,
+      metalness: 0.55,
+      clearcoat: 0.4,
+      clearcoatRoughness: 0.06
+    },
+    accent: {
+      color: '#d4af37',
+      emissive: '#6a4b10',
+      emissiveIntensity: 0.55,
+      roughness: 0.18,
+      metalness: 1.0,
+      envMapIntensity: 1.4,
+      reflectivity: 1.0
+    },
+    ring: {
+      color: '#f0c970',
+      emissive: '#b8872c',
+      emissiveIntensity: 0.62,
+      roughness: 0.16
+    },
+    preview: {
+      body: '#f8f8fb',
+      frame: '#d4af37',
+      pip: '#141414'
+    }
+  },
+  {
+    id: 'onyxPlatinum',
+    label: 'Oniks Platini',
+    body: {
+      color: '#0c0f13',
+      roughness: 0.26,
+      metalness: 0.45,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.12,
+      reflectivity: 0.58,
+      sheenColor: '#1b2333',
+      sheenRoughness: 0.55
+    },
+    pip: {
+      color: '#f5f6fa',
+      roughness: 0.18,
+      metalness: 0.32,
+      emissive: '#9ba8d6',
+      emissiveIntensity: 0.18
+    },
+    accent: {
+      color: '#dce3f2',
+      emissive: '#9ca8c5',
+      emissiveIntensity: 0.35,
+      roughness: 0.15,
+      metalness: 0.95,
+      envMapIntensity: 1.28,
+      reflectivity: 1.0
+    },
+    perimeter: {
+      color: '#bfc7da',
+      emissive: '#8c94a6',
+      emissiveIntensity: 0.28,
+      roughness: 0.18
+    },
+    ring: {
+      color: '#edf1ff',
+      emissive: '#c9d2f5',
+      emissiveIntensity: 0.42,
+      roughness: 0.14
+    },
+    preview: {
+      body: '#0c0f13',
+      frame: '#dce3f2',
+      pip: '#f5f6fa'
+    }
+  },
+  {
+    id: 'ivoryRose',
+    label: 'Fildish & Rozë',
+    body: {
+      color: '#f4ede0',
+      roughness: 0.16,
+      metalness: 0.12,
+      clearcoat: 0.95,
+      clearcoatRoughness: 0.06,
+      reflectivity: 0.62,
+      sheenColor: '#fff2e0',
+      sheenRoughness: 0.42
+    },
+    pip: {
+      color: '#311218',
+      roughness: 0.2,
+      metalness: 0.28,
+      emissive: '#5a1c26',
+      emissiveIntensity: 0.12
+    },
+    accent: {
+      color: '#e7a7a2',
+      emissive: '#ad6465',
+      emissiveIntensity: 0.38,
+      roughness: 0.22,
+      metalness: 0.92,
+      envMapIntensity: 1.3
+    },
+    ring: {
+      color: '#f4c5c3',
+      emissive: '#d18687',
+      emissiveIntensity: 0.48,
+      roughness: 0.2
+    },
+    preview: {
+      body: '#f4ede0',
+      frame: '#e7a7a2',
+      pip: '#311218'
+    }
+  },
+  {
+    id: 'pearlCobalt',
+    label: 'Perlë Kobalt',
+    body: {
+      color: '#e8ecf8',
+      roughness: 0.18,
+      metalness: 0.15,
+      clearcoat: 0.96,
+      clearcoatRoughness: 0.05,
+      reflectivity: 0.68,
+      sheenColor: '#f5f7ff',
+      sheenRoughness: 0.38,
+      texture: (renderer) => createPearlescentTexture(renderer, {
+        base: '#e9ecf9',
+        highlight: '#fbfcff',
+        lowlight: '#d0d8ee',
+        shimmer: 0.24,
+        noise: 0.14
+      })
+    },
+    pip: {
+      color: '#0f1a3a',
+      roughness: 0.18,
+      metalness: 0.4,
+      emissive: '#122043',
+      emissiveIntensity: 0.16
+    },
+    accent: {
+      color: '#3b82f6',
+      emissive: '#163d9b',
+      emissiveIntensity: 0.5,
+      roughness: 0.2,
+      metalness: 0.9,
+      envMapIntensity: 1.45
+    },
+    ring: {
+      color: '#60a5fa',
+      emissive: '#2563eb',
+      emissiveIntensity: 0.55,
+      roughness: 0.18
+    },
+    preview: {
+      body: '#e8ecf8',
+      frame: '#3b82f6',
+      pip: '#0f1a3a'
+    }
+  },
+  {
+    id: 'carbonGold',
+    label: 'Karbon i Artë',
+    body: {
+      color: '#14181f',
+      roughness: 0.24,
+      metalness: 0.55,
+      clearcoat: 0.65,
+      clearcoatRoughness: 0.09,
+      reflectivity: 0.6,
+      sheenColor: '#1a212f',
+      sheenRoughness: 0.58,
+      texture: (renderer) => {
+        const map = createCarbonFiberTexture(renderer, {
+          tile: 5.5,
+          primary: '#181f2b',
+          secondary: '#0d111a',
+          highlight: 'rgba(255,255,255,0.08)'
+        });
+        if (!map) {
+          return {};
+        }
+        map.repeat.set(3.2, 3.2);
+        const roughness = map.clone?.() ?? null;
+        if (roughness) {
+          roughness.needsUpdate = true;
+          roughness.colorSpace = THREE.LinearSRGBColorSpace;
+          roughness.repeat.copy(map.repeat);
+        }
+        return { map, roughnessMap: roughness || map };
+      }
+    },
+    pip: {
+      color: '#fdfcf8',
+      roughness: 0.22,
+      metalness: 0.25,
+      emissive: '#c8aa64',
+      emissiveIntensity: 0.12
+    },
+    accent: {
+      color: '#c79a4b',
+      emissive: '#8b6a2a',
+      emissiveIntensity: 0.55,
+      roughness: 0.24,
+      metalness: 1.0,
+      envMapIntensity: 1.35
+    },
+    ring: {
+      color: '#f3c978',
+      emissive: '#b8862a',
+      emissiveIntensity: 0.6,
+      roughness: 0.22
+    },
+    preview: {
+      body: '#1a1e27',
+      frame: '#c79a4b',
+      pip: '#fdfcf8'
+    }
+  }
+]);
+
+const DOMINO_TEXTURE_PROPS = Object.freeze([
+  'map',
+  'normalMap',
+  'roughnessMap',
+  'metalnessMap',
+  'aoMap',
+  'alphaMap',
+  'emissiveMap',
+  'bumpMap',
+  'displacementMap',
+  'clearcoatMap',
+  'clearcoatRoughnessMap',
+  'clearcoatNormalMap',
+  'specularMap',
+  'sheenColorMap',
+  'sheenRoughnessMap'
+]);
+
+function disposeDominoMaterial(material) {
+  if (!material) return;
+  DOMINO_TEXTURE_PROPS.forEach((prop) => {
+    const texture = material[prop];
+    if (texture?.isTexture) {
+      texture.dispose();
+    }
+  });
+  if (material.dispose) {
+    material.dispose();
+  }
+}
+
+function disposeDominoMaterialSet(set) {
+  if (!set) return;
+  const unique = new Set();
+  Object.values(set).forEach((material) => {
+    if (material) {
+      unique.add(material);
+    }
+  });
+  unique.forEach((material) => disposeDominoMaterial(material));
+}
+
+function createDominoMaterialSet(styleOption = DOMINO_STYLE_OPTIONS[0]) {
+  const option = styleOption || DOMINO_STYLE_OPTIONS[0];
+  const bodyOpts = option.body ?? {};
+  const pipOpts = option.pip ?? {};
+  const accentDefaults = {
+    color: '#d4af37',
+    emissive: '#6a4b10',
+    emissiveIntensity: 0.5,
+    roughness: 0.2,
+    metalness: 1,
+    envMapIntensity: 1.3,
+    reflectivity: 1
+  };
+
+  const bodyMat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(bodyOpts.color ?? '#f7f7fb'),
+    roughness: bodyOpts.roughness ?? 0.16,
+    metalness: bodyOpts.metalness ?? 0.2,
+    clearcoat: bodyOpts.clearcoat ?? 0.92,
+    clearcoatRoughness: bodyOpts.clearcoatRoughness ?? 0.05,
+    reflectivity: bodyOpts.reflectivity ?? 0.6,
+    transmission: 0
+  });
+  if ('sheenColor' in bodyOpts && typeof bodyOpts.sheenColor === 'string' && 'sheenColor' in bodyMat) {
+    bodyMat.sheen = 1;
+    bodyMat.sheenColor.set(bodyOpts.sheenColor);
+    if ('sheenRoughness' in bodyMat && typeof bodyOpts.sheenRoughness === 'number') {
+      bodyMat.sheenRoughness = bodyOpts.sheenRoughness;
+    }
+  } else if (typeof bodyOpts.sheen === 'number' && 'sheen' in bodyMat) {
+    bodyMat.sheen = bodyOpts.sheen;
+    if ('sheenRoughness' in bodyMat && typeof bodyOpts.sheenRoughness === 'number') {
+      bodyMat.sheenRoughness = bodyOpts.sheenRoughness;
+    }
+  }
+  if ('specularIntensity' in bodyOpts && 'specularIntensity' in bodyMat && typeof bodyOpts.specularIntensity === 'number') {
+    bodyMat.specularIntensity = bodyOpts.specularIntensity;
+  }
+  if ('specularColor' in bodyOpts && 'specularColor' in bodyMat && typeof bodyOpts.specularColor === 'string') {
+    bodyMat.specularColor.set(bodyOpts.specularColor);
+  }
+
+  const textureFactory = typeof bodyOpts.texture === 'function' ? bodyOpts.texture : (typeof option.bodyTexture === 'function' ? option.bodyTexture : null);
+  if (textureFactory) {
+    try {
+      const textures = textureFactory(renderer) || {};
+      if (textures.map?.isTexture) {
+        bodyMat.map = textures.map;
+        bodyMat.map.needsUpdate = true;
+        if (!bodyMat.map.colorSpace) {
+          bodyMat.map.colorSpace = THREE.SRGBColorSpace;
+        }
+      }
+      if (textures.roughnessMap?.isTexture) {
+        bodyMat.roughnessMap = textures.roughnessMap;
+        bodyMat.roughnessMap.needsUpdate = true;
+        if (!bodyMat.roughnessMap.colorSpace) {
+          bodyMat.roughnessMap.colorSpace = THREE.LinearSRGBColorSpace;
+        }
+      }
+      if (textures.normalMap?.isTexture) {
+        bodyMat.normalMap = textures.normalMap;
+        bodyMat.normalMap.needsUpdate = true;
+      }
+    } catch (error) {
+      console.warn('Failed to build domino body texture', error);
+    }
+  }
+
+  const pipMat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(pipOpts.color ?? '#0b0b0f'),
+    roughness: pipOpts.roughness ?? 0.14,
+    metalness: pipOpts.metalness ?? 0.45,
+    reflectivity: pipOpts.reflectivity ?? 0.52,
+    clearcoat: pipOpts.clearcoat ?? 0.4,
+    clearcoatRoughness: pipOpts.clearcoatRoughness ?? 0.08,
+    transmission: 0
+  });
+  if (typeof pipOpts.emissive === 'string') {
+    pipMat.emissive.set(pipOpts.emissive);
+    pipMat.emissiveIntensity = pipOpts.emissiveIntensity ?? 0.2;
+  } else if (typeof pipOpts.emissiveIntensity === 'number') {
+    pipMat.emissiveIntensity = pipOpts.emissiveIntensity;
+  }
+
+  const buildAccentMaterial = (overrides = {}) => {
+    const merged = { ...accentDefaults, ...(option.accent ?? {}), ...overrides };
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(merged.color ?? accentDefaults.color),
+      roughness: merged.roughness ?? accentDefaults.roughness,
+      metalness: merged.metalness ?? accentDefaults.metalness,
+      envMapIntensity: merged.envMapIntensity ?? accentDefaults.envMapIntensity,
+      reflectivity: merged.reflectivity ?? accentDefaults.reflectivity,
+      clearcoat: merged.clearcoat ?? 0.25,
+      clearcoatRoughness: merged.clearcoatRoughness ?? 0.08,
+      transmission: 0,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1
+    });
+    if (typeof merged.emissive === 'string') {
+      mat.emissive.set(merged.emissive);
+      mat.emissiveIntensity = merged.emissiveIntensity ?? 0.45;
+    } else {
+      mat.emissive.set(accentDefaults.emissive ?? merged.color ?? '#d4af37');
+      mat.emissiveIntensity = merged.emissiveIntensity ?? accentDefaults.emissiveIntensity ?? 0.45;
+    }
+    if (typeof merged.opacity === 'number') {
+      mat.opacity = merged.opacity;
+      mat.transparent = merged.opacity < 1;
+    }
+    return mat;
+  };
+
+  const accentMat = buildAccentMaterial(option.accent ?? {});
+  const ringMat = option.ring ? buildAccentMaterial(option.ring) : accentMat;
+  const perimeterMat = option.perimeter ? buildAccentMaterial(option.perimeter) : accentMat;
+  const dividerMat = option.divider ? buildAccentMaterial(option.divider) : accentMat;
+
+  return {
+    body: bodyMat,
+    pip: pipMat,
+    accent: accentMat,
+    ring: ringMat,
+    perimeter: perimeterMat,
+    divider: dividerMat
+  };
+}
+
+let dominoMaterialSet = createDominoMaterialSet(DOMINO_STYLE_OPTIONS[0]);
+let activeDominoStyleIndex = 0;
+const SHARED_DOMINO_MATERIALS = new Set();
+Object.values(dominoMaterialSet).forEach((material) => {
+  if (material) {
+    SHARED_DOMINO_MATERIALS.add(material);
+  }
+});
+
+function getDominoMaterials() {
+  if (!dominoMaterialSet) {
+    dominoMaterialSet = createDominoMaterialSet(DOMINO_STYLE_OPTIONS[0]);
+    activeDominoStyleIndex = 0;
+    SHARED_DOMINO_MATERIALS.clear();
+    Object.values(dominoMaterialSet).forEach((material) => {
+      if (material) {
+        SHARED_DOMINO_MATERIALS.add(material);
+      }
+    });
+  }
+  return dominoMaterialSet;
 }
 
 function createChairClothTexture(option, renderer) {
@@ -2057,36 +2583,6 @@ const HAND_Y = RAIL_TOP + TILE_UP_HALF + 0.0012;
 const CHAIN_TILE_Y = CLOTH_TOP + 0.02;
 
 /* ---------- Materials ---------- */
-const porcelainMat = new THREE.MeshPhysicalMaterial({
-  color: 0xf8f8fb,
-  roughness: 0.12,
-  metalness: 0.2,
-  clearcoat: 1.0,
-  clearcoatRoughness: 0.05,
-  reflectivity: 0.6,
-});
-const pipMat = new THREE.MeshPhysicalMaterial({
-  color: 0x0a0a0a,
-  roughness: 0.05,
-  metalness: 0.6,
-  clearcoat: 0.9,
-  clearcoatRoughness: 0.04,
-});
-const SHARED_DOMINO_MATERIALS = new Set([pipMat]);
-const goldMat = new THREE.MeshPhysicalMaterial({
-  color: 0xFFD700,                 // brighter gold
-  emissive: 0x3a2a00,              // warm self-light so it never looks black
-  emissiveIntensity: 0.55,
-  metalness: 1.0,
-  roughness: 0.18,
-  reflectivity: 1.0,
-  envMapIntensity: 1.4,
-  transmission: 0.0,
-  side: THREE.DoubleSide,
-  polygonOffset: true,
-  polygonOffsetFactor: -1,
-  polygonOffsetUnits: -1,
-});
 const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55 });
 
 const boneyardStackG = new THREE.Group();
@@ -2187,6 +2683,34 @@ function saveAppearance() {
   }
 }
 
+function applyDominoStyle({ force = false } = {}) {
+  const styleIndexRaw = appearance?.dominoStyle;
+  const styleIndex = Number.isFinite(styleIndexRaw)
+    ? Math.min(Math.max(0, Math.round(styleIndexRaw)), Math.max(0, DOMINO_STYLE_OPTIONS.length - 1))
+    : 0;
+  if (!force && dominoMaterialSet && styleIndex === activeDominoStyleIndex) {
+    return;
+  }
+  const nextStyle = DOMINO_STYLE_OPTIONS[styleIndex] ?? DOMINO_STYLE_OPTIONS[0];
+  const previousSet = dominoMaterialSet;
+  clearExistingDominoMeshes();
+  SHARED_DOMINO_MATERIALS.clear();
+  disposeDominoMaterialSet(previousSet);
+  dominoMaterialSet = createDominoMaterialSet(nextStyle);
+  Object.values(dominoMaterialSet).forEach((material) => {
+    if (material) {
+      SHARED_DOMINO_MATERIALS.add(material);
+    }
+  });
+  activeDominoStyleIndex = styleIndex;
+  renderHands();
+  renderChain();
+  renderBoneyardStack();
+  if (selectedTile) {
+    showMarkersFor(selectedTile);
+  }
+}
+
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = normalizeAppearance(appearance);
   updateTableMaterials();
@@ -2201,6 +2725,7 @@ function applyAppearanceChange({ refresh = true } = {}) {
       material.roughnessMap.needsUpdate = true;
     }
   });
+  applyDominoStyle();
   buildChairs(CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME);
   saveAppearance();
   if (refresh) {
@@ -2254,6 +2779,63 @@ function createOptionPreview(key, option) {
     case 'tableBase':
       swatch.style.background = `linear-gradient(135deg, ${option.base}, ${option.trim})`;
       break;
+    case 'dominoStyle': {
+      const preview = option?.preview ?? {};
+      const accent = preview.frame ?? '#d4af37';
+      const pip = preview.pip ?? '#111827';
+      swatch.style.height = '2.6rem';
+      swatch.style.padding = '0.35rem 0.5rem';
+      swatch.style.display = 'flex';
+      swatch.style.alignItems = 'center';
+      swatch.style.justifyContent = 'space-between';
+      swatch.style.gap = '0.55rem';
+      swatch.style.background = 'linear-gradient(135deg, rgba(15,23,42,0.72), rgba(30,41,59,0.45))';
+      swatch.style.boxShadow = 'inset 0 0 0 1px rgba(148,197,255,0.08)';
+      const tile = document.createElement('div');
+      tile.style.width = '1.55rem';
+      tile.style.height = '2.35rem';
+      tile.style.borderRadius = '0.48rem';
+      tile.style.background = preview.body ?? '#f1f5f9';
+      tile.style.position = 'relative';
+      tile.style.boxShadow = `0 6px 12px rgba(0,0,0,0.45), inset 0 0 0 2px ${accent}`;
+      const divider = document.createElement('div');
+      divider.style.position = 'absolute';
+      divider.style.left = '50%';
+      divider.style.transform = 'translateX(-50%)';
+      divider.style.top = '12%';
+      divider.style.bottom = '12%';
+      divider.style.width = '0.18rem';
+      divider.style.borderRadius = '999px';
+      divider.style.background = accent;
+      tile.appendChild(divider);
+      const pipPositions = [
+        { top: '0.46rem', left: '0.4rem' },
+        { top: '1.05rem', left: '0.92rem' },
+        { top: '1.64rem', left: '0.4rem' }
+      ];
+      pipPositions.forEach(({ top, left }) => {
+        const circle = document.createElement('span');
+        circle.style.position = 'absolute';
+        circle.style.width = '0.36rem';
+        circle.style.height = '0.36rem';
+        circle.style.borderRadius = '50%';
+        circle.style.background = pip;
+        circle.style.boxShadow = `0 0 0 1px ${accent}`;
+        circle.style.top = top;
+        circle.style.left = left;
+        tile.appendChild(circle);
+      });
+      const accentBar = document.createElement('div');
+      accentBar.style.flex = '0 0 auto';
+      accentBar.style.width = '1.2rem';
+      accentBar.style.height = '0.48rem';
+      accentBar.style.borderRadius = '999px';
+      accentBar.style.background = `linear-gradient(135deg, ${accent}, ${adjustHexColor(accent, -0.2)})`;
+      accentBar.style.boxShadow = '0 4px 10px rgba(0,0,0,0.45)';
+      swatch.appendChild(tile);
+      swatch.appendChild(accentBar);
+      break;
+    }
     case 'chairTheme':
       swatch.style.background = option.seatColor;
       break;
@@ -2330,9 +2912,6 @@ document.addEventListener('keydown', (event) => {
     closeConfigPanel();
   }
 });
-
-applyAppearanceChange({ refresh: false });
-refreshConfigUI();
 
 
 /* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
@@ -2443,7 +3022,10 @@ function pipPositions(){
 }
 const INDEX_SETS = { 0: [], 1: [4], 2: [0,8], 3: [0,4,8], 4: [0,2,6,8], 5: [0,2,4,6,8], 6: [0,2,3,5,6,8] };
 
-function addGoldPerimeter(domino){
+function addDominoPerimeter(domino, materials){
+  if (!materials) return;
+  const perimeterMaterial = materials.perimeter ?? materials.accent;
+  if (!perimeterMaterial) return;
   const inset = 0.04;
   const w = 1 - inset*2;
   const h = 2 - inset*2;
@@ -2462,19 +3044,21 @@ function addGoldPerimeter(domino){
   hole.lineTo(-w/2 + t, -h/2 + t);
   shape.holes.push(hole);
   const extrude = new THREE.ExtrudeGeometry(shape, { depth: 0.01, bevelEnabled: false });
-  const frame = new THREE.Mesh(extrude, goldMat.clone());
+  const frame = new THREE.Mesh(extrude, perimeterMaterial);
   frame.position.z = 0.11;
   frame.renderOrder = 5; // sit on top
   domino.add(frame);
 }
 
-function addPips(dominoFace, count, yOffset){
+function addPips(dominoFace, count, yOffset, materials){
   const positions = pipPositions();
   const idxs = INDEX_SETS[Math.max(0, Math.min(6, count))];
   const pipGeo = new THREE.SphereGeometry(0.085, 24, 24);
+  const pipMaterial = materials?.pip ?? new THREE.MeshStandardMaterial({ color: '#111111', roughness: 0.2, metalness: 0.4 });
+  const ringMaterial = materials?.ring ?? materials?.accent ?? pipMaterial;
   idxs.forEach(i => {
     const [px, py] = positions[i];
-    const sphere = new THREE.Mesh(pipGeo, pipMat);
+    const sphere = new THREE.Mesh(pipGeo, pipMaterial);
     sphere.position.set(px, py + yOffset, 0.11);
     dominoFace.add(sphere);
 
@@ -2482,7 +3066,7 @@ function addPips(dominoFace, count, yOffset){
     const innerR = 0.107;
     const outerR = 0.120;
     const ringGeo = new THREE.RingGeometry(innerR, outerR, 64);
-    const ring = new THREE.Mesh(ringGeo, goldMat.clone());
+    const ring = new THREE.Mesh(ringGeo, ringMaterial);
     ring.position.set(px, py + yOffset, 0.11);
     ring.renderOrder = 6; // above porcelain & pip
     dominoFace.add(ring);
@@ -2497,10 +3081,12 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   ({a,b} = oriented);
 
   const group = new THREE.Group();
+  const materials = getDominoMaterials();
 
   // Trupi SAKTËSISHT si në kodin tënd
   const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, 4, 0.06);
-  const body = new THREE.Mesh(bodyGeo, porcelainMat.clone());
+  const bodyMaterial = materials.body ?? new THREE.MeshPhysicalMaterial({ color: 0xf8f8fb, roughness: 0.15, metalness: 0.18, clearcoat: 0.9, clearcoatRoughness: 0.05 });
+  const body = new THREE.Mesh(bodyGeo, bodyMaterial);
   body.castShadow = true; body.receiveShadow = true;
 
   // Vijë mesi — GOLD
@@ -2509,18 +3095,19 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   const midR = 0.06;
   const midShape = roundedRectAbs(midW, midH, Math.min(midR, midH/2));
   const midGeo = new THREE.ExtrudeGeometry(midShape, { depth: 0.01, bevelEnabled: false });
-  const midLine = new THREE.Mesh(midGeo, goldMat.clone());
+  const dividerMaterial = materials.divider ?? materials.accent ?? bodyMaterial;
+  const midLine = new THREE.Mesh(midGeo, dividerMaterial);
   midLine.position.z = 0.11;
   midLine.renderOrder = 5;
   body.add(midLine);
 
   // Kornizë ari rrethuese — GOLD
-  addGoldPerimeter(body);
+  addDominoPerimeter(body, materials);
 
   // Pikat sipas kodit — faqe sipër & poshtë (në koordinata të trupit)
   if(faceUp){
-    addPips(body, a, -0.8);
-    addPips(body, b,  0.2);
+    addPips(body, a, -0.8, materials);
+    addPips(body, b,  0.2, materials);
   }
 
   group.add(body);
@@ -3158,17 +3745,8 @@ function placeOnBoard(tile, side, options = {}){
   if(a !== want){
     return { success:false };
   }
-  let [dx, dz] = end.dir;
-  let nx = end.x + dx * STEP;
-  let nz = end.z + dz * STEP;
-  if(Math.abs(nx) > XMAX || Math.abs(nz) > ZMAX){
-    const ndx = -dz;
-    const ndz = dx;
-    dx = ndx;
-    dz = ndz;
-    nx = end.x + dx * STEP;
-    nz = end.z + dz * STEP;
-  }
+  const projection = nextCandidate(end);
+  let { dx, dz, nx, nz } = projection;
   const isDouble = (a === b);
   const isHorizontal = Math.abs(dx) >= Math.abs(dz);
   let rot;
@@ -3217,10 +3795,53 @@ function placeOnBoard(tile, side, options = {}){
   return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
-  let {x,z,dir:[dx,dz]}=end; let ang=Math.atan2(dz,dx);
-  let nx=x+dx*STEP, nz=z+dz*STEP;
-  if(Math.abs(nx)>XMAX || Math.abs(nz)>ZMAX){ const ndx=-dz, ndz=dx; dx=ndx; dz=ndz; ang=Math.atan2(dz,dx); nx=x+dx*STEP; nz=z+dz*STEP; }
-  return {nx,nz,rot:ang,dx,dz};
+  if(!end){
+    return { nx: 0, nz: 0, rot: 0, dx: 1, dz: 0 };
+  }
+  let { x, z, dir: [dx, dz] } = end;
+  let nx = x + dx * STEP;
+  let nz = z + dz * STEP;
+  const safeMargin = DOMINO_LENGTH * 0.6;
+  const safeX = XMAX - DOMINO_CHAIN_GAP * 0.5;
+  const safeZ = ZMAX - DOMINO_CHAIN_GAP * 0.5;
+  const approachingX = Math.abs(nx) > safeX - safeMargin;
+  const approachingZ = Math.abs(nz) > safeZ - safeMargin;
+  if (approachingX || approachingZ) {
+    const candidates = [
+      { dx: -dz, dz: dx },
+      { dx: dz, dz: -dx }
+    ];
+    const evaluate = ({ dx, dz }) => {
+      const tx = x + dx * STEP;
+      const tz = z + dz * STEP;
+      const overflowX = Math.max(0, Math.abs(tx) - safeX);
+      const overflowZ = Math.max(0, Math.abs(tz) - safeZ);
+      const hugging = Math.abs(Math.abs(tx) - safeX) + Math.abs(Math.abs(tz) - safeZ);
+      return { dx, dz, tx, tz, overflow: overflowX + overflowZ, hugging };
+    };
+    let best = evaluate(candidates[0]);
+    const alt = evaluate(candidates[1]);
+    if (alt.overflow < best.overflow - 1e-5 || (Math.abs(alt.overflow - best.overflow) < 1e-5 && alt.hugging < best.hugging)) {
+      best = alt;
+    }
+    dx = best.dx;
+    dz = best.dz;
+    nx = best.tx;
+    nz = best.tz;
+    if (approachingX) {
+      const signX = Math.sign(nx || x || dx || 1);
+      nx = signX * safeX;
+    }
+    if (approachingZ) {
+      const signZ = Math.sign(nz || z || dz || 1);
+      nz = signZ * safeZ;
+    }
+  } else {
+    nx = Math.max(-safeX, Math.min(safeX, nx));
+    nz = Math.max(-safeZ, Math.min(safeZ, nz));
+  }
+  const rot = Math.atan2(dz, dx);
+  return { nx, nz, rot, dx, dz };
 }
 
 /* ---------- Markers for manual placement ---------- */
@@ -3295,6 +3916,9 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
   clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw.currentTime=0; SFX.draw.play(); }
 });
 btnPass.addEventListener('click',()=>{ if(current===human && !gameFinished){ clearMarkers(); selectedTile=null; nextTurn(); }});
+
+applyAppearanceChange({ refresh: false });
+refreshConfigUI();
 
 startGame();
 
