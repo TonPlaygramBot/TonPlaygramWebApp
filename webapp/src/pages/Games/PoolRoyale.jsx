@@ -267,7 +267,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.032; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.068; // push the middle chrome cut further toward centre so the rounded plate opening hugs the inward-shifted jaws more aggressively
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.044; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -1629,8 +1629,18 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const DEFAULT_CHROME_COLOR_ID = 'polishedChrome';
+const DEFAULT_CHROME_COLOR_ID = 'chrome';
 const CHROME_COLOR_OPTIONS = Object.freeze([
+  {
+    id: 'chrome',
+    label: 'Classic Chrome',
+    color: 0xc0c9d5,
+    metalness: 0.78,
+    roughness: 0.36,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.28,
+    envMapIntensity: 0.98
+  },
   {
     id: 'polishedChrome',
     label: 'Polished Chrome',
@@ -1640,6 +1650,46 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     clearcoat: 0.62,
     clearcoatRoughness: 0.18,
     envMapIntensity: 1.04
+  },
+  {
+    id: 'brushedAluminum',
+    label: 'Brushed Aluminium',
+    color: 0xcad3dd,
+    metalness: 0.84,
+    roughness: 0.42,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.34,
+    envMapIntensity: 0.92
+  },
+  {
+    id: 'burnishedBronze',
+    label: 'Burnished Bronze',
+    color: 0x8c6a4a,
+    metalness: 0.88,
+    roughness: 0.38,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.26,
+    envMapIntensity: 0.94
+  },
+  {
+    id: 'smokedChrome',
+    label: 'Smoked Chrome',
+    color: 0x7f8791,
+    metalness: 0.82,
+    roughness: 0.4,
+    clearcoat: 0.36,
+    clearcoatRoughness: 0.32,
+    envMapIntensity: 0.9
+  },
+  {
+    id: 'gold',
+    label: 'Gold',
+    color: 0xd4af37,
+    metalness: 0.96,
+    roughness: 0.18,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.16,
+    envMapIntensity: 1.06
   }
 ]);
 
@@ -1647,433 +1697,6 @@ const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
   { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 }
 ]);
-
-const LIGHTING_STORAGE_KEY = 'snookerLightingRig';
-
-function computeLightingRigMetrics(
-  tableSurfaceY,
-  {
-    dimensionScale = 0.8,
-    heightScale = 1.4,
-    heightLiftMultiplier = 5.8,
-    lateralScale = 0.45,
-    retreatMultiplier = 0.24,
-    reflectionGuardMultiplier = 0.32
-  } = {}
-) {
-  const SAMPLE_PLAY_W = 1.216;
-  const SAMPLE_PLAY_H = 2.536;
-  const SAMPLE_TABLE_HEIGHT = 0.75;
-  const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * dimensionScale;
-  const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * dimensionScale;
-  const fixtureScale = Math.max(baseWidthScale, baseLengthScale);
-  const tableHeightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
-  const scaledHeight = tableHeightScale * heightScale;
-  const lightHeightLift = scaledHeight * heightLiftMultiplier;
-  const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
-  const triangleRadius = fixtureScale * 0.98;
-  return {
-    fixtureScale,
-    scaledHeight,
-    triangleHeight,
-    triangleRadius,
-    lateralScale,
-    lightRetreatOffset: scaledHeight * retreatMultiplier,
-    reflectionGuardOffset: scaledHeight * reflectionGuardMultiplier
-  };
-}
-
-const LIGHTING_PRESETS = Object.freeze([
-  {
-    id: 'broadcastTruss',
-    label: 'Broadcast Truss',
-    description: 'Neutral TV truss with crisp key and balanced soft fill.',
-    build: (ctx) => {
-      const metrics = computeLightingRigMetrics(ctx.tableSurfaceY, {
-        dimensionScale: 0.82,
-        heightScale: 1.34,
-        heightLiftMultiplier: 5.4,
-        lateralScale: 0.38,
-        retreatMultiplier: 0.26,
-        reflectionGuardMultiplier: 0.34
-      });
-      const {
-        triangleHeight,
-        triangleRadius,
-        lateralScale,
-        lightRetreatOffset,
-        reflectionGuardOffset
-      } = metrics;
-      const rig = new THREE.Group();
-      rig.name = 'lighting-broadcastTruss';
-      rig.userData.presetId = 'broadcastTruss';
-
-      const hemisphere = new THREE.HemisphereLight(0xe5f1ff, 0x0a101b, 0.74);
-      hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.35);
-      rig.add(hemisphere);
-
-      const downTargetY = ctx.tableSurfaceY + ctx.ballRadius * 0.05;
-      const clothTargetY = ctx.tableSurfaceY + ctx.tableHeight * 0.18;
-
-      const key = new THREE.DirectionalLight(0xffffff, 1.24);
-      key.position.set(
-        -triangleRadius * lateralScale,
-        triangleHeight,
-        triangleRadius * 0.28
-      );
-      key.target.position.set(0, downTargetY, -ctx.playLength * 0.08);
-      key.castShadow = true;
-      key.shadow.mapSize.set(2048, 2048);
-      key.shadow.bias = -0.00008;
-      key.shadow.normalBias = 0.005;
-      rig.add(key);
-      rig.add(key.target);
-
-      const fill = new THREE.DirectionalLight(0xf4f7ff, 0.88);
-      fill.position.set(
-        triangleRadius * lateralScale,
-        triangleHeight * 1.02,
-        -triangleRadius * 0.22
-      );
-      fill.target.position.set(0, downTargetY, ctx.playLength * 0.04);
-      rig.add(fill);
-      rig.add(fill.target);
-
-      const spot = new THREE.SpotLight(
-        0xffffff,
-        11.6,
-        0,
-        Math.PI * 0.33,
-        0.35,
-        1
-      );
-      spot.position.set(
-        0,
-        triangleHeight + lightRetreatOffset + reflectionGuardOffset,
-        triangleRadius * lateralScale * 0.14
-      );
-      spot.target.position.set(0, clothTargetY, 0);
-      spot.decay = 1;
-      spot.castShadow = true;
-      spot.shadow.mapSize.set(2048, 2048);
-      spot.shadow.bias = -0.00004;
-      spot.shadow.normalBias = 0.005;
-      rig.add(spot);
-      rig.add(spot.target);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.085);
-      rig.add(ambient);
-      return rig;
-    }
-  },
-  {
-    id: 'arenaQuad',
-    label: 'Arena Quad',
-    description: 'Championship quad spots wrapping the rails evenly.',
-    build: (ctx) => {
-      const metrics = computeLightingRigMetrics(ctx.tableSurfaceY, {
-        dimensionScale: 0.88,
-        heightScale: 1.5,
-        heightLiftMultiplier: 6.1,
-        lateralScale: 0.5,
-        retreatMultiplier: 0.28,
-        reflectionGuardMultiplier: 0.36
-      });
-      const {
-        triangleHeight,
-        triangleRadius,
-        lateralScale,
-        lightRetreatOffset,
-        reflectionGuardOffset
-      } = metrics;
-      const rig = new THREE.Group();
-      rig.name = 'lighting-arenaQuad';
-      rig.userData.presetId = 'arenaQuad';
-
-      const hemisphere = new THREE.HemisphereLight(0xdfe9ff, 0x090c16, 0.66);
-      hemisphere.position.set(0, triangleHeight, 0);
-      rig.add(hemisphere);
-
-      const downTargetY = ctx.tableSurfaceY + ctx.ballRadius * 0.08;
-      const clothTargetY = ctx.tableSurfaceY + ctx.tableHeight * 0.2;
-      const offsets = [
-        [1, 1],
-        [-1, 1],
-        [1, -1],
-        [-1, -1]
-      ];
-      offsets.forEach(([sx, sz], idx) => {
-        const spot = new THREE.SpotLight(
-          0xf6fbff,
-          7.8,
-          0,
-          Math.PI * 0.42,
-          0.48,
-          1
-        );
-        spot.position.set(
-          sx * triangleRadius * lateralScale,
-          triangleHeight + lightRetreatOffset,
-          sz * triangleRadius * lateralScale
-        );
-        spot.target.position.set(
-          sx * ctx.playWidth * 0.08,
-          clothTargetY,
-          sz * ctx.playLength * 0.08
-        );
-        spot.decay = 1.1;
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00005 - idx * 0.000005;
-        spot.shadow.normalBias = 0.0045;
-        rig.add(spot);
-        rig.add(spot.target);
-      });
-
-      const rim = new THREE.PointLight(0xf1f5ff, 0.65, ctx.playLength * 1.6, 1.4);
-      rim.position.set(0, triangleHeight + reflectionGuardOffset * 0.85, 0);
-      rim.castShadow = true;
-      rim.shadow.mapSize.set(1024, 1024);
-      rim.shadow.bias = -0.00003;
-      rig.add(rim);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.06);
-      rig.add(ambient);
-      return rig;
-    }
-  },
-  {
-    id: 'haloPendant',
-    label: 'Halo Pendant',
-    description: 'Signature halo pendant with cool surround glow.',
-    build: (ctx) => {
-      const metrics = computeLightingRigMetrics(ctx.tableSurfaceY, {
-        dimensionScale: 0.92,
-        heightScale: 1.42,
-        heightLiftMultiplier: 5.9,
-        lateralScale: 0.44,
-        retreatMultiplier: 0.22,
-        reflectionGuardMultiplier: 0.38
-      });
-      const {
-        triangleHeight,
-        triangleRadius,
-        lateralScale,
-        lightRetreatOffset,
-        reflectionGuardOffset
-      } = metrics;
-      const rig = new THREE.Group();
-      rig.name = 'lighting-haloPendant';
-      rig.userData.presetId = 'haloPendant';
-
-      const hemisphere = new THREE.HemisphereLight(0xe9f2ff, 0x0c131f, 0.72);
-      hemisphere.position.set(0, triangleHeight, 0);
-      rig.add(hemisphere);
-
-      const downTargetY = ctx.tableSurfaceY + ctx.ballRadius * 0.04;
-      const clothTargetY = ctx.tableSurfaceY + ctx.tableHeight * 0.16;
-
-      const halo = new THREE.PointLight(0xcdd9ff, 1.85, ctx.playLength * 1.8, 1.6);
-      halo.position.set(0, triangleHeight + reflectionGuardOffset * 0.5, 0);
-      halo.castShadow = true;
-      halo.shadow.mapSize.set(1024, 1024);
-      halo.shadow.bias = -0.00004;
-      rig.add(halo);
-
-      const fore = new THREE.DirectionalLight(0xffffff, 0.92);
-      fore.position.set(
-        -triangleRadius * lateralScale * 0.9,
-        triangleHeight + lightRetreatOffset * 0.4,
-        triangleRadius * 0.15
-      );
-      fore.target.position.set(0, downTargetY, -ctx.playLength * 0.1);
-      fore.castShadow = true;
-      fore.shadow.mapSize.set(1024, 1024);
-      fore.shadow.bias = -0.00006;
-      fore.shadow.normalBias = 0.004;
-      rig.add(fore);
-      rig.add(fore.target);
-
-      const rear = new THREE.DirectionalLight(0xe8f1ff, 0.78);
-      rear.position.set(
-        triangleRadius * lateralScale * 0.8,
-        triangleHeight + lightRetreatOffset * 0.6,
-        -triangleRadius * 0.12
-      );
-      rear.target.position.set(0, downTargetY, ctx.playLength * 0.06);
-      rig.add(rear);
-      rig.add(rear.target);
-
-      const spot = new THREE.SpotLight(
-        0xffffff,
-        6.2,
-        0,
-        Math.PI * 0.28,
-        0.4,
-        1
-      );
-      spot.position.set(0, triangleHeight + lightRetreatOffset + reflectionGuardOffset, 0);
-      spot.target.position.set(0, clothTargetY, 0);
-      spot.castShadow = true;
-      spot.shadow.mapSize.set(2048, 2048);
-      spot.shadow.bias = -0.00003;
-      spot.shadow.normalBias = 0.0045;
-      rig.add(spot);
-      rig.add(spot.target);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.07);
-      rig.add(ambient);
-      return rig;
-    }
-  },
-  {
-    id: 'loungeWarm',
-    label: 'Lounge Warm',
-    description: 'Warm club pendants with gentle amber diffusion.',
-    build: (ctx) => {
-      const metrics = computeLightingRigMetrics(ctx.tableSurfaceY, {
-        dimensionScale: 0.78,
-        heightScale: 1.22,
-        heightLiftMultiplier: 5.1,
-        lateralScale: 0.36,
-        retreatMultiplier: 0.25,
-        reflectionGuardMultiplier: 0.3
-      });
-      const {
-        triangleHeight,
-        triangleRadius,
-        lateralScale,
-        lightRetreatOffset,
-        reflectionGuardOffset
-      } = metrics;
-      const rig = new THREE.Group();
-      rig.name = 'lighting-loungeWarm';
-      rig.userData.presetId = 'loungeWarm';
-
-      const hemisphere = new THREE.HemisphereLight(0xfff4de, 0x1a120a, 0.62);
-      hemisphere.position.set(0, triangleHeight, triangleRadius * 0.12);
-      rig.add(hemisphere);
-
-      const downTargetY = ctx.tableSurfaceY + ctx.ballRadius * 0.02;
-      const clothTargetY = ctx.tableSurfaceY + ctx.tableHeight * 0.14;
-
-      const pendantSpacing = triangleRadius * lateralScale * 0.85;
-      [-pendantSpacing, pendantSpacing].forEach((x, index) => {
-        const pendant = new THREE.PointLight(0xffe3c2, 1.35, ctx.playLength * 1.1, 1.3);
-        pendant.position.set(x, triangleHeight + reflectionGuardOffset * 0.25, 0);
-        pendant.castShadow = true;
-        pendant.shadow.mapSize.set(1024, 1024);
-        pendant.shadow.bias = -0.00002 - index * 0.000005;
-        rig.add(pendant);
-      });
-
-      const spill = new THREE.SpotLight(0xfff2d2, 4.6, 0, Math.PI * 0.4, 0.52, 1);
-      spill.position.set(
-        0,
-        triangleHeight + lightRetreatOffset + reflectionGuardOffset * 0.6,
-        0
-      );
-      spill.target.position.set(0, clothTargetY, 0);
-      spill.decay = 1.05;
-      spill.castShadow = true;
-      spill.shadow.mapSize.set(1024, 1024);
-      spill.shadow.bias = -0.00003;
-      spill.shadow.normalBias = 0.0035;
-      rig.add(spill);
-      rig.add(spill.target);
-
-      const ambient = new THREE.AmbientLight(0xfff2d6, 0.095);
-      rig.add(ambient);
-      return rig;
-    }
-  },
-  {
-    id: 'trainingGrid',
-    label: 'Training Grid',
-    description: 'Bright neutral LED grid for coaching sessions.',
-    build: (ctx) => {
-      const metrics = computeLightingRigMetrics(ctx.tableSurfaceY, {
-        dimensionScale: 0.84,
-        heightScale: 1.28,
-        heightLiftMultiplier: 5.7,
-        lateralScale: 0.4,
-        retreatMultiplier: 0.3,
-        reflectionGuardMultiplier: 0.32
-      });
-      const {
-        triangleHeight,
-        triangleRadius,
-        lateralScale,
-        lightRetreatOffset,
-        reflectionGuardOffset
-      } = metrics;
-      const rig = new THREE.Group();
-      rig.name = 'lighting-trainingGrid';
-      rig.userData.presetId = 'trainingGrid';
-
-      const hemisphere = new THREE.HemisphereLight(0xf1f6ff, 0x0b101b, 0.7);
-      hemisphere.position.set(0, triangleHeight, 0);
-      rig.add(hemisphere);
-
-      const downTargetY = ctx.tableSurfaceY + ctx.ballRadius * 0.06;
-      const clothTargetY = ctx.tableSurfaceY + ctx.tableHeight * 0.17;
-
-      const stripFront = new THREE.DirectionalLight(0xffffff, 1.08);
-      stripFront.position.set(
-        0,
-        triangleHeight + lightRetreatOffset * 0.3,
-        triangleRadius * 0.4
-      );
-      stripFront.target.position.set(0, downTargetY, -ctx.playLength * 0.12);
-      stripFront.castShadow = true;
-      stripFront.shadow.mapSize.set(2048, 2048);
-      stripFront.shadow.bias = -0.00007;
-      stripFront.shadow.normalBias = 0.0045;
-      rig.add(stripFront);
-      rig.add(stripFront.target);
-
-      const stripRear = new THREE.DirectionalLight(0xffffff, 1.02);
-      stripRear.position.set(
-        0,
-        triangleHeight + lightRetreatOffset * 0.4,
-        -triangleRadius * 0.4
-      );
-      stripRear.target.position.set(0, downTargetY, ctx.playLength * 0.12);
-      rig.add(stripRear);
-      rig.add(stripRear.target);
-
-      [-1, 1].forEach((side, index) => {
-        const wing = new THREE.SpotLight(
-          0xf7fbff,
-          5.4,
-          0,
-          Math.PI * 0.46,
-          0.55,
-          1
-        );
-        wing.position.set(
-          side * triangleRadius * lateralScale,
-          triangleHeight + lightRetreatOffset,
-          0
-        );
-        wing.target.position.set(side * ctx.playWidth * 0.05, clothTargetY, 0);
-        wing.decay = 1.05;
-        wing.castShadow = true;
-        wing.shadow.mapSize.set(2048, 2048);
-        wing.shadow.bias = -0.00004 - index * 0.000003;
-        wing.shadow.normalBias = 0.004;
-        rig.add(wing);
-        rig.add(wing.target);
-      });
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.075);
-      rig.add(ambient);
-      return rig;
-    }
-  }
-]);
-
-const DEFAULT_LIGHTING_PRESET_ID = LIGHTING_PRESETS[0]?.id ?? 'broadcastTruss';
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -7349,7 +6972,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_WOOD_GRAIN_ID;
   });
-  const [chromeColorId, _setChromeColorId] = useState(() => {
+  const [chromeColorId, setChromeColorId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerChromeColor');
       if (stored && CHROME_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
@@ -7357,15 +6980,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       }
     }
     return DEFAULT_CHROME_COLOR_ID;
-  });
-  const [lightingRigId, setLightingRigId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(LIGHTING_STORAGE_KEY);
-      if (stored && LIGHTING_PRESETS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_LIGHTING_PRESET_ID;
   });
   const [clothColorId, setClothColorId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -7394,12 +7008,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
-  );
-  const activeLightingPreset = useMemo(
-    () =>
-      LIGHTING_PRESETS.find((opt) => opt.id === lightingRigId) ??
-      LIGHTING_PRESETS[0],
-    [lightingRigId]
   );
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
@@ -7433,14 +7041,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
   }, [resolvedFrameTiming]);
-  const applyLightingPresetRef = useRef(null);
-  const lightingPresetRef = useRef(activeLightingPreset);
-  useEffect(() => {
-    lightingPresetRef.current = activeLightingPreset;
-    if (typeof applyLightingPresetRef.current === 'function') {
-      applyLightingPresetRef.current(activeLightingPreset);
-    }
-  }, [activeLightingPreset]);
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
@@ -7772,11 +7372,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerChromeColor', chromeColorId);
     }
   }, [chromeColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingRigId);
-    }
-  }, [lightingRigId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerClothColor', clothColorId);
@@ -11257,36 +10852,89 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      const lightingRoot = new THREE.Group();
-      lightingRoot.name = 'lighting-root';
-      world.add(lightingRoot);
+      // Adopt the lighting rig from the standalone snooker demo and scale all
+      // authored coordinates so they sit correctly over the larger table.
+      const addMobileLighting = () => {
+        const lightingRig = new THREE.Group();
+        world.add(lightingRig);
 
-      const applyLightingPreset = (preset) => {
-        lightingRoot.clear();
-        if (!preset || typeof preset.build !== 'function') {
-          return;
-        }
-        try {
-          const rig = preset.build({
-            tableSurfaceY,
-            playWidth: PLAY_W,
-            playLength: PLAY_H,
-            tableHeight: TABLE_H,
-            ballRadius: BALL_R
-          });
-          if (rig) {
-            lightingRoot.add(rig);
-          }
-        } catch (err) {
-          console.error('Pool Royale lighting preset failed:', err);
-        }
+        const SAMPLE_PLAY_W = 1.216;
+        const SAMPLE_PLAY_H = 2.536;
+        const SAMPLE_TABLE_HEIGHT = 0.75;
+
+        const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
+        const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8; // bring fixtures closer so the spot highlight reads on the balls
+        const LIGHT_LATERAL_SCALE = 0.45; // pull shadow-casting lights nearer the table centre
+
+        const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
+        const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
+        const fixtureScale = Math.max(baseWidthScale, baseLengthScale);
+        const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
+        const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
+
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
+        const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
+        const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
+        const triangleRadius = fixtureScale * 0.98;
+        const lightRetreatOffset = scaledHeight * 0.24;
+        const lightReflectionGuard = scaledHeight * 0.32;
+        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
+        lightingRig.add(hemisphere);
+
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
+        hemisphereRig.position.set(0, triangleHeight, 0);
+        lightingRig.add(hemisphereRig);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
+        dirLight.position.set(
+          -triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.4
+        );
+        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
+        lightingRig.add(dirLight);
+        lightingRig.add(dirLight.target);
+
+        const spot = new THREE.SpotLight(
+          0xffffff,
+          12.7449,
+          0,
+          Math.PI * 0.36,
+          0.42,
+          1
+        );
+        spot.position.set(
+          triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight + lightRetreatOffset + lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
+        );
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
+        spot.decay = 1.0;
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(2048, 2048);
+        spot.shadow.bias = -0.00004;
+        spot.shadow.normalBias = 0.006;
+        lightingRig.add(spot);
+        lightingRig.add(spot.target);
+
+        const ambient = new THREE.AmbientLight(
+          0xffffff,
+          0.0799
+        ); // return trimmed spot energy through ambient fill
+        ambient.position.set(
+          0,
+          tableSurfaceY +
+            scaledHeight * 1.95 +
+            lightHeightLift +
+            lightRetreatOffset +
+            lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.12
+        );
+        lightingRig.add(ambient);
       };
 
-      const initialLighting = lightingPresetRef.current;
-      applyLightingPreset(initialLighting);
-      applyLightingPresetRef.current = (nextPreset) => {
-        applyLightingPreset(nextPreset ?? lightingPresetRef.current);
-      };
+      addMobileLighting();
 
       // Table
       const finishForScene = tableFinishRef.current;
@@ -14170,9 +13818,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
           activeRenderCameraRef.current = null;
-          lightingRoot.clear();
-          world.remove(lightingRoot);
-          applyLightingPresetRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
           try {
@@ -14533,41 +14178,40 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                       </button>
                     );
                   })}
-                </div>
               </div>
             </div>
             <div>
               <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                Arena Lighting
+                Chrome Plates
               </h3>
-              <div className="mt-2 grid gap-2">
-                {LIGHTING_PRESETS.map((option) => {
-                  const active = option.id === lightingRigId;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => setLightingRigId(option.id)}
-                      aria-pressed={active}
-                      className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                        active
-                          ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                          : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                      }`}
-                    >
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                        {option.label}
-                      </span>
-                      {option.description ? (
-                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                          {option.description}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CHROME_COLOR_OPTIONS.map((option) => {
+                    const active = option.id === chromeColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setChromeColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
                         </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
               {CLOTH_COLOR_OPTIONS.length > 1 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
