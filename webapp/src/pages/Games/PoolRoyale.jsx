@@ -226,9 +226,9 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.012;
+const POCKET_VISUAL_EXPANSION = 1.018;
 const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
-const CORNER_POCKET_SCALE_BOOST = 0.985; // nudge the corner mouth narrower than the 3D Snooker build for tighter pockets
+const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
@@ -265,8 +265,8 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.28; // widen the middle fascia further so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.016; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.028; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
+const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.032; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.036; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -514,7 +514,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly fart
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 0.952; // shorten the middle pocket fascia so it no longer overhangs the rail line
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.944; // tighten the middle pocket fascia so it remains centred without shifting position
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
@@ -541,9 +541,9 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.94; // pull the middle jaw shoulders a touch toward centre so the fascia no longer overshoots the cushions
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.978; // tighten the outer radius to accompany the shorter fascia length
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.98; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.93; // further ease the middle jaw shoulders so the fascia trims down without moving centres
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep the middle jaw crowns level with the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
@@ -606,7 +606,7 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996; // pinch the middle pocket mouth so the jaws read tighter than before
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
@@ -615,7 +615,7 @@ const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 0.92; // slightly tighten the interior diameter at the top of each pocket
+const POCKET_INTERIOR_TOP_SCALE = 0.94; // gently relax the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // keep the side pockets fixed while extending the corner cushions deeper toward each pocket mouth
@@ -1390,7 +1390,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'classicWood',
     label: 'Classic Wood',
     colors: makeColorPalette({
-      cloth: 0x33a86a,
+      cloth: 0x2d7f4b,
       rail: 0x5e3d24,
       base: 0x5e3d24
     }),
@@ -1441,7 +1441,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'goldenMaple',
     label: 'Golden Maple',
     colors: makeColorPalette({
-      cloth: 0x33a86a,
+      cloth: 0x2d7f4b,
       rail: 0xc98738,
       base: 0xc27a2f
     }),
@@ -1492,7 +1492,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'hybridTwoTone',
     label: 'Hybrid Two-Tone',
     colors: makeColorPalette({
-      cloth: 0x33a86a,
+      cloth: 0x2d7f4b,
       rail: 0x9a6036,
       base: 0x3b281c
     }),
@@ -1569,7 +1569,7 @@ const TABLE_FINISHES = Object.freeze({
     id: 'matteGraphite',
     label: 'Matte Graphite',
     colors: makeColorPalette({
-      cloth: 0x33a86a,
+      cloth: 0x2d7f4b,
       rail: 0x2f2f2f,
       base: 0x2b2b2b
     }),
