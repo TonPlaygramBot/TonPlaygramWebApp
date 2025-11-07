@@ -259,15 +259,15 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.42; // further bump plate depth so all six chrome trims share a chunkier profile
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.5; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.48; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.28; // widen the middle fascia further so it blankets the entire arch reveal
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.34; // widen the middle fascia further so it blankets the entire arch reveal
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.032; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.036; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.044; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -544,7 +544,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.93; // further ease the middle jaw shoulders so the fascia trims down without moving centres
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep the middle jaw crowns level with the corners
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1; // unused when trim scale keeps the trim disabled
@@ -1633,13 +1633,53 @@ const DEFAULT_CHROME_COLOR_ID = 'chrome';
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
-    label: 'Chrome',
+    label: 'Classic Chrome',
     color: 0xc0c9d5,
     metalness: 0.78,
     roughness: 0.36,
     clearcoat: 0.32,
     clearcoatRoughness: 0.28,
-    envMapIntensity: 0.6
+    envMapIntensity: 0.98
+  },
+  {
+    id: 'polishedChrome',
+    label: 'Polished Chrome',
+    color: 0xd2d8e2,
+    metalness: 0.9,
+    roughness: 0.22,
+    clearcoat: 0.62,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 1.04
+  },
+  {
+    id: 'brushedAluminum',
+    label: 'Brushed Aluminium',
+    color: 0xcad3dd,
+    metalness: 0.84,
+    roughness: 0.42,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.34,
+    envMapIntensity: 0.92
+  },
+  {
+    id: 'burnishedBronze',
+    label: 'Burnished Bronze',
+    color: 0x8c6a4a,
+    metalness: 0.88,
+    roughness: 0.38,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.26,
+    envMapIntensity: 0.94
+  },
+  {
+    id: 'smokedChrome',
+    label: 'Smoked Chrome',
+    color: 0x7f8791,
+    metalness: 0.82,
+    roughness: 0.4,
+    clearcoat: 0.36,
+    clearcoatRoughness: 0.32,
+    envMapIntensity: 0.9
   },
   {
     id: 'gold',
@@ -1649,7 +1689,7 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     roughness: 0.18,
     clearcoat: 0.56,
     clearcoatRoughness: 0.16,
-    envMapIntensity: 0.98
+    envMapIntensity: 1.06
   }
 ]);
 
