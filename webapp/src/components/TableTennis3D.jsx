@@ -45,7 +45,16 @@ const GAME_VARIANTS = [
     },
     trail: { color: 0xfff1cc, minOpacity: 0.18, maxOpacity: 0.62, speedFactor: 0.045, count: 18 },
     camera: { dist: 3.46, minDist: 3.18, height: 2.04, minHeight: 1.82, pitch: 0.34, forwardBias: 0.06, yawBase: 0, yawRange: 0.38 },
-    physics: { air: 0.9965, magnus: 0.23, tableRest: 0.89, paddleRest: 1.1, netRest: 0.37, serveTimers: { player: 0.45, opponent: 0.6 } },
+    physics: {
+      drag: 0.48,
+      tableRest: 0.84,
+      tableFriction: 0.22,
+      paddleRest: 1.02,
+      paddleAim: 0.58,
+      paddleLift: 0.18,
+      netRest: 0.37,
+      serveTimers: { player: 0.45, opponent: 0.6 }
+    },
     ai: { speed: 1, vertical: 1, react: 1 },
   },
   {
@@ -89,7 +98,16 @@ const GAME_VARIANTS = [
     },
     trail: { color: 0xff4bf1, minOpacity: 0.22, maxOpacity: 0.82, speedFactor: 0.06, count: 22 },
     camera: { dist: 3.58, minDist: 3.22, height: 2.12, minHeight: 1.9, pitch: 0.36, forwardBias: 0.12, yawBase: 0, yawRange: 0.52 },
-    physics: { air: 0.9972, magnus: 0.28, tableRest: 0.9, paddleRest: 1.16, netRest: 0.35, serveTimers: { player: 0.43, opponent: 0.58 } },
+    physics: {
+      drag: 0.46,
+      tableRest: 0.85,
+      tableFriction: 0.21,
+      paddleRest: 1.06,
+      paddleAim: 0.62,
+      paddleLift: 0.17,
+      netRest: 0.35,
+      serveTimers: { player: 0.43, opponent: 0.58 }
+    },
     ai: { speed: 1.08, vertical: 1.04, react: 0.94 },
   },
   {
@@ -133,7 +151,16 @@ const GAME_VARIANTS = [
     },
     trail: { color: 0xfff1c0, minOpacity: 0.16, maxOpacity: 0.54, speedFactor: 0.036, count: 18 },
     camera: { dist: 3.32, minDist: 3.05, height: 1.98, minHeight: 1.78, pitch: 0.32, forwardBias: 0.05, yawBase: 0, yawRange: 0.34 },
-    physics: { air: 0.9955, magnus: 0.2, tableRest: 0.91, paddleRest: 1.08, netRest: 0.38, serveTimers: { player: 0.47, opponent: 0.62 } },
+    physics: {
+      drag: 0.5,
+      tableRest: 0.83,
+      tableFriction: 0.18,
+      paddleRest: 0.98,
+      paddleAim: 0.58,
+      paddleLift: 0.16,
+      netRest: 0.38,
+      serveTimers: { player: 0.47, opponent: 0.62 }
+    },
     ai: { speed: 0.94, vertical: 0.96, react: 1.05 },
   },
   {
@@ -177,7 +204,16 @@ const GAME_VARIANTS = [
     },
     trail: { color: 0xff8b3d, minOpacity: 0.24, maxOpacity: 0.86, speedFactor: 0.055, count: 20 },
     camera: { dist: 3.7, minDist: 3.32, height: 2.22, minHeight: 2, pitch: 0.35, forwardBias: 0.08, yawBase: 0, yawRange: 0.4 },
-    physics: { air: 0.9968, magnus: 0.26, tableRest: 0.92, paddleRest: 1.14, netRest: 0.32, serveTimers: { player: 0.44, opponent: 0.59 } },
+    physics: {
+      drag: 0.45,
+      tableRest: 0.86,
+      tableFriction: 0.2,
+      paddleRest: 1.05,
+      paddleAim: 0.64,
+      paddleLift: 0.19,
+      netRest: 0.32,
+      serveTimers: { player: 0.44, opponent: 0.59 }
+    },
     ai: { speed: 1.12, vertical: 1.08, react: 0.92 },
   },
   {
@@ -221,7 +257,16 @@ const GAME_VARIANTS = [
     },
     trail: { color: 0x6cb8ff, minOpacity: 0.14, maxOpacity: 0.55, speedFactor: 0.034, count: 28 },
     camera: { dist: 3.1, minDist: 2.9, height: 2.62, minHeight: 2.38, pitch: 0.48, forwardBias: 0.03, yawBase: 0, yawRange: 0.24 },
-    physics: { air: 0.994, magnus: 0.18, tableRest: 0.9, paddleRest: 1.05, netRest: 0.4, serveTimers: { player: 0.49, opponent: 0.64 } },
+    physics: {
+      drag: 0.52,
+      tableRest: 0.84,
+      tableFriction: 0.18,
+      paddleRest: 0.96,
+      paddleAim: 0.54,
+      paddleLift: 0.15,
+      netRest: 0.4,
+      serveTimers: { player: 0.49, opponent: 0.64 }
+    },
     ai: { speed: 0.9, vertical: 0.92, react: 1.08 },
   },
 ];
@@ -771,8 +816,6 @@ export default function TableTennis3D({ player, ai }){
     const oppVel = new THREE.Vector3();
     const prevBall = new THREE.Vector3();
     const headWorld = new THREE.Vector3();
-    const tangent = new THREE.Vector3();
-    const spinProjection = new THREE.Vector3();
 
     // ---------- Ball ----------
     const ballMaterial = new THREE.MeshStandardMaterial({
@@ -828,25 +871,24 @@ export default function TableTennis3D({ player, ai }){
     // ---------- Physics State ----------
     const Srv = { side: ui.serving }; // P or O (mutable copy)
     const Sx = {
-      v: new THREE.Vector3(0,0,0),
-      w: new THREE.Vector3(0,0,0), // spin (rad/s) — very simplified Magnus
+      v: new THREE.Vector3(0, 0, 0),
+      w: new THREE.Vector3(0, 0, 0),
       gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -9.81, 0),
-      air: physicsSettings.air ?? 0.9965,
-      magnus: physicsSettings.magnus ?? 0.23,
-      tableRest: physicsSettings.tableRest ?? 0.89,
-      paddleRest: physicsSettings.paddleRest ?? 1.1,
-      netRest: physicsSettings.netRest ?? 0.37,
+      drag: physicsSettings.drag ?? 0.48,
+      tableRest: physicsSettings.tableRest ?? 0.82,
+      tableFriction: physicsSettings.tableFriction ?? 0.18,
+      paddleRest: physicsSettings.paddleRest ?? 0.98,
+      paddleAim: physicsSettings.paddleAim ?? 0.6,
+      paddleLift: physicsSettings.paddleLift ?? 0.14,
+      netRest: physicsSettings.netRest ?? 0.4,
       state: 'serve', // serve | rally | dead
       lastTouch: null, // 'P' or 'O'
       bounces: { P: 0, O: 0 },
       serveProgress: 'awaitServeHit',
       serveTimer: serveTimers.player,
-      tmpV: new THREE.Vector3(),
       tmpN: new THREE.Vector3(),
-      tmpSpin: new THREE.Vector3(),
       simPos: new THREE.Vector3(),
       simVel: new THREE.Vector3(),
-      simSpin: new THREE.Vector3(),
     };
 
     function resetServe(){
@@ -1031,26 +1073,52 @@ export default function TableTennis3D({ player, ai }){
       prediction: null,
     };
 
+    function solveShot(from, to, gravityY, flightTime){
+      const t = Math.max(0.18, flightTime);
+      const dx = to.x - from.x;
+      const dz = to.z - from.z;
+      const dy = to.y - from.y;
+      const vx = dx / t;
+      const vz = dz / t;
+      const vy = (dy - 0.5 * gravityY * t * t) / t;
+      return new THREE.Vector3(vx, vy, vz);
+    }
+
+    function ensureNetClear(from, velocity, gravityY, netTop, margin = BALL_R){
+      const vz = velocity.z;
+      const dzToNet = -from.z;
+      if (Math.abs(vz) < 1e-5) return velocity;
+      const tNet = dzToNet / vz;
+      if (tNet <= 0) return velocity;
+      const yNet = from.y + velocity.y * tNet + 0.5 * gravityY * tNet * tNet;
+      const need = netTop + margin;
+      if (yNet < need){
+        velocity.y += (need - yNet) / Math.max(0.12, tNet);
+      }
+      return velocity;
+    }
+
     function predictBallForSide(targetZ, direction){
       Sx.simPos.copy(ball.position);
       Sx.simVel.copy(Sx.v);
-      Sx.simSpin.copy(Sx.w);
       let time = 0;
       const step = 1/240;
       for (let i = 0; i < 960; i++){
         time += step;
         Sx.simVel.addScaledVector(Sx.gravity, step);
-        Sx.tmpSpin.crossVectors(Sx.simVel, Sx.simSpin).multiplyScalar(Sx.magnus * step);
-        Sx.simVel.add(Sx.tmpSpin);
-        Sx.simVel.multiplyScalar(Math.pow(Sx.air, step * 60));
+        const simSpeed = Sx.simVel.length();
+        if (simSpeed > 1e-4){
+          const drag = Sx.drag * BALL_R * simSpeed * step;
+          Sx.simVel.addScaledVector(Sx.simVel, -drag);
+        }
         Sx.simPos.addScaledVector(Sx.simVel, step);
 
         if (Sx.simPos.y <= T.H && Sx.simVel.y < 0){
           Sx.simPos.y = T.H;
           Sx.simVel.y = -Sx.simVel.y * Sx.tableRest;
-          Sx.simVel.x *= 0.985;
-          Sx.simVel.z *= 0.985;
-          Sx.simSpin.multiplyScalar(0.95);
+          const damp = 1 - Sx.tableFriction * 0.5;
+          Sx.simVel.x *= damp;
+          Sx.simVel.z *= damp;
         }
 
         if (Math.abs(Sx.simPos.z) < 0.01 && Sx.simPos.y < T.H + T.NET_H){
@@ -1135,11 +1203,10 @@ export default function TableTennis3D({ player, ai }){
         }
 
         Sx.v.y = -Sx.v.y * Sx.tableRest;
-        Sx.v.x *= 0.99;
-        Sx.v.z *= 0.99;
-        tangent.set(-Sx.w.z, 0, Sx.w.x).multiplyScalar(BALL_R * 0.28);
-        Sx.v.add(tangent);
-        Sx.w.multiplyScalar(0.94);
+        const tableDamp = 1 - Sx.tableFriction * 0.5;
+        Sx.v.x *= tableDamp;
+        Sx.v.z *= tableDamp;
+        Sx.w.set(0, 0, 0);
         ball.position.y = T.H;
 
         const side = z >= 0 ? 'P' : 'O';
@@ -1179,7 +1246,7 @@ export default function TableTennis3D({ player, ai }){
     function hitPaddle(paddle, who, paddleVel){
       if (Sx.state === 'dead') return false;
       if (Sx.state === 'serve' && who === Srv.side && Sx.serveProgress !== 'live') return false;
-      const { headAnchor, headRadius = (0.092 * PADDLE_SCALE), orientationSign = 1 } = paddle.userData || {};
+      const { headAnchor, headRadius = (0.092 * PADDLE_SCALE) } = paddle.userData || {};
       if (!headAnchor) return false;
       headAnchor.getWorldPosition(headWorld);
       headWorld.divideScalar(S);
@@ -1192,31 +1259,50 @@ export default function TableTennis3D({ player, ai }){
       const detection = (headRadius + BALL_R) * 1.35;
       if ((dx * dx + dy * dy + dz * dz) < detection * detection){
         const n = Sx.tmpN.set(dx, dy, dz).normalize();
+        const attackSign = who === 'P' ? -1 : 1;
+        const contact = new THREE.Vector3(
+          worldHeadX + n.x * (headRadius * 0.9),
+          Math.max(worldHeadY + n.y * (headRadius * 0.9), T.H + BALL_R),
+          worldHeadZ + n.z * (headRadius * 0.9)
+        );
+        ball.position.copy(contact);
         const vN = Sx.v.dot(n);
         const approach = Math.max(0, -vN);
-        const swingInfluence = paddleVel ? paddleVel.length() : 0;
-        const basePunch = THREE.MathUtils.clamp(2.9 + approach * 0.55 + swingInfluence * 0.18, 2.9, 4.5);
-        Sx.v.addScaledVector(n, basePunch - vN * 1.85);
-        if (paddleVel){
-          Sx.v.addScaledVector(paddleVel, 0.22);
-        }
-        const attackSign = who === 'P' ? -1 : 1;
-        const forwardBias = THREE.MathUtils.clamp(2.1 + approach * 0.42 + Math.abs(paddleVel?.z || 0) * 0.32, 1.6, 4.4);
-        Sx.v.z += attackSign * forwardBias;
-        Sx.v.x += THREE.MathUtils.clamp(n.x * 1.6 + (paddleVel?.x || 0) * 0.32, -3, 3);
-        Sx.w.x += (paddleVel?.z || 0) * -0.42 * attackSign;
-        Sx.w.y += (paddleVel?.x || 0) * 0.36;
-        Sx.w.z += -n.x * 4.7;
-        tangent.crossVectors(n, Sx.w).multiplyScalar(BALL_R * 0.42);
-        Sx.v.add(tangent);
-        spinProjection.copy(n).multiplyScalar(Sx.w.dot(n));
-        Sx.w.sub(spinProjection.multiplyScalar(0.62));
-        Sx.w.addScaledVector(n, THREE.MathUtils.clamp(paddleVel?.length() || 0, 0, 5) * 0.12 * orientationSign * attackSign);
-        ball.position.set(
-          worldHeadX + n.x * (headRadius * 0.95),
-          Math.max(worldHeadY + n.y * (headRadius * 0.95), T.H + BALL_R),
-          worldHeadZ + n.z * (headRadius * 0.95)
+        const swingSpeed = paddleVel ? paddleVel.length() : 0;
+        const swingStrength = THREE.MathUtils.clamp(approach * 0.18 + swingSpeed * 0.22, 0.12, 0.8);
+        const paddleActor = who === 'P' ? player : opp;
+        const aimBias = THREE.MathUtils.clamp(
+          paddleActor.position.x * Sx.paddleAim,
+          -T.W / 2 + 0.12,
+          T.W / 2 - 0.12
         );
+        const swipeAim = THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.16, -0.45, 0.45);
+        const randomAim = (Math.random() - 0.5) * 0.08;
+        const aimX = THREE.MathUtils.clamp(
+          aimBias + swipeAim + randomAim,
+          -T.W / 2 + 0.12,
+          T.W / 2 - 0.12
+        );
+        const baseZ = attackSign < 0 ? -T.L / 2 + 0.24 : T.L / 2 - 0.24;
+        const aimZ = THREE.MathUtils.clamp(
+          baseZ + attackSign * (0.04 + Math.random() * 0.06),
+          -T.L / 2 + 0.18,
+          T.L / 2 - 0.18
+        );
+        const target = new THREE.Vector3(
+          aimX,
+          T.H + Sx.paddleLift + swingStrength * 0.18,
+          aimZ
+        );
+        const flight = THREE.MathUtils.clamp(0.34 - swingStrength * 0.08, 0.24, 0.5);
+        let shot = solveShot(contact, target, Sx.gravity.y, flight);
+        shot = ensureNetClear(contact, shot, Sx.gravity.y, T.H + T.NET_H, BALL_R * 0.85);
+        shot.multiplyScalar(Sx.paddleRest);
+        shot.x += THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.12, -0.9, 0.9);
+        shot.y += THREE.MathUtils.clamp((paddleVel?.y || 0) * 0.08, -0.6, 0.6);
+        shot.z += attackSign * THREE.MathUtils.clamp((paddleVel?.z || 0) * 0.14, -0.8, 0.8);
+        Sx.v.copy(shot);
+        Sx.w.set(0, 0, 0);
         Sx.state = 'rally';
         Sx.serveProgress = 'live';
         Sx.lastTouch = who;
@@ -1399,16 +1485,18 @@ export default function TableTennis3D({ player, ai }){
               const dir = Srv.side === 'P' ? -1 : 1;
               const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.35, -0.7, 0.7);
               Sx.v.set(aimX, 2.6, 1.55 * dir);
-              Sx.w.set(0, dir * -4.2, 0.12 * dir);
+              Sx.w.set(0, 0, 0);
               Sx.serveProgress = 'awaitServerBounce';
               Sx.lastTouch = Srv.side;
             }
           }
 
-          const magnus = Sx.tmpV.crossVectors(Sx.v, Sx.w).multiplyScalar(Sx.magnus);
           Sx.v.addScaledVector(Sx.gravity, dt);
-          Sx.v.addScaledVector(magnus, dt);
-          Sx.v.multiplyScalar(Math.pow(Sx.air, dt * 60));
+          const speed = Sx.v.length();
+          if (speed > 1e-4){
+            const drag = Sx.drag * BALL_R * speed * dt;
+            Sx.v.addScaledVector(Sx.v, -drag);
+          }
           ball.position.addScaledVector(Sx.v, dt);
 
           const scored = bounceTable(prevBall);
