@@ -16,7 +16,8 @@ const fallbackGameNames = [
   'Texas Holdem',
   'Domino Royal 3D',
   'Blackjack Multi',
-  'Goal Rush'
+  'Goal Rush',
+  'Tirana 2040'
 ];
 
 function useBodyScrollLock(isLocked) {
