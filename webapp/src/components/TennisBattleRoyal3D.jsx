@@ -3,41 +3,63 @@ import * as THREE from "three";
 
 function buildRoyalGrandstand() {
   const group = new THREE.Group();
+
   const seatMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x15306d,
-    roughness: 0.3,
-    metalness: 0.18,
-    clearcoat: 0.45,
-    clearcoatRoughness: 0.25
+    color: 0x1d4ed8,
+    roughness: 0.26,
+    metalness: 0.22,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.18
+  });
+  const accentSeatMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xf59e0b,
+    roughness: 0.34,
+    metalness: 0.28,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.22
   });
   const frameMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x2b303a,
-    roughness: 0.55,
-    metalness: 0.35
+    color: 0x2f3845,
+    roughness: 0.48,
+    metalness: 0.38
   });
   const concreteMaterial = new THREE.MeshStandardMaterial({
-    color: 0x7b7b7b,
-    roughness: 0.84,
-    metalness: 0.05
+    color: 0x9da3b0,
+    roughness: 0.78,
+    metalness: 0.08
   });
+  const railingMaterial = new THREE.MeshStandardMaterial({ color: 0xd1d5db, roughness: 0.42, metalness: 0.52 });
 
   const seatGeo = new THREE.BoxGeometry(1.25, 0.16, 1.1);
   const backGeo = new THREE.BoxGeometry(1.25, 0.82, 0.12);
-  const legGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 8);
+  const legGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.8, 10);
+
+  const aisleMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8, metalness: 0.12 });
+  const aisleGeo = new THREE.BoxGeometry(0.8, 0.12, 36);
+
+  function addRailings(target, centerX, baseY, depthOffset, rows) {
+    const railGeo = new THREE.CylinderGeometry(0.035, 0.035, rows * 0.78 + 0.4, 10);
+    for (let sign of [-1, 1]) {
+      const rail = new THREE.Mesh(railGeo, railingMaterial);
+      rail.position.set(centerX + sign * 0.4, baseY + (rows * 0.78) / 2, depthOffset - (rows - 1) * 1.8 - 1.1);
+      target.add(rail);
+    }
+  }
 
   function buildTier(offsetX, baseY, depthOffset) {
     const tier = new THREE.Group();
-    const seatsPerRow = 18;
+    const seatsPerRow = 20;
     const rows = 8;
+    const accentEvery = 7;
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < seatsPerRow; c += 1) {
         if (Math.abs(c - seatsPerRow / 2) <= 0.5) continue;
-        const x = offsetX + (c - seatsPerRow / 2) * 1.7;
+        const x = offsetX + (c - seatsPerRow / 2) * 1.62;
         const y = baseY + r * 0.78;
         const z = depthOffset - r * 1.8;
-        const seat = new THREE.Mesh(seatGeo, seatMaterial);
+        const seat = new THREE.Mesh(seatGeo, (c + r) % accentEvery === 0 ? accentSeatMaterial : seatMaterial);
         seat.position.set(x, y, z);
-        const back = new THREE.Mesh(backGeo, seatMaterial);
+        const back = new THREE.Mesh(backGeo, seat.material);
         back.position.set(x, y + 0.46, z - 0.55);
         const legL = new THREE.Mesh(legGeo, frameMaterial);
         legL.position.set(x - 0.55, y - 0.35, z + 0.35);
@@ -45,75 +67,136 @@ function buildRoyalGrandstand() {
         legR.position.x = x + 0.55;
         tier.add(seat, back, legL, legR);
       }
-      const tread = new THREE.Mesh(new THREE.BoxGeometry(32, 0.32, 1.7), concreteMaterial);
-      tread.position.set(offsetX, baseY + r * 0.78 - 0.38, depthOffset - r * 1.8 - 0.85);
+      const tread = new THREE.Mesh(new THREE.BoxGeometry(34, 0.3, 1.7), concreteMaterial);
+      tread.position.set(offsetX, baseY + r * 0.78 - 0.36, depthOffset - r * 1.8 - 0.85);
+      tread.receiveShadow = true;
       tier.add(tread);
+
+      if (r === Math.floor(rows / 2)) {
+        const aisle = new THREE.Mesh(aisleGeo, aisleMat);
+        aisle.rotation.y = Math.PI / 2;
+        aisle.position.set(offsetX, baseY + r * 0.78 - 0.44, depthOffset - r * 1.8 - 0.85);
+        aisle.receiveShadow = true;
+        tier.add(aisle);
+      }
     }
+
+    addRailings(tier, offsetX - 15.2, baseY, depthOffset, rows);
+    addRailings(tier, offsetX + 15.2, baseY, depthOffset, rows);
     return tier;
   }
 
   const tiers = [
-    { baseY: 0, depth: 0 },
-    { baseY: 5.6, depth: -15 },
-    { baseY: 11.2, depth: -30 },
-    { baseY: 16.8, depth: -45 }
+    { baseY: 0.2, depth: 0 },
+    { baseY: 5.9, depth: -14.6 },
+    { baseY: 11.6, depth: -29.2 },
+    { baseY: 17.3, depth: -43.8 }
   ];
-  tiers.forEach(({ baseY, depth }) => {
-    group.add(buildTier(-15, baseY, depth));
-    group.add(buildTier(15, baseY, depth));
-    const walkway = new THREE.Mesh(new THREE.BoxGeometry(68, 0.42, 6), concreteMaterial);
-    walkway.position.set(0, baseY - 0.44, depth - 6);
+  tiers.forEach(({ baseY, depth }, idx) => {
+    const leftTier = buildTier(-15, baseY, depth);
+    const rightTier = buildTier(15, baseY, depth);
+    if (idx === tiers.length - 1) {
+      leftTier.traverse((child) => {
+        if (child.isMesh) child.material = child.material.clone();
+      });
+    }
+    group.add(leftTier);
+    group.add(rightTier);
+    const walkway = new THREE.Mesh(new THREE.BoxGeometry(70, 0.42, 6.2), concreteMaterial);
+    walkway.position.set(0, baseY - 0.46, depth - 6.4);
     walkway.receiveShadow = true;
     group.add(walkway);
+
+    const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 70, 10), railingMaterial);
+    rail.rotation.z = Math.PI / 2;
+    rail.position.set(0, baseY + 0.18, depth - 9.9);
+    group.add(rail);
   });
 
   const suiteHeight = tiers[tiers.length - 1].baseY + 0.78 * 7 + 1.2;
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(72, 0.5, 14), concreteMaterial);
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(74, 0.55, 14), concreteMaterial);
   deck.position.set(0, suiteHeight, -42);
-  deck.castShadow = deck.receiveShadow = true;
+  deck.castShadow = true;
+  deck.receiveShadow = true;
   group.add(deck);
 
-  const suiteMaterial = new THREE.MeshStandardMaterial({ color: 0x3a414d, roughness: 0.52, metalness: 0.45 });
+  const suiteMaterial = new THREE.MeshStandardMaterial({ color: 0x3b4758, roughness: 0.48, metalness: 0.42 });
   const glassMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xbfd9ff,
-    roughness: 0.1,
-    transmission: 0.85,
+    color: 0xdbeafe,
+    roughness: 0.08,
+    transmission: 0.9,
     transparent: true,
-    opacity: 0.65,
-    ior: 1.45
+    opacity: 0.72,
+    ior: 1.46
   });
+  const dividerMaterial = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.6, metalness: 0.2 });
   for (let i = -2; i <= 2; i += 1) {
     const x = i * 12;
-    const frame = new THREE.Mesh(new THREE.BoxGeometry(8, 4.5, 11), suiteMaterial);
-    frame.position.set(x, suiteHeight + 2.3, -45);
-    const glass = new THREE.Mesh(new THREE.PlaneGeometry(6.4, 3.2), glassMaterial);
-    glass.position.set(x, suiteHeight + 2.3, -39);
-    group.add(frame, glass);
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(8.2, 4.6, 11.5), suiteMaterial);
+    frame.position.set(x, suiteHeight + 2.4, -45.2);
+    frame.castShadow = true;
+    const glass = new THREE.Mesh(new THREE.PlaneGeometry(6.6, 3.4), glassMaterial);
+    glass.position.set(x, suiteHeight + 2.45, -38.9);
+    const divider = new THREE.Mesh(new THREE.BoxGeometry(0.28, 3.6, 11.6), dividerMaterial);
+    divider.position.set(x + 4.1, suiteHeight + 2.2, -45.2);
+    const divider2 = divider.clone();
+    divider2.position.x = x - 4.1;
+    group.add(frame, glass, divider, divider2);
+
+    const table = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.06, 16), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }));
+    table.rotation.x = Math.PI / 2;
+    table.position.set(x, suiteHeight + 1.15, -41.6);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 12), dividerMaterial);
+    post.position.set(x, suiteHeight + 0.7, -41.6);
+    group.add(table, post);
   }
 
   const roofMat = new THREE.MeshPhysicalMaterial({
-    color: 0x1c2430,
-    roughness: 0.34,
+    color: 0x1f2937,
+    roughness: 0.28,
     metalness: 0.55,
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.22,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.18,
     side: THREE.DoubleSide
   });
-  const roofGeo = new THREE.PlaneGeometry(96, 110, 16, 8);
+  const roofGeo = new THREE.PlaneGeometry(96, 110, 18, 12);
   const attr = roofGeo.attributes.position;
   for (let i = 0; i < attr.count; i += 1) {
     const x = attr.getX(i);
     const y = attr.getY(i);
-    const arch = Math.pow(Math.max(0, 1 - (x / 48) ** 2), 1.1);
-    const drop = Math.pow((y + 55) / 110, 1.6) * 8;
-    attr.setZ(i, 9 + arch * 11 - drop);
+    const arch = Math.pow(Math.max(0, 1 - (x / 48) ** 2), 1.05);
+    const drop = Math.pow((y + 55) / 110, 1.6) * 7.2;
+    attr.setZ(i, 9.8 + arch * 10.2 - drop);
   }
   attr.needsUpdate = true;
   roofGeo.computeVertexNormals();
   roofGeo.rotateX(-Math.PI / 2);
   const roof = new THREE.Mesh(roofGeo, roofMat);
-  roof.position.set(0, suiteHeight + 6.4, -52);
+  roof.position.set(0, suiteHeight + 6.9, -52);
+  roof.castShadow = true;
+  roof.receiveShadow = true;
   group.add(roof);
+
+  const trussMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.35, metalness: 0.62 });
+  for (let i = -3; i <= 3; i += 1) {
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 26, 12), trussMat);
+    beam.rotation.x = Math.PI / 2;
+    beam.position.set(i * 9.5, suiteHeight + 4.2, -43.2);
+    beam.castShadow = true;
+    group.add(beam);
+  }
+
+  function buildFloodlight(x) {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 26, 12), trussMat);
+    pole.position.set(x, suiteHeight + 13.4, -49);
+    const head = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 0.6), new THREE.MeshStandardMaterial({ color: 0xf8fafc, emissive: 0xfef9c3, emissiveIntensity: 0.18 }));
+    head.position.set(x, suiteHeight + 26, -45.8);
+    const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5.6, 12), trussMat);
+    brace.position.set(x, suiteHeight + 17, -47.6);
+    group.add(pole, head, brace);
+  }
+  buildFloodlight(-20);
+  buildFloodlight(20);
 
   group.scale.setScalar(0.35);
   group.position.y = 0.1;
@@ -126,7 +209,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   if (playerName) suffixParts.push(`${playerName} vs AI`);
   if (stakeLabel) suffixParts.push(`Stake ${stakeLabel}`);
   const suffix = suffixParts.length ? ` · ${suffixParts.join(' · ')}` : '';
-  const [msg, setMsg] = useState(() => `Swipe për serve/hit · Kamera fokusohet te topi · 1 BALL${suffix}`);
+  const [msg, setMsg] = useState(() => `Po ngarkohet stadiumi · lutemi prisni${suffix}`);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -136,16 +219,18 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     let W = Math.max(1, container.clientWidth || window.innerWidth || 360);
     let H = Math.max(1, container.clientHeight || window.innerHeight || 640);
     renderer.setSize(W, H);
-    renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
     else renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.85;
-    renderer.shadowMap.enabled = false;
+    renderer.toneMappingExposure = 1.12;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0c1020);
+    scene.background = new THREE.Color(0x87ceeb);
+    scene.fog = new THREE.Fog(0x87ceeb, 60, 220);
     const camera = new THREE.PerspectiveCamera(56, W / H, 0.05, 800);
 
     const courtL = 23.77;
@@ -159,11 +244,24 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     let camBack = 8.0;
     let camHeight = 3.8;
 
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x1b2a44, 0.45);
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x223344, 0.72);
     scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.2);
-    key.position.set(16, 22, 18);
-    scene.add(key);
+    const sun = new THREE.DirectionalLight(0xfff3d2, 1.12);
+    sun.position.set(-18, 26, 18);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.near = 1;
+    sun.shadow.camera.far = 140;
+    sun.shadow.camera.left = -32;
+    sun.shadow.camera.right = 32;
+    sun.shadow.camera.top = 32;
+    sun.shadow.camera.bottom = -32;
+    scene.add(sun);
+    const fill = new THREE.DirectionalLight(0xc9def6, 0.32);
+    fill.position.set(24, 18, -12);
+    scene.add(fill);
+    const bounce = new THREE.AmbientLight(0xffffff, 0.24);
+    scene.add(bounce);
 
     const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 8;
     const grassURL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
@@ -321,16 +419,19 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const trackMesh = new THREE.Mesh(new THREE.PlaneGeometry(courtW + apron * 2, courtL + apron * 2), matTrack);
     trackMesh.rotation.x = -Math.PI / 2;
     trackMesh.position.y = -0.001;
+    trackMesh.receiveShadow = true;
     scene.add(trackMesh);
 
     const grassMesh = new THREE.Mesh(new THREE.PlaneGeometry(courtW, courtL), matGrass);
     grassMesh.rotation.x = -Math.PI / 2;
     grassMesh.position.y = 0.0;
+    grassMesh.receiveShadow = true;
     scene.add(grassMesh);
 
     const linesMesh = new THREE.Mesh(new THREE.PlaneGeometry(courtW, courtL), matLines);
     linesMesh.rotation.x = -Math.PI / 2;
     linesMesh.position.y = 0.002;
+    linesMesh.receiveShadow = true;
     scene.add(linesMesh);
 
     loadDeshadowedGrass(grassURL, (tex) => {
@@ -405,19 +506,33 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     scene.add(capR);
 
     const stand = buildRoyalGrandstand();
+    stand.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
     const baseGap = 8;
     const sideGap = 9;
-    const north = stand.clone();
+    const north = stand.clone(true);
     north.position.z = -(halfL + baseGap);
-    const south = stand.clone();
+    const south = stand.clone(true);
     south.rotation.y = Math.PI;
     south.position.z = halfL + baseGap;
-    const east = stand.clone();
+    const east = stand.clone(true);
     east.rotation.y = -Math.PI / 2;
     east.position.x = halfW + sideGap;
-    const west = stand.clone();
+    const west = stand.clone(true);
     west.rotation.y = Math.PI / 2;
     west.position.x = -(halfW + sideGap);
+    for (const tribune of [north, south, east, west]) {
+      tribune.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+    }
     scene.add(north, south, east, west);
 
     const ump = new THREE.Group();
@@ -615,6 +730,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const ball = buildBallURT();
     const s = ballR / 0.26;
     ball.scale.setScalar(s);
+    ball.castShadow = true;
+    ball.receiveShadow = true;
     scene.add(ball);
 
     const sC = document.createElement('canvas');
@@ -659,10 +776,16 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const player = makeRacket();
     player.position.set(0, 0, playerZ);
     player.rotation.y = Math.PI / 2;
+    player.traverse((child) => {
+      if (child.isMesh) child.castShadow = true;
+    });
     scene.add(player);
     const cpu = makeRacket();
     cpu.position.set(0, 0, cpuZ);
     cpu.rotation.y = -Math.PI / 2;
+    cpu.traverse((child) => {
+      if (child.isMesh) child.castShadow = true;
+    });
     scene.add(cpu);
 
     const state = {
@@ -675,82 +798,93 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       serveSide: 'deuce',
       attempts: 2
     };
+    const scoreboard = {
+      points: { player: 0, cpu: 0 },
+      games: { player: 0, cpu: 0 },
+      sets: { player: 0, cpu: 0 }
+    };
+    state.scoreboard = scoreboard;
+    state.awaitingServeResult = false;
+    state.bounceCounts = { player: 0, cpu: 0 };
+    state.matchOver = false;
+
+    const displayName = {
+      player: playerName || 'You',
+      cpu: 'CPU'
+    };
+    const SERVICE_LINE_Z = 6.4;
+
     const pos = new THREE.Vector3(0, ballR + 0.01, playerZ - 1.0);
     const vel = new THREE.Vector3();
     let lastHitter = 'player';
     ball.position.copy(pos);
 
-    function solveShot(from, to, g, tSec) {
-      const t = tSec;
-      const dx = to.x - from.x;
-      const dz = to.z - from.z;
-      const dy = to.y - from.y;
-      const vx = dx / t;
-      const vz = dz / t;
-      const vy = (dy - 0.5 * g * t * t) / t;
-      return new THREE.Vector3(vx, vy, vz);
-    }
-    function ensureNetClear(from, v, g, netY, margin = ballR * 0.8) {
-      const vz = v.z;
-      const dzToNet = 0 - from.z;
-      if (Math.abs(vz) < 1e-4) return v;
-      const tNet = dzToNet / vz;
-      if (tNet <= 0) return v;
-      const yNet = from.y + v.y * tNet + 0.5 * g * tNet * tNet;
-      const need = netY + margin;
-      if (yNet < need) {
-        v.y += (need - yNet) / Math.max(0.15, tNet);
-      }
-      return v;
+    const opponent = (side) => (side === 'player' ? 'cpu' : 'player');
+
+    function resetBounces() {
+      state.bounceCounts.player = 0;
+      state.bounceCounts.cpu = 0;
     }
 
-    function placeCamera() {
-      const servingDiag = !state.live && state.serveBy === 'player';
-      if (servingDiag) {
-        const sideOffset = state.serveSide === 'deuce' ? 1.25 : -1.25;
-        const target = new THREE.Vector3(player.position.x + sideOffset, camHeight, player.position.z + camBack);
-        camera.position.lerp(target, 0.25);
-        camera.lookAt(new THREE.Vector3(0, 1.2, -halfL + 1.0));
-        return;
-      }
-      const followX = THREE.MathUtils.lerp(player.position.x * 0.25, ball.position.x * 0.55, 0.65);
-      const followY = camHeight + THREE.MathUtils.clamp((ball.position.y - 1.0) * 0.35, -0.5, 1.8);
-      const baseZ = player.position.z + camBack;
-      const target = new THREE.Vector3(followX, followY, baseZ);
-      camera.position.lerp(target, 0.18);
-      const onOurHalf = ball.position.z > 0;
-      const lookMix = onOurHalf ? 0.82 : 0.62;
-      const look = new THREE.Vector3(
-        THREE.MathUtils.lerp(player.position.x * 0.08, ball.position.x, lookMix),
-        THREE.MathUtils.lerp(1.15, Math.max(1.0, ball.position.y), lookMix),
-        THREE.MathUtils.lerp(Math.max(0.2, player.position.z - 1.2), ball.position.z, lookMix)
-      );
-      camera.lookAt(look);
+    function resetBallState() {
+      state.live = false;
+      state.awaitingServeResult = false;
+      resetBounces();
+      vel.set(0, 0, 0);
     }
 
-    function inSinglesX(x) {
-      return Math.abs(x) <= halfW - 0.05;
+    function pointsLabel(side) {
+      const values = ['0', '15', '30', '40'];
+      return values[Math.min(scoreboard.points[side], 3)];
     }
+
+    function scoreHeadline() {
+      const sets = `${scoreboard.sets.player}-${scoreboard.sets.cpu}`;
+      const games = `${scoreboard.games.player}-${scoreboard.games.cpu}`;
+      let pointSegment;
+      if (scoreboard.points.player >= 3 && scoreboard.points.cpu >= 3) {
+        if (scoreboard.points.player === scoreboard.points.cpu) {
+          pointSegment = 'Deuce';
+        } else if (scoreboard.points.player > scoreboard.points.cpu) {
+          pointSegment = `Adv ${displayName.player}`;
+        } else {
+          pointSegment = `Adv ${displayName.cpu}`;
+        }
+      } else {
+        pointSegment = `${pointsLabel('player')}-${pointsLabel('cpu')}`;
+      }
+      return `Sets ${sets} · Games ${games} · Points ${pointSegment}`;
+    }
+
+    function updateHUD(status) {
+      setMsg(`${scoreHeadline()} · ${status}${suffix}`);
+    }
+
+    function describeServe(by, prefix = '') {
+      const attemptTag = state.attempts === 1 ? ' · serve i dytë' : '';
+      const base = `Serve (${displayName[by]}) – ${state.serveSide}${attemptTag}`;
+      return prefix ? `${prefix} · ${base}` : base;
+    }
+
+    const posServeIdle = (by) => (by === 'player' ? halfL + 0.55 : -halfL - 0.55);
 
     let cpuSrvTO = null;
-    const formatMsg = (base) => `${base}${suffix}`;
 
-    function prepareServe(by) {
+    function prepareServe(by, { keepAttempts = false } = {}) {
       state.serveBy = by;
-      state.attempts = 2;
-      state.live = false;
+      if (!keepAttempts) state.attempts = 2;
+      resetBallState();
       const idleX = state.serveSide === 'deuce' ? halfW - 0.2 : -halfW + 0.2;
       if (by === 'player') {
-        player.position.set(idleX, 0, halfL + 0.55);
+        player.position.set(idleX, 0, posServeIdle('player'));
         pos.set(idleX * 0.88, 1.34, halfL - 0.25);
       } else {
-        cpu.position.set(-idleX, 0, -halfL - 0.55);
+        cpu.position.set(-idleX, 0, posServeIdle('cpu'));
         pos.set(-idleX * 0.88, 1.34, -halfL + 0.25);
       }
       vel.set(0, 0, 0);
       ball.position.copy(pos);
       shadow.position.set(pos.x, 0.01, pos.z);
-      setMsg(formatMsg(by === 'player' ? `Serve (You) – ${state.serveSide}` : `Serve (CPU) – ${state.serveSide}`));
       lastHitter = by;
       if (cpuSrvTO) {
         clearTimeout(cpuSrvTO);
@@ -758,7 +892,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       }
       if (by === 'cpu') {
         cpuSrvTO = setTimeout(() => {
-          if (state.live) return;
+          if (state.live || state.matchOver) return;
+          state.attempts -= 1;
+          state.awaitingServeResult = true;
           const tx = THREE.MathUtils.randFloatSpread(1.2);
           const tz = THREE.MathUtils.randFloat(halfL - 1.8, halfL - 0.9);
           const to = new THREE.Vector3(tx, ballR + 0.06, tz);
@@ -766,12 +902,139 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH);
           vel.copy(v0.multiplyScalar(0.83));
           state.live = true;
-          setMsg(formatMsg('CPU serve'));
+          updateHUD(`${displayName.cpu} shërben`);
           cpu.userData.swing = 0.9;
           cpu.userData.swingLR = THREE.MathUtils.clamp(tx / halfW, -1, 1);
           lastHitter = 'cpu';
         }, 750);
       }
+    }
+
+    function queueServe(by, opts = {}) {
+      const { keepAttempts = false, prefix = '' } = opts;
+      prepareServe(by, { keepAttempts });
+      if (state.matchOver) {
+        if (prefix) updateHUD(prefix);
+        return;
+      }
+      updateHUD(describeServe(by, prefix));
+    }
+
+    function isServeInBox(server, side, x, z) {
+      const receiver = opponent(server);
+      if (receiver === 'cpu') {
+        if (z > -0.01 || z < -SERVICE_LINE_Z - 0.1) return false;
+      } else {
+        if (z < 0.01 || z > SERVICE_LINE_Z + 0.1) return false;
+      }
+      const ranges = {
+        player: { deuce: [-halfW, 0], ad: [0, halfW] },
+        cpu: { deuce: [0, halfW], ad: [-halfW, 0] }
+      };
+      const [minX, maxX] = ranges[server][side];
+      return x >= minX - 0.1 && x <= maxX + 0.1;
+    }
+
+    function handleServeBounce(side, x, z) {
+      if (!state.awaitingServeResult) return false;
+      const server = state.serveBy;
+      const receiver = opponent(server);
+      if (side !== receiver) {
+        handleServeFault(server, 'Serve jashtë');
+        return true;
+      }
+      if (!isServeInBox(server, state.serveSide, x, z)) {
+        handleServeFault(server, 'Serve jashtë kutisë');
+        return true;
+      }
+      state.awaitingServeResult = false;
+      resetBounces();
+      updateHUD(`${displayName[server]} shërben në fushë`);
+      return false;
+    }
+
+    function awardPoint(winner, reason = '') {
+      if (state.matchOver) return;
+      const loser = opponent(winner);
+      scoreboard.points[winner] += 1;
+      const diff = scoreboard.points[winner] - scoreboard.points[loser];
+      const prefix = `${displayName[winner]} merr pikën${reason ? ` (${reason})` : ''}`;
+      if (scoreboard.points[winner] >= 4 && diff >= 2) {
+        awardGame(winner, prefix);
+        return;
+      }
+      state.serveSide = state.serveSide === 'deuce' ? 'ad' : 'deuce';
+      state.attempts = 2;
+      queueServe(state.serveBy, { prefix });
+    }
+
+    function awardGame(winner, prefix = '') {
+      const loser = opponent(winner);
+      scoreboard.games[winner] += 1;
+      scoreboard.points.player = 0;
+      scoreboard.points.cpu = 0;
+      const note = prefix ? `${prefix} · ${displayName[winner]} fiton gamen` : `${displayName[winner]} fiton gamen`;
+      if (scoreboard.games[winner] >= 6 && scoreboard.games[winner] - scoreboard.games[loser] >= 2) {
+        awardSet(winner, note);
+        return;
+      }
+      state.serveBy = opponent(state.serveBy);
+      state.serveSide = 'deuce';
+      state.attempts = 2;
+      queueServe(state.serveBy, { prefix: note });
+    }
+
+    function awardSet(winner, prefix = '') {
+      scoreboard.sets[winner] += 1;
+      scoreboard.games.player = 0;
+      scoreboard.games.cpu = 0;
+      scoreboard.points.player = 0;
+      scoreboard.points.cpu = 0;
+      state.serveSide = 'deuce';
+      state.attempts = 2;
+      const note = prefix ? `${prefix} · ${displayName[winner]} fiton setin` : `${displayName[winner]} fiton setin`;
+      if (scoreboard.sets[winner] >= 2) {
+        state.matchOver = true;
+        updateHUD(`${note} · ${displayName[winner]} fiton ndeshjen!`);
+        setTimeout(() => {
+          scoreboard.points.player = 0;
+          scoreboard.points.cpu = 0;
+          scoreboard.games.player = 0;
+          scoreboard.games.cpu = 0;
+          scoreboard.sets.player = 0;
+          scoreboard.sets.cpu = 0;
+          state.matchOver = false;
+          state.serveBy = 'player';
+          state.serveSide = 'deuce';
+          state.attempts = 2;
+          queueServe('player', { prefix: 'Ndeshje e re' });
+        }, 3600);
+        return;
+      }
+      state.serveBy = winner === 'player' ? 'cpu' : 'player';
+      queueServe(state.serveBy, { prefix: note });
+    }
+
+    function handleServeFault(server, detail) {
+      if (state.matchOver) return;
+      if (state.attempts > 0) {
+        queueServe(server, { keepAttempts: true, prefix: detail });
+      } else {
+        awardPoint(opponent(server), 'Dopjo gabim');
+      }
+    }
+
+    function registerBounce(side, x, z) {
+      state.bounceCounts[side] += 1;
+      state.bounceCounts[opponent(side)] = 0;
+      if (state.awaitingServeResult) {
+        return handleServeBounce(side, x, z);
+      }
+      if (state.bounceCounts[side] > 1) {
+        awardPoint(opponent(side), 'Dy prekje në tokë');
+        return true;
+      }
+      return false;
     }
 
     const el = renderer.domElement;
@@ -783,13 +1046,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     let ly = 0;
     let st = 0;
     function onDown(e) {
+      if (state.matchOver) return;
       touching = true;
       sx = lx = e.clientX;
       sy = ly = e.clientY;
       st = performance.now();
     }
     function onMove(e) {
-      if (!touching) return;
+      if (!touching || state.matchOver) return;
       const dx = e.clientX - lx;
       const dy = e.clientY - ly;
       lx = e.clientX;
@@ -800,32 +1064,37 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     function onUp() {
       if (!touching) return;
       touching = false;
+      if (state.matchOver) return;
       const dt = Math.max(1, performance.now() - st);
       const vx = ((lx - sx) / dt) * 1000;
       const vy = ((ly - sy) / dt) * 1000;
       const spd = Math.hypot(vx, vy);
       if (!state.live) {
         if (state.serveBy === 'player') {
+          state.attempts -= 1;
+          state.awaitingServeResult = true;
           const p = THREE.MathUtils.clamp(spd / 1050, 0.3, 0.9);
           const aimX = THREE.MathUtils.clamp(vx / 900, -1.5, 1.5);
           vel.set(aimX * 2.1, Math.max(1.6, -vy / 750 + 1.1), -19.4 * p);
           pos.y = 1.35;
           state.live = true;
-          setMsg(formatMsg('Serve në ajër'));
+          updateHUD(`${displayName.player} shërben`);
           player.userData.swing = 0.6 + 0.8 * p;
           player.userData.swingLR = THREE.MathUtils.clamp(vx / 1200, -1, 1);
           lastHitter = 'player';
         }
-      } else {
-        const near = pos.z > 0 && Math.abs(pos.z - (playerZ - 0.75)) < 2.1;
-        if (near && pos.y <= 2.05) {
-          const p = THREE.MathUtils.clamp(spd / 1150, 0.2, 0.95);
-          const aim = THREE.MathUtils.clamp(vx / 900, -1.6, 1.6);
-          vel.set(aim * 2.0 + vx * 0.0012, Math.max(0.7, -vy * 0.001 + 1.1), -(7.6 + 12.2 * p));
-          player.userData.swing = 0.5 + 1.0 * p;
-          player.userData.swingLR = THREE.MathUtils.clamp(vx / 1200, -1, 1);
-          lastHitter = 'player';
-        }
+        return;
+      }
+      const near = pos.z > 0 && Math.abs(pos.z - (playerZ - 0.75)) < 2.1;
+      if (near && pos.y <= 2.05) {
+        const p = THREE.MathUtils.clamp(spd / 1150, 0.2, 0.95);
+        const aim = THREE.MathUtils.clamp(vx / 900, -1.6, 1.6);
+        vel.set(aim * 2.0 + vx * 0.0012, Math.max(0.7, -vy * 0.001 + 1.1), -(7.6 + 12.2 * p));
+        player.userData.swing = 0.5 + 1.0 * p;
+        player.userData.swingLR = THREE.MathUtils.clamp(vx / 1200, -1, 1);
+        lastHitter = 'player';
+        state.awaitingServeResult = false;
+        resetBounces();
       }
     }
     el.addEventListener('pointerdown', onDown);
@@ -860,6 +1129,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           cpu.userData.swing = 1.1;
           cpu.userData.swingLR = THREE.MathUtils.clamp((cpuPlan.tx - cpu.position.x) / halfW, -1, 1);
           lastHitter = 'cpu';
+          state.awaitingServeResult = false;
+          resetBounces();
           cpuPlan = null;
         }
       }
@@ -924,6 +1195,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     makeBillboard(sideLenZ, bbH, 0.055, new THREE.Vector3(-outerX - offset, bbH / 2, 0), Math.PI / 2);
     makeBillboard(endLenX, bbH, 0.07, new THREE.Vector3(0, bbH / 2, -outerZ - offset), 0);
     makeBillboard(sideLenZ, bbH, 0.055, new THREE.Vector3(outerX + offset, bbH / 2, 0), -Math.PI / 2);
+    makeBillboard(endLenX, bbH, 0.065, new THREE.Vector3(0, bbH / 2, outerZ + offset), Math.PI);
 
     const FIXED = 1 / 120;
     let acc = 0;
@@ -950,19 +1222,31 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           vel.z *= 1 - state.fric;
           hitTTL = 1.0;
           hitRing.position.set(pos.x, 0.002, pos.z);
+          const bounceSide = pos.z >= 0 ? 'player' : 'cpu';
+          if (registerBounce(bounceSide, pos.x, pos.z)) {
+            return;
+          }
         }
         const denom = pos.z - prevZ || 1e-6;
         const tCross = (0 - prevZ) / denom;
         const yCross = THREE.MathUtils.lerp(ball.position.y, pos.y, THREE.MathUtils.clamp(tCross, 0, 1));
         if (((prevZ > 0 && pos.z <= 0) || (prevZ < 0 && pos.z >= 0)) && yCross < 0.914 + ballR * 0.55) {
-          state.live = false;
-          setMsg(formatMsg('NET · Swipe për serve'));
-          prepareServe(state.serveBy);
+          const hitter = lastHitter;
+          if (state.awaitingServeResult && hitter === state.serveBy) {
+            handleServeFault(state.serveBy, 'Serve në rrjetë');
+          } else {
+            awardPoint(opponent(hitter), 'Prekje rrjete');
+          }
+          return;
         }
         if (!inSinglesX(pos.x) || pos.z > halfL + 0.6 || pos.z < -halfL - 0.6) {
-          state.live = false;
-          setMsg(formatMsg('OUT · Swipe për serve'));
-          prepareServe(state.serveBy);
+          const hitter = lastHitter;
+          if (state.awaitingServeResult && hitter === state.serveBy) {
+            handleServeFault(state.serveBy, 'Serve jashtë');
+          } else {
+            awardPoint(opponent(hitter), 'Jashtë fushës');
+          }
+          return;
         }
         player.userData.swing *= Math.exp(-5.0 * dt);
         cpu.userData.swing *= Math.exp(-5.0 * dt);
@@ -1014,7 +1298,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       matGrass.map = tex;
       matGrass.needsUpdate = true;
     });
-    prepareServe('player');
+    queueServe('player', { prefix: 'Shërbe ti i pari' });
     animate();
 
     function onResize() {
@@ -1051,7 +1335,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   }, [playerName, stakeLabel, suffix]);
 
   return (
-    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', background: '#0c1020' }}>
+    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', background: 'linear-gradient(#87ceeb, #e0f2fe)' }}>
       <div
         style={{
           position: 'absolute',
@@ -1059,7 +1343,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           left: 8,
           right: 8,
           textAlign: 'center',
-          color: '#e5e7eb',
+          color: '#0f172a',
           fontFamily: 'ui-sans-serif, system-ui',
           fontSize: 12,
           opacity: 0.9
