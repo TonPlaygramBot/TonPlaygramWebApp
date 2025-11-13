@@ -100,6 +100,7 @@ public class BilliardsSolver
         double step = (endAngle - startAngle) / segments;
         Vec2 prev = PointOnCircle(center, radius, startAngle);
         Vec2 prevNormal = (prev - center).Normalized();
+        int cushionBands = Math.Clamp(PhysicsConstants.JawCushionSegments, 1, segments);
         for (int i = 1; i <= segments; i++)
         {
             double angle = startAngle + step * i;
@@ -108,7 +109,11 @@ public class BilliardsSolver
             Vec2 blended = (prevNormal + normal).Normalized();
             if (blended.Length < PhysicsConstants.Epsilon)
                 blended = normal;
-            CushionEdges.Add(new Edge { A = prev, B = next, Normal = blended });
+            var edge = new Edge { A = prev, B = next, Normal = blended };
+            if (i <= cushionBands || i > segments - cushionBands)
+                CushionEdges.Add(edge);
+            else
+                PocketEdges.Add(edge);
             prev = next;
             prevNormal = normal;
         }
@@ -142,9 +147,23 @@ public class BilliardsSolver
         }
 
         Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
+        int cushionBands = Math.Clamp(PhysicsConstants.JawCushionSegments, 1, Math.Max(1, pts.Count - 1));
         for (int i = 0; i < pts.Count - 1; i++)
         {
-            AddCushionSegment(pts[i], pts[i + 1], hint);
+            Vec2 a = pts[i];
+            Vec2 b = pts[i + 1];
+            if ((b - a).Length < PhysicsConstants.Epsilon)
+                continue;
+            Vec2 dir = (b - a).Normalized();
+            Vec2 normal = new Vec2(-dir.Y, dir.X);
+            if (Vec2.Dot(normal, hint) < 0)
+                normal = -normal;
+            var edge = new Edge { A = a, B = b, Normal = normal };
+            bool nearMouth = i < cushionBands || i >= pts.Count - 1 - cushionBands;
+            if (nearMouth)
+                CushionEdges.Add(edge);
+            else
+                PocketEdges.Add(edge);
         }
     }
 
@@ -178,8 +197,14 @@ public class BilliardsSolver
             if (b.Velocity.Length > 0)
             {
                 double remaining = dt;
+                int subSteps = 0;
                 while (remaining > PhysicsConstants.Epsilon && b.Velocity.Length > 0 && !b.Pocketed)
                 {
+                    if (++subSteps > PhysicsConstants.MaxSubSteps)
+                    {
+                        b.Velocity = new Vec2(0, 0);
+                        break;
+                    }
                     double tHit = double.PositiveInfinity;
                     Vec2 normal = new Vec2();
                     double restitution = PhysicsConstants.Restitution;
@@ -217,6 +242,7 @@ public class BilliardsSolver
                         {
                             tHit = tEdge;
                             normal = e.Normal;
+                            restitution = PhysicsConstants.PocketRestitution;
                             hit = true;
                             pocket = true;
                             contactPoint = (b.Position + b.Velocity * tEdge) - normal * PhysicsConstants.BallRadius;
@@ -243,9 +269,10 @@ public class BilliardsSolver
 
                     if (hit)
                     {
+                        double travel = Math.Max(tHit, PhysicsConstants.MinCollisionTime);
                         b.Position += b.Velocity * tHit;
                         var speed = b.Velocity.Length;
-                        var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * tHit);
+                        var newSpeed = Math.Max(0, speed - PhysicsConstants.Mu * travel);
                         b.Velocity = newSpeed > 0 ? b.Velocity.Normalized() * newSpeed : new Vec2(0, 0);
                         if (pocket)
                         {
@@ -253,8 +280,8 @@ public class BilliardsSolver
                             break;
                         }
                         b.Velocity = Collision.Reflect(b.Velocity, normal, restitution);
-                        b.Position = contactPoint + normal * PhysicsConstants.BallRadius;
-                        remaining -= tHit;
+                        b.Position = contactPoint + normal * (PhysicsConstants.BallRadius + PhysicsConstants.ContactOffset);
+                        remaining = Math.Max(0, remaining - travel);
                     }
                     else
                     {

@@ -16,6 +16,9 @@ public static class PhysicsConstants
     public const double FixedDt = 1.0 / 120.0;         // simulation step
     public const double Epsilon = 1e-9;                // numerical epsilon
     public const double MaxPreviewTime = 30.0;         // safeguard for CCD
+    public const double MinCollisionTime = 1e-4;       // guard to prevent zero-time loops
+    public const double ContactOffset = 1e-5;          // small push to keep balls off geometry
+    public const int MaxSubSteps = 64;                 // hard cap per integration step
 
     // Pocket geometry derived from WPA spec (metres)
     public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
@@ -25,4 +28,5 @@ public static class PhysicsConstants
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
     public const int SideJawSegments = 24;
+    public const int JawCushionSegments = 2;           // how many segments nearest the rails behave as cushions
 }
