@@ -144,6 +144,7 @@
   fieldTextureImg.crossOrigin = 'anonymous';
   fieldTextureImg.src = FIELD_TEXTURE_URL;
   let fieldTextureReady = false;
+  let fieldTextureCanvas = null;
 
   function resize(){
     DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio||1));
@@ -159,8 +160,55 @@
   }
   addEventListener('resize', resize);
 
-  fieldTextureImg.onload = ()=>{
+  fieldTextureImg.onload = () => {
+    const aspect = fieldTextureImg.height > 0 && fieldTextureImg.width > 0
+      ? fieldTextureImg.height / fieldTextureImg.width
+      : 1;
+    const baseWidth = 1024;
+    const baseHeight = Math.max(64, Math.round(baseWidth * aspect));
+
+    const base = document.createElement('canvas');
+    base.width = baseWidth;
+    base.height = baseHeight;
+    const baseCtx = base.getContext('2d');
+    baseCtx.drawImage(fieldTextureImg, 0, 0, baseWidth, baseHeight);
+
+    const small = document.createElement('canvas');
+    small.width = Math.max(64, Math.round(baseWidth / 16));
+    small.height = Math.max(64, Math.round(baseHeight / 16));
+    const smallCtx = small.getContext('2d');
+    smallCtx.imageSmoothingEnabled = true;
+    smallCtx.drawImage(base, 0, 0, small.width, small.height);
+
+    const blur = document.createElement('canvas');
+    blur.width = baseWidth;
+    blur.height = baseHeight;
+    const blurCtx = blur.getContext('2d');
+    blurCtx.imageSmoothingEnabled = true;
+    blurCtx.drawImage(small, 0, 0, baseWidth, baseHeight);
+
+    const src = baseCtx.getImageData(0, 0, baseWidth, baseHeight);
+    const low = blurCtx.getImageData(0, 0, baseWidth, baseHeight);
+    const data = src.data;
+    const lowData = low.data;
+    const eps = 1e-3;
+    const target = 138;
+    for (let i = 0; i < data.length; i += 4) {
+      const L = 0.2126 * lowData[i] + 0.7152 * lowData[i + 1] + 0.0722 * lowData[i + 2];
+      const k = target / (L + eps);
+      data[i] = Math.max(0, Math.min(255, data[i] * k));
+      data[i + 1] = Math.max(0, Math.min(255, data[i + 1] * k));
+      data[i + 2] = Math.max(0, Math.min(255, data[i + 2] * k));
+    }
+    baseCtx.putImageData(src, 0, 0);
+    baseCtx.globalCompositeOperation = 'overlay';
+    baseCtx.fillStyle = 'rgba(40,120,44,0.08)';
+    baseCtx.fillRect(0, 0, baseWidth, baseHeight);
+    baseCtx.globalCompositeOperation = 'source-over';
+
+    fieldTextureCanvas = base;
     fieldTextureReady = true;
+    drawStaticOnce();
   };
 
   // ===== UI refs =====
@@ -763,12 +811,15 @@
     context.clip();
 
     if(fieldTextureReady){
+      const textureSource = fieldTextureCanvas || fieldTextureImg;
+      const sourceW = Math.max(1, textureSource.width || fieldTextureImg.width || 1);
+      const sourceH = Math.max(1, textureSource.height || fieldTextureImg.height || 1);
       const widthFactor = Math.max(0.18, Math.min(0.62, 0.28 + (w / 900) * 0.6));
-      const tileW = Math.max(48, fieldTextureImg.width * widthFactor);
-      const tileH = Math.max(48, fieldTextureImg.height * widthFactor);
+      const tileW = Math.max(48, sourceW * widthFactor);
+      const tileH = Math.max(48, sourceH * widthFactor);
       for(let ty = y; ty < y + h; ty += tileH){
         for(let tx = x; tx < x + w; tx += tileW){
-          context.drawImage(fieldTextureImg, tx, ty, tileW, tileH);
+          context.drawImage(textureSource, tx, ty, tileW, tileH);
         }
       }
     } else {
