@@ -120,6 +120,99 @@ function buildRoyalGrandstand() {
   return group;
 }
 
+function buildGrandEntranceStairs({
+  stepCount = 12,
+  run = 0.46,
+  rise = 0.22,
+  width = 26,
+  landingDepth = 1.6
+} = {}) {
+  const stairs = new THREE.Group();
+  const treadMat = new THREE.MeshStandardMaterial({ color: 0xcdd5e0, roughness: 0.82, metalness: 0.12 });
+  const riserMat = new THREE.MeshStandardMaterial({ color: 0xb3bdcc, roughness: 0.78, metalness: 0.18 });
+  const sideMat = new THREE.MeshStandardMaterial({ color: 0x8f9bb0, roughness: 0.7, metalness: 0.22 });
+
+  for (let i = 0; i < stepCount; i += 1) {
+    const tread = new THREE.Mesh(new THREE.BoxGeometry(run, rise, width), treadMat);
+    tread.position.set((i + 0.5) * run, (i + 0.5) * rise, 0);
+    stairs.add(tread);
+
+    if (i < stepCount - 1) {
+      const riser = new THREE.Mesh(new THREE.BoxGeometry(0.04, rise, width * 0.98), riserMat);
+      riser.position.set((i + 1) * run, (i + 0.5) * rise, 0);
+      stairs.add(riser);
+    }
+  }
+
+  const landing = new THREE.Mesh(new THREE.BoxGeometry(landingDepth, rise * 0.72, width * 1.05), treadMat);
+  landing.position.set(stepCount * run + landingDepth / 2, stepCount * rise + (rise * 0.72) / 2, 0);
+  stairs.add(landing);
+
+  const sideHeight = stepCount * rise + rise * 0.72;
+  const sideThickness = 0.12;
+  const side = new THREE.BoxGeometry(stepCount * run + landingDepth, sideHeight, sideThickness);
+  const sideL = new THREE.Mesh(side, sideMat);
+  sideL.position.set((stepCount * run + landingDepth) / 2, sideHeight / 2, width / 2 + sideThickness / 2);
+  const sideR = sideL.clone();
+  sideR.position.z = -width / 2 - sideThickness / 2;
+  stairs.add(sideL, sideR);
+
+  return stairs;
+}
+
+function buildBroadcastCameraRig(scale = 1) {
+  const group = new THREE.Group();
+  const legMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.62, metalness: 0.3 });
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.42, metalness: 0.28 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: 0x60a5fa, roughness: 0.25, metalness: 0.12 });
+  const gripMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.58, metalness: 0.2 });
+
+  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.12, 14), legMat);
+  hub.position.y = 0.08;
+  group.add(hub);
+
+  const legGeo = new THREE.CylinderGeometry(0.04, 0.02, 0.92, 10);
+  const footGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 14);
+  const spread = 0.82;
+  const tilt = THREE.MathUtils.degToRad(18);
+  for (let i = 0; i < 3; i += 1) {
+    const ang = (i / 3) * Math.PI * 2;
+    const leg = new THREE.Mesh(legGeo, legMat);
+    leg.position.set(Math.cos(ang) * spread * 0.45, 0.58, Math.sin(ang) * spread * 0.45);
+    leg.quaternion.setFromAxisAngle(new THREE.Vector3(-Math.sin(ang), 0, Math.cos(ang)).normalize(), tilt);
+    group.add(leg);
+
+    const foot = new THREE.Mesh(footGeo, gripMat);
+    foot.position.set(Math.cos(ang) * spread, 0.02, Math.sin(ang) * spread);
+    group.add(foot);
+  }
+
+  const headPivot = new THREE.Group();
+  headPivot.position.y = 0.96;
+  group.add(headPivot);
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.28, 0.3), bodyMat);
+  body.position.set(0, 0.08, -0.06);
+  headPivot.add(body);
+
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.32, 20), accentMat);
+  lens.rotation.x = Math.PI / 2;
+  lens.position.set(0, 0.04, 0.28);
+  headPivot.add(lens);
+
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.32), gripMat);
+  visor.position.set(0, 0.22, 0.04);
+  headPivot.add(visor);
+
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.48, 12), gripMat);
+  handle.rotation.z = Math.PI / 2.2;
+  handle.position.set(0.32, -0.08, 0.02);
+  headPivot.add(handle);
+
+  group.scale.setScalar(scale);
+  return { group, headPivot };
+}
+
 export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   const containerRef = useRef(null);
   const playerLabel = playerName || 'You';
@@ -137,6 +230,28 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     side: 'deuce',
     attempts: 2
   }));
+  const [scoreboardOpen, setScoreboardOpen] = useState(false);
+  const [popupVisible, setPopupVisible] = useState(true);
+  const [popupText, setPopupText] = useState(() => `Swipe për serve/hit · Kamera fokusohet te topi · 1 BALL${suffix}`);
+  const popupTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    setPopupText(msg);
+    setPopupVisible(true);
+    if (popupTimeoutRef.current) {
+      clearTimeout(popupTimeoutRef.current);
+    }
+    popupTimeoutRef.current = setTimeout(() => {
+      setPopupVisible(false);
+      popupTimeoutRef.current = null;
+    }, 3200);
+    return () => {
+      if (popupTimeoutRef.current) {
+        clearTimeout(popupTimeoutRef.current);
+        popupTimeoutRef.current = null;
+      }
+    };
+  }, [msg]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -152,11 +267,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.55;
     renderer.shadowMap.enabled = false;
-    renderer.setClearColor(0xd6ecff, 1);
+    renderer.setClearColor(0x87ceeb, 1);
     container.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xd6ecff);
+    scene.background = new THREE.Color(0x87ceeb);
     const camera = new THREE.PerspectiveCamera(56, W / H, 0.05, 800);
 
     const courtL = 23.77;
@@ -187,9 +302,21 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 8;
     const grassURL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
 
+    const skyGeo = new THREE.SphereGeometry(420, 48, 32);
+    const colors = [];
+    const topColor = new THREE.Color(0x8fc9ff);
+    const horizonColor = new THREE.Color(0xdaf1ff);
+    const positionAttr = skyGeo.attributes.position;
+    for (let i = 0; i < positionAttr.count; i += 1) {
+      const y = positionAttr.getY(i);
+      const t = THREE.MathUtils.clamp((y + 420) / 420, 0, 1);
+      const color = topColor.clone().lerp(horizonColor, Math.pow(1 - t, 0.6));
+      colors.push(color.r, color.g, color.b);
+    }
+    skyGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     const sky = new THREE.Mesh(
-      new THREE.SphereGeometry(320, 32, 24),
-      new THREE.MeshBasicMaterial({ color: 0xcde3ff, side: THREE.BackSide })
+      skyGeo,
+      new THREE.MeshBasicMaterial({ side: THREE.BackSide, vertexColors: true })
     );
     sky.position.y = -18;
     scene.add(sky);
@@ -443,7 +570,35 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const west = stand.clone();
     west.rotation.y = Math.PI / 2;
     west.position.x = -(halfW + sideGap);
-    scene.add(north, south, east, west);
+    const eastRear = stand.clone();
+    eastRear.rotation.y = -Math.PI / 2;
+    eastRear.position.x = halfW + sideGap + 7.8;
+    const westRear = stand.clone();
+    westRear.rotation.y = Math.PI / 2;
+    westRear.position.x = -(halfW + sideGap + 7.8);
+    scene.add(north, south, east, west, eastRear, westRear);
+
+    const stairsEast = buildGrandEntranceStairs({ width: courtL + apron * 1.2 });
+    stairsEast.position.set(halfW + apron + 0.4, 0, 0);
+    const stairsWest = stairsEast.clone();
+    stairsWest.rotation.y = Math.PI;
+    stairsWest.position.set(-(halfW + apron + 0.4), 0, 0);
+    scene.add(stairsEast, stairsWest);
+
+    const cameraFocus = new THREE.Vector3(0, 1.18, 0);
+    const cameraRigs = [
+      { position: new THREE.Vector3(-halfW - 1.6, 0, halfL + 2.4) },
+      { position: new THREE.Vector3(halfW + 1.6, 0, -halfL - 2.6) },
+      { position: new THREE.Vector3(0, 0, -halfL - 2.9) }
+    ];
+    cameraRigs.forEach(({ position }) => {
+      const rig = buildBroadcastCameraRig(0.58);
+      rig.group.position.copy(position);
+      rig.group.rotation.y = Math.atan2(cameraFocus.x - position.x, cameraFocus.z - position.z);
+      rig.headPivot.up.set(0, 1, 0);
+      rig.headPivot.lookAt(cameraFocus);
+      scene.add(rig.group);
+    });
 
     const ump = new THREE.Group();
     const legH = 1.45;
@@ -1343,53 +1498,129 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         inset: 0,
         display: 'flex',
         flexDirection: 'column',
-        background: 'linear-gradient(180deg, #e7f3ff 0%, #f8fbff 48%, #ffffff 100%)'
+        background: 'linear-gradient(180deg, #e1f1ff 0%, #f5f9ff 45%, #ffffff 100%)'
       }}
     >
-      <div
-        style={{
-          position: 'absolute',
-          top: 12,
-          left: 12,
-          right: 12,
-          textAlign: 'center',
-          color: '#0f172a',
-          fontFamily: 'ui-sans-serif, system-ui',
-          fontSize: 12,
-          fontWeight: 600,
-          textShadow: '0 1px 3px rgba(255,255,255,0.6)'
-        }}
-      >
-        {msg}
-      </div>
-      <div
-        style={{
-          position: 'absolute',
-          top: 64,
-          right: 16,
-          minWidth: 190,
-          background: 'rgba(255,255,255,0.92)',
-          color: '#0f172a',
-          borderRadius: 16,
-          padding: '14px 18px',
-          boxShadow: '0 16px 28px rgba(15, 23, 42, 0.18)',
-          fontFamily: 'ui-sans-serif, system-ui',
-          fontSize: 12,
-          lineHeight: 1.5
-        }}
-      >
-        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Scoreboard</div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-          <span style={{ fontWeight: 600 }}>{playerLabel}</span>
-          <span style={{ fontWeight: 600 }}>{cpuLabel}</span>
-        </div>
-        <div style={{ marginBottom: 2 }}>Sets · {hudInfo.sets}</div>
-        <div style={{ marginBottom: 2 }}>Games · {hudInfo.games}</div>
-        <div style={{ marginBottom: 4 }}>Points · {hudInfo.points}</div>
-        <div style={{ marginTop: 4 }}>Serve · {hudInfo.server} · {hudInfo.side === 'deuce' ? 'Deuce' : 'Ad'} court</div>
-        <div style={{ opacity: 0.8 }}>{serveAttemptLabel}</div>
-      </div>
       <div ref={containerRef} style={{ flex: 1, minHeight: 560, height: '100%', width: '100%' }} />
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        {popupVisible && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
+            <div
+              style={{
+                pointerEvents: 'none',
+                background: 'rgba(15, 23, 42, 0.88)',
+                color: '#f8fafc',
+                fontFamily: 'ui-sans-serif, system-ui',
+                fontWeight: 600,
+                fontSize: 12,
+                padding: '12px 20px',
+                borderRadius: 14,
+                boxShadow: '0 18px 36px rgba(15, 23, 42, 0.35)',
+                backdropFilter: 'blur(8px)'
+              }}
+            >
+              {popupText}
+            </div>
+          </div>
+        )}
+      </div>
+      <div style={{ position: 'absolute', bottom: 24, right: 24, pointerEvents: 'auto' }}>
+        <button
+          type="button"
+          onClick={() => setScoreboardOpen(true)}
+          style={{
+            background: 'linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%)',
+            color: '#f8fafc',
+            border: 'none',
+            borderRadius: 999,
+            padding: '12px 22px',
+            fontFamily: 'ui-sans-serif, system-ui',
+            fontWeight: 600,
+            fontSize: 13,
+            boxShadow: '0 14px 28px rgba(30, 64, 175, 0.35)',
+            cursor: 'pointer'
+          }}
+        >
+          Match Info
+        </button>
+      </div>
+      {scoreboardOpen && (
+        <div
+          onClick={() => setScoreboardOpen(false)}
+          role="presentation"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.55)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            pointerEvents: 'auto'
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            role="presentation"
+            style={{
+              background: 'rgba(255,255,255,0.98)',
+              color: '#0f172a',
+              borderRadius: 20,
+              padding: '22px 28px',
+              maxWidth: 320,
+              width: '100%',
+              boxShadow: '0 28px 44px rgba(15, 23, 42, 0.22)',
+              fontFamily: 'ui-sans-serif, system-ui'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Match Center</h3>
+              <button
+                type="button"
+                onClick={() => setScoreboardOpen(false)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#1f2937',
+                  fontSize: 18,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  lineHeight: 1
+                }}
+                aria-label="Close scoreboard"
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#1d4ed8', marginBottom: 10 }}>{msg}</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13, fontWeight: 600 }}>
+              <span>{playerLabel}</span>
+              <span>{cpuLabel}</span>
+            </div>
+            <div style={{ fontSize: 13, marginBottom: 4 }}>Sets · {hudInfo.sets}</div>
+            <div style={{ fontSize: 13, marginBottom: 4 }}>Games · {hudInfo.games}</div>
+            <div style={{ fontSize: 13, marginBottom: 8 }}>Points · {hudInfo.points}</div>
+            <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 2 }}>
+              Serve · {hudInfo.server} · {hudInfo.side === 'deuce' ? 'Deuce' : 'Ad'} court
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.78, marginBottom: 12 }}>{serveAttemptLabel}</div>
+            {stakeLabel ? (
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: '#0f172a',
+                  background: 'rgba(30, 64, 175, 0.08)',
+                  borderRadius: 12,
+                  padding: '8px 12px'
+                }}
+              >
+                Stake · {stakeLabel}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
