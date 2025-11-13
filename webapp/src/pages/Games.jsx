@@ -11,6 +11,7 @@ const gamesCatalog = [
   { name: 'Pool Royale', route: '/games/pollroyale/lobby' },
   { name: '3D Snooker', route: '/games/snooker/lobby' },
   { name: 'Goal Rush', route: '/games/goalrush/lobby' },
+  { name: 'Tirana 2040', route: '/games/tirana2040/lobby' },
   { name: 'Air Hockey', route: '/games/airhockey/lobby' },
   { name: 'Table Tennis', route: '/games/tabletennis/lobby' },
   { name: 'Free Kick', route: '/games/freekick/lobby' },

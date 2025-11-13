@@ -13,6 +13,7 @@ const GAME_NAME_MAP = {
   blackjack: 'Black Jack Multiplayer',
   freekick: 'Free Kick',
   murlan: 'Murlan Royale',
+  tirana2040: 'Tirana 2040',
 };
 
 function getGameName(slug = '') {

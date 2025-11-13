@@ -20,7 +20,8 @@ const GAME_NAME_MAP = {
   domino: 'Domino Royal 3D',
   blackjack: 'Black Jack Multiplayer',
   freekick: 'Free Kick',
-  murlan: 'Murlan Royale'
+  murlan: 'Murlan Royale',
+  tirana2040: 'Tirana 2040'
 };
 
 function getGameName(slug = '') {
