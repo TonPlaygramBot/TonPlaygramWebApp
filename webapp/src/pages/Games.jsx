@@ -15,6 +15,7 @@ const gamesCatalog = [
   { name: 'Air Hockey', route: '/games/airhockey/lobby' },
   { name: 'Table Tennis', route: '/games/tabletennis/lobby' },
   { name: 'Free Kick', route: '/games/freekick/lobby' },
+  { name: '3D Tennis Battle Royal', route: '/games/tennisbattleroyal/lobby' },
   { name: 'Snake & Ladder', route: '/games/snake/lobby' },
   { name: 'Falling Ball', route: '/games/fallingball/lobby' },
   { name: 'Murlan Royale', route: '/games/murlanroyale/lobby' },
