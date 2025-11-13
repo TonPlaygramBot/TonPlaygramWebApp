@@ -139,6 +139,12 @@
   const ctx = canvas.getContext('2d', { alpha:true });
   let DPR=1, W=0, H=0;
   const STRIPE = 44;
+  const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
+  const fieldTextureImg = new Image();
+  fieldTextureImg.crossOrigin = 'anonymous';
+  fieldTextureImg.src = FIELD_TEXTURE_URL;
+  let fieldTextureReady = false;
+
   function resize(){
     DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio||1));
     W = Math.floor(window.innerWidth); H = Math.floor(window.innerHeight);
@@ -152,6 +158,10 @@
     drawStaticOnce();
   }
   addEventListener('resize', resize);
+
+  fieldTextureImg.onload = ()=>{
+    fieldTextureReady = true;
+  };
 
   // ===== UI refs =====
   const timeShort = document.getElementById('timeShort');
@@ -744,11 +754,49 @@
     ctx.restore();
   }
 
+  function drawGrassBackground(context, rect, stripeWidth){
+    const { x, y, w, h } = rect;
+    const effectiveStripe = Math.max(4, stripeWidth || 4);
+    context.save();
+    context.beginPath();
+    context.rect(x, y, w, h);
+    context.clip();
+
+    if(fieldTextureReady){
+      const widthFactor = Math.max(0.18, Math.min(0.62, 0.28 + (w / 900) * 0.6));
+      const tileW = Math.max(48, fieldTextureImg.width * widthFactor);
+      const tileH = Math.max(48, fieldTextureImg.height * widthFactor);
+      for(let ty = y; ty < y + h; ty += tileH){
+        for(let tx = x; tx < x + w; tx += tileW){
+          context.drawImage(fieldTextureImg, tx, ty, tileW, tileH);
+        }
+      }
+    } else {
+      let idx = 0;
+      for(let ty = y; ty < y + h; ty += effectiveStripe){
+        context.fillStyle = (idx % 2)
+          ? getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d'
+          : getComputedStyle(document.documentElement).getPropertyValue('--turf1')||'#0c7a23';
+        context.fillRect(x, ty, w, effectiveStripe);
+        idx++;
+      }
+    }
+
+    let overlayIndex = 0;
+    const lightAlpha = fieldTextureReady ? 0.08 : 0.04;
+    for(let ty = y; ty < y + h; ty += effectiveStripe){
+      context.fillStyle = (overlayIndex % 2)
+        ? `rgba(0,0,0,${lightAlpha * 1.4})`
+        : `rgba(255,255,255,${lightAlpha})`;
+      context.fillRect(x, ty, w, effectiveStripe);
+      overlayIndex++;
+    }
+    context.restore();
+  }
+
   function drawField(){
     drawStadium();
-    for(let y=0;y<H;y+=STRIPE){
-      ctx.fillStyle=(Math.floor(y/STRIPE)%2?getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d':'#0c7a23'); ctx.fillRect(0,y,W,STRIPE);
-    }
+    drawGrassBackground(ctx, { x: 0, y: 0, w: W, h: H }, STRIPE);
     const vg=ctx.createRadialGradient(W/2,H,10,W/2,H,H/1.12); vg.addColorStop(0,'rgba(0,0,0,0)'); vg.addColorStop(1,'rgba(0,0,0,0.26)'); ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
 
     const kickerLineY = H - STRIPE*3;
@@ -1703,12 +1751,7 @@ function onUp(e){
       c.beginPath();
       c.rect(field.x,field.y,field.w,field.h);
       c.clip();
-      for(let y=field.y;y<field.y+field.h;y+=stripe){
-        c.fillStyle=(Math.floor((y-field.y)/stripe)%2?
-          getComputedStyle(document.documentElement).getPropertyValue('--turf2')||'#0a6c1d':
-          getComputedStyle(document.documentElement).getPropertyValue('--turf1')||'#0c7a23');
-        c.fillRect(field.x,y,field.w,stripe);
-      }
+      drawGrassBackground(c, field, stripe);
       const vg=c.createRadialGradient(field.x+field.w/2,field.y+field.h,10,field.x+field.w/2,field.y+field.h,field.h/1.12);
       vg.addColorStop(0,'rgba(0,0,0,0)');
       vg.addColorStop(1,'rgba(0,0,0,0.26)');
