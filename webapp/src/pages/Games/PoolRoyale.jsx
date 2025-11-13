@@ -78,6 +78,134 @@ function detectCoarsePointer() {
   return false;
 }
 
+function detectLowRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+let cachedRendererString = null;
+let rendererLookupAttempted = false;
+
+function readGraphicsRendererString() {
+  if (rendererLookupAttempted) {
+    return cachedRendererString;
+  }
+  rendererLookupAttempted = true;
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl') ||
+      canvas.getContext('webgl2');
+    if (!gl) {
+      return null;
+    }
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) ?? '';
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    } else {
+      const vendor = gl.getParameter(gl.VENDOR) ?? '';
+      const renderer = gl.getParameter(gl.RENDERER) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    }
+    return cachedRendererString;
+  } catch (err) {
+    return null;
+  }
+}
+
+function classifyRendererTier(rendererString) {
+  if (typeof rendererString !== 'string' || rendererString.length === 0) {
+    return 'unknown';
+  }
+  const signature = rendererString.toLowerCase();
+  if (
+    signature.includes('mali') ||
+    signature.includes('adreno') ||
+    signature.includes('powervr') ||
+    signature.includes('apple a') ||
+    signature.includes('snapdragon') ||
+    signature.includes('tegra x1')
+  ) {
+    return 'mobile';
+  }
+  if (
+    signature.includes('geforce') ||
+    signature.includes('nvidia') ||
+    signature.includes('radeon') ||
+    signature.includes('rx ') ||
+    signature.includes('rtx') ||
+    signature.includes('apple m') ||
+    signature.includes('arc')
+  ) {
+    return 'desktopHigh';
+  }
+  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
+    return 'desktopMid';
+  }
+  return 'unknown';
+}
+
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return 'balanced60';
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowRefresh = detectLowRefreshDisplay();
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+
+  if (
+    lowRefresh ||
+    coarsePointer ||
+    isTouch ||
+    isMobileUA ||
+    (deviceMemory !== null && deviceMemory <= 4) ||
+    rendererTier === 'mobile'
+  ) {
+    return 'balanced60';
+  }
+
+  if (
+    rendererTier === 'desktopHigh' ||
+    (hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8))
+  ) {
+    return 'performance120';
+  }
+
+  if (
+    rendererTier === 'desktopMid' ||
+    hardwareConcurrency >= 6 ||
+    (deviceMemory != null && deviceMemory >= 6)
+  ) {
+    return 'fullHd';
+  }
+
+  return 'balanced60';
+}
+
 function signedRingArea(ring) {
   let area = 0;
   for (let i = 0; i < ring.length - 1; i++) {
@@ -1182,23 +1310,6 @@ const CLOTH_QUALITY = (() => {
     sheenRoughness: 0.66
   };
 
-  const detectLowRefresh = () => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
-    for (const query of queries) {
-      try {
-        if (window.matchMedia(query).matches) {
-          return true;
-        }
-      } catch (err) {
-        // ignore unsupported query
-      }
-    }
-    return false;
-  };
-
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
@@ -1218,7 +1329,7 @@ const CLOTH_QUALITY = (() => {
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowMemory = deviceMemory !== null && deviceMemory <= 4;
-  const lowRefresh = detectLowRefresh();
+  const lowRefresh = detectLowRefreshDisplay();
 
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
@@ -1701,6 +1812,13 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
+    id: 'balanced60',
+    label: '60 Hz Smooth',
+    fps: 60,
+    resolution: '1920×1080',
+    description: 'Balanced frame pacing tuned for modern mobile displays.'
+  },
+  {
     id: 'fullHd',
     label: 'Full HD',
     fps: 90,
@@ -1713,16 +1831,9 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 120,
     resolution: '2560×1440',
     description: 'High refresh upgrade tuned for buttery-smooth play.'
-  },
-  {
-    id: 'ultraHd',
-    label: 'Ultra HD',
-    fps: 144,
-    resolution: '3840×2160',
-    description: 'Maximum fidelity with the sharpest Ultra HD finish.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'ultraHd';
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
@@ -2629,23 +2740,6 @@ const CARPET_QUALITY = (() => {
     generateMipmaps: true
   };
 
-  const detectLowRefresh = () => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-      return false;
-    }
-    const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
-    for (const query of queries) {
-      try {
-        if (window.matchMedia(query).matches) {
-          return true;
-        }
-      } catch (err) {
-        // ignore unsupported query
-      }
-    }
-    return false;
-  };
-
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       ...defaults,
@@ -2662,7 +2756,7 @@ const CARPET_QUALITY = (() => {
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const lowMemory = deviceMemory !== null && deviceMemory <= 4;
-  const lowRefresh = detectLowRefresh();
+  const lowRefresh = detectLowRefreshDisplay();
 
   if (isMobileUA || isTouch || lowMemory || lowRefresh) {
     const highDensity = dpr >= 3;
@@ -6995,6 +7089,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
       if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
+      }
+      const detected = detectPreferredFrameRateId();
+      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
+        return detected;
       }
     }
     return DEFAULT_FRAME_RATE_ID;
