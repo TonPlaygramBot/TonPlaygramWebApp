@@ -5,50 +5,63 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>Tirana 2040 • Last Man Standing</title>
 <style>
+  :root{
+    color-scheme: light;
+    --hud-gap: clamp(12px, 3vw, 24px);
+    --pad-offset: clamp(18px, 12vh, 120px);
+    --joy-size: clamp(140px, 34vw, 200px);
+    --joy-knob: clamp(80px, 22vw, 140px);
+    --hud-blur: 10px;
+  }
   html,body{margin:0;height:100%;background:#f5e7cf;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
   #wrap{position:fixed;inset:0}
   canvas{display:block;width:100%;height:100%;touch-action:none;user-select:none}
   .hud{position:fixed;inset:0;pointer-events:none}
-  .row{position:absolute;left:10px;right:10px;display:flex;gap:8px;align-items:center}
-  .top{top:8px;justify-content:space-between}
-  .bottom{bottom:10px;justify-content:space-between}
-  .chip{background:rgba(0,0,0,.35);color:#fff;border-radius:999px;padding:6px 10px;font-size:12px;backdrop-filter:blur(4px);pointer-events:auto}
-  .btn{background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:14px;padding:10px 14px;font-size:14px;cursor:pointer;pointer-events:auto}
+  .row{position:absolute;left:var(--hud-gap);right:var(--hud-gap);display:flex;gap:10px;align-items:center}
+  .top{top:var(--hud-gap);justify-content:space-between}
+  .bottom{bottom:var(--hud-gap);justify-content:space-between}
+  .chip{background:rgba(0,0,0,.32);color:#fff;border-radius:999px;padding:6px 12px;font-size:clamp(11px,2.9vw,14px);backdrop-filter:blur(var(--hud-blur));pointer-events:auto}
+  .btn{background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:14px;padding:8px 14px;font-size:clamp(11px,3vw,14px);cursor:pointer;pointer-events:auto;backdrop-filter:blur(var(--hud-blur));transition:transform .15s ease}
   .btn:active{transform:translateY(1px)}
   .btn[disabled]{opacity:.45;cursor:not-allowed}
 
   #armory{z-index:10}
-  .joy{position:absolute;width:300px;height:300px;border-radius:50%;background:rgba(0,0,0,.08);border:1px solid rgba(0,0,0,.25);opacity:.96;pointer-events:auto;touch-action:none;display:block;z-index:20}
-  .knob{position:absolute;left:50%;top:50%;width:160px;height:160px;transform:translate(-50%,-50%);border-radius:50%;background:rgba(0,0,0,.25);border:1px solid rgba(0,0,0,.35)}
-  #joyMove{left:18px;bottom:220px}
-  #shootPad{right:18px;bottom:220px}
-  #aimPad{right:18px;bottom:220px;display:none}
-  #shootPad .knob{background:radial-gradient(circle at 50% 50%, rgba(255,70,70,1) 0 30%, rgba(0,0,0,.28) 31%), rgba(0,0,0,.25);}
-  #shootPad .knob::after{content:'SHOOT';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-weight:900;font-size:18px;letter-spacing:.6px;text-shadow:0 1px 2px rgba(0,0,0,.65);}
-  #reloadMini{position:absolute;left:50%;top:-190px;transform:translateX(-50%);width:160px;height:160px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid rgba(0,0,0,.35);background:radial-gradient(circle at 50% 50%, rgba(255,70,70,1) 0 30%, rgba(0,0,0,.28) 31%), rgba(0,0,0,.25);color:#fff;font-size:18px;font-weight:900;letter-spacing:.6px;pointer-events:auto;box-shadow:0 6px 16px rgba(0,0,0,.35)}
+  .joy{position:absolute;width:var(--joy-size);height:var(--joy-size);border-radius:50%;background:rgba(0,0,0,.1);border:1px solid rgba(0,0,0,.25);opacity:.95;pointer-events:auto;touch-action:none;display:block;z-index:20;backdrop-filter:blur(var(--hud-blur))}
+  .joy .knob{position:absolute;left:50%;top:50%;width:var(--joy-knob);height:var(--joy-knob);transform:translate(-50%,-50%);border-radius:50%;background:rgba(0,0,0,.28);border:1px solid rgba(0,0,0,.35)}
+  #joyMove{left:var(--hud-gap);bottom:var(--pad-offset)}
+  #joyMove .knob{background:rgba(0,0,0,.32)}
+  .padStack{position:absolute;right:var(--hud-gap);bottom:var(--pad-offset);display:flex;flex-direction:column;align-items:flex-end;gap:clamp(12px,3vw,18px);pointer-events:none}
+  .padStack > *{pointer-events:auto}
+  .padStack .joy{position:relative}
+  .padStack .joy .knob{width:var(--joy-knob);height:var(--joy-knob)}
+  #shootPad .knob{background:radial-gradient(circle at 50% 50%, rgba(255,70,70,1) 0 34%, rgba(0,0,0,.32) 36%), rgba(0,0,0,.25);box-shadow:0 10px 24px rgba(0,0,0,.28)}
+  #shootPad .knob::after{content:'SHOOT';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-weight:900;font-size:clamp(13px,3.4vw,18px);letter-spacing:.6px;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+  #aimPad{display:none}
+  #aimPad .knob{background:rgba(0,0,0,.26)}
+  #reloadMini{width:clamp(84px,21vw,118px);height:clamp(84px,21vw,118px);border-radius:50%;border:1px solid rgba(0,0,0,.32);background:radial-gradient(circle at 50% 50%, rgba(255,86,86,1) 0 36%, rgba(0,0,0,.28) 40%), rgba(0,0,0,.35);color:#fff;font-size:clamp(12px,3.2vw,16px);font-weight:900;letter-spacing:.5px;pointer-events:auto;box-shadow:0 10px 24px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;text-transform:uppercase}
   #crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:30px;height:30px;pointer-events:none;z-index:50;display:block}
   #crosshair:before,#crosshair:after{content:"";position:absolute;left:50%;top:50%;background:var(--aimColor,#ff3c3c);box-shadow:0 0 0 2px rgba(255,255,255,0.9) inset, 0 0 6px rgba(0,0,0,.35)}
   #crosshair:before{width:24px;height:3px;transform:translate(-50%,-50%);opacity:.98}
   #crosshair:after{width:3px;height:24px;transform:translate(-50%,-50%);opacity:.98}
-  #ammo{position:absolute;right:10px;top:40px;color:#fff;font-weight:600;background:rgba(0,0,0,.35);padding:8px 12px;border-radius:10px;pointer-events:auto}
-  #healthbar{position:absolute;left:10px;top:46px;width:260px;height:16px;background:rgba(0,0,0,.2);border-radius:999px;overflow:hidden}
+  #ammo{position:absolute;right:var(--hud-gap);top:calc(var(--hud-gap) + 44px);color:#fff;font-weight:700;background:rgba(0,0,0,.38);padding:8px 14px;border-radius:999px;pointer-events:auto;font-size:clamp(12px,3.1vw,16px);backdrop-filter:blur(var(--hud-blur))}
+  #healthbar{position:absolute;left:50%;top:calc(var(--hud-gap) + 44px);width:clamp(160px,60vw,320px);height:14px;background:rgba(0,0,0,.22);border-radius:999px;overflow:hidden;transform:translateX(-50%)}
   #healthfill{width:100%;height:100%;background:linear-gradient(90deg,#29ff9a,#00c876)}
-  #armory{position:absolute;left:10px;right:10px;bottom:86px;display:flex;gap:8px;overflow:auto;padding:8px;border-radius:14px;background:rgba(0,0,0,.25);backdrop-filter:blur(6px);pointer-events:auto}
-  .armBtn{position:relative;flex:0 0 auto;min-width:138px;max-width:168px;padding:8px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.35);color:#e6eefc;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px}
-  .armBtn img{width:124px;height:76px;object-fit:contain;display:block;filter:drop-shadow(0 1px 1px rgba(0,0,0,.3))}
+  #armory{position:absolute;left:var(--hud-gap);right:var(--hud-gap);bottom:calc(var(--pad-offset) + var(--joy-size) + clamp(18px,4vh,56px));display:flex;gap:10px;overflow:auto;padding:10px;border-radius:16px;background:rgba(0,0,0,.28);backdrop-filter:blur(var(--hud-blur));pointer-events:auto}
+  .armBtn{position:relative;flex:0 0 auto;min-width:132px;max-width:168px;padding:8px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.32);color:#e6eefc;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px}
+  .armBtn img{width:120px;height:70px;object-fit:contain;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
   .armBtn span{font-size:12px;opacity:.95}
   .armBtn.active{outline:2px solid #ffd966;background:rgba(17,23,42,.55)}
   .modeToggle{position:absolute;right:6px;top:6px;padding:3px 6px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.45);color:#fff;font-size:10px;cursor:pointer}
-  #mini{position:absolute;left:10px;bottom:56px;color:#0b1324;background:rgba(255,255,255,.6);padding:4px 8px;border-radius:8px;font-size:11px;pointer-events:auto}
-  #modeBox{position:absolute;right:10px;top:46px;display:flex;gap:6px;pointer-events:auto}
-  .modeBtn{padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.35);color:#fff;font-size:12px;cursor:pointer}
+  #mini{position:absolute;left:50%;bottom:calc(var(--pad-offset) + var(--joy-size) + clamp(12px,3vh,40px));transform:translateX(-50%);color:#0b1324;background:rgba(255,255,255,.75);padding:4px 10px;border-radius:999px;font-size:11px;pointer-events:auto}
+  #modeBox{position:absolute;right:var(--hud-gap);top:calc(var(--hud-gap) + 88px);display:flex;gap:6px;pointer-events:auto}
+  .modeBtn{padding:6px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.35);color:#fff;font-size:clamp(11px,3vw,13px);cursor:pointer}
   .modeBtn.active{background:#2a7fff}
-  #climbBtn{position:absolute;left:50%;bottom:156px;transform:translateX(-50%);padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.7);color:#fff;font-size:14px;pointer-events:auto;display:none}
-  #zoomBox{position:absolute;right:4px;bottom:540px;display:none;pointer-events:auto;z-index:25}
-  #zoomSlider{appearance:none;width:360px;height:64px;transform:rotate(-90deg);background:rgba(0,0,0,.4);border-radius:999px;outline:none;border:1px solid rgba(255,255,255,.2)}
-  #zoomSlider::-webkit-slider-thumb{appearance:none;width:50px;height:50px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,.4)}
-  #zoomSlider::-moz-range-thumb{width:50px;height:50px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,.4)}
-  #radarBox{position:absolute;left:18px;bottom:540px;width:164px;height:164px;border-radius:16px;background:rgba(0,0,0,.28);border:1px solid rgba(0,0,0,.35);overflow:hidden;pointer-events:auto}
+  #climbBtn{position:absolute;left:50%;bottom:calc(var(--pad-offset) + var(--joy-size) + clamp(60px,8vh,120px));transform:translateX(-50%);padding:9px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.7);color:#fff;font-size:clamp(12px,3.1vw,15px);pointer-events:auto;display:none}
+  #zoomBox{position:absolute;top:50%;right:calc(var(--hud-gap) - 12px);display:none;pointer-events:auto;z-index:25;transform:translateY(-50%)}
+  #zoomSlider{appearance:none;width:clamp(280px,60vh,360px);height:64px;transform:rotate(-90deg);background:rgba(0,0,0,.4);border-radius:999px;outline:none;border:1px solid rgba(255,255,255,.2)}
+  #zoomSlider::-webkit-slider-thumb{appearance:none;width:46px;height:46px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,.4)}
+  #zoomSlider::-moz-range-thumb{width:46px;height:46px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,.4)}
+  #radarBox{position:absolute;left:var(--hud-gap);top:calc(var(--hud-gap) + 82px);width:clamp(118px,28vw,160px);height:clamp(118px,28vw,160px);border-radius:18px;background:rgba(0,0,0,.28);border:1px solid rgba(0,0,0,.35);overflow:hidden;pointer-events:auto;backdrop-filter:blur(var(--hud-blur))}
   #radar{width:100%;height:100%;display:block}
   #mapOverlay{position:fixed;inset:0;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;z-index:200;pointer-events:auto}
   #mapCanvas{width:min(96vw,1200px);height:min(96vh,800px);background:#0b0f1a;border:1px solid #334;box-shadow:0 20px 60px rgba(0,0,0,.4);border-radius:12px}
@@ -80,8 +93,11 @@
   <div id="crosshair"></div>
 
   <div id="joyMove" class="joy"><div class="knob"></div></div>
-  <div id="shootPad" class="joy"><div class="knob"></div><button id="reloadMini" class="btn">RELOAD</button></div>
-  <div id="aimPad" class="joy"><div class="knob"></div></div>
+  <div id="padContainer" class="padStack">
+    <button id="reloadMini">RELOAD</button>
+    <div id="shootPad" class="joy"><div class="knob"></div></div>
+    <div id="aimPad" class="joy"><div class="knob"></div></div>
+  </div>
 
   <div id="zoomBox"><input id="zoomSlider" type="range" min="1" max="3" step="0.01" value="1" /></div>
 
@@ -100,7 +116,7 @@
   <div id="result"></div>
 
   <div class="row bottom">
-    <div class="chip">Move = Left stick/WASD · Aim = drag screen (A) or right stick (B) · Tap right=Shoot · Zoom slider for AK47</div>
+    <div class="chip">Move = Left stick/WASD · Aim = drag screen (A) or right stick (B) · Tap red circle = Shoot · Zoom slider for AK47</div>
     <button id="resetBtn" class="btn">Reset</button>
   </div>
 </div>
@@ -146,12 +162,14 @@ document.title = 'Tirana 2040 • Last Man Standing';
   scene.background = new THREE.Color('#f5e7cf');
   scene.fog = new THREE.Fog('#f5e7cf', 900, 3500);
 
-  const camera = new THREE.PerspectiveCamera(70, 9/16, 0.01, 10000);
+  const camera = new THREE.PerspectiveCamera(64, (innerWidth||1)/(innerHeight||1), 0.01, 10000);
   camera.position.set(0,1.7,5.6); scene.add(camera);
 
-  let dprBase = Math.min(window.devicePixelRatio||1, isMobile ? 0.9 : 1.5);
-  let dprScale = isMobile ? 0.72 : 1.0;
-  function fit(){ const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight; renderer.setPixelRatio(dprBase*dprScale); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
+  let dprBase = Math.min(window.devicePixelRatio||1.2, isMobile ? 2.5 : 2.8);
+  let dprScale = 1.0;
+  const DPR_MIN = isMobile ? 0.75 : 0.6;
+  const DPR_MAX_SCALE = isMobile ? 1.0 : 1.15;
+  function fit(){ const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight; const targetDpr=Math.min(dprBase*dprScale, isMobile?2.6:3.0); renderer.setPixelRatio(targetDpr); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); }
   addEventListener('resize', fit); fit();
 
   const hemi = new THREE.HemisphereLight(0xfff3d6, 0x8a7a6a, 0.55);
@@ -577,7 +595,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   let last=performance.now(); let frameCount=0,fpsTimer=0; let fireCd=0; const mini=$('mini'); updateAmmoHUD();
   function loop(now){
     const dt=Math.min((now-last)/1000,0.05); last=now;
-    frameCount++; fpsTimer+=dt; if(fpsTimer>=0.5){ const fps=(frameCount/fpsTimer)|0; mini.textContent='fps: '+fps; if(fps<88 && dprScale>0.6){ dprScale=Math.max(0.6,dprScale-0.06); fit(); } else if(fps>110 && dprScale<1.0){ dprScale=Math.min(1.0,dprScale+0.04); fit(); } frameCount=0; fpsTimer=0; }
+    frameCount++; fpsTimer+=dt; if(fpsTimer>=0.5){ const fps=(frameCount/fpsTimer)|0; mini.textContent='fps: '+fps; if(fps<88 && dprScale>DPR_MIN){ dprScale=Math.max(DPR_MIN,dprScale-0.05); fit(); } else if(fps>120 && dprScale<DPR_MAX_SCALE){ dprScale=Math.min(DPR_MAX_SCALE,dprScale+0.04); fit(); } frameCount=0; fpsTimer=0; }
 
     if(inputMode==='A'){ const k = Math.min(1, dt*AIM_SMOOTH_A); const ax = lookAccumX * LOOK_SENS_A; const ay = lookAccumY * LOOK_SENS_A; lookAccumX=0; lookAccumY=0; aimSmoothX += (ax - aimSmoothX)*k; aimSmoothY += (ay - aimSmoothY)*k; yaw   -= aimSmoothX * AIM_RATE_A * dt; pitch -= aimSmoothY * AIM_RATE_A * dt; clampPitch(); }
 
@@ -611,9 +629,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
     updateTracers(dt);
 
     try{ renderer.render(scene,camera); }catch(err){ }
-    requestAnimationFrame(loop);
   }
-  requestAnimationFrame(loop);
+  renderer.setAnimationLoop(loop);
 
   renderer.getContext().canvas.addEventListener('webglcontextlost', (e)=>{ e.preventDefault(); });
   renderer.getContext().canvas.addEventListener('webglcontextrestored', ()=>{ });
