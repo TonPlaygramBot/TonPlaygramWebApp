@@ -220,8 +220,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   const suffixParts = [];
   if (playerName) suffixParts.push(`${playerName} vs AI`);
   if (stakeLabel) suffixParts.push(`Stake ${stakeLabel}`);
-  const suffix = suffixParts.length ? ` · ${suffixParts.join(' · ')}` : '';
-  const [msg, setMsg] = useState(() => `Swipe për serve/hit · Kamera fokusohet te topi · 1 BALL${suffix}`);
+  const matchTag = suffixParts.join(' · ');
+  const introMessage = 'Swipe & Hit';
+  const [msg, setMsg] = useState(introMessage);
   const [hudInfo, setHudInfo] = useState(() => ({
     points: '0 - 0',
     games: '0 - 0',
@@ -238,7 +239,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   }));
   const [scoreboardOpen, setScoreboardOpen] = useState(false);
   const [popupVisible, setPopupVisible] = useState(true);
-  const [popupText, setPopupText] = useState(() => `Swipe për serve/hit · Kamera fokusohet te topi · 1 BALL${suffix}`);
+  const [popupText, setPopupText] = useState(introMessage);
   const popupTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -793,7 +794,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       urt.position.y = 1.0;
       headPivot.add(urt);
       root.userData = { headPivot, swing: 0, swingLR: 0 };
-      root.scale.setScalar(0.76);
+      root.scale.setScalar(0.608);
       return root;
     }
 
@@ -1021,7 +1022,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           rotateServeSide();
           resetForNextPoint();
           const label = winner === 'player' ? playerLabel : cpuLabel;
-          prepareServe(state.serveBy, { announce: `${prefix}Advantage ${label}` });
+          prepareServe(state.serveBy, { announce: `${prefix}Adv ${label}` });
           return;
         }
         if (pts[winner] === pts[loser] + 1) {
@@ -1031,7 +1032,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         pts[loser] = Math.max(0, pts[loser] - 1);
         rotateServeSide();
         resetForNextPoint();
-        prepareServe(state.serveBy, { announce: `${prefix}Back to deuce` });
+        prepareServe(state.serveBy, { announce: `${prefix}Deuce` });
         return;
       }
       pts[winner] += 1;
@@ -1058,11 +1059,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       state.attempts = Math.max(0, state.attempts - 1);
       if (state.attempts <= 0) {
         const winner = opponentOf(server);
-        finishPoint(winner, `${reason} · Double fault`);
+        finishPoint(winner, `${reason} · Double Fault`);
         return;
       }
       updateHud();
-      const announce = state.attempts === 1 ? `${reason} · Fault · 2nd serve` : `${reason} · Fault`;
+      const announce = state.attempts === 1 ? `${reason} · 2nd` : reason;
       prepareServe(server, { resetAttempts: false, announce });
     }
 
@@ -1119,7 +1120,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     }
 
     let cpuSrvTO = null;
-    const formatMsg = (base) => `${base}${suffix}`;
+    const formatMsg = (base) => base;
 
     function prepareServe(by, options = {}) {
       const { resetAttempts = true, announce } = options;
@@ -1138,7 +1139,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       vel.set(0, 0, 0);
       ball.position.copy(pos);
       shadow.position.set(pos.x, 0.01, pos.z);
-      const base = by === 'player' ? `Serve (${playerLabel}) – ${state.serveSide}` : `Serve (${cpuLabel}) – ${state.serveSide}`;
+      const serverLabel = by === 'player' ? playerLabel : cpuLabel;
+      const sideLabel = state.serveSide === 'deuce' ? 'D' : 'Ad';
+      const base = `Serve ${sideLabel} · ${serverLabel}`;
       const text = announce ? `${announce} · ${base}` : base;
       setMsg(formatMsg(text));
       lastHitter = by;
@@ -1163,7 +1166,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           state.rallyStarted = false;
           state.bounceSide = null;
           state.live = true;
-          setMsg(formatMsg('Serve (CPU) në ajër'));
+          setMsg(formatMsg(`Serve · ${cpuLabel}`));
           cpu.userData.swing = 0.95;
           cpu.userData.swingLR = THREE.MathUtils.clamp((tx - cpu.position.x) / halfW, -1, 1);
           lastHitter = 'cpu';
@@ -1194,6 +1197,29 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       player.position.x = THREE.MathUtils.clamp(player.position.x + dx * 0.006, -halfW * 0.95, halfW * 0.95);
       player.position.z = THREE.MathUtils.clamp(player.position.z + dy * 0.008, halfL - 3.0, halfL + 0.8);
     }
+    function mapSwipeToShot(vx, vy, spd, { serve = false } = {}) {
+      const scale = serve ? 1050 : 1150;
+      const minForce = serve ? 0.28 : 0.18;
+      const force = THREE.MathUtils.clamp(spd / scale, minForce, 1.0);
+      const plane = new THREE.Vector2(vx, -vy);
+      if (plane.lengthSq() < 1e-2) {
+        plane.set(0, 1);
+      } else {
+        plane.normalize();
+      }
+      plane.y = THREE.MathUtils.clamp(plane.y, 0.24, 1);
+      plane.normalize();
+      const baseSpeed = serve
+        ? THREE.MathUtils.lerp(10.0, 20.5, force)
+        : THREE.MathUtils.lerp(7.4, 17.2, force);
+      const lateral = THREE.MathUtils.clamp(plane.x * baseSpeed * 0.55, -6.8, 6.8);
+      const forward = THREE.MathUtils.clamp(-plane.y * baseSpeed, -22.0, -5.5);
+      const liftBase = serve ? 1.3 : 0.85;
+      const liftGain = serve ? 1.5 : 1.2;
+      const liftSwipe = Math.max(0, -vy) / (serve ? 1200 : 1450);
+      const lift = liftBase + liftGain * force + liftSwipe;
+      return { lateral, forward, lift, force };
+    }
     function onUp() {
       if (!touching) return;
       touching = false;
@@ -1203,29 +1229,29 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       const spd = Math.hypot(vx, vy);
       if (!state.live) {
         if (state.serveBy === 'player') {
-          const p = THREE.MathUtils.clamp(spd / 1050, 0.3, 0.9);
-          const aimX = THREE.MathUtils.clamp(vx / 900, -1.5, 1.5);
-          vel.set(aimX * 2.1, Math.max(1.6, -vy / 750 + 1.1), -19.4 * p);
-          vel.multiplyScalar(BALL_SPEED_BOOST);
-          pos.y = 1.35;
+          const shot = mapSwipeToShot(vx, vy, spd, { serve: true });
+          const shotVec = new THREE.Vector3(shot.lateral, shot.lift, shot.forward);
+          ensureNetClear(pos.clone(), shotVec, state.gravity, netH, ballR * 1.05);
+          vel.copy(shotVec.multiplyScalar(BALL_SPEED_BOOST));
+          pos.y = Math.max(pos.y, 1.32);
           state.live = true;
           state.awaitingServeBounce = true;
           state.rallyStarted = false;
           state.bounceSide = null;
-          setMsg(formatMsg(`Serve (${playerLabel}) në ajër`));
-          player.userData.swing = 0.6 + 0.8 * p;
-          player.userData.swingLR = THREE.MathUtils.clamp(vx / 1200, -1, 1);
+          setMsg(formatMsg(`Serve · ${playerLabel}`));
+          player.userData.swing = 0.55 + 0.85 * shot.force;
+          player.userData.swingLR = THREE.MathUtils.clamp(shot.lateral / 6.5, -1, 1);
           lastHitter = 'player';
         }
       } else {
         const near = pos.z > 0 && Math.abs(pos.z - (playerZ - 0.75)) < 2.1;
         if (near && pos.y <= 2.05) {
-          const p = THREE.MathUtils.clamp(spd / 1150, 0.2, 0.95);
-          const aim = THREE.MathUtils.clamp(vx / 900, -1.6, 1.6);
-          vel.set(aim * 2.0 + vx * 0.0012, Math.max(0.7, -vy * 0.001 + 1.1), -(7.6 + 12.2 * p));
-          vel.multiplyScalar(BALL_SPEED_BOOST);
-          player.userData.swing = 0.5 + 1.0 * p;
-          player.userData.swingLR = THREE.MathUtils.clamp(vx / 1200, -1, 1);
+          const shot = mapSwipeToShot(vx, vy, spd, { serve: false });
+          const shotVec = new THREE.Vector3(shot.lateral, shot.lift, shot.forward);
+          ensureNetClear(pos.clone(), shotVec, state.gravity, netH, ballR * 0.9);
+          vel.copy(shotVec.multiplyScalar(BALL_SPEED_BOOST));
+          player.userData.swing = 0.5 + 0.9 * shot.force;
+          player.userData.swingLR = THREE.MathUtils.clamp(shot.lateral / 6.5, -1, 1);
           state.bounceSide = null;
           state.rallyStarted = true;
           lastHitter = 'player';
@@ -1380,12 +1406,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const side = pos.z >= 0 ? 'player' : 'cpu';
           if (state.awaitingServeBounce) {
             if (side !== opponentOf(state.serveBy)) {
-              registerFault(state.serveBy, 'Fault (anë e gabuar)');
+              registerFault(state.serveBy, 'Fault · Side');
               return;
             }
             const box = serviceBoxFor(state.serveBy);
             if (!inBox(pos.x, pos.z, box)) {
-              registerFault(state.serveBy, 'Fault (jashtë kutisë së servisit)');
+              registerFault(state.serveBy, 'Fault · Box');
               return;
             }
             state.awaitingServeBounce = false;
@@ -1393,17 +1419,17 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
             state.bounceSide = side;
           } else {
             if (state.rallyStarted && lastHitter === side) {
-              finishPoint(opponentOf(side), 'Topi nuk kaloi rrjetën');
+            finishPoint(opponentOf(side), 'Net');
               return;
             }
             if (state.bounceSide === side) {
-              finishPoint(opponentOf(side), 'Dy kërcime');
+              finishPoint(opponentOf(side), 'Double Bounce');
               return;
             }
             state.bounceSide = side;
           }
           if (!inSinglesX(pos.x) || Math.abs(pos.z) > halfL + 0.05) {
-            finishPoint(opponentOf(side), 'Out pas kërcimit');
+            finishPoint(opponentOf(side), 'Out');
             return;
           }
         }
@@ -1412,7 +1438,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         const yCross = THREE.MathUtils.lerp(ball.position.y, pos.y, THREE.MathUtils.clamp(tCross, 0, 1));
         if (((prevZ > 0 && pos.z <= 0) || (prevZ < 0 && pos.z >= 0)) && yCross < netH + ballR * 0.55) {
           if (state.awaitingServeBounce && lastHitter === state.serveBy) {
-            registerFault(state.serveBy, 'Fault (net)');
+            registerFault(state.serveBy, 'Fault · Net');
           } else {
             finishPoint(lastHitter === 'player' ? 'cpu' : 'player', 'Net');
           }
@@ -1420,7 +1446,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         }
         if (!inSinglesX(pos.x) || pos.z > halfL + 0.6 || pos.z < -halfL - 0.6) {
           if (state.awaitingServeBounce && lastHitter === state.serveBy) {
-            registerFault(state.serveBy, 'Fault (out)');
+            registerFault(state.serveBy, 'Fault · Out');
           } else {
             finishPoint(lastHitter === 'player' ? 'cpu' : 'player', 'Out');
           }
@@ -1515,7 +1541,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       } catch {}
       renderer.dispose();
     };
-  }, [playerLabel, suffix, setHudInfo]);
+  }, [playerLabel, setHudInfo]);
 
   const serveAttemptLabel = hudInfo.attempts >= 2 ? '1st serve' : hudInfo.attempts === 1 ? '2nd serve' : 'Serve reset';
   const scoreboardRows = [
@@ -1605,6 +1631,20 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
                 </React.Fragment>
               ))}
             </div>
+            {matchTag ? (
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 10,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1.2,
+                  opacity: 0.6,
+                  textAlign: 'center'
+                }}
+              >
+                {matchTag}
+              </div>
+            ) : null}
           </div>
           <div
             style={{
@@ -1618,7 +1658,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
               boxShadow: '0 12px 24px rgba(15, 23, 42, 0.18)'
             }}
           >
-            {msg} · {serveAttemptLabel} · {hudInfo.side === 'deuce' ? 'Deuce' : 'Ad'} court
+            {msg} · {serveAttemptLabel} · Court {hudInfo.side === 'deuce' ? 'D' : 'Ad'}
           </div>
         </div>
         {popupVisible && (
@@ -1718,7 +1758,20 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
                 ×
               </button>
             </div>
-            <div style={{ fontSize: 12, fontWeight: 600, color: '#1d4ed8', marginBottom: 10 }}>{msg}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: matchTag ? 4 : 10 }}>{msg}</div>
+            {matchTag ? (
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1.2,
+                  opacity: 0.6,
+                  marginBottom: 10
+                }}
+              >
+                {matchTag}
+              </div>
+            ) : null}
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13, fontWeight: 600 }}>
               <span>{playerLabel}</span>
               <span>{cpuLabel}</span>
@@ -1727,7 +1780,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
             <div style={{ fontSize: 13, marginBottom: 4 }}>Games · {hudInfo.games}</div>
             <div style={{ fontSize: 13, marginBottom: 8 }}>Points · {hudInfo.points}</div>
             <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 2 }}>
-              Serve · {hudInfo.server} · {hudInfo.side === 'deuce' ? 'Deuce' : 'Ad'} court
+              Serve · {hudInfo.server} · Court {hudInfo.side === 'deuce' ? 'D' : 'Ad'}
             </div>
             <div style={{ fontSize: 12, opacity: 0.78, marginBottom: 12 }}>{serveAttemptLabel}</div>
             {stakeLabel ? (
