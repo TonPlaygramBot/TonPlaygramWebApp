@@ -228,7 +228,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     sets: '0 - 0',
     server: playerLabel,
     side: 'deuce',
-    attempts: 2
+    attempts: 2,
+    playerSets: 0,
+    cpuSets: 0,
+    playerGames: 0,
+    cpuGames: 0,
+    playerPointLabel: '0',
+    cpuPointLabel: '0'
   }));
   const [scoreboardOpen, setScoreboardOpen] = useState(false);
   const [popupVisible, setPopupVisible] = useState(true);
@@ -845,6 +851,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     cpu.rotation.y = -Math.PI / 2;
     scene.add(cpu);
 
+    const BALL_SPEED_BOOST = 1.2;
+
     const state = {
       gravity: -9.81,
       drag: 0.48,
@@ -893,6 +901,18 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       return `${playerLabel} ${left} – ${cpuLabel} ${right}`;
     }
 
+    function pointLabelFor(playerKey) {
+      const opponentKey = opponentOf(playerKey);
+      const me = state.score.points[playerKey];
+      const opp = state.score.points[opponentKey];
+      if (me >= 3 && opp >= 3) {
+        if (me === opp) return '40';
+        if (me === opp + 1) return 'AD';
+        return '40';
+      }
+      return POINT_LABELS[Math.min(me, 3)];
+    }
+
     function updateHud() {
       setHudInfo({
         points: formatPoints(),
@@ -900,7 +920,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         sets: `${state.score.sets.player} - ${state.score.sets.cpu}`,
         server: state.serveBy === 'player' ? playerLabel : cpuLabel,
         side: state.serveSide,
-        attempts: state.attempts
+        attempts: state.attempts,
+        playerSets: state.score.sets.player,
+        cpuSets: state.score.sets.cpu,
+        playerGames: state.score.games.player,
+        cpuGames: state.score.games.cpu,
+        playerPointLabel: pointLabelFor('player'),
+        cpuPointLabel: pointLabelFor('cpu')
       });
     }
 
@@ -1132,7 +1158,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const to = new THREE.Vector3(tx, ballR + 0.06, tz);
           let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.9, 1.08));
           v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 1.05);
-          vel.copy(v0.multiplyScalar(0.9));
+          vel.copy(v0.multiplyScalar(0.9 * BALL_SPEED_BOOST));
           state.awaitingServeBounce = true;
           state.rallyStarted = false;
           state.bounceSide = null;
@@ -1180,6 +1206,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const p = THREE.MathUtils.clamp(spd / 1050, 0.3, 0.9);
           const aimX = THREE.MathUtils.clamp(vx / 900, -1.5, 1.5);
           vel.set(aimX * 2.1, Math.max(1.6, -vy / 750 + 1.1), -19.4 * p);
+          vel.multiplyScalar(BALL_SPEED_BOOST);
           pos.y = 1.35;
           state.live = true;
           state.awaitingServeBounce = true;
@@ -1196,6 +1223,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const p = THREE.MathUtils.clamp(spd / 1150, 0.2, 0.95);
           const aim = THREE.MathUtils.clamp(vx / 900, -1.6, 1.6);
           vel.set(aim * 2.0 + vx * 0.0012, Math.max(0.7, -vy * 0.001 + 1.1), -(7.6 + 12.2 * p));
+          vel.multiplyScalar(BALL_SPEED_BOOST);
           player.userData.swing = 0.5 + 1.0 * p;
           player.userData.swingLR = THREE.MathUtils.clamp(vx / 1200, -1, 1);
           state.bounceSide = null;
@@ -1253,7 +1281,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const to = new THREE.Vector3(cpuPlan.tx, ballR + 0.06, cpuPlan.tz);
           let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.82, 1.0));
           v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 0.9);
-          vel.copy(v0.multiplyScalar(0.95));
+          vel.copy(v0.multiplyScalar(0.95 * BALL_SPEED_BOOST));
           cpu.userData.swing = 1.18;
           cpu.userData.swingLR = THREE.MathUtils.clamp((cpuPlan.tx - cpu.position.x) / halfW, -1, 1);
           state.bounceSide = null;
@@ -1490,6 +1518,22 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   }, [playerLabel, suffix, setHudInfo]);
 
   const serveAttemptLabel = hudInfo.attempts >= 2 ? '1st serve' : hudInfo.attempts === 1 ? '2nd serve' : 'Serve reset';
+  const scoreboardRows = [
+    {
+      label: playerLabel,
+      sets: hudInfo.playerSets,
+      games: hudInfo.playerGames,
+      points: hudInfo.playerPointLabel,
+      isServer: hudInfo.server === playerLabel
+    },
+    {
+      label: cpuLabel,
+      sets: hudInfo.cpuSets,
+      games: hudInfo.cpuGames,
+      points: hudInfo.cpuPointLabel,
+      isServer: hudInfo.server === cpuLabel
+    }
+  ];
 
   return (
     <div
@@ -1503,8 +1547,90 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     >
       <div ref={containerRef} style={{ flex: 1, minHeight: 560, height: '100%', width: '100%' }} />
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 18,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 10,
+            pointerEvents: 'none'
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.9)',
+              color: '#f8fafc',
+              borderRadius: 18,
+              padding: '14px 20px 16px',
+              boxShadow: '0 22px 44px rgba(15, 23, 42, 0.38)',
+              minWidth: 260,
+              fontFamily: 'ui-sans-serif, system-ui'
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '140px repeat(3, minmax(42px, auto))',
+                columnGap: 14,
+                rowGap: 8,
+                alignItems: 'center'
+              }}
+            >
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Lojtarët</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Sete</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Lojë</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Pikë</div>
+              {scoreboardRows.map((row) => (
+                <React.Fragment key={row.label}>
+                  <div style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: row.isServer ? '#facc15' : 'rgba(148, 163, 184, 0.65)',
+                        boxShadow: row.isServer ? '0 0 8px rgba(250, 204, 21, 0.65)' : 'none'
+                      }}
+                    />
+                    {row.label}
+                  </div>
+                  <div style={{ fontSize: 16, fontWeight: 700, justifySelf: 'center' }}>{row.sets}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, justifySelf: 'center' }}>{row.games}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, justifySelf: 'center' }}>{row.points}</div>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+          <div
+            style={{
+              background: 'rgba(241, 245, 249, 0.95)',
+              color: '#0f172a',
+              borderRadius: 999,
+              padding: '6px 16px',
+              fontSize: 12,
+              fontWeight: 600,
+              textAlign: 'center',
+              boxShadow: '0 12px 24px rgba(15, 23, 42, 0.18)'
+            }}
+          >
+            {msg} · {serveAttemptLabel} · {hudInfo.side === 'deuce' ? 'Deuce' : 'Ad'} court
+          </div>
+        </div>
         {popupVisible && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
             <div
               style={{
                 pointerEvents: 'none',
