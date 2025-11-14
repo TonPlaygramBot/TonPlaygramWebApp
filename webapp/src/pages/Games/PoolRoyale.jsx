@@ -11699,13 +11699,17 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const free = (x, z) =>
-        balls.every(
-          (b) =>
-            !b.active ||
-            b === cue ||
-            new THREE.Vector2(x, z).distanceTo(b.pos) > BALL_R * 2.1
-        );
+      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
+        if (!point) return false;
+        const clearance = BALL_R * clearanceMultiplier;
+        for (const ball of balls) {
+          if (!ball.active || ball === cue) continue;
+          if (point.distanceTo(ball.pos) <= clearance) {
+            return false;
+          }
+        }
+        return true;
+      };
       const clampInHandPosition = (point) => {
         if (!point) return null;
         const clamped = point.clone();
@@ -11743,7 +11747,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (!(currentHud?.inHand)) return false;
         const clamped = clampInHandPosition(raw);
         if (!clamped) return false;
-        if (!free(clamped.x, clamped.y)) return false;
+        if (!isSpotFree(clamped)) return false;
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
@@ -11757,31 +11761,152 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
-        const candidates = [];
-        candidates.push(new THREE.Vector2(0, baulkZ));
-        candidates.push(new THREE.Vector2(0, forwardBias));
+        const baseCandidates = [];
+        baseCandidates.push(new THREE.Vector2(0, baulkZ));
+        baseCandidates.push(new THREE.Vector2(0, forwardBias));
         const angles = [0, Math.PI / 8, -Math.PI / 8, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
         for (const angle of angles) {
           const candidate = new THREE.Vector2(
             Math.cos(angle) * radius,
             baulkZ + Math.sin(angle) * radius
           );
-          candidates.push(candidate);
+          baseCandidates.push(candidate);
         }
         const limitX = PLAY_W / 2 - BALL_R;
         const step = BALL_R * 2.1;
         for (let x = step; x <= limitX; x += step) {
-          candidates.push(new THREE.Vector2(x, forwardBias));
-          candidates.push(new THREE.Vector2(-x, forwardBias));
+          baseCandidates.push(new THREE.Vector2(x, forwardBias));
+          baseCandidates.push(new THREE.Vector2(-x, forwardBias));
         }
-        for (const raw of candidates) {
+        const ringCandidates = [];
+        const denseSteps = 12;
+        const radialSteps = 4;
+        for (let rStep = radialSteps; rStep >= 1; rStep--) {
+          const ringRadius = (radius * rStep) / radialSteps;
+          for (let i = 0; i <= denseSteps; i++) {
+            const t = -Math.PI / 2 + (Math.PI * i) / denseSteps;
+            ringCandidates.push(
+              new THREE.Vector2(
+                Math.cos(t) * ringRadius,
+                baulkZ + Math.sin(t) * ringRadius
+              )
+            );
+          }
+        }
+        const gridCandidates = [];
+        const gridCols = Math.max(8, Math.round((limitX * 2) / (BALL_R * 1.25)));
+        const gridRows = 5;
+        for (let row = 0; row <= gridRows; row++) {
+          const z = THREE.MathUtils.lerp(forwardBias, baulkZ, row / gridRows);
+          for (let col = 0; col <= gridCols; col++) {
+            const x = THREE.MathUtils.lerp(-limitX, limitX, col / gridCols);
+            gridCandidates.push(new THREE.Vector2(x, z));
+          }
+        }
+        const jitter = BALL_R * 0.5;
+        const jitterCandidates = baseCandidates.flatMap((candidate) => [
+          candidate.clone(),
+          candidate.clone().add(new THREE.Vector2(jitter, 0)),
+          candidate.clone().add(new THREE.Vector2(-jitter, 0)),
+          candidate.clone().add(new THREE.Vector2(0, -jitter)),
+          candidate.clone().add(new THREE.Vector2(0, jitter * 0.5))
+        ]);
+        const candidateGroups = [
+          baseCandidates,
+          ringCandidates,
+          gridCandidates,
+          jitterCandidates
+        ];
+        const clearanceLevels = [2.15, 2.1, 2.05, 2.02, 2.0];
+        for (const clearance of clearanceLevels) {
+          for (const group of candidateGroups) {
+            for (const raw of group) {
+              const clamped = clampInHandPosition(raw);
+              if (!clamped) continue;
+              if (!isSpotFree(clamped, clearance)) continue;
+              return clamped;
+            }
+          }
+        }
+        let best = null;
+        let bestGap = -Infinity;
+        const combined = candidateGroups.flat();
+        for (const raw of combined) {
           const clamped = clampInHandPosition(raw);
           if (!clamped) continue;
-          if (!free(clamped.x, clamped.y)) continue;
-          return clamped;
+          let minDist = Infinity;
+          for (const ball of balls) {
+            if (!ball.active || ball === cue) continue;
+            const dist = clamped.distanceTo(ball.pos);
+            if (dist < minDist) minDist = dist;
+          }
+          if (minDist > bestGap) {
+            bestGap = minDist;
+            best = clamped;
+          }
         }
-        const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
-        return fallback && free(fallback.x, fallback.y) ? fallback : null;
+        if (best) {
+          if (bestGap < BALL_R * 2.02) {
+            let nearest = null;
+            let nearestDist = Infinity;
+            for (const ball of balls) {
+              if (!ball.active || ball === cue) continue;
+              const dist = best.distanceTo(ball.pos);
+              if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = ball;
+              }
+            }
+            if (nearest) {
+              const offset = best.clone().sub(nearest.pos);
+              if (offset.lengthSq() < 1e-6) {
+                offset.set(1, 0);
+              }
+              offset.setLength(BALL_R * 2.05);
+              const nudged = clampInHandPosition(
+                nearest.pos.clone().add(offset)
+              );
+              if (nudged && isSpotFree(nudged, 2.02)) {
+                return nudged;
+              }
+            }
+            const searchDirs = [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+              [Math.SQRT1_2, Math.SQRT1_2],
+              [Math.SQRT1_2, -Math.SQRT1_2],
+              [-Math.SQRT1_2, Math.SQRT1_2],
+              [-Math.SQRT1_2, -Math.SQRT1_2]
+            ];
+            const stepSize = BALL_R * 0.45;
+            const maxSteps = 10;
+            for (const [dx, dz] of searchDirs) {
+              for (let stepIdx = 1; stepIdx <= maxSteps; stepIdx++) {
+                TMP_VEC2_A.copy(best);
+                TMP_VEC2_A.x += dx * stepSize * stepIdx;
+                TMP_VEC2_A.y += dz * stepSize * stepIdx;
+                const candidate = clampInHandPosition(TMP_VEC2_A);
+                if (!candidate) continue;
+                if (isSpotFree(candidate, 2.02)) {
+                  return candidate;
+                }
+              }
+            }
+          } else {
+            return best;
+          }
+        }
+        const fallback = clampInHandPosition(new THREE.Vector2(0, forwardBias));
+        if (fallback && isSpotFree(fallback, 2.0)) {
+          return fallback;
+        }
+        const baulkCenter = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+        if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
+          return baulkCenter;
+        }
+        return null;
       };
       const autoPlaceAiCueBall = () => {
         const currentHud = hudRef.current;
