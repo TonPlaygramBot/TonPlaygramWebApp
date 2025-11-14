@@ -192,7 +192,7 @@ function detectPreferredFrameRateId() {
     rendererTier === 'desktopHigh' ||
     (hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8))
   ) {
-    return 'performance120';
+    return 'performance50';
   }
 
   if (
@@ -1826,11 +1826,12 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Enhanced clarity and effects for Full HD setups.'
   },
   {
-    id: 'performance120',
-    label: '120 FPS Performance',
-    fps: 120,
+    id: 'performance50',
+    label: '50 FPS Broadcast',
+    fps: 50,
     resolution: '2560×1440',
-    description: 'High refresh upgrade tuned for buttery-smooth play.'
+    description:
+      'Studio lighting, volumetric shadows, and cloth shading tuned for European 50 Hz displays.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
@@ -11754,6 +11755,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
+          hudRef.current = { ...currentHud, inHand: false };
           setHud((s) => ({ ...s, inHand: false }));
         }
         return true;
