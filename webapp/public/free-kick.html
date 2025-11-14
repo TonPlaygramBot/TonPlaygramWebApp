@@ -145,6 +145,7 @@
   fieldTextureImg.src = FIELD_TEXTURE_URL;
   let fieldTextureReady = false;
   let fieldTextureCanvas = null;
+  let fieldPatternCanvas = null;
 
   function resize(){
     DPR = Math.max(1, Math.min(2.5, window.devicePixelRatio||1));
@@ -206,6 +207,14 @@
     baseCtx.fillRect(0, 0, baseWidth, baseHeight);
     baseCtx.globalCompositeOperation = 'source-over';
 
+    const patternSize = Math.max(96, Math.min(baseWidth, baseHeight, 512));
+    const patternCanvas = document.createElement('canvas');
+    patternCanvas.width = patternSize;
+    patternCanvas.height = patternSize;
+    const patternCtx = patternCanvas.getContext('2d');
+    patternCtx.drawImage(base, 0, 0, patternSize, patternSize);
+
+    fieldPatternCanvas = patternCanvas;
     fieldTextureCanvas = base;
     fieldTextureReady = true;
     drawStaticOnce();
@@ -811,15 +820,28 @@
     context.clip();
 
     if(fieldTextureReady){
-      const textureSource = fieldTextureCanvas || fieldTextureImg;
-      const sourceW = Math.max(1, textureSource.width || fieldTextureImg.width || 1);
-      const sourceH = Math.max(1, textureSource.height || fieldTextureImg.height || 1);
-      const widthFactor = Math.max(0.18, Math.min(0.62, 0.28 + (w / 900) * 0.6));
-      const tileW = Math.max(48, sourceW * widthFactor);
-      const tileH = Math.max(48, sourceH * widthFactor);
-      for(let ty = y; ty < y + h; ty += tileH){
-        for(let tx = x; tx < x + w; tx += tileW){
-          context.drawImage(textureSource, tx, ty, tileW, tileH);
+      const source = fieldPatternCanvas || fieldTextureCanvas || fieldTextureImg;
+      const pattern = source ? context.createPattern(source, 'repeat') : null;
+      if (pattern){
+        if (pattern.setTransform){
+          const base = Math.max(1, source.width || source.height || 256);
+          const density = Math.sqrt((w * h) / 650000);
+          const scale = Math.max(0.25, Math.min(0.9, density * (256 / base)));
+          pattern.setTransform(new DOMMatrix().scale(scale, scale));
+        }
+        context.fillStyle = pattern;
+        context.fillRect(x, y, w, h);
+      } else {
+        const textureSource = fieldTextureCanvas || fieldTextureImg;
+        const sourceW = Math.max(1, textureSource.width || fieldTextureImg.width || 1);
+        const sourceH = Math.max(1, textureSource.height || fieldTextureImg.height || 1);
+        const widthFactor = Math.max(0.18, Math.min(0.62, 0.28 + (w / 900) * 0.6));
+        const tileW = Math.max(48, sourceW * widthFactor);
+        const tileH = Math.max(48, sourceH * widthFactor);
+        for(let ty = y; ty < y + h; ty += tileH){
+          for(let tx = x; tx < x + w; tx += tileW){
+            context.drawImage(textureSource, tx, ty, tileW, tileH);
+          }
         }
       }
     } else {
