@@ -226,6 +226,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     points: '0 - 0',
     games: '0 - 0',
     sets: '0 - 0',
+    pointsBox: { player: '0', cpu: '0' },
+    gamesBox: { player: 0, cpu: 0 },
+    setsBox: { player: 0, cpu: 0 },
     server: playerLabel,
     side: 'deuce',
     attempts: 2
@@ -893,11 +896,28 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       return `${playerLabel} ${left} – ${cpuLabel} ${right}`;
     }
 
+    function getPointsBox() {
+      const p = state.score.points.player;
+      const c = state.score.points.cpu;
+      if (p >= 3 && c >= 3) {
+        if (p === c) return { player: '40', cpu: '40' };
+        if (p === c + 1) return { player: 'Ad', cpu: '40' };
+        if (c === p + 1) return { player: '40', cpu: 'Ad' };
+      }
+      return {
+        player: POINT_LABELS[Math.min(p, 3)],
+        cpu: POINT_LABELS[Math.min(c, 3)]
+      };
+    }
+
     function updateHud() {
       setHudInfo({
         points: formatPoints(),
         games: `${state.score.games.player} - ${state.score.games.cpu}`,
         sets: `${state.score.sets.player} - ${state.score.sets.cpu}`,
+        pointsBox: getPointsBox(),
+        gamesBox: { player: state.score.games.player, cpu: state.score.games.cpu },
+        setsBox: { player: state.score.sets.player, cpu: state.score.sets.cpu },
         server: state.serveBy === 'player' ? playerLabel : cpuLabel,
         side: state.serveSide,
         attempts: state.attempts
@@ -1132,7 +1152,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const to = new THREE.Vector3(tx, ballR + 0.06, tz);
           let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.9, 1.08));
           v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 1.05);
-          vel.copy(v0.multiplyScalar(0.9));
+          vel.copy(v0.multiplyScalar(0.9 * 1.2));
           state.awaitingServeBounce = true;
           state.rallyStarted = false;
           state.bounceSide = null;
@@ -1180,6 +1200,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const p = THREE.MathUtils.clamp(spd / 1050, 0.3, 0.9);
           const aimX = THREE.MathUtils.clamp(vx / 900, -1.5, 1.5);
           vel.set(aimX * 2.1, Math.max(1.6, -vy / 750 + 1.1), -19.4 * p);
+          vel.multiplyScalar(1.2);
           pos.y = 1.35;
           state.live = true;
           state.awaitingServeBounce = true;
@@ -1196,6 +1217,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const p = THREE.MathUtils.clamp(spd / 1150, 0.2, 0.95);
           const aim = THREE.MathUtils.clamp(vx / 900, -1.6, 1.6);
           vel.set(aim * 2.0 + vx * 0.0012, Math.max(0.7, -vy * 0.001 + 1.1), -(7.6 + 12.2 * p));
+          vel.multiplyScalar(1.2);
           player.userData.swing = 0.5 + 1.0 * p;
           player.userData.swingLR = THREE.MathUtils.clamp(vx / 1200, -1, 1);
           state.bounceSide = null;
@@ -1253,7 +1275,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const to = new THREE.Vector3(cpuPlan.tx, ballR + 0.06, cpuPlan.tz);
           let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.82, 1.0));
           v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 0.9);
-          vel.copy(v0.multiplyScalar(0.95));
+          vel.copy(v0.multiplyScalar(0.95 * 1.2));
           cpu.userData.swing = 1.18;
           cpu.userData.swingLR = THREE.MathUtils.clamp((cpuPlan.tx - cpu.position.x) / halfW, -1, 1);
           state.bounceSide = null;
@@ -1490,6 +1512,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   }, [playerLabel, suffix, setHudInfo]);
 
   const serveAttemptLabel = hudInfo.attempts >= 2 ? '1st serve' : hudInfo.attempts === 1 ? '2nd serve' : 'Serve reset';
+  const scoreboardBoxStyle = {
+    background: 'rgba(30, 64, 175, 0.32)',
+    borderRadius: 12,
+    padding: '6px 0',
+    fontSize: 16,
+    fontWeight: 700,
+    textAlign: 'center',
+    minWidth: 62
+  };
 
   return (
     <div
@@ -1503,8 +1534,82 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     >
       <div ref={containerRef} style={{ flex: 1, minHeight: 560, height: '100%', width: '100%' }} />
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: 18,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 10
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.9)',
+              color: '#f8fafc',
+              borderRadius: 20,
+              padding: '14px 22px 16px',
+              boxShadow: '0 24px 46px rgba(15, 23, 42, 0.32)',
+              minWidth: 300,
+              pointerEvents: 'none'
+            }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(70px, 1fr) 72px 72px',
+                rowGap: 10,
+                columnGap: 14,
+                alignItems: 'center'
+              }}
+            >
+              <div />
+              <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                {playerLabel}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: 0.6 }}>
+                {cpuLabel}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.82, textTransform: 'uppercase', letterSpacing: 1 }}>Sets</div>
+              <div style={scoreboardBoxStyle}>{hudInfo.setsBox?.player ?? 0}</div>
+              <div style={scoreboardBoxStyle}>{hudInfo.setsBox?.cpu ?? 0}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.82, textTransform: 'uppercase', letterSpacing: 1 }}>Games</div>
+              <div style={scoreboardBoxStyle}>{hudInfo.gamesBox?.player ?? 0}</div>
+              <div style={scoreboardBoxStyle}>{hudInfo.gamesBox?.cpu ?? 0}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, opacity: 0.82, textTransform: 'uppercase', letterSpacing: 1 }}>Points</div>
+              <div style={scoreboardBoxStyle}>{hudInfo.pointsBox?.player ?? '0'}</div>
+              <div style={scoreboardBoxStyle}>{hudInfo.pointsBox?.cpu ?? '0'}</div>
+            </div>
+          </div>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#0f172a',
+              background: 'rgba(248, 250, 252, 0.92)',
+              padding: '6px 18px',
+              borderRadius: 999,
+              boxShadow: '0 16px 32px rgba(15, 23, 42, 0.18)',
+              textAlign: 'center',
+              maxWidth: 360
+            }}
+          >
+            {msg}
+          </div>
+        </div>
         {popupVisible && (
-          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 28 }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
             <div
               style={{
                 pointerEvents: 'none',
