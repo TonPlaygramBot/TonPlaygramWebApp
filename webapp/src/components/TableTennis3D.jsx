@@ -53,6 +53,7 @@ const GAME_VARIANTS = [
       paddleAim: 0.58,
       paddleLift: 0.18,
       netRest: 0.37,
+      forceScale: 0.82,
       serveTimers: { player: 0.45, opponent: 0.6 }
     },
     ai: { speed: 1, vertical: 1, react: 1 },
@@ -106,6 +107,7 @@ const GAME_VARIANTS = [
       paddleAim: 0.62,
       paddleLift: 0.17,
       netRest: 0.35,
+      forceScale: 0.88,
       serveTimers: { player: 0.43, opponent: 0.58 }
     },
     ai: { speed: 1.08, vertical: 1.04, react: 0.94 },
@@ -159,6 +161,7 @@ const GAME_VARIANTS = [
       paddleAim: 0.58,
       paddleLift: 0.16,
       netRest: 0.38,
+      forceScale: 0.76,
       serveTimers: { player: 0.47, opponent: 0.62 }
     },
     ai: { speed: 0.94, vertical: 0.96, react: 1.05 },
@@ -212,6 +215,7 @@ const GAME_VARIANTS = [
       paddleAim: 0.64,
       paddleLift: 0.19,
       netRest: 0.32,
+      forceScale: 0.85,
       serveTimers: { player: 0.44, opponent: 0.59 }
     },
     ai: { speed: 1.12, vertical: 1.08, react: 0.92 },
@@ -265,6 +269,7 @@ const GAME_VARIANTS = [
       paddleAim: 0.54,
       paddleLift: 0.15,
       netRest: 0.4,
+      forceScale: 0.74,
       serveTimers: { player: 0.49, opponent: 0.64 }
     },
     ai: { speed: 0.9, vertical: 0.92, react: 1.08 },
@@ -651,6 +656,7 @@ export default function TableTennis3D({ player, ai }){
     const PADDLE_SCALE = 1.18;
     const BALL_R = 0.02;
     const TABLE_TOP = T.H + BALL_R;
+    const NET_TOP = TABLE_TOP + T.NET_H;
     const BASE_HEAD_RADIUS = 0.4049601584672928;
     const BASE_HEAD_CENTER_Y = 0.38700000643730165;
     const BASE_HEAD_CENTER_Z = 0.02005380392074585;
@@ -882,6 +888,7 @@ export default function TableTennis3D({ player, ai }){
       paddleAim: physicsSettings.paddleAim ?? 0.6,
       paddleLift: physicsSettings.paddleLift ?? 0.14,
       netRest: physicsSettings.netRest ?? 0.4,
+      forceScale: THREE.MathUtils.clamp(physicsSettings.forceScale ?? 0.82, 0.5, 1.1),
       state: 'serve', // serve | rally | dead
       lastTouch: null, // 'P' or 'O'
       bounces: { P: 0, O: 0 },
@@ -1094,7 +1101,7 @@ export default function TableTennis3D({ player, ai }){
       const yNet = from.y + velocity.y * tNet + 0.5 * gravityY * tNet * tNet;
       const need = netTop + margin;
       if (yNet < need){
-        velocity.y += (need - yNet) / Math.max(0.12, tNet);
+        velocity.y += (need - yNet) / Math.max(0.15, tNet);
       }
       return velocity;
     }
@@ -1109,7 +1116,7 @@ export default function TableTennis3D({ player, ai }){
         Sx.simVel.addScaledVector(Sx.gravity, step);
         const simSpeed = Sx.simVel.length();
         if (simSpeed > 1e-4){
-          const drag = Sx.drag * BALL_R * simSpeed * step;
+          const drag = 0.5 * Sx.drag * BALL_R * simSpeed * step;
           Sx.simVel.addScaledVector(Sx.simVel, -drag);
         }
         Sx.simPos.addScaledVector(Sx.simVel, step);
@@ -1122,7 +1129,7 @@ export default function TableTennis3D({ player, ai }){
           Sx.simVel.z *= damp;
         }
 
-        if (Math.abs(Sx.simPos.z) < 0.01 && Sx.simPos.y < TABLE_TOP + T.NET_H){
+        if (Math.abs(Sx.simPos.z) < 0.01 && Sx.simPos.y < NET_TOP){
           Sx.simVel.z *= -Sx.netRest;
           Sx.simVel.x *= 0.94;
           Sx.simVel.y *= 0.7;
@@ -1278,7 +1285,7 @@ export default function TableTennis3D({ player, ai }){
           T.W / 2 - 0.12
         );
         const swipeAim = THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.16, -0.45, 0.45);
-        const randomAim = (Math.random() - 0.5) * 0.08;
+        const randomAim = (Math.random() - 0.5) * 0.08 * Sx.forceScale;
         const aimX = THREE.MathUtils.clamp(
           aimBias + swipeAim + randomAim,
           -T.W / 2 + 0.12,
@@ -1286,7 +1293,7 @@ export default function TableTennis3D({ player, ai }){
         );
         const baseZ = attackSign < 0 ? -T.L / 2 + 0.24 : T.L / 2 - 0.24;
         const aimZ = THREE.MathUtils.clamp(
-          baseZ + attackSign * (0.04 + Math.random() * 0.06),
+          baseZ + attackSign * (0.04 + Math.random() * 0.06 * Sx.forceScale),
           -T.L / 2 + 0.18,
           T.L / 2 - 0.18
         );
@@ -1295,13 +1302,17 @@ export default function TableTennis3D({ player, ai }){
           TABLE_TOP + Sx.paddleLift + swingStrength * 0.18,
           aimZ
         );
-        const flight = THREE.MathUtils.clamp(0.34 - swingStrength * 0.08, 0.24, 0.5);
+        const baseFlight = THREE.MathUtils.clamp(0.34 - swingStrength * 0.08, 0.26, 0.52);
+        const timeScale = THREE.MathUtils.clamp(1 / Sx.forceScale, 1, 1.5);
+        const flight = baseFlight * timeScale;
         let shot = solveShot(contact, target, Sx.gravity.y, flight);
-        shot = ensureNetClear(contact, shot, Sx.gravity.y, T.H + T.NET_H, BALL_R * 0.85);
+        shot = ensureNetClear(contact, shot, Sx.gravity.y, NET_TOP, BALL_R * 0.85);
         shot.multiplyScalar(Sx.paddleRest);
-        shot.x += THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.12, -0.9, 0.9);
-        shot.y += THREE.MathUtils.clamp((paddleVel?.y || 0) * 0.08, -0.6, 0.6);
-        shot.z += attackSign * THREE.MathUtils.clamp((paddleVel?.z || 0) * 0.14, -0.8, 0.8);
+        const extraScale = THREE.MathUtils.clamp(Sx.forceScale, 0.55, 1);
+        shot.x += THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.12 * extraScale, -0.9, 0.9);
+        shot.y += THREE.MathUtils.clamp((paddleVel?.y || 0) * 0.08 * extraScale, -0.6, 0.6);
+        shot.z += attackSign * THREE.MathUtils.clamp((paddleVel?.z || 0) * 0.14 * extraScale, -0.8, 0.8);
+        shot = ensureNetClear(contact, shot, Sx.gravity.y, NET_TOP, BALL_R * 0.85);
         Sx.v.copy(shot);
         Sx.w.set(0, 0, 0);
         Sx.state = 'rally';
@@ -1323,7 +1334,7 @@ export default function TableTennis3D({ player, ai }){
       const t = THREE.MathUtils.clamp((0 - prevZ) / denom, 0, 1);
       const yAtNet = THREE.MathUtils.lerp(prev.y, ball.position.y, t);
       const xAtNet = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
-      if (Math.abs(xAtNet) <= T.W / 2 + BALL_R * 0.5 && yAtNet < TABLE_TOP + T.NET_H + BALL_R * 0.35){
+      if (Math.abs(xAtNet) <= T.W / 2 + BALL_R * 0.5 && yAtNet < NET_TOP + BALL_R * 0.35){
         const push = BALL_R * 0.6;
         const sign = prevZ > 0 ? 1 : -1;
         ball.position.z = sign * push;
@@ -1414,72 +1425,97 @@ export default function TableTennis3D({ player, ai }){
     }
 
     // ---------- Loop ----------
-    const clock = new THREE.Clock(); let dt=0;
+    const FIXED_STEP = 1 / 120;
+    let accumulator = 0;
+    let lastTime = performance.now();
+
+    const adjustPaddleYaw = (paddle, velocity) => {
+      const { visualWrapper, baseYaw, orientationSign = 1, wrist, baseTilt = 0, baseRoll = 0 } = paddle.userData || {};
+      if (!visualWrapper || !Number.isFinite(baseYaw)) return;
+
+      const dx = ball.position.x - paddle.position.x;
+      const dz = ball.position.z - paddle.position.z;
+      const forwardX = Math.sin(baseYaw);
+      const forwardZ = Math.cos(baseYaw);
+      const ahead = forwardX * dx + forwardZ * dz > 0.01;
+
+      const rightX = forwardZ;
+      const rightZ = -forwardX;
+      const velLateral = velocity.x * rightX + velocity.z * rightZ;
+      const cross = forwardX * dz - forwardZ * dx;
+
+      const swingBackhand = Math.max(0, -velLateral * orientationSign);
+      const swingForehand = Math.max(0, velLateral * orientationSign);
+      const backhandAim = ahead ? Math.max(0, -cross * orientationSign) : 0;
+
+      const offsetLeft = THREE.MathUtils.clamp(backhandAim * 0.7 + swingBackhand * 0.18, 0, 0.92);
+      const offsetRight = Math.min(swingForehand * 0.12, 0.35);
+
+      const leftRange = orientationSign === 1 ? 0.5 : 0.95;
+      const rightRange = orientationSign === 1 ? 0.95 : 0.5;
+      const targetYaw = THREE.MathUtils.clamp(
+        baseYaw + orientationSign * offsetLeft - orientationSign * offsetRight,
+        baseYaw - leftRange,
+        baseYaw + rightRange
+      );
+
+      const damping = orientationSign === 1 ? 0.22 : 0.18;
+      visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, damping);
+
+      if (wrist){
+        const heightFactor = THREE.MathUtils.clamp((ball.position.y - TABLE_TOP) * 0.85, -0.4, 0.52);
+        const tiltTarget = baseTilt + heightFactor + (velocity.z || 0) * -0.02 * orientationSign;
+        const rollTarget = baseRoll + (velocity.x || 0) * 0.04;
+        wrist.rotation.x += (tiltTarget - wrist.rotation.x) * 0.22;
+        wrist.rotation.z += (rollTarget - wrist.rotation.z) * 0.24;
+      }
+    };
+
+    function integrate(dt){
+      if (Sx.state === 'dead') return;
+      prevBall.copy(ball.position);
+      Sx.v.y += Sx.gravity.y * dt;
+      const speed = Sx.v.length();
+      if (speed > 1e-4){
+        const drag = 0.5 * Sx.drag * BALL_R * speed * dt;
+        Sx.v.addScaledVector(Sx.v, -drag);
+      }
+      ball.position.addScaledVector(Sx.v, dt);
+
+      const scored = bounceTable(prevBall);
+      if (!scored){
+        hitNet(prevBall);
+        hitPaddle(player, 'P', playerVel);
+        hitPaddle(opp, 'O', oppVel);
+        checkFaults();
+      }
+    }
+
     function step(){
-      dt = Math.min(0.033, clock.getDelta());
+      const now = performance.now();
+      const frameDt = Math.min(0.05, (now - lastTime) / 1000 || 0);
+      lastTime = now;
+      accumulator = Math.min(accumulator + frameDt, 0.25);
 
       // Camera follow
       updateCamera();
 
       // AI
-      stepAI(dt);
+      stepAI(frameDt);
 
       if (!ui.gameOver){
         tableG.updateMatrixWorld(true);
-        prevBall.copy(ball.position);
         if (player.userData?.target){
-          const lerpFactor = 1 - Math.exp(-dt * 20);
+          const lerpFactor = 1 - Math.exp(-frameDt * 20);
           player.position.lerp(player.userData.target, lerpFactor);
           player.position.x = THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x);
           player.position.z = THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear);
         }
-        const invDt = dt > 0 ? 1 / dt : 0;
+        const invDt = frameDt > 0 ? 1 / frameDt : 0;
         playerVel.copy(player.position).sub(playerPrev).multiplyScalar(invDt);
         oppVel.copy(opp.position).sub(oppPrev).multiplyScalar(invDt);
         playerPrev.copy(player.position);
         oppPrev.copy(opp.position);
-
-        const adjustPaddleYaw = (paddle, velocity) => {
-          const { visualWrapper, baseYaw, orientationSign = 1, wrist, baseTilt = 0, baseRoll = 0 } = paddle.userData || {};
-          if (!visualWrapper || !Number.isFinite(baseYaw)) return;
-
-          const dx = ball.position.x - paddle.position.x;
-          const dz = ball.position.z - paddle.position.z;
-          const forwardX = Math.sin(baseYaw);
-          const forwardZ = Math.cos(baseYaw);
-          const ahead = forwardX * dx + forwardZ * dz > 0.01;
-
-          const rightX = forwardZ;
-          const rightZ = -forwardX;
-          const velLateral = velocity.x * rightX + velocity.z * rightZ;
-          const cross = forwardX * dz - forwardZ * dx;
-
-          const swingBackhand = Math.max(0, -velLateral * orientationSign);
-          const swingForehand = Math.max(0, velLateral * orientationSign);
-          const backhandAim = ahead ? Math.max(0, -cross * orientationSign) : 0;
-
-          const offsetLeft = THREE.MathUtils.clamp(backhandAim * 0.7 + swingBackhand * 0.18, 0, 0.92);
-          const offsetRight = Math.min(swingForehand * 0.12, 0.35);
-
-          const leftRange = orientationSign === 1 ? 0.5 : 0.95;
-          const rightRange = orientationSign === 1 ? 0.95 : 0.5;
-          const targetYaw = THREE.MathUtils.clamp(
-            baseYaw + orientationSign * offsetLeft - orientationSign * offsetRight,
-            baseYaw - leftRange,
-            baseYaw + rightRange
-          );
-
-          const damping = orientationSign === 1 ? 0.22 : 0.18;
-          visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, damping);
-
-          if (wrist){
-            const heightFactor = THREE.MathUtils.clamp((ball.position.y - TABLE_TOP) * 0.85, -0.4, 0.52);
-            const tiltTarget = baseTilt + heightFactor + (velocity.z || 0) * -0.02 * orientationSign;
-            const rollTarget = baseRoll + (velocity.x || 0) * 0.04;
-            wrist.rotation.x += (tiltTarget - wrist.rotation.x) * 0.22;
-            wrist.rotation.z += (rollTarget - wrist.rotation.z) * 0.24;
-          }
-        };
 
         adjustPaddleYaw(player, playerVel);
         adjustPaddleYaw(opp, oppVel);
@@ -1491,58 +1527,48 @@ export default function TableTennis3D({ player, ai }){
             const targetZ = server.position.z + (Srv.side === 'P' ? -0.14 : 0.14);
             ball.position.x = THREE.MathUtils.lerp(ball.position.x, server.position.x, 0.25);
             ball.position.z = THREE.MathUtils.lerp(ball.position.z, targetZ, 0.22);
-            Sx.serveTimer -= dt;
+            Sx.serveTimer -= frameDt;
             if (Sx.serveProgress === 'awaitServeHit' && Sx.serveTimer <= 0){
               const dir = Srv.side === 'P' ? -1 : 1;
               const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.35, -0.7, 0.7);
-              Sx.v.set(aimX, 2.6, 1.55 * dir);
+              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.55, 1);
+              Sx.v.set(aimX * serveScale, Math.max(1.8, 2.6 * serveScale), 1.55 * dir * serveScale);
               Sx.w.set(0, 0, 0);
               Sx.serveProgress = 'awaitServerBounce';
               Sx.lastTouch = Srv.side;
             }
           }
-
-          Sx.v.addScaledVector(Sx.gravity, dt);
-          const speed = Sx.v.length();
-          if (speed > 1e-4){
-            const drag = Sx.drag * BALL_R * speed * dt;
-            Sx.v.addScaledVector(Sx.v, -drag);
-          }
-          ball.position.addScaledVector(Sx.v, dt);
-
-          const scored = bounceTable(prevBall);
-          if (!scored){
-            hitNet(prevBall);
-            hitPaddle(player, 'P', playerVel);
-            hitPaddle(opp, 'O', oppVel);
-            checkFaults();
-          }
         }
-
-        ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
-        const heightAbove = Math.max(0, ball.position.y - TABLE_TOP);
-        const sh = THREE.MathUtils.clamp(1 - heightAbove * 3.8, 0.3, 1.05);
-        ballShadow.scale.set(sh, sh, 1);
-        const shadowOpacity = THREE.MathUtils.clamp(0.92 - heightAbove * 5.2, 0.24, 0.92);
-        ballShadow.material.opacity = THREE.MathUtils.clamp(shadowOpacity * baseShadowFactor, 0, 1);
-        for (let i = TRAIL_COUNT - 1; i > 0; i--){
-          const src = (i - 1) * 3;
-          const dst = i * 3;
-          trailPositions[dst] = trailPositions[src];
-          trailPositions[dst + 1] = trailPositions[src + 1];
-          trailPositions[dst + 2] = trailPositions[src + 2];
-        }
-        trailPositions[0] = ball.position.x;
-        trailPositions[1] = ball.position.y;
-        trailPositions[2] = ball.position.z;
-        trailGeometry.attributes.position.needsUpdate = true;
-        const velocityMag = Sx.v.length();
-        trailMaterial.opacity = THREE.MathUtils.clamp(
-          minTrailOpacity + velocityMag * trailSpeedFactor,
-          minTrailOpacity,
-          maxTrailOpacity
-        );
       }
+
+      while (accumulator >= FIXED_STEP){
+        integrate(FIXED_STEP);
+        accumulator -= FIXED_STEP;
+      }
+
+      ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
+      const heightAbove = Math.max(0, ball.position.y - TABLE_TOP);
+      const sh = THREE.MathUtils.clamp(1 - heightAbove * 3.8, 0.3, 1.05);
+      ballShadow.scale.set(sh, sh, 1);
+      const shadowOpacity = THREE.MathUtils.clamp(0.92 - heightAbove * 5.2, 0.24, 0.92);
+      ballShadow.material.opacity = THREE.MathUtils.clamp(shadowOpacity * baseShadowFactor, 0, 1);
+      for (let i = TRAIL_COUNT - 1; i > 0; i--){
+        const src = (i - 1) * 3;
+        const dst = i * 3;
+        trailPositions[dst] = trailPositions[src];
+        trailPositions[dst + 1] = trailPositions[src + 1];
+        trailPositions[dst + 2] = trailPositions[src + 2];
+      }
+      trailPositions[0] = ball.position.x;
+      trailPositions[1] = ball.position.y;
+      trailPositions[2] = ball.position.z;
+      trailGeometry.attributes.position.needsUpdate = true;
+      const velocityMag = Sx.v.length();
+      trailMaterial.opacity = THREE.MathUtils.clamp(
+        minTrailOpacity + velocityMag * trailSpeedFactor,
+        minTrailOpacity,
+        maxTrailOpacity
+      );
 
       renderer.render(scene, camera);
       raf.current = requestAnimationFrame(step);
