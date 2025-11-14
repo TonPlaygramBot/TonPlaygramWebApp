@@ -9,8 +9,8 @@
     color-scheme: light;
     --hud-gap: clamp(12px, 3vw, 24px);
     --pad-offset: clamp(18px, 12vh, 120px);
-    --joy-size: clamp(140px, 34vw, 200px);
-    --joy-knob: clamp(80px, 22vw, 140px);
+    --joy-size: clamp(98px, 23.8vw, 140px);
+    --joy-knob: clamp(56px, 15.4vw, 98px);
     --hud-blur: 10px;
   }
   html,body{margin:0;height:100%;background:#f5e7cf;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
@@ -20,8 +20,8 @@
   .row{position:absolute;left:var(--hud-gap);right:var(--hud-gap);display:flex;gap:10px;align-items:center;z-index:15}
   .top{top:var(--hud-gap);justify-content:space-between}
   .bottom{bottom:var(--hud-gap);justify-content:space-between;align-items:flex-end}
-  .chip{background:rgba(0,0,0,.32);color:#fff;border-radius:999px;padding:6px 12px;font-size:clamp(11px,2.9vw,14px);backdrop-filter:blur(var(--hud-blur));pointer-events:auto}
-  .btn{background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:14px;padding:8px 14px;font-size:clamp(11px,3vw,14px);cursor:pointer;pointer-events:auto;backdrop-filter:blur(var(--hud-blur));transition:transform .15s ease}
+  .chip{background:rgba(0,0,0,.32);color:#fff;border-radius:999px;padding:5px 10px;font-size:clamp(9px,2.4vw,12px);backdrop-filter:blur(var(--hud-blur));pointer-events:auto}
+  .btn{background:rgba(0,0,0,.35);color:#fff;border:0;border-radius:14px;padding:6px 10px;font-size:clamp(9px,2.4vw,12px);cursor:pointer;pointer-events:auto;backdrop-filter:blur(var(--hud-blur));transition:transform .15s ease}
   .btn:active{transform:translateY(1px)}
   .btn[disabled]{opacity:.45;cursor:not-allowed}
 
@@ -32,7 +32,7 @@
   .padStack{position:absolute;right:var(--hud-gap);bottom:var(--pad-offset);display:flex;flex-direction:column;align-items:flex-end;gap:clamp(12px,3vw,18px);pointer-events:none}
   .padStack > *{pointer-events:auto}
   .fireRow{display:flex;flex-direction:row;align-items:center;justify-content:center;gap:clamp(12px,4vw,22px)}
-  .fireButton{width:clamp(96px,24vw,132px);height:clamp(96px,24vw,132px);border-radius:50%;border:1px solid rgba(0,0,0,.38);outline:none;background:radial-gradient(circle at 50% 42%, rgba(255,64,64,1) 0 58%, rgba(128,0,0,0.6) 82%, rgba(0,0,0,0.35) 100%);color:#fff;font-size:clamp(13px,3.5vw,18px);font-weight:900;letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;box-shadow:0 16px 32px rgba(0,0,0,.38);cursor:pointer;transition:transform .18s ease, box-shadow .18s ease;background-clip:padding-box}
+  .fireButton{width:clamp(67px,16.8vw,92px);height:clamp(67px,16.8vw,92px);border-radius:50%;border:1px solid rgba(0,0,0,.38);outline:none;background:radial-gradient(circle at 50% 42%, rgba(255,64,64,1) 0 58%, rgba(128,0,0,0.6) 82%, rgba(0,0,0,0.35) 100%);color:#fff;font-size:clamp(9px,2.45vw,13px);font-weight:900;letter-spacing:.6px;text-transform:uppercase;display:flex;align-items:center;justify-content:center;box-shadow:0 16px 32px rgba(0,0,0,.38);cursor:pointer;transition:transform .18s ease, box-shadow .18s ease;background-clip:padding-box}
   .fireButton:active{transform:translateY(2px);box-shadow:0 8px 18px rgba(0,0,0,.28)}
   #shootPad{background:radial-gradient(circle at 50% 45%, rgba(255,48,48,1) 0 52%, rgba(160,10,10,0.68) 78%, rgba(0,0,0,0.4) 100%)}
   #reloadMini{background:radial-gradient(circle at 50% 45%, rgba(255,78,78,1) 0 54%, rgba(150,12,12,0.68) 80%, rgba(0,0,0,0.42) 100%)}
@@ -40,26 +40,26 @@
   #crosshair:before,#crosshair:after{content:"";position:absolute;left:50%;top:50%;background:var(--aimColor,#ff3c3c);box-shadow:0 0 0 2px rgba(255,255,255,0.9) inset, 0 0 6px rgba(0,0,0,.35)}
   #crosshair:before{width:24px;height:3px;transform:translate(-50%,-50%);opacity:.98}
   #crosshair:after{width:3px;height:24px;transform:translate(-50%,-50%);opacity:.98}
-  #ammo{color:#fff;font-weight:700;background:rgba(0,0,0,.42);padding:8px 14px;border-radius:14px 14px 4px 4px;pointer-events:auto;font-size:clamp(11px,2.8vw,14px);backdrop-filter:blur(var(--hud-blur));min-width:138px;text-align:center;align-self:flex-end}
+  #ammo{color:#fff;font-weight:700;background:rgba(0,0,0,.42);padding:6px 12px;border-radius:14px 14px 4px 4px;pointer-events:auto;font-size:clamp(9px,2.2vw,12px);backdrop-filter:blur(var(--hud-blur));min-width:120px;text-align:center;align-self:flex-end}
   #healthbar{position:absolute;left:50%;top:calc(var(--hud-gap) + 44px);width:clamp(160px,60vw,320px);height:14px;background:rgba(0,0,0,.22);border-radius:999px;overflow:hidden;transform:translateX(-50%)}
   #healthfill{width:100%;height:100%;background:linear-gradient(90deg,#29ff9a,#00c876)}
   .armoryWrap{flex:1;display:flex;justify-content:center;overflow:visible}
-  #armory{display:grid;grid-template-columns:repeat(3,minmax(clamp(52px,15vw,82px),1fr));gap:clamp(4px,2.4vw,10px);padding:10px 14px;border-radius:16px;background:rgba(0,0,0,.32);backdrop-filter:blur(var(--hud-blur));pointer-events:auto;max-width:clamp(240px,68vw,420px);box-sizing:border-box;align-items:start;justify-items:center}
-  .armBtn{position:relative;flex:0 0 auto;width:100%;padding:6px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(7,10,22,.58);color:#e6eefc;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .2s ease, border-color .2s ease}
+  #armory{display:flex;flex-direction:row;gap:clamp(6px,2.2vw,12px);padding:8px 12px;border-radius:16px;background:rgba(0,0,0,.32);backdrop-filter:blur(var(--hud-blur));pointer-events:auto;max-width:min(100%,560px);box-sizing:border-box;align-items:stretch;overflow-x:auto;scrollbar-width:thin}
+  #armory::-webkit-scrollbar{height:6px}
+  #armory::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.25);border-radius:999px}
+  .armBtn{position:relative;flex:0 0 clamp(70px,18vw,104px);padding:6px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(7,10,22,.58);color:#e6eefc;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .2s ease, border-color .2s ease}
   .armBtn img{width:100%;aspect-ratio:4/3;object-fit:contain;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
-  .armBtn span{font-size:10px;letter-spacing:.2px;opacity:.95;text-align:center}
+  .armBtn span{font-size:9px;letter-spacing:.18px;opacity:.95;text-align:center}
   .armBtn.active{outline:2px solid #ffd966;background:rgba(17,23,42,.68);border-color:rgba(255,217,102,.6);transform:translateY(-4px)}
   .modeToggle{position:absolute;right:6px;top:6px;padding:2px 5px;border-radius:9px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.45);color:#fff;font-size:9px;cursor:pointer}
   #mini{position:absolute;left:50%;bottom:calc(var(--pad-offset) + var(--joy-size) + clamp(12px,3vh,40px));transform:translateX(-50%);color:#0b1324;background:rgba(255,255,255,.75);padding:4px 10px;border-radius:999px;font-size:11px;pointer-events:auto}
-  #climbBtn{position:absolute;left:50%;bottom:calc(var(--pad-offset) + var(--joy-size) + clamp(60px,8vh,120px));transform:translateX(-50%);padding:9px 16px;border-radius:14px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.7);color:#fff;font-size:clamp(12px,3.1vw,15px);pointer-events:auto;display:none}
+  #climbBtn{position:absolute;left:50%;bottom:calc(var(--pad-offset) + var(--joy-size) + clamp(60px,8vh,120px));transform:translateX(-50%);padding:7px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.7);color:#fff;font-size:clamp(10px,2.4vw,13px);pointer-events:auto;display:none}
   #zoomBox{display:none;pointer-events:auto;position:absolute;left:calc(var(--hud-gap) + var(--joy-size)/2);bottom:calc(var(--pad-offset) + var(--joy-size) + clamp(28px,7vh,110px));transform:translateX(-50%);z-index:22;flex-direction:column;align-items:center;gap:6px}
   #zoomLabel{pointer-events:none;color:rgba(248,250,252,0.82);font-size:clamp(10px,2.6vw,12px);letter-spacing:.45px;text-transform:uppercase;background:rgba(12,16,28,.7);padding:4px 12px;border-radius:999px;box-shadow:0 12px 24px rgba(0,0,0,.25)}
   #zoomSlider{appearance:none;width:clamp(250px,54vh,360px);height:56px;transform:rotate(-90deg);background:rgba(10,12,20,.62);border-radius:999px;outline:none;border:1px solid rgba(255,255,255,.28);box-shadow:0 16px 30px rgba(0,0,0,.34);transform-origin:center}
   #zoomSlider::-webkit-slider-thumb{appearance:none;width:46px;height:46px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,.4)}
   #zoomSlider::-moz-range-thumb{width:46px;height:46px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,.4)}
-  #radarBox{position:absolute;left:var(--hud-gap);top:calc(var(--hud-gap) + 54px);width:clamp(210px,38vw,280px);height:clamp(210px,38vw,280px);border-radius:26px;background:rgba(12,16,28,.54);border:1px solid rgba(0,0,0,.42);overflow:hidden;pointer-events:auto;backdrop-filter:blur(var(--hud-blur));box-shadow:0 16px 36px rgba(0,0,0,.34)}
-  #radar{width:100%;height:100%;display:block}
-  #radarBox::after{content:'Tirana 2040';position:absolute;left:16px;bottom:12px;font-size:12px;color:rgba(229,231,235,0.85);letter-spacing:.48px;text-transform:uppercase}
+  #mapBtn{margin-left:auto}
   #mapOverlay{position:fixed;inset:0;background:rgba(10,12,18,.88);display:none;align-items:center;justify-content:center;z-index:200;pointer-events:auto}
   #mapCanvas{width:min(96vw,1200px);height:min(96vh,820px);background:#0f172a;border:1px solid rgba(255,255,255,.12);box-shadow:0 28px 90px rgba(0,0,0,.52);border-radius:18px}
   #mapClose{position:absolute;top:24px;right:24px;padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.32);background:rgba(17,24,39,.92);color:#fff;font-weight:700;cursor:pointer;letter-spacing:.4px;text-transform:uppercase}
@@ -78,6 +78,7 @@
       <div id="br" class="chip">Entrants: 10 • AI</div>
     </div>
     <div style="display:flex;gap:6px;align-items:center">
+      <button id="mapBtn" class="btn">🗺 Map</button>
       <button id="muteBtn" class="btn">🔊</button>
     </div>
   </div>
@@ -94,7 +95,6 @@
     </div>
     <div id="ammo">—</div>
   </div>
-  <div id="radarBox"><canvas id="radar"></canvas></div>
   <div id="mapOverlay">
     <canvas id="mapCanvas"></canvas>
     <button id="mapClose">Exit Map</button>
@@ -652,7 +652,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const LOOK_SENS_A  = isMobile ? 0.22 : 0.18;
   const AIM_RATE_A   = 1.05;
   const AIM_SMOOTH_A = 4.6;
-  function isUIBlock(el){ return el.closest('#joyMove')||el.closest('#shootPad')||el.closest('#armory')||el.closest('#reloadMini')||el.closest('#climbBtn')||el.closest('#radarBox')||el.closest('#zoomBox'); }
+  function isUIBlock(el){ return el.closest('#joyMove')||el.closest('#shootPad')||el.closest('#armory')||el.closest('#reloadMini')||el.closest('#climbBtn')||el.closest('#zoomBox'); }
   canvasEl.addEventListener('pointerdown',(e)=>{ if(inputMode!=='A') return; if(isUIBlock(e.target)) return; if(look.active) return; look.active=true; look.id=e.pointerId; look.lastX=e.clientX; look.lastY=e.clientY; try{ canvasEl.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); });
   canvasEl.addEventListener('pointermove',(e)=>{ if(inputMode!=='A') return; if(!look.active||e.pointerId!==look.id) return; const dx=e.clientX-look.lastX; const dy=e.clientY-look.lastY; look.lastX=e.clientX; look.lastY=e.clientY; lookAccumX += dx; lookAccumY += dy; e.preventDefault(); });
   function lookRelease(e){ if(inputMode!=='A') return; if(!look.active||e.pointerId!==look.id) return; look.active=false; try{ canvasEl.releasePointerCapture(e.pointerId); }catch(_){} e.preventDefault(); }
@@ -679,6 +679,15 @@ document.title = 'Tirana 2040 • Last Man Standing';
       'https://raw.githubusercontent.com/Kenney-CCO/Kenney-CCO.glb/main/firetruck.glb',
       'https://cdn.jsdelivr.net/gh/Kenney-CCO/Kenney-CCO.glb@main/firetruck.glb',
       'https://raw.githubusercontent.com/MonuYadav05/Astrikos-gc-project/main/public/FireTruck.glb'
+    ],
+    Bus: [
+      'https://raw.githubusercontent.com/jade0815/my-3d-bus-models/main/Bus.glb',
+      'https://raw.githubusercontent.com/IHyeonii/PythonStudy/main/free_school_bus_-_low_poly.glb',
+      'https://raw.githubusercontent.com/haelimk/project/8c50930d7f283f345c46a0dcdf2a984286c3b4c0/bus.glb'
+    ],
+    Motorcycle: [
+      'https://raw.githubusercontent.com/shosuz-evangelist/3dObjects4Apps/main/Motorcycle.glb',
+      'https://raw.githubusercontent.com/jade12855/3D_model/main/Motorcycle.glb'
     ]
   };
 
@@ -690,7 +699,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const vehicleCache=new Map();
   async function robustLoad(urls){ for(const u of urls){ try{ const gltf=await gltfLoader.loadAsync(u); return gltf; }catch(_){ } } throw new Error('load fail'); }
-  async function getVehicle(key){ if(vehicleCache.has(key)) return vehicleCache.get(key); let urls=[]; if(key==='ambulance'||key==='police') urls=URLS.MilkTruck; else if(key==='fire') urls=URLS.FireTruck; else if(key==='sedan') urls=URLS.Sedan; else urls=URLS.CarConcept; try{ const gltf=await robustLoad(urls); const root=(gltf.scene||gltf.scenes?.[0]); stripGroundMeshes(root); vehicleCache.set(key, root); return root; }catch(_){ const g=new THREE.Mesh(new THREE.BoxGeometry(3.6,1.2,1.6), new THREE.MeshLambertMaterial({ color:0x8892a6 })); const group=new THREE.Group(); g.position.y=0.6; group.add(g); vehicleCache.set(key,group); return group; } }
+  async function getVehicle(key){ const normalized=key?.toLowerCase?.()||key; if(vehicleCache.has(normalized)) return vehicleCache.get(normalized); let urls=[]; if(normalized==='ambulance'||normalized==='police') urls=URLS.MilkTruck; else if(normalized==='fire'||normalized==='firetruck') urls=URLS.FireTruck; else if(normalized==='bus') urls=URLS.Bus; else if(normalized==='motorcycle'||normalized==='moto'||normalized==='bike') urls=URLS.Motorcycle; else if(normalized==='sedan') urls=URLS.Sedan; else urls=URLS.CarConcept; try{ const gltf=await robustLoad(urls); const root=(gltf.scene||gltf.scenes?.[0]); stripGroundMeshes(root); vehicleCache.set(normalized, root); return root; }catch(_){ const size = (normalized==='motorcycle'||normalized==='moto'||normalized==='bike')? {w:1.2,h:1.4,l:2.2}:{w:3.6,h:1.2,l:1.6}; const geom=new THREE.BoxGeometry(size.w,size.h,size.l); const mat=new THREE.MeshLambertMaterial({ color:0x8892a6 }); const base=new THREE.Mesh(geom, mat); base.position.y=size.h/2; const group=new THREE.Group(); group.add(base); vehicleCache.set(normalized,group); return group; } }
 
   function tintVehicle(root,hex){ const col=new THREE.Color(hex); root.traverse(o=>{ if(o.isMesh&&o.material&&o.material.color){ o.material.color.lerp(col,0.9); o.material.needsUpdate=true; } }); }
   function addSideLabels(root,text){ const b=new THREE.Box3().setFromObject(root); const s=new THREE.Vector3(); b.getSize(s); const y=b.min.y+s.y*0.6; const midZ=(b.min.z+b.max.z)/2; const L=makeLabel(text,0.9); const R=makeLabel(text,0.9); L.rotation.y=Math.PI/2; R.rotation.y=-Math.PI/2; L.position.set(b.min.x-0.02,y,midZ); R.position.set(b.max.x+0.02,y,midZ); root.add(L,R); }
@@ -707,28 +716,87 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function setHeading(mesh,angle){ mesh.rotation.y = angle + Math.PI/2; }
 
   async function spawnParkedCommons(){
-    const templates=[await getVehicle('sedan'), await getVehicle('car')];
-    const palette=['#64748b','#9ca3af','#475569','#7f5539','#ef8354'];
+    const palette=['#64748b','#9ca3af','#475569','#7f5539','#ef8354','#14b8a6'];
     const spots=[
-      {x:startX+CELL*0.9, z:startZ+CELL*1.3, heading:Math.PI*0.18},
-      {x:startX+CELL*1.6, z:startZ+CELL*1.1, heading:-Math.PI*0.22},
-      {x:startX+CELL*2.3, z:startZ+CELL*1.8, heading:Math.PI*0.36},
-      {x:startX+CELL*3.1, z:startZ+CELL*2.2, heading:-Math.PI*0.48},
-      {x:startX+CELL*2.4, z:startZ+CELL*3.1, heading:Math.PI*0.52},
-      {x:startX+CELL*4.0, z:startZ+CELL*1.6, heading:-Math.PI*0.12}
+      {kind:'sedan', x:startX+CELL*0.9,  z:startZ+CELL*1.3, heading:Math.PI*0.18},
+      {kind:'car',   x:startX+CELL*1.6,  z:startZ+CELL*1.1, heading:-Math.PI*0.22},
+      {kind:'motorcycle', x:startX+CELL*1.95, z:startZ+CELL*1.55, heading:-Math.PI*0.12, color:'#f97316'},
+      {kind:'sedan', x:startX+CELL*2.3,  z:startZ+CELL*1.8, heading:Math.PI*0.36},
+      {kind:'bus',   x:startX+CELL*3.1,  z:startZ+CELL*2.35, heading:-Math.PI*0.48, color:'#facc15'},
+      {kind:'car',   x:startX+CELL*2.4,  z:startZ+CELL*3.1, heading:Math.PI*0.52},
+      {kind:'sedan', x:startX+CELL*4.0,  z:startZ+CELL*1.6, heading:-Math.PI*0.12},
+      {kind:'motorcycle', x:startX+CELL*4.2, z:startZ+CELL*2.05, heading:Math.PI*0.08, color:'#38bdf8'}
     ];
     for(let i=0;i<spots.length;i++){
-      const base=(templates[i%templates.length]||templates[0]).clone(true);
-      centerXZ(base); scaleToLength(base,3.9); placeOnGround(base,0);
-      tintVehicle(base,palette[i%palette.length]);
-      setHeading(base, spots[i].heading||0);
-      base.position.set(spots[i].x, 0, spots[i].z);
+      const spot=spots[i];
+      const template=await getVehicle(spot.kind||'car');
+      if(!template) continue;
+      const base=template.clone(true);
+      centerXZ(base);
+      const targetLen = spot.kind==='bus'?8.4 : spot.kind==='motorcycle'?2.2 : 3.9;
+      scaleToLength(base,targetLen);
+      placeOnGround(base,0);
+      tintVehicle(base, spot.color || palette[i%palette.length]);
+      setHeading(base, spot.heading||0);
+      base.position.set(spot.x, 0, spot.z);
       scene.add(base);
       parked.push(base);
     }
+
+    const mall=POIS.find(p=>p.type==='mall');
+    if(mall){
+      const shuttle=(await getVehicle('bus'))?.clone?.(true);
+      if(shuttle){
+        centerXZ(shuttle); scaleToLength(shuttle,8.6); placeOnGround(shuttle,0);
+        tintVehicle(shuttle,'#fde047');
+        setHeading(shuttle, Math.PI/2);
+        shuttle.position.set(mall.pos.x + (mall.dims?.w||32)/2 + 6, 0, mall.pos.z - 6);
+        scene.add(shuttle);
+        parked.push(shuttle);
+      }
+    }
+    const station=POIS.find(p=>p.type==='station');
+    if(station){
+      for(let i=0;i<3;i++){
+        const bike=(await getVehicle('motorcycle'))?.clone?.(true);
+        if(!bike) break;
+        centerXZ(bike); scaleToLength(bike,2.2); placeOnGround(bike,0);
+        tintVehicle(bike,['#22d3ee','#f43f5e','#a855f7'][i%3]);
+        const ang=-Math.PI/2;
+        setHeading(bike, ang);
+        bike.position.set(station.pos.x - 6 + i*2.8, 0, station.pos.z + (station.dims?.d||18)/2 + 3.5);
+        scene.add(bike);
+        parked.push(bike);
+      }
+    }
   }
 
-  async function spawnTraffic(n=14){ const pool=[await getVehicle('sedan'), await getVehicle('car')?.catch?.(()=>null) || await getVehicle('sedan')]; for(let i=0;i<n;i++){ const base=pool[i%pool.length]; const v=base.clone(true); centerXZ(v); scaleToLength(v,3.8); placeOnGround(v,0); const hue=Math.random(); tintVehicle(v,new THREE.Color().setHSL(hue,0.4,0.5).getHex()); const a=Math.random()*Math.PI*2; const x=Math.cos(a)*ringR, z=Math.sin(a)*ringR; v.position.set(x,0,z); setHeading(v,a); scene.add(v); trafficCars.push({mesh:v, angle:a, speed:0}); } }
+  async function spawnTraffic(n=14){
+    for(let i=0;i<n;i++){
+      const r=Math.random();
+      let kind;
+      if(r<0.18) kind='bus';
+      else if(r<0.42) kind='motorcycle';
+      else if(r<0.68) kind='car';
+      else kind='sedan';
+      const template=await getVehicle(kind);
+      if(!template) continue;
+      const v=template.clone(true);
+      centerXZ(v);
+      const len = kind==='bus'?8.6 : kind==='motorcycle'?2.4 : 3.8;
+      scaleToLength(v,len);
+      placeOnGround(v,0);
+      if(kind==='bus'){ tintVehicle(v,'#facc15'); }
+      else if(kind==='motorcycle'){ tintVehicle(v,'#ec4899'); }
+      else { tintVehicle(v,new THREE.Color().setHSL(Math.random(),0.45,0.5).getHex()); }
+      const a=Math.random()*Math.PI*2;
+      const x=Math.cos(a)*ringR, z=Math.sin(a)*ringR;
+      v.position.set(x,0,z);
+      setHeading(v,a);
+      scene.add(v);
+      trafficCars.push({mesh:v, angle:a, speed:0, kind});
+    }
+  }
 
   await spawnParkedEmergency();
   await spawnParkedCommons();
@@ -736,7 +804,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   function dispatchEmergency(pos){ const total=Math.max(1, emergencyUnits.length); emergencyUnits.forEach((unit,idx)=>{ const offsetAngle=(idx/total)*Math.PI*2; const offset=new THREE.Vector3(Math.cos(offsetAngle)*2.4,0,Math.sin(offsetAngle)*2.4); unit.target=pos.clone().add(offset); unit.state='responding'; unit.arrivalTimer=0; if(unit.siren){ unit.siren.phase=0; unit.siren.left.material.opacity=0.9; unit.siren.right.material.opacity=0.9; if(unit.siren.light){ unit.siren.light.intensity=14; } } }); }
 
-  const ARM_SPEED_BASE = 4.8; const speedRun = 7.2; const trafficTarget = 3 * speedRun; // 3x run speed
+  const ARM_SPEED_BASE = 4.8 * 2.5; const speedRun = 7.2 * 2.5; const trafficTarget = 3 * speedRun; // 3x run speed
 
   const rayEnemies=new Map();
   const modelCache=new Map();
@@ -775,20 +843,6 @@ document.title = 'Tirana 2040 • Last Man Standing';
   climbBtn.addEventListener('click', ()=>{ if(climbing){ climbing=false; return; } const n=nearestLadder(); if(n.dist<1.2){ climbing=true; ladderIdx=n.idx; const L=ladders[ladderIdx]; player.velocity.x=player.velocity.z=0; player.position.x=L.x; player.position.z=L.z; } });
   function doClimb(moveZ,dt){ const L=ladders[ladderIdx]; if(!L){ climbing=false; return; } const speed=2.6; if(moveZ>0.05) player.position.y = Math.min(L.y1+0.5, player.position.y + speed*dt); else if(moveZ<-0.05) player.position.y = Math.max(L.y0+0.4, player.position.y - speed*dt); if(Math.hypot(player.position.x-L.x, player.position.z-L.z)>0.9){ climbing=false; } }
 
-  const radar=$('radar'), rctx=radar.getContext('2d'); function resizeRadar(){ radar.width=radar.clientWidth; radar.height=radar.clientHeight; } resizeRadar(); addEventListener('resize', resizeRadar);
-  function drawRadar(){ const w=radar.width,h=radar.height; rctx.clearRect(0,0,w,h); rctx.fillStyle='rgba(14,18,32,0.96)'; rctx.fillRect(0,0,w,h); const cx=w/2, cy=h/2; const extent=Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.5 + ringR*0.55; const scale=Math.min(w,h)/(extent*1.9); rctx.strokeStyle='rgba(255,255,255,0.16)'; rctx.lineWidth=1; rctx.strokeRect(0.5,0.5,w-1,h-1); rctx.strokeStyle='rgba(255,255,255,0.22)'; rctx.lineWidth=2; rctx.beginPath(); rctx.arc(cx,cy,ringR*scale,0,Math.PI*2); rctx.stroke(); rctx.lineCap='round';
-    mapBuildings.forEach((b)=>{ const px=cx+(b.x-player.position.x)*scale; const py=cy+(b.z-player.position.z)*scale; const wpx=Math.max(3.5, b.w*scale); const hpx=Math.max(3.5, b.d*scale); if(px+wpx/2<0||px-wpx/2>w||py+hpx/2<0||py-hpx/2>h) return; rctx.fillStyle='rgba(148,163,184,0.28)'; rctx.fillRect(px-wpx/2, py-hpx/2, wpx, hpx); });
-    mapRoads.forEach((road)=>{ const x1=cx+(road.from.x-player.position.x)*scale; const y1=cy+(road.from.z-player.position.z)*scale; const x2=cx+(road.to.x-player.position.x)*scale; const y2=cy+(road.to.z-player.position.z)*scale; if((x1<-28&&x2<-28)||(x1>w+28&&x2>w+28)||(y1<-28&&y2<-28)||(y1>h+28&&y2>h+28)) return; const roadWidth=Math.max(1.2, (road.width||ROAD)*scale*0.68); rctx.strokeStyle='rgba(194,205,226,0.52)'; rctx.lineWidth=roadWidth; rctx.beginPath(); rctx.moveTo(x1,y1); rctx.lineTo(x2,y2); rctx.stroke(); rctx.strokeStyle='rgba(13,148,136,0.55)'; rctx.lineWidth=Math.max(1, roadWidth*0.25); rctx.beginPath(); rctx.moveTo(x1,y1); rctx.lineTo(x2,y2); rctx.stroke(); });
-    mapParks.forEach((park)=>{ const px=cx+(park.x-player.position.x)*scale; const py=cy+(park.z-player.position.z)*scale; const wpx=Math.max(4, park.w*scale); const hpx=Math.max(4, park.d*scale); if(px+wpx/2<0||px-wpx/2>w||py+hpx/2<0||py-hpx/2>h) return; const color=park.type==='fountain'?'rgba(72,133,237,0.48)': park.type==='basket'?'rgba(239,68,68,0.42)':'rgba(34,197,94,0.44)'; rctx.fillStyle=color; rctx.fillRect(px-wpx/2, py-hpx/2, wpx, hpx); rctx.strokeStyle='rgba(255,255,255,0.22)'; rctx.strokeRect(px-wpx/2, py-hpx/2, wpx, hpx); });
-    const nearbyRoads=mapRoads.slice().sort((a,b)=>{ const amx=(a.from.x+a.to.x)/2, amz=(a.from.z+a.to.z)/2; const bmx=(b.from.x+b.to.x)/2, bmz=(b.from.z+b.to.z)/2; const ad=Math.hypot(amx-player.position.x, amz-player.position.z); const bd=Math.hypot(bmx-player.position.x, bmz-player.position.z); return ad-bd; }).slice(0,6);
-    rctx.font='12px 600 system-ui'; rctx.fillStyle='rgba(241,245,249,0.9)'; nearbyRoads.forEach((road)=>{ if(!road.name) return; const midX=(road.from.x+road.to.x)/2; const midZ=(road.from.z+road.to.z)/2; const px=cx+(midX-player.position.x)*scale; const py=cy+(midZ-player.position.z)*scale; if(px<-14||px>w+14||py<-14||py>h+14) return; const label=road.name; const textW=rctx.measureText(label).width; rctx.fillText(label, px-textW/2, py-6); });
-    const landmarkSet=mapLandmarks.slice().sort((a,b)=>Math.hypot(a.x-player.position.x,a.z-player.position.z)-Math.hypot(b.x-player.position.x,b.z-player.position.z)).slice(0,6);
-    rctx.font='13px 700 system-ui'; landmarkSet.forEach((L)=>{ const px=cx+(L.x-player.position.x)*scale; const py=cy+(L.z-player.position.z)*scale; if(px<-14||px>w+14||py<-14||py>h+14) return; rctx.fillStyle='rgba(250,204,21,0.96)'; const text=L.label; const textW=rctx.measureText(text).width; rctx.fillText(text, px-textW/2, py+4); });
-    if(waypoint){ const wx=cx+(waypoint.x-player.position.x)*scale; const wy=cy+(waypoint.z-player.position.z)*scale; if(!(wx<-8||wx>w+8||wy<-8||wy>h+8)){ rctx.fillStyle='#66ccff'; rctx.beginPath(); rctx.arc(wx,wy,4,0,Math.PI*2); rctx.fill(); }}
-    rctx.strokeStyle='rgba(102,204,255,0.8)'; rctx.lineWidth=2; rctx.beginPath(); rctx.moveTo(cx,cy); rctx.lineTo(cx+Math.sin(yaw)*18, cy+Math.cos(yaw)*18); rctx.stroke();
-    rctx.fillStyle='#7da2ff'; rctx.beginPath(); rctx.arc(cx,cy,4,0,Math.PI*2); rctx.fill();
-    POIS.forEach((p)=>{ const px=cx+(p.pos.x-player.position.x)*scale; const py=cy+(p.pos.z-player.position.z)*scale; if(px<-10||px>w+10||py<-10||py>h+10) return; rctx.font='14px system-ui'; rctx.fillText(p.label, px-7, py-6); });
-  }
   const mapOverlay=$('mapOverlay'), mapCanvas=$('mapCanvas'), mctx=mapCanvas.getContext('2d'); function resizeMap(){ mapCanvas.width=mapCanvas.clientWidth; mapCanvas.height=mapCanvas.clientHeight; }
   function drawMap(){ resizeMap(); const w=mapCanvas.width,h=mapCanvas.height; const grad=mctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,'#0f172a'); grad.addColorStop(1,'#111827'); mctx.fillStyle=grad; mctx.fillRect(0,0,w,h); const cx=w/2, cy=h/2; const extent=Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.5 + ringR*0.7; const scale=Math.min(w,h)/(extent*2.05);
     mctx.save(); mctx.translate(cx,cy);
@@ -804,7 +858,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
     mctx.restore();
   }
   resizeMap(); addEventListener('resize', resizeMap);
-  $('radarBox').addEventListener('click', ()=>{ mapOverlay.style.display='flex'; requestAnimationFrame(()=>drawMap()); });
+  $('mapBtn').addEventListener('click', ()=>{ mapOverlay.style.display='flex'; requestAnimationFrame(()=>drawMap()); });
   $('mapClose').addEventListener('click', ()=>{ mapOverlay.style.display='none'; });
 
   let waypoint=null; let navGuide=null;
@@ -848,7 +902,6 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
     updateEmergencyUnits(dt);
 
-    drawRadar();
     if(!waypoint && navGuide){ updateNavGuide(); }
 
     world.step(1/90, dt, 3);
