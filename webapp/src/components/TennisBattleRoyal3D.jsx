@@ -1091,6 +1091,21 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       return v;
     }
 
+    function clampNetSpan(from, v, singlesLimit = halfW - 0.32) {
+      const vz = v.z;
+      if (Math.abs(vz) < 1e-4) return v;
+      const tNet = (0 - from.z) / vz;
+      if (tNet <= 0) return v;
+      const netX = from.x + v.x * tNet;
+      const limit = Math.max(0.2, singlesLimit);
+      const span = Math.abs(netX);
+      if (span > limit) {
+        const scale = limit / Math.max(span, 1e-4);
+        v.x *= scale;
+      }
+      return v;
+    }
+
     function placeCamera() {
       const servingDiag = !state.live && state.serveBy === 'player';
       if (servingDiag) {
@@ -1161,6 +1176,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const to = new THREE.Vector3(tx, ballR + 0.06, tz);
           let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.9, 1.08));
           v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 1.05);
+          clampNetSpan(pos.clone(), v0);
           vel.copy(v0.multiplyScalar(0.9 * BALL_SPEED_BOOST));
           state.awaitingServeBounce = true;
           state.rallyStarted = false;
@@ -1212,7 +1228,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       const baseSpeed = serve
         ? THREE.MathUtils.lerp(10.0, 20.5, force)
         : THREE.MathUtils.lerp(7.4, 17.2, force);
-      const lateral = THREE.MathUtils.clamp(plane.x * baseSpeed * 0.55, -6.8, 6.8);
+      const aimAssist = THREE.MathUtils.clamp(player.position.x / (halfW - 0.45), -1, 1);
+      const blended = THREE.MathUtils.clamp(plane.x * 0.9 + aimAssist * 0.35, -1, 1);
+      const lateral = THREE.MathUtils.clamp(blended * baseSpeed * 0.48, -6.0, 6.0);
       const forward = THREE.MathUtils.clamp(-plane.y * baseSpeed, -22.0, -5.5);
       const liftBase = serve ? 1.3 : 0.85;
       const liftGain = serve ? 1.5 : 1.2;
@@ -1232,6 +1250,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const shot = mapSwipeToShot(vx, vy, spd, { serve: true });
           const shotVec = new THREE.Vector3(shot.lateral, shot.lift, shot.forward);
           ensureNetClear(pos.clone(), shotVec, state.gravity, netH, ballR * 1.05);
+          clampNetSpan(pos.clone(), shotVec);
           vel.copy(shotVec.multiplyScalar(BALL_SPEED_BOOST));
           pos.y = Math.max(pos.y, 1.32);
           state.live = true;
@@ -1249,6 +1268,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const shot = mapSwipeToShot(vx, vy, spd, { serve: false });
           const shotVec = new THREE.Vector3(shot.lateral, shot.lift, shot.forward);
           ensureNetClear(pos.clone(), shotVec, state.gravity, netH, ballR * 0.9);
+          clampNetSpan(pos.clone(), shotVec);
           vel.copy(shotVec.multiplyScalar(BALL_SPEED_BOOST));
           player.userData.swing = 0.5 + 0.9 * shot.force;
           player.userData.swingLR = THREE.MathUtils.clamp(shot.lateral / 6.5, -1, 1);
@@ -1307,6 +1327,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           const to = new THREE.Vector3(cpuPlan.tx, ballR + 0.06, cpuPlan.tz);
           let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.82, 1.0));
           v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 0.9);
+          clampNetSpan(pos.clone(), v0);
           vel.copy(v0.multiplyScalar(0.95 * BALL_SPEED_BOOST));
           cpu.userData.swing = 1.18;
           cpu.userData.swingLR = THREE.MathUtils.clamp((cpuPlan.tx - cpu.position.x) / halfW, -1, 1);

@@ -881,14 +881,14 @@ export default function TableTennis3D({ player, ai }){
       v: new THREE.Vector3(0, 0, 0),
       w: new THREE.Vector3(0, 0, 0),
       gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -9.81, 0),
-      drag: physicsSettings.drag ?? 0.48,
+      drag: Math.max(0.22, (physicsSettings.drag ?? 0.48) * 0.82),
       tableRest: physicsSettings.tableRest ?? 0.82,
       tableFriction: physicsSettings.tableFriction ?? 0.18,
       paddleRest: physicsSettings.paddleRest ?? 0.98,
       paddleAim: physicsSettings.paddleAim ?? 0.6,
       paddleLift: physicsSettings.paddleLift ?? 0.14,
       netRest: physicsSettings.netRest ?? 0.4,
-      forceScale: THREE.MathUtils.clamp(physicsSettings.forceScale ?? 0.82, 0.5, 1.1),
+      forceScale: THREE.MathUtils.clamp((physicsSettings.forceScale ?? 0.82) * 1.18, 0.72, 1.32),
       state: 'serve', // serve | rally | dead
       lastTouch: null, // 'P' or 'O'
       bounces: { P: 0, O: 0 },
@@ -1285,7 +1285,7 @@ export default function TableTennis3D({ player, ai }){
           T.W / 2 - 0.12
         );
         const swipeAim = THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.16, -0.45, 0.45);
-        const randomAim = (Math.random() - 0.5) * 0.08 * Sx.forceScale;
+        const randomAim = (Math.random() - 0.5) * 0.045 * Sx.forceScale;
         const aimX = THREE.MathUtils.clamp(
           aimBias + swipeAim + randomAim,
           -T.W / 2 + 0.12,
@@ -1302,13 +1302,13 @@ export default function TableTennis3D({ player, ai }){
           TABLE_TOP + Sx.paddleLift + swingStrength * 0.18,
           aimZ
         );
-        const baseFlight = THREE.MathUtils.clamp(0.34 - swingStrength * 0.08, 0.26, 0.52);
-        const timeScale = THREE.MathUtils.clamp(1 / Sx.forceScale, 1, 1.5);
+        const baseFlight = THREE.MathUtils.clamp(0.26 - swingStrength * 0.06, 0.22, 0.44);
+        const timeScale = THREE.MathUtils.clamp(1 / (Sx.forceScale * 1.08), 0.82, 1.32);
         const flight = baseFlight * timeScale;
         let shot = solveShot(contact, target, Sx.gravity.y, flight);
         shot = ensureNetClear(contact, shot, Sx.gravity.y, NET_TOP, BALL_R * 0.85);
         shot.multiplyScalar(Sx.paddleRest);
-        const extraScale = THREE.MathUtils.clamp(Sx.forceScale, 0.55, 1);
+        const extraScale = THREE.MathUtils.clamp(Sx.forceScale, 0.65, 1.15);
         shot.x += THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.12 * extraScale, -0.9, 0.9);
         shot.y += THREE.MathUtils.clamp((paddleVel?.y || 0) * 0.08 * extraScale, -0.6, 0.6);
         shot.z += attackSign * THREE.MathUtils.clamp((paddleVel?.z || 0) * 0.14 * extraScale, -0.8, 0.8);
@@ -1530,9 +1530,9 @@ export default function TableTennis3D({ player, ai }){
             Sx.serveTimer -= frameDt;
             if (Sx.serveProgress === 'awaitServeHit' && Sx.serveTimer <= 0){
               const dir = Srv.side === 'P' ? -1 : 1;
-              const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.35, -0.7, 0.7);
-              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.55, 1);
-              Sx.v.set(aimX * serveScale, Math.max(1.8, 2.6 * serveScale), 1.55 * dir * serveScale);
+              const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.4, -0.78, 0.78);
+              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.65, 1.15);
+              Sx.v.set(aimX * serveScale * 1.1, Math.max(1.9, 2.9 * serveScale), 1.72 * dir * serveScale);
               Sx.w.set(0, 0, 0);
               Sx.serveProgress = 'awaitServerBounce';
               Sx.lastTouch = Srv.side;
