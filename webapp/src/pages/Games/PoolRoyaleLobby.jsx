@@ -6,12 +6,17 @@ import {
   ensureAccountId,
   getTelegramId,
   getTelegramPhotoUrl,
-  getTelegramFirstName
+  getTelegramFirstName,
+  getPlayerId
 } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction } from '../../utils/api.js';
+import {
+  getAccountBalance,
+  addTransaction,
+  getProfileByAccount,
+  getOnlineUsers
+} from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import poolOpponents from '../../data/poolOpponents.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -25,6 +30,7 @@ export default function PoolRoyaleLobby() {
   const searchParams = new URLSearchParams(search);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [playType, setPlayType] = useState('regular');
+  const [accountId] = useState(() => getPlayerId());
   const [matchmaking, setMatchmaking] = useState({
     active: false,
     candidates: [],
@@ -33,6 +39,9 @@ export default function PoolRoyaleLobby() {
   });
   const [matchError, setMatchError] = useState('');
   const pendingMatchParamsRef = useRef('');
+  const profileCacheRef = useRef(new Map());
+  const [onlineOpponents, setOnlineOpponents] = useState([]);
+  const [onlineStatus, setOnlineStatus] = useState({ loading: true, error: '' });
 
   useEffect(() => {
     try {
@@ -105,7 +114,65 @@ export default function PoolRoyaleLobby() {
 
   useEffect(() => {
     setMatchError('');
-  }, [stake.token, stake.amount, variant, playType]);
+  }, [stake.token, stake.amount, variant, playType, mode, onlineOpponents.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOnlineOpponents() {
+      try {
+        const res = await getOnlineUsers();
+        const raw = Array.isArray(res.users) ? res.users : [];
+        const filtered = raw.filter((user) => {
+          const id = String(user.id || '');
+          return id && id !== accountId;
+        });
+        const enriched = await Promise.all(
+          filtered.map(async (user) => {
+            const id = String(user.id);
+            let profile = profileCacheRef.current.get(id);
+            if (profile === undefined) {
+              try {
+                profile = await getProfileByAccount(id);
+              } catch {
+                profile = null;
+              }
+              profileCacheRef.current.set(id, profile);
+            }
+            return {
+              id,
+              name: formatOpponentName(profile, id),
+              city: 'Online now',
+              rating: estimateRatingFromId(id),
+              tokens: ['TPC'],
+              stakeRange: { min: 50, max: 20000 },
+              variants: ['uk', 'american', '9ball'],
+              tableSizes: ['8ft', '9ft'],
+              playTypes: ['regular'],
+              avatar: profile?.photo || '',
+              status: user.status || 'online'
+            };
+          })
+        );
+        if (!cancelled) {
+          setOnlineOpponents(enriched);
+          setOnlineStatus({ loading: false, error: '' });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setOnlineOpponents([]);
+          setOnlineStatus({ loading: false, error: 'Failed to load live opponents.' });
+        }
+      }
+    }
+
+    loadOnlineOpponents();
+    const id = setInterval(loadOnlineOpponents, 15000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [accountId]);
 
   const cancelMatchmaking = useCallback(() => {
     resetMatchmakingState();
@@ -160,7 +227,15 @@ export default function PoolRoyaleLobby() {
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
     if (playType !== 'training' && mode === 'online') {
-      const candidates = filterOpponentsByCriteria(poolOpponents, {
+      if (onlineStatus.loading) {
+        setMatchError('Loading real opponents… please try again.');
+        return;
+      }
+      if (onlineOpponents.length === 0) {
+        setMatchError('No real Pool Royale players are online right now.');
+        return;
+      }
+      const candidates = filterOpponentsByCriteria(onlineOpponents, {
         stake,
         variant,
         tableSize,
@@ -201,8 +276,8 @@ export default function PoolRoyaleLobby() {
             {matchError}
           </div>
         )}
-        <div className="space-y-2">
-          <h3 className="font-semibold">Type</h3>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
@@ -235,6 +310,18 @@ export default function PoolRoyaleLobby() {
               </button>
             ))}
           </div>
+          {mode === 'online' && (
+            <p className="text-xs text-text/70">
+              {onlineStatus.loading
+                ? 'Loading live opponents…'
+                : onlineOpponents.length > 0
+                  ? `${onlineOpponents.length} real players online`
+                  : 'No live opponents online right now'}
+            </p>
+          )}
+          {mode === 'online' && onlineStatus.error && (
+            <p className="text-xs text-red-400">{onlineStatus.error}</p>
+          )}
         </div>
       )}
       <div className="space-y-2">
@@ -278,26 +365,48 @@ export default function PoolRoyaleLobby() {
               </p>
             </div>
             <ul className="max-h-64 space-y-2 overflow-hidden">
-              {matchmaking.candidates.map((opponent, idx) => {
-                const isActive = idx === matchmaking.highlighted;
-                const range = opponent.stakeRange || {};
-                return (
-                  <li
-                    key={opponent.id}
-                    className={`rounded-xl border px-3 py-2 text-sm transition ${
-                      isActive
+            {matchmaking.candidates.map((opponent, idx) => {
+              const isActive = idx === matchmaking.highlighted;
+              const range = opponent.stakeRange || {};
+              const initials =
+                opponent.name?.trim().slice(0, 2).toUpperCase() || 'PR';
+              return (
+                <li
+                  key={opponent.id}
+                  className={`rounded-xl border px-3 py-2 text-sm transition ${
+                    isActive
                         ? 'border-primary bg-primary text-background shadow-lg shadow-primary/40 scale-[1.01]'
                         : 'border-white/10 bg-white/5 text-text/90'
                     }`}
                   >
                     <div className="flex items-center justify-between font-semibold">
-                      <span>
-                        {opponent.emoji} {opponent.name}
+                      <span className="flex items-center gap-2">
+                        {opponent.avatar ? (
+                          <img
+                            src={opponent.avatar}
+                            alt={opponent.name}
+                            className="h-8 w-8 rounded-full object-cover border border-white/30"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-xs font-bold">
+                            {initials}
+                          </span>
+                        )}
+                        <span>{opponent.name}</span>
                       </span>
                       <span>{opponent.rating} ELO</span>
                     </div>
+                    <div className="text-xs opacity-80 flex items-center justify-between">
+                      <span>
+                        {opponent.city} • {opponent.variants?.join('/') || 'All variants'}
+                      </span>
+                      {opponent.status && (
+                        <span className="uppercase">{opponent.status}</span>
+                      )}
+                    </div>
                     <div className="text-xs opacity-80">
-                      {opponent.city} • {opponent.variants?.join('/') || 'All variants'} • {range.min?.toLocaleString('en-US') ?? 0}
+                      {range.min?.toLocaleString('en-US') ?? 0}
                       {range.max ? `-${range.max.toLocaleString('en-US')}` : '+'} {stake.token}
                     </div>
                   </li>
@@ -339,4 +448,30 @@ function filterOpponentsByCriteria(opponents, criteria) {
     const typeMatch = !opponent.playTypes || opponent.playTypes.includes(playType);
     return tokenMatch && stakeMatch && variantMatch && tableMatch && typeMatch;
   });
+}
+
+function formatOpponentName(profile, accountId) {
+  const nickname = profile?.nickname?.trim();
+  if (nickname) return nickname;
+  const fullName = `${profile?.firstName || ''} ${profile?.lastName || ''}`.trim();
+  if (fullName) return fullName;
+  const suffix = accountId ? accountId.slice(-4).toUpperCase() : '????';
+  return `Player ${suffix}`;
+}
+
+function estimateRatingFromId(id) {
+  if (!id) return 1500;
+  const hash = hashString(id);
+  const offset = hash % 400;
+  return 1500 - 200 + offset;
+}
+
+function hashString(value) {
+  if (!value) return 0;
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
 }
