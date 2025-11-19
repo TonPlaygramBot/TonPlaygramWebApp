@@ -385,7 +385,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.42; // further bump plate depth so all six chrome trims share a chunkier profile
+const CHROME_PLATE_THICKNESS_SCALE = 0.6; // thicken fascia depth so corner and side plates share the same chunky profile
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
@@ -1016,6 +1016,10 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
+const WOOD_REPEAT_SCALE_MIN = 0.5;
+const WOOD_REPEAT_SCALE_MAX = 1.8;
+const DEFAULT_WOOD_REPEAT_SCALE = 1;
+const WOOD_REPEAT_SCALE_STORAGE_KEY = 'poolWoodGrainScale';
 
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
@@ -1394,6 +1398,21 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   sheenRoughness: 0.42,
   envMapIntensity: 1.25
 });
+
+const clampWoodRepeatScaleValue = (value) => {
+  if (!Number.isFinite(value)) return DEFAULT_WOOD_REPEAT_SCALE;
+  return THREE.MathUtils.clamp(value, WOOD_REPEAT_SCALE_MIN, WOOD_REPEAT_SCALE_MAX);
+};
+
+function scaleWoodRepeatVector (repeatVec, scale) {
+  const vec = repeatVec?.isVector2
+    ? repeatVec.clone()
+    : new THREE.Vector2(repeatVec?.x ?? 1, repeatVec?.y ?? 1)
+  const divisor = scale <= 0 ? 1 : scale
+  vec.x /= divisor
+  vec.y /= divisor
+  return vec
+}
 
 function applySharedWoodSurfaceProps(material) {
   if (!material) return;
@@ -1804,9 +1823,148 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
+// Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
+// popular tournament felts so every option mirrors a real pool cloth.
+const CLOTH_TEXTURE_PRESETS = Object.freeze({
+  freshGreen: Object.freeze({
+    id: 'freshGreen',
+    palette: {
+      shadow: 0x155b33,
+      base: 0x2f9753,
+      accent: 0x41b467,
+      highlight: 0x62d88b
+    },
+    sparkle: 1,
+    stray: 1
+  }),
+  tournamentBlue: Object.freeze({
+    id: 'tournamentBlue',
+    palette: {
+      shadow: 0x0f2f4b,
+      base: 0x1f5f93,
+      accent: 0x2f84c7,
+      highlight: 0x7ac0ff
+    },
+    sparkle: 0.9,
+    stray: 0.85
+  }),
+  classicOlive: Object.freeze({
+    id: 'classicOlive',
+    palette: {
+      shadow: 0x1b2f1a,
+      base: 0x3e5a2c,
+      accent: 0x587a3e,
+      highlight: 0x8bb05b
+    },
+    sparkle: 0.78,
+    stray: 1.1
+  }),
+  deepBurgundy: Object.freeze({
+    id: 'deepBurgundy',
+    palette: {
+      shadow: 0x2c0c18,
+      base: 0x551829,
+      accent: 0x7d2339,
+      highlight: 0xb34b64
+    },
+    sparkle: 0.72,
+    stray: 1.2
+  }),
+  graphite: Object.freeze({
+    id: 'graphite',
+    palette: {
+      shadow: 0x0f1117,
+      base: 0x2e313b,
+      accent: 0x4a4f5d,
+      highlight: 0x7d8596
+    },
+    sparkle: 0.65,
+    stray: 0.9
+  }),
+  arcticIce: Object.freeze({
+    id: 'arcticIce',
+    palette: {
+      shadow: 0x1a3b48,
+      base: 0x4d90ac,
+      accent: 0x7cc0da,
+      highlight: 0xbfe7f5
+    },
+    sparkle: 1.08,
+    stray: 0.95
+  })
+});
+
+const DEFAULT_CLOTH_TEXTURE_KEY = 'freshGreen';
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 }
+  {
+    id: 'freshGreen',
+    label: 'Tour Green',
+    color: 0x3fba73,
+    textureKey: 'freshGreen',
+    detail: {
+      bumpMultiplier: 1,
+      sheen: 0.58,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.52
+    }
+  },
+  {
+    id: 'tournamentBlue',
+    label: 'Tournament Blue',
+    color: 0x2a8fdb,
+    textureKey: 'tournamentBlue',
+    detail: {
+      bumpMultiplier: 1.08,
+      sheen: 0.64,
+      clearcoat: 0.08,
+      envMapIntensity: 0.12
+    }
+  },
+  {
+    id: 'classicOlive',
+    label: 'Classic Olive',
+    color: 0x5a7f45,
+    textureKey: 'classicOlive',
+    detail: {
+      bumpMultiplier: 1.12,
+      roughness: 0.82,
+      sheenRoughness: 0.58
+    }
+  },
+  {
+    id: 'deepBurgundy',
+    label: 'Granito Burgundy',
+    color: 0x7c1f33,
+    textureKey: 'deepBurgundy',
+    detail: {
+      bumpMultiplier: 1.18,
+      sheen: 0.52,
+      clearcoat: 0.05
+    }
+  },
+  {
+    id: 'graphite',
+    label: 'Arcadia Graphite',
+    color: 0x37414d,
+    textureKey: 'graphite',
+    detail: {
+      bumpMultiplier: 0.92,
+      roughness: 0.72,
+      envMapIntensity: 0.16
+    }
+  },
+  {
+    id: 'arcticIce',
+    label: 'Powder Blue',
+    color: 0x9cd8f2,
+    textureKey: 'arcticIce',
+    detail: {
+      bumpMultiplier: 0.98,
+      sheen: 0.66,
+      sheenRoughness: 0.38
+    }
+  }
 ]);
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
@@ -2219,13 +2377,38 @@ const CLOTH_THREAD_PITCH = 12 * 1.196; // enlarge thread spacing (~30%) so fibre
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
-  let cache = null;
+  const cache = new Map();
   const clamp255 = (value) => Math.max(0, Math.min(255, value));
-  return () => {
-    if (cache) return cache;
+  const cloneTexture = (texture) => {
+    if (!texture) return null;
+    const clone = texture.clone();
+    clone.image = texture.image;
+    clone.needsUpdate = true;
+    return clone;
+  };
+  const toRgb = (hex) => {
+    const color = new THREE.Color(hex ?? 0xffffff);
+    return {
+      r: Math.round(color.r * 255),
+      g: Math.round(color.g * 255),
+      b: Math.round(color.b * 255)
+    };
+  };
+  return (textureKey = DEFAULT_CLOTH_TEXTURE_KEY) => {
+    const preset =
+      CLOTH_TEXTURE_PRESETS[textureKey] ??
+      CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY];
+    if (cache.has(preset.id)) {
+      const entry = cache.get(preset.id);
+      return {
+        map: cloneTexture(entry.map),
+        bump: cloneTexture(entry.bump),
+        presetId: preset.id
+      };
+    }
     if (typeof document === 'undefined') {
-      cache = { map: null, bump: null };
-      return cache;
+      cache.set(preset.id, { map: null, bump: null });
+      return { map: null, bump: null, presetId: preset.id };
     }
 
     const SIZE = CLOTH_TEXTURE_SIZE;
@@ -2238,16 +2421,20 @@ const createClothTextures = (() => {
     canvas.width = canvas.height = SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
-      cache = { map: null, bump: null };
-      return cache;
+      cache.set(preset.id, { map: null, bump: null });
+      return { map: null, bump: null, presetId: preset.id };
     }
+
+    const palette = preset.palette || CLOTH_TEXTURE_PRESETS[DEFAULT_CLOTH_TEXTURE_KEY].palette;
+    const shadow = toRgb(palette.shadow);
+    const base = toRgb(palette.base);
+    const accent = toRgb(palette.accent);
+    const highlight = toRgb(palette.highlight);
+    const sparkleScale = Number.isFinite(preset.sparkle) ? preset.sparkle : 1;
+    const strayScale = Number.isFinite(preset.stray) ? preset.stray : 1;
 
     const image = ctx.createImageData(SIZE, SIZE);
     const data = image.data;
-    const shadow = { r: 0x1a, g: 0x64, b: 0x39 };
-    const base = { r: 0x2f, g: 0x97, b: 0x53 };
-    const accent = { r: 0x41, g: 0xb4, b: 0x67 };
-    const highlight = { r: 0x62, g: 0xd8, b: 0x8b };
     const hashNoise = (x, y, seedX, seedY, phase = 0) =>
       Math.sin((x * seedX + y * seedY + phase) * 0.02454369260617026) * 0.5 + 0.5;
     const fiberNoise = (x, y) =>
@@ -2299,9 +2486,15 @@ const createClothTextures = (() => {
         const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.6);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
-        const sparkle = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
+        const sparkleRaw = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
+        const sparkle = THREE.MathUtils.clamp(
+          0.5 + (sparkleRaw - 0.5) * sparkleScale,
+          0,
+          1
+        );
         const fuzz = Math.pow(fiber, 1.2);
-        const hair = hairFiber(x, y);
+        const hairRaw = hairFiber(x, y);
+        const hair = THREE.MathUtils.clamp(0.5 + (hairRaw - 0.5) * strayScale, 0, 1);
         const tonal = THREE.MathUtils.clamp(
           0.56 +
             (weave - 0.5) * 0.6 * CLOTH_TEXTURE_INTENSITY +
@@ -2381,8 +2574,8 @@ const createClothTextures = (() => {
     bumpCanvas.width = bumpCanvas.height = SIZE;
     const bumpCtx = bumpCanvas.getContext('2d');
     if (!bumpCtx) {
-      cache = { map: colorMap, bump: null };
-      return cache;
+      cache.set(preset.id, { map: colorMap, bump: null });
+      return { map: cloneTexture(colorMap), bump: null, presetId: preset.id };
     }
     const bumpImage = bumpCtx.createImageData(SIZE, SIZE);
     const bumpData = bumpImage.data;
@@ -2398,7 +2591,8 @@ const createClothTextures = (() => {
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const fuzz = Math.pow(fiber, 1.22);
-        const hair = hairFiber(x, y);
+        const hairRaw = hairFiber(x, y);
+        const hair = THREE.MathUtils.clamp(0.5 + (hairRaw - 0.5) * strayScale, 0, 1);
         const bump = THREE.MathUtils.clamp(
           0.56 +
             (weave - 0.5) * 0.9 * CLOTH_BUMP_INTENSITY +
@@ -2432,10 +2626,78 @@ const createClothTextures = (() => {
     bumpMap.magFilter = THREE.LinearFilter;
     bumpMap.needsUpdate = true;
 
-    cache = { map: colorMap, bump: bumpMap };
-    return cache;
+    cache.set(preset.id, { map: colorMap, bump: bumpMap });
+    return {
+      map: cloneTexture(colorMap),
+      bump: cloneTexture(bumpMap),
+      presetId: preset.id
+    };
   };
 })();
+
+function replaceMaterialTexture (material, prop, baseTexture, fallbackRepeat) {
+  if (!material) return;
+  const prev = material[prop];
+  if (prev?.dispose) {
+    prev.dispose();
+  }
+  if (!baseTexture) {
+    material[prop] = null;
+    material.needsUpdate = true;
+    return;
+  }
+  const next = baseTexture.clone();
+  next.image = baseTexture.image;
+  if (prev?.repeat?.isVector2) {
+    next.repeat.copy(prev.repeat);
+  } else if (fallbackRepeat?.isVector2) {
+    next.repeat.copy(fallbackRepeat);
+  } else if (fallbackRepeat && Number.isFinite(fallbackRepeat.x) && Number.isFinite(fallbackRepeat.y)) {
+    next.repeat.set(fallbackRepeat.x, fallbackRepeat.y);
+  }
+  if (prev?.center?.isVector2) {
+    next.center.copy(prev.center);
+  } else {
+    next.center.set(0.5, 0.5);
+  }
+  next.rotation = typeof prev?.rotation === 'number' ? prev.rotation : 0;
+  next.needsUpdate = true;
+  material[prop] = next;
+  material.needsUpdate = true;
+}
+
+function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TEXTURE_KEY) {
+  if (!finishInfo?.clothMat) return;
+  const textures = createClothTextures(textureKey);
+  const baseRepeatValue = finishInfo.clothMat.userData?.baseRepeat ?? finishInfo.clothBase?.baseRepeat ?? 1;
+  const repeatRatioValue = finishInfo.clothMat.userData?.repeatRatio ?? finishInfo.clothBase?.repeatRatio ?? 1;
+  const fallbackRepeat = new THREE.Vector2(baseRepeatValue, baseRepeatValue * repeatRatioValue);
+  replaceMaterialTexture(finishInfo.clothMat, 'map', textures.map, fallbackRepeat);
+  replaceMaterialTexture(finishInfo.clothMat, 'bumpMap', textures.bump, fallbackRepeat);
+  if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
+    finishInfo.clothMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+  }
+  if (finishInfo.cushionMat) {
+    replaceMaterialTexture(finishInfo.cushionMat, 'map', textures.map, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.cushionMat, 'bumpMap', textures.bump, fallbackRepeat);
+    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
+      finishInfo.cushionMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+    }
+  }
+  if (finishInfo.clothEdgeMat) {
+    replaceMaterialTexture(finishInfo.clothEdgeMat, 'map', textures.map, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.clothEdgeMat, 'bumpMap', textures.bump, fallbackRepeat);
+    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
+      finishInfo.clothEdgeMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+    }
+  }
+  finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
+    if (!mesh?.material) return;
+    replaceMaterialTexture(mesh.material, 'map', textures.map, fallbackRepeat);
+    replaceMaterialTexture(mesh.material, 'bumpMap', textures.bump, fallbackRepeat);
+  });
+  finishInfo.clothTextureKey = textureKey;
+}
 
 function resolveRepeatVector(settings, material) {
   if (!settings) {
@@ -2528,16 +2790,18 @@ function applyWoodTextureToMaterial(material, repeat) {
   const repeatVec = resolveRepeatVector(repeat, material);
   const rotation = resolveRotation(repeat, material);
   const textureSize = resolveTextureSize(repeat, material);
+  const repeatScale = clampWoodRepeatScaleValue(repeat?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
+  const scaledRepeat = scaleWoodRepeatVector(repeatVec, repeatScale);
   const hadOptions = Boolean(material.userData?.__woodOptions);
   const options = ensureMaterialWoodOptions(material, {
-    repeat: repeatVec,
+    repeat: scaledRepeat,
     rotation,
     textureSize
   });
   if (options) {
     const repeatChanged =
-      Math.abs((options.repeat?.x ?? 1) - repeatVec.x) > 1e-6 ||
-      Math.abs((options.repeat?.y ?? 1) - repeatVec.y) > 1e-6;
+      Math.abs((options.repeat?.x ?? 1) - scaledRepeat.x) > 1e-6 ||
+      Math.abs((options.repeat?.y ?? 1) - scaledRepeat.y) > 1e-6;
     const rotationChanged =
       Math.abs((options.rotation ?? 0) - rotation) > 1e-6;
     const textureSizeChanged =
@@ -2546,7 +2810,7 @@ function applyWoodTextureToMaterial(material, repeat) {
     if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged)) {
       applyWoodTextures(material, {
         ...options,
-        repeat: { x: repeatVec.x, y: repeatVec.y },
+        repeat: { x: scaledRepeat.x, y: scaledRepeat.y },
         rotation,
         textureSize: textureSize ?? options.textureSize
       });
@@ -2554,14 +2818,14 @@ function applyWoodTextureToMaterial(material, repeat) {
   } else {
     if (material.map) {
       material.map = material.map.clone();
-      material.map.repeat.copy(repeatVec);
+      material.map.repeat.copy(scaledRepeat);
       material.map.center.set(0.5, 0.5);
       material.map.rotation = rotation;
       material.map.needsUpdate = true;
     }
     if (material.roughnessMap) {
       material.roughnessMap = material.roughnessMap.clone();
-      material.roughnessMap.repeat.copy(repeatVec);
+      material.roughnessMap.repeat.copy(scaledRepeat);
       material.roughnessMap.center.set(0.5, 0.5);
       material.roughnessMap.rotation = rotation;
       material.roughnessMap.needsUpdate = true;
@@ -2571,10 +2835,11 @@ function applyWoodTextureToMaterial(material, repeat) {
   applySharedWoodSurfaceProps(material);
   material.userData = material.userData || {};
   if (material.userData.woodRepeat?.isVector2) {
-    material.userData.woodRepeat.copy(repeatVec);
+    material.userData.woodRepeat.copy(scaledRepeat);
   } else {
-    material.userData.woodRepeat = repeatVec.clone();
+    material.userData.woodRepeat = scaledRepeat.clone();
   }
+  material.userData.woodRepeatScale = repeatScale;
   material.userData.woodRotation = rotation;
   if (typeof textureSize === 'number') {
     material.userData.woodTextureSize = textureSize;
@@ -4689,6 +4954,11 @@ function Table3D(
       : (typeof finish === 'string' && TABLE_FINISHES[finish]) ||
         (finish?.id && TABLE_FINISHES[finish.id]) ||
         TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID];
+  const woodRepeatScale = clampWoodRepeatScaleValue(
+    resolvedFinish?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+  );
+  const clothTextureKey =
+    resolvedFinish?.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
   const palette = resolvedFinish?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
   const defaultWoodOption =
     WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
@@ -4713,7 +4983,10 @@ function Table3D(
   };
   const frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
-  const legMat = rawMaterials.leg ?? frameMat;
+  let legMat = rawMaterials.leg ?? frameMat;
+  if (legMat === frameMat) {
+    legMat = frameMat.clone();
+  }
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
@@ -4729,7 +5002,7 @@ function Table3D(
     accentConfig.material.needsUpdate = true;
   }
 
-  const { map: clothMap, bump: clothBump } = createClothTextures();
+  const { map: clothMap, bump: clothBump } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
   const clothHighlight = new THREE.Color(0xffffff);
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.24);
@@ -4806,7 +5079,10 @@ function Table3D(
     clearcoatRoughness: clothMat.clearcoatRoughness,
     envMapIntensity: clothMat.envMapIntensity,
     emissiveIntensity: clothMat.emissiveIntensity,
-    bumpScale: clothMat.bumpScale
+    bumpScale: clothMat.bumpScale,
+    baseRepeat,
+    repeatRatio,
+    baseBumpScale
   };
   const clothMaterials = [clothMat, cushionMat, clothEdgeMat];
   const applyClothDetail = (detail) => {
@@ -4896,7 +5172,9 @@ function Table3D(
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
     applyClothDetail,
-    woodTextureId: finishParts.woodTextureId
+    woodTextureId: finishParts.woodTextureId,
+    clothTextureKey,
+    woodRepeatScale
   };
 
   const clothExtendBase = Math.max(
@@ -5307,14 +5585,16 @@ function Table3D(
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
     rotation: woodRailSurface.rotation,
-    textureSize: woodRailSurface.textureSize
+    textureSize: woodRailSurface.textureSize,
+    woodRepeatScale
   });
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
       rotation: woodRailSurface.rotation,
-      textureSize: woodRailSurface.textureSize
+      textureSize: woodRailSurface.textureSize,
+      woodRepeatScale
     });
     mesh.material.needsUpdate = true;
   });
@@ -6770,7 +7050,8 @@ function Table3D(
   applyWoodTextureToMaterial(frameMat, {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
-    textureSize: woodFrameSurface.textureSize
+    textureSize: woodFrameSurface.textureSize,
+    woodRepeatScale
   });
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, {
@@ -6868,7 +7149,10 @@ function applyTableFinishToTable(table, finish) {
   };
   const frameMat = rawMaterials.frame ?? getFallbackMaterial('frame');
   const railMat = rawMaterials.rail ?? getFallbackMaterial('rail');
-  const legMat = rawMaterials.leg ?? frameMat;
+  let legMat = rawMaterials.leg ?? frameMat;
+  if (legMat === frameMat) {
+    legMat = frameMat.clone();
+  }
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
@@ -6930,17 +7214,22 @@ function applyTableFinishToTable(table, finish) {
     resolvedWoodOption?.rail,
     resolvedWoodOption?.frame ?? woodSurfaces.rail ?? woodSurfaces.frame ?? nextFrameSurface
   );
+  const woodRepeatScale = clampWoodRepeatScaleValue(
+    resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
+  );
   applyWoodTextureToMaterial(railMat, {
     repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
     rotation: nextRailSurface.rotation,
-    textureSize: nextRailSurface.textureSize
+    textureSize: nextRailSurface.textureSize,
+    woodRepeatScale
   });
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
       rotation: nextRailSurface.rotation,
-      textureSize: nextRailSurface.textureSize
+      textureSize: nextRailSurface.textureSize,
+      woodRepeatScale
     });
     if (mesh.material.color && railMat.color) {
       mesh.material.color.copy(railMat.color);
@@ -6950,7 +7239,8 @@ function applyTableFinishToTable(table, finish) {
   applyWoodTextureToMaterial(frameMat, {
     repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
     rotation: nextFrameSurface.rotation,
-    textureSize: nextFrameSurface.textureSize
+    textureSize: nextFrameSurface.textureSize,
+    woodRepeatScale
   });
   if (legMat !== frameMat) {
     applyWoodTextureToMaterial(legMat, {
@@ -6967,6 +7257,13 @@ function applyTableFinishToTable(table, finish) {
   woodSurfaces.frame = cloneWoodSurfaceConfig(nextFrameSurface);
   finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
   finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
+  finishInfo.woodRepeatScale = woodRepeatScale;
+
+  const clothTextureKey =
+    resolvedFinish?.clothTextureKey ?? finishInfo.clothTextureKey ?? DEFAULT_CLOTH_TEXTURE_KEY;
+  if (finishInfo.clothTextureKey !== clothTextureKey) {
+    updateClothTexturesForFinish(finishInfo, clothTextureKey);
+  }
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
   if (accentMesh) {
@@ -7066,6 +7363,18 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       }
     }
     return DEFAULT_WOOD_GRAIN_ID;
+  });
+  const [woodGrainScale, setWoodGrainScale] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(WOOD_REPEAT_SCALE_STORAGE_KEY);
+      if (stored != null) {
+        const parsed = Number.parseFloat(stored);
+        if (Number.isFinite(parsed)) {
+          return clampWoodRepeatScaleValue(parsed);
+        }
+      }
+    }
+    return DEFAULT_WOOD_REPEAT_SCALE;
   });
   const [chromeColorId, setChromeColorId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -7404,16 +7713,20 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const clothSelection = activeClothOption;
     const woodSelection = activeWoodTexture;
     const linerSelection = POCKET_LINER_OPTIONS[0];
+    const repeatScale = clampWoodRepeatScaleValue(woodGrainScale);
+    const clothTextureKey = clothSelection.textureKey ?? clothSelection.id ?? DEFAULT_CLOTH_TEXTURE_KEY;
     return {
       ...baseFinish,
       clothDetail:
         clothSelection.detail ?? baseFinish?.clothDetail ?? null,
+      clothTextureKey,
       colors: {
         ...baseFinish.colors,
         cloth: clothSelection.color
       },
       woodTexture: woodSelection,
       woodTextureId: woodSelection?.id ?? DEFAULT_WOOD_GRAIN_ID,
+      woodRepeatScale: repeatScale,
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -7452,7 +7765,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture, woodGrainScale]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -7481,6 +7794,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(WOOD_REPEAT_SCALE_STORAGE_KEY, String(woodGrainScale));
+    }
+  }, [woodGrainScale]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -14309,10 +14627,36 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   })}
               </div>
             </div>
-            <div>
-              <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                Chrome Plates
-              </h3>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Wood Grain Size
+                </h3>
+                <div className="mt-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2">
+                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-100/70">
+                    <span>Scale</span>
+                    <span className="text-white/80">{Math.round(woodGrainScale * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={WOOD_REPEAT_SCALE_MIN}
+                    max={WOOD_REPEAT_SCALE_MAX}
+                    step={0.05}
+                    value={woodGrainScale}
+                    onChange={(e) => {
+                      const value = Number.parseFloat(e.target.value);
+                      if (Number.isFinite(value)) {
+                        setWoodGrainScale(clampWoodRepeatScaleValue(value));
+                      }
+                    }}
+                    className="mt-2 w-full accent-emerald-300"
+                    aria-label="Wood grain size"
+                  />
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Chrome Plates
+                </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {CHROME_COLOR_OPTIONS.map((option) => {
                     const active = option.id === chromeColorId;
