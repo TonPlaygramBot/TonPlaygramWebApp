@@ -1806,7 +1806,7 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'freshGreen', label: 'Fresh Green', color: 0x2d7f4b }
+  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 }
 ]);
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
@@ -1815,8 +1815,8 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'balanced60',
     label: '60 Hz Smooth',
     fps: 60,
-    resolution: '1280×720',
-    description: 'Balanced frame pacing tuned for modern mobile HD displays.'
+    resolution: '1920×1080',
+    description: 'Balanced frame pacing tuned for modern mobile displays.'
   },
   {
     id: 'fullHd',
@@ -3444,15 +3444,6 @@ const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
-const USE_STATIC_BROADCAST_CAMERA = true;
-const STATIC_BROADCAST_HEIGHT = TABLE_Y + TABLE.THICK + BALL_R * 9.6;
-const STATIC_BROADCAST_LOOK_TARGET = new THREE.Vector3(
-  0,
-  TABLE_Y + TABLE.THICK * 0.35,
-  0
-);
-const STATIC_BROADCAST_DISTANCE_PAD = 1.04;
-const STATIC_BROADCAST_SWITCH_THRESHOLD = BALL_R * 2.4;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -3558,23 +3549,6 @@ const AI_SHOT_PREVIEW_DELAY_MS = 450;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
-const isCueBall = (ball) => {
-  if (!ball) return false;
-  if (ball.isCue) return true;
-  if (ball.id === 0) return true;
-  if (typeof ball.id === 'string') {
-    const normalized = ball.id.toLowerCase();
-    return normalized === 'cue' || normalized === 'cue_ball';
-  }
-  return false;
-};
-const findCueBall = (balls = []) => balls.find((ball) => isCueBall(ball));
-const formatMatchTimer = (totalSeconds = 0) => {
-  const seconds = Math.max(0, Math.floor(totalSeconds));
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-};
 const resolveShortRailBroadcastDirection = ({
   pocketCenter = null,
   approachDir = null,
@@ -7694,10 +7668,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
-  const staticBroadcastViewRef = useRef({
-    lastSide: 1,
-    distance: SHORT_RAIL_CAMERA_DISTANCE
-  });
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -7731,17 +7701,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     timerValueRef.current = timer;
   }, [timer]);
-  const [matchSeconds, setMatchSeconds] = useState(0);
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const startedAt = Date.now();
-    setMatchSeconds(0);
-    const id = window.setInterval(() => {
-      setMatchSeconds(Math.floor((Date.now() - startedAt) / 1000));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, []);
-  const matchClock = useMemo(() => formatMatchTimer(matchSeconds), [matchSeconds]);
   const spinRef = useRef({ x: 0, y: 0 });
   const spinRequestRef = useRef({ x: 0, y: 0 });
   const resetSpinRef = useRef(() => {});
@@ -9456,39 +9415,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           );
         };
 
-        const resolveStaticBroadcastFrame = () => {
-          const cueBall = findCueBall(ballsRef.current || []);
-          const state = staticBroadcastViewRef.current || { lastSide: 1 };
-          let side = state.lastSide ?? 1;
-          const cueAxis = cueBall?.pos?.y;
-          if (Number.isFinite(cueAxis) && Math.abs(cueAxis) > STATIC_BROADCAST_SWITCH_THRESHOLD) {
-            side = cueAxis >= 0 ? 1 : -1;
-          }
-          state.lastSide = side;
-          const baseDistance =
-            computeShortRailBroadcastDistance(camera) * STATIC_BROADCAST_DISTANCE_PAD;
-          state.distance = baseDistance;
-          const position = new THREE.Vector3(0, STATIC_BROADCAST_HEIGHT, side * baseDistance);
-          const target = STATIC_BROADCAST_LOOK_TARGET.clone();
-          return { position, target, side };
-        };
-
         const updateCamera = () => {
-          if (USE_STATIC_BROADCAST_CAMERA) {
-            const broadcastFrame = resolveStaticBroadcastFrame();
-            camera.position.copy(broadcastFrame.position);
-            camera.lookAt(broadcastFrame.target);
-            lastCameraTargetRef.current.copy(broadcastFrame.target);
-            updateBroadcastCameras({
-              railDir: broadcastFrame.side,
-              targetWorld: broadcastFrame.target.clone(),
-              focusWorld: broadcastFrame.target.clone(),
-              lerp: 1
-            });
-            updatePocketCameraState(false);
-            activeRenderCameraRef.current = camera;
-            return camera;
-          }
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -14306,23 +14233,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           Scroll and click to change the cue
         </div>
       )}
-
-      <div className="pointer-events-none absolute top-4 left-1/2 z-40 -translate-x-1/2">
-        <div
-          className="pointer-events-auto flex items-center gap-3 rounded-full border border-emerald-400/50 bg-black/75 px-5 py-2 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
-          style={{
-            transform: `scale(${uiScale})`,
-            transformOrigin: 'top center'
-          }}
-        >
-          <span className="text-[10px] uppercase tracking-[0.45em] text-emerald-200/80">
-            Match Time
-          </span>
-          <span className="font-mono text-lg tracking-[0.3em] text-emerald-100">
-            {matchClock}
-          </span>
-        </div>
-      </div>
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
