@@ -426,17 +426,9 @@ const KEEPER_CENTER_EASE = 0.08;
 const TARGET_PADDING_X = 0.35;
 const TARGET_PADDING_Y = 0.28;
 const TARGET_SEPARATION = 0.32;
-const TARGET_FRAME_RATE = 90;
-const FIXED_TIME_STEP = 1 / TARGET_FRAME_RATE;
-const TARGET_FRAME_TIME = 1 / TARGET_FRAME_RATE;
+const FIXED_TIME_STEP = 1 / 60;
 const MAX_FRAME_DELTA = 0.08;
 const MAX_ACCUMULATED_TIME = 0.24;
-const MAX_HIGH_RES_PIXEL_RATIO = 2.5;
-const MIN_HIGH_RES_PIXEL_RATIO = 1.25;
-const PIXEL_RATIO_RAMP_UP = 0.02;
-const PIXEL_RATIO_RAMP_DOWN = 0.05;
-const FRAME_TIME_HEADROOM_RATIO = 0.85;
-const FRAME_TIME_OVERRUN_RATIO = 1.15;
 const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 1.82, START_Z + 4.1);
 const CAMERA_IDLE_FOCUS = new THREE.Vector3(0, 1.48, GOAL_CONFIG.z);
 const CAMERA_ACTIVE_MIN_DISTANCE = 3.4;
@@ -578,11 +570,7 @@ export default function FreeKick3DGame({ config }) {
     if (!host) return;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    const maxPixelRatio = Math.min(MAX_HIGH_RES_PIXEL_RATIO, devicePixelRatio * 1.5);
-    const minPixelRatio = Math.min(Math.max(MIN_HIGH_RES_PIXEL_RATIO, devicePixelRatio), maxPixelRatio);
-    const startingPixelRatio = maxPixelRatio;
-    renderer.setPixelRatio(startingPixelRatio);
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(host.clientWidth, host.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -607,7 +595,7 @@ export default function FreeKick3DGame({ config }) {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(repeatX, repeatZ);
-      texture.anisotropy = Math.min(16, maxAnisotropy);
+      texture.anisotropy = Math.min(8, maxAnisotropy);
       texture.colorSpace = THREE.SRGBColorSpace;
     };
     const applyGrassTexture = (texture, material, repeatX, repeatZ) => {
@@ -2314,10 +2302,7 @@ export default function FreeKick3DGame({ config }) {
       cameraCurrentPosition: camera.position.clone(),
       cameraFocus: CAMERA_IDLE_FOCUS.clone(),
       cameraShakeIntensity: 0,
-      cameraShakeOffset: new THREE.Vector3(),
-      pixelRatio: startingPixelRatio,
-      maxPixelRatio,
-      minPixelRatio
+      cameraShakeOffset: new THREE.Vector3()
     };
 
     state.netSim = netSim;
@@ -2987,22 +2972,6 @@ export default function FreeKick3DGame({ config }) {
       camera.up.copy(upVector);
     };
 
-    const adjustRendererPixelRatio = () => {
-      if (!state.renderer) return;
-      const frameTime = state.smoothedFrameTime;
-      if (!Number.isFinite(frameTime)) return;
-      let desiredRatio = state.pixelRatio;
-      if (frameTime > TARGET_FRAME_TIME * FRAME_TIME_OVERRUN_RATIO) {
-        desiredRatio = Math.max(state.minPixelRatio, state.pixelRatio - PIXEL_RATIO_RAMP_DOWN);
-      } else if (frameTime < TARGET_FRAME_TIME * FRAME_TIME_HEADROOM_RATIO) {
-        desiredRatio = Math.min(state.maxPixelRatio, state.pixelRatio + PIXEL_RATIO_RAMP_UP);
-      }
-      if (Math.abs(desiredRatio - state.pixelRatio) >= 0.01) {
-        state.pixelRatio = desiredRatio;
-        state.renderer.setPixelRatio(desiredRatio);
-      }
-    };
-
     const animate = () => {
       if (state.disposed) return;
       const now = performance.now();
@@ -3050,7 +3019,6 @@ export default function FreeKick3DGame({ config }) {
 
       updateCameraRig(state.smoothedFrameTime);
       updateAimLine();
-      adjustRendererPixelRatio();
       renderer.render(scene, camera);
       state.animationId = requestAnimationFrame(animate);
     };
