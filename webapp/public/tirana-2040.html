@@ -545,7 +545,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const ringStripe=new THREE.Mesh(new THREE.RingGeometry(ringR-2, ringR-1.4, 128), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.22, side:THREE.DoubleSide })); ringStripe.rotation.x=-Math.PI/2; ringStripe.position.y=0.012; city.add(ringStripe);
   mapRoads.push({type:'ring', name:ringRoadName, from:{x:0,z:0}, to:{x:0,z:0}, width:24, radius:ringR});
   mapLandmarks.push({x:ringR*0.75,z:0,label:`🛣 ${ringRoadName}`});
-  const cityHalfX=BLOCKS_X*CELL*0.5, cityHalfZ=BLOCKS_Z*CELL*0.5; const connectorTargets=[
+  const connectorTargets=[
     {from:{x:cityHalfX+ROAD*0.5, z:0}, to:{x:ringR-8, z:0}},
     {from:{x:-cityHalfX-ROAD*0.5, z:0}, to:{x:-ringR+8, z:0}},
     {from:{x:0, z:cityHalfZ+ROAD*0.5}, to:{x:0, z:ringR-8}},
