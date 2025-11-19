@@ -785,11 +785,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     ball.scale.setScalar(s);
     scene.add(ball);
     const ballPhysics = {
-      mass: 0.058,
-      airDensity: 1.18,
-      dragCoeff: 0.55,
-      magnusCoeff: 0.21,
-      spinDecay: 1.65
+      mass: 0.0577,
+      airDensity: 1.2,
+      dragCoeff: 0.52,
+      magnusCoeff: 0.24,
+      spinDecay: 1.35
     };
     const ballArea = Math.PI * ballR * ballR;
     const dragFactor = (0.5 * ballPhysics.airDensity * ballPhysics.dragCoeff * ballArea) / ballPhysics.mass;
@@ -871,6 +871,26 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const accVec = new THREE.Vector3();
     const tangentVel = new THREE.Vector3();
     const spinSurfaceVel = new THREE.Vector3();
+    function respondToCourtImpact(impactSpeed) {
+      const forwardSpin = THREE.MathUtils.clamp(spin.x / 70, -1, 1);
+      const sideSpin = THREE.MathUtils.clamp(spin.y / 55, -1, 1);
+      const bounceScale = THREE.MathUtils.clamp(state.cor + impactSpeed / 42, state.cor, 0.94);
+      const spinDampen = 1 - 0.18 * Math.abs(forwardSpin);
+      const skidInfluence = THREE.MathUtils.clamp(impactSpeed / 24, 0.35, 1);
+      vel.y = impactSpeed * bounceScale * spinDampen;
+      tangentVel.set(vel.x, 0, vel.z);
+      spinSurfaceVel.set(-spin.z * ballR, 0, spin.x * ballR);
+      const bite = THREE.MathUtils.lerp(0.25, 0.64, skidInfluence);
+      tangentVel.addScaledVector(spinSurfaceVel, bite);
+      tangentVel.x += sideSpin * 0.4;
+      tangentVel.multiplyScalar(1 - state.fric * skidInfluence);
+      vel.x = tangentVel.x;
+      vel.z = tangentVel.z;
+      const spinDecay = THREE.MathUtils.lerp(0.52, 0.7, skidInfluence);
+      spin.x *= spinDecay;
+      spin.y *= 0.58;
+      spin.z *= Math.max(0.48, 0.72 - Math.abs(forwardSpin) * 0.12);
+    }
     let lastHitter = 'player';
     ball.position.copy(pos);
 
@@ -1261,9 +1281,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       }
       plane.y = THREE.MathUtils.clamp(plane.y, 0.24, 1);
       plane.normalize();
-      const baseSpeed = serve
+      const contactHeight = THREE.MathUtils.clamp((pos.y - ballR) / 2.4, 0, 1);
+      const incomingSpeed = THREE.MathUtils.clamp(vel.length() / 28, 0, 1);
+      const timing = THREE.MathUtils.lerp(0.88, 1.08, contactHeight) * THREE.MathUtils.lerp(1.08, 0.94, incomingSpeed);
+      const baseSpeedRaw = serve
         ? THREE.MathUtils.lerp(10.0, 20.5, force)
         : THREE.MathUtils.lerp(7.4, 17.2, force);
+      const baseSpeed = baseSpeedRaw * timing;
       const aimAssist = THREE.MathUtils.clamp(player.position.x / (halfW - 0.45), -1, 1);
       const blended = THREE.MathUtils.clamp(plane.x * 0.9 + aimAssist * 0.35, -1, 1);
       const lateral = THREE.MathUtils.clamp(blended * baseSpeed * 0.48, -6.0, 6.0);
@@ -1271,16 +1295,18 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       const liftBase = serve ? 1.3 : 0.85;
       const liftGain = serve ? 1.5 : 1.2;
       const liftSwipe = Math.max(0, -vy) / (serve ? 1200 : 1450);
-      const lift = liftBase + liftGain * force + liftSwipe;
+      const lift = (liftBase + liftGain * force + liftSwipe) * THREE.MathUtils.lerp(1.18, 0.9, contactHeight);
       const topSpinInfluence = THREE.MathUtils.clamp(Math.max(0, -vy) / (serve ? 900 : 1150), 0, 1);
       const sliceInfluence = THREE.MathUtils.clamp(Math.max(0, vy) / (serve ? 1150 : 1500), 0, 1);
-      const spinStrength = serve
+      const spinStrengthRaw = serve
         ? THREE.MathUtils.lerp(24, 46, force)
         : THREE.MathUtils.lerp(32, 68, force);
+      const spinStrength = spinStrengthRaw * THREE.MathUtils.lerp(1.2, 0.78, contactHeight);
       const topComponent = (topSpinInfluence - sliceInfluence * 0.6) * spinStrength;
       const sideComponent = plane.x * spinStrength * 0.35;
       const forwardSign = Math.sign(forward === 0 ? -1 : forward);
-      const spinVec = new THREE.Vector3(forwardSign * topComponent, sideComponent, 0);
+      const twistComponent = THREE.MathUtils.clamp(plane.x, -0.85, 0.85) * spinStrength * (serve ? 0.12 : 0.2);
+      const spinVec = new THREE.Vector3(forwardSign * topComponent, sideComponent, twistComponent);
       return { lateral, forward, lift, force, spin: spinVec };
     }
 
@@ -1497,20 +1523,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         if (pos.y <= ballR) {
           pos.y = ballR;
           if (vel.y < 0) {
-            const impactSpeed = Math.abs(vel.y);
-            const bounceScale = THREE.MathUtils.clamp(state.cor + impactSpeed / 42, state.cor, 0.94);
-            vel.y = impactSpeed * bounceScale;
+            respondToCourtImpact(Math.abs(vel.y));
           }
-          tangentVel.set(vel.x, 0, vel.z);
-          spinSurfaceVel.set(-spin.z * ballR, 0, spin.x * ballR);
-          const skidInfluence = THREE.MathUtils.clamp(Math.abs(vel.y) / 24, 0.3, 1);
-          tangentVel.addScaledVector(spinSurfaceVel, 0.35);
-          tangentVel.multiplyScalar(1 - state.fric * skidInfluence);
-          vel.x = tangentVel.x;
-          vel.z = tangentVel.z;
-          spin.x *= 0.72;
-          spin.y *= 0.65;
-          spin.z *= 0.72;
           hitTTL = 1.0;
           hitRing.position.set(pos.x, 0.002, pos.z);
           const side = pos.z >= 0 ? 'player' : 'cpu';
