@@ -663,14 +663,13 @@ public class CueCamera : MonoBehaviour
         Vector3 forward = rotation * Vector3.forward;
 
         Bounds broadcastBounds = GetBroadcastBounds(focus);
-        focus.x = 0f;
-        focus.z = broadcastBounds.center.z;
+        Vector3 railCentre = new Vector3(tableBounds.center.x, focus.y, broadcastBounds.center.z);
 
-        float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
+        float distance = ComputeBroadcastDistance(railCentre, height, forward, cam, broadcastBounds);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
-        Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
+        Vector3 lookTarget = new Vector3(tableBounds.center.x, railCentre.y, tableBounds.center.z) + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
 
-        ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
+        ApplyShortRailCamera(railCentre, forward, distance, height, minimumHeightOffset, lookTarget);
     }
 
     private Bounds GetBroadcastBounds(Vector3 focus)
