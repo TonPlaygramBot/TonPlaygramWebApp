@@ -128,7 +128,7 @@ export default function AirHockey3D({ player, ai }) {
     const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.06 / 0.12);
     const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.08 / 0.12);
     const PUCK_RADIUS = TABLE.w * 0.027272727272727268;
-    const PUCK_HEIGHT = PUCK_RADIUS * (0.02 / 0.06);
+    const PUCK_HEIGHT = PUCK_RADIUS * (0.06 / 0.06);
 
     const camera = new THREE.PerspectiveCamera(
       56,
@@ -140,7 +140,7 @@ export default function AirHockey3D({ player, ai }) {
     const world = new THREE.Group();
     scene.add(world);
 
-    const TABLE_ELEVATION_FACTOR = 1.2;
+    const TABLE_ELEVATION_FACTOR = 5;
     const tableFloorGap =
       POOL_ENVIRONMENT.tableSurfaceY - POOL_ENVIRONMENT.floorY;
     const tableLift = tableFloorGap * (TABLE_ELEVATION_FACTOR - 1);
@@ -438,10 +438,12 @@ export default function AirHockey3D({ player, ai }) {
     const you = makeMallet(0xff5577);
     you.position.set(0, 0, TABLE.h * 0.42);
     tableGroup.add(you);
+    malletState.you.prev.copy(you.position);
 
     const aiMallet = makeMallet(0x66ddff);
     aiMallet.position.set(0, 0, -TABLE.h * 0.36);
     tableGroup.add(aiMallet);
+    malletState.ai.prev.copy(aiMallet.position);
 
     const puck = new THREE.Mesh(
       new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
@@ -526,7 +528,18 @@ export default function AirHockey3D({ player, ai }) {
 
     const S = {
       vel: new THREE.Vector3(0, 0, 0),
-      friction: 0.94
+      friction: 0.965
+    };
+
+    const malletState = {
+      you: {
+        prev: new THREE.Vector3(),
+        vel: new THREE.Vector3()
+      },
+      ai: {
+        prev: new THREE.Vector3(),
+        vel: new THREE.Vector3()
+      }
     };
 
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -567,40 +580,63 @@ export default function AirHockey3D({ player, ai }) {
     });
     renderer.domElement.addEventListener('mousemove', onMove);
 
-    const HIT_FORCE = 0.5 * SPEED_SCALE;
-    const MAX_SPEED = 0.08 * SPEED_SCALE;
-    const SERVE_SPEED = 0.05 * SPEED_SCALE;
+    const HIT_FORCE = 0.7 * SPEED_SCALE;
+    const MAX_SPEED = 0.12 * SPEED_SCALE;
+    const SERVE_SPEED = 0.07 * SPEED_SCALE;
+    const CONTACT_TRANSFER = 0.35;
 
-    const handleCollision = (mallet) => {
+    const handleCollision = (mallet, state) => {
       const dx = puck.position.x - mallet.position.x;
       const dz = puck.position.z - mallet.position.z;
       const d2 = dx * dx + dz * dz;
-      const collideRadius = MALLET_RADIUS + PUCK_RADIUS * 0.3;
+      const collideRadius = MALLET_RADIUS + PUCK_RADIUS * 0.5;
       if (d2 < collideRadius * collideRadius) {
-        S.vel.x += dx * HIT_FORCE;
-        S.vel.z += dz * HIT_FORCE;
+        const dist = Math.max(Math.sqrt(d2), 1e-5);
+        const nx = dx / dist;
+        const nz = dz / dist;
+        const overlap = collideRadius - dist;
+        if (overlap > 0.0001) {
+          puck.position.x += nx * overlap;
+          puck.position.z += nz * overlap;
+        }
+        const directionalImpulse =
+          HIT_FORCE +
+          Math.max(0, state.vel.x * nx + state.vel.z * nz) * CONTACT_TRANSFER;
+        S.vel.x += nx * directionalImpulse;
+        S.vel.z += nz * directionalImpulse;
         playHit();
       }
     };
 
     const aiUpdate = (dt) => {
-      const guardLine = -MALLET_RADIUS;
-      const defensiveZ = -TABLE.h * 0.36;
-      const targetZ =
-        puck.position.z < guardLine
-          ? clamp(
-              puck.position.z + MALLET_RADIUS * 0.8,
-              -TABLE.h / 2 + MALLET_RADIUS,
-              guardLine - MALLET_RADIUS
-            )
-          : defensiveZ;
-      const targetX = clamp(
-        puck.position.x,
+      const guardLine = -MALLET_RADIUS * 0.5;
+      const defensiveZ = -TABLE.h * 0.38;
+      const anticipation = THREE.MathUtils.clamp(
+        0.16 + Math.abs(S.vel.z) * 1.5,
+        0.16,
+        0.55
+      );
+      const predictedX = clamp(
+        puck.position.x + S.vel.x * anticipation * 60,
         -TABLE.w / 2 + MALLET_RADIUS,
         TABLE.w / 2 - MALLET_RADIUS
       );
-      const chaseSpeed = 3.4;
-      aiMallet.position.x += (targetX - aiMallet.position.x) * chaseSpeed * dt;
+      let targetZ = defensiveZ;
+      if (puck.position.z < guardLine) {
+        targetZ = clamp(
+          puck.position.z + S.vel.z * anticipation * 45,
+          -TABLE.h / 2 + MALLET_RADIUS,
+          guardLine - MALLET_RADIUS
+        );
+      } else if (puck.position.z < 0 && S.vel.z > 0) {
+        targetZ = clamp(
+          puck.position.z + MALLET_RADIUS * 1.5,
+          defensiveZ,
+          -MALLET_RADIUS * 0.5
+        );
+      }
+      const chaseSpeed = puck.position.z < guardLine ? 4.8 : 3.6;
+      aiMallet.position.x += (predictedX - aiMallet.position.x) * chaseSpeed * dt;
       aiMallet.position.z += (targetZ - aiMallet.position.z) * chaseSpeed * dt;
     };
 
@@ -609,6 +645,8 @@ export default function AirHockey3D({ player, ai }) {
       S.vel.set(0, 0, towardTop ? -SERVE_SPEED : SERVE_SPEED);
       you.position.set(0, 0, TABLE.h * 0.42);
       aiMallet.position.set(0, 0, -TABLE.h * 0.36);
+      malletState.you.prev.copy(you.position);
+      malletState.ai.prev.copy(aiMallet.position);
     };
 
     // loop
@@ -658,8 +696,25 @@ export default function AirHockey3D({ player, ai }) {
       }
 
       aiUpdate(dt);
-      handleCollision(you);
-      handleCollision(aiMallet);
+      malletState.you.vel
+        .set(
+          you.position.x - malletState.you.prev.x,
+          0,
+          you.position.z - malletState.you.prev.z
+        )
+        .divideScalar(Math.max(0.016, dt));
+      malletState.you.prev.copy(you.position);
+
+      malletState.ai.vel
+        .set(
+          aiMallet.position.x - malletState.ai.prev.x,
+          0,
+          aiMallet.position.z - malletState.ai.prev.z
+        )
+        .divideScalar(Math.max(0.016, dt));
+      malletState.ai.prev.copy(aiMallet.position);
+      handleCollision(you, malletState.you);
+      handleCollision(aiMallet, malletState.ai);
       renderer.render(scene, camera);
       raf.current = requestAnimationFrame(tick);
     };
@@ -708,6 +763,15 @@ export default function AirHockey3D({ player, ai }) {
           alt=""
           className="w-5 h-5 rounded-full object-cover"
         />
+      </div>
+      <div className="absolute inset-x-2 bottom-12 text-white text-[10px] bg-black/60 backdrop-blur-sm rounded px-3 py-2 space-y-1">
+        <p className="text-xs font-semibold">Rregullat e lojës</p>
+        <ul className="list-disc list-inside space-y-0.5">
+          <li>Kush shënon 5 gola i pari fiton ndeshjen.</li>
+          <li>Mbro llogoren tënde; prekja jashtë zonës tënde nuk lejohet.</li>
+          <li>Sa herë godet tapën me shkop ajo duhet të prekë tabelën.</li>
+          <li>Nëse shënon autogol, kundërshtari merr pikën.</li>
+        </ul>
       </div>
       <button
         onClick={() => window.location.reload()}
