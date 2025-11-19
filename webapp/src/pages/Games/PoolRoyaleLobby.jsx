@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
@@ -11,7 +11,6 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import poolOpponents from '../../data/poolOpponents.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -25,14 +24,6 @@ export default function PoolRoyaleLobby() {
   const searchParams = new URLSearchParams(search);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [playType, setPlayType] = useState('regular');
-  const [matchmaking, setMatchmaking] = useState({
-    active: false,
-    candidates: [],
-    highlighted: 0,
-    matched: null
-  });
-  const [matchError, setMatchError] = useState('');
-  const pendingMatchParamsRef = useRef('');
 
   useEffect(() => {
     try {
@@ -41,78 +32,7 @@ export default function PoolRoyaleLobby() {
     } catch {}
   }, []);
 
-  useEffect(() => {
-    if (!matchmaking.active || matchmaking.candidates.length === 0) return;
-    const interval = setInterval(() => {
-      setMatchmaking((prev) => {
-        if (!prev.active || prev.candidates.length === 0) return prev;
-        const next = (prev.highlighted + 1) % prev.candidates.length;
-        return { ...prev, highlighted: next };
-      });
-    }, 140);
-    return () => clearInterval(interval);
-  }, [matchmaking.active, matchmaking.candidates.length]);
-
-  useEffect(() => {
-    if (!matchmaking.active || matchmaking.matched) return;
-    if (matchmaking.candidates.length === 0) return;
-    const stopDelay = setTimeout(() => {
-      setMatchmaking((prev) => {
-        if (!prev.active || prev.candidates.length === 0 || prev.matched) {
-          return prev;
-        }
-        const pickIndex = Math.floor(Math.random() * prev.candidates.length);
-        return {
-          ...prev,
-          highlighted: pickIndex,
-          matched: prev.candidates[pickIndex]
-        };
-      });
-    }, 2200 + Math.random() * 800);
-    return () => clearTimeout(stopDelay);
-  }, [matchmaking.active, matchmaking.matched, matchmaking.candidates.length]);
-
-  const resetMatchmakingState = useCallback(() => {
-    setMatchmaking({
-      active: false,
-      candidates: [],
-      highlighted: 0,
-      matched: null
-    });
-    pendingMatchParamsRef.current = '';
-  }, []);
-
-  const finalizeMatch = useCallback(
-    (opponent) => {
-      if (!opponent) return;
-      const stored = pendingMatchParamsRef.current || '';
-      resetMatchmakingState();
-      const params = new URLSearchParams(stored);
-      params.set('opponentId', opponent.id);
-      if (opponent.name) params.set('opponentName', opponent.name);
-      if (opponent.rating) params.set('opponentRating', String(opponent.rating));
-      if (opponent.city) params.set('opponentCity', opponent.city);
-      navigate(`/games/pollroyale?${params.toString()}`);
-    },
-    [navigate, resetMatchmakingState]
-  );
-
-  useEffect(() => {
-    if (!matchmaking.active || !matchmaking.matched) return;
-    const delay = setTimeout(() => finalizeMatch(matchmaking.matched), 900);
-    return () => clearTimeout(delay);
-  }, [matchmaking.active, matchmaking.matched, finalizeMatch]);
-
-  useEffect(() => {
-    setMatchError('');
-  }, [stake.token, stake.amount, variant, playType]);
-
-  const cancelMatchmaking = useCallback(() => {
-    resetMatchmakingState();
-  }, [resetMatchmakingState]);
-
   const startGame = async () => {
-    if (matchmaking.active) return;
     let tgId;
     let accountId;
     if (playType !== 'training') {
@@ -159,50 +79,21 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    if (playType !== 'training' && mode === 'online') {
-      const candidates = filterOpponentsByCriteria(poolOpponents, {
-        stake,
-        variant,
-        tableSize,
-        playType
-      });
-      if (candidates.length === 0) {
-        setMatchError(
-          'No online opponents match those settings right now. Try another stake or variant.'
-        );
-        return;
-      }
-      setMatchError('');
-      pendingMatchParamsRef.current = params.toString();
-      setMatchmaking({
-        active: true,
-        candidates,
-        highlighted: Math.floor(Math.random() * candidates.length),
-        matched: null
-      });
-      return;
-    }
     navigate(`/games/pollroyale?${params.toString()}`);
   };
 
   const winnerParam = searchParams.get('winner');
 
   return (
-    <>
-      <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-        {winnerParam && (
-          <div className="text-center font-semibold">
-            {winnerParam === '1' ? 'You won!' : 'CPU won!'}
-          </div>
-        )}
-        <h2 className="text-xl font-bold text-center">Pool Royale Lobby</h2>
-        {matchError && (
-          <div className="rounded-md border border-red-500/60 bg-red-500/10 px-3 py-2 text-center text-sm text-red-200">
-            {matchError}
-          </div>
-        )}
-        <div className="space-y-2">
-          <h3 className="font-semibold">Type</h3>
+    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
+      {winnerParam && (
+        <div className="text-center font-semibold">
+          {winnerParam === '1' ? 'You won!' : 'CPU won!'}
+        </div>
+      )}
+      <h2 className="text-xl font-bold text-center">Pool Royale Lobby</h2>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
@@ -224,15 +115,24 @@ export default function PoolRoyaleLobby() {
           <div className="flex gap-2">
             {[
               { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online' }
-            ].map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
-              >
-                {label}
-              </button>
+              { id: 'online', label: '1v1 Online', disabled: true }
+            ].map(({ id, label, disabled }) => (
+              <div key={id} className="relative">
+                <button
+                  onClick={() => !disabled && setMode(id)}
+                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                    disabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={disabled}
+                >
+                  {label}
+                </button>
+                {disabled && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                    Under development
+                  </span>
+                )}
+              </div>
             ))}
           </div>
         </div>
@@ -267,76 +167,6 @@ export default function PoolRoyaleLobby() {
       >
         START
       </button>
-      </div>
-      {matchmaking.active && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="w-full max-w-md space-y-4 rounded-2xl border border-white/10 bg-background/95 p-4 shadow-2xl">
-            <div className="text-center">
-              <p className="text-xs uppercase tracking-wide text-text/70">Matching criteria</p>
-              <p className="text-sm font-semibold text-text">
-                {variant.toUpperCase()} • {tableSize.toUpperCase()} • {stake.amount.toLocaleString('en-US')} {stake.token}
-              </p>
-            </div>
-            <ul className="max-h-64 space-y-2 overflow-hidden">
-              {matchmaking.candidates.map((opponent, idx) => {
-                const isActive = idx === matchmaking.highlighted;
-                const range = opponent.stakeRange || {};
-                return (
-                  <li
-                    key={opponent.id}
-                    className={`rounded-xl border px-3 py-2 text-sm transition ${
-                      isActive
-                        ? 'border-primary bg-primary text-background shadow-lg shadow-primary/40 scale-[1.01]'
-                        : 'border-white/10 bg-white/5 text-text/90'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between font-semibold">
-                      <span>
-                        {opponent.emoji} {opponent.name}
-                      </span>
-                      <span>{opponent.rating} ELO</span>
-                    </div>
-                    <div className="text-xs opacity-80">
-                      {opponent.city} • {opponent.variants?.join('/') || 'All variants'} • {range.min?.toLocaleString('en-US') ?? 0}
-                      {range.max ? `-${range.max.toLocaleString('en-US')}` : '+'} {stake.token}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="text-center text-sm font-medium text-text">
-              {matchmaking.matched
-                ? `Matched with ${matchmaking.matched.name}`
-                : 'Spinning through available challengers…'}
-            </p>
-            <button
-              onClick={cancelMatchmaking}
-              className="w-full rounded-lg border border-white/20 px-4 py-2 text-sm font-semibold text-text hover:bg-white/10"
-            >
-              Cancel search
-            </button>
-          </div>
-        </div>
-      )}
-    </>
+    </div>
   );
-}
-
-function stakeMatches(range = {}, amount) {
-  const min = Number.isFinite(range.min) ? range.min : 0;
-  const max = Number.isFinite(range.max) ? range.max : Infinity;
-  return amount >= min && amount <= max;
-}
-
-function filterOpponentsByCriteria(opponents, criteria) {
-  const { stake, variant, tableSize, playType } = criteria;
-  if (!stake) return [];
-  return opponents.filter((opponent) => {
-    const tokenMatch = !opponent.tokens || opponent.tokens.includes(stake.token);
-    const stakeMatch = !opponent.stakeRange || stakeMatches(opponent.stakeRange, stake.amount);
-    const variantMatch = !opponent.variants || opponent.variants.includes(variant);
-    const tableMatch = !opponent.tableSizes || opponent.tableSizes.includes(tableSize);
-    const typeMatch = !opponent.playTypes || opponent.playTypes.includes(playType);
-    return tokenMatch && stakeMatch && variantMatch && tableMatch && typeMatch;
-  });
 }

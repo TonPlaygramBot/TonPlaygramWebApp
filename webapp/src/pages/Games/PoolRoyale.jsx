@@ -1384,15 +1384,15 @@ const SHARED_WOOD_REPEAT = Object.freeze({
   y: TABLE_WOOD_REPEAT.y
 });
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.18,
-  roughnessVariance: 0.24,
-  roughness: 0.4,
-  metalness: 0.12,
-  clearcoat: 0.36,
-  clearcoatRoughness: 0.24,
-  sheen: 0.32,
-  sheenRoughness: 0.55,
-  envMapIntensity: 1.05
+  roughnessBase: 0.12,
+  roughnessVariance: 0.18,
+  roughness: 0.32,
+  metalness: 0.18,
+  clearcoat: 0.58,
+  clearcoatRoughness: 0.12,
+  sheen: 0.26,
+  sheenRoughness: 0.42,
+  envMapIntensity: 1.25
 });
 
 function applySharedWoodSurfaceProps(material) {
@@ -1445,8 +1445,8 @@ const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
 });
 
 const POOL_ROYALE_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.24,
-  roughnessVariance: 0.3
+  roughnessBase: 0.16,
+  roughnessVariance: 0.22
 });
 
 const applySnookerStyleWoodPreset = (materials, finishId) => {
@@ -2357,34 +2357,10 @@ const createClothTextures = (() => {
         const softR = baseR + (r - baseR) * CLOTH_SOFT_BLEND;
         const softG = baseG + (g - baseG) * CLOTH_SOFT_BLEND;
         const softB = baseB + (b - baseB) * CLOTH_SOFT_BLEND;
-        const nx = (x - SIZE / 2) / (SIZE / 2);
-        const ny = (y - SIZE / 2) / (SIZE / 2);
-        const radial = Math.sqrt(nx * nx + ny * ny);
-        const vignette = THREE.MathUtils.clamp(
-          1 - Math.pow(radial, 1.35) * 0.28,
-          0.7,
-          1.08
-        );
-        const seam = THREE.MathUtils.clamp(
-          0.94 + Math.sin((x + y) * 0.012) * 0.04 + Math.cos((x - y) * 0.018) * 0.02,
-          0.82,
-          1.12
-        );
-        const wearSeed = hashNoise(x + 120.57, y - 47.73, 17.41, 91.17, 3.9);
-        const breakIn = THREE.MathUtils.clamp(
-          0.92 + Math.pow(wearSeed, 3.1) * 0.12,
-          0.88,
-          1.12
-        );
-        const shading = THREE.MathUtils.clamp(vignette * seam * breakIn, 0.72, 1.18);
-        const rimGlow = Math.pow(Math.max(0, 1 - radial), 3.2) * 0.16;
-        const finalR = softR * shading + (highlight.r - softR) * rimGlow;
-        const finalG = softG * shading + (highlight.g - softG) * rimGlow;
-        const finalB = softB * shading + (highlight.b - softB) * rimGlow;
         const i = (y * SIZE + x) * 4;
-        data[i + 0] = clamp255(finalR);
-        data[i + 1] = clamp255(finalG);
-        data[i + 2] = clamp255(finalB);
+        data[i + 0] = clamp255(softR);
+        data[i + 1] = clamp255(softG);
+        data[i + 2] = clamp255(softB);
         data[i + 3] = 255;
       }
     }
@@ -7687,6 +7663,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
+  const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
@@ -8098,6 +8075,64 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     updateHudPanels();
   }, [updateHudPanels]);
+
+  // Removed camera rotation helpers previously triggered by UI buttons
+
+  const toggleView = () => {
+    const cam = cameraRef.current;
+    const sph = sphRef.current;
+    const fit = fitRef.current;
+    if (!cam || !sph || !fit) return;
+    const next = !topViewRef.current;
+    const start = {
+      radius: sph.radius,
+      phi: sph.phi,
+      theta: sph.theta
+    };
+    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
+      const targetMargin = next
+        ? 1.05
+        : window.innerHeight > window.innerWidth
+          ? 1.6
+          : 1.4;
+    const targetRadius = fitRadius(cam, targetMargin);
+    const target = {
+      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
+      phi: next ? 0.0001 : last3DRef.current.phi,
+      theta: next ? sph.theta : last3DRef.current.theta
+    };
+    const duration = 600;
+    const t0 = performance.now();
+    function anim(t) {
+      const k = Math.min(1, (t - t0) / duration);
+      const ease = k * (2 - k);
+      sph.radius = start.radius + (target.radius - start.radius) * ease;
+      sph.phi = start.phi + (target.phi - start.phi) * ease;
+      sph.theta = start.theta + (target.theta - start.theta) * ease;
+      const targetPos = new THREE.Vector3(
+        playerOffsetRef.current,
+        ORBIT_FOCUS_BASE_Y,
+        0
+      ).multiplyScalar(worldScaleFactor);
+      const tmpSphAnim = sph.clone
+        ? sph.clone()
+        : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
+      cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
+      cam.lookAt(targetPos);
+      if (k < 1) requestAnimationFrame(anim);
+      else {
+        topViewRef.current = next;
+        setTopView(next);
+        if (rendererRef.current) {
+          rendererRef.current.domElement.style.transform = next
+            ? 'scale(0.9)'
+            : 'scale(1)';
+        }
+        fit(targetMargin);
+      }
+    }
+    requestAnimationFrame(anim);
+  };
 
   useEffect(() => {
     if (hud.over) return;
@@ -9200,7 +9235,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
         const getMaxOrbitRadius = () =>
-          Math.min(CAMERA.maxR, orbitRadiusLimitRef.current ?? CAMERA.maxR);
+          topViewRef.current
+            ? CAMERA.maxR
+            : Math.min(CAMERA.maxR, orbitRadiusLimitRef.current ?? CAMERA.maxR);
 
         const clampOrbitRadius = (value, minRadius = CAMERA.minR) => {
           const maxRadius = getMaxOrbitRadius();
@@ -9463,6 +9500,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
+          } else if (topViewRef.current) {
+            lookTarget = getDefaultOrbitTarget().multiplyScalar(
+              worldScaleFactor
+            );
+            camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
+            camera.lookAt(lookTarget);
+            renderCamera = camera;
+            broadcastArgs.focusWorld =
+              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+            broadcastArgs.targetWorld = null;
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -10605,20 +10652,26 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         sphRef.current = sph;
         fitRef.current = fit;
         topViewRef.current = false;
-        const marginTarget =
-          window.innerHeight > window.innerWidth
-            ? STANDING_VIEW_MARGIN_PORTRAIT
-            : STANDING_VIEW_MARGIN_LANDSCAPE;
-        const margin = Math.max(STANDING_VIEW.margin, marginTarget);
+        setTopView(false);
+        const margin = Math.max(
+          STANDING_VIEW.margin,
+          topViewRef.current
+            ? 1.05
+            : window.innerHeight > window.innerWidth
+              ? STANDING_VIEW_MARGIN_PORTRAIT
+              : STANDING_VIEW_MARGIN_LANDSCAPE
+        );
         fit(margin);
         applyWorldScaleRef.current = () => {
           const changed = applyWorldScale();
           if (changed) {
             const nextMargin = Math.max(
               STANDING_VIEW.margin,
-              window.innerHeight > window.innerWidth
-                ? STANDING_VIEW_MARGIN_PORTRAIT
-                : STANDING_VIEW_MARGIN_LANDSCAPE
+              topViewRef.current
+                ? 1.05
+                : window.innerHeight > window.innerWidth
+                  ? STANDING_VIEW_MARGIN_PORTRAIT
+                  : STANDING_VIEW_MARGIN_LANDSCAPE
             );
             fit(nextMargin);
             updateCamera();
@@ -11049,9 +11102,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       };
       applyWorldScale();
       updateCamera();
-      const responsiveMargin =
-        window.innerHeight > window.innerWidth ? 1.6 : 1.4;
-      fit(responsiveMargin);
+      fit(
+        topViewRef.current
+          ? 1.05
+          : window.innerHeight > window.innerWidth
+            ? 1.6
+            : 1.4
+      );
 
       // Balls (ONLY Guret)
       const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
@@ -11385,7 +11442,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         state.up?.set(0, 0, 0);
         state.prev = null;
         if (prev) {
-          topViewRef.current = false;
+          topViewRef.current = prev.topView ?? false;
           const focusStore = ensureOrbitFocus();
           if (prev.focus?.target) {
             focusStore.target.copy(prev.focus.target);
@@ -13961,9 +14018,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (!scaleChanged) {
             const margin = Math.max(
               STANDING_VIEW.margin,
-              window.innerHeight > window.innerWidth
-                ? 1.6
-                : 1.4
+              topViewRef.current
+                ? 1.05
+                : window.innerHeight > window.innerWidth
+                  ? 1.6
+                  : 1.4
             );
             fit(margin);
           }
