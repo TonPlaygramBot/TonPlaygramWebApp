@@ -1116,19 +1116,20 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         camera.lookAt(new THREE.Vector3(0, 1.2, -halfL + 1.0));
         return;
       }
+      const camFollowZ = ball.position.z + (ball.position.z >= player.position.z - 0.5 ? 2.8 : 3.6);
       const desiredZ = THREE.MathUtils.clamp(
-        Math.max(ball.position.z + 2.2, player.position.z + 1.0),
+        Math.max(camFollowZ, player.position.z + 0.8),
         cameraMinZ,
-        Math.min(cameraMaxZ, player.position.z + camBack)
+        Math.min(cameraMaxZ + 1.0, player.position.z + camBack + 1.5)
       );
-      const followX = THREE.MathUtils.lerp(player.position.x, ball.position.x, 0.65);
-      const followY = camHeight + THREE.MathUtils.clamp(ball.position.y - 0.5, -0.2, 2.4);
-      const target = new THREE.Vector3(followX * 0.7, followY, desiredZ);
-      camera.position.lerp(target, 0.2);
+      const followX = THREE.MathUtils.lerp(player.position.x, ball.position.x, 0.85);
+      const followY = Math.max(camHeight * 0.85, ball.position.y + 1.15);
+      const target = new THREE.Vector3(followX, followY, desiredZ);
+      camera.position.lerp(target, 0.18);
       const look = new THREE.Vector3(
-        THREE.MathUtils.lerp(player.position.x * 0.12, ball.position.x, 0.85),
-        Math.max(1.2, ball.position.y + 0.45),
-        Math.max(-1.5, ball.position.z)
+        THREE.MathUtils.lerp(player.position.x * 0.1, ball.position.x, 0.95),
+        Math.max(1.2, ball.position.y + 0.3),
+        ball.position.z - 1.8
       );
       camera.lookAt(look);
     }
@@ -1138,6 +1139,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     }
 
     let cpuSrvTO = null;
+    let playerSrvTO = null;
     const formatMsg = (base) => base;
 
     function prepareServe(by, options = {}) {
@@ -1171,6 +1173,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         } catch {}
         cpuSrvTO = null;
       }
+      if (playerSrvTO) {
+        try {
+          clearTimeout(playerSrvTO);
+        } catch {}
+        playerSrvTO = null;
+      }
       if (by === 'cpu') {
         cpuSrvTO = setTimeout(() => {
           if (state.live || state.matchOver) return;
@@ -1192,6 +1200,33 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           cpu.userData.swingLR = THREE.MathUtils.clamp((tx - cpu.position.x) / halfW, -1, 1);
           lastHitter = 'cpu';
         }, 650);
+      } else {
+        playerSrvTO = setTimeout(() => {
+          if (state.live || state.matchOver || state.serveBy !== 'player') return;
+          const box = serviceBoxFor('player');
+          const tx = THREE.MathUtils.randFloat(box.minX, box.maxX);
+          const tz = THREE.MathUtils.randFloat(box.minZ, box.maxZ);
+          const to = new THREE.Vector3(tx, ballR + 0.06, tz);
+          let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.92, 1.05));
+          v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 1.05);
+          clampNetSpan(pos.clone(), v0);
+          vel.copy(v0.multiplyScalar(BALL_SPEED_BOOST));
+          const autoSpin = new THREE.Vector3(
+            THREE.MathUtils.randFloat(26, 42) * Math.sign(vel.z || -1),
+            THREE.MathUtils.randFloatSpread(8),
+            THREE.MathUtils.randFloatSpread(4)
+          );
+          spin.copy(autoSpin);
+          pos.y = Math.max(pos.y, 1.32);
+          state.live = true;
+          state.awaitingServeBounce = true;
+          state.rallyStarted = false;
+          state.bounceSide = null;
+          setMsg(formatMsg(`Serve · ${playerLabel}`));
+          player.userData.swing = 0.65;
+          player.userData.swingLR = THREE.MathUtils.clamp((tx - player.position.x) / halfW, -1, 1);
+          lastHitter = 'player';
+        }, 1100);
       }
     }
 
@@ -1282,6 +1317,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           player.userData.swing = 0.55 + 0.85 * shot.force;
           player.userData.swingLR = THREE.MathUtils.clamp(shot.lateral / 6.5, -1, 1);
           lastHitter = 'player';
+          if (playerSrvTO) {
+            try {
+              clearTimeout(playerSrvTO);
+            } catch {}
+            playerSrvTO = null;
+          }
         }
       } else {
         const near = pos.z > 0 && Math.abs(pos.z - (playerZ - 0.75)) < 2.1;
@@ -1598,6 +1639,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       if (cpuSrvTO) {
         try {
           clearTimeout(cpuSrvTO);
+        } catch {}
+      }
+      if (playerSrvTO) {
+        try {
+          clearTimeout(playerSrvTO);
         } catch {}
       }
       if (matchResetTO) {
