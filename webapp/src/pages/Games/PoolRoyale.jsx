@@ -1001,12 +1001,6 @@ const SPIN_BOX_FILL_RATIO =
         1
       )
     : 1;
-const STANDARD_POOL_BALL_RADIUS = 0.028575;
-const SPIN_BOX_DIAMETER_PX = Math.max(
-  32,
-  Math.round((BALL_R / STANDARD_POOL_BALL_RADIUS) * 57.15)
-);
-const SPIN_DOT_DIAMETER_PX = Math.max(8, Math.round(SPIN_BOX_DIAMETER_PX * 0.2));
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
@@ -1999,347 +1993,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
-
-const LIGHTING_PRESET_STORAGE_KEY = 'poolLightingPreset';
-const LIGHTING_PRESETS = Object.freeze([
-  {
-    id: 'arenaClassic',
-    label: 'Arena Classic',
-    description: 'Balanced tri-spot rig from the original demo with soft ambient fill.'
-  },
-  {
-    id: 'stadiumGrid',
-    label: 'Stadium Grid',
-    description: 'Six-point stadium grid with paired directionals and gentle dome fill.'
-  },
-  {
-    id: 'broadcastBox',
-    label: 'Broadcast Box',
-    description: 'Cool key and warm fill from each short rail plus pocket kick lights.'
-  },
-  {
-    id: 'clubGlow',
-    label: 'Club Glow',
-    description: 'Warm hemisphere wash, overhead hotspot and subtle under-rail lift.'
-  },
-  {
-    id: 'noirStage',
-    label: 'Noir Stage',
-    description: 'Low-key rim lighting with long-throw directionals for crisp shadows.'
-  },
-  {
-    id: 'neonSprint',
-    label: 'Neon Sprint',
-    description: 'Teal and magenta cross spots with a bright center cone for spin reads.'
-  }
-]);
-const DEFAULT_LIGHTING_PRESET_ID = 'arenaClassic';
-const LIGHTING_PRESETS_BY_ID = Object.freeze(
-  Object.fromEntries(LIGHTING_PRESETS.map((preset) => [preset.id, preset]))
-);
-
-function resolveLightingGeometry(context) {
-  const SAMPLE_PLAY_W = 1.216;
-  const SAMPLE_PLAY_H = 2.536;
-  const SAMPLE_TABLE_HEIGHT = 0.75;
-  const LIGHT_DIMENSION_SCALE = 0.8;
-  const LIGHT_HEIGHT_SCALE = 1.4;
-  const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8;
-  const LIGHT_LATERAL_SCALE = 0.45;
-
-  const baseWidthScale = (context.playWidth / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
-  const baseLengthScale = (context.playHeight / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
-  const fixtureScale = Math.max(baseWidthScale, baseLengthScale);
-  const heightScale = Math.max(0.001, context.tableHeight / SAMPLE_TABLE_HEIGHT);
-  const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
-  const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER;
-  const triangleHeight = context.tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
-  const triangleRadius = fixtureScale * 0.98;
-  const lightRetreatOffset = scaledHeight * 0.24;
-  const lightReflectionGuard = scaledHeight * 0.32;
-
-  return {
-    triangleHeight,
-    triangleRadius,
-    scaledHeight,
-    lightHeightLift,
-    lightRetreatOffset,
-    lightReflectionGuard,
-    LIGHT_LATERAL_SCALE,
-    fixtureScale
-  };
-}
-
-function buildLightingRig(presetId, context) {
-  const preset = LIGHTING_PRESETS_BY_ID[presetId] ?? LIGHTING_PRESETS_BY_ID[DEFAULT_LIGHTING_PRESET_ID];
-  const rig = new THREE.Group();
-  const geometry = resolveLightingGeometry(context);
-  const centerY = context.tableSurfaceY + context.tableHeight * 0.5;
-
-  const addDirectionals = (configs) => {
-    configs.forEach((cfg) => {
-      const light = new THREE.DirectionalLight(cfg.color ?? 0xffffff, cfg.intensity ?? 1);
-      light.position.set(cfg.position.x, cfg.position.y, cfg.position.z);
-      light.target.position.set(cfg.target.x, cfg.target.y, cfg.target.z);
-      if (cfg.castShadow) {
-        light.castShadow = true;
-        light.shadow.mapSize.set(2048, 2048);
-        light.shadow.bias = cfg.shadowBias ?? -0.00004;
-        light.shadow.normalBias = cfg.shadowNormalBias ?? 0.006;
-      }
-      rig.add(light);
-      rig.add(light.target);
-    });
-  };
-
-  switch (preset?.id) {
-    case 'stadiumGrid': {
-      const hemi = new THREE.HemisphereLight(0xe8f0ff, 0x0a0f1c, 0.52);
-      hemi.position.set(0, geometry.triangleHeight * 0.95, -geometry.triangleRadius * 0.45);
-      rig.add(hemi);
-
-      addDirectionals([
-        {
-          position: {
-            x: -geometry.triangleRadius * 0.9,
-            y: geometry.triangleHeight * 1.05,
-            z: geometry.triangleRadius * 0.25
-          },
-          target: { x: 0, y: centerY, z: 0 },
-          intensity: 1.05,
-          castShadow: true
-        },
-        {
-          position: {
-            x: geometry.triangleRadius * 0.9,
-            y: geometry.triangleHeight * 1.05,
-            z: -geometry.triangleRadius * 0.2
-          },
-          target: { x: 0, y: centerY, z: 0 },
-          intensity: 0.96,
-          castShadow: true
-        },
-        {
-          color: 0xd4e6ff,
-          position: { x: 0, y: geometry.triangleHeight * 1.1, z: -geometry.triangleRadius * 0.8 },
-          target: { x: 0, y: centerY + context.ballRadius * 0.15, z: -geometry.triangleRadius * 0.35 },
-          intensity: 0.55
-        }
-      ]);
-
-      const gridPoint = new THREE.PointLight(0xf0f7ff, 0.45, geometry.fixtureScale * 5, 1.4);
-      gridPoint.position.set(0, geometry.triangleHeight * 0.85, 0);
-      rig.add(gridPoint);
-      const midline = geometry.triangleRadius * 0.55;
-      const rear = new THREE.PointLight(0xe8ecff, 0.38, geometry.fixtureScale * 4.6, 1.4);
-      rear.position.set(0, geometry.triangleHeight * 0.9, -midline);
-      const front = rear.clone();
-      front.position.set(0, geometry.triangleHeight * 0.9, midline);
-      rig.add(rear);
-      rig.add(front);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.12);
-      ambient.position.set(0, geometry.triangleHeight, 0);
-      rig.add(ambient);
-      break;
-    }
-    case 'broadcastBox': {
-      const baseHeight = geometry.triangleHeight * 0.94;
-      const shortOffset = geometry.triangleRadius * 1.05;
-      const warmTarget = centerY + context.tableHeight * 0.18;
-      const coolSpot = new THREE.SpotLight(0xdfe9ff, 9.1, 0, Math.PI * 0.36, 0.4, 1);
-      coolSpot.position.set(0, baseHeight, shortOffset);
-      coolSpot.target.position.set(0, warmTarget, geometry.triangleRadius * 0.08);
-      coolSpot.decay = 1.0;
-      coolSpot.castShadow = true;
-      coolSpot.shadow.mapSize.set(2048, 2048);
-      rig.add(coolSpot);
-      rig.add(coolSpot.target);
-
-      const warmSpot = new THREE.SpotLight(0xfff2e0, 8.3, 0, Math.PI * 0.4, 0.45, 1);
-      warmSpot.position.set(0, baseHeight, -shortOffset);
-      warmSpot.target.position.set(0, warmTarget, -geometry.triangleRadius * 0.08);
-      warmSpot.decay = 1.0;
-      warmSpot.castShadow = true;
-      warmSpot.shadow.mapSize.set(2048, 2048);
-      warmSpot.shadow.bias = -0.00008;
-      rig.add(warmSpot);
-      rig.add(warmSpot.target);
-
-      const kickerDistance = geometry.fixtureScale * 2.6;
-      const pocketKick = new THREE.PointLight(0xfffcf3, 0.28, kickerDistance, 1.6);
-      const cloneKick = pocketKick.clone();
-      pocketKick.position.set(geometry.triangleRadius * 0.5, centerY + context.ballRadius * 0.2, geometry.triangleRadius * 0.4);
-      cloneKick.position.set(-geometry.triangleRadius * 0.5, centerY + context.ballRadius * 0.2, -geometry.triangleRadius * 0.4);
-      rig.add(pocketKick);
-      rig.add(cloneKick);
-
-      const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.52);
-      hemisphere.position.set(0, geometry.triangleHeight, 0);
-      rig.add(hemisphere);
-      const ambient = new THREE.AmbientLight(0xffffff, 0.09);
-      ambient.position.set(0, geometry.triangleHeight + geometry.lightReflectionGuard, 0);
-      rig.add(ambient);
-      break;
-    }
-    case 'clubGlow': {
-      const hemisphere = new THREE.HemisphereLight(0xfff1df, 0x0f0c08, 0.62);
-      hemisphere.position.set(0, geometry.triangleHeight * 0.92, -geometry.triangleRadius * 0.35);
-      rig.add(hemisphere);
-
-      const hotspot = new THREE.PointLight(0xffffff, 0.9, geometry.fixtureScale * 3.5, 1.25);
-      hotspot.position.set(0, geometry.triangleHeight * 1.08, 0);
-      hotspot.castShadow = true;
-      rig.add(hotspot);
-
-      const underRail = new THREE.PointLight(0xffd9b2, 0.28, geometry.fixtureScale * 2.8, 2.2);
-      underRail.position.set(0, centerY - context.tableHeight * 0.08, 0);
-      rig.add(underRail);
-
-      addDirectionals([
-        {
-          position: { x: geometry.triangleRadius * 0.7, y: geometry.triangleHeight, z: geometry.triangleRadius * 0.4 },
-          target: { x: 0, y: centerY, z: 0 },
-          intensity: 0.65,
-          color: 0xfff4dd,
-          castShadow: true,
-          shadowNormalBias: 0.004
-        },
-        {
-          position: { x: -geometry.triangleRadius * 0.65, y: geometry.triangleHeight * 0.96, z: -geometry.triangleRadius * 0.5 },
-          target: { x: 0, y: centerY, z: 0 },
-          intensity: 0.5,
-          color: 0xfbe3c5
-        }
-      ]);
-
-      const ambient = new THREE.AmbientLight(0xfff2d9, 0.1);
-      ambient.position.set(0, geometry.triangleHeight * 0.9, 0);
-      rig.add(ambient);
-      break;
-    }
-    case 'noirStage': {
-      const coolFill = new THREE.HemisphereLight(0xd7e6ff, 0x05070c, 0.38);
-      coolFill.position.set(0, geometry.triangleHeight * 1.05, -geometry.triangleRadius * 0.3);
-      rig.add(coolFill);
-
-      addDirectionals([
-        {
-          position: { x: geometry.triangleRadius * 0.72, y: geometry.triangleHeight * 1.12, z: geometry.triangleRadius * 0.6 },
-          target: { x: 0, y: centerY + context.ballRadius * 0.1, z: geometry.triangleRadius * 0.25 },
-          intensity: 0.9,
-          color: 0xfdf3d6,
-          castShadow: true,
-          shadowBias: -0.00006,
-          shadowNormalBias: 0.005
-        },
-        {
-          position: { x: -geometry.triangleRadius * 0.78, y: geometry.triangleHeight * 1.06, z: -geometry.triangleRadius * 0.55 },
-          target: { x: 0, y: centerY, z: -geometry.triangleRadius * 0.2 },
-          intensity: 0.78,
-          color: 0xc4d3ff
-        }
-      ]);
-
-      const rim = new THREE.PointLight(0x9ec7ff, 0.32, geometry.fixtureScale * 4, 1.5);
-      rim.position.set(geometry.triangleRadius * 0.65, centerY + context.tableHeight * 0.2, -geometry.triangleRadius * 0.05);
-      rig.add(rim);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.06);
-      ambient.position.set(0, geometry.triangleHeight, 0);
-      rig.add(ambient);
-      break;
-    }
-    case 'neonSprint': {
-      const tealSpot = new THREE.SpotLight(0x7ae0ff, 7.6, 0, Math.PI * 0.34, 0.42, 1);
-      tealSpot.position.set(geometry.triangleRadius * 0.6, geometry.triangleHeight * 1.04, geometry.triangleRadius * 0.35);
-      tealSpot.target.position.set(0, centerY + context.ballRadius * 0.1, 0);
-      tealSpot.castShadow = true;
-      tealSpot.shadow.mapSize.set(2048, 2048);
-      rig.add(tealSpot);
-      rig.add(tealSpot.target);
-
-      const magentaSpot = new THREE.SpotLight(0xff8ae6, 7.2, 0, Math.PI * 0.34, 0.42, 1);
-      magentaSpot.position.set(-geometry.triangleRadius * 0.6, geometry.triangleHeight * 1.02, -geometry.triangleRadius * 0.35);
-      magentaSpot.target.position.set(0, centerY + context.ballRadius * 0.1, 0);
-      magentaSpot.castShadow = true;
-      magentaSpot.shadow.mapSize.set(2048, 2048);
-      magentaSpot.shadow.bias = -0.00005;
-      rig.add(magentaSpot);
-      rig.add(magentaSpot.target);
-
-      const centerCone = new THREE.SpotLight(0xffffff, 6.1, 0, Math.PI * 0.5, 0.6, 1);
-      centerCone.position.set(0, geometry.triangleHeight * 1.14, 0);
-      centerCone.target.position.set(0, centerY, 0);
-      rig.add(centerCone);
-      rig.add(centerCone.target);
-
-      const dome = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.46);
-      dome.position.set(0, geometry.triangleHeight, 0);
-      rig.add(dome);
-      const ambient = new THREE.AmbientLight(0xffffff, 0.07);
-      rig.add(ambient);
-      break;
-    }
-    case 'arenaClassic':
-    default: {
-      const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
-      hemisphere.position.set(0, geometry.triangleHeight, -geometry.triangleRadius * 0.6);
-      rig.add(hemisphere);
-
-      const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
-      hemisphereRig.position.set(0, geometry.triangleHeight, 0);
-      rig.add(hemisphereRig);
-
-      const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
-      dirLight.position.set(
-        -geometry.triangleRadius * geometry.LIGHT_LATERAL_SCALE,
-        geometry.triangleHeight,
-        geometry.triangleRadius * geometry.LIGHT_LATERAL_SCALE * 0.4
-      );
-      dirLight.target.position.set(0, context.tableSurfaceY + context.ballRadius * 0.05, 0);
-      rig.add(dirLight);
-      rig.add(dirLight.target);
-
-      const spot = new THREE.SpotLight(
-        0xffffff,
-        12.7449,
-        0,
-        Math.PI * 0.36,
-        0.42,
-        1
-      );
-      spot.position.set(
-        geometry.triangleRadius * geometry.LIGHT_LATERAL_SCALE,
-        geometry.triangleHeight + geometry.lightRetreatOffset + geometry.lightReflectionGuard,
-        geometry.triangleRadius * geometry.LIGHT_LATERAL_SCALE * (0.35 + geometry.LIGHT_LATERAL_SCALE * 0.12)
-      );
-      spot.target.position.set(0, context.tableSurfaceY + context.tableHeight * 0.18, 0);
-      spot.decay = 1.0;
-      spot.castShadow = true;
-      spot.shadow.mapSize.set(2048, 2048);
-      spot.shadow.bias = -0.00004;
-      spot.shadow.normalBias = 0.006;
-      rig.add(spot);
-      rig.add(spot.target);
-
-      const ambient = new THREE.AmbientLight(0xffffff, 0.0799);
-      ambient.position.set(
-        0,
-        context.tableSurfaceY +
-          geometry.scaledHeight * 1.95 +
-          geometry.lightHeightLift +
-          geometry.lightRetreatOffset +
-          geometry.lightReflectionGuard,
-        geometry.triangleRadius * geometry.LIGHT_LATERAL_SCALE * 0.12
-      );
-      rig.add(ambient);
-      break;
-    }
-  }
-
-  return rig;
-}
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
@@ -7741,15 +7394,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
-  const [lightingPresetId, setLightingPresetId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(LIGHTING_PRESET_STORAGE_KEY);
-      if (stored && LIGHTING_PRESETS_BY_ID[stored]) {
-        return stored;
-      }
-    }
-    return DEFAULT_LIGHTING_PRESET_ID;
-  });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
@@ -7772,12 +7416,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
-  );
-  const activeLightingPreset = useMemo(
-    () =>
-      LIGHTING_PRESETS_BY_ID[lightingPresetId] ??
-      LIGHTING_PRESETS_BY_ID[DEFAULT_LIGHTING_PRESET_ID],
-    [lightingPresetId]
   );
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
@@ -7814,9 +7452,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
-  const applyLightingPresetRef = useRef(() => {});
-  const lightingRigRef = useRef(null);
-  const lightingContextRef = useRef(null);
   const chalkMeshesRef = useRef([]);
   const chalkAreaRef = useRef(null);
   const [uiScale, setUiScale] = useState(() =>
@@ -8154,12 +7789,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(LIGHTING_PRESET_STORAGE_KEY, lightingPresetId);
-    }
-    applyLightingPresetRef.current?.(lightingPresetId);
-  }, [lightingPresetId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
@@ -11544,42 +11173,89 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      const disposeLightingRig = () => {
-        const rig = lightingRigRef.current;
-        if (!rig) return;
-        rig.traverse((node) => {
-          if (node.isLight && node.shadow?.map) {
-            node.shadow.map.dispose();
-          }
-          if (node.isLight && node.target && node.target.parent === rig) {
-            rig.remove(node.target);
-          }
-        });
-        world.remove(rig);
-        lightingRigRef.current = null;
-      };
+      // Adopt the lighting rig from the standalone snooker demo and scale all
+      // authored coordinates so they sit correctly over the larger table.
+      const addMobileLighting = () => {
+        const lightingRig = new THREE.Group();
+        world.add(lightingRig);
 
-      const lightingContext = {
-        playWidth: PLAY_W,
-        playHeight: PLAY_H,
-        tableHeight: TABLE_H,
-        ballRadius: BALL_R,
-        tableSurfaceY
-      };
+        const SAMPLE_PLAY_W = 1.216;
+        const SAMPLE_PLAY_H = 2.536;
+        const SAMPLE_TABLE_HEIGHT = 0.75;
 
-      lightingContextRef.current = lightingContext;
-      applyLightingPresetRef.current = (presetId) => {
-        disposeLightingRig();
-        const rig = buildLightingRig(
-          presetId ?? activeLightingPreset?.id ?? DEFAULT_LIGHTING_PRESET_ID,
-          lightingContext
+        const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
+        const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
+        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8; // bring fixtures closer so the spot highlight reads on the balls
+        const LIGHT_LATERAL_SCALE = 0.45; // pull shadow-casting lights nearer the table centre
+
+        const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
+        const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
+        const fixtureScale = Math.max(baseWidthScale, baseLengthScale);
+        const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
+        const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
+
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
+        const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
+        const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
+        const triangleRadius = fixtureScale * 0.98;
+        const lightRetreatOffset = scaledHeight * 0.24;
+        const lightReflectionGuard = scaledHeight * 0.32;
+        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
+        lightingRig.add(hemisphere);
+
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
+        hemisphereRig.position.set(0, triangleHeight, 0);
+        lightingRig.add(hemisphereRig);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
+        dirLight.position.set(
+          -triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.4
         );
-        if (rig) {
-          lightingRigRef.current = rig;
-          world.add(rig);
-        }
+        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
+        lightingRig.add(dirLight);
+        lightingRig.add(dirLight.target);
+
+        const spot = new THREE.SpotLight(
+          0xffffff,
+          12.7449,
+          0,
+          Math.PI * 0.36,
+          0.42,
+          1
+        );
+        spot.position.set(
+          triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight + lightRetreatOffset + lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
+        );
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
+        spot.decay = 1.0;
+        spot.castShadow = true;
+        spot.shadow.mapSize.set(2048, 2048);
+        spot.shadow.bias = -0.00004;
+        spot.shadow.normalBias = 0.006;
+        lightingRig.add(spot);
+        lightingRig.add(spot.target);
+
+        const ambient = new THREE.AmbientLight(
+          0xffffff,
+          0.0799
+        ); // return trimmed spot energy through ambient fill
+        ambient.position.set(
+          0,
+          tableSurfaceY +
+            scaledHeight * 1.95 +
+            lightHeightLift +
+            lightRetreatOffset +
+            lightReflectionGuard,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.12
+        );
+        lightingRig.add(ambient);
       };
-      applyLightingPresetRef.current(activeLightingPreset?.id ?? DEFAULT_LIGHTING_PRESET_ID);
+
+      addMobileLighting();
 
       // Table
       const finishForScene = tableFinishRef.current;
@@ -14583,9 +14259,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
         return () => {
           applyWorldScaleRef.current = () => {};
-          disposeLightingRig();
-          applyLightingPresetRef.current = () => {};
-          lightingContextRef.current = null;
           cancelAnimationFrame(rafRef.current);
           window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
@@ -15048,40 +14721,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               ) : null}
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Lighting
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {LIGHTING_PRESETS.map((option) => {
-                    const active = option.id === lightingPresetId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setLightingPresetId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                            {option.label}
-                          </span>
-                        </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
                 </h3>
                 <div className="mt-2 grid gap-2">
@@ -15215,10 +14854,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         >
           <div
             id="spinBox"
-            className="relative rounded-full shadow-lg border border-white/70"
+            className="relative w-32 h-32 rounded-full shadow-lg border border-white/70"
             style={{
-              width: `${SPIN_BOX_DIAMETER_PX}px`,
-              height: `${SPIN_BOX_DIAMETER_PX}px`,
               background: `radial-gradient(circle, #ffffff 0%, #ffffff ${
                 SPIN_BOX_FILL_RATIO * 100
               }%, #facc15 ${SPIN_BOX_FILL_RATIO * 100}%, #facc15 100%)`
@@ -15226,13 +14863,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           >
             <div
               id="spinDot"
-              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
-              style={{
-                left: '50%',
-                top: '50%',
-                width: `${SPIN_DOT_DIAMETER_PX}px`,
-                height: `${SPIN_DOT_DIAMETER_PX}px`
-              }}
+              className="absolute w-3 h-3 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
+              style={{ left: '50%', top: '50%' }}
             ></div>
           </div>
         </div>
