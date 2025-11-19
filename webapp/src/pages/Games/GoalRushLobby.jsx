@@ -10,7 +10,6 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { isBalanceInsufficient } from '../../utils/balance.js';
 
 export default function GoalRushLobby() {
   const navigate = useNavigate();
@@ -38,7 +37,7 @@ export default function GoalRushLobby() {
       try {
         accountId = await ensureAccountId();
         const balRes = await getAccountBalance(accountId);
-        if (isBalanceInsufficient(balRes, stake.amount)) {
+        if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
           return;
         }

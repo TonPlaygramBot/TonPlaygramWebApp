@@ -10,7 +10,6 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { isBalanceInsufficient } from '../../utils/balance.js';
 
 const FEATURED_TABLES = Object.freeze([
   {
@@ -75,7 +74,7 @@ export default function SnookerLobby() {
       try {
         accountId = await ensureAccountId();
         const balanceResponse = await getAccountBalance(accountId);
-        if (isBalanceInsufficient(balanceResponse, stake.amount)) {
+        if ((balanceResponse.balance || 0) < stake.amount) {
           alert('Insufficient balance');
           return;
         }

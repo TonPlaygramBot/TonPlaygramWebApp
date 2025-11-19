@@ -9,7 +9,6 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { isBalanceInsufficient } from '../../utils/balance.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -35,7 +34,7 @@ export default function ChessBattleRoyalLobby() {
     try {
       accountId = await ensureAccountId();
       const balRes = await getAccountBalance(accountId);
-      if (isBalanceInsufficient(balRes, stake.amount)) {
+      if ((balRes.balance || 0) < stake.amount) {
         alert('Insufficient balance');
         return;
       }
