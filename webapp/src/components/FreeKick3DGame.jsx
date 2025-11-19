@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 const INSTRUCTION_TEXT = 'Swipe up to shoot • Curve by swiping sideways';
+const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
 
 function formatTime(totalSeconds) {
   const clamped = Math.max(0, Math.floor(totalSeconds));
@@ -62,6 +63,41 @@ function makeBillboardTexture(text, accentColor, frameThickness = 32) {
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.repeat.set(2.5, 1);
   texture.anisotropy = 4;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createFallbackGrassTexture(size = 512) {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, size, size);
+  gradient.addColorStop(0, '#0d5f1f');
+  gradient.addColorStop(1, '#0c4718');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  const bladeCount = size * 5;
+  for (let i = 0; i < bladeCount; i += 1) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const length = 6 + Math.random() * 18;
+    const angle = Math.random() * Math.PI;
+    const red = 20 + Math.random() * 20;
+    const green = 110 + Math.random() * 70;
+    const blue = 25 + Math.random() * 30;
+    const alpha = 0.08 + Math.random() * 0.22;
+    ctx.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+    ctx.lineWidth = 0.6 + Math.random() * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+    ctx.stroke();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
 }
@@ -547,6 +583,31 @@ export default function FreeKick3DGame({ config }) {
     renderer.domElement.style.touchAction = 'none';
     host.appendChild(renderer.domElement);
 
+    const maxAnisotropy = renderer.capabilities.getMaxAnisotropy?.() ?? 1;
+    const texturesToDispose = [];
+    const registerTexture = (texture) => {
+      if (texture) {
+        texturesToDispose.push(texture);
+      }
+      return texture;
+    };
+    const configureGrassTexture = (texture, repeatX, repeatZ) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(repeatX, repeatZ);
+      texture.anisotropy = Math.min(8, maxAnisotropy);
+      texture.colorSpace = THREE.SRGBColorSpace;
+    };
+    const applyGrassTexture = (texture, material, repeatX, repeatZ) => {
+      configureGrassTexture(texture, repeatX, repeatZ);
+      material.map = texture;
+      material.color.set(0xffffff);
+      material.needsUpdate = true;
+      registerTexture(texture);
+    };
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.setCrossOrigin?.('anonymous');
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -582,26 +643,40 @@ export default function FreeKick3DGame({ config }) {
     apron.position.y = -0.018;
     fieldGroup.add(apron);
 
-    const surround = new THREE.Mesh(
-      new THREE.PlaneGeometry(16.5, 28.5),
-      new THREE.MeshStandardMaterial({ color: 0x14522a, roughness: 0.95, metalness: 0.04 })
-    );
+    const surroundMaterial = new THREE.MeshStandardMaterial({ color: 0x14522a, roughness: 0.95, metalness: 0.04 });
+    const surround = new THREE.Mesh(new THREE.PlaneGeometry(16.5, 28.5), surroundMaterial);
     surround.rotation.x = -Math.PI / 2;
     surround.receiveShadow = true;
     surround.position.y = -0.009;
     fieldGroup.add(surround);
 
-    const pitch = new THREE.Mesh(
-      new THREE.PlaneGeometry(14, 26),
-      new THREE.MeshStandardMaterial({
-        color: 0x1f7a32,
-        roughness: 0.92,
-        metalness: 0.04
-      })
-    );
+    const pitchMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1f7a32,
+      roughness: 0.92,
+      metalness: 0.04
+    });
+    const pitch = new THREE.Mesh(new THREE.PlaneGeometry(14, 26), pitchMaterial);
     pitch.rotation.x = -Math.PI / 2;
     pitch.receiveShadow = true;
     fieldGroup.add(pitch);
+
+    const applySharedGrassTexture = (baseTexture) => {
+      applyGrassTexture(baseTexture, pitchMaterial, 7.5, 14.5);
+      const surroundTexture = baseTexture.clone();
+      surroundTexture.image = baseTexture.image;
+      applyGrassTexture(surroundTexture, surroundMaterial, 5, 9.5);
+    };
+
+    textureLoader.load(
+      FIELD_TEXTURE_URL,
+      (texture) => {
+        applySharedGrassTexture(texture);
+      },
+      undefined,
+      () => {
+        applySharedGrassTexture(createFallbackGrassTexture());
+      }
+    );
 
     const goalWidth = GOAL_CONFIG.width;
     const goalHeight = GOAL_CONFIG.height;
@@ -3095,6 +3170,7 @@ export default function FreeKick3DGame({ config }) {
       ballTexture.dispose();
       bumpMap.dispose();
       netTexture.dispose();
+      texturesToDispose.forEach((texture) => texture.dispose());
       pmrem.dispose();
       renderer.dispose();
       threeRef.current = null;
