@@ -1806,19 +1806,7 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'freshGreen',
-    label: 'Fresh Green',
-    color: 0x3fba73,
-    detail: Object.freeze({
-      bumpMultiplier: 1.22,
-      roughness: 0.78,
-      sheenRoughness: 0.52,
-      clearcoat: 0.05,
-      clearcoatRoughness: 0.32,
-      emissiveIntensity: 0.52
-    })
-  }
+  { id: 'freshGreen', label: 'Fresh Green', color: 0x2d7f4b }
 ]);
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
