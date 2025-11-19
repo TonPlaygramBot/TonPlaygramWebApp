@@ -17,7 +17,7 @@
 /**
  * @typedef {Object} AimRequest
  * @property {GameType} game
- * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean}} state
+ * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean,mustPlayFromBaulk?:boolean,baulkLineY?:number}} state
  * @property {number} [timeBudgetMs]
  * @property {number} [rngSeed]
  * @property {number} [maxCutAngle] maximum allowed cut angle in radians for a shot candidate
@@ -74,12 +74,22 @@ function pocketEntry (pocket, radius, width, height) {
   }
 }
 
+const PRO_MONTE_CARLO_SAMPLES = 48
+const POSITIONING_LOOKAHEAD = 3
+
 function currentGroup (state) {
-  const g = state.myGroup ?? state.ballOn
+  let g = state.myGroup
+  if (!g || g === 'UNASSIGNED') {
+    g = state.ballOn
+  }
   if (!g) return undefined
-  if (g === 'blue') return 'SOLIDS'
-  if (g === 'red') return 'STRIPES'
-  return g
+  const norm = g.toString().toUpperCase()
+  // In UK 8-ball, balls 1-7 are red (solids) and 9-15 are blue (stripes).
+  // Map the textual colour assignment to the corresponding group.
+  if (norm === 'RED') return 'SOLIDS'
+  if (norm === 'BLUE') return 'STRIPES'
+  if (norm === 'SOLIDS' || norm === 'STRIPES') return norm
+  return undefined
 }
 
 function chooseTargets (req) {
@@ -137,6 +147,31 @@ function nextTargetsAfter (targetId, req) {
     return cloned.filter(b => b.id !== 8)
   }
   return cloned
+}
+
+function cueCushionPenalty (point, state, radius) {
+  if (!point) return 0
+  const clearanceX = Math.min(point.x, state.width - point.x)
+  const clearanceY = Math.min(point.y, state.height - point.y)
+  const minClear = Math.min(clearanceX, clearanceY)
+  if (minClear >= radius * 2) return 0
+  return 1 - Math.min(minClear / (radius * 2), 1)
+}
+
+function positioningAdvantage (req, cueAfter, nextTargets, balls) {
+  if (!cueAfter || !nextTargets || nextTargets.length === 0) return 0
+  const radius = req.state.ballRadius
+  let best = 0
+  const sampleCount = Math.min(nextTargets.length, POSITIONING_LOOKAHEAD)
+  for (let i = 0; i < sampleCount; i++) {
+    const next = nextTargets[i]
+    if (!next) continue
+    if (pathBlocked(cueAfter, next, balls, [0, next.id], radius, 1.05)) continue
+    const d = dist(cueAfter, next)
+    const score = 1 - Math.min(d / (radius * 40), 1)
+    if (score > best) best = score
+  }
+  return best
 }
 
 // Identify target/pocket pairs that satisfy core aiming criteria:
@@ -204,15 +239,16 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   const dir = { x: toTarget.x - toPocket.x, y: toTarget.y - toPocket.y }
   const len = Math.hypot(dir.x, dir.y) || 1
 
-  // Base travel after striking the target – no spin influence yet so the cue
-  // ball runs straight regardless of power.
+  // Base travel of the cue ball after striking the target – this is the
+  // straight path with no spin influence. Power only affects distance.
   const baseDist = (power * 120) / len
   const result = {
     x: target.x + dir.x * baseDist,
     y: target.y + dir.y * baseDist
   }
-
-  // Spin effects applied after impact.
+  // Apply spin after the straight path has been established. Top/back spin
+  // extend or reduce travel along the shot line while side spin adds a
+  // perpendicular offset after impact.
   const distScale = 1 + spin.top - spin.back
   result.x += dir.x * baseDist * (distScale - 1)
   result.y += dir.y * baseDist * (distScale - 1)
@@ -222,15 +258,13 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   const perp = { x: -dir.y / len, y: dir.x / len }
   result.x += perp.x * sideOffset
   result.y += perp.y * sideOffset
-
   return result
 }
-
 
 // Rough Monte Carlo estimate of potting probability by jittering the cue
 // aim slightly and checking if paths remain clear. This models human
 // imprecision and rewards shorter, straighter shots.
-function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 20) {
+function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = PRO_MONTE_CARLO_SAMPLES) {
   const r = req.state.ballRadius
   const baseAngle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   const distCG = dist(cue, ghost)
@@ -252,7 +286,6 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
   }
   return success / samples
 }
-
 
 function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false) {
   const r = req.state.ballRadius
@@ -279,7 +312,6 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   const maxD = Math.hypot(req.state.width, req.state.height)
-  const distShot = dist(cue, target) + dist(target, entry)
   const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls)
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
   const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
@@ -290,6 +322,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     const next = nextTargets[0]
     nextScore = 1 - Math.min(dist(cueAfter, next) / maxD, 1)
   }
+  const positionBonus = positioningAdvantage(req, cueAfter, nextTargets, balls)
   const risk = req.state.pockets.some(p => dist(cueAfter, p) < r * 1.2) ? 1 : 0
   const shotVec = { x: target.x - cue.x, y: target.y - cue.y }
   const potVec = { x: entry.x - target.x, y: entry.y - target.y }
@@ -301,11 +334,18 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   if (strict && (centerAlign < 0.5 || viewScore < 0.3)) {
     return null
   }
+  const cushionPenalty = cueCushionPenalty(cueAfter, req.state, r)
   const quality = Math.max(
     0,
     Math.min(
       1,
-      0.35 * potChance + 0.25 * centerAlign + 0.2 * viewScore + 0.1 * nextScore + 0.1 * nearHole - 0.2 * risk
+      0.4 * potChance +
+        0.2 * centerAlign +
+        0.15 * viewScore +
+        0.15 * Math.max(nextScore, positionBonus) +
+        0.1 * nearHole -
+        0.15 * risk -
+        0.1 * cushionPenalty
     )
   )
   const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
@@ -317,7 +357,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     targetPocket: entry,
     aimPoint: ghost,
     quality,
-    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
+    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} pos=${positionBonus.toFixed(2)} risk=${risk.toFixed(2)}`,
     nextScore,
     hasNext
   }
@@ -352,16 +392,15 @@ export function planShot (req) {
   const deadline = req.timeBudgetMs ? start + req.timeBudgetMs : Infinity
   let best = null
 
-  const powers = [0.5, 0.7, 0.9, 1.0]
+  const powers = [0.45, 0.6, 0.75, 0.9]
   const spins = [
     { top: 0, side: 0, back: 0 },
-    { top: 0.3, side: 0, back: -0.3 },
+    { top: 0.3, side: 0, back: -0.25 },
     { top: -0.3, side: 0.3, back: 0 },
     { top: -0.3, side: -0.3, back: 0 },
-    { top: 0.5, side: 0, back: -0.5 },
-    { top: -0.5, side: 0.5, back: 0 },
-    { top: -0.5, side: -0.5, back: 0 },
-    { top: 0, side: 0.5, back: 0 }
+    { top: 0.15, side: 0.25, back: -0.1 },
+    { top: 0, side: 0.4, back: 0 },
+    { top: -0.4, side: 0, back: 0.25 }
   ]
 
   // first, gather candidate target/pocket pairs meeting strict criteria
@@ -397,11 +436,24 @@ export function planShot (req) {
           ) {
             continue
           }
+          if (
+            req.state.mustPlayFromBaulk &&
+            typeof req.state.baulkLineY === 'number' &&
+            cand.y < req.state.baulkLineY
+          ) {
+            continue
+          }
           const overlap = req.state.balls.some(
             b => b.id !== 0 && !b.pocketed && dist(cand, b) < r * 2
           )
           if (overlap) continue
           placements.push(cand)
+        }
+        if (placements.length === 0) {
+          const safeY = typeof req.state.baulkLineY === 'number'
+            ? Math.max(req.state.baulkLineY + r * 2, r * 2)
+            : r * 6
+          placements.push({ x: req.state.width / 2, y: safeY })
         }
       } else {
         const cue = req.state.balls.find(b => b.id === 0)
@@ -419,6 +471,7 @@ export function planShot (req) {
           if (!best || rest.quality > best.quality) {
             best = { ...rest, cueBallPosition: req.state.ballInHand ? cuePos : undefined }
           }
+          // Only explore additional power/spin if next position is poor and there is a next target
           if (!hasNext || nextScore >= 0.5) {
             continue
           }
