@@ -238,27 +238,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     cpuPointLabel: '0'
   }));
   const [scoreboardOpen, setScoreboardOpen] = useState(false);
-  const [popupVisible, setPopupVisible] = useState(true);
-  const [popupText, setPopupText] = useState(introMessage);
-  const popupTimeoutRef = useRef(null);
-
-  useEffect(() => {
-    setPopupText(msg);
-    setPopupVisible(true);
-    if (popupTimeoutRef.current) {
-      clearTimeout(popupTimeoutRef.current);
-    }
-    popupTimeoutRef.current = setTimeout(() => {
-      setPopupVisible(false);
-      popupTimeoutRef.current = null;
-    }, 3200);
-    return () => {
-      if (popupTimeoutRef.current) {
-        clearTimeout(popupTimeoutRef.current);
-        popupTimeoutRef.current = null;
-      }
-    };
-  }, [msg]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -293,6 +272,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
 
     let camBack = 8.0;
     let camHeight = 3.8;
+    const cameraMinZ = 1.2;
+    const cameraMaxZ = halfL + 2.6;
 
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 1.05);
     hemi.position.set(0, 60, 0);
@@ -1126,22 +1107,28 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       const servingDiag = !state.live && state.serveBy === 'player';
       if (servingDiag) {
         const sideOffset = state.serveSide === 'deuce' ? 1.25 : -1.25;
-        const target = new THREE.Vector3(player.position.x + sideOffset, camHeight, player.position.z + camBack);
-        camera.position.lerp(target, 0.25);
+        const diagTarget = new THREE.Vector3(
+          player.position.x + sideOffset,
+          camHeight,
+          THREE.MathUtils.clamp(player.position.z + camBack, cameraMinZ, cameraMaxZ)
+        );
+        camera.position.lerp(diagTarget, 0.25);
         camera.lookAt(new THREE.Vector3(0, 1.2, -halfL + 1.0));
         return;
       }
-      const followX = THREE.MathUtils.lerp(player.position.x * 0.25, ball.position.x * 0.55, 0.65);
-      const followY = camHeight + THREE.MathUtils.clamp((ball.position.y - 1.0) * 0.35, -0.5, 1.8);
-      const baseZ = player.position.z + camBack;
-      const target = new THREE.Vector3(followX, followY, baseZ);
-      camera.position.lerp(target, 0.18);
-      const onOurHalf = ball.position.z > 0;
-      const lookMix = onOurHalf ? 0.82 : 0.62;
+      const desiredZ = THREE.MathUtils.clamp(
+        Math.max(ball.position.z + 2.2, player.position.z + 1.0),
+        cameraMinZ,
+        Math.min(cameraMaxZ, player.position.z + camBack)
+      );
+      const followX = THREE.MathUtils.lerp(player.position.x, ball.position.x, 0.65);
+      const followY = camHeight + THREE.MathUtils.clamp(ball.position.y - 0.5, -0.2, 2.4);
+      const target = new THREE.Vector3(followX * 0.7, followY, desiredZ);
+      camera.position.lerp(target, 0.2);
       const look = new THREE.Vector3(
-        THREE.MathUtils.lerp(player.position.x * 0.08, ball.position.x, lookMix),
-        THREE.MathUtils.lerp(1.15, Math.max(1.0, ball.position.y), lookMix),
-        THREE.MathUtils.lerp(Math.max(0.2, player.position.z - 1.2), ball.position.z, lookMix)
+        THREE.MathUtils.lerp(player.position.x * 0.12, ball.position.x, 0.85),
+        Math.max(1.2, ball.position.y + 0.45),
+        Math.max(-1.5, ball.position.z)
       );
       camera.lookAt(look);
     }
@@ -1224,12 +1211,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     }
     function onMove(e) {
       if (!touching) return;
-      const dx = e.clientX - lx;
-      const dy = e.clientY - ly;
       lx = e.clientX;
       ly = e.clientY;
-      player.position.x = THREE.MathUtils.clamp(player.position.x + dx * 0.006, -halfW * 0.95, halfW * 0.95);
-      player.position.z = THREE.MathUtils.clamp(player.position.z + dy * 0.008, halfL - 3.0, halfL + 0.8);
     }
     function mapSwipeToShot(vx, vy, spd, { serve = false } = {}) {
       const scale = serve ? 1050 : 1150;
@@ -1318,7 +1301,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       }
     }
     el.addEventListener('pointerdown', onDown);
-    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerup', onUp);
 
     let cpuWind = 0;
@@ -1451,7 +1434,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         const t = Math.max(0.05, (strikeZ - pos.z) / (vel.z || 1e-6));
         const predX = pos.x + vel.x * t;
         player.position.x += (THREE.MathUtils.clamp(predX, -halfW, halfW) - player.position.x) * 0.22;
+      } else {
+        player.position.x += (0 - player.position.x) * 0.08;
       }
+      const homeZ = playerZ - 0.3;
+      player.position.z += (homeZ - player.position.z) * 0.08;
 
       if (state.live) {
         const prevZ = pos.z;
@@ -1468,11 +1455,16 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         pos.addScaledVector(vel, dt);
         if (pos.y <= ballR) {
           pos.y = ballR;
-          if (vel.y < 0) vel.y = -vel.y * state.cor;
+          if (vel.y < 0) {
+            const impactSpeed = Math.abs(vel.y);
+            const bounceScale = THREE.MathUtils.clamp(state.cor + impactSpeed / 42, state.cor, 0.94);
+            vel.y = impactSpeed * bounceScale;
+          }
           tangentVel.set(vel.x, 0, vel.z);
           spinSurfaceVel.set(-spin.z * ballR, 0, spin.x * ballR);
+          const skidInfluence = THREE.MathUtils.clamp(Math.abs(vel.y) / 24, 0.3, 1);
           tangentVel.addScaledVector(spinSurfaceVel, 0.35);
-          tangentVel.multiplyScalar(1 - state.fric);
+          tangentVel.multiplyScalar(1 - state.fric * skidInfluence);
           vel.x = tangentVel.x;
           vel.z = tangentVel.z;
           spin.x *= 0.72;
@@ -1738,34 +1730,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
             {msg} · {serveAttemptLabel} · Court {hudInfo.side === 'deuce' ? 'D' : 'Ad'}
           </div>
         </div>
-        {popupVisible && (
-          <div
-            style={{
-              position: 'absolute',
-              inset: 0,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <div
-              style={{
-                pointerEvents: 'none',
-                background: 'rgba(15, 23, 42, 0.88)',
-                color: '#f8fafc',
-                fontFamily: 'ui-sans-serif, system-ui',
-                fontWeight: 600,
-                fontSize: 12,
-                padding: '12px 20px',
-                borderRadius: 14,
-                boxShadow: '0 18px 36px rgba(15, 23, 42, 0.35)',
-                backdropFilter: 'blur(8px)'
-              }}
-            >
-              {popupText}
-            </div>
-          </div>
-        )}
       </div>
       <div style={{ position: 'absolute', bottom: 24, right: 24, pointerEvents: 'auto' }}>
         <button
