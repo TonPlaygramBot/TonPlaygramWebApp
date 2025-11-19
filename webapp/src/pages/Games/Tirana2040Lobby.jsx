@@ -10,7 +10,6 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { isBalanceInsufficient } from '../../utils/balance.js';
 
 const PLAYER_COUNTS = [10, 20, 30];
 
@@ -40,7 +39,7 @@ export default function Tirana2040Lobby() {
     try {
       accountId = await ensureAccountId();
       const balRes = await getAccountBalance(accountId);
-      if (isBalanceInsufficient(balRes, stake.amount)) {
+      if ((balRes.balance || 0) < stake.amount) {
         alert('Insufficient balance');
         setLoading(false);
         return;

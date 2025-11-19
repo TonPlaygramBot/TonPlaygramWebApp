@@ -10,7 +10,6 @@ import {
 } from '../../utils/telegram.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { isBalanceInsufficient } from '../../utils/balance.js';
 
 export default function TennisBattleRoyalLobby() {
   useTelegramBackButton();
@@ -34,7 +33,7 @@ export default function TennisBattleRoyalLobby() {
     try {
       const accountId = await ensureAccountId();
       const balance = await getAccountBalance(accountId);
-      if (isBalanceInsufficient(balance, stake.amount)) {
+      if ((balance.balance || 0) < stake.amount) {
         alert('Insufficient balance');
         setLoading(false);
         return;
