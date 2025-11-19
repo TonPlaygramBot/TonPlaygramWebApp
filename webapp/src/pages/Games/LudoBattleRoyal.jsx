@@ -21,7 +21,8 @@ import {
 import coinConfetti from '../../utils/coinConfetti';
 import {
   dropSound,
-  snakeSound,
+  diceSound,
+  bombSound,
   cheerSound
 } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
@@ -1556,6 +1557,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
+  const diceSoundRef = useRef(null);
   const aiTimeoutRef = useRef(null);
   const diceClearTimeoutRef = useRef(null);
   const humanRollTimeoutRef = useRef(null);
@@ -2205,7 +2207,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   useEffect(() => {
     const applyVolume = (baseVolume) => {
       const level = settingsRef.current.soundEnabled ? baseVolume : 0;
-      [moveSoundRef, captureSoundRef, cheerSoundRef].forEach((ref) => {
+      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
         if (ref.current) {
           ref.current.volume = level;
           if (!settingsRef.current.soundEnabled) {
@@ -2219,8 +2221,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     };
     const vol = getGameVolume();
     moveSoundRef.current = new Audio(dropSound);
-    captureSoundRef.current = new Audio(snakeSound);
+    captureSoundRef.current = new Audio(bombSound);
     cheerSoundRef.current = new Audio(cheerSound);
+    diceSoundRef.current = new Audio(diceSound);
     applyVolume(vol);
     const onVolChange = () => {
       applyVolume(getGameVolume());
@@ -2341,7 +2344,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     settingsRef.current.soundEnabled = soundEnabled;
     const baseVolume = getGameVolume();
     const level = soundEnabled ? baseVolume : 0;
-    [moveSoundRef, captureSoundRef, cheerSoundRef].forEach((ref) => {
+    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
       if (ref.current) {
         ref.current.volume = level;
         if (!soundEnabled) {
@@ -2367,7 +2370,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const raycaster = new THREE.Raycaster();
 
     const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
-    [moveSoundRef, captureSoundRef, cheerSoundRef].forEach((ref) => {
+    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
       if (ref.current) {
         ref.current.volume = baseVolume;
       }
@@ -2395,9 +2398,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = isPortrait ? 1.65 : 1.05;
-    const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-    const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+    const cameraBackOffset = isPortrait ? 2.05 : 1.45;
+    const cameraForwardOffset = isPortrait ? 0.12 : 0.25;
+    const cameraHeightOffset = isPortrait ? 1.6 : 1.26;
     const chairRadius = AI_CHAIR_RADIUS;
     const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
@@ -2951,6 +2954,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     }
   };
 
+  const playDiceSound = () => {
+    if (!settingsRef.current.soundEnabled) return;
+    if (diceSoundRef.current) {
+      diceSoundRef.current.currentTime = 0;
+      diceSoundRef.current.play().catch(() => {});
+    }
+  };
+
   const setCameraFocus = useCallback((focus) => {
     if (!focus) {
       cameraFocusRef.current = null;
@@ -3402,6 +3413,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       priority: 4,
       offset: CAMERA_TARGET_LIFT + 0.04
     });
+    playDiceSound();
     const landingFocus = baseTarget.clone();
     const value = await spinDice(dice, {
       duration: AUTO_ROLL_DURATION_MS,
