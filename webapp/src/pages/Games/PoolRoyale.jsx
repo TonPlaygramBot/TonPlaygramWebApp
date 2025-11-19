@@ -1815,7 +1815,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     id: 'balanced60',
     label: '60 Hz Smooth',
     fps: 60,
-    resolution: '1920×1080',
+    resolution: '1600×900',
     description: 'Balanced frame pacing tuned for modern mobile displays.'
   },
   {
@@ -3407,7 +3407,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.038; // pull the orbit slightly closer so the tighter table still fills the frame
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -4244,7 +4244,7 @@ function reflectRails(ball) {
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
   const pocketGuard =
-    POCKET_VIS_R * 0.72 * POCKET_VISUAL_EXPANSION + BALL_R * 0.05;
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // widen the safe zone so balls don't bounce before reaching the jaw
   const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
   const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
@@ -4283,7 +4283,7 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.45;
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
   const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
@@ -7663,7 +7663,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
-  const [topView, setTopView] = useState(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
@@ -8075,64 +8074,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     updateHudPanels();
   }, [updateHudPanels]);
-
-  // Removed camera rotation helpers previously triggered by UI buttons
-
-  const toggleView = () => {
-    const cam = cameraRef.current;
-    const sph = sphRef.current;
-    const fit = fitRef.current;
-    if (!cam || !sph || !fit) return;
-    const next = !topViewRef.current;
-    const start = {
-      radius: sph.radius,
-      phi: sph.phi,
-      theta: sph.theta
-    };
-    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
-      const targetMargin = next
-        ? 1.05
-        : window.innerHeight > window.innerWidth
-          ? 1.6
-          : 1.4;
-    const targetRadius = fitRadius(cam, targetMargin);
-    const target = {
-      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
-      phi: next ? 0.0001 : last3DRef.current.phi,
-      theta: next ? sph.theta : last3DRef.current.theta
-    };
-    const duration = 600;
-    const t0 = performance.now();
-    function anim(t) {
-      const k = Math.min(1, (t - t0) / duration);
-      const ease = k * (2 - k);
-      sph.radius = start.radius + (target.radius - start.radius) * ease;
-      sph.phi = start.phi + (target.phi - start.phi) * ease;
-      sph.theta = start.theta + (target.theta - start.theta) * ease;
-      const targetPos = new THREE.Vector3(
-        playerOffsetRef.current,
-        ORBIT_FOCUS_BASE_Y,
-        0
-      ).multiplyScalar(worldScaleFactor);
-      const tmpSphAnim = sph.clone
-        ? sph.clone()
-        : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
-      cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
-      cam.lookAt(targetPos);
-      if (k < 1) requestAnimationFrame(anim);
-      else {
-        topViewRef.current = next;
-        setTopView(next);
-        if (rendererRef.current) {
-          rendererRef.current.domElement.style.transform = next
-            ? 'scale(0.9)'
-            : 'scale(1)';
-        }
-        fit(targetMargin);
-      }
-    }
-    requestAnimationFrame(anim);
-  };
 
   useEffect(() => {
     if (hud.over) return;
@@ -9405,51 +9346,25 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
 
-        const updateBroadcastCameras = ({
-          railDir = 1,
-          targetWorld = null,
-          focusWorld = null,
-          lerp = 1
-        } = {}) => {
+        const updateBroadcastCameras = ({ railDir = 1 } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
-          const lerpFactor = THREE.MathUtils.clamp(lerp ?? 0, 0, 1);
           const focusTarget =
-            focusWorld ??
-            targetWorld ??
-            rig.defaultFocusWorld ??
-            rig.defaultFocus ??
-            null;
-          const applyFocus = (unit, lookAt, t) => {
+            rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
+          const snapToDefault = (unit) => {
             if (!unit) return;
             if (unit.slider) {
-              const settle = Math.max(THREE.MathUtils.clamp(t ?? 0, 0, 1), 0.5);
-              unit.slider.position.x = THREE.MathUtils.lerp(
-                unit.slider.position.x,
-                0,
-                settle
-              );
-              unit.slider.position.z = THREE.MathUtils.lerp(
-                unit.slider.position.z,
-                0,
-                settle
-              );
+              unit.slider.position.x = 0;
+              unit.slider.position.z = 0;
             }
-            if (lookAt && unit.head) {
-              unit.head.lookAt(lookAt);
+            if (focusTarget && unit.head) {
+              unit.head.lookAt(focusTarget);
             }
           };
-          const frontUnits = [rig.cameras.front].filter(Boolean);
-          const backUnits = [rig.cameras.back].filter(Boolean);
-          const activeUnits = railDir >= 0 ? backUnits : frontUnits;
-          const idleUnits = railDir >= 0 ? frontUnits : backUnits;
-          activeUnits.forEach((unit) =>
-            applyFocus(unit, focusTarget, lerpFactor)
-          );
-          const idleFocus = rig.defaultFocusWorld ?? focusTarget;
-          idleUnits.forEach((unit) =>
-            applyFocus(unit, idleFocus, Math.min(1, lerpFactor * 0.6))
-          );
+          const useBack = railDir >= 0;
+          snapToDefault(useBack ? rig.cameras.back : rig.cameras.front);
+          snapToDefault(useBack ? rig.cameras.front : rig.cameras.back);
+          rig.activeRail = useBack ? 'back' : 'front';
         };
 
         const updateCamera = () => {
@@ -9500,16 +9415,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             broadcastArgs.focusWorld = resolvedTarget.clone();
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
-          } else if (topViewRef.current) {
-            lookTarget = getDefaultOrbitTarget().multiplyScalar(
-              worldScaleFactor
-            );
-            camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
-            camera.lookAt(lookTarget);
-            renderCamera = camera;
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-            broadcastArgs.targetWorld = null;
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -10652,7 +10557,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         sphRef.current = sph;
         fitRef.current = fit;
         topViewRef.current = false;
-        setTopView(false);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
