@@ -130,13 +130,21 @@ import * as SkeletonUtils from 'https://esm.sh/three@0.160.0/examples/jsm/utils/
 document.title = 'Tirana 2040 • Last Man Standing';
 
 (async function main(){
+  window.__phase='boot';
+  try {
   const $ = (id)=>document.getElementById(id);
   const wrap = $('wrap');
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints>0);
   const isMobile = isTouch || /Android|webOS|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
   const gate = $('gate');
   const ctxlost = $('ctxlost');
-  gate.style.display = isMobile ? 'grid' : 'none';
+  // The mobile layout gate was originally used to block phones from loading the
+  // experience while the responsive controls were incomplete. The game is now
+  // fully touch compatible, so the overlay needs to stay hidden regardless of
+  // the device or the user would be stuck on a blank "Mobile layout gate"
+  // screen. Keep the element for potential future notices but don't display it
+  // automatically.
+  gate.style.display = 'none';
 
   window.isMobile = isMobile;
   window.gate = gate;
@@ -150,6 +158,14 @@ document.title = 'Tirana 2040 • Last Man Standing';
   window.CURATED=CURATED;
   async function loadWithRetry(urls){ return Array.isArray(urls) && urls.length>0; }
   window.loadWithRetry=loadWithRetry;
+
+  function withTimeout(promise, ms=8000){
+    return new Promise((resolve, reject)=>{
+      const timer=setTimeout(()=>reject(new Error('timeout')), ms);
+      promise.then((val)=>{ clearTimeout(timer); resolve(val); })
+             .catch((err)=>{ clearTimeout(timer); reject(err); });
+    });
+  }
 
   window.__frameCapMs = 20;
   window.__forceStubFallback = ()=>location.reload();
@@ -173,6 +189,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
     $('status').textContent = 'Tirana 2040 • Last Man Standing';
   }
 
+  window.__phase='dom-wired';
+
   const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance', alpha:false, stencil:false, depth:true, precision:'mediump' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -186,6 +204,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
   renderer.domElement.addEventListener('mousedown', onMouseDownAudio, {once:true});
   window.renderer=renderer;
   THREE.Cache.enabled = true;
+
+  const skyTexture = makeSkyTexture();
 
   const scene = new THREE.Scene();
   scene.background = skyTexture;
@@ -234,8 +254,6 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function makeWaterMaterial(){ const tex = new THREE.CanvasTexture((()=>{ const c=document.createElement('canvas'); c.width=c.height=256; const ctx=c.getContext('2d'); const grd=ctx.createRadialGradient(128,128,20,128,128,128); grd.addColorStop(0,'rgba(80,180,255,0.95)'); grd.addColorStop(1,'rgba(30,90,140,0.65)'); ctx.fillStyle=grd; ctx.fillRect(0,0,256,256); return c; })()); tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(2,2); return new THREE.MeshStandardMaterial({ map:tex, transparent:true, opacity:0.9, roughness:0.2, metalness:0.15, side:THREE.DoubleSide }); }
   function trackTex(w=1024,h=1024){ const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.fillStyle='#b33a2c'; g.fillRect(0,0,w,h); const dots=Math.floor(w*h*0.004); for(let i=0;i<dots;i++){ const x=Math.random()*w, y=Math.random()*h, r=Math.random()*1.6+0.2; g.fillStyle=Math.random()<0.5?'rgba(255,190,180,0.35)':'rgba(40,12,10,0.35)'; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); } const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(16,maxAniso); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.colorSpace=THREE.SRGBColorSpace; t.repeat.set(1,1); return t; }
 
-  const skyTexture = makeSkyTexture();
-
   const brickTex = makeBrickTexture();
   const plasterTex = makePlasterTexture();
 
@@ -248,6 +266,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const turfMat = new THREE.MeshStandardMaterial({ map:tennisGrassTex, roughness:0.65, metalness:0.02, side:THREE.DoubleSide });
   const tennisMat = new THREE.MeshStandardMaterial({ map:tennisCourtTex, roughness:0.55, metalness:0.04, side:THREE.DoubleSide });
   const basketMat = new THREE.MeshStandardMaterial({ map:basketCourtTex, roughness:0.6, metalness:0.03, side:THREE.DoubleSide });
+
+  window.__phase='textures-ready';
 
   const city = new THREE.Group(); city.userData.kind='city'; scene.add(city);
   const buildings=[];
@@ -275,6 +295,13 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const roadMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.92, metalness:0.05, side:THREE.DoubleSide });
   window.roadMat = roadMat;
+  const sidewalkMat = new THREE.MeshStandardMaterial({ map: sidewalkTex, roughness:0.9, metalness:0.04, side:THREE.DoubleSide });
+  const crosswalks=new THREE.Group(); crosswalks.userData={kind:'markings'}; city.add(crosswalks);
+  const streetLights=new THREE.Group(); streetLights.userData={kind:'street_bulb'}; city.add(streetLights);
+  const intersectionPatches=new THREE.Group(); intersectionPatches.userData={kind:'interPatches'}; city.add(intersectionPatches);
+  const busStopsGroup=new THREE.Group(); busStopsGroup.userData={kind:'bus_stop_group'}; city.add(busStopsGroup);
+  const benchesGroup=new THREE.Group(); benchesGroup.userData={kind:'bench_group'}; city.add(benchesGroup);
+
   for(let ix=0; ix<=BLOCKS_X; ix++){
     const geo=new THREE.PlaneGeometry(ROAD,(CELL)*BLOCKS_Z + ROAD);
     const m=new THREE.Mesh(geo, roadMat);
@@ -315,12 +342,6 @@ document.title = 'Tirana 2040 • Last Man Standing';
   addBusStop(-cityHalfX*0.6, cityHalfZ+ROAD*0.8, 0);
   addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
 
-  const sidewalkMat = new THREE.MeshStandardMaterial({ map: sidewalkTex, roughness:0.9, metalness:0.04, side:THREE.DoubleSide });
-  const crosswalks=new THREE.Group(); crosswalks.userData={kind:'markings'}; city.add(crosswalks);
-  const streetLights=new THREE.Group(); streetLights.userData={kind:'street_bulb'}; city.add(streetLights);
-  const intersectionPatches=new THREE.Group(); intersectionPatches.userData={kind:'interPatches'}; city.add(intersectionPatches);
-  const busStopsGroup=new THREE.Group(); busStopsGroup.userData={kind:'bus_stop_group'}; city.add(busStopsGroup);
-  const benchesGroup=new THREE.Group(); benchesGroup.userData={kind:'bench_group'}; city.add(benchesGroup);
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
   const windowMat=makeGlassStdMat();
   const windowInstances=new THREE.InstancedMesh(windowGeo, windowMat, 4000);
@@ -335,6 +356,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function addSidewalk(xc,zc){ const w=CELL-ROAD, h=CELL-ROAD; const geo=new THREE.BoxGeometry(w,2,h); const m=new THREE.Mesh(geo, sidewalkMat); m.castShadow=false; m.receiveShadow=allowShadows; m.position.set(xc,1,zc); city.add(m); }
 
   const plotKey=(ix,iz)=>`${ix},${iz}`;
+  function rectsOverlap(a,b){ if(!a||!b) return false; return !(a.x1<b.x0 || a.x0>b.x1 || a.z1<b.z0 || a.z0>b.z1); }
   function reservePlotRect(ix,iz,rect){ const key=plotKey(ix,iz); if(!plotRegistry.has(key)) plotRegistry.set(key,{rects:[]}); const entry=plotRegistry.get(key); for(const other of entry.rects){ if(rectsOverlap(rect,other)) return false; } entry.rects.push(rect); return true; }
   const registerPlotArea=(ix,iz,cx,cz,w,d)=>reservePlotRect(ix,iz,{x0:cx-w/2,x1:cx+w/2,z0:cz-d/2,z1:cz+d/2});
 
@@ -563,7 +585,12 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const playerRadius=0.35; const player=new CANNON.Body({ mass:75, material:matPlayer, shape:new CANNON.Sphere(playerRadius), position:new CANNON.Vec3(0,1.0,10), linearDamping:0.18, angularDamping:0.9 });
   player.fixedRotation=true; player.allowSleep=false; world.addBody(player);
-  let yaw=0, pitch=0; const PITCH_LIMIT=Math.PI*0.498; function clampPitch(){ pitch=Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch)); }
+  let yaw=0;
+  // Start with a slight downward pitch so the city grid is visible immediately
+  // on load without requiring the player to drag the aim pad.
+  let pitch=-Math.PI*0.08;
+  const PITCH_LIMIT=Math.PI*0.498;
+  function clampPitch(){ pitch=Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch)); }
   let camDist=4.2;
   function camFollow(pos,distMul=1){ const back=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)); const eye=new THREE.Vector3(pos.x - back.x*camDist*distMul, pos.y+2.1, pos.z - back.z*camDist*distMul); camera.position.lerp(eye,0.25); const look=new THREE.Vector3(pos.x + back.x*(camDist+0.2)*distMul, pos.y+1.25 + Math.sin(pitch)*0.8, pos.z + back.z*(camDist+0.2)*distMul); camera.lookAt(look); }
   function grounded(){ return player.position.y < 0.38 && Math.abs(player.velocity.y) < 0.05; }
@@ -856,8 +883,49 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function stripGroundMeshes(root){ const rootBox=new THREE.Box3().setFromObject(root); const rootSize=new THREE.Vector3(); rootBox.getSize(rootSize); const rootArea=rootSize.x*rootSize.z; const rm=[]; root.traverse(o=>{ if(!o.isMesh) return; const b=new THREE.Box3().setFromObject(o); const sz=new THREE.Vector3(); b.getSize(sz); const area=sz.x*sz.z; const flat=sz.y/Math.max(0.0001, Math.max(sz.x,sz.z)); const nearBottom=(b.min.y-rootBox.min.y)<=Math.max(0.05, rootSize.y*0.06); const byName=/ground|plane|cloth|board|shadow|table|grid|floor/i.test(o.name||'')||/shadow/i.test(o.material?.name||''); if(nearBottom && area>=rootArea*0.18 && (flat<0.12 || byName)){ rm.push(o); } }); for(const m of rm){ m.parent?.remove(m);} root.updateMatrixWorld(true); }
 
   const vehicleCache=new Map();
-  async function robustLoad(urls){ for(const u of urls){ try{ const gltf=await gltfLoader.loadAsync(u); return gltf; }catch(_){ } } throw new Error('load fail'); }
-  async function getVehicle(key){ const normalized=key?.toLowerCase?.()||key; if(vehicleCache.has(normalized)) return vehicleCache.get(normalized); let urls=[]; if(normalized==='ambulance'||normalized==='police') urls=URLS.MilkTruck; else if(normalized==='fire'||normalized==='firetruck') urls=URLS.FireTruck; else if(normalized==='bus') urls=URLS.Bus; else if(normalized==='motorcycle'||normalized==='moto'||normalized==='bike') urls=URLS.Motorcycle; else if(normalized==='sedan') urls=URLS.Sedan; else urls=URLS.CarConcept; try{ const gltf=await robustLoad(urls); const root=(gltf.scene||gltf.scenes?.[0]); stripGroundMeshes(root); vehicleCache.set(normalized, root); return root; }catch(_){ const size = (normalized==='motorcycle'||normalized==='moto'||normalized==='bike')? {w:1.2,h:1.4,l:2.2}:{w:3.6,h:1.2,l:1.6}; const geom=new THREE.BoxGeometry(size.w,size.h,size.l); const mat=new THREE.MeshLambertMaterial({ color:0x8892a6 }); const base=new THREE.Mesh(geom, mat); base.position.y=size.h/2; const group=new THREE.Group(); group.add(base); vehicleCache.set(normalized,group); return group; } }
+  async function robustLoad(urls, timeoutMs=7000){
+    let lastErr=null;
+    for(const u of urls){
+      try{
+        const gltf=await withTimeout(gltfLoader.loadAsync(u), timeoutMs);
+        return gltf;
+      }catch(err){
+        lastErr=err;
+      }
+    }
+    throw lastErr || new Error('load fail');
+  }
+  async function getVehicle(key){
+    const normalized=key?.toLowerCase?.()||key;
+    if(vehicleCache.has(normalized)) return vehicleCache.get(normalized);
+    window.__phase=`vehicle:${normalized}`;
+    let urls=[];
+    if(normalized==='ambulance'||normalized==='police') urls=URLS.MilkTruck;
+    else if(normalized==='fire'||normalized==='firetruck') urls=URLS.FireTruck;
+    else if(normalized==='bus') urls=URLS.Bus;
+    else if(normalized==='motorcycle'||normalized==='moto'||normalized==='bike') urls=URLS.Motorcycle;
+    else if(normalized==='sedan') urls=URLS.Sedan;
+    else urls=URLS.CarConcept;
+    try{
+      const gltf=await robustLoad(urls);
+      const root=(gltf.scene||gltf.scenes?.[0]);
+      stripGroundMeshes(root);
+      vehicleCache.set(normalized, root);
+      window.__phase=`vehicle-done:${normalized}`;
+      return root;
+    }catch(_){
+      const size = (normalized==='motorcycle'||normalized==='moto'||normalized==='bike')? {w:1.2,h:1.4,l:2.2}:{w:3.6,h:1.2,l:1.6};
+      const geom=new THREE.BoxGeometry(size.w,size.h,size.l);
+      const mat=new THREE.MeshLambertMaterial({ color:0x8892a6 });
+      const base=new THREE.Mesh(geom, mat);
+      base.position.y=size.h/2;
+      const group=new THREE.Group();
+      group.add(base);
+      vehicleCache.set(normalized,group);
+      window.__phase=`vehicle-fallback:${normalized}`;
+      return group;
+    }
+  }
 
   function tintVehicle(root,hex){ const col=new THREE.Color(hex); root.traverse(o=>{ if(o.isMesh&&o.material&&o.material.color){ o.material.color.lerp(col,0.9); o.material.needsUpdate=true; } }); }
   function addSideLabels(root,text){ const b=new THREE.Box3().setFromObject(root); const s=new THREE.Vector3(); b.getSize(s); const y=b.min.y+s.y*0.6; const midZ=(b.min.z+b.max.z)/2; const L=makeLabel(text,0.9); const R=makeLabel(text,0.9); L.rotation.y=Math.PI/2; R.rotation.y=-Math.PI/2; L.position.set(b.min.x-0.02,y,midZ); R.position.set(b.max.x+0.02,y,midZ); root.add(L,R); }
@@ -956,9 +1024,13 @@ document.title = 'Tirana 2040 • Last Man Standing';
     }
   }
 
+  window.__phase='pre-emergency';
   await spawnParkedEmergency();
+  window.__phase='after-emergency';
   await spawnParkedCommons();
+  window.__phase='after-commons';
   await spawnTraffic(16);
+  window.__phase='after-traffic';
 
   function dispatchEmergency(pos){ const total=Math.max(1, emergencyUnits.length); emergencyUnits.forEach((unit,idx)=>{ const offsetAngle=(idx/total)*Math.PI*2; const offset=new THREE.Vector3(Math.cos(offsetAngle)*2.4,0,Math.sin(offsetAngle)*2.4); unit.target=pos.clone().add(offset); unit.state='responding'; unit.arrivalTimer=0; if(unit.siren){ unit.siren.phase=0; unit.siren.left.material.opacity=0.9; unit.siren.right.material.opacity=0.9; if(unit.siren.light){ unit.siren.light.intensity=14; } } }); }
 
@@ -967,7 +1039,17 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const rayEnemies=new Map();
   const modelCache=new Map();
   const CHAR_PRESETS={ Soldier:['https://threejs.org/examples/models/gltf/Soldier.glb'], Xbot:['https://threejs.org/examples/models/gltf/Xbot.glb'] };
-  async function robustLoadChar(urls){ let last=null; for(const u of urls){ try{ return await gltfLoader.loadAsync(u); }catch(e){ last=e; } } throw last||new Error('Load fail'); }
+  async function robustLoadChar(urls, timeoutMs=7000){
+    let last=null;
+    for(const u of urls){
+      try{
+        return await withTimeout(gltfLoader.loadAsync(u), timeoutMs);
+      }catch(e){
+        last=e;
+      }
+    }
+    throw last||new Error('Load fail');
+  }
   function normalizeRoot(root){ const box=new THREE.Box3().setFromObject(root); const size=new THREE.Vector3(); box.getSize(size); const scale=1.7/(size.y||1); root.scale.setScalar(scale); return root; }
   function makeCapsulePlaceholder(){ const g=new THREE.Group(); const body=new THREE.Mesh(new THREE.CapsuleGeometry(0.35,1.0,8,16), new THREE.MeshLambertMaterial({ color:0x556b8a })); g.add(body); return g; }
   async function getCharacter(key){ if(modelCache.has(key)) return modelCache.get(key); try{ const gltf=await robustLoadChar(CHAR_PRESETS[key]||CHAR_PRESETS.Soldier); const baseRoot=(gltf.scene||gltf.scenes?.[0]||null); const root = baseRoot? normalizeRoot(baseRoot) : makeCapsulePlaceholder(); root.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; o.material = new THREE.MeshLambertMaterial({ color:0x9fb1c6 }); }}); modelCache.set(key,{root,clips:gltf.animations||[]}); return modelCache.get(key); }catch(_){ const ph=makeCapsulePlaceholder(); modelCache.set(key,{root:ph,clips:[]}); return modelCache.get(key); } }
@@ -1100,6 +1182,10 @@ document.title = 'Tirana 2040 • Last Man Standing';
     console.assert(getComputedStyle(document.getElementById('crosshair')).getPropertyValue('--aimColor').trim()!=='', 'crosshair color var');
     console.assert(typeof GLTFLoader==='function', 'GLTFLoader OK');
   }, 800);
+  } catch(err){
+    console.error('Tirana 2040 failed to bootstrap', err);
+    window.__phase = `error:${err?.message||err}`;
+  }
 })();
 </script>
 </body>
