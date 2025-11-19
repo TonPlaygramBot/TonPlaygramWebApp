@@ -17,7 +17,7 @@
 /**
  * @typedef {Object} AimRequest
  * @property {GameType} game
- * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean}} state
+ * @property {{balls:Ball[],pockets:Pocket[],width:number,height:number,ballRadius:number,friction:number,myGroup?:'SOLIDS'|'STRIPES'|'UNASSIGNED',ballOn?:'blue'|'red'|null,ballInHand?:boolean,mustPlayFromBaulk?:boolean,baulkLineY?:number}} state
  * @property {number} [timeBudgetMs]
  * @property {number} [rngSeed]
  * @property {number} [maxCutAngle] maximum allowed cut angle in radians for a shot candidate
@@ -36,6 +36,10 @@
  * @property {{x:number,y:number}} [cueBallPosition]
  * @property {{x:number,y:number}} [aimPoint]
  */
+
+const LOOKAHEAD_DEPTH = 2
+const LOOKAHEAD_CANDIDATES = 3
+const MONTE_CARLO_BASE_SAMPLES = 28
 
 function dist (a, b) {
   const dx = a.x - b.x
@@ -75,11 +79,18 @@ function pocketEntry (pocket, radius, width, height) {
 }
 
 function currentGroup (state) {
-  const g = state.myGroup ?? state.ballOn
+  let g = state.myGroup
+  if (!g || g === 'UNASSIGNED') {
+    g = state.ballOn
+  }
   if (!g) return undefined
-  if (g === 'blue') return 'SOLIDS'
-  if (g === 'red') return 'STRIPES'
-  return g
+  const norm = g.toString().toUpperCase()
+  // In UK 8-ball, balls 1-7 are red (solids) and 9-15 are blue (stripes).
+  // Map the textual colour assignment to the corresponding group.
+  if (norm === 'RED') return 'SOLIDS'
+  if (norm === 'BLUE') return 'STRIPES'
+  if (norm === 'SOLIDS' || norm === 'STRIPES') return norm
+  return undefined
 }
 
 function chooseTargets (req) {
@@ -204,15 +215,16 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   const dir = { x: toTarget.x - toPocket.x, y: toTarget.y - toPocket.y }
   const len = Math.hypot(dir.x, dir.y) || 1
 
-  // Base travel after striking the target – no spin influence yet so the cue
-  // ball runs straight regardless of power.
+  // Base travel of the cue ball after striking the target – this is the
+  // straight path with no spin influence. Power only affects distance.
   const baseDist = (power * 120) / len
   const result = {
     x: target.x + dir.x * baseDist,
     y: target.y + dir.y * baseDist
   }
-
-  // Spin effects applied after impact.
+  // Apply spin after the straight path has been established. Top/back spin
+  // extend or reduce travel along the shot line while side spin adds a
+  // perpendicular offset after impact.
   const distScale = 1 + spin.top - spin.back
   result.x += dir.x * baseDist * (distScale - 1)
   result.y += dir.y * baseDist * (distScale - 1)
@@ -222,10 +234,33 @@ export function estimateCueAfterShot (cue, target, pocket, power, spin, table) {
   const perp = { x: -dir.y / len, y: dir.x / len }
   result.x += perp.x * sideOffset
   result.y += perp.y * sideOffset
-
   return result
 }
 
+function clampPointToTable (point, table, margin = 1) {
+  if (!table) return { ...point }
+  const inset = (table.ballRadius || 0) * margin
+  const clampedX = Math.min(Math.max(point.x, inset), table.width - inset)
+  const clampedY = Math.min(Math.max(point.y, inset), table.height - inset)
+  return { x: clampedX, y: clampedY }
+}
+
+function cloneBallsForNextShot (balls, cueAfter, targetId, state) {
+  const clamped = clampPointToTable(cueAfter, state, 1.1)
+  return balls.map(ball => {
+    const next = { ...ball }
+    if (next.id === targetId) {
+      next.pocketed = true
+    }
+    if (next.id === 0) {
+      next.x = clamped.x
+      next.y = clamped.y
+      next.vx = 0
+      next.vy = 0
+    }
+    return next
+  })
+}
 
 // Rough Monte Carlo estimate of potting probability by jittering the cue
 // aim slightly and checking if paths remain clear. This models human
@@ -234,9 +269,13 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
   const r = req.state.ballRadius
   const baseAngle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
   const distCG = dist(cue, ghost)
+  const shotLength = dist(cue, target)
+  const distanceFactor = Math.min(shotLength / (r * 20 || 1), 2)
+  const sampleCount = Math.max(samples, Math.round(MONTE_CARLO_BASE_SAMPLES * (1 + distanceFactor)))
+  const jitterScale = 0.015 + 0.025 * distanceFactor
   let success = 0
-  for (let i = 0; i < samples; i++) {
-    const a = baseAngle + (Math.random() - 0.5) * 0.04 // ±~1°
+  for (let i = 0; i < sampleCount; i++) {
+    const a = baseAngle + (Math.random() - 0.5) * jitterScale
     const g = { x: cue.x + Math.cos(a) * distCG, y: cue.y + Math.sin(a) * distCG }
     if (
       g.x < r ||
@@ -250,11 +289,51 @@ function monteCarloPotChance (req, cue, target, entry, ghost, balls, samples = 2
     if (dist(g, ghost) > r * 0.5) continue
     success++
   }
-  return success / samples
+  return success / sampleCount
 }
 
+function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
+  if (!req?.state || depth <= 0) return 0
+  const nextBalls = cloneBallsForNextShot(balls, cueAfter, targetId, req.state)
+  const nextReq = { ...req, state: { ...req.state, balls: nextBalls, ballInHand: false } }
+  const cue = nextBalls.find(b => b.id === 0)
+  if (!cue) return 0
+  const candidates = clearShotCandidates(nextReq)
+  if (!candidates.length) return 0
+  let best = 0
+  for (const { target, pocket } of candidates.slice(0, LOOKAHEAD_CANDIDATES)) {
+    const preview = evaluate(
+      nextReq,
+      cue,
+      target,
+      pocket,
+      0.7,
+      { top: 0, side: 0, back: 0 },
+      nextBalls,
+      true,
+      { skipLookahead: true }
+    )
+    if (!preview) continue
+    let score = preview.quality
+    if (depth > 1) {
+      const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height)
+      const nextCueAfter = estimateCueAfterShot(
+        cue,
+        target,
+        entry,
+        preview.power ?? 0.7,
+        preview.spin ?? { top: 0, side: 0, back: 0 },
+        req.state
+      )
+      const follow = estimateRunoutPotential(nextReq, nextCueAfter, target.id, nextBalls, depth - 1)
+      score = Math.max(score, (score + follow) / 2)
+    }
+    best = Math.max(best, score)
+  }
+  return best
+}
 
-function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false) {
+function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false, options = {}) {
   const r = req.state.ballRadius
   const balls = ballsOverride || req.state.balls
   const entry = pocketEntry(pocket, r, req.state.width, req.state.height)
@@ -279,7 +358,6 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     return null
   }
   const maxD = Math.hypot(req.state.width, req.state.height)
-  const distShot = dist(cue, target) + dist(target, entry)
   const potChance = monteCarloPotChance(req, cue, target, entry, ghost, balls)
   const cueAfter = estimateCueAfterShot(cue, target, entry, power, spin, req.state)
   const nextTargets = nextTargetsAfter(target.id, { ...req, state: { ...req.state, balls } })
@@ -301,11 +379,23 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   if (strict && (centerAlign < 0.5 || viewScore < 0.3)) {
     return null
   }
+  const lookaheadDepth = Number.isFinite(options.lookaheadDepth)
+    ? Math.max(0, options.lookaheadDepth)
+    : LOOKAHEAD_DEPTH
+  const runoutPotential = options.skipLookahead
+    ? 0
+    : estimateRunoutPotential(req, cueAfter, target.id, balls, lookaheadDepth)
   const quality = Math.max(
     0,
     Math.min(
       1,
-      0.35 * potChance + 0.25 * centerAlign + 0.2 * viewScore + 0.1 * nextScore + 0.1 * nearHole - 0.2 * risk
+      0.3 * potChance +
+        0.2 * centerAlign +
+        0.18 * viewScore +
+        0.08 * nextScore +
+        0.08 * nearHole +
+        0.16 * runoutPotential -
+        0.2 * risk
     )
   )
   const angle = Math.atan2(ghost.y - cue.y, ghost.x - cue.x)
@@ -352,16 +442,13 @@ export function planShot (req) {
   const deadline = req.timeBudgetMs ? start + req.timeBudgetMs : Infinity
   let best = null
 
-  const powers = [0.5, 0.7, 0.9, 1.0]
+  const powers = [0.5, 0.7, 0.85]
   const spins = [
     { top: 0, side: 0, back: 0 },
     { top: 0.3, side: 0, back: -0.3 },
     { top: -0.3, side: 0.3, back: 0 },
     { top: -0.3, side: -0.3, back: 0 },
-    { top: 0.5, side: 0, back: -0.5 },
-    { top: -0.5, side: 0.5, back: 0 },
-    { top: -0.5, side: -0.5, back: 0 },
-    { top: 0, side: 0.5, back: 0 }
+    { top: 0, side: 0.3, back: 0 }
   ]
 
   // first, gather candidate target/pocket pairs meeting strict criteria
@@ -397,6 +484,13 @@ export function planShot (req) {
           ) {
             continue
           }
+          if (
+            req.state.mustPlayFromBaulk &&
+            typeof req.state.baulkLineY === 'number' &&
+            cand.y < req.state.baulkLineY
+          ) {
+            continue
+          }
           const overlap = req.state.balls.some(
             b => b.id !== 0 && !b.pocketed && dist(cand, b) < r * 2
           )
@@ -413,12 +507,23 @@ export function planShot (req) {
           b.id === 0 ? { ...b, x: cuePos.x, y: cuePos.y } : b
         )
 
-        const baseCand = evaluate(req, cuePos, target, pocket, powers[0], spins[0], balls, strict)
+        const baseCand = evaluate(
+          req,
+          cuePos,
+          target,
+          pocket,
+          powers[0],
+          spins[0],
+          balls,
+          strict,
+          { lookaheadDepth: LOOKAHEAD_DEPTH }
+        )
         if (baseCand) {
           const { nextScore, hasNext, ...rest } = baseCand
           if (!best || rest.quality > best.quality) {
             best = { ...rest, cueBallPosition: req.state.ballInHand ? cuePos : undefined }
           }
+          // Only explore additional power/spin if next position is poor and there is a next target
           if (!hasNext || nextScore >= 0.5) {
             continue
           }
@@ -430,7 +535,17 @@ export function planShot (req) {
             if (Date.now() > deadline) {
               return best && best.quality >= 0.1 ? best : safetyShot(req)
             }
-            const cand = evaluate(req, cuePos, target, pocket, power, spin, balls, strict)
+            const cand = evaluate(
+              req,
+              cuePos,
+              target,
+              pocket,
+              power,
+              spin,
+              balls,
+              strict,
+              { lookaheadDepth: LOOKAHEAD_DEPTH }
+            )
             if (cand) {
               const { nextScore, hasNext, ...rest } = cand
               if (!best || rest.quality > best.quality) {

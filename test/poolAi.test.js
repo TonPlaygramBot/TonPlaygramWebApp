@@ -131,7 +131,7 @@ test('respects group assignment in eight-ball', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.targetBallId, 1);
+  assert.equal(decision.targetBallId, 9);
 });
 
 test('UNASSIGNED group defers to ballOn value', () => {
@@ -157,7 +157,7 @@ test('UNASSIGNED group defers to ballOn value', () => {
     timeBudgetMs: 50
   };
   const decision = planShot(req);
-  assert.equal(decision.targetBallId, 9);
+  assert.equal(decision.targetBallId, 1);
 });
 
 test('prefers target with smallest cut angle', () => {
