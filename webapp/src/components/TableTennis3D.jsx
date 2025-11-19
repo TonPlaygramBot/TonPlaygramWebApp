@@ -897,6 +897,8 @@ export default function TableTennis3D({ player, ai }){
       tmpN: new THREE.Vector3(),
       simPos: new THREE.Vector3(),
       simVel: new THREE.Vector3(),
+      tmpV0: new THREE.Vector3(),
+      tmpV1: new THREE.Vector3(),
     };
 
     function resetServe(){
@@ -1305,15 +1307,32 @@ export default function TableTennis3D({ player, ai }){
         const baseFlight = THREE.MathUtils.clamp(0.26 - swingStrength * 0.06, 0.22, 0.44);
         const timeScale = THREE.MathUtils.clamp(1 / (Sx.forceScale * 1.08), 0.82, 1.32);
         const flight = baseFlight * timeScale;
-        let shot = solveShot(contact, target, Sx.gravity.y, flight);
-        shot = ensureNetClear(contact, shot, Sx.gravity.y, NET_TOP, BALL_R * 0.85);
-        shot.multiplyScalar(Sx.paddleRest);
-        const extraScale = THREE.MathUtils.clamp(Sx.forceScale, 0.65, 1.15);
-        shot.x += THREE.MathUtils.clamp((paddleVel?.x || 0) * 0.12 * extraScale, -0.9, 0.9);
-        shot.y += THREE.MathUtils.clamp((paddleVel?.y || 0) * 0.08 * extraScale, -0.6, 0.6);
-        shot.z += attackSign * THREE.MathUtils.clamp((paddleVel?.z || 0) * 0.14 * extraScale, -0.8, 0.8);
-        shot = ensureNetClear(contact, shot, Sx.gravity.y, NET_TOP, BALL_R * 0.85);
-        Sx.v.copy(shot);
+        let guidedShot = solveShot(contact, target, Sx.gravity.y, flight);
+        guidedShot = ensureNetClear(contact, guidedShot, Sx.gravity.y, NET_TOP, BALL_R * 0.85);
+        guidedShot.multiplyScalar(Sx.paddleRest);
+
+        const rel = Sx.tmpV0.copy(Sx.v);
+        if (paddleVel) rel.sub(paddleVel);
+        const dot = rel.dot(n);
+        rel.addScaledVector(n, -2 * dot);
+        rel.multiplyScalar(Sx.paddleRest * (0.55 + swingStrength * 0.35));
+        const normalBoost = swingStrength * 2.2 * Sx.forceScale;
+        rel.addScaledVector(n, normalBoost);
+        if (paddleVel){
+          rel.addScaledVector(paddleVel, THREE.MathUtils.clamp(0.45 + swingStrength * 0.4, 0.45, 0.9));
+        }
+        rel.y = Math.max(rel.y, Sx.paddleLift + swingStrength * 2.2);
+
+        const guidedWeight = THREE.MathUtils.clamp(0.55 - swingStrength * 0.2, 0.32, 0.68);
+        const result = Sx.tmpV1.copy(guidedShot).multiplyScalar(guidedWeight).addScaledVector(rel, 1 - guidedWeight);
+        ensureNetClear(contact, result, Sx.gravity.y, NET_TOP, BALL_R * 0.85);
+        const minForward = 0.65 + swingStrength * 0.5;
+        const maxForward = 4.6;
+        const forward = THREE.MathUtils.clamp(Math.abs(result.z), minForward, maxForward);
+        result.z = attackSign * forward;
+        result.x = THREE.MathUtils.clamp(result.x, -3.6, 3.6);
+        result.y = Math.max(result.y, Sx.paddleLift + swingStrength * 1.4);
+        Sx.v.copy(result);
         Sx.w.set(0, 0, 0);
         Sx.state = 'rally';
         Sx.serveProgress = 'live';
