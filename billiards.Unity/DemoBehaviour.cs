@@ -9,6 +9,8 @@ public class DemoBehaviour : MonoBehaviour
     public LineRenderer Line;
     // Optional circle shown at the end of the aiming line.
     public LineRenderer Circle;
+    // Optional line showing the cue ball's direction after the first impact.
+    public LineRenderer CuePostLine;
     // Reference to the cue ball so the aim direction can be calculated
     public Transform CueBall;
     // How quickly the aiming line follows camera movement.  Lower values make
@@ -85,19 +87,45 @@ public class DemoBehaviour : MonoBehaviour
                     Circle.positionCount = 0;
                 }
             }
+
+            if (CuePostLine != null)
+            {
+                // Draw a short helper line representing the cue ball's direction after impact.
+                var postVelocity = preview.CuePostVelocity;
+                if (postVelocity.Length > PhysicsConstants.Epsilon && preview.Path.Length > 0)
+                {
+                    Vec2 start = preview.Path[preview.Path.Length - 1];
+                    Vec2 dir2D = postVelocity.Normalized();
+                    // Extend the line by one ball length for clarity so it feels like part of the main guide.
+                    float postLength = Mathf.Max((float)PhysicsConstants.BallRadius * 2f, (float)postVelocity.Length);
+                    Vector3 a = new Vector3((float)start.X, CueBall.position.y, (float)start.Y);
+                    Vector3 b = a + new Vector3((float)dir2D.X, 0f, (float)dir2D.Y) * postLength;
+                    CuePostLine.positionCount = 2;
+                    CuePostLine.SetPosition(0, a);
+                    CuePostLine.SetPosition(1, b);
+                }
+                else
+                {
+                    CuePostLine.positionCount = 0;
+                }
+            }
         }
     }
 
     private void ClearRenderers()
     {
         if (Line != null)
-        {
-            Line.positionCount = 0;
-        }
-        if (Circle != null)
-        {
-            Circle.positionCount = 0;
+            {
+                Line.positionCount = 0;
+            }
+            if (Circle != null)
+            {
+                Circle.positionCount = 0;
+            }
+            if (CuePostLine != null)
+            {
+                CuePostLine.positionCount = 0;
+            }
         }
     }
-}
 #endif
