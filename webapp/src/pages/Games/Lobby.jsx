@@ -22,6 +22,7 @@ import {
   getTelegramId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
+import { isBalanceInsufficient } from '../../utils/balance.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -282,7 +283,7 @@ export default function Lobby() {
       try {
         const accountId = await ensureAccountId();
         const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
+        if (isBalanceInsufficient(balRes, stake.amount)) {
           alert('Insufficient balance');
           return;
         }
