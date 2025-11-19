@@ -3444,15 +3444,6 @@ const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
-const USE_STATIC_BROADCAST_CAMERA = true;
-const STATIC_BROADCAST_HEIGHT = TABLE_Y + TABLE.THICK + BALL_R * 9.6;
-const STATIC_BROADCAST_LOOK_TARGET = new THREE.Vector3(
-  0,
-  TABLE_Y + TABLE.THICK * 0.35,
-  0
-);
-const STATIC_BROADCAST_DISTANCE_PAD = 1.04;
-const STATIC_BROADCAST_SWITCH_THRESHOLD = BALL_R * 2.4;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -3558,17 +3549,6 @@ const AI_SHOT_PREVIEW_DELAY_MS = 450;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
-const isCueBall = (ball) => {
-  if (!ball) return false;
-  if (ball.isCue) return true;
-  if (ball.id === 0) return true;
-  if (typeof ball.id === 'string') {
-    const normalized = ball.id.toLowerCase();
-    return normalized === 'cue' || normalized === 'cue_ball';
-  }
-  return false;
-};
-const findCueBall = (balls = []) => balls.find((ball) => isCueBall(ball));
 const formatMatchTimer = (totalSeconds = 0) => {
   const seconds = Math.max(0, Math.floor(totalSeconds));
   const mins = Math.floor(seconds / 60);
@@ -7694,10 +7674,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
-  const staticBroadcastViewRef = useRef({
-    lastSide: 1,
-    distance: SHORT_RAIL_CAMERA_DISTANCE
-  });
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
@@ -9456,39 +9432,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           );
         };
 
-        const resolveStaticBroadcastFrame = () => {
-          const cueBall = findCueBall(ballsRef.current || []);
-          const state = staticBroadcastViewRef.current || { lastSide: 1 };
-          let side = state.lastSide ?? 1;
-          const cueAxis = cueBall?.pos?.y;
-          if (Number.isFinite(cueAxis) && Math.abs(cueAxis) > STATIC_BROADCAST_SWITCH_THRESHOLD) {
-            side = cueAxis >= 0 ? 1 : -1;
-          }
-          state.lastSide = side;
-          const baseDistance =
-            computeShortRailBroadcastDistance(camera) * STATIC_BROADCAST_DISTANCE_PAD;
-          state.distance = baseDistance;
-          const position = new THREE.Vector3(0, STATIC_BROADCAST_HEIGHT, side * baseDistance);
-          const target = STATIC_BROADCAST_LOOK_TARGET.clone();
-          return { position, target, side };
-        };
-
         const updateCamera = () => {
-          if (USE_STATIC_BROADCAST_CAMERA) {
-            const broadcastFrame = resolveStaticBroadcastFrame();
-            camera.position.copy(broadcastFrame.position);
-            camera.lookAt(broadcastFrame.target);
-            lastCameraTargetRef.current.copy(broadcastFrame.target);
-            updateBroadcastCameras({
-              railDir: broadcastFrame.side,
-              targetWorld: broadcastFrame.target.clone(),
-              focusWorld: broadcastFrame.target.clone(),
-              lerp: 1
-            });
-            updatePocketCameraState(false);
-            activeRenderCameraRef.current = camera;
-            return camera;
-          }
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
