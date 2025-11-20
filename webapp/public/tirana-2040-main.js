@@ -231,13 +231,33 @@ export async function startTirana2040(){
   const maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, isMobile ? 6 : 16);
   const textureLoader = new THREE.TextureLoader();
   textureLoader.setCrossOrigin?.('anonymous');
+  function makeTreeFallback(){
+    const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d');
+    x.fillStyle='#4e7f56'; x.fillRect(0,48,128,80);
+    x.fillStyle='#2f5a36'; x.beginPath(); x.moveTo(64,12); x.lineTo(18,90); x.lineTo(110,90); x.closePath(); x.fill();
+    x.fillStyle='#8c6239'; x.fillRect(58,90,12,24);
+    const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; tex.needsUpdate=true; tex.anisotropy=4;
+    return new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
+  }
   const treeTextureLoader = textureLoader;
-  function loadTreeBillboard(tree){ return new Promise((resolve)=>{ treeTextureLoader.load(tree.image, (tex)=>{ tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(4,maxAniso); resolve({ tree, material:new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false }) }); }, undefined, (err)=>{ console.warn('Failed to load tree texture', tree.id, err); resolve({ tree, material:new THREE.SpriteMaterial({ color:0x6da37c, transparent:true, opacity:0.9 }) }); }); }); }
+  function loadTreeBillboard(tree){
+    return new Promise((resolve)=>{
+      const fallback = makeTreeFallback();
+      let settled=false;
+      const finish=(material)=>{ if(settled) return; settled=true; resolve({ tree, material }); };
+      const timeout=setTimeout(()=>{ console.warn('Tree texture timeout', tree.id); finish(fallback); }, 2200);
+      treeTextureLoader.load(tree.image,
+        (tex)=>{ clearTimeout(timeout); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(4,maxAniso); finish(new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false })); },
+        undefined,
+        (err)=>{ clearTimeout(timeout); console.warn('Failed to load tree texture', tree.id, err); finish(fallback); }
+      );
+    });
+  }
   function loadTiledTexture(url, repeatX=1, repeatY=1){ return new Promise((resolve)=>{ textureLoader.load(url, (tex)=>{ tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(repeatX, repeatY); tex.anisotropy=Math.min(12,maxAniso); tex.colorSpace=THREE.SRGBColorSpace; resolve(tex); }, ()=>resolve(null)); }); }
   async function buildTreePalette(){ const palette=await Promise.all(TREE_LIBRARY.map(loadTreeBillboard)); return palette.filter(Boolean); }
   function nextTreeMaterial(seed, offset=0){ if(!treePalette.length) return null; return treePalette[(seed+offset)%treePalette.length]?.material||null; }
   function grassProcedural(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#6fa863'; x.fillRect(0,0,size,size); for(let i=0;i<2600;i++){ x.fillStyle=`rgba(0,80,0,${Math.random()*0.12})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
-  function grassTex(){ return new Promise((resolve)=>{ const loader=new THREE.TextureLoader(); loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg', (tex)=>{ tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(6,6); tex.anisotropy=8; tex.colorSpace=THREE.SRGBColorSpace; resolve(tex); }, ()=>resolve(grassProcedural()), ()=>resolve(grassProcedural())); }); }
+  function grassTex(){ return Promise.resolve(grassProcedural()); }
   function makeSkyTexture(){ const c=document.createElement('canvas'); c.width=2048; c.height=1024; const ctx=c.getContext('2d'); const grd=ctx.createLinearGradient(0,0,0,c.height); grd.addColorStop(0,'#9dd5ff'); grd.addColorStop(0.35,'#bfe3ff'); grd.addColorStop(1,'#f5e7cf'); ctx.fillStyle=grd; ctx.fillRect(0,0,c.width,c.height); for(let i=0;i<1200;i++){ const x=Math.random()*c.width; const y=Math.random()*c.height*0.5; const size=Math.random()*2+0.5; ctx.fillStyle=`rgba(255,255,255,${0.15+Math.random()*0.35})`; ctx.fillRect(x,y,size,size*0.6); } const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; tex.mapping=THREE.EquirectangularReflectionMapping; tex.needsUpdate=true; return tex; }
   function makeBrickTexture(){ const c=document.createElement('canvas'); c.width=512; c.height=512; const ctx=c.getContext('2d'); ctx.fillStyle='#c26b44'; ctx.fillRect(0,0,512,512); const rows=16, cols=32; ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=2; for(let r=0;r<=rows;r++){ const y=(r/rows)*c.height; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(c.width,y); ctx.stroke(); } for(let r=0;r<rows;r++){ const offset=(r%2?0.5:0)*c.width/cols; for(let cix=0;cix<=cols;cix++){ const x=(cix/cols)*c.width+offset; ctx.beginPath(); ctx.moveTo(x%c.width, r*c.height/rows); ctx.lineTo(x%c.width, (r+1)*c.height/rows); ctx.stroke(); } } for(let i=0;i<2600;i++){ const alpha=Math.random()*0.2; ctx.fillStyle=`rgba(0,0,0,${alpha})`; ctx.fillRect(Math.random()*c.width, Math.random()*c.height, 1, 1); } const tex=new THREE.CanvasTexture(c); tex.anisotropy=8; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.colorSpace=THREE.SRGBColorSpace; return tex; }
   function makePlasterTexture(){ const c=document.createElement('canvas'); c.width=512; c.height=512; const ctx=c.getContext('2d'); ctx.fillStyle='#d6d0c4'; ctx.fillRect(0,0,512,512); const noise=ctx.createImageData(c.width,c.height); for(let i=0;i<noise.data.length;i+=4){ const v=210+Math.random()*30; noise.data[i]=v; noise.data[i+1]=v; noise.data[i+2]=v-8; noise.data[i+3]=255; } ctx.putImageData(noise,0,0); for(let i=0;i<900;i++){ ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.08})`; const x=Math.random()*c.width; const y=Math.random()*c.height; const w=Math.random()*3+1; const h=Math.random()*9+1; ctx.fillRect(x,y,w,h); } const tex=new THREE.CanvasTexture(c); tex.anisotropy=8; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.colorSpace=THREE.SRGBColorSpace; return tex; }
@@ -254,7 +274,18 @@ export async function startTirana2040(){
   const turfTex = await grassTex();
   const parkLawnTex = tennisGrassTex.clone(); parkLawnTex.repeat.set(10,10); parkLawnTex.needsUpdate=true;
   const waterMat = makeWaterMaterial();
-  const naturalStoneTex = await loadTiledTexture('https://cdn.polyhaven.com/asset_img/primary/stone_tiles_01.png?height=1024&quality=90', 6, 2);
+  function makeStoneTilesTexture(){
+    const c=document.createElement('canvas'); c.width=c.height=512; const ctx=c.getContext('2d');
+    ctx.fillStyle='#bfc4c9'; ctx.fillRect(0,0,512,512);
+    for(let i=0;i<42;i++){
+      const x=(i%7)*72 + 12; const y=Math.floor(i/7)*72 + 8; const w=60 + Math.random()*10; const h=60 + Math.random()*8;
+      ctx.fillStyle=i%2?'#cdd2d8':'#d8dde2'; ctx.fillRect(x,y,w,h);
+      ctx.strokeStyle='rgba(80,90,100,0.35)'; ctx.lineWidth=2.2; ctx.strokeRect(x+1,y+1,w-2,h-2);
+      for(let n=0;n<6;n++){ ctx.fillStyle='rgba(60,70,80,0.16)'; ctx.beginPath(); ctx.arc(x+Math.random()*w, y+Math.random()*h, Math.random()*3.6+0.4,0,Math.PI*2); ctx.fill(); }
+    }
+    const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(6,2); tex.anisotropy=Math.min(12,maxAniso); tex.colorSpace=THREE.SRGBColorSpace; return tex;
+  }
+  const naturalStoneTex = makeStoneTilesTexture();
   const turfMat = new THREE.MeshStandardMaterial({ map:parkLawnTex, roughness:0.65, metalness:0.02, side:THREE.DoubleSide });
 
   let treePalette = [];
