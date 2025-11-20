@@ -1016,11 +1016,10 @@ const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playabl
 
 const CUE_WOOD_REPEAT = new THREE.Vector2(1, 5.5); // Mirror the cue butt wood repeat for table finishes
 const TABLE_WOOD_REPEAT = new THREE.Vector2(0.08 / 3, 0.44 / 3); // enlarge grain 3× so rails, skirts, and legs read at table scale
-const WOOD_REPEAT_SCALE_MIN = 0.5;
-const WOOD_REPEAT_SCALE_MAX = 1.8;
-const DEFAULT_WOOD_REPEAT_SCALE = 1;
-const WOOD_REPEAT_SCALE_STORAGE_KEY = 'poolWoodGrainScale';
-
+const FIXED_WOOD_REPEAT_SCALE = 20; // locked to 2000% for consistent oversized grain
+const WOOD_REPEAT_SCALE_MIN = FIXED_WOOD_REPEAT_SCALE;
+const WOOD_REPEAT_SCALE_MAX = FIXED_WOOD_REPEAT_SCALE;
+const DEFAULT_WOOD_REPEAT_SCALE = FIXED_WOOD_REPEAT_SCALE;
 const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
@@ -1399,10 +1398,7 @@ const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
   envMapIntensity: 1.25
 });
 
-const clampWoodRepeatScaleValue = (value) => {
-  if (!Number.isFinite(value)) return DEFAULT_WOOD_REPEAT_SCALE;
-  return THREE.MathUtils.clamp(value, WOOD_REPEAT_SCALE_MIN, WOOD_REPEAT_SCALE_MAX);
-};
+const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
 
 function scaleWoodRepeatVector (repeatVec, scale) {
   const vec = repeatVec?.isVector2
@@ -1759,18 +1755,8 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const DEFAULT_CHROME_COLOR_ID = 'chrome';
+const DEFAULT_CHROME_COLOR_ID = 'polishedChrome';
 const CHROME_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'chrome',
-    label: 'Classic Chrome',
-    color: 0xc0c9d5,
-    metalness: 0.78,
-    roughness: 0.36,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.28,
-    envMapIntensity: 0.98
-  },
   {
     id: 'polishedChrome',
     label: 'Polished Chrome',
@@ -1780,46 +1766,6 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     clearcoat: 0.62,
     clearcoatRoughness: 0.18,
     envMapIntensity: 1.04
-  },
-  {
-    id: 'brushedAluminum',
-    label: 'Brushed Aluminium',
-    color: 0xcad3dd,
-    metalness: 0.84,
-    roughness: 0.42,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.34,
-    envMapIntensity: 0.92
-  },
-  {
-    id: 'burnishedBronze',
-    label: 'Burnished Bronze',
-    color: 0x8c6a4a,
-    metalness: 0.88,
-    roughness: 0.38,
-    clearcoat: 0.28,
-    clearcoatRoughness: 0.26,
-    envMapIntensity: 0.94
-  },
-  {
-    id: 'smokedChrome',
-    label: 'Smoked Chrome',
-    color: 0x7f8791,
-    metalness: 0.82,
-    roughness: 0.4,
-    clearcoat: 0.36,
-    clearcoatRoughness: 0.32,
-    envMapIntensity: 0.9
-  },
-  {
-    id: 'gold',
-    label: 'Gold',
-    color: 0xd4af37,
-    metalness: 0.96,
-    roughness: 0.18,
-    clearcoat: 0.56,
-    clearcoatRoughness: 0.16,
-    envMapIntensity: 1.06
   }
 ]);
 
@@ -1967,87 +1913,8 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
-const DEFAULT_LIGHTING_ID = 'broadcast-balanced';
+const DEFAULT_LIGHTING_ID = 'studio-soft';
 const LIGHTING_OPTIONS = Object.freeze([
-  {
-    id: 'broadcast-balanced',
-    label: 'Balanced Broadcast',
-    description: 'Even TV-style mix with crisp shadows (default).',
-    settings: {
-      hemiSky: 0xdde7ff,
-      hemiGround: 0x0b1020,
-      hemiIntensity: 0.758625,
-      rimIntensity: 0.4284,
-      dirColor: 0xffffff,
-      dirIntensity: 1.176,
-      spotColor: 0xffffff,
-      spotIntensity: 12.7449,
-      spotAngle: Math.PI * 0.36,
-      ambientIntensity: 0.0799
-    }
-  },
-  {
-    id: 'arena-spot',
-    label: 'Arena Spotlight',
-    description: 'Tighter key light with stronger down-spot for dramatic pots.',
-    settings: {
-      hemiIntensity: 0.62,
-      rimIntensity: 0.32,
-      dirIntensity: 1.05,
-      spotIntensity: 14.5,
-      spotAngle: Math.PI * 0.32,
-      ambientIntensity: 0.065
-    }
-  },
-  {
-    id: 'stadium-flood',
-    label: 'Stadium Flood',
-    description: 'Broad cool wash with higher fill to mirror stadium rigs.',
-    settings: {
-      hemiSky: 0xdbe8ff,
-      hemiGround: 0x0c162b,
-      hemiIntensity: 0.92,
-      rimIntensity: 0.55,
-      dirColor: 0xe8f1ff,
-      dirIntensity: 1.12,
-      spotColor: 0xf6fbff,
-      spotIntensity: 10.5,
-      ambientIntensity: 0.12
-    }
-  },
-  {
-    id: 'cinematic',
-    label: 'Cinematic',
-    description: 'Warm key, cool fill, and softer ambient for highlight drama.',
-    settings: {
-      hemiSky: 0xdbe0ff,
-      hemiGround: 0x12192a,
-      hemiIntensity: 0.7,
-      rimIntensity: 0.46,
-      dirColor: 0xf6e2c3,
-      dirIntensity: 1.08,
-      spotColor: 0xcad8ff,
-      spotIntensity: 11.5,
-      spotAngle: Math.PI * 0.38,
-      ambientIntensity: 0.07
-    }
-  },
-  {
-    id: 'neon-rim',
-    label: 'Neon Rim',
-    description: 'Cool cyan rim and subtle magenta bounce for arcade flair.',
-    settings: {
-      hemiSky: 0xa7d5ff,
-      hemiGround: 0x14223a,
-      hemiIntensity: 0.82,
-      rimIntensity: 0.5,
-      dirColor: 0x38bdf8,
-      dirIntensity: 1.04,
-      spotColor: 0x7dd3fc,
-      spotIntensity: 12.2,
-      ambientIntensity: 0.09
-    }
-  },
   {
     id: 'studio-soft',
     label: 'Studio Soft',
@@ -7473,27 +7340,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_WOOD_GRAIN_ID;
   });
-  const [woodGrainScale, setWoodGrainScale] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(WOOD_REPEAT_SCALE_STORAGE_KEY);
-      if (stored != null) {
-        const parsed = Number.parseFloat(stored);
-        if (Number.isFinite(parsed)) {
-          return clampWoodRepeatScaleValue(parsed);
-        }
-      }
-    }
-    return DEFAULT_WOOD_REPEAT_SCALE;
-  });
-  const [chromeColorId, setChromeColorId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerChromeColor');
-      if (stored && CHROME_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_CHROME_COLOR_ID;
-  });
   const [clothColorId, setClothColorId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerClothColor');
@@ -7503,15 +7349,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
-  const [lightingId, setLightingId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('poolRoyaleLighting');
-      if (stored && LIGHTING_PRESET_MAP[stored]) {
-        return stored;
-      }
-    }
-    return DEFAULT_LIGHTING_ID;
-  });
+  const lightingId = DEFAULT_LIGHTING_ID;
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
@@ -7531,10 +7369,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
-  const activeChromeOption = useMemo(
-    () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
-    [chromeColorId]
-  );
+  const activeChromeOption =
+    CHROME_COLOR_OPTIONS.find((opt) => opt.id === DEFAULT_CHROME_COLOR_ID) ??
+    CHROME_COLOR_OPTIONS[0];
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
@@ -7831,7 +7668,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const clothSelection = activeClothOption;
     const woodSelection = activeWoodTexture;
     const linerSelection = POCKET_LINER_OPTIONS[0];
-    const repeatScale = clampWoodRepeatScaleValue(woodGrainScale);
+    const repeatScale = DEFAULT_WOOD_REPEAT_SCALE;
     const clothTextureKey = clothSelection.textureKey ?? clothSelection.id ?? DEFAULT_CLOTH_TEXTURE_KEY;
     return {
       ...baseFinish,
@@ -7883,7 +7720,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture, woodGrainScale]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -7899,29 +7736,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerChromeColor', chromeColorId);
-    }
-  }, [chromeColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('poolRoyaleLighting', lightingId);
-    }
-  }, [lightingId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(WOOD_REPEAT_SCALE_STORAGE_KEY, String(woodGrainScale));
-    }
-  }, [woodGrainScale]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -12837,7 +12659,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (legalTargets.size === 0) legalTargets.add('RED');
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
-          const clearance = BALL_R * 1.85;
+          const clearance = BALL_R * 1.45;
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
@@ -13157,21 +12979,26 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         };
 
         const evaluateShotOptions = () => {
-          const baseline = evaluateShotOptionsBaseline();
-          const variantId = activeVariantRef.current?.id ?? variantKey;
-          if (variantId !== 'uk' || !cue?.active) return baseline;
-          const stateSnapshot = frameRef.current ?? frameState;
-          const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
-          if (!advancedPlan) return baseline;
-          const result = { ...baseline };
-          if (advancedPlan.type === 'pot') {
-            result.bestPot = advancedPlan;
-            if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
-          } else {
-            result.bestSafety = advancedPlan;
-            if (!result.bestPot) result.bestPot = baseline.bestPot;
+          try {
+            const baseline = evaluateShotOptionsBaseline();
+            const variantId = activeVariantRef.current?.id ?? variantKey;
+            if (variantId !== 'uk' || !cue?.active) return baseline;
+            const stateSnapshot = frameRef.current ?? frameState;
+            const advancedPlan = computeUkAdvancedPlan(balls, cue, stateSnapshot);
+            if (!advancedPlan) return baseline;
+            const result = { ...baseline };
+            if (advancedPlan.type === 'pot') {
+              result.bestPot = advancedPlan;
+              if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
+            } else {
+              result.bestSafety = advancedPlan;
+              if (!result.bestPot) result.bestPot = baseline.bestPot;
+            }
+            return result;
+          } catch (err) {
+            console.warn('AI evaluation fallback', err);
+            return evaluateShotOptionsBaseline();
           }
-          return result;
         };
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
           const summary = summarizePlan(plan);
@@ -14802,64 +14629,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                   })}
               </div>
             </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Wood Grain Size
-                </h3>
-                <div className="mt-2 rounded-2xl border border-white/15 bg-white/5 px-3 py-2">
-                  <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-100/70">
-                    <span>Scale</span>
-                    <span className="text-white/80">{Math.round(woodGrainScale * 100)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min={WOOD_REPEAT_SCALE_MIN}
-                    max={WOOD_REPEAT_SCALE_MAX}
-                    step={0.05}
-                    value={woodGrainScale}
-                    onChange={(e) => {
-                      const value = Number.parseFloat(e.target.value);
-                      if (Number.isFinite(value)) {
-                        setWoodGrainScale(clampWoodRepeatScaleValue(value));
-                      }
-                    }}
-                    className="mt-2 w-full accent-emerald-300"
-                    aria-label="Wood grain size"
-                  />
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Chrome Plates
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {CHROME_COLOR_OPTIONS.map((option) => {
-                    const active = option.id === chromeColorId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setChromeColorId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               {CLOTH_COLOR_OPTIONS.length > 1 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
@@ -14894,40 +14663,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 </div>
               </div>
             ) : null}
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Lighting
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {LIGHTING_OPTIONS.map((option) => {
-                    const active = option.id === lightingId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setLightingId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                            {option.label}
-                          </span>
-                        </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
