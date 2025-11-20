@@ -161,11 +161,9 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const SCALE={ FLOOR_H:3.4, TRAFFIC_LIGHT_H:2.8 };
   const PERF={ bots:12 };
-  // Loading full-detail weapon meshes can overwhelm mobile webviews (e.g. Telegram)
-  // and lead to crashes while the armory initializes. Prefer a fast boot path on
-  // touch devices so the game can start reliably, while still keeping high-fidelity
-  // assets for desktop sessions.
-  const FAST_BOOT=isMobile;
+  // Fast boot trades visual fidelity for stability on mobile. Explicitly disable it
+  // so every client uses the full-detail pipeline.
+  const FAST_BOOT=false;
   window.SCALE=SCALE;
   window.PERF=PERF;
   window.FAST_BOOT=FAST_BOOT;
@@ -492,14 +490,22 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
   const windowMat=makeGlassStdMat();
+  const windowVoidGeo=new THREE.PlaneGeometry(1.34,2.02);
+  const windowVoidMat=new THREE.MeshStandardMaterial({ color:0x0b1324, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1.2, polygonOffsetUnits:-0.8, depthWrite:true, roughness:1.0, metalness:0.0 });
   const windowInstances=new THREE.InstancedMesh(windowGeo, windowMat, 4000);
+  const windowVoids=new THREE.InstancedMesh(windowVoidGeo, windowVoidMat, 4000);
   windowInstances.count=0;
+  windowVoids.count=0;
   windowInstances.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  windowVoids.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   windowInstances.userData={isGlass:true};
+  windowVoids.renderOrder=1;
+  windowInstances.renderOrder=2;
+  city.add(windowVoids);
   city.add(windowInstances);
   let windowCount=0;
-  function pushWindow(pos,rotY){ if(windowCount>=windowInstances.instanceMatrix.count) return; const m=new THREE.Matrix4(); const quat=new THREE.Quaternion().setFromEuler(new THREE.Euler(0,rotY,0)); m.compose(pos,quat,new THREE.Vector3(1,1,1)); windowInstances.setMatrixAt(windowCount++, m); }
-  function commitWindows(){ windowInstances.count=windowCount; windowInstances.instanceMatrix.needsUpdate=true; }
+  function pushWindow(pos,rotY){ if(windowCount>=windowInstances.instanceMatrix.count) return; const m=new THREE.Matrix4(); const quat=new THREE.Quaternion().setFromEuler(new THREE.Euler(0,rotY,0)); m.compose(pos,quat,new THREE.Vector3(1,1,1)); windowVoids.setMatrixAt(windowCount, m); windowInstances.setMatrixAt(windowCount++, m); }
+  function commitWindows(){ windowInstances.count=windowCount; windowVoids.count=windowCount; windowInstances.instanceMatrix.needsUpdate=true; windowVoids.instanceMatrix.needsUpdate=true; }
   function addWindowsForBuilding(xc,zc,w,d,h){ const usableHeight=Math.max(1, h - SCALE.FLOOR_H*1.2); const rows=Math.max(2,Math.floor(usableHeight/3.0)); const colsFront=Math.max(2,Math.floor(w/4)); const colsSide=Math.max(2,Math.floor(d/4)); const yStart=SCALE.FLOOR_H + 0.9; for(let c=0;c<colsFront;c++){ const x=xc - w/2 + (c+0.5)*(w/colsFront); for(let r=0;r<rows;r++){ const y=yStart + (r+0.5)*(usableHeight/(rows+1)); pushWindow(new THREE.Vector3(x,y,zc + d/2 + 0.52), 0); pushWindow(new THREE.Vector3(x,y,zc - d/2 - 0.52), Math.PI); } } for(let c=0;c<colsSide;c++){ const z=zc - d/2 + (c+0.5)*(d/colsSide); for(let r=0;r<rows;r++){ const y=yStart + (r+0.5)*(usableHeight/(rows+1)); pushWindow(new THREE.Vector3(xc + w/2 + 0.52,y,z), Math.PI/2); pushWindow(new THREE.Vector3(xc - w/2 - 0.52,y,z), -Math.PI/2); } } }
   function addSidewalk(xc,zc){
     const outer=CELL-ROAD;
@@ -540,12 +546,22 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function buildMountains(){ const group=new THREE.Group(); group.userData={kind:'mountains'}; const peaks=8; for(let i=0;i<peaks;i++){ const cone=new THREE.Mesh(new THREE.ConeGeometry(60+Math.random()*30, 80+Math.random()*30, 6), new THREE.MeshStandardMaterial({color:0x9ca3af, roughness:0.9})); const angle=(i/peaks)*Math.PI*2; const radius=Math.max(cityHalfX,cityHalfZ)*1.6; cone.position.set(Math.cos(angle)*radius, 40, Math.sin(angle)*radius - 200); cone.castShadow=false; cone.receiveShadow=false; group.add(cone); } city.add(group); return group; }
 
   function buildRiver(){ const group=new THREE.Group(); group.userData={kind:'river'}; const extra=80; const samples=28; const path=[]; for(let i=0;i<=samples;i++){ const t=i/samples; const x=THREE.MathUtils.lerp(-cityHalfX-extra, cityHalfX+extra, t); const z=Math.sin(t*Math.PI*1.1)*40 + THREE.MathUtils.lerp(-60,60,t); path.push({x,z}); } const halfWidth=18; const offsetPoints=(scale)=>{ const res=[]; for(let i=0;i<path.length;i++){ const prev=path[Math.max(0,i-1)], next=path[Math.min(path.length-1,i+1)]; const tx=next.x-prev.x, tz=next.z-prev.z; const len=Math.hypot(tx,tz)||1; const nx=-tz/len, nz=tx/len; res.push({x:path[i].x+nx*scale, z:path[i].z+nz*scale}); } return res; };
+    const loopShape=(outerLeft, outerRight)=>{
+      const shape=new THREE.Shape();
+      outerLeft.forEach((p,idx)=>{ if(idx===0) shape.moveTo(p.x,p.z); else shape.lineTo(p.x,p.z); });
+      for(let i=outerRight.length-1;i>=0;i--){ const p=outerRight[i]; shape.lineTo(p.x,p.z); }
+      return shape;
+    };
     const left=offsetPoints(halfWidth), right=offsetPoints(-halfWidth);
-    const riverShape=new THREE.Shape(); left.forEach((p,idx)=>{ if(idx===0) riverShape.moveTo(p.x,p.z); else riverShape.lineTo(p.x,p.z); }); for(let i=right.length-1;i>=0;i--){ const p=right[i]; riverShape.lineTo(p.x,p.z); }
+    const riverShape=loopShape(left,right);
     const riverMesh=new THREE.Mesh(new THREE.ShapeGeometry(riverShape, 64), new THREE.MeshStandardMaterial({color:0x38a3d6, transparent:true, opacity:0.92, roughness:0.35, metalness:0.05}));
-    riverMesh.rotation.x=-Math.PI/2; riverMesh.position.y=0.01; group.add(riverMesh);
-    const bankShape=new THREE.Shape(); const bankLeft=offsetPoints(halfWidth+6), bankRight=offsetPoints(-(halfWidth+6)); bankLeft.forEach((p,idx)=>{ if(idx===0) bankShape.moveTo(p.x,p.z); else bankShape.lineTo(p.x,p.z); }); for(let i=bankRight.length-1;i>=0;i--){ const p=bankRight[i]; bankShape.lineTo(p.x,p.z); }
-    const bankMesh=new THREE.Mesh(new THREE.ShapeGeometry(bankShape,64), new THREE.MeshStandardMaterial({map:turfTex, roughness:0.7, metalness:0.02, side:THREE.DoubleSide})); bankMesh.rotation.x=-Math.PI/2; bankMesh.position.y=0.005; bankMesh.userData={kind:'river_banks'}; group.add(bankMesh);
+    riverMesh.rotation.x=-Math.PI/2; riverMesh.position.y=0.01; riverMesh.renderOrder=2; group.add(riverMesh);
+    const bankLeft=offsetPoints(halfWidth+6), bankRight=offsetPoints(-(halfWidth+6));
+    const bankShape=loopShape(bankLeft, bankRight);
+    const riverHole=new THREE.Path(); left.forEach((p,idx)=>{ if(idx===0) riverHole.moveTo(p.x,p.z); else riverHole.lineTo(p.x,p.z); }); for(let i=right.length-1;i>=0;i--){ const p=right[i]; riverHole.lineTo(p.x,p.z); }
+    bankShape.holes.push(riverHole);
+    const bankMat=new THREE.MeshStandardMaterial({map:turfTex, roughness:0.7, metalness:0.02, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.8, polygonOffsetUnits:-0.4});
+    const bankMesh=new THREE.Mesh(new THREE.ShapeGeometry(bankShape,64), bankMat); bankMesh.rotation.x=-Math.PI/2; bankMesh.position.y=0.005; bankMesh.userData={kind:'river_banks'}; bankMesh.renderOrder=1; group.add(bankMesh);
     const segments=[]; for(let i=0;i<path.length-1;i++){ const a=path[i], b=path[i+1]; const len=Math.hypot(b.x-a.x,b.z-a.z)||1; segments.push({a,b,len,dirX:(b.x-a.x)/len,dirZ:(b.z-a.z)/len}); }
     const distance=(px,pz)=>{ let best=Infinity; for(const seg of segments){ const vx=px-seg.a.x, vz=pz-seg.a.z; const proj=THREE.MathUtils.clamp(vx*seg.dirX + vz*seg.dirZ, 0, seg.len); const cx=seg.a.x + seg.dirX*proj; const cz=seg.a.z + seg.dirZ*proj; const dist=Math.hypot(px-cx,pz-cz); if(dist<best) best=dist; } return {d:best, hw:halfWidth}; };
     city.add(group);
@@ -586,7 +602,27 @@ document.title = 'Tirana 2040 • Last Man Standing';
     for(let i=1;i<=floors;i++){ const y=i*SCALE.FLOOR_H - 0.6; const header=new THREE.Mesh(new THREE.BoxGeometry(w*0.98,0.16,0.55), bandMat); header.position.set(xc, y, zc + d/2 + 0.28); const headerBack=header.clone(); headerBack.position.z=zc - d/2 - 0.28; city.add(header, headerBack); const headerSide=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.16,d*0.98), bandMat); headerSide.position.set(xc + w/2 + 0.28, y, zc); const headerSideB=headerSide.clone(); headerSideB.position.x=xc - w/2 - 0.28; city.add(headerSide, headerSideB); }
   }
 
-  function addFrontDoor(xc,zc,w,d){ const frameMat=new THREE.MeshStandardMaterial({ color:0x1f2937, metalness:0.35, roughness:0.5 }); const frame=new THREE.Mesh(new THREE.BoxGeometry(2.6,3.2,0.32), frameMat); frame.position.set(xc,1.6,zc + d/2 + 0.18); frame.castShadow=allowShadows; city.add(frame); const doorMat=makeGlassStdMat(); doorMat.opacity=0.6; const door=new THREE.Mesh(new THREE.PlaneGeometry(2.2,2.6), doorMat); door.rotation.x=0; door.position.set(xc,1.6, zc + d/2 + 0.34); city.add(door); const awning=new THREE.Mesh(new THREE.BoxGeometry(3.2,0.14,1.2), new THREE.MeshStandardMaterial({ color:0x374151, roughness:0.7 })); awning.position.set(xc,3.4, zc + d/2 + 0.2); awning.castShadow=allowShadows; city.add(awning); }
+  function addSideEntrance(xc,zc,w,d){
+    const frameMat=new THREE.MeshStandardMaterial({ color:0x1f2937, metalness:0.35, roughness:0.5 });
+    const awningMat=new THREE.MeshStandardMaterial({ color:0x374151, roughness:0.7 });
+    const entryWidth=Math.min(4.2, Math.max(2.8, w*0.22));
+    const entryDepth=1.6;
+    const sideOffset=-w/2 - 0.2;
+    const jambGeo=new THREE.BoxGeometry(0.32,3.2,0.7);
+    const jambFront=new THREE.Mesh(jambGeo, frameMat); jambFront.position.set(xc+sideOffset-0.16,1.6,zc+entryWidth/2-0.35); jambFront.castShadow=allowShadows;
+    const jambBack=jambFront.clone(); jambBack.position.z=zc-entryWidth/2+0.35;
+    const header=new THREE.Mesh(new THREE.BoxGeometry(0.34,0.42,entryWidth-0.14), frameMat); header.position.set(xc+sideOffset-0.17,3.1,zc); header.castShadow=allowShadows;
+    const awning=new THREE.Mesh(new THREE.BoxGeometry(entryDepth+0.7,0.14,entryWidth+0.4), awningMat); awning.position.set(xc+sideOffset-entryDepth/2,3.5,zc); awning.rotation.y=Math.PI/2; awning.castShadow=allowShadows;
+    const foyerPad=new THREE.Mesh(new THREE.PlaneGeometry(entryDepth+0.6, entryWidth+0.6), new THREE.MeshStandardMaterial({ color:0xcbd5e1, roughness:0.82 }));
+    foyerPad.rotation.x=-Math.PI/2; foyerPad.position.set(xc+sideOffset-entryDepth/2,0.025,zc);
+    const entryLabelTex=(function(){ const c=document.createElement('canvas'); c.width=256; c.height=96; const g=c.getContext('2d'); g.fillStyle='#111827'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#facc15'; g.font='700 44px system-ui'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('Hyrje', c.width/2, c.height/2); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
+    const entryLabel=new THREE.Mesh(new THREE.PlaneGeometry(entryDepth,0.7), new THREE.MeshBasicMaterial({ map:entryLabelTex, transparent:true })); entryLabel.rotation.y=Math.PI/2; entryLabel.position.set(xc+sideOffset-0.18,2.4,zc);
+    const voidMat=makeGlassStdMat(); voidMat.opacity=0.22; voidMat.roughness=0.18;
+    const entryVoid=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2.6), voidMat); entryVoid.rotation.y=Math.PI/2; entryVoid.position.set(xc+sideOffset-0.22,1.6,zc);
+    const group=new THREE.Group();
+    group.add(jambFront,jambBack,header,awning,foyerPad,entryLabel,entryVoid);
+    city.add(group);
+  }
 
   function addGroundShops(xc,zc,w,d,sign){
     const glassMat=makeGlassStdMat(); glassMat.opacity=0.48; glassMat.roughness=0.08;
@@ -634,7 +670,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
     const mesh=new THREE.Mesh(geom, [wallMat,wallMat,roofMat,roofMat,wallMat,wallMat]); mesh.castShadow=allowShadows; mesh.receiveShadow=allowShadows; mesh.position.set(xc,height/2,zc); city.add(mesh);
     addInteriorFrames(xc,zc,w,d,floors);
     addGroundShops(xc,zc,w,d,opts.sign);
-    addFrontDoor(xc,zc,w,d);
+    addSideEntrance(xc,zc,w,d);
     addInteriorStairs(xc,zc,w,d,floors);
     buildings.push({mesh,cx:xc,cz:zc,w,d,h:height,kind});
     buildingBoxes.push({min:{x:xc-w/2,z:zc-d/2}, max:{x:xc+w/2,z:zc+d/2}});
@@ -668,8 +704,11 @@ document.title = 'Tirana 2040 • Last Man Standing';
     city.add(trunks,crowns);
   }
 
-  function scatterFlowers(cx,cz,scale=1){ const colors=[0xff5f6d,0xffc800,0x7cf29c,0x7dd3fc,0xff9f1c]; const meadow=new THREE.Group(); const spread=PLOT*0.35*scale; for(let i=0;i<120;i++){ const ang=Math.random()*Math.PI*2; const r=Math.random()*spread; const x=cx+Math.cos(ang)*r; const z=cz+Math.sin(ang)*r; const petal=new THREE.Mesh(new THREE.CircleGeometry(0.28, 10), new THREE.MeshStandardMaterial({ color:colors[Math.floor(Math.random()*colors.length)], roughness:0.9, transparent:true, opacity:0.92 })); petal.rotation.x=-Math.PI/2; petal.position.set(x,0.021,z); petal.receiveShadow=allowShadows; meadow.add(petal); }
-    city.add(meadow); }
+  function scatterFlowers(cx,cz,scale=1){
+    // Flower decals were overlapping with nearby park textures and have been removed
+    // for a cleaner ground layout.
+    return;
+  }
   function addParkGrass(cx,cz,scale=1.0){ const g=new THREE.Mesh(new THREE.PlaneGeometry(PLOT*0.9*scale,PLOT*0.9*scale), turfMat); g.rotation.x=-Math.PI/2; g.position.set(cx,0.015,cz); g.receiveShadow=allowShadows; g.userData={kind:'park_grassOriginal'}; city.add(g); const gardenBed=new THREE.Mesh(new THREE.CircleGeometry(PLOT*0.34*scale,32), new THREE.MeshStandardMaterial({ map:tennisGrassTex, roughness:0.6, metalness:0.04 })); gardenBed.rotation.x=-Math.PI/2; gardenBed.position.set(cx,0.018,cz); gardenBed.receiveShadow=allowShadows; city.add(gardenBed); scatterFlowers(cx,cz,scale); addBench(cx+PLOT*0.25, cz+PLOT*0.25); addBench(cx-PLOT*0.25, cz-PLOT*0.25, Math.PI); }
 
   function addTennisCourt(cx,cz){
