@@ -225,6 +225,27 @@ export default function Home() {
           <IoLogoTiktok className="text-pink-500 w-6 h-6" />
         </a>
       </div>
+
+      <div className="mt-6">
+        <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 border border-primary/40 rounded-xl p-4 text-center space-y-2">
+          <h3 className="text-lg font-semibold text-white">
+            TonPlaygram Android Launcher (APK beta)
+          </h3>
+          <p className="text-sm text-subtext">
+            Instaloni një paketë të lehtë pa të dhëna sensitive që hap direkt lojërat nga telefoni.
+          </p>
+          <a
+            href="/tonplaygram-launcher.apk"
+            download
+            className="inline-flex items-center justify-center px-4 py-2 bg-primary text-surface font-semibold rounded-full shadow-lg shadow-primary/40 hover:shadow-primary/60 transition"
+          >
+            Shkarko APK-në e lehtë
+          </a>
+          <p className="text-xs text-subtext">
+            Skedari është vetëm tekst për rrjedhën e shkarkimit; zëvendësohet lehtësisht me build-in zyrtar kur të jetë gati.
+          </p>
+        </div>
+      </div>
       <p className="text-center text-xs text-subtext">Status: {status}</p>
       <div className="mt-4 space-y-2 text-center text-xs text-subtext">
         <p>
