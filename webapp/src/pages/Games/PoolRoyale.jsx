@@ -2883,39 +2883,62 @@ function orientRailWoodSurface(surface) {
   if (!surface) {
     return { repeat: { x: 1, y: 1 }, rotation: 0 };
   }
-  // Rotate the rail grain so it always runs in a single, consistent
-  // direction around the table perimeter. Swapping the repeat axes keeps the
-  // long-axis slab stretch while aligning the pattern orientation with the
-  // reference rails shown in the latest review captures.
+  // Preserve the incoming repeat and rotation so each rail can keep its own
+  // grain direction. The UV projector will align the long rails independently
+  // to avoid stretching a single strip around the full perimeter.
   return {
     repeat: {
-      x: Number.isFinite(surface.repeat?.y) ? surface.repeat.y : 1,
-      y: Number.isFinite(surface.repeat?.x) ? surface.repeat.x : 1
+      x: Number.isFinite(surface.repeat?.x) ? surface.repeat.x : 1,
+      y: Number.isFinite(surface.repeat?.y) ? surface.repeat.y : 1
     },
-    rotation: (surface.rotation ?? 0) + Math.PI / 2,
+    rotation: typeof surface.rotation === 'number' ? surface.rotation : 0,
     textureSize:
       typeof surface.textureSize === 'number' ? surface.textureSize : undefined
   };
 }
 
-function projectRailUVs(geometry) {
-  if (!geometry?.attributes?.position) return;
-  geometry.computeBoundingBox();
-  const { boundingBox } = geometry;
-  if (!boundingBox) return;
-  const size = new THREE.Vector3().subVectors(boundingBox.max, boundingBox.min);
-  const width = size.x || 1;
-  const height = size.y || 1;
-  const positions = geometry.attributes.position;
-  const uv = new THREE.BufferAttribute(new Float32Array(positions.count * 2), 2);
-  for (let i = 0; i < positions.count; i++) {
-    const x = positions.getX(i);
-    const y = positions.getY(i);
-    const u = (x - boundingBox.min.x) / width;
-    const v = (y - boundingBox.min.y) / height;
-    uv.setXY(i, u, v);
+function projectRailUVs(geometry, bounds) {
+  if (!geometry?.attributes?.position) return geometry;
+  const { outerHalfW = 1, outerHalfH = 1, railH = 1 } = bounds ?? {};
+  const target = geometry.index ? geometry.toNonIndexed() : geometry;
+  const positions = target.attributes.position;
+  const uv = new Float32Array(positions.count * 2);
+  const extents = {
+    x: Math.max(outerHalfW * 2, MICRO_EPS),
+    y: Math.max(outerHalfH * 2, MICRO_EPS),
+    z: Math.max(railH, MICRO_EPS)
+  };
+
+  const faceNormal = new THREE.Vector3();
+  const edgeA = new THREE.Vector3();
+  const edgeB = new THREE.Vector3();
+  const center = new THREE.Vector3();
+
+  for (let i = 0; i < positions.count; i += 3) {
+    const verts = [0, 1, 2].map((offset) =>
+      new THREE.Vector3().fromBufferAttribute(positions, i + offset)
+    );
+    edgeA.subVectors(verts[1], verts[0]);
+    edgeB.subVectors(verts[2], verts[0]);
+    faceNormal.crossVectors(edgeA, edgeB).normalize();
+    center.set(0, 0, 0).add(verts[0]).add(verts[1]).add(verts[2]).multiplyScalar(1 / 3);
+
+    const dominantZ = Math.abs(faceNormal.z) >= Math.max(Math.abs(faceNormal.x), Math.abs(faceNormal.y));
+    const alignWithLongRail = Math.abs(center.y) > Math.abs(center.x);
+    const uAxis = dominantZ ? (alignWithLongRail ? 'x' : 'y') : Math.abs(faceNormal.x) >= Math.abs(faceNormal.y) ? 'z' : 'x';
+    const vAxis = dominantZ ? (alignWithLongRail ? 'y' : 'x') : Math.abs(faceNormal.x) >= Math.abs(faceNormal.y) ? 'y' : 'z';
+
+    verts.forEach((v, idx) => {
+      const u = (v[uAxis] + extents[uAxis] / 2) / extents[uAxis];
+      const vCoord = (v[vAxis] + extents[vAxis] / 2) / extents[vAxis];
+      const uvIndex = (i + idx) * 2;
+      uv[uvIndex] = u;
+      uv[uvIndex + 1] = vCoord;
+    });
   }
-  geometry.setAttribute('uv', uv);
+
+  target.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  return target;
 }
 
 function enhanceChromeMaterial(material) {
@@ -6707,7 +6730,7 @@ function Table3D(
       padding: TABLE.THICK * 0.04
     }
   });
-  projectRailUVs(railsGeom);
+  railsGeom = projectRailUVs(railsGeom, { outerHalfW, outerHalfH, railH });
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
