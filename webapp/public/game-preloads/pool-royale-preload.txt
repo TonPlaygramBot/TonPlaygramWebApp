@@ -1,0 +1,8 @@
+Pool Royale preload bundle (tekst)
+
+Ky paketim përmban përshkrime të shader-ëve, HUD-it dhe kontrollave orbitale për versionin 3D të Pool Royale.
+Përdore si vendmbajtës për kodin e optimizuar që do të ngarkohet paraprakisht në cache të shfletuesit.
+
+- Orbit +Y, yaw/pitch sipas gesturave mobile.
+- HUD i portretit me matës të forcës dhe shkumës të pozicionuar sipas standardeve të TonPlaygram.
+- Rregullim i tonemapping ACESFilmic për tavolinën dhe dritat tre-pikëshe.
