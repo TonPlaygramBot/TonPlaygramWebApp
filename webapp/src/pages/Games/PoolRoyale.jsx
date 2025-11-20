@@ -803,7 +803,7 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const CAPTURE_R = POCKET_R; // pocket capture radius
+const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // thicken the plywood deck beneath the cloth to sell the wooden sub-structure
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
@@ -819,8 +819,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.046; // sink the cushion base slightly lower so the pads sit deeper against the rail face
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.06; // trim the cushion tops further so the green pads sit level with the wooden rail surface
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.068; // sink the cushion base lower so the pads sit deeper against the rail face
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.085; // trim the cushion tops further so the green pads sit level with the wooden rail surface
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1002,6 +1002,7 @@ const SPIN_BOX_FILL_RATIO =
         1
       )
     : 1;
+const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
@@ -1847,7 +1848,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
     label: 'Tour Green',
-    color: 0x3fba73,
+    color: 0x54d48a,
     textureKey: 'freshGreen',
     detail: {
       bumpMultiplier: 1,
@@ -1871,7 +1872,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'classicOlive',
     label: 'Classic Olive',
-    color: 0x5a7f45,
+    color: 0x769c5c,
     textureKey: 'classicOlive',
     detail: {
       bumpMultiplier: 1.12,
@@ -1882,7 +1883,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'deepBurgundy',
     label: 'Granito Burgundy',
-    color: 0x7c1f33,
+    color: 0x9a2b45,
     textureKey: 'deepBurgundy',
     detail: {
       bumpMultiplier: 1.18,
@@ -1893,7 +1894,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'graphite',
     label: 'Arcadia Graphite',
-    color: 0x37414d,
+    color: 0x4a5566,
     textureKey: 'graphite',
     detail: {
       bumpMultiplier: 0.92,
@@ -5043,6 +5044,46 @@ function Table3D(
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
   }
+
+  const initialFrameSurface = resolveWoodSurfaceConfig(
+    resolvedWoodOption?.frame,
+    resolvedWoodOption?.rail ?? defaultWoodOption.frame ?? defaultWoodOption.rail
+  );
+  const initialRailSurface = orientRailWoodSurface(
+    resolveWoodSurfaceConfig(
+      resolvedWoodOption?.rail,
+      resolvedWoodOption?.frame ?? initialFrameSurface
+    )
+  );
+  const synchronizedRailSurface = {
+    repeat: new THREE.Vector2(
+      initialRailSurface.repeat.x,
+      initialRailSurface.repeat.y
+    ),
+    rotation: initialRailSurface.rotation,
+    textureSize: initialRailSurface.textureSize,
+    woodRepeatScale
+  };
+  const synchronizedFrameSurface = {
+    repeat: new THREE.Vector2(
+      initialFrameSurface.repeat.x,
+      initialFrameSurface.repeat.y
+    ),
+    rotation: initialFrameSurface.rotation,
+    textureSize: initialFrameSurface.textureSize,
+    woodRepeatScale
+  };
+
+  applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
+  applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
+  if (legMat !== frameMat) {
+    applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
+  }
+  finishParts.woodSurfaces = {
+    frame: cloneWoodSurfaceConfig(synchronizedFrameSurface),
+    rail: cloneWoodSurfaceConfig(synchronizedRailSurface)
+  };
+  finishParts.woodRepeatScale = woodRepeatScale;
 
   const { map: clothMap, bump: clothBump } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
@@ -14953,13 +14994,23 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         >
           <div
             id="spinBox"
-            className="relative w-32 h-32 rounded-full shadow-lg border border-white/70"
+            className="relative w-28 h-28 rounded-full shadow-lg border border-white/70 overflow-hidden"
             style={{
-              background: `radial-gradient(circle, #ffffff 0%, #ffffff ${
+              background: `radial-gradient(circle, #f9fafb 0%, #f9fafb ${
                 SPIN_BOX_FILL_RATIO * 100
-              }%, #facc15 ${SPIN_BOX_FILL_RATIO * 100}%, #facc15 100%)`
+              }%, #fde68a ${SPIN_BOX_FILL_RATIO * 100}%, #fde68a 100%)`
             }}
           >
+            <div
+              aria-hidden="true"
+              className="absolute rounded-full border-2 border-red-500 pointer-events-none"
+              style={{
+                width: `${SPIN_RING_RATIO * 100}%`,
+                height: `${SPIN_RING_RATIO * 100}%`,
+                left: `${(1 - SPIN_RING_RATIO) * 50}%`,
+                top: `${(1 - SPIN_RING_RATIO) * 50}%`
+              }}
+            />
             <div
               id="spinDot"
               className="absolute w-3 h-3 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
