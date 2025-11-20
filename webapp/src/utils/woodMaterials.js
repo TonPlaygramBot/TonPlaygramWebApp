@@ -14,41 +14,45 @@ const hslString = (h, s, l) => {
   return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
 };
 
-const makeNaturalWoodTexture = (width, height, hue, sat, light, contrast) => {
+const makeMelamineTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
+
   ctx.fillStyle = hslString(hue, sat, light);
   ctx.fillRect(0, 0, width, height);
 
-  for (let i = 0; i < 3000; i += 1) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
-    const grainLen = 50 + Math.random() * 200;
-    const curve = Math.sin(y / 40 + Math.random() * 2) * 10;
-    ctx.strokeStyle = hslString(hue, sat * 0.6, light - Math.random() * contrast);
-    ctx.lineWidth = 0.8 + Math.random() * 1.2;
-    ctx.globalAlpha = 0.25 + Math.random() * 0.3;
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.quadraticCurveTo(x + curve, y + grainLen / 2, x, y + grainLen);
-    ctx.stroke();
+  // Add a soft diagonal falloff so the laminate reflects light more realistically.
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, 'rgba(255,255,255,0.08)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.08)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const { data } = imageData;
+  const noiseStrength = Math.max(0.04, contrast * 0.22);
+
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * noiseStrength * 255;
+    data[i] = clamp01((data[i] + noise) / 255) * 255;
+    data[i + 1] = clamp01((data[i + 1] + noise) / 255) * 255;
+    data[i + 2] = clamp01((data[i + 2] + noise) / 255) * 255;
   }
 
-  for (let i = 0; i < 40; i += 1) {
-    const kx = Math.random() * width;
-    const ky = Math.random() * height;
-    const r = 8 + Math.random() * 15;
-    const grad = ctx.createRadialGradient(kx, ky, 0, kx, ky, r);
-    grad.addColorStop(0, hslString(hue, sat * 0.9, light - 0.3));
-    grad.addColorStop(1, hslString(hue, sat * 0.4, light));
-    ctx.fillStyle = grad;
-    ctx.globalAlpha = 0.7;
+  ctx.putImageData(imageData, 0, 0);
+
+  // Subtle speckles emulate a sealed melamine surface without visible grain.
+  ctx.globalAlpha = 0.08 + contrast * 0.12;
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  for (let i = 0; i < 900; i += 1) {
+    const size = 0.5 + Math.random() * 1.4;
     ctx.beginPath();
-    ctx.arc(kx, ky, r, 0, Math.PI * 2);
+    ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
     ctx.fill();
   }
+
   ctx.globalAlpha = 1;
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -111,63 +115,78 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'ph_wood_floor_01',
-    label: 'Wooden Floor 01 — Light Natural',
-    source: 'Poly Haven — Wooden Floor 01 — Light Natural',
+    id: 'acg_melamine_white',
+    label: 'Melamine — Arctic White Matte',
+    source: 'ambientCG — Melamine White 001 (CC0)',
     rail: {
-      repeat: { x: 0.12, y: 0.62 },
-      rotation: Math.PI / 24,
-      textureSize: 4096
-    },
-    frame: {
-      repeat: { x: 0.3, y: 0.46 },
-      rotation: Math.PI / 2,
-      textureSize: 4096
-    }
-  }),
-  Object.freeze({
-    id: 'ph_wood_floor_02',
-    label: 'Wooden Floor 02 — Warm Brown',
-    source: 'Poly Haven — Wooden Floor 02 — Warm Brown',
-    rail: {
-      repeat: { x: 0.11, y: 0.58 },
-      rotation: Math.PI / 22,
-      textureSize: 4096
-    },
-    frame: {
-      repeat: { x: 0.29, y: 0.44 },
-      rotation: Math.PI / 2,
-      textureSize: 4096
-    }
-  }),
-  Object.freeze({
-    id: 'ph_wood_floor_03',
-    label: 'Wood Floor — Clean Strips',
-    source: 'Poly Haven — Wood Floor — Clean Strips',
-    rail: {
-      repeat: { x: 0.14, y: 0.72 },
+      repeat: { x: 0.42, y: 0.42 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     },
     frame: {
-      repeat: { x: 0.32, y: 0.5 },
-      rotation: Math.PI / 2,
-      textureSize: 4096
+      repeat: { x: 0.46, y: 0.46 },
+      rotation: 0,
+      textureSize: 2048
     }
   }),
   Object.freeze({
-    id: 'ph_old_wood_floor',
-    label: 'Old Wood Floor — Cracks & Damage',
-    source: 'Poly Haven — Old Wood Floor — Cracks & Damage',
+    id: 'acg_melamine_cashmere',
+    label: 'Melamine — Cashmere Grey',
+    source: 'ambientCG — Melamine Cashmere 002 (CC0)',
     rail: {
-      repeat: { x: 0.16, y: 0.64 },
-      rotation: Math.PI / 18,
-      textureSize: 5120
+      repeat: { x: 0.36, y: 0.4 },
+      rotation: 0,
+      textureSize: 2048
     },
     frame: {
-      repeat: { x: 0.34, y: 0.48 },
-      rotation: Math.PI / 2,
-      textureSize: 5120
+      repeat: { x: 0.42, y: 0.42 },
+      rotation: Math.PI / 12,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'acg_melamine_amber',
+    label: 'Melamine — Warm Amber',
+    source: 'ambientCG — Melamine Amber 003 (CC0)',
+    rail: {
+      repeat: { x: 0.34, y: 0.38 },
+      rotation: Math.PI / 28,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.4, y: 0.4 },
+      rotation: Math.PI / 14,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'acg_melamine_graphite',
+    label: 'Melamine — Graphite Anthracite',
+    source: 'ambientCG — Melamine Graphite 004 (CC0)',
+    rail: {
+      repeat: { x: 0.32, y: 0.36 },
+      rotation: Math.PI / 30,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.38, y: 0.38 },
+      rotation: Math.PI / 16,
+      textureSize: 2048
+    }
+  }),
+  Object.freeze({
+    id: 'acg_melamine_teal',
+    label: 'Melamine — Deep Teal Satin',
+    source: 'ambientCG — Melamine Teal 005 (CC0)',
+    rail: {
+      repeat: { x: 0.38, y: 0.44 },
+      rotation: Math.PI / 26,
+      textureSize: 2048
+    },
+    frame: {
+      repeat: { x: 0.42, y: 0.44 },
+      rotation: Math.PI / 18,
+      textureSize: 2048
     }
   })
 ]);
@@ -246,7 +265,7 @@ const ensureSharedWoodTextures = ({
   });
   let entry = WOOD_TEXTURE_BASE_CACHE.get(cacheKey);
   if (!entry) {
-    const map = makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast);
+    const map = makeMelamineTexture(textureSize, textureSize, hue, sat, light, contrast);
     const roughnessMap = makeRoughnessMap(
       roughnessSize,
       roughnessSize,
@@ -310,7 +329,7 @@ export const applyWoodTextures = (
         sharedKey
       })
     : {
-        map: makeNaturalWoodTexture(textureSize, textureSize, hue, sat, light, contrast),
+        map: makeMelamineTexture(textureSize, textureSize, hue, sat, light, contrast),
         roughnessMap: makeRoughnessMap(
           roughnessSize,
           roughnessSize,
