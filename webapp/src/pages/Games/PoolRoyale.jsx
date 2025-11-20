@@ -2759,35 +2759,6 @@ function ensureMaterialWoodOptions(material, targetSettings) {
   return material.userData?.__woodOptions || null;
 }
 
-const isMelamineWoodTexture = (id) => typeof id === 'string' && id.startsWith('acg_melamine');
-
-function reorientMelamineRailTextures(material, repeat, baseRotation = 0) {
-  if (!material) return;
-  const targetRepeat = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
-  const swappedRepeat = new THREE.Vector2(targetRepeat.y, targetRepeat.x);
-  const targetRotation = baseRotation + Math.PI / 2;
-  const applyToTexture = (texture) => {
-    if (!texture) return;
-    texture.center.set(0.5, 0.5);
-    texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.repeat.copy(swappedRepeat);
-    texture.rotation = targetRotation;
-    texture.needsUpdate = true;
-  };
-  applyToTexture(material.map);
-  applyToTexture(material.roughnessMap);
-  material.userData = material.userData || {};
-  material.userData.woodRepeat = swappedRepeat.clone();
-  if (material.userData.__woodOptions) {
-    material.userData.__woodOptions.repeat = {
-      x: swappedRepeat.x,
-      y: swappedRepeat.y
-    };
-    material.userData.__woodOptions.rotation = targetRotation;
-  }
-  material.needsUpdate = true;
-}
-
 function applyWoodTextureToMaterial(material, repeat) {
   if (!material) return;
   const repeatVec = resolveRepeatVector(repeat, material);
@@ -4975,7 +4946,6 @@ function Table3D(
     (resolvedFinish?.woodTextureId &&
       WOOD_GRAIN_OPTIONS_BY_ID[resolvedFinish.woodTextureId]) ||
     defaultWoodOption;
-  const railUsesMelamine = isMelamineWoodTexture(resolvedWoodOption?.id);
   finishParts.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
 
   const createMaterialsFn =
@@ -5598,9 +5568,6 @@ function Table3D(
     textureSize: woodRailSurface.textureSize,
     woodRepeatScale
   });
-  if (railUsesMelamine) {
-    reorientMelamineRailTextures(railMat, woodRailSurface.repeat, woodRailSurface.rotation);
-  }
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
@@ -5609,13 +5576,6 @@ function Table3D(
       textureSize: woodRailSurface.textureSize,
       woodRepeatScale
     });
-    if (railUsesMelamine) {
-      reorientMelamineRailTextures(
-        mesh.material,
-        woodRailSurface.repeat,
-        woodRailSurface.rotation
-      );
-    }
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
@@ -7275,7 +7235,6 @@ function applyTableFinishToTable(table, finish) {
     (finishInfo.woodTextureId &&
       WOOD_GRAIN_OPTIONS_BY_ID[finishInfo.woodTextureId]) ||
     defaultWoodOption;
-  const railUsesMelamine = isMelamineWoodTexture(resolvedWoodOption?.id);
   const nextFrameSurface = resolveWoodSurfaceConfig(
     resolvedWoodOption?.frame,
     woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
@@ -7296,9 +7255,6 @@ function applyTableFinishToTable(table, finish) {
     textureSize: nextRailSurface.textureSize,
     woodRepeatScale
   });
-  if (railUsesMelamine) {
-    reorientMelamineRailTextures(railMat, nextRailSurface.repeat, nextRailSurface.rotation);
-  }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
@@ -7307,13 +7263,6 @@ function applyTableFinishToTable(table, finish) {
       textureSize: nextRailSurface.textureSize,
       woodRepeatScale
     });
-    if (railUsesMelamine) {
-      reorientMelamineRailTextures(
-        mesh.material,
-        nextRailSurface.repeat,
-        nextRailSurface.rotation
-      );
-    }
     if (mesh.material.color && railMat.color) {
       mesh.material.color.copy(railMat.color);
     }
