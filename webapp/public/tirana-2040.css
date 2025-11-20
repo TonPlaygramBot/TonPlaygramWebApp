@@ -32,7 +32,7 @@
   .fireButton:active{transform:translateY(2px);box-shadow:0 8px 18px rgba(0,0,0,.28)}
   #shootPad{background:radial-gradient(circle at 50% 45%, rgba(255,48,48,1) 0 52%, rgba(160,10,10,0.68) 78%, rgba(0,0,0,0.4) 100%)}
   #reloadMini{background:radial-gradient(circle at 50% 45%, rgba(255,78,78,1) 0 54%, rgba(150,12,12,0.68) 80%, rgba(0,0,0,0.42) 100%)}
-  #crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:30px;height:30px;pointer-events:none;z-index:50;display:block}
+  #crosshair{position:absolute;left:var(--aim-x,50%);top:var(--aim-y,50%);transform:translate(-50%,-50%);width:30px;height:30px;pointer-events:none;z-index:50;display:block}
   #crosshair:before,#crosshair:after{content:"";position:absolute;left:50%;top:50%;background:var(--aimColor,#ff3c3c);box-shadow:0 0 0 2px rgba(255,255,255,0.9) inset, 0 0 6px rgba(0,0,0,.35)}
   #crosshair:before{width:24px;height:3px;transform:translate(-50%,-50%);opacity:.98}
   #crosshair:after{width:3px;height:24px;transform:translate(-50%,-50%);opacity:.98}
@@ -44,7 +44,7 @@
   @media (min-width: 1024px){ #armory{overflow-x:visible;} }
   #armory::-webkit-scrollbar{height:6px}
   #armory::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.25);border-radius:999px}
-  #armorySliderWrap{position:absolute;left:50%;bottom:calc(var(--hud-gap) - 8px);transform:translateX(-50%);display:flex;flex-direction:column;gap:4px;align-items:center;pointer-events:auto;z-index:21}
+  #armorySliderWrap{position:absolute;left:50%;bottom:calc(var(--hud-gap) - 8px);transform:translateX(-50%);display:none;flex-direction:column;gap:4px;align-items:center;pointer-events:auto;z-index:21}
   #armorySlider{appearance:none;width:min(64vw,520px);height:14px;border-radius:999px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.22);outline:none;box-shadow:0 8px 18px rgba(0,0,0,0.28);}
   #armorySlider::-webkit-slider-thumb{appearance:none;width:26px;height:26px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,0.32);box-shadow:0 8px 16px rgba(0,0,0,0.28)}
   #armorySlider::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,0.32);box-shadow:0 8px 16px rgba(0,0,0,0.28)}
