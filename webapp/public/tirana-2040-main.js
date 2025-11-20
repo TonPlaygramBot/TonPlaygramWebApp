@@ -165,14 +165,29 @@ export async function startTirana2040(){
     'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'
   ]);
 
-  const renderer = new THREE.WebGLRenderer({
-    antialias: !isMobile,
-    powerPreference: isMobile ? 'low-power' : 'high-performance',
+  function makeRendererOpts(quality='high'){ return {
+    antialias: quality==='high' && !isMobile,
+    powerPreference: isMobile ? 'low-power' : (quality==='high'?'high-performance':'low-power'),
     alpha: false,
     stencil: false,
     depth: true,
-    precision: 'mediump'
-  });
+    precision: quality==='high'?'mediump':'lowp'
+  }; }
+  function createRenderer(){
+    try {
+      return new THREE.WebGLRenderer(makeRendererOpts('high'));
+    } catch(err){
+      console.warn('Primary renderer failed, retrying with safer mobile defaults', err);
+      updateStatus('Po ulem cilësinë për pajisjen mobile…');
+      try {
+        return new THREE.WebGLRenderer(makeRendererOpts('safe'));
+      } catch(inner){
+        console.error('Renderer fallback also failed', inner);
+        throw inner;
+      }
+    }
+  }
+  const renderer = createRenderer();
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.85;
@@ -331,6 +346,7 @@ export async function startTirana2040(){
 
   const ROAD_SURFACE_Y = 0.035;
   const roadMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.92, metalness:0.05, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.8, polygonOffsetUnits:-2 });
+  const intersectionMat = new THREE.MeshStandardMaterial({ map: asphaltTex, color:0x2d2f36, roughness:0.88, metalness:0.05, transparent:true, opacity:0.95, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-1.5 });
   window.roadMat = roadMat;
   const sidewalkMat = new THREE.MeshStandardMaterial({ map: sidewalkTex, roughness:0.9, metalness:0.04, side:THREE.DoubleSide });
   const curbMat = new THREE.MeshStandardMaterial({ color:0xbfc5cf, roughness:0.65, metalness:0.12 });
@@ -514,7 +530,7 @@ export async function startTirana2040(){
 
   function addStreetLight(x,z){ const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,6,12), new THREE.MeshStandardMaterial({color:0x5b5b65})); pole.position.set(x,3,z); const head=new THREE.Mesh(new THREE.SphereGeometry(0.4,16,12), new THREE.MeshBasicMaterial({color:0xfff6d0})); head.position.set(x,5.6,z+0.5); const arm=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,1.2), new THREE.MeshStandardMaterial({color:0x5b5b65})); arm.position.set(x,5.2,z+0.4); const g=new THREE.Group(); g.add(pole,arm,head); g.userData={kind:'street_bulb'}; streetLights.add(g); }
 
-  function addIntersectionPatch(x,z){ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(5.2,5.2), new THREE.MeshBasicMaterial({color:0xd1d5db, transparent:true, opacity:0.42, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-1.5})); mesh.rotation.x=-Math.PI/2; mesh.position.set(x,0.016,z); mesh.userData={kind:'interPatches'}; intersectionPatches.add(mesh); }
+  function addIntersectionPatch(x,z){ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(5.2,5.2), intersectionMat); mesh.rotation.x=-Math.PI/2; mesh.position.set(x,0.016,z); mesh.userData={kind:'interPatches'}; intersectionPatches.add(mesh); }
 
   function addBench(x,z,dir=0){ const seat=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.15,0.5), new THREE.MeshStandardMaterial({color:0x8b5a2b, roughness:0.7})); const back=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.8,0.1), seat.material.clone()); back.position.set(0,0.5,-0.2); const legs=new THREE.Group(); for(const sx of [-0.9,0.9]){ const leg=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.8,0.1), new THREE.MeshStandardMaterial({color:0x4b5563})); leg.position.set(sx,-0.4,0); legs.add(leg); } const bench=new THREE.Group(); bench.add(seat,back,legs); bench.position.set(x,0.6,z); bench.rotation.y=dir; bench.castShadow=allowShadows; benchesGroup.add(bench); }
 
@@ -725,17 +741,57 @@ export async function startTirana2040(){
     // for a cleaner ground layout.
     return;
   }
+  const bleacherSeatMat=new THREE.MeshStandardMaterial({ color:0x38bdf8, roughness:0.35, metalness:0.05 });
+  const bleacherRiserMat=new THREE.MeshStandardMaterial({ color:0x6b7280, roughness:0.72, metalness:0.06 });
+  const bleacherStairMat=new THREE.MeshStandardMaterial({ color:0x9ca3af, roughness:0.64, metalness:0.05 });
+  function makeBleacherSection(width=26, rows=5, stepDepth=0.9){
+    const g=new THREE.Group();
+    const totalDepth=rows*stepDepth + 0.8;
+    for(let r=0;r<rows;r++){
+      const step=new THREE.Mesh(new THREE.BoxGeometry(width,0.32,stepDepth), bleacherRiserMat);
+      step.position.set(0, 0.16 + r*0.32, -totalDepth/2 + r*stepDepth + stepDepth/2);
+      step.castShadow=allowShadows; step.receiveShadow=allowShadows;
+      g.add(step);
+      const seats=Math.max(8, Math.floor(width/1.4));
+      for(let i=0;i<seats;i++){
+        const seat=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.12,0.5), bleacherSeatMat);
+        const x=-width/2 + (i+0.5)*(width/seats);
+        seat.position.set(x, step.position.y + 0.14, step.position.z - stepDepth*0.18);
+        seat.castShadow=allowShadows; seat.receiveShadow=allowShadows;
+        g.add(seat);
+      }
+    }
+    const stair=new THREE.Mesh(new THREE.BoxGeometry(1.3, rows*0.32, totalDepth), bleacherStairMat);
+    stair.position.set(0, rows*0.32*0.5, 0);
+    stair.castShadow=allowShadows; stair.receiveShadow=allowShadows;
+    g.add(stair);
+    return {mesh:g, depth:totalDepth};
+  }
   function addParkGrass(cx,cz,scale=1.0){ const g=new THREE.Mesh(new THREE.PlaneGeometry(PLOT*0.9*scale,PLOT*0.9*scale), turfMat); g.rotation.x=-Math.PI/2; g.position.set(cx,0.015,cz); g.receiveShadow=allowShadows; g.userData={kind:'park_grassOriginal'}; city.add(g); const gardenBed=new THREE.Mesh(new THREE.CircleGeometry(PLOT*0.34*scale,32), new THREE.MeshStandardMaterial({ map:tennisGrassTex, roughness:0.6, metalness:0.04 })); gardenBed.rotation.x=-Math.PI/2; gardenBed.position.set(cx,0.018,cz); gardenBed.receiveShadow=allowShadows; city.add(gardenBed); scatterFlowers(cx,cz,scale); addBench(cx+PLOT*0.25, cz+PLOT*0.25); addBench(cx-PLOT*0.25, cz-PLOT*0.25, Math.PI); addBench(cx+PLOT*0.25, cz-PLOT*0.25, Math.PI/2); addBench(cx-PLOT*0.25, cz+PLOT*0.25, -Math.PI/2); }
 
   function addTennisCourt(cx,cz){
-    addParkGrass(cx,cz,1.05);
-    const courtW=10.97, courtL=23.77, apron=3.0;
-    const track=new THREE.Mesh(new THREE.PlaneGeometry(courtW+apron*2,courtL+apron*2), new THREE.MeshStandardMaterial({ map:redTrackTex, roughness:0.9, metalness:0.04 }));
-    track.rotation.x=-Math.PI/2; track.position.set(cx,0.02,cz); city.add(track);
-    const surface=new THREE.Mesh(new THREE.PlaneGeometry(courtW,courtL), new THREE.MeshStandardMaterial({ color:0x1e8054, map:courtLinesTex(courtW,courtL), roughness:0.52, metalness:0.04, side:THREE.DoubleSide }));
-    surface.rotation.x=-Math.PI/2; surface.position.set(cx,0.021,cz); city.add(surface);
-    treesPerimeter(cx,cz);
-    mapParks.push({type:'tennis',x:cx,z:cz,w:courtW+apron*2,d:courtL+apron*2});
+    const courtW=10.97, courtL=23.77, apron=4.2;
+    const concourseW=courtW+apron*2+10, concourseL=courtL+apron*2+12;
+    const concourse=new THREE.Mesh(new THREE.PlaneGeometry(concourseW, concourseL), new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0xbfc5cf, roughness:0.78, metalness:0.06 }));
+    concourse.rotation.x=-Math.PI/2; concourse.position.set(cx,0.012,cz); concourse.receiveShadow=allowShadows; city.add(concourse);
+    const apronMat=new THREE.MeshStandardMaterial({ color:0x2f855a, roughness:0.62, metalness:0.05, side:THREE.DoubleSide });
+    const apronMesh=new THREE.Mesh(new THREE.PlaneGeometry(courtW+apron*2,courtL+apron*2), apronMat);
+    apronMesh.rotation.x=-Math.PI/2; apronMesh.position.set(cx,0.016,cz); apronMesh.receiveShadow=allowShadows; city.add(apronMesh);
+    const surface=new THREE.Mesh(new THREE.PlaneGeometry(courtW,courtL), new THREE.MeshStandardMaterial({ color:0x1d4ed8, map:courtLinesTex(courtW,courtL), roughness:0.48, metalness:0.05, side:THREE.DoubleSide }));
+    surface.rotation.x=-Math.PI/2; surface.position.set(cx,0.018,cz); surface.receiveShadow=allowShadows; city.add(surface);
+    const netHeight=1.07; const netMat=new THREE.MeshStandardMaterial({ color:0xe5e7eb, metalness:0.05, roughness:0.65, transparent:true, opacity:0.9 });
+    const net=new THREE.Mesh(new THREE.PlaneGeometry(courtW,netHeight), netMat); net.position.set(cx,0.018+netHeight/2,cz); city.add(net);
+    const postGeo=new THREE.CylinderGeometry(0.08,0.08,netHeight+0.3,12); const postMat=new THREE.MeshStandardMaterial({ color:0xf8fafc, roughness:0.5 });
+    const postL=new THREE.Mesh(postGeo, postMat); postL.position.set(cx-courtW/2, (netHeight+0.3)/2, cz); const postR=postL.clone(); postR.position.x=cx+courtW/2; city.add(postL,postR);
+    const bleacherInnerW=courtW+apron*2+2.2, bleacherInnerL=courtL+apron*2+2.2; const bleacherOffset=bleacherInnerL*0.5 + 2.4;
+    const longSection=makeBleacherSection(bleacherInnerW+6,6); const shortSection=makeBleacherSection(bleacherInnerL+4,5,0.85);
+    const placeBleachers=(section,x,z,rot)=>{ const m=section.mesh.clone(true); m.position.set(x,0.012,z); m.rotation.y=rot; city.add(m); };
+    placeBleachers(longSection, cx, cz+bleacherOffset, 0);
+    placeBleachers(longSection, cx, cz-bleacherOffset, Math.PI);
+    const sideOffset=bleacherInnerW*0.5 + 2.8;
+    placeBleachers(shortSection, cx+sideOffset, cz, -Math.PI/2);
+    placeBleachers(shortSection, cx-sideOffset, cz, Math.PI/2);
+    mapParks.push({type:'tennis',x:cx,z:cz,w:concourseW,d:concourseL});
   }
 
   function addBasketCourt(cx,cz){
