@@ -2883,12 +2883,16 @@ function orientRailWoodSurface(surface) {
   if (!surface) {
     return { repeat: { x: 1, y: 1 }, rotation: 0 };
   }
+  // Rotate the rail grain so it always runs in a single, consistent
+  // direction around the table perimeter. Swapping the repeat axes keeps the
+  // long-axis slab stretch while aligning the pattern orientation with the
+  // reference rails shown in the latest review captures.
   return {
     repeat: {
-      x: Number.isFinite(surface.repeat?.x) ? surface.repeat.x : 1,
-      y: Number.isFinite(surface.repeat?.y) ? surface.repeat.y : 1
+      x: Number.isFinite(surface.repeat?.y) ? surface.repeat.y : 1,
+      y: Number.isFinite(surface.repeat?.x) ? surface.repeat.x : 1
     },
-    rotation: surface.rotation ?? 0,
+    rotation: (surface.rotation ?? 0) + Math.PI / 2,
     textureSize:
       typeof surface.textureSize === 'number' ? surface.textureSize : undefined
   };
