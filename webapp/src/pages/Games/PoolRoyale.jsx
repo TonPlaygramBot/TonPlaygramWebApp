@@ -1461,8 +1461,8 @@ const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
 });
 
 const POOL_ROYALE_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.16,
-  roughnessVariance: 0.22
+  roughnessBase: 0.12,
+  roughnessVariance: 0.08
 });
 
 const applySnookerStyleWoodPreset = (materials, finishId) => {
