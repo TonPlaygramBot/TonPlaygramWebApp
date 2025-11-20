@@ -95,7 +95,7 @@ export async function startTirana2040(){
     });
   }
 
-  window.__frameCapMs = 20;
+  window.__frameCapMs = 1000/60;
   window.__forceStubFallback = ()=>location.reload();
   const usingStub=false;
   const ktx2Enabled=false;
@@ -257,7 +257,19 @@ export async function startTirana2040(){
   async function buildTreePalette(){ const palette=await Promise.all(TREE_LIBRARY.map(loadTreeBillboard)); return palette.filter(Boolean); }
   function nextTreeMaterial(seed, offset=0){ if(!treePalette.length) return null; return treePalette[(seed+offset)%treePalette.length]?.material||null; }
   function grassProcedural(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#6fa863'; x.fillRect(0,0,size,size); for(let i=0;i<2600;i++){ x.fillStyle=`rgba(0,80,0,${Math.random()*0.12})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
-  function grassTex(){ return Promise.resolve(grassProcedural()); }
+  function grassTex(){
+    return new Promise((resolve)=>{
+      const failover = grassProcedural();
+      let settled=false;
+      const finish=(tex)=>{ if(settled) return; settled=true; resolve(tex); };
+      const timeout=setTimeout(()=>finish(failover), 2600);
+      textureLoader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg',
+        (tex)=>{ clearTimeout(timeout); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(6,6); tex.anisotropy=Math.min(12,maxAniso); tex.colorSpace=THREE.SRGBColorSpace; finish(tex); },
+        undefined,
+        ()=>{ clearTimeout(timeout); finish(failover); }
+      );
+    });
+  }
   function makeSkyTexture(){ const c=document.createElement('canvas'); c.width=2048; c.height=1024; const ctx=c.getContext('2d'); const grd=ctx.createLinearGradient(0,0,0,c.height); grd.addColorStop(0,'#9dd5ff'); grd.addColorStop(0.35,'#bfe3ff'); grd.addColorStop(1,'#f5e7cf'); ctx.fillStyle=grd; ctx.fillRect(0,0,c.width,c.height); for(let i=0;i<1200;i++){ const x=Math.random()*c.width; const y=Math.random()*c.height*0.5; const size=Math.random()*2+0.5; ctx.fillStyle=`rgba(255,255,255,${0.15+Math.random()*0.35})`; ctx.fillRect(x,y,size,size*0.6); } const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; tex.mapping=THREE.EquirectangularReflectionMapping; tex.needsUpdate=true; return tex; }
   function makeBrickTexture(){ const c=document.createElement('canvas'); c.width=512; c.height=512; const ctx=c.getContext('2d'); ctx.fillStyle='#c26b44'; ctx.fillRect(0,0,512,512); const rows=16, cols=32; ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=2; for(let r=0;r<=rows;r++){ const y=(r/rows)*c.height; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(c.width,y); ctx.stroke(); } for(let r=0;r<rows;r++){ const offset=(r%2?0.5:0)*c.width/cols; for(let cix=0;cix<=cols;cix++){ const x=(cix/cols)*c.width+offset; ctx.beginPath(); ctx.moveTo(x%c.width, r*c.height/rows); ctx.lineTo(x%c.width, (r+1)*c.height/rows); ctx.stroke(); } } for(let i=0;i<2600;i++){ const alpha=Math.random()*0.2; ctx.fillStyle=`rgba(0,0,0,${alpha})`; ctx.fillRect(Math.random()*c.width, Math.random()*c.height, 1, 1); } const tex=new THREE.CanvasTexture(c); tex.anisotropy=8; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.colorSpace=THREE.SRGBColorSpace; return tex; }
   function makePlasterTexture(){ const c=document.createElement('canvas'); c.width=512; c.height=512; const ctx=c.getContext('2d'); ctx.fillStyle='#d6d0c4'; ctx.fillRect(0,0,512,512); const noise=ctx.createImageData(c.width,c.height); for(let i=0;i<noise.data.length;i+=4){ const v=210+Math.random()*30; noise.data[i]=v; noise.data[i+1]=v; noise.data[i+2]=v-8; noise.data[i+3]=255; } ctx.putImageData(noise,0,0); for(let i=0;i<900;i++){ ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.08})`; const x=Math.random()*c.width; const y=Math.random()*c.height; const w=Math.random()*3+1; const h=Math.random()*9+1; ctx.fillRect(x,y,w,h); } const tex=new THREE.CanvasTexture(c); tex.anisotropy=8; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.colorSpace=THREE.SRGBColorSpace; return tex; }
@@ -702,7 +714,7 @@ export async function startTirana2040(){
     const ring=new THREE.Group(); ring.userData.kind='trees';
     const baseSeed=Math.abs(Math.round(cx+cz));
     let placed=0;
-    const place=(x,z)=>{ const mat=nextTreeMaterial(baseSeed, placed) || new THREE.SpriteMaterial({ color:0x3c6f4d, transparent:true, opacity:0.92, depthWrite:false }); const sprite=new THREE.Sprite(mat); const height=8.4+Math.random()*2.6; const width=height*0.55*(1+Math.random()*0.18); sprite.scale.set(width,height,1); sprite.center.set(0.5,0); sprite.position.set(x, 0.012, z); sprite.castShadow=allowShadows; sprite.receiveShadow=allowShadows; ring.add(sprite); placed++; };
+    const place=(x,z)=>{ const mat=nextTreeMaterial(baseSeed, placed) || new THREE.SpriteMaterial({ color:0x3c6f4d, transparent:true, opacity:0.92, depthWrite:false }); const sprite=new THREE.Sprite(mat); const height=8.4+Math.random()*2.6; const width=height*0.55*(1+Math.random()*0.18); sprite.scale.set(width,height,1); sprite.center.set(0.5,0); sprite.position.set(x, -0.05, z); sprite.castShadow=allowShadows; sprite.receiveShadow=allowShadows; ring.add(sprite); placed++; };
     for(let x=-half;x<=half;x+=step){ place(cx+x, cz-half); place(cx+x, cz+half); }
     for(let z=-half;z<=half;z+=step){ place(cx-half, cz+z); place(cx+half, cz+z); }
     city.add(ring);
