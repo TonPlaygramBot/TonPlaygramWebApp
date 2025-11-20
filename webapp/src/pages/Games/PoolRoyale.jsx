@@ -2894,6 +2894,26 @@ function orientRailWoodSurface(surface) {
   };
 }
 
+function projectRailUVs(geometry) {
+  if (!geometry?.attributes?.position) return;
+  geometry.computeBoundingBox();
+  const { boundingBox } = geometry;
+  if (!boundingBox) return;
+  const size = new THREE.Vector3().subVectors(boundingBox.max, boundingBox.min);
+  const width = size.x || 1;
+  const height = size.y || 1;
+  const positions = geometry.attributes.position;
+  const uv = new THREE.BufferAttribute(new Float32Array(positions.count * 2), 2);
+  for (let i = 0; i < positions.count; i++) {
+    const x = positions.getX(i);
+    const y = positions.getY(i);
+    const u = (x - boundingBox.min.x) / width;
+    const v = (y - boundingBox.min.y) / height;
+    uv.setXY(i, u, v);
+  }
+  geometry.setAttribute('uv', uv);
+}
+
 function enhanceChromeMaterial(material) {
   if (!material) return;
   const ensure = (key, value, transform) => {
@@ -6683,6 +6703,7 @@ function Table3D(
       padding: TABLE.THICK * 0.04
     }
   });
+  projectRailUVs(railsGeom);
   const railsMesh = new THREE.Mesh(railsGeom, railMat);
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
