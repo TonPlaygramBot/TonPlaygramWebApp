@@ -112,8 +112,8 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
     id: 'ph_wood_floor_01',
-    label: 'Light Natural',
-    source: 'Poly Haven — Wooden Floor 01 (Light Natural)',
+    label: 'Wooden Floor 01 — Light Natural',
+    source: 'Poly Haven — Wooden Floor 01 — Light Natural',
     rail: {
       repeat: { x: 0.12, y: 0.62 },
       rotation: Math.PI / 24,
@@ -127,8 +127,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   }),
   Object.freeze({
     id: 'ph_wood_floor_02',
-    label: 'Warm Brown',
-    source: 'Poly Haven — Wooden Floor 02 (Warm Brown)',
+    label: 'Wooden Floor 02 — Warm Brown',
+    source: 'Poly Haven — Wooden Floor 02 — Warm Brown',
     rail: {
       repeat: { x: 0.11, y: 0.58 },
       rotation: Math.PI / 22,
@@ -142,8 +142,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   }),
   Object.freeze({
     id: 'ph_wood_floor_03',
-    label: 'Clean Strips',
-    source: 'Poly Haven — Wood Floor (Clean Strips)',
+    label: 'Wood Floor — Clean Strips',
+    source: 'Poly Haven — Wood Floor — Clean Strips',
     rail: {
       repeat: { x: 0.14, y: 0.72 },
       rotation: 0,
@@ -157,8 +157,8 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
   }),
   Object.freeze({
     id: 'ph_old_wood_floor',
-    label: 'Old Wood Floor',
-    source: 'Poly Haven — Old Wood Floor',
+    label: 'Old Wood Floor — Cracks & Damage',
+    source: 'Poly Haven — Old Wood Floor — Cracks & Damage',
     rail: {
       repeat: { x: 0.16, y: 0.64 },
       rotation: Math.PI / 18,

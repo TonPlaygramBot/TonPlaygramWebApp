@@ -386,6 +386,7 @@ const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.7; // thicken fascia depth so corner and side plates share the same chunky profile
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // middle pocket fascias get a touch more mass for a heftier chrome read
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
@@ -818,8 +819,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.036; // sink the cushion base slightly lower so the pads sit deeper against the rail face
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.02; // allow a bit more drop so the cushion lip now sits subtly below the rail cap
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.046; // sink the cushion base slightly lower so the pads sit deeper against the rail face
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.024; // allow a bit more drop so the cushion lip now sits subtly below the rail cap
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -5650,6 +5651,7 @@ function Table3D(
     SIDE_CUSHION_CORNER_SHIFT;
 
   const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
+  const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // give the middle-pocket fascias extra depth
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -5702,6 +5704,8 @@ function Table3D(
   );
   const chromePlateY =
     railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const sideChromePlateY =
+    railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
   const chromeCornerCenterOutset =
     TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
   const chromeCornerShortRailShift =
@@ -6064,7 +6068,7 @@ function Table3D(
         width: sideChromePlateWidth,
         height: sideChromePlateHeight,
         radius: sideChromePlateRadius,
-        thickness: chromePlateThickness,
+        thickness: sideChromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments,
@@ -6072,7 +6076,7 @@ function Table3D(
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
+    plate.position.set(centerX, sideChromePlateY + sideChromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
