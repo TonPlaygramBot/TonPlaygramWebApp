@@ -154,6 +154,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
   // screen. Keep the element for potential future notices but don't display it
   // automatically.
   gate.style.display = 'none';
+  gate.setAttribute('hidden', 'hidden');
+  gate.style.pointerEvents = 'none';
 
   window.isMobile = isMobile;
   window.gate = gate;
@@ -712,7 +714,14 @@ document.title = 'Tirana 2040 • Last Man Standing';
     ], s:0.9, stats:{ rpm:610, dmg:29, spread:0.012, mag:30, reload:1.9 }, auto:true },
     { key:'SniperAWP', name:'Sniper AWP (Garbaj)', urls:[
       'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb'
-    ], s:0.9, stats:{ rpm:45, dmg:120, spread:0.006, mag:7, reload:2.6 }, auto:false }
+    ], s:0.9, stats:{ rpm:45, dmg:120, spread:0.006, mag:7, reload:2.6 }, auto:false },
+    { key:'VectorSMG', name:'Vector SMG', urls:[
+      'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/SciFiHelmet/glTF/SciFiHelmet.gltf'
+    ], s:0.82, stats:{ rpm:980, dmg:21, spread:0.018, mag:33, reload:1.7 }, auto:true },
+    { key:'M4A1', name:'M4A1 (Prototype)', urls:[
+      'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF/Duck.gltf'
+    ], s:0.9, stats:{ rpm:720, dmg:30, spread:0.011, mag:30, reload:1.9 }, auto:true },
+    { key:'Shotgun12', name:'12g Shotgun', urls:[], s:0.78, stats:{ rpm:120, dmg:72, spread:0.05, mag:8, reload:2.3 }, auto:false }
   ];
   const FIRE_MODES=new Map(); ARMORY.forEach(a=>FIRE_MODES.set(a.key, a.auto?'auto':'single'));
 
@@ -721,7 +730,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const weaponCache=new Map();
   const metalTex=(()=>{ const S=256,c=document.createElement('canvas'); c.width=c.height=S; const x=c.getContext('2d'); const g=x.createLinearGradient(0,0,S,S); g.addColorStop(0,'#2e2e2e'); g.addColorStop(1,'#4a4a4a'); x.fillStyle=g; x.fillRect(0,0,S,S); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=2; return t; })();
   const matMetal=new THREE.MeshLambertMaterial({ color:'#3b3b3b', map:metalTex }), matWood =new THREE.MeshLambertMaterial({ color:'#7b5331' });
-  const WEAPON_TYPES={ Glock:'pistol', Pistol:'pistol', Gun:'pistol', Uzi:'smg', MP5:'smg', AK47:'rifle', BattleRifle:'rifle', InfantryRifle:'rifle', WebaverseRifle:'rifle', Air908Rifle:'rifle', SniperAWP:'sniper', Grenade:'grenade' };
+  const WEAPON_TYPES={ Glock:'pistol', Pistol:'pistol', Gun:'pistol', Uzi:'smg', MP5:'smg', VectorSMG:'smg', AK47:'rifle', BattleRifle:'rifle', InfantryRifle:'rifle', WebaverseRifle:'rifle', Air908Rifle:'rifle', M4A1:'rifle', SniperAWP:'sniper', Shotgun12:'shotgun', Grenade:'grenade' };
   function makeSight(){ const s=new THREE.Group(); const ring=new THREE.Mesh(new THREE.TorusGeometry(0.015,0.004,8,12), new THREE.MeshBasicMaterial({ color:'#222' })); ring.rotation.x=Math.PI/2; ring.position.set(0,0,0.02); const post=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.02,0.004), new THREE.MeshBasicMaterial({ color:'#444' })); post.position.set(0,0,0.03); s.add(ring,post); return s; }
   function makeAK47Mesh(){ const g=new THREE.Group(); const rec=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.11,0.45), matMetal); const hand=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.08,0.28), matWood); hand.position.set(0.07,-0.02,-0.22); const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,0.38,18), matMetal); barrel.rotation.z=Math.PI/2; barrel.position.set(0.12,-0.02,-0.41); const stock=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.09,0.25), matWood); stock.position.set(-0.06,-0.01,0.16); const mag=new THREE.Mesh(new THREE.CapsuleGeometry(0.04,0.12,8,16), matMetal); mag.rotation.x=Math.PI/2; mag.position.set(0.02,-0.08,0.02); g.add(rec,hand,barrel,stock,mag,makeSight()); return g; }
   function makePistolMesh(){ const g=new THREE.Group(); const slide=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.18), matMetal); slide.position.set(0.02,0.02,-0.09); const frame=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.07,0.14), new THREE.MeshLambertMaterial({color:'#444'})); const grip=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.1,0.06), new THREE.MeshLambertMaterial({color:'#2b2b2b'})); grip.position.set(-0.02,-0.05,0.02); const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.14,10), matMetal); barrel.rotation.z=Math.PI/2; barrel.position.set(0.07,0.02,-0.18); g.add(frame,slide,grip,barrel,makeSight()); return g; }
@@ -739,7 +748,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function buildGrenadeMesh(){ if(grenadeProjectileTemplate){ const inst=grenadeProjectileTemplate.clone(true); inst.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } }); return inst; } const fallback=new THREE.Mesh(grenadeFallbackGeo, grenadeFallbackMat.clone()); fallback.castShadow=allowShadows; fallback.receiveShadow=allowShadows; return fallback; }
 
   const armoryDiv=$('armory'); const armorySlider=$('armorySlider'); const thumbCache=new Map();
-  function weaponIconURL(key){ const svg=(b)=>'data:image/svg+xml;utf8,'+encodeURIComponent(b); const base=(body)=>`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 112 68'><rect width='112' height='68' rx='8' ry='8' fill='rgba(0,0,0,0.18)'/><g fill='none' stroke='#e6eefc' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>${body}</g></svg>`; switch(key){ case 'Glock': return svg(base(`<path d='M14 32h58l8 8H14z'/><path d='M64 32v-8h20l8 10'/>`)); case 'Pistol': case 'Gun': return svg(base(`<path d='M12 34h62l10 8H12z'/>`)); case 'Uzi': case 'MP5': return svg(base(`<path d='M10 34h52l8 6H10z'/>`)); case 'AK47': case 'BattleRifle': case 'InfantryRifle': case 'WebaverseRifle': case 'Air908Rifle': return svg(base(`<path d='M8 38h88l8 6H8z'/>`)); case 'SniperAWP': return svg(base(`<path d='M8 34h90l8 6H8z'/><path d='M74 26h10'/>`)); case 'Grenade': return svg(base(`<circle cx='42' cy='36' r='12'/>`)); default: return svg(base(`<path d='M16 34h80'/>`)); } }
+  function weaponIconURL(key){ const svg=(b)=>'data:image/svg+xml;utf8,'+encodeURIComponent(b); const base=(body)=>`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 112 68'><rect width='112' height='68' rx='8' ry='8' fill='rgba(0,0,0,0.18)'/><g fill='none' stroke='#e6eefc' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>${body}</g></svg>`; switch(key){ case 'Glock': return svg(base(`<path d='M14 32h58l8 8H14z'/><path d='M64 32v-8h20l8 10'/>`)); case 'Pistol': case 'Gun': return svg(base(`<path d='M12 34h62l10 8H12z'/>`)); case 'Uzi': case 'MP5': case 'VectorSMG': return svg(base(`<path d='M10 34h52l8 6H10z'/>`)); case 'AK47': case 'BattleRifle': case 'InfantryRifle': case 'WebaverseRifle': case 'Air908Rifle': case 'M4A1': return svg(base(`<path d='M8 38h88l8 6H8z'/>`)); case 'Shotgun12': return svg(base(`<path d='M12 34h74'/><path d='M62 28h14'/><path d='M14 38l6 6'/>`)); case 'SniperAWP': return svg(base(`<path d='M8 34h90l8 6H8z'/><path d='M74 26h10'/>`)); case 'Grenade': return svg(base(`<circle cx='42' cy='36' r='12'/>`)); default: return svg(base(`<path d='M16 34h80'/>`)); } }
   function weaponPreviewURL(key){ return thumbCache.get(key) || weaponIconURL(key); }
   async function generateThumb(key){ try{ if(thumbCache.has(key)) return thumbCache.get(key); const size={w:224,h:136}; const rt=new THREE.WebGLRenderTarget(size.w,size.h); const sc=new THREE.Scene(); const cam=new THREE.PerspectiveCamera(40, size.w/size.h, 0.01, 10); const amb=new THREE.AmbientLight(0xffffff,0.9); const dir=new THREE.DirectionalLight(0xffffff,0.9); dir.position.set(2,3,2); sc.add(amb,dir); const model=await loadWeapon(key); const g=new THREE.Group(); if(model) g.add(model); normalizeAndCenter(g,0.9); g.rotation.y=Math.PI*0.85; sc.add(g); const prev=new THREE.Color(); renderer.getClearColor(prev); const prevA=renderer.getClearAlpha(); renderer.setRenderTarget(rt); renderer.setClearColor(0x000000,0); cam.position.set(0.6,0.3,1.2); cam.lookAt(0,0,0); renderer.render(sc,cam); const px=new Uint8Array(size.w*size.h*4); renderer.readRenderTargetPixels(rt,0,0,size.w,size.h,px); const cv=document.createElement('canvas'); cv.width=size.w; cv.height=size.h; const ctx=cv.getContext('2d'); const img=ctx.createImageData(size.w,size.h); for(let y=0;y<size.h;y++){ const sy=size.h-1-y; img.data.set(px.subarray(sy*size.w*4, sy*size.w*4+size.w*4), y*size.w*4);} ctx.putImageData(img,0,0); const url=cv.toDataURL('image/png'); renderer.setRenderTarget(null); renderer.setClearColor(prev,prevA); rt.dispose(); thumbCache.set(key,url); return url; }catch(_){ return weaponIconURL(key); } }
   function enableDragScroll(el){ let isDown=false; let startX=0; let scrollLeft=0; let moved=false; el.addEventListener('pointerdown',(e)=>{ isDown=true; moved=false; startX=e.clientX; scrollLeft=el.scrollLeft; el.classList.add('dragging'); try{ el.setPointerCapture(e.pointerId); }catch(_){ } }); el.addEventListener('pointermove',(e)=>{ if(!isDown) return; const dx=e.clientX-startX; if(Math.abs(dx)>6) moved=true; el.scrollLeft=scrollLeft-dx; }); const stop=(e)=>{ if(isDown){ try{ el.releasePointerCapture(e.pointerId); }catch(_){ } } isDown=false; el.classList.remove('dragging'); }; el.addEventListener('pointerup',stop); el.addEventListener('pointercancel',stop); el.addEventListener('click',(e)=>{ if(moved){ e.preventDefault(); e.stopPropagation(); }}); }
@@ -755,16 +764,16 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function updateAmmoHUD(){ const a=ammo.get(currentKey); const label=ARMORY.find(x=>x.key===currentKey)?.name||currentKey; $('ammo').textContent=`${label} — ${a.mag}/${a.reserve}`; const badge=$('weaponName'); if(badge) badge.textContent=`Weapon: ${label}`; document.querySelectorAll('.armBtn').forEach(el=>el.classList.remove('active')); const ab=$('arm_'+currentKey); if(ab) ab.classList.add('active'); }
   const MUZZLE_OFF={
     Glock:[0.0,-0.02,-0.74], Pistol:[0.0,-0.02,-0.74], Gun:[0.0,-0.02,-0.74],
-    Uzi:[0.0,-0.03,-0.78], MP5:[0.0,-0.03,-0.78],
-    AK47:[0.0,-0.04,-0.82], BattleRifle:[0.0,-0.04,-0.82], InfantryRifle:[0.0,-0.04,-0.82], WebaverseRifle:[0.0,-0.04,-0.82], Air908Rifle:[0.0,-0.04,-0.82],
-    SniperAWP:[0.0,-0.05,-0.90],
+    Uzi:[0.0,-0.03,-0.78], MP5:[0.0,-0.03,-0.78], VectorSMG:[0.0,-0.03,-0.78],
+    AK47:[0.0,-0.04,-0.82], BattleRifle:[0.0,-0.04,-0.82], InfantryRifle:[0.0,-0.04,-0.82], WebaverseRifle:[0.0,-0.04,-0.82], Air908Rifle:[0.0,-0.04,-0.82], M4A1:[0.0,-0.04,-0.82],
+    SniperAWP:[0.0,-0.05,-0.90], Shotgun12:[0.0,-0.045,-0.82],
     Grenade:[0,0,0]
   };
   const EJECT_OFF={
     Glock:[0.06,-0.05,-0.36], Pistol:[0.06,-0.05,-0.36], Gun:[0.06,-0.05,-0.36],
-    Uzi:[0.06,-0.04,-0.40], MP5:[0.06,-0.04,-0.40],
-    AK47:[0.09,-0.05,-0.44], BattleRifle:[0.09,-0.05,-0.44], InfantryRifle:[0.09,-0.05,-0.44], WebaverseRifle:[0.09,-0.05,-0.44], Air908Rifle:[0.09,-0.05,-0.44],
-    SniperAWP:[0.085,-0.05,-0.48],
+    Uzi:[0.06,-0.04,-0.40], MP5:[0.06,-0.04,-0.40], VectorSMG:[0.06,-0.04,-0.40],
+    AK47:[0.09,-0.05,-0.44], BattleRifle:[0.09,-0.05,-0.44], InfantryRifle:[0.09,-0.05,-0.44], WebaverseRifle:[0.09,-0.05,-0.44], Air908Rifle:[0.09,-0.05,-0.44], M4A1:[0.09,-0.05,-0.44],
+    SniperAWP:[0.085,-0.05,-0.48], Shotgun12:[0.08,-0.05,-0.42],
     Grenade:[0,0,0]
   };
   const SHELL_SPECS={
@@ -773,12 +782,15 @@ document.title = 'Tirana 2040 • Last Man Standing';
     Gun:{radius:0.006,length:0.14,color:0xd6b064},
     Uzi:{radius:0.0055,length:0.13,color:0xd0a050},
     MP5:{radius:0.0058,length:0.14,color:0xd0a050},
+    VectorSMG:{radius:0.0058,length:0.14,color:0xd0a050},
     AK47:{radius:0.007,length:0.22,color:0xc58f3d},
     BattleRifle:{radius:0.007,length:0.22,color:0xc58f3d},
     InfantryRifle:{radius:0.0066,length:0.20,color:0xcfa443},
     WebaverseRifle:{radius:0.0066,length:0.20,color:0xcfa443},
     Air908Rifle:{radius:0.0066,length:0.21,color:0xc58f3d},
-    SniperAWP:{radius:0.008,length:0.25,color:0xcfa443}
+    M4A1:{radius:0.007,length:0.22,color:0xc58f3d},
+    SniperAWP:{radius:0.008,length:0.25,color:0xcfa443},
+    Shotgun12:{radius:0.009,length:0.24,color:0xcfa443}
   };
   const HAND_OFFSETS={
     Glock:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
@@ -786,12 +798,15 @@ document.title = 'Tirana 2040 • Last Man Standing';
     Gun:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
     Uzi:{pos:[0.2,-0.1,-0.5], rot:[-0.03,Math.PI,-0.12]},
     MP5:{pos:[0.2,-0.1,-0.52], rot:[-0.03,Math.PI,-0.12]},
+    VectorSMG:{pos:[0.2,-0.1,-0.5], rot:[-0.03,Math.PI,-0.12]},
     AK47:{pos:[0.22,-0.1,-0.56], rot:[-0.035,Math.PI,-0.14]},
     BattleRifle:{pos:[0.22,-0.11,-0.56], rot:[-0.035,Math.PI,-0.14]},
     InfantryRifle:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
     WebaverseRifle:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
     Air908Rifle:{pos:[0.22,-0.11,-0.55], rot:[-0.035,Math.PI,-0.13]},
+    M4A1:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
     SniperAWP:{pos:[0.23,-0.11,-0.60], rot:[-0.04,Math.PI,-0.15]},
+    Shotgun12:{pos:[0.23,-0.1,-0.58], rot:[-0.035,Math.PI,-0.14]},
     Grenade:{pos:[0.16,-0.06,-0.42], rot:[-0.01,Math.PI,-0.08]}
   };
 
