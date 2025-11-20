@@ -47,14 +47,14 @@
   #healthbar{position:absolute;left:50%;top:calc(var(--hud-gap) + 44px);width:clamp(160px,60vw,320px);height:14px;background:rgba(0,0,0,.22);border-radius:999px;overflow:hidden;transform:translateX(-50%)}
   #healthfill{width:100%;height:100%;background:linear-gradient(90deg,#29ff9a,#00c876)}
   .armoryWrap{flex:1;display:flex;justify-content:center;overflow:visible}
-  #armory{display:flex;flex-direction:row;gap:clamp(6px,2.2vw,12px);padding:8px 12px;border-radius:16px;background:rgba(0,0,0,.32);backdrop-filter:blur(var(--hud-blur));pointer-events:auto;max-width:min(100%,560px);box-sizing:border-box;align-items:stretch;overflow-x:auto;scrollbar-width:thin}
+  #armory{display:flex;flex-direction:row;gap:clamp(6px,1.8vw,12px);padding:10px 14px;border-radius:16px;background:rgba(0,0,0,.32);backdrop-filter:blur(var(--hud-blur));pointer-events:auto;max-width:min(100%,740px);box-sizing:border-box;align-items:stretch;overflow-x:auto;scrollbar-width:thin;flex-wrap:nowrap}
   #armory::-webkit-scrollbar{height:6px}
   #armory::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.25);border-radius:999px}
   #armorySliderWrap{position:absolute;left:50%;bottom:calc(var(--hud-gap) - 8px);transform:translateX(-50%);display:flex;flex-direction:column;gap:4px;align-items:center;pointer-events:auto;z-index:21}
   #armorySlider{appearance:none;width:min(64vw,520px);height:14px;border-radius:999px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.22);outline:none;box-shadow:0 8px 18px rgba(0,0,0,0.28);}
   #armorySlider::-webkit-slider-thumb{appearance:none;width:26px;height:26px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,0.32);box-shadow:0 8px 16px rgba(0,0,0,0.28)}
   #armorySlider::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,0.32);box-shadow:0 8px 16px rgba(0,0,0,0.28)}
-  .armBtn{position:relative;flex:0 0 clamp(70px,18vw,104px);padding:6px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(7,10,22,.58);color:#e6eefc;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .2s ease, border-color .2s ease}
+  .armBtn{position:relative;flex:0 0 clamp(68px,16vw,96px);padding:6px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(7,10,22,.58);color:#e6eefc;font-weight:700;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform .2s ease, border-color .2s ease}
   .armBtn img{width:100%;aspect-ratio:4/3;object-fit:contain;display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))}
   .armBtn span{font-size:9px;letter-spacing:.18px;opacity:.95;text-align:center}
   .armBtn.active{outline:2px solid #ffd966;background:rgba(17,23,42,.68);border-color:rgba(255,217,102,.6);transform:translateY(-4px)}
@@ -349,6 +349,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const crosswalks=new THREE.Group(); crosswalks.userData={kind:'markings'}; city.add(crosswalks);
   const streetLights=new THREE.Group(); streetLights.userData={kind:'street_bulb'}; city.add(streetLights);
   const guardrails=new THREE.Group(); guardrails.userData={kind:'guardrails'}; city.add(guardrails);
+  const roadsideFences=new THREE.Group(); roadsideFences.userData={kind:'roadside_fence_group'}; city.add(roadsideFences);
   const intersectionPatches=new THREE.Group(); intersectionPatches.userData={kind:'interPatches'}; city.add(intersectionPatches);
   const busStopsGroup=new THREE.Group(); busStopsGroup.userData={kind:'bus_stop_group'}; city.add(busStopsGroup);
   const benchesGroup=new THREE.Group(); benchesGroup.userData={kind:'bench_group'}; city.add(benchesGroup);
@@ -357,6 +358,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const guardRailGeoZ=new THREE.BoxGeometry(0.18,0.16,1);
   const guardRailGeoX=new THREE.BoxGeometry(1,0.16,0.18);
   const postGeo=new THREE.CylinderGeometry(0.12,0.12,1.05,10);
+  const fenceMatMetal=new THREE.MeshStandardMaterial({ map:fenceMat(), transparent:true, opacity:1.0, roughness:0.82, metalness:0.12, color:0xf8fafc });
+  const fenceLift=1.0, fenceH=2.8;
   function addGuardrailSegment(cx,cz,len,dir='z'){
     const seg=new THREE.Group();
     const railTop=new THREE.Mesh(dir==='z'? guardRailGeoZ.clone():guardRailGeoX.clone(), guardRailMat);
@@ -375,6 +378,13 @@ document.title = 'Tirana 2040 • Last Man Standing';
     }
     seg.position.set(cx,0.02,cz);
     guardrails.add(seg);
+  }
+  function addRoadFenceSegment(cx,cz,len,dir='z'){
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(len, fenceH), fenceMatMetal);
+    mesh.position.set(cx, fenceH/2 + fenceLift, cz);
+    if(dir==='z') mesh.rotation.y=Math.PI/2;
+    mesh.userData={kind:'roadside_fence'};
+    roadsideFences.add(mesh);
   }
 
   for(let ix=0; ix<=BLOCKS_X; ix++){
@@ -418,6 +428,25 @@ document.title = 'Tirana 2040 • Last Man Standing';
       const xSeg=startX + ix*CELL;
       addGuardrailSegment(xSeg, zPos+guardOffset, guardLen, 'x');
       addGuardrailSegment(xSeg, zPos-guardOffset, guardLen, 'x');
+    }
+  }
+
+  const fenceOffset=ROAD/2 + 1.6;
+  const fenceLen=Math.max(18, CELL - ROAD*0.65);
+  for(let ix=0; ix<=BLOCKS_X; ix++){
+    const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
+    for(let iz=0; iz<BLOCKS_Z; iz++){
+      const zSeg=startZ + iz*CELL;
+      addRoadFenceSegment(xPos+fenceOffset, zSeg, fenceLen, 'z');
+      addRoadFenceSegment(xPos-fenceOffset, zSeg, fenceLen, 'z');
+    }
+  }
+  for(let iz=0; iz<=BLOCKS_Z; iz++){
+    const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
+    for(let ix=0; ix<BLOCKS_X; ix++){
+      const xSeg=startX + ix*CELL;
+      addRoadFenceSegment(xSeg, zPos+fenceOffset, fenceLen, 'x');
+      addRoadFenceSegment(xSeg, zPos-fenceOffset, fenceLen, 'x');
     }
   }
 
