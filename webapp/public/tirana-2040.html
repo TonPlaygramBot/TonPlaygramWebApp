@@ -341,13 +341,13 @@ document.title = 'Tirana 2040 • Last Man Standing';
   window.institutions=institutions;
   window.bots=bots;
   const mapRoads=[]; const mapBuildings=[]; const mapParks=[]; const mapLandmarks=[];
-  const BLOCKS_X=6, BLOCKS_Z=6; const CELL=120; const ROAD=22; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
+  const BLOCKS_X=6, BLOCKS_Z=6; const CELL=120; const ROAD=28; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
   const northSouthStreets=['Rr. Kombinatit','Rr. Kavajës','Rr. Dëshmorët','Rr. Myslym Shyri','Rr. Ismail Qemali','Rr. Abdyl Frashëri','Rr. Bajram Curri'];
   const eastWestStreets=['Blvd. Nënë Tereza','Rr. Skënderbej','Rr. Ismail Ndroqi','Rr. Ali Demi','Rr. Petro Nini','Rr. Teuta','Rr. Don Bosko'];
   const ringRoadName='Unaza Tirana 2040';
 
   const groundGeo = new THREE.PlaneGeometry((CELL)*BLOCKS_X + ROAD*2, (CELL)*BLOCKS_Z + ROAD*2);
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0xf0e4cf, roughness:0.95, metalness:0.02, side:THREE.DoubleSide });
+  const groundMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.95, metalness:0.08, side:THREE.DoubleSide });
   const gnd = new THREE.Mesh(groundGeo, groundMat); gnd.rotation.x=-Math.PI/2; gnd.receiveShadow=allowShadows; city.add(gnd);
 
   const ROAD_SURFACE_Y = 0.035;
@@ -539,7 +539,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   function addBusStop(x,z,dir=0){ const roof=new THREE.Mesh(new THREE.BoxGeometry(3,0.2,1.2), new THREE.MeshStandardMaterial({color:0x374151, roughness:0.6})); roof.position.set(0,2.1,0); const poleL=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.08,2.2,12), new THREE.MeshStandardMaterial({color:0x9ca3af})); poleL.position.set(-1.2,1.1,0.4); const poleR=poleL.clone(); poleR.position.x=1.2; const glass=new THREE.Mesh(new THREE.PlaneGeometry(3,1.6), makeGlassStdMat()); glass.position.set(0,1.2,-0.4); const signPole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,2.4,12), poleL.material); signPole.position.set(-1.9,1.2,-0.35); const signTex=(function(){ const c=document.createElement('canvas'); c.width=128; c.height=128; const g=c.getContext('2d'); g.fillStyle='#0f172a'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#facc15'; g.font='700 68px system-ui'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('🚍', c.width/2, c.height/2); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })(); const sign=new THREE.Mesh(new THREE.PlaneGeometry(0.9,0.9), new THREE.MeshBasicMaterial({ map:signTex, transparent:true })); sign.position.set(-1.9,2.0,-0.35); sign.rotation.y=Math.PI; const stop=new THREE.Group(); stop.add(roof,poleL,poleR,glass,signPole,sign); stop.position.set(x,0,z); stop.rotation.y=dir; stop.userData={kind:'bus_stop_group'}; busStopsGroup.add(stop); }
 
-  function buildPerimeterWalls(){ const spanX=BLOCKS_X*CELL, spanZ=BLOCKS_Z*CELL; const wallMat=new THREE.MeshStandardMaterial({color:0x474b57, roughness:0.8}); const heights=[8,8,8,8]; const configs=[{w:spanX+ROAD*2,d:2,x:0,z:-spanZ/2-ROAD},{w:spanX+ROAD*2,d:2,x:0,z:spanZ/2+ROAD},{w:2,d:spanZ+ROAD*2,x:-spanX/2-ROAD,z:0},{w:2,d:spanZ+ROAD*2,x:spanX/2+ROAD,z:0}]; configs.forEach((cfg,idx)=>{ const mesh=new THREE.Mesh(new THREE.BoxGeometry(cfg.w,heights[idx],cfg.d), wallMat); mesh.position.set(cfg.x,heights[idx]/2,cfg.z); mesh.receiveShadow=allowShadows; mesh.castShadow=allowShadows; city.add(mesh); perimeterWalls.push(mesh); }); }
+  function buildPerimeterWalls(){ const spanX=BLOCKS_X*CELL, spanZ=BLOCKS_Z*CELL; const wallMat=new THREE.MeshStandardMaterial({color:0x474b57, roughness:0.8}); const heights=[11,11,11,11]; const configs=[{w:spanX+ROAD*2+14,d:2.4,x:0,z:-spanZ/2-ROAD-5},{w:spanX+ROAD*2+14,d:2.4,x:0,z:spanZ/2+ROAD+5},{w:2.4,d:spanZ+ROAD*2+14,x:-spanX/2-ROAD-5,z:0},{w:2.4,d:spanZ+ROAD*2+14,x:spanX/2+ROAD+5,z:0}]; configs.forEach((cfg,idx)=>{ const mesh=new THREE.Mesh(new THREE.BoxGeometry(cfg.w,heights[idx],cfg.d), wallMat); mesh.position.set(cfg.x,heights[idx]/2,cfg.z); mesh.receiveShadow=allowShadows; mesh.castShadow=allowShadows; city.add(mesh); perimeterWalls.push(mesh); }); }
 
   function buildCoast(){ const group=new THREE.Group(); group.userData={kind:'coast'}; const sea=new THREE.Mesh(new THREE.PlaneGeometry(cityHalfZ*3, cityHalfX*1.4), new THREE.MeshBasicMaterial({color:0x7ec4ff, transparent:true, opacity:0.85})); sea.rotation.x=-Math.PI/2; sea.position.set(cityHalfX+260,0.001,0); const beach=new THREE.Mesh(new THREE.PlaneGeometry(cityHalfZ*1.4, cityHalfX*0.8), new THREE.MeshStandardMaterial({color:0xf6d7a8, roughness:0.85})); beach.rotation.x=-Math.PI/2; beach.position.set(cityHalfX+80,0.002,0); group.add(sea,beach); city.add(group); return group; }
 
@@ -570,13 +570,10 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const coast=buildCoast();
   const mountains=buildMountains();
-  const riverData=buildRiver();
-  const river=riverData.group;
-  const riverDistance=riverData.distance;
-  const bridges=riverData.bridges;
-  window.river=river;
+  const riverDistance=()=>({ d:Infinity, hw:0 });
+  window.river=null;
   window.riverDistance=riverDistance;
-  window.bridges=bridges;
+  window.bridges=null;
 
   function facadeTex(hue=200){ const W=256,H=512; const c=document.createElement('canvas'); c.width=W; c.height=H; const ctx=c.getContext('2d'); ctx.fillStyle=`hsl(${hue},16%,74%)`; ctx.fillRect(0,0,W,H); for(let i=0;i<1800;i++){ const a=Math.random()*0.08; ctx.fillStyle=`rgba(0,0,0,${a})`; ctx.fillRect(Math.random()*W,Math.random()*H,1,1);} const cols=6+Math.floor(Math.random()*4), rows=14+Math.floor(Math.random()*6); const padX=12,padY=16; const cellW=(W-2*padX)/cols, cellH=(H-2*padY)/rows; for(let r=0;r<rows;r++){ for(let cix=0;cix<cols;cix++){ const x=padX+cix*cellW+6, y=padY+r*cellH+6, w=cellW-12, h=cellH-12; const g=ctx.createLinearGradient(0,y,0,y+h); g.addColorStop(0,'rgba(240,245,255,0.95)'); g.addColorStop(0.5,'rgba(150,180,220,0.92)'); g.addColorStop(1,'rgba(60,80,120,0.9)'); ctx.fillStyle=g; ctx.fillRect(x,y,w,h); ctx.strokeStyle='rgba(24,28,38,0.9)'; ctx.lineWidth=2; ctx.strokeRect(x,y,w,h); } } const tex=new THREE.CanvasTexture(c); tex.anisotropy=2; tex.colorSpace=THREE.SRGBColorSpace; return tex; }
 
@@ -805,7 +802,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const parkKinds=['tennis','basket','fountain'];
   for(let ix=0; ix<BLOCKS_X; ix++){
     for(let iz=0; iz<BLOCKS_Z; iz++){
-      const cx=startX+ix*CELL, cz=startZ+iz*CELL; addSidewalk(cx,cz);
+      const cx=startX+ix*CELL, cz=startZ+iz*CELL;
       const makePark = ((ix+iz)%2===0);
       if(makePark){
         registerPlotArea(ix,iz,cx,cz,PLOT*0.9,PLOT*0.9);
@@ -825,9 +822,10 @@ document.title = 'Tirana 2040 • Last Man Standing';
   for(let i=-BLOCKS_X;i<=BLOCKS_X;i+=2){ addTrafficLight(i*CELL*0.5, -BLOCKS_Z*CELL*0.5, 0); addTrafficLight(i*CELL*0.5, BLOCKS_Z*CELL*0.5, Math.PI); }
 
   const ringR = Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.65;
-  const ringRoad=new THREE.Mesh(new THREE.RingGeometry(ringR-12, ringR+12, 128), new THREE.MeshStandardMaterial({ map:asphaltTex, side:THREE.DoubleSide, roughness:0.86 })); ringRoad.rotation.x=-Math.PI/2; ringRoad.position.y=0.011; city.add(ringRoad);
+  const ringRoadWidth = ROAD*1.2;
+  const ringRoad=new THREE.Mesh(new THREE.RingGeometry(ringR-ringRoadWidth*0.5, ringR+ringRoadWidth*0.5, 128), new THREE.MeshStandardMaterial({ map:asphaltTex, side:THREE.DoubleSide, roughness:0.86 })); ringRoad.rotation.x=-Math.PI/2; ringRoad.position.y=0.011; city.add(ringRoad);
   const ringStripe=new THREE.Mesh(new THREE.RingGeometry(ringR-2, ringR-1.4, 128), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.22, side:THREE.DoubleSide })); ringStripe.rotation.x=-Math.PI/2; ringStripe.position.y=0.012; city.add(ringStripe);
-  mapRoads.push({type:'ring', name:ringRoadName, from:{x:0,z:0}, to:{x:0,z:0}, width:24, radius:ringR});
+  mapRoads.push({type:'ring', name:ringRoadName, from:{x:0,z:0}, to:{x:0,z:0}, width:ringRoadWidth, radius:ringR});
   mapLandmarks.push({x:ringR*0.75,z:0,label:`🛣 ${ringRoadName}`});
   const connectorTargets=[
     {from:{x:cityHalfX+ROAD*0.5, z:0}, to:{x:ringR-8, z:0}},
@@ -876,43 +874,43 @@ document.title = 'Tirana 2040 • Last Man Standing';
   gltfLoader.register((parser)=>{ const c=document.createElement('canvas'); c.width=c.height=1; const ctx=c.getContext('2d'); ctx.fillStyle='#888'; ctx.fillRect(0,0,1,1); const blank=new THREE.CanvasTexture(c); blank.colorSpace=THREE.SRGBColorSpace; blank.needsUpdate=true; const orig=parser.getDependency.bind(parser); parser.getDependency=function(type,index){ if(type==='texture') return Promise.resolve(blank); return orig(type,index); }; return {name:'NullTextures'}; });
 
   const ARMORY=[
-    { key:'Glock',  name:'Glock (Webaverse)', urls:[
+    { key:'Glock',  name:'Glock', urls:[
       'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb',
       'https://raw.githubusercontent.com/webaverse/pistol/main/glock.glb'
     ], s:0.6, stats:{ rpm:380, dmg:24, spread:0.013, mag:17, reload:1.2 }, auto:false },
-    { key:'Pistol', name:'Pistol (Webaverse)', urls:[
+    { key:'Pistol', name:'Pistol', urls:[
       'https://raw.githubusercontent.com/webaverse/pistol/master/pistol.glb',
       'https://raw.githubusercontent.com/webaverse/pistol/main/pistol.glb'
     ], s:0.6, stats:{ rpm:320, dmg:22, spread:0.014, mag:15, reload:1.3 }, auto:false },
-    { key:'Uzi',    name:'Uzi (Webaverse)',    urls:[
+    { key:'Uzi',    name:'Uzi',    urls:[
       'https://raw.githubusercontent.com/webaverse/uzi/main/uzi.glb',
       'https://raw.githubusercontent.com/webaverse-mmo/uzi/main/uzi.glb'
     ], s:0.6, stats:{ rpm:900, dmg:18, spread:0.02,  mag:32, reload:1.6 }, auto:true },
-    { key:'AK47',   name:'AK-47 (GitHub)', urls:[
+    { key:'AK47',   name:'AK-47', urls:[
       'https://raw.githubusercontent.com/LazerMaker/gun-models-ak47-and-supprest-pistol-/master/ak47.glb'
     ], s:0.8, stats:{ rpm:650, dmg:32, spread:0.012, mag:30, reload:1.9 }, auto:true },
-    { key:'MP5',    name:'MP5 (GitHub)', urls:[
+    { key:'MP5',    name:'MP5', urls:[
       'https://raw.githubusercontent.com/Jay-Oh-eN/assets/main/mp5.glb'
     ], s:0.75, stats:{ rpm:780, dmg:20, spread:0.016, mag:30, reload:1.6 }, auto:true },
     { key:'Grenade',name:'Grenade',urls:[
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb'
     ], s:2.0, stats:{ rpm:60,  dmg:120, spread:0.03,  mag:1,  reload:2.4 }, auto:false },
-    { key:'BattleRifle', name:'Battle Rifle (Sinojouni)', urls:[
+    { key:'BattleRifle', name:'Battle Rifle', urls:[
       'https://raw.githubusercontent.com/Sinojouni/games/main/battle_rifle_animated.glb'
     ], s:0.9, stats:{ rpm:620, dmg:34, spread:0.011, mag:28, reload:2.0 }, auto:true },
-    { key:'InfantryRifle', name:'Infantry Rifle (ssdeanx)', urls:[
+    { key:'InfantryRifle', name:'Infantry Rifle', urls:[
       'https://raw.githubusercontent.com/ssdeanx/glb-textures/main/infantry_automatic_rifle.glb'
     ], s:0.9, stats:{ rpm:680, dmg:28, spread:0.012, mag:30, reload:1.8 }, auto:true },
-    { key:'WebaverseRifle', name:'Rifle (Webaverse Assets)', urls:[
+    { key:'WebaverseRifle', name:'Rifle', urls:[
       'https://raw.githubusercontent.com/webaverse/assets/master/rifle.glb'
     ], s:0.9, stats:{ rpm:640, dmg:27, spread:0.012, mag:28, reload:1.7 }, auto:true },
-    { key:'Gun', name:'Gun (Godot FPS)', urls:[
+    { key:'Gun', name:'Gun', urls:[
       'https://raw.githubusercontent.com/codewithtom/godot-fps/master/Assets/gun.glb'
     ], s:0.85, stats:{ rpm:320, dmg:24, spread:0.014, mag:16, reload:1.4 }, auto:false },
-    { key:'Air908Rifle', name:'Rifle (Air908)', urls:[
+    { key:'Air908Rifle', name:'Rifle 908', urls:[
       'https://raw.githubusercontent.com/Air908/3dmodels/main/GunRifle.glb'
     ], s:0.9, stats:{ rpm:610, dmg:29, spread:0.012, mag:30, reload:1.9 }, auto:true },
-    { key:'SniperAWP', name:'Sniper AWP (Garbaj)', urls:[
+    { key:'SniperAWP', name:'Sniper AWP', urls:[
       'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb'
     ], s:0.9, stats:{ rpm:45, dmg:120, spread:0.006, mag:7, reload:2.6 }, auto:false },
   ];
@@ -976,10 +974,22 @@ document.title = 'Tirana 2040 • Last Man Standing';
     const frac=maxScroll>0? Math.min(1, armoryDiv.scrollLeft / maxScroll):0;
     armorySlider.value=Math.round(frac*steps);
   };
-  function snapWeaponToScroll(){ const maxScroll=Math.max(1, armoryDiv.scrollWidth - armoryDiv.clientWidth); const frac=Math.min(1, armoryDiv.scrollLeft / maxScroll); const idx=Math.min(ARMORY.length-1, Math.round(frac*(ARMORY.length-1))); const pick=ARMORY[idx]; if(pick) selectWeapon(pick.key); }
+  function getCurrentWeaponIndex(){ return Math.max(0, ARMORY.findIndex(a=>a.key===currentKey)); }
+  function setArmoryIndex(idx,{instant=false}={}){
+    const clamped=Math.max(0, Math.min(idx, ARMORY.length-1));
+    const pick=ARMORY[clamped];
+    if(!pick) return;
+    const steps=Math.max(1, ARMORY.length-1);
+    const maxScroll=Math.max(0, armoryDiv.scrollWidth - armoryDiv.clientWidth);
+    const target=maxScroll*(clamped/steps);
+    armoryDiv.scrollTo({left:target, behavior:instant?'auto':'smooth'});
+    if(armorySlider) armorySlider.value=clamped;
+    selectWeapon(pick.key);
+  }
+  function snapWeaponToScroll(){ const maxScroll=Math.max(1, armoryDiv.scrollWidth - armoryDiv.clientWidth); const frac=Math.min(1, armoryDiv.scrollLeft / maxScroll); const idx=Math.min(ARMORY.length-1, Math.round(frac*(ARMORY.length-1))); setArmoryIndex(idx,{instant:true}); }
   function buildGallery(){ armoryDiv.innerHTML=''; ARMORY.forEach((a)=>{ const b=document.createElement('button'); b.className='armBtn'; b.id='arm_'+a.key; b.innerHTML = `<img alt="${a.name}" src="${weaponPreviewURL(a.key)}"><span>${a.name}</span>`; b.addEventListener('click',()=>selectWeapon(a.key)); if(a.auto){ const t=document.createElement('button'); t.className='modeToggle'; t.textContent=(FIRE_MODES.get(a.key)==='auto')?'AUTO':'SINGLE'; t.addEventListener('click',(ev)=>{ ev.stopPropagation(); FIRE_MODES.set(a.key, FIRE_MODES.get(a.key)==='auto'?'single':'auto'); t.textContent=(FIRE_MODES.get(a.key)==='auto')?'AUTO':'SINGLE'; }); b.appendChild(t); } armoryDiv.appendChild(b); generateThumb(a.key).then(url=>{ const img=b.querySelector('img'); if(img) img.src=url; }); }); enableDragScroll(armoryDiv); syncArmorySlider(); }
   armoryDiv.addEventListener('scroll',()=>syncArmorySlider());
-  armorySlider.addEventListener('input',(e)=>{ const steps=Math.max(1, ARMORY.length-1); const idx=Math.max(0, Math.min(steps, Number(e.target.value||0))); const maxScroll=Math.max(0, armoryDiv.scrollWidth - armoryDiv.clientWidth); const target=maxScroll*(idx/steps); armoryDiv.scrollTo({left:target, behavior:'smooth'}); const pick=ARMORY[idx]; if(pick) selectWeapon(pick.key); });
+  armorySlider.addEventListener('input',(e)=>{ const steps=Math.max(1, ARMORY.length-1); const idx=Math.max(0, Math.min(steps, Number(e.target.value||0))); setArmoryIndex(idx); });
   armorySlider.addEventListener('change', snapWeaponToScroll);
   buildGallery();
 
@@ -1012,19 +1022,20 @@ document.title = 'Tirana 2040 • Last Man Standing';
     Air908Rifle:{radius:0.0066,length:0.21,color:0xc58f3d},
     SniperAWP:{radius:0.008,length:0.25,color:0xcfa443}
   };
+  const BASE_HAND_OFFSET={pos:[0.2,-0.1,-0.5], rot:[-0.03,Math.PI,-0.12]};
   const HAND_OFFSETS={
-    Glock:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
-    Pistol:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
-    Gun:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
-    Uzi:{pos:[0.2,-0.1,-0.5], rot:[-0.03,Math.PI,-0.12]},
-    MP5:{pos:[0.2,-0.1,-0.52], rot:[-0.03,Math.PI,-0.12]},
-    AK47:{pos:[0.22,-0.1,-0.56], rot:[-0.035,Math.PI,-0.14]},
-    BattleRifle:{pos:[0.22,-0.11,-0.56], rot:[-0.035,Math.PI,-0.14]},
-    InfantryRifle:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
-    WebaverseRifle:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
-    Air908Rifle:{pos:[0.22,-0.11,-0.55], rot:[-0.035,Math.PI,-0.13]},
-    SniperAWP:{pos:[0.23,-0.11,-0.60], rot:[-0.04,Math.PI,-0.15]},
-    Grenade:{pos:[0.16,-0.06,-0.42], rot:[-0.01,Math.PI,-0.08]}
+    Glock:BASE_HAND_OFFSET,
+    Pistol:BASE_HAND_OFFSET,
+    Gun:BASE_HAND_OFFSET,
+    Uzi:BASE_HAND_OFFSET,
+    MP5:BASE_HAND_OFFSET,
+    AK47:BASE_HAND_OFFSET,
+    BattleRifle:BASE_HAND_OFFSET,
+    InfantryRifle:BASE_HAND_OFFSET,
+    WebaverseRifle:BASE_HAND_OFFSET,
+    Air908Rifle:BASE_HAND_OFFSET,
+    SniperAWP:BASE_HAND_OFFSET,
+    Grenade:BASE_HAND_OFFSET
   };
 
   async function mountPlayerWeapon(key){ if(weaponModel){ weaponRoot.remove(weaponModel); weaponModel.traverse(o=>{ o.geometry?.dispose?.(); if(Array.isArray(o.material)) o.material.forEach(m=>m.dispose?.()); else o.material?.dispose?.(); }); weaponModel=null; }
@@ -1168,7 +1179,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function sfxReload(){ click({freq:600,dur:0.05,gain:0.05}); setTimeout(()=>click({freq:900,dur:0.04,gain:0.05}),90); }
   $('muteBtn').addEventListener('click',(e)=>{ audio.muted=!audio.muted; e.target.textContent=audio.muted?'🔇':'🔊'; });
 
-  const keys=new Set(); addEventListener('keydown',e=>{ keys.add(e.code); if(e.code==='Space') doShot(); if(e.code==='KeyR') reload(); }); addEventListener('keyup',e=>keys.delete(e.code));
+  const keys=new Set(); addEventListener('keydown',e=>{ keys.add(e.code); if(e.code==='Space') doShot(); if(e.code==='KeyR') reload(); if(e.code==='ArrowRight'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()+1); } if(e.code==='ArrowLeft'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()-1); } }); addEventListener('keyup',e=>keys.delete(e.code));
   const joyMove=$('joyMove'), knobMove=joyMove.querySelector('.knob');
   const R=150, K=85, DEAD=0.16;
   const mv={active:false,id:null,vx:0,vz:0, tapStart:0, moved:false, dx:0, dy:0};
@@ -1386,7 +1397,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
       else { tintVehicle(v,new THREE.Color().setHSL(Math.random(),0.45,0.5).getHex()); }
       const a=Math.random()*Math.PI*2;
       const x=Math.cos(a)*ringR, z=Math.sin(a)*ringR;
-      v.position.set(x,0,z);
+      v.position.set(x,ROAD_SURFACE_Y,z);
       setHeading(v,a);
       scene.add(v);
       trafficCars.push({mesh:v, angle:a, speed:0, kind});
@@ -1514,7 +1525,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
     // traffic move: v = 3x run speed
     for(const c of trafficCars){ if(!c.speed){ c.speed = trafficTarget*(0.8+Math.random()*0.4); } const radPerSec = c.speed / ringR; c.angle = (c.angle + radPerSec*dt)%(Math.PI*2); const nx=Math.cos(c.angle)*ringR, nz=Math.sin(c.angle)*ringR; // obey red
       let blocked=false; for(const tl of trafficLights){ const d=Math.hypot(nx-tl.pos.x, nz-tl.pos.z); if(d<6 && tl.state!=='green'){ blocked=true; break; } }
-      if(!blocked){ c.mesh.position.set(nx,0,nz); setHeading(c.mesh, c.angle); }
+      if(!blocked){ c.mesh.position.set(nx,ROAD_SURFACE_Y,nz); setHeading(c.mesh, c.angle); }
     }
     trafficLights.forEach(tl=>{ tl.timer+=dt; if(tl.timer>6){ tl.timer=0; tl.state = tl.state==='green'?'yellow': tl.state==='yellow'?'red':'green'; tl.lamps.Lg.material.color.set(tl.state==='green'?0x2ecc71:0x222222); tl.lamps.Ly.material.color.set(tl.state==='yellow'?0xf1c40f:0x222222); tl.lamps.Lr.material.color.set(tl.state==='red'?0xe74c3c:0x222222); } });
 
