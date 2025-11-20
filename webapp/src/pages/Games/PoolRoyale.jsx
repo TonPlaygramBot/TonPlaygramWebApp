@@ -6665,6 +6665,55 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
+  const diamondGroup = new THREE.Group();
+  const diamondThickness = TABLE.THICK * 0.06;
+  const diamondWidth = ORIGINAL_RAIL_WIDTH * 0.64;
+  const diamondLength = diamondWidth * 0.62;
+  const diamondShape = new THREE.Shape();
+  diamondShape.moveTo(0, diamondLength / 2);
+  diamondShape.lineTo(diamondWidth / 2, 0);
+  diamondShape.lineTo(0, -diamondLength / 2);
+  diamondShape.lineTo(-diamondWidth / 2, 0);
+  diamondShape.closePath();
+  const diamondGeometry = new THREE.ExtrudeGeometry(diamondShape, {
+    depth: diamondThickness,
+    bevelEnabled: true,
+    bevelThickness: diamondThickness * 0.35,
+    bevelSize: diamondThickness * 0.3,
+    bevelSegments: 2
+  });
+  diamondGeometry.rotateX(-Math.PI / 2);
+  const diamondMat = trimMat.clone();
+  enhanceChromeMaterial(diamondMat);
+  diamondMat.color.copy(trimMat.color);
+  diamondMat.needsUpdate = true;
+  const diamondLift = railsTopY + MICRO_EPS * 6;
+  const addDiamond = (x, z, rotation = 0) => {
+    const mesh = new THREE.Mesh(diamondGeometry, diamondMat);
+    mesh.position.set(x, diamondLift, z);
+    mesh.rotation.y = rotation;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
+    diamondGroup.add(mesh);
+    finishParts.trimMeshes.push(mesh);
+  };
+  const longDiamondSpacing = PLAY_H / 8;
+  const shortDiamondSpacing = PLAY_W / 4;
+  const longRailX = halfW + longRailW * 0.5;
+  const shortRailZ = halfH + endRailW * 0.5;
+  [1, 2, 3, 5, 6, 7].forEach((step) => {
+    const z = -PLAY_H / 2 + step * longDiamondSpacing;
+    addDiamond(longRailX, z, 0);
+    addDiamond(-longRailX, z, 0);
+  });
+  [1, 2, 3].forEach((step) => {
+    const x = -PLAY_W / 2 + step * shortDiamondSpacing;
+    addDiamond(x, shortRailZ, Math.PI / 2);
+    addDiamond(x, -shortRailZ, Math.PI / 2);
+  });
+  railsGroup.add(diamondGroup);
+
   table.add(railsGroup);
 
   const chalkGroup = new THREE.Group();
