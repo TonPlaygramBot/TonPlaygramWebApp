@@ -137,6 +137,76 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
       rotation: Math.PI / 2,
       textureSize: 3072
     }
+  }),
+  Object.freeze({
+    id: 'artisanRibbon',
+    label: 'Artisan Ribbon',
+    rail: {
+      repeat: { x: 0.14, y: 0.64 },
+      rotation: Math.PI / 10,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: 0.3, y: 0.44 },
+      rotation: Math.PI / 2,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'quarterSawn',
+    label: 'Quarter Sawn',
+    rail: {
+      repeat: { x: 0.11, y: 0.58 },
+      rotation: Math.PI / 18,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: 0.26, y: 0.42 },
+      rotation: Math.PI / 2,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'cathedralPlanks',
+    label: 'Cathedral Planks',
+    rail: {
+      repeat: { x: 0.12, y: 0.52 },
+      rotation: Math.PI / 6,
+      textureSize: 3072
+    },
+    frame: {
+      repeat: { x: 0.28, y: 0.4 },
+      rotation: Math.PI / 2,
+      textureSize: 3072
+    }
+  }),
+  Object.freeze({
+    id: 'deepBurl',
+    label: 'Deep Burl',
+    rail: {
+      repeat: { x: 0.1, y: 0.48 },
+      rotation: Math.PI / 4,
+      textureSize: 5120
+    },
+    frame: {
+      repeat: { x: 0.22, y: 0.36 },
+      rotation: Math.PI / 2,
+      textureSize: 5120
+    }
+  }),
+  Object.freeze({
+    id: 'linenStraight',
+    label: 'Linen Straight',
+    rail: {
+      repeat: { x: 0.13, y: 0.62 },
+      rotation: Math.PI / 22,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: 0.3, y: 0.46 },
+      rotation: Math.PI / 2,
+      textureSize: 4096
+    }
   })
 ]);
 
