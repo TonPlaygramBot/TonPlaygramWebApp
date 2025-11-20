@@ -872,6 +872,13 @@ export async function startTirana2040(){
 
   armoryDiv=$('armory'); armorySlider=$('armorySlider'); armorySliderWrap=$('armorySliderWrap'); armoryPrev=$('armoryPrev'); armoryNext=$('armoryNext'); if(armorySliderWrap){ armorySliderWrap.style.display='flex'; armorySliderWrap.removeAttribute('aria-hidden'); armorySlider?.removeAttribute('tabindex'); }
   const thumbCache=new Map();
+
+  const defaultWeapon = ARMORY[0] || {};
+  let currentKey = defaultWeapon.key || null;
+  let currentStats = defaultWeapon.stats || null;
+  let weaponModel = null;
+  const ammo = new Map();
+  ARMORY.forEach((a) => ammo.set(a.key, { mag: a.stats.mag, reserve: a.stats.mag * 3 }));
     function weaponIconURL(key){ const svg=(b)=>'data:image/svg+xml;utf8,'+encodeURIComponent(b); const base=(body)=>`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 112 68'><rect width='112' height='68' rx='8' ry='8' fill='rgba(0,0,0,0.18)'/><g fill='none' stroke='#e6eefc' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>${body}</g></svg>`; switch(key){ case 'Glock': return svg(base(`<path d='M14 32h58l8 8H14z'/><path d='M64 32v-8h20l8 10'/>`)); case 'Pistol': case 'Gun': return svg(base(`<path d='M12 34h62l10 8H12z'/>`)); case 'Uzi': case 'MP5': return svg(base(`<path d='M10 34h52l8 6H10z'/>`)); case 'AK47': case 'BattleRifle': case 'InfantryRifle': case 'WebaverseRifle': case 'Air908Rifle': return svg(base(`<path d='M8 38h88l8 6H8z'/>`)); case 'SniperAWP': return svg(base(`<path d='M8 34h90l8 6H8z'/><path d='M74 26h10'/>`)); case 'Grenade': return svg(base(`<circle cx='42' cy='36' r='12'/>`)); default: return svg(base(`<path d='M16 34h80'/>`)); } }
   function weaponPreviewURL(key){ return thumbCache.get(key) || weaponIconURL(key); }
   async function generateThumb(key){ try{ if(thumbCache.has(key)) return thumbCache.get(key); const size={w:224,h:136}; const rt=new THREE.WebGLRenderTarget(size.w,size.h); const sc=new THREE.Scene(); const cam=new THREE.PerspectiveCamera(40, size.w/size.h, 0.01, 10); const amb=new THREE.AmbientLight(0xffffff,0.9); const dir=new THREE.DirectionalLight(0xffffff,0.9); dir.position.set(2,3,2); sc.add(amb,dir); const model=await loadWeapon(key); const g=new THREE.Group(); if(model) g.add(model); normalizeAndCenter(g,0.9); g.rotation.y=Math.PI*0.85; sc.add(g); const prev=new THREE.Color(); renderer.getClearColor(prev); const prevA=renderer.getClearAlpha(); renderer.setRenderTarget(rt); renderer.setClearColor(0x000000,0); cam.position.set(0.6,0.3,1.2); cam.lookAt(0,0,0); renderer.render(sc,cam); const px=new Uint8Array(size.w*size.h*4); renderer.readRenderTargetPixels(rt,0,0,size.w,size.h,px); const cv=document.createElement('canvas'); cv.width=size.w; cv.height=size.h; const ctx=cv.getContext('2d'); const img=ctx.createImageData(size.w,size.h); for(let y=0;y<size.h;y++){ const sy=size.h-1-y; img.data.set(px.subarray(sy*size.w*4, sy*size.w*4+size.w*4), y*size.w*4);} ctx.putImageData(img,0,0); const url=cv.toDataURL('image/png'); renderer.setRenderTarget(null); renderer.setClearColor(prev,prevA); rt.dispose(); thumbCache.set(key,url); return url; }catch(_){ return weaponIconURL(key); } }
@@ -913,8 +920,7 @@ export async function startTirana2040(){
   armoryNext?.addEventListener('click',()=>setArmoryIndex(getCurrentWeaponIndex()+1));
   buildGallery();
 
-  let currentKey=ARMORY[0].key, currentStats=ARMORY[0].stats; let weaponModel=null; const ammo=new Map(); ARMORY.forEach(a=>ammo.set(a.key,{mag:a.stats.mag,reserve:a.stats.mag*3}));
-  function updateAmmoHUD(){ const a=ammo.get(currentKey); const label=ARMORY.find(x=>x.key===currentKey)?.name||currentKey; $('ammo').textContent=`${label} — ${a.mag}/${a.reserve}`; const badge=$('weaponName'); if(badge) badge.textContent=`Weapon: ${label}`; document.querySelectorAll('.armBtn').forEach(el=>el.classList.remove('active')); const ab=$('arm_'+currentKey); if(ab) ab.classList.add('active'); }
+    function updateAmmoHUD(){ const a=ammo.get(currentKey); if(!currentKey||!a) return; const label=ARMORY.find(x=>x.key===currentKey)?.name||currentKey; $('ammo').textContent=`${label} — ${a.mag}/${a.reserve}`; const badge=$('weaponName'); if(badge) badge.textContent=`Weapon: ${label}`; document.querySelectorAll('.armBtn').forEach(el=>el.classList.remove('active')); const ab=$('arm_'+currentKey); if(ab) ab.classList.add('active'); }
   const MUZZLE_OFF={
     Glock:[0.0,-0.02,-0.74], Pistol:[0.0,-0.02,-0.74], Gun:[0.0,-0.02,-0.74],
     Uzi:[0.0,-0.03,-0.78], MP5:[0.0,-0.03,-0.78],
