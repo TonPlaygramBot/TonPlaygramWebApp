@@ -3757,11 +3757,14 @@ const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view 
 const SHORT_RAIL_POCKET_TRIGGER =
   RAIL_LIMIT_Y - POCKET_VIS_R * 0.45; // request pocket cams as soon as play reaches the short rail mouths
 const SHORT_RAIL_POCKET_INTENT_COOLDOWN_MS = 280;
+const AI_MIN_SHOT_TIME_MS = 5000;
+const AI_MAX_SHOT_TIME_MS = 7000;
+const AI_MIN_AIM_PREVIEW_MS = 900;
 const AI_EARLY_SHOT_DIFFICULTY = 120;
 const AI_EARLY_SHOT_CUE_DISTANCE = PLAY_H * 0.55;
-const AI_EARLY_SHOT_DELAY_MS = 1200;
-const AI_THINKING_BUDGET_MS = 4500; // keep AI deliberation under five seconds before it commits to a shot
-const AI_SHOT_PREVIEW_DELAY_MS = 450;
+const AI_EARLY_SHOT_DELAY_MS = AI_MIN_SHOT_TIME_MS; // never bypass the full telegraphed aim window
+const AI_THINKING_BUDGET_MS =
+  AI_MAX_SHOT_TIME_MS - AI_MIN_AIM_PREVIEW_MS; // leave room for the cue preview while keeping decisions under 7 seconds
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const signed = (value, fallback = 1) =>
   value > 0 ? 1 : value < 0 ? -1 : fallback;
@@ -4979,9 +4982,9 @@ function Table3D(
 
   const { map: clothMap, bump: clothBump } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
-  const clothHighlight = new THREE.Color(0xffffff);
-  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.24);
-  const sheenColor = clothColor.clone().lerp(clothHighlight, 0.16);
+  const clothHighlight = new THREE.Color(0xf6fff9);
+  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
+  const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: 0.95,
@@ -4998,14 +5001,14 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 14; // base density before global scaling adjustments
-  const clothPatternUpscale = 1 / 1.3; // enlarge pattern features by ~30%
+  const clothPatternUpscale = 1 / 1.12; // enlarge pattern features by ~12% so fibres read sooner
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = (0.64 * 1.52 * 1.34 * 1.26) * CLOTH_QUALITY.bumpScaleMultiplier;
+  const baseBumpScale = (0.64 * 1.52 * 1.34 * 1.26 * 1.18) * CLOTH_QUALITY.bumpScaleMultiplier;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -7829,6 +7832,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const aiShotPreviewRef = useRef(false);
   const aiShotTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
+  const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
   const recomputeAiShotState = useCallback(() => {
     const hudState = hudRef.current;
@@ -12537,6 +12541,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             difficulty: plan.difficulty ?? 0
           };
         };
+        const resolveAiPreviewDelay = () => {
+          const now = performance.now();
+          const startedAt = aiShotWindowRef.current?.startedAt ?? now;
+          const duration = aiShotWindowRef.current?.duration ?? AI_MIN_SHOT_TIME_MS;
+          const elapsed = Math.max(0, now - startedAt);
+          const maxRemaining = Math.max(0, AI_MAX_SHOT_TIME_MS - elapsed);
+          const targetRemaining = duration - elapsed;
+          const desiredWindow = Math.max(AI_MIN_AIM_PREVIEW_MS, targetRemaining);
+          return Math.min(maxRemaining, desiredWindow);
+        };
         const scheduleEarlyAiShot = (plan) => {
           if (!plan || plan.type !== 'pot') {
             clearEarlyAiShot();
@@ -12553,6 +12567,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           const currentIntent = aiEarlyShotIntentRef.current;
           if (currentIntent?.key === key) return;
           clearEarlyAiShot();
+          const previewDelay = resolveAiPreviewDelay();
           const timeout = window.setTimeout(() => {
             aiEarlyShotIntentRef.current = null;
             if (
@@ -12563,7 +12578,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             ) {
               aiShoot.current();
             }
-          }, AI_EARLY_SHOT_DELAY_MS);
+          }, Math.max(AI_EARLY_SHOT_DELAY_MS, previewDelay));
           aiEarlyShotIntentRef.current = { key, timeout };
         };
         const MAX_ROUTE_DISTANCE =
@@ -13035,6 +13050,19 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             return;
           }
           const started = performance.now();
+          const windowDuration = THREE.MathUtils.randInt(
+            AI_MIN_SHOT_TIME_MS,
+            AI_MAX_SHOT_TIME_MS
+          );
+          aiShotWindowRef.current = {
+            startedAt: started,
+            duration: windowDuration
+          };
+          const thinkingBudget = Math.min(
+            AI_THINKING_BUDGET_MS,
+            Math.max(AI_MIN_AIM_PREVIEW_MS, windowDuration - AI_MIN_AIM_PREVIEW_MS)
+          );
+          const deadline = started + thinkingBudget;
           const think = () => {
             if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
@@ -13044,8 +13072,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               return;
             }
             const now = performance.now();
-            const elapsed = now - started;
-            const remaining = Math.max(0, AI_THINKING_BUDGET_MS - elapsed);
+            const remaining = Math.max(0, deadline - now);
             const options = evaluateShotOptions();
             const plan = options.bestPot ?? options.bestSafety ?? null;
             if (plan) {
@@ -13137,12 +13164,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             clearTimeout(aiShotTimeoutRef.current);
             aiShotTimeoutRef.current = null;
           }
+          const previewDelayMs = resolveAiPreviewDelay();
           aiShotTimeoutRef.current = window.setTimeout(() => {
             aiShotTimeoutRef.current = null;
             setAiShotCueViewActive(true);
             setAiShotPreviewActive(false);
             fire();
-          }, AI_SHOT_PREVIEW_DELAY_MS);
+          }, previewDelayMs);
         };
 
         fireRef.current = fire;
