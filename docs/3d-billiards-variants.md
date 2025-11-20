@@ -24,6 +24,7 @@ Exactly **four** chalk blocks are visible at all times—one centred on each woo
 - Same table geometry as American Billiards but with neon accent lighting.
 - Power-up spawn pads appear on the long rails; reuse the chalk placement rule so props do not collide.
 - Melamine stays as-is on the short rails, but the long side rails must use a single uninterrupted melamine plank from corner to corner—no reversed orientation or mid-rail seams.
+- Match the skirt underlay: melamine and wooden rails must share the same grain direction, pattern scale, and plank widths as the skirts beneath them so the table reads as one uniform shell and stops cleanly above the legs.
 - Pocket jaws and rims must match the chrome plate cutouts **100%**—never size them from the wooden rail arches.
 
 ### 3D UK 8 Ball
