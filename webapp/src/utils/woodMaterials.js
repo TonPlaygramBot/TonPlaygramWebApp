@@ -111,78 +111,78 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'oakQuarterSawnCc0',
-    label: 'Lis Çerek-Rrëre (CC0)',
-    source: 'ambientCG WoodFlooring052 (CC0 1.0)',
+    id: 'royalWalnutClassic',
+    label: 'Royal Walnut',
+    source: 'Pool Royale rail grain reference (photo A)',
     rail: {
-      repeat: { x: 0.16, y: 0.62 },
-      rotation: Math.PI / 14,
+      repeat: { x: 0.12, y: 0.64 },
+      rotation: Math.PI / 18,
       textureSize: 4096
     },
     frame: {
-      repeat: { x: 0.34, y: 0.44 },
+      repeat: { x: 0.3, y: 0.46 },
       rotation: Math.PI / 2,
       textureSize: 4096
     }
   }),
   Object.freeze({
-    id: 'walnutWidePlankCc0',
-    label: 'Arrë Dërrasa të Gjera (CC0)',
-    source: 'ambientCG WoodPlanks028 (CC0 1.0)',
+    id: 'royalWalnutRibbon',
+    label: 'Royal Ribbon Walnut',
+    source: 'Pool Royale rail grain reference (photo B)',
     rail: {
-      repeat: { x: 0.14, y: 0.56 },
-      rotation: Math.PI / 24,
+      repeat: { x: 0.1, y: 0.58 },
+      rotation: Math.PI / 26,
       textureSize: 4096
     },
     frame: {
-      repeat: { x: 0.3, y: 0.42 },
+      repeat: { x: 0.28, y: 0.44 },
       rotation: Math.PI / 2,
       textureSize: 4096
     }
   }),
   Object.freeze({
-    id: 'mapleStraightCc0',
-    label: 'Pan Ahuri i Drejtë (CC0)',
-    source: 'ambientCG WoodFine016 (CC0 1.0)',
+    id: 'royalWalnutPlank',
+    label: 'Royal Plank Walnut',
+    source: 'Pool Royale rail grain reference (photo C)',
     rail: {
-      repeat: { x: 0.18, y: 0.66 },
-      rotation: Math.PI / 20,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: 0.36, y: 0.46 },
-      rotation: Math.PI / 2,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'teakRibbonCc0',
-    label: 'Tik Shiritë (CC0)',
-    source: 'ambientCG WoodFine011 (CC0 1.0)',
-    rail: {
-      repeat: { x: 0.2, y: 0.6 },
+      repeat: { x: 0.14, y: 0.6 },
       rotation: Math.PI / 16,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: 0.32, y: 0.48 },
+      rotation: Math.PI / 2,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'royalWalnutBurled',
+    label: 'Royal Burl Walnut',
+    source: 'Pool Royale rail grain reference (photo D)',
+    rail: {
+      repeat: { x: 0.09, y: 0.52 },
+      rotation: Math.PI / 20,
       textureSize: 5120
     },
     frame: {
-      repeat: { x: 0.4, y: 0.48 },
+      repeat: { x: 0.26, y: 0.42 },
       rotation: Math.PI / 2,
       textureSize: 5120
     }
   }),
   Object.freeze({
-    id: 'ashRusticCc0',
-    label: 'Fraxh Rustik (CC0)',
-    source: 'ambientCG WoodVeneer024 (CC0 1.0)',
+    id: 'royalWalnutChar',
+    label: 'Royal Char Walnut',
+    source: 'Pool Royale rail grain reference (photo E)',
     rail: {
-      repeat: { x: 0.17, y: 0.58 },
-      rotation: Math.PI / 12,
-      textureSize: 4096
+      repeat: { x: 0.11, y: 0.56 },
+      rotation: Math.PI / 22,
+      textureSize: 5120
     },
     frame: {
-      repeat: { x: 0.34, y: 0.44 },
+      repeat: { x: 0.29, y: 0.45 },
       rotation: Math.PI / 2,
-      textureSize: 4096
+      textureSize: 5120
     }
   })
 ]);
