@@ -41,7 +41,6 @@ export default function Home() {
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const baseUrl = import.meta.env.BASE_URL || '/';
-  const launcherHref = `${baseUrl}tonplaygram-launcher.apk`;
   const gamePreloads = [
     {
       name: 'Pool Royale preload',
@@ -245,26 +244,6 @@ export default function Home() {
         </a>
       </div>
 
-      <div className="mt-6">
-        <div className="bg-gradient-to-r from-primary/20 via-primary/10 to-primary/20 border border-primary/40 rounded-xl p-4 text-center space-y-2">
-          <h3 className="text-lg font-semibold text-white">
-            TonPlaygram Android Launcher (APK beta)
-          </h3>
-          <p className="text-sm text-subtext">
-            Instaloni një paketë të lehtë pa të dhëna sensitive që hap direkt lojërat nga telefoni.
-          </p>
-          <a
-            href={launcherHref}
-            download
-            className="inline-flex items-center justify-center px-4 py-2 bg-primary text-surface font-semibold rounded-full shadow-lg shadow-primary/40 hover:shadow-primary/60 transition"
-          >
-            Shkarko APK-në e lehtë
-          </a>
-          <p className="text-xs text-subtext">
-            Skedari është vetëm tekst për rrjedhën e shkarkimit; zëvendësohet lehtësisht me build-in zyrtar kur të jetë gati.
-          </p>
-        </div>
-      </div>
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
           <h3 className="text-lg font-semibold text-white">Preload game code (tekst)</h3>

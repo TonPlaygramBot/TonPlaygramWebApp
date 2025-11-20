@@ -7163,14 +7163,29 @@ function Table3D(
     });
   }
   finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig(woodFrameSurface);
-  if (!resolvedWoodOption?.rail) {
-    finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodFrameSurface);
-    applyWoodTextureToMaterial(railMat, {
-      repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
-      rotation: woodFrameSurface.rotation,
-      textureSize: woodFrameSurface.textureSize
-    });
-  }
+
+  // Force the rail grain direction and scale to match the skirt/apron below so
+  // every side shares the exact same wood flow and texture density.
+  const alignedRailSurface = {
+    repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
+    rotation: woodFrameSurface.rotation,
+    textureSize: woodFrameSurface.textureSize,
+    woodRepeatScale
+  };
+
+  applyWoodTextureToMaterial(railMat, alignedRailSurface);
+
+  finishParts.underlayMeshes.forEach((mesh) => {
+    if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
+    applyWoodTextureToMaterial(mesh.material, alignedRailSurface);
+    mesh.material.needsUpdate = true;
+  });
+
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig({
+    repeat: alignedRailSurface.repeat,
+    rotation: alignedRailSurface.rotation,
+    textureSize: woodFrameSurface.textureSize
+  });
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
     leg.position.set(lx, legY, lz);
