@@ -14,7 +14,7 @@ const hslString = (h, s, l) => {
   return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
 };
 
-const makeMelamineTexture = (width, height, hue, sat, light, contrast) => {
+const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -43,7 +43,7 @@ const makeMelamineTexture = (width, height, hue, sat, light, contrast) => {
 
   ctx.putImageData(imageData, 0, 0);
 
-  // Subtle speckles emulate a sealed melamine surface without visible grain.
+  // Subtle speckles emulate a sealed slab surface without visible grain lines.
   ctx.globalAlpha = 0.08 + contrast * 0.12;
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   for (let i = 0; i < 900; i += 1) {
@@ -113,86 +113,99 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
   Object.freeze({ id: 'ebony', label: 'Ebony', hue: 25, sat: 0.35, light: 0.18, contrast: 0.85 })
 ]);
 
-// Keep the melamine on the short rails unchanged, but ensure the long rails read as a single
-// uninterrupted board from corner to corner (no visible tile seams).
-const MELAMINE_LONG_PLANK_REPEAT_X = 0.018;
-const MELAMINE_FRAME_REPEAT_X = MELAMINE_LONG_PLANK_REPEAT_X * 1.25;
+// Stretch large, seamless slabs along the rail direction so the table reads as a single board
+// with no visible tiling seams.
+const LARGE_SLAB_REPEAT_X = 0.012;
+const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'acg_melamine_white',
-    label: 'Melamine — Arctic White Matte',
-    source: 'ambientCG — Melamine White 001 (CC0)',
+    id: 'acg_walnut_quarter',
+    label: 'Walnut Quarter-Sawn',
+    source: 'ambientCG — WalnutQuarter 002 (CC0)',
     rail: {
-      // Stretch each panel across the full side and short rails so seams only occur at the corners.
-      repeat: { x: MELAMINE_LONG_PLANK_REPEAT_X, y: 1 },
+      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: MELAMINE_FRAME_REPEAT_X, y: 0.94 },
-      rotation: 0,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'acg_melamine_cashmere',
-    label: 'Melamine — Cashmere Grey',
-    source: 'ambientCG — Melamine Cashmere 002 (CC0)',
-    rail: {
-      repeat: { x: MELAMINE_LONG_PLANK_REPEAT_X, y: 0.96 },
-      rotation: 0,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: MELAMINE_FRAME_REPEAT_X, y: 0.9 },
-      rotation: Math.PI / 12,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'acg_melamine_amber',
-    label: 'Melamine — Warm Amber',
-    source: 'ambientCG — Melamine Amber 003 (CC0)',
-    rail: {
-      repeat: { x: MELAMINE_LONG_PLANK_REPEAT_X, y: 0.98 },
-      rotation: Math.PI / 20,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: MELAMINE_FRAME_REPEAT_X, y: 0.92 },
-      rotation: Math.PI / 12,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'acg_melamine_graphite',
-    label: 'Melamine — Graphite Anthracite',
-    source: 'ambientCG — Melamine Graphite 004 (CC0)',
-    rail: {
-      repeat: { x: MELAMINE_LONG_PLANK_REPEAT_X, y: 1.04 },
-      rotation: Math.PI / 28,
-      textureSize: 3072
-    },
-    frame: {
-      repeat: { x: MELAMINE_FRAME_REPEAT_X, y: 0.94 },
-      rotation: Math.PI / 16,
-      textureSize: 3072
-    }
-  }),
-  Object.freeze({
-    id: 'acg_melamine_teal',
-    label: 'Melamine — Deep Teal Satin',
-    source: 'ambientCG — Melamine Teal 005 (CC0)',
-    rail: {
-      // Give the fifth melamine a distinct, oversized pattern for variety.
-      repeat: { x: MELAMINE_LONG_PLANK_REPEAT_X * 1.4, y: 1.18 },
-      rotation: Math.PI / 14,
       textureSize: 4096
     },
     frame: {
-      repeat: { x: MELAMINE_FRAME_REPEAT_X * 1.6, y: 1.06 },
-      rotation: Math.PI / 10,
+      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      rotation: 0,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'acg_birch_studio',
+    label: 'Birch Studio Slab',
+    source: 'ambientCG — Birch Planks 003 (CC0)',
+    rail: {
+      repeat: { x: LARGE_SLAB_REPEAT_X * 0.92, y: 0.96 },
+      rotation: 0,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: FRAME_SLAB_REPEAT_X * 0.92, y: 0.9 },
+      rotation: 0,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'acg_rosewood_satin',
+    label: 'Rosewood Satin',
+    source: 'ambientCG — Rosewood 001 (CC0)',
+    rail: {
+      repeat: { x: LARGE_SLAB_REPEAT_X * 0.88, y: 0.94 },
+      rotation: 0,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: FRAME_SLAB_REPEAT_X * 0.88, y: 0.9 },
+      rotation: 0,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'acg_ebony_studio',
+    label: 'Ebony Studio Matte',
+    source: 'ambientCG — Ebony 003 (CC0)',
+    rail: {
+      repeat: { x: LARGE_SLAB_REPEAT_X * 0.84, y: 0.98 },
+      rotation: 0,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: FRAME_SLAB_REPEAT_X * 0.84, y: 0.94 },
+      rotation: 0,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'acg_smoked_oak_slab',
+    label: 'Smoked Oak Slab',
+    source: 'ambientCG — Oak Smoked 004 (CC0)',
+    rail: {
+      repeat: { x: LARGE_SLAB_REPEAT_X * 1.1, y: 0.9 },
+      rotation: 0,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: FRAME_SLAB_REPEAT_X * 1.1, y: 0.86 },
+      rotation: 0,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'acg_ash_cerused',
+    label: 'Cerused Ash Ribbon',
+    source: 'ambientCG — Ash Wood 005 (CC0)',
+    rail: {
+      repeat: { x: LARGE_SLAB_REPEAT_X * 1.2, y: 0.94 },
+      rotation: 0,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: FRAME_SLAB_REPEAT_X * 1.2, y: 0.9 },
+      rotation: 0,
       textureSize: 4096
     }
   })
@@ -272,7 +285,7 @@ const ensureSharedWoodTextures = ({
   });
   let entry = WOOD_TEXTURE_BASE_CACHE.get(cacheKey);
   if (!entry) {
-    const map = makeMelamineTexture(textureSize, textureSize, hue, sat, light, contrast);
+    const map = makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast);
     const roughnessMap = makeRoughnessMap(
       roughnessSize,
       roughnessSize,
@@ -336,7 +349,7 @@ export const applyWoodTextures = (
         sharedKey
       })
     : {
-        map: makeMelamineTexture(textureSize, textureSize, hue, sat, light, contrast),
+        map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
         roughnessMap: makeRoughnessMap(
           roughnessSize,
           roughnessSize,
