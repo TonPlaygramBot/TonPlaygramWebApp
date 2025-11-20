@@ -111,12 +111,12 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'royalWalnutClassic',
-    label: 'Royal Walnut',
-    source: 'Pool Royale rail grain reference (photo A)',
+    id: 'ph_wood_floor_01',
+    label: 'Light Natural',
+    source: 'Poly Haven — Wooden Floor 01 (Light Natural)',
     rail: {
-      repeat: { x: 0.12, y: 0.64 },
-      rotation: Math.PI / 18,
+      repeat: { x: 0.12, y: 0.62 },
+      rotation: Math.PI / 24,
       textureSize: 4096
     },
     frame: {
@@ -126,61 +126,46 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     }
   }),
   Object.freeze({
-    id: 'royalWalnutRibbon',
-    label: 'Royal Ribbon Walnut',
-    source: 'Pool Royale rail grain reference (photo B)',
+    id: 'ph_wood_floor_02',
+    label: 'Warm Brown',
+    source: 'Poly Haven — Wooden Floor 02 (Warm Brown)',
     rail: {
-      repeat: { x: 0.1, y: 0.58 },
-      rotation: Math.PI / 26,
-      textureSize: 4096
-    },
-    frame: {
-      repeat: { x: 0.28, y: 0.44 },
-      rotation: Math.PI / 2,
-      textureSize: 4096
-    }
-  }),
-  Object.freeze({
-    id: 'royalWalnutPlank',
-    label: 'Royal Plank Walnut',
-    source: 'Pool Royale rail grain reference (photo C)',
-    rail: {
-      repeat: { x: 0.14, y: 0.6 },
-      rotation: Math.PI / 16,
-      textureSize: 4096
-    },
-    frame: {
-      repeat: { x: 0.32, y: 0.48 },
-      rotation: Math.PI / 2,
-      textureSize: 4096
-    }
-  }),
-  Object.freeze({
-    id: 'royalWalnutBurled',
-    label: 'Royal Burl Walnut',
-    source: 'Pool Royale rail grain reference (photo D)',
-    rail: {
-      repeat: { x: 0.09, y: 0.52 },
-      rotation: Math.PI / 20,
-      textureSize: 5120
-    },
-    frame: {
-      repeat: { x: 0.26, y: 0.42 },
-      rotation: Math.PI / 2,
-      textureSize: 5120
-    }
-  }),
-  Object.freeze({
-    id: 'royalWalnutChar',
-    label: 'Royal Char Walnut',
-    source: 'Pool Royale rail grain reference (photo E)',
-    rail: {
-      repeat: { x: 0.11, y: 0.56 },
+      repeat: { x: 0.11, y: 0.58 },
       rotation: Math.PI / 22,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: 0.29, y: 0.44 },
+      rotation: Math.PI / 2,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'ph_wood_floor_03',
+    label: 'Clean Strips',
+    source: 'Poly Haven — Wood Floor (Clean Strips)',
+    rail: {
+      repeat: { x: 0.14, y: 0.72 },
+      rotation: 0,
+      textureSize: 4096
+    },
+    frame: {
+      repeat: { x: 0.32, y: 0.5 },
+      rotation: Math.PI / 2,
+      textureSize: 4096
+    }
+  }),
+  Object.freeze({
+    id: 'ph_old_wood_floor',
+    label: 'Old Wood Floor',
+    source: 'Poly Haven — Old Wood Floor',
+    rail: {
+      repeat: { x: 0.16, y: 0.64 },
+      rotation: Math.PI / 18,
       textureSize: 5120
     },
     frame: {
-      repeat: { x: 0.29, y: 0.45 },
+      repeat: { x: 0.34, y: 0.48 },
       rotation: Math.PI / 2,
       textureSize: 5120
     }

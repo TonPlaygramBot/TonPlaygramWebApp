@@ -9,11 +9,10 @@ export const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 
 export const TABLE_WOOD_OPTIONS = [
-  { id: 'royalWalnutClassic', label: 'Royal Walnut', presetId: 'walnut', grainId: 'royalWalnutClassic' },
-  { id: 'royalWalnutRibbon', label: 'Royal Ribbon', presetId: 'oak', grainId: 'royalWalnutRibbon' },
-  { id: 'royalWalnutPlank', label: 'Royal Plank', presetId: 'teak', grainId: 'royalWalnutPlank' },
-  { id: 'royalWalnutBurled', label: 'Royal Burl', presetId: 'smokedOak', grainId: 'royalWalnutBurled' },
-  { id: 'royalWalnutChar', label: 'Royal Char', presetId: 'wenge', grainId: 'royalWalnutChar' }
+  { id: 'lightNatural', label: 'Light Natural', presetId: 'birch', grainId: 'ph_wood_floor_01' },
+  { id: 'warmBrown', label: 'Warm Brown', presetId: 'walnut', grainId: 'ph_wood_floor_02' },
+  { id: 'cleanStrips', label: 'Clean Strips', presetId: 'oak', grainId: 'ph_wood_floor_03' },
+  { id: 'oldWoodFloor', label: 'Old Wood Floor', presetId: 'smokedOak', grainId: 'ph_old_wood_floor' }
 ];
 
 export const TABLE_CLOTH_OPTIONS = [
