@@ -3853,6 +3853,14 @@ const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
+const TMP_VEC3_SPIN_CENTER = new THREE.Vector3();
+const TMP_VEC3_SPIN_RIGHT = new THREE.Vector3();
+const TMP_VEC3_SPIN_UP = new THREE.Vector3();
+const TMP_VEC3_SPIN_EDGE = new THREE.Vector3();
+const TMP_VEC3_SPIN_UP_EDGE = new THREE.Vector3();
+const TMP_VEC3_SPIN_NDC_A = new THREE.Vector3();
+const TMP_VEC3_SPIN_NDC_B = new THREE.Vector3();
+const TMP_VEC3_SPIN_NDC_C = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -7469,6 +7477,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [uiScale, setUiScale] = useState(() =>
     detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
   );
+  const [spinBoxSize, setSpinBoxSize] = useState(128);
+  const [spinDotSize, setSpinDotSize] = useState(12);
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
@@ -14437,6 +14447,34 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over;
 
+  const computeCueBallScreenDiameter = useCallback(() => {
+    const renderer = rendererRef.current;
+    const cueBall = cueRef.current;
+    const camera = activeRenderCameraRef.current ?? cameraRef.current;
+    if (!renderer || !cueBall || !camera) return null;
+    const dom = renderer.domElement;
+    const width = dom?.clientWidth || dom?.width || 0;
+    const height = dom?.clientHeight || dom?.height || 0;
+    if (!width || !height) return null;
+
+    TMP_VEC3_SPIN_CENTER.copy(cueBall.position);
+    TMP_VEC3_SPIN_RIGHT.setFromMatrixColumn(camera.matrixWorld, 0).setLength(BALL_R);
+    TMP_VEC3_SPIN_UP.setFromMatrixColumn(camera.matrixWorld, 1).setLength(BALL_R);
+    TMP_VEC3_SPIN_EDGE.copy(TMP_VEC3_SPIN_CENTER).add(TMP_VEC3_SPIN_RIGHT);
+    TMP_VEC3_SPIN_UP_EDGE.copy(TMP_VEC3_SPIN_CENTER).add(TMP_VEC3_SPIN_UP);
+
+    TMP_VEC3_SPIN_NDC_A.copy(TMP_VEC3_SPIN_CENTER).project(camera);
+    TMP_VEC3_SPIN_NDC_B.copy(TMP_VEC3_SPIN_EDGE).project(camera);
+    TMP_VEC3_SPIN_NDC_C.copy(TMP_VEC3_SPIN_UP_EDGE).project(camera);
+
+    const radiusX = Math.abs(TMP_VEC3_SPIN_NDC_B.x - TMP_VEC3_SPIN_NDC_A.x) * 0.5 * width;
+    const radiusY = Math.abs(TMP_VEC3_SPIN_NDC_C.y - TMP_VEC3_SPIN_NDC_A.y) * 0.5 * height;
+    const radius = Math.max(radiusX, radiusY);
+
+    if (!Number.isFinite(radius) || radius <= 0) return null;
+    return THREE.MathUtils.clamp(radius * 2, 12, 260);
+  }, []);
+
   // Spin controller interactions
   useEffect(() => {
     if (!showPlayerControls) {
@@ -14451,6 +14489,27 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     const dot = document.getElementById('spinDot');
     if (!box || !dot) return;
     spinDotElRef.current = dot;
+
+    let sizeFrame = null;
+    let lastBoxSize = spinBoxSize;
+    let lastDotSize = spinDotSize;
+
+    const updateSpinBoxSize = () => {
+      const diameter = computeCueBallScreenDiameter();
+      if (Number.isFinite(diameter)) {
+        const dotSize = Math.max(6, diameter * 0.09);
+        if (Math.abs(diameter - lastBoxSize) > 0.5) {
+          lastBoxSize = diameter;
+          setSpinBoxSize(diameter);
+        }
+        if (Math.abs(dotSize - lastDotSize) > 0.25) {
+          lastDotSize = dotSize;
+          setSpinDotSize(dotSize);
+        }
+      }
+      sizeFrame = requestAnimationFrame(updateSpinBoxSize);
+    };
+    updateSpinBoxSize();
 
     box.style.transition = 'transform 0.18s ease';
     box.style.transformOrigin = '50% 50%';
@@ -14583,8 +14642,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
+      if (sizeFrame) cancelAnimationFrame(sizeFrame);
     };
-  }, [showPlayerControls, updateSpinDotPosition]);
+  }, [computeCueBallScreenDiameter, showPlayerControls, updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
 
@@ -14880,8 +14940,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         >
           <div
             id="spinBox"
-            className="relative w-32 h-32 rounded-full shadow-lg border border-white/70"
+            className="relative rounded-full shadow-lg border border-white/70"
             style={{
+              width: `${spinBoxSize}px`,
+              height: `${spinBoxSize}px`,
               background: `radial-gradient(circle, #ffffff 0%, #ffffff ${
                 SPIN_BOX_FILL_RATIO * 100
               }%, #facc15 ${SPIN_BOX_FILL_RATIO * 100}%, #facc15 100%)`
@@ -14889,8 +14951,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           >
             <div
               id="spinDot"
-              className="absolute w-3 h-3 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
-              style={{ left: '50%', top: '50%' }}
+              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: '50%',
+                top: '50%',
+                width: `${spinDotSize}px`,
+                height: `${spinDotSize}px`
+              }}
             ></div>
           </div>
         </div>
