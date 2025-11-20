@@ -251,7 +251,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const groundBody = new CANNON.Body({ mass:0, material:matGround, shape:new CANNON.Plane() });
   groundBody.quaternion.setFromEuler(-Math.PI/2,0,0); world.addBody(groundBody);
 
-  function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#2c323a'; x.fillRect(0,0,size,size); for(let i=0;i<7000;i++){ const a=Math.random()*0.12; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} for(let i=0;i<300;i++){ x.strokeStyle='rgba(0,0,0,0.25)'; x.lineWidth=Math.random()*1.2; x.beginPath(); x.moveTo(Math.random()*size,Math.random()*size); x.lineTo(Math.random()*size,Math.random()*size); x.stroke(); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(24,24); t.anisotropy=6; t.colorSpace=THREE.SRGBColorSpace; return t; }
+  function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#242a32'; x.fillRect(0,0,size,size); for(let i=0;i<1800;i++){ const r=Math.random()*6+2; const a=0.18+Math.random()*0.2; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<900;i++){ x.strokeStyle='rgba(0,0,0,0.32)'; x.lineWidth=Math.random()*2.6+0.6; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*40-20), ez=sy+(Math.random()*40-20); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<480;i++){ x.strokeStyle='rgba(0,0,0,0.55)'; x.lineWidth=Math.random()*1.2+0.4; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*16-8), ez=sy+(Math.random()*16-8); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<12000;i++){ const a=Math.random()*0.16; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,1,1); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(24,24); t.anisotropy=6; t.colorSpace=THREE.SRGBColorSpace; return t; }
   function makeSidewalk(size=512){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#c9ced6'; x.fillRect(0,0,size,size); x.strokeStyle='#9aa0a8'; x.lineWidth=6; for(let s=0;s<size;s+=64){ x.beginPath(); x.moveTo(s,0); x.lineTo(s,size); x.stroke(); x.beginPath(); x.moveTo(0,s); x.lineTo(size,s); x.stroke(); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(32,32); t.anisotropy=6; t.colorSpace=THREE.SRGBColorSpace; return t; }
   const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 4;
   function grassProcedural(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#6fa863'; x.fillRect(0,0,size,size); for(let i=0;i<2600;i++){ x.fillStyle=`rgba(0,80,0,${Math.random()*0.12})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
@@ -309,9 +309,34 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const sidewalkMat = new THREE.MeshStandardMaterial({ map: sidewalkTex, roughness:0.9, metalness:0.04, side:THREE.DoubleSide });
   const crosswalks=new THREE.Group(); crosswalks.userData={kind:'markings'}; city.add(crosswalks);
   const streetLights=new THREE.Group(); streetLights.userData={kind:'street_bulb'}; city.add(streetLights);
+  const guardrails=new THREE.Group(); guardrails.userData={kind:'guardrails'}; city.add(guardrails);
   const intersectionPatches=new THREE.Group(); intersectionPatches.userData={kind:'interPatches'}; city.add(intersectionPatches);
   const busStopsGroup=new THREE.Group(); busStopsGroup.userData={kind:'bus_stop_group'}; city.add(busStopsGroup);
   const benchesGroup=new THREE.Group(); benchesGroup.userData={kind:'bench_group'}; city.add(benchesGroup);
+
+  const guardRailMat=new THREE.MeshStandardMaterial({ color:0xb8c4cf, metalness:0.88, roughness:0.3 });
+  const guardRailGeoZ=new THREE.BoxGeometry(0.18,0.16,1);
+  const guardRailGeoX=new THREE.BoxGeometry(1,0.16,0.18);
+  const postGeo=new THREE.CylinderGeometry(0.12,0.12,1.05,10);
+  function addGuardrailSegment(cx,cz,len,dir='z'){
+    const seg=new THREE.Group();
+    const railTop=new THREE.Mesh(dir==='z'? guardRailGeoZ.clone():guardRailGeoX.clone(), guardRailMat);
+    const railMid=new THREE.Mesh(dir==='z'? guardRailGeoZ.clone():guardRailGeoX.clone(), guardRailMat);
+    if(dir==='z') railTop.scale.set(1,1,len); else railTop.scale.set(len,1,1);
+    if(dir==='z') railMid.scale.set(1,1,len); else railMid.scale.set(len,1,1);
+    railTop.position.y=0.92; railMid.position.y=0.62;
+    seg.add(railTop,railMid);
+    const posts=Math.max(2, Math.round(len/6));
+    for(let i=0;i<=posts;i++){
+      const t=i/posts; const offset=len*(t-0.5);
+      const p=new THREE.Mesh(postGeo, guardRailMat);
+      p.position.set(dir==='z'?0:offset,0.52, dir==='z'?offset:0);
+      p.castShadow=allowShadows; p.receiveShadow=allowShadows;
+      seg.add(p);
+    }
+    seg.position.set(cx,0.02,cz);
+    guardrails.add(seg);
+  }
 
   for(let ix=0; ix<=BLOCKS_X; ix++){
     const geo=new THREE.PlaneGeometry(ROAD,(CELL)*BLOCKS_Z + ROAD);
@@ -336,6 +361,25 @@ document.title = 'Tirana 2040 • Last Man Standing';
     const halfLen=(CELL)*BLOCKS_X*0.5 + ROAD*0.5;
     mapRoads.push({name:eastWestStreets[iz]||`Bulevardi ${iz+1}`, from:{x:-halfLen, z:zPos}, to:{x:halfLen, z:zPos}, width:ROAD});
     if(eastWestStreets[iz]){ const label=makeLabel(eastWestStreets[iz],0.55); label.position.set(-(BLOCKS_X*CELL)/2 - 18,0.12,zPos); label.rotation.y=Math.PI/2; city.add(label); }
+  }
+
+  const guardOffset=ROAD/2 + 0.7;
+  const guardLen=Math.max(18, CELL - ROAD*0.8);
+  for(let ix=0; ix<=BLOCKS_X; ix++){
+    const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
+    for(let iz=0; iz<BLOCKS_Z; iz++){
+      const zSeg=startZ + iz*CELL;
+      addGuardrailSegment(xPos+guardOffset, zSeg, guardLen, 'z');
+      addGuardrailSegment(xPos-guardOffset, zSeg, guardLen, 'z');
+    }
+  }
+  for(let iz=0; iz<=BLOCKS_Z; iz++){
+    const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
+    for(let ix=0; ix<BLOCKS_X; ix++){
+      const xSeg=startX + ix*CELL;
+      addGuardrailSegment(xSeg, zPos+guardOffset, guardLen, 'x');
+      addGuardrailSegment(xSeg, zPos-guardOffset, guardLen, 'x');
+    }
   }
 
   for(let ix=0; ix<=BLOCKS_X; ix++){
@@ -462,7 +506,9 @@ document.title = 'Tirana 2040 • Last Man Standing';
     city.add(trunks,crowns);
   }
 
-  function addParkGrass(cx,cz,scale=1.0){ const g=new THREE.Mesh(new THREE.PlaneGeometry(PLOT*0.9*scale,PLOT*0.9*scale), turfMat); g.rotation.x=-Math.PI/2; g.position.set(cx,0.015,cz); g.receiveShadow=allowShadows; g.userData={kind:'park_grassOriginal'}; city.add(g); addBench(cx+PLOT*0.25, cz+PLOT*0.25); addBench(cx-PLOT*0.25, cz-PLOT*0.25, Math.PI); }
+  function scatterFlowers(cx,cz,scale=1){ const colors=[0xff5f6d,0xffc800,0x7cf29c,0x7dd3fc,0xff9f1c]; const meadow=new THREE.Group(); const spread=PLOT*0.35*scale; for(let i=0;i<140;i++){ const ang=Math.random()*Math.PI*2; const r=Math.random()*spread; const x=cx+Math.cos(ang)*r; const z=cz+Math.sin(ang)*r; const petal=new THREE.Mesh(new THREE.ConeGeometry(0.18,0.32,8), new THREE.MeshStandardMaterial({ color:colors[Math.floor(Math.random()*colors.length)], roughness:0.85 })); petal.position.set(x,0.22,z); petal.rotation.x=Math.PI; petal.castShadow=allowShadows; petal.receiveShadow=allowShadows; meadow.add(petal); }
+    city.add(meadow); }
+  function addParkGrass(cx,cz,scale=1.0){ const g=new THREE.Mesh(new THREE.PlaneGeometry(PLOT*0.9*scale,PLOT*0.9*scale), turfMat); g.rotation.x=-Math.PI/2; g.position.set(cx,0.015,cz); g.receiveShadow=allowShadows; g.userData={kind:'park_grassOriginal'}; city.add(g); const gardenBed=new THREE.Mesh(new THREE.CircleGeometry(PLOT*0.34*scale,32), new THREE.MeshStandardMaterial({ map:tennisGrassTex, roughness:0.6, metalness:0.04 })); gardenBed.rotation.x=-Math.PI/2; gardenBed.position.set(cx,0.018,cz); gardenBed.receiveShadow=allowShadows; city.add(gardenBed); scatterFlowers(cx,cz,scale); addBench(cx+PLOT*0.25, cz+PLOT*0.25); addBench(cx-PLOT*0.25, cz-PLOT*0.25, Math.PI); }
 
   function addTennisCourt(cx,cz){
     addParkGrass(cx,cz,1.05);
@@ -628,12 +674,45 @@ document.title = 'Tirana 2040 • Last Man Standing';
   gltfLoader.register((parser)=>{ const c=document.createElement('canvas'); c.width=c.height=1; const ctx=c.getContext('2d'); ctx.fillStyle='#888'; ctx.fillRect(0,0,1,1); const blank=new THREE.CanvasTexture(c); blank.colorSpace=THREE.SRGBColorSpace; blank.needsUpdate=true; const orig=parser.getDependency.bind(parser); parser.getDependency=function(type,index){ if(type==='texture') return Promise.resolve(blank); return orig(type,index); }; return {name:'NullTextures'}; });
 
   const ARMORY=[
-    { key:'Glock',  name:'Glock', url:'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/glock.glb', s:0.62,  stats:{ rpm:380, dmg:24, spread:0.013, mag:17, reload:1.2 }, auto:false },
-    { key:'Pistol', name:'Pistol',url:'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/pistol.glb', s:0.46, stats:{ rpm:320, dmg:22, spread:0.014, mag:15, reload:1.3 }, auto:false },
-    { key:'AR',     name:'Assault Rifle', url:'https://cdn.jsdelivr.net/gh/webaverse/pistol@master/military.glb', s:0.70, stats:{ rpm:720, dmg:26, spread:0.012, mag:30, reload:1.9 }, auto:true },
-    { key:'Uzi',    name:'Uzi',    url:'https://cdn.jsdelivr.net/gh/webaverse/uzi@main/uzi.glb', s:0.60, stats:{ rpm:900, dmg:18, spread:0.02,  mag:32, reload:1.6 }, auto:true },
-    { key:'AK47',   name:'AK-pattern', url:'https://cdn.jsdelivr.net/gh/LazerMaker/gun-models-ak47-and-supprest-pistol-@master/ak47.glb', s:0.78, stats:{ rpm:600, dmg:30, spread:0.012, mag:30, reload:1.9 }, auto:true },
-    { key:'Grenade',name:'Grenade',url:'https://cdn.jsdelivr.net/gh/friuns2/bingextension@main/grenade.glb', s:0.30, stats:{ rpm:60,  dmg:120, spread:0.03,  mag:1,  reload:2.4 }, auto:false }
+    { key:'Glock',  name:'Glock (Webaverse)', urls:[
+      'https://raw.githubusercontent.com/webaverse/pistol/master/glock.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/main/glock.glb'
+    ], s:0.6, stats:{ rpm:380, dmg:24, spread:0.013, mag:17, reload:1.2 }, auto:false },
+    { key:'Pistol', name:'Pistol (Webaverse)', urls:[
+      'https://raw.githubusercontent.com/webaverse/pistol/master/pistol.glb',
+      'https://raw.githubusercontent.com/webaverse/pistol/main/pistol.glb'
+    ], s:0.6, stats:{ rpm:320, dmg:22, spread:0.014, mag:15, reload:1.3 }, auto:false },
+    { key:'Uzi',    name:'Uzi (Webaverse)',    urls:[
+      'https://raw.githubusercontent.com/webaverse/uzi/main/uzi.glb',
+      'https://raw.githubusercontent.com/webaverse-mmo/uzi/main/uzi.glb'
+    ], s:0.6, stats:{ rpm:900, dmg:18, spread:0.02,  mag:32, reload:1.6 }, auto:true },
+    { key:'AK47',   name:'AK-47 (GitHub)', urls:[
+      'https://raw.githubusercontent.com/LazerMaker/gun-models-ak47-and-supprest-pistol-/master/ak47.glb'
+    ], s:0.8, stats:{ rpm:650, dmg:32, spread:0.012, mag:30, reload:1.9 }, auto:true },
+    { key:'MP5',    name:'MP5 (GitHub)', urls:[
+      'https://raw.githubusercontent.com/Jay-Oh-eN/assets/main/mp5.glb'
+    ], s:0.75, stats:{ rpm:780, dmg:20, spread:0.016, mag:30, reload:1.6 }, auto:true },
+    { key:'Grenade',name:'Grenade',urls:[
+      'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb'
+    ], s:0.30, stats:{ rpm:60,  dmg:120, spread:0.03,  mag:1,  reload:2.4 }, auto:false },
+    { key:'BattleRifle', name:'Battle Rifle (Sinojouni)', urls:[
+      'https://raw.githubusercontent.com/Sinojouni/games/main/battle_rifle_animated.glb'
+    ], s:0.9, stats:{ rpm:620, dmg:34, spread:0.011, mag:28, reload:2.0 }, auto:true },
+    { key:'InfantryRifle', name:'Infantry Rifle (ssdeanx)', urls:[
+      'https://raw.githubusercontent.com/ssdeanx/glb-textures/main/infantry_automatic_rifle.glb'
+    ], s:0.9, stats:{ rpm:680, dmg:28, spread:0.012, mag:30, reload:1.8 }, auto:true },
+    { key:'WebaverseRifle', name:'Rifle (Webaverse Assets)', urls:[
+      'https://raw.githubusercontent.com/webaverse/assets/master/rifle.glb'
+    ], s:0.9, stats:{ rpm:640, dmg:27, spread:0.012, mag:28, reload:1.7 }, auto:true },
+    { key:'Gun', name:'Gun (Godot FPS)', urls:[
+      'https://raw.githubusercontent.com/codewithtom/godot-fps/master/Assets/gun.glb'
+    ], s:0.85, stats:{ rpm:320, dmg:24, spread:0.014, mag:16, reload:1.4 }, auto:false },
+    { key:'Air908Rifle', name:'Rifle (Air908)', urls:[
+      'https://raw.githubusercontent.com/Air908/3dmodels/main/GunRifle.glb'
+    ], s:0.9, stats:{ rpm:610, dmg:29, spread:0.012, mag:30, reload:1.9 }, auto:true },
+    { key:'SniperAWP', name:'Sniper AWP (Garbaj)', urls:[
+      'https://raw.githubusercontent.com/GarbajYT/godot-sniper-rifle/master/AWP.glb'
+    ], s:0.9, stats:{ rpm:45, dmg:120, spread:0.006, mag:7, reload:2.6 }, auto:false }
   ];
   const FIRE_MODES=new Map(); ARMORY.forEach(a=>FIRE_MODES.set(a.key, a.auto?'auto':'single'));
 
@@ -642,47 +721,77 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const weaponCache=new Map();
   const metalTex=(()=>{ const S=256,c=document.createElement('canvas'); c.width=c.height=S; const x=c.getContext('2d'); const g=x.createLinearGradient(0,0,S,S); g.addColorStop(0,'#2e2e2e'); g.addColorStop(1,'#4a4a4a'); x.fillStyle=g; x.fillRect(0,0,S,S); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=2; return t; })();
   const matMetal=new THREE.MeshLambertMaterial({ color:'#3b3b3b', map:metalTex }), matWood =new THREE.MeshLambertMaterial({ color:'#7b5331' });
+  const WEAPON_TYPES={ Glock:'pistol', Pistol:'pistol', Gun:'pistol', Uzi:'smg', MP5:'smg', AK47:'rifle', BattleRifle:'rifle', InfantryRifle:'rifle', WebaverseRifle:'rifle', Air908Rifle:'rifle', SniperAWP:'sniper', Grenade:'grenade' };
   function makeSight(){ const s=new THREE.Group(); const ring=new THREE.Mesh(new THREE.TorusGeometry(0.015,0.004,8,12), new THREE.MeshBasicMaterial({ color:'#222' })); ring.rotation.x=Math.PI/2; ring.position.set(0,0,0.02); const post=new THREE.Mesh(new THREE.BoxGeometry(0.004,0.02,0.004), new THREE.MeshBasicMaterial({ color:'#444' })); post.position.set(0,0,0.03); s.add(ring,post); return s; }
   function makeAK47Mesh(){ const g=new THREE.Group(); const rec=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.11,0.45), matMetal); const hand=new THREE.Mesh(new THREE.BoxGeometry(0.07,0.08,0.28), matWood); hand.position.set(0.07,-0.02,-0.22); const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.016,0.016,0.38,18), matMetal); barrel.rotation.z=Math.PI/2; barrel.position.set(0.12,-0.02,-0.41); const stock=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.09,0.25), matWood); stock.position.set(-0.06,-0.01,0.16); const mag=new THREE.Mesh(new THREE.CapsuleGeometry(0.04,0.12,8,16), matMetal); mag.rotation.x=Math.PI/2; mag.position.set(0.02,-0.08,0.02); g.add(rec,hand,barrel,stock,mag,makeSight()); return g; }
   function makePistolMesh(){ const g=new THREE.Group(); const slide=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.18), matMetal); slide.position.set(0.02,0.02,-0.09); const frame=new THREE.Mesh(new THREE.BoxGeometry(0.09,0.07,0.14), new THREE.MeshLambertMaterial({color:'#444'})); const grip=new THREE.Mesh(new THREE.BoxGeometry(0.05,0.1,0.06), new THREE.MeshLambertMaterial({color:'#2b2b2b'})); grip.position.set(-0.02,-0.05,0.02); const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.008,0.008,0.14,10), matMetal); barrel.rotation.z=Math.PI/2; barrel.position.set(0.07,0.02,-0.18); g.add(frame,slide,grip,barrel,makeSight()); return g; }
   function normalizeAndCenter(root, targetLen=0.6){ const box=new THREE.Box3().setFromObject(root); const size=new THREE.Vector3(); box.getSize(size); const center=new THREE.Vector3(); box.getCenter(center); root.position.sub(center); const maxDim=Math.max(size.x,size.y,size.z)||1; const s=targetLen/maxDim; root.scale.setScalar(s); return root; }
-  function quickWeaponModel(key){ if(key==='AK47') return makeAK47Mesh(); if(key==='AR') return makeAK47Mesh(); if(key==='Grenade') return buildGrenadeMesh(); return makePistolMesh(); }
+  function quickWeaponModel(key){ const type=WEAPON_TYPES[key]||'pistol'; if(type==='rifle'||type==='sniper'||type==='smg') return makeAK47Mesh(); if(type==='grenade') return buildGrenadeMesh(); return makePistolMesh(); }
   async function loadWeapon(key){ const entry=ARMORY.find(a=>a.key===key); if(!entry){ return new THREE.Group(); } if(weaponCache.has(key)){ const v=weaponCache.get(key); return (v.clone? v.clone(true) : v); }
     if(FAST_BOOT){ const alt=quickWeaponModel(key); normalizeAndCenter(alt, entry.s||0.6); weaponCache.set(key, alt); return (alt.clone? alt.clone(true) : alt); }
-    try{ const gltf=await gltfLoader.loadAsync(entry.url); const base=(gltf.scene||gltf.scenes?.[0]||null); let use = base || makePistolMesh(); normalizeAndCenter(use, entry.s); use.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; const m=o.material; o.material = new THREE.MeshLambertMaterial({ color:(m?.color||new THREE.Color('#888')), map:m?.map||null, transparent:!!m?.transparent, opacity:(m?.opacity??1) }); }}); weaponCache.set(key, use); return (use.clone? use.clone(true) : use); }catch(_){ let alt; if(key==='AK47') alt=makeAK47Mesh(); else alt=makePistolMesh(); normalizeAndCenter(alt, key==='AK47'?0.78:0.5); weaponCache.set(key, alt); return (alt.clone? alt.clone(true) : alt); } }
-
+    const urls=Array.isArray(entry.urls)?entry.urls.filter(Boolean): (entry.url?[entry.url]:[]);
+    let gltf=null;
+    for(const url of urls){ try{ gltf=await gltfLoader.loadAsync(url); if(gltf) break; }catch(_){ } }
+    if(gltf){ const base=(gltf.scene||gltf.scenes?.[0]||null); let use = base || makePistolMesh(); normalizeAndCenter(use, entry.s); use.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; const m=o.material; o.material = new THREE.MeshLambertMaterial({ color:(m?.color||new THREE.Color('#888')), map:m?.map||null, transparent:!!m?.transparent, opacity:(m?.opacity??1) }); }}); weaponCache.set(key, use); return (use.clone? use.clone(true) : use); }
+    const alt=quickWeaponModel(key); normalizeAndCenter(alt, entry.s||0.6); weaponCache.set(key, alt); return (alt.clone? alt.clone(true) : alt); }
   let grenadeProjectileTemplate=null; let grenadeProjectileLoading=false;
   async function ensureGrenadeTemplate(){ if(grenadeProjectileTemplate || grenadeProjectileLoading) return; grenadeProjectileLoading=true; try{ const model=await loadWeapon('Grenade'); const holder=new THREE.Group(); const instance=model.clone(true); holder.add(instance); holder.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } }); grenadeProjectileTemplate=holder; }catch(_){ grenadeProjectileTemplate=null; }finally{ grenadeProjectileLoading=false; } }
   function buildGrenadeMesh(){ if(grenadeProjectileTemplate){ const inst=grenadeProjectileTemplate.clone(true); inst.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } }); return inst; } const fallback=new THREE.Mesh(grenadeFallbackGeo, grenadeFallbackMat.clone()); fallback.castShadow=allowShadows; fallback.receiveShadow=allowShadows; return fallback; }
 
   const armoryDiv=$('armory'); const armorySlider=$('armorySlider'); const thumbCache=new Map();
-  function weaponIconURL(key){ const svg=(b)=>'data:image/svg+xml;utf8,'+encodeURIComponent(b); const base=(body)=>`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 112 68'><rect width='112' height='68' rx='8' ry='8' fill='rgba(0,0,0,0.18)'/><g fill='none' stroke='#e6eefc' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>${body}</g></svg>`; switch(key){ case 'Glock': return svg(base(`<path d='M14 32h58l8 8H14z'/><path d='M64 32v-8h20l8 10'/>`)); case 'Pistol': return svg(base(`<path d='M12 34h62l10 8H12z'/>`)); case 'AR': return svg(base(`<path d='M8 38h74l8 6H8z'/>`)); case 'Uzi': return svg(base(`<path d='M10 34h52l8 6H10z'/>`)); case 'AK47': return svg(base(`<path d='M10 38h84l10 6H10z'/>`)); case 'Grenade': return svg(base(`<circle cx='42' cy='36' r='12'/>`)); default: return svg(base(`<path d='M16 34h80'/>`)); } }
+  function weaponIconURL(key){ const svg=(b)=>'data:image/svg+xml;utf8,'+encodeURIComponent(b); const base=(body)=>`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 112 68'><rect width='112' height='68' rx='8' ry='8' fill='rgba(0,0,0,0.18)'/><g fill='none' stroke='#e6eefc' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>${body}</g></svg>`; switch(key){ case 'Glock': return svg(base(`<path d='M14 32h58l8 8H14z'/><path d='M64 32v-8h20l8 10'/>`)); case 'Pistol': case 'Gun': return svg(base(`<path d='M12 34h62l10 8H12z'/>`)); case 'Uzi': case 'MP5': return svg(base(`<path d='M10 34h52l8 6H10z'/>`)); case 'AK47': case 'BattleRifle': case 'InfantryRifle': case 'WebaverseRifle': case 'Air908Rifle': return svg(base(`<path d='M8 38h88l8 6H8z'/>`)); case 'SniperAWP': return svg(base(`<path d='M8 34h90l8 6H8z'/><path d='M74 26h10'/>`)); case 'Grenade': return svg(base(`<circle cx='42' cy='36' r='12'/>`)); default: return svg(base(`<path d='M16 34h80'/>`)); } }
   function weaponPreviewURL(key){ return thumbCache.get(key) || weaponIconURL(key); }
   async function generateThumb(key){ try{ if(thumbCache.has(key)) return thumbCache.get(key); const size={w:224,h:136}; const rt=new THREE.WebGLRenderTarget(size.w,size.h); const sc=new THREE.Scene(); const cam=new THREE.PerspectiveCamera(40, size.w/size.h, 0.01, 10); const amb=new THREE.AmbientLight(0xffffff,0.9); const dir=new THREE.DirectionalLight(0xffffff,0.9); dir.position.set(2,3,2); sc.add(amb,dir); const model=await loadWeapon(key); const g=new THREE.Group(); if(model) g.add(model); normalizeAndCenter(g,0.9); g.rotation.y=Math.PI*0.85; sc.add(g); const prev=new THREE.Color(); renderer.getClearColor(prev); const prevA=renderer.getClearAlpha(); renderer.setRenderTarget(rt); renderer.setClearColor(0x000000,0); cam.position.set(0.6,0.3,1.2); cam.lookAt(0,0,0); renderer.render(sc,cam); const px=new Uint8Array(size.w*size.h*4); renderer.readRenderTargetPixels(rt,0,0,size.w,size.h,px); const cv=document.createElement('canvas'); cv.width=size.w; cv.height=size.h; const ctx=cv.getContext('2d'); const img=ctx.createImageData(size.w,size.h); for(let y=0;y<size.h;y++){ const sy=size.h-1-y; img.data.set(px.subarray(sy*size.w*4, sy*size.w*4+size.w*4), y*size.w*4);} ctx.putImageData(img,0,0); const url=cv.toDataURL('image/png'); renderer.setRenderTarget(null); renderer.setClearColor(prev,prevA); rt.dispose(); thumbCache.set(key,url); return url; }catch(_){ return weaponIconURL(key); } }
   function enableDragScroll(el){ let isDown=false; let startX=0; let scrollLeft=0; let moved=false; el.addEventListener('pointerdown',(e)=>{ isDown=true; moved=false; startX=e.clientX; scrollLeft=el.scrollLeft; el.classList.add('dragging'); try{ el.setPointerCapture(e.pointerId); }catch(_){ } }); el.addEventListener('pointermove',(e)=>{ if(!isDown) return; const dx=e.clientX-startX; if(Math.abs(dx)>6) moved=true; el.scrollLeft=scrollLeft-dx; }); const stop=(e)=>{ if(isDown){ try{ el.releasePointerCapture(e.pointerId); }catch(_){ } } isDown=false; el.classList.remove('dragging'); }; el.addEventListener('pointerup',stop); el.addEventListener('pointercancel',stop); el.addEventListener('click',(e)=>{ if(moved){ e.preventDefault(); e.stopPropagation(); }}); }
   function syncArmorySlider(){ const maxScroll=Math.max(0, armoryDiv.scrollWidth - armoryDiv.clientWidth); armorySlider.max=Math.ceil(maxScroll); armorySlider.disabled=maxScroll<=0; if(armorySlider.disabled){ armorySlider.value=0; return; } armorySlider.value=Math.min(maxScroll, armoryDiv.scrollLeft); }
+  function snapWeaponToScroll(){ const maxScroll=Math.max(1, armoryDiv.scrollWidth - armoryDiv.clientWidth); const frac=Math.min(1, armoryDiv.scrollLeft / maxScroll); const idx=Math.min(ARMORY.length-1, Math.round(frac*(ARMORY.length-1))); const pick=ARMORY[idx]; if(pick) selectWeapon(pick.key); }
   function buildGallery(){ armoryDiv.innerHTML=''; ARMORY.forEach((a)=>{ const b=document.createElement('button'); b.className='armBtn'; b.id='arm_'+a.key; b.innerHTML = `<img alt="${a.name}" src="${weaponPreviewURL(a.key)}"><span>${a.name}</span>`; b.addEventListener('click',()=>selectWeapon(a.key)); if(a.auto){ const t=document.createElement('button'); t.className='modeToggle'; t.textContent=(FIRE_MODES.get(a.key)==='auto')?'AUTO':'SINGLE'; t.addEventListener('click',(ev)=>{ ev.stopPropagation(); FIRE_MODES.set(a.key, FIRE_MODES.get(a.key)==='auto'?'single':'auto'); t.textContent=(FIRE_MODES.get(a.key)==='auto')?'AUTO':'SINGLE'; }); b.appendChild(t); } armoryDiv.appendChild(b); generateThumb(a.key).then(url=>{ const img=b.querySelector('img'); if(img) img.src=url; }); }); enableDragScroll(armoryDiv); syncArmorySlider(); }
   armoryDiv.addEventListener('scroll',()=>syncArmorySlider());
-  armorySlider.addEventListener('input',(e)=>{ armoryDiv.scrollLeft = Number(e.target.value||0); });
+  armorySlider.addEventListener('input',(e)=>{ armoryDiv.scrollLeft = Number(e.target.value||0); snapWeaponToScroll(); });
+  armorySlider.addEventListener('change', snapWeaponToScroll);
   buildGallery();
 
   let currentKey=ARMORY[0].key, currentStats=ARMORY[0].stats; let weaponModel=null; const ammo=new Map(); ARMORY.forEach(a=>ammo.set(a.key,{mag:a.stats.mag,reserve:a.stats.mag*3}));
   function updateAmmoHUD(){ const a=ammo.get(currentKey); const label=ARMORY.find(x=>x.key===currentKey)?.name||currentKey; $('ammo').textContent=`${label} — ${a.mag}/${a.reserve}`; const badge=$('weaponName'); if(badge) badge.textContent=`Weapon: ${label}`; document.querySelectorAll('.armBtn').forEach(el=>el.classList.remove('active')); const ab=$('arm_'+currentKey); if(ab) ab.classList.add('active'); }
-  const MUZZLE_OFF={ Glock:[0.0,-0.02,-0.74], Pistol:[0.0,-0.02,-0.74], AR:[0.0,-0.04,-0.80], Uzi:[0.0,-0.03,-0.78], AK47:[0.0,-0.04,-0.82], Grenade:[0,0,0] };
-  const EJECT_OFF={ Glock:[0.06,-0.05,-0.36], Pistol:[0.06,-0.05,-0.36], AR:[0.08,-0.05,-0.42], Uzi:[0.06,-0.04,-0.40], AK47:[0.09,-0.05,-0.44], Grenade:[0,0,0] };
+  const MUZZLE_OFF={
+    Glock:[0.0,-0.02,-0.74], Pistol:[0.0,-0.02,-0.74], Gun:[0.0,-0.02,-0.74],
+    Uzi:[0.0,-0.03,-0.78], MP5:[0.0,-0.03,-0.78],
+    AK47:[0.0,-0.04,-0.82], BattleRifle:[0.0,-0.04,-0.82], InfantryRifle:[0.0,-0.04,-0.82], WebaverseRifle:[0.0,-0.04,-0.82], Air908Rifle:[0.0,-0.04,-0.82],
+    SniperAWP:[0.0,-0.05,-0.90],
+    Grenade:[0,0,0]
+  };
+  const EJECT_OFF={
+    Glock:[0.06,-0.05,-0.36], Pistol:[0.06,-0.05,-0.36], Gun:[0.06,-0.05,-0.36],
+    Uzi:[0.06,-0.04,-0.40], MP5:[0.06,-0.04,-0.40],
+    AK47:[0.09,-0.05,-0.44], BattleRifle:[0.09,-0.05,-0.44], InfantryRifle:[0.09,-0.05,-0.44], WebaverseRifle:[0.09,-0.05,-0.44], Air908Rifle:[0.09,-0.05,-0.44],
+    SniperAWP:[0.085,-0.05,-0.48],
+    Grenade:[0,0,0]
+  };
   const SHELL_SPECS={
     Glock:{radius:0.006,length:0.14,color:0xd6b064},
     Pistol:{radius:0.006,length:0.14,color:0xd6b064},
+    Gun:{radius:0.006,length:0.14,color:0xd6b064},
     Uzi:{radius:0.0055,length:0.13,color:0xd0a050},
-    AR:{radius:0.0064,length:0.20,color:0xcfa443},
-    AK47:{radius:0.007,length:0.22,color:0xc58f3d}
+    MP5:{radius:0.0058,length:0.14,color:0xd0a050},
+    AK47:{radius:0.007,length:0.22,color:0xc58f3d},
+    BattleRifle:{radius:0.007,length:0.22,color:0xc58f3d},
+    InfantryRifle:{radius:0.0066,length:0.20,color:0xcfa443},
+    WebaverseRifle:{radius:0.0066,length:0.20,color:0xcfa443},
+    Air908Rifle:{radius:0.0066,length:0.21,color:0xc58f3d},
+    SniperAWP:{radius:0.008,length:0.25,color:0xcfa443}
   };
   const HAND_OFFSETS={
     Glock:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
     Pistol:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
+    Gun:{pos:[0.18,-0.09,-0.48], rot:[-0.02,Math.PI,-0.11]},
     Uzi:{pos:[0.2,-0.1,-0.5], rot:[-0.03,Math.PI,-0.12]},
-    AR:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
+    MP5:{pos:[0.2,-0.1,-0.52], rot:[-0.03,Math.PI,-0.12]},
     AK47:{pos:[0.22,-0.1,-0.56], rot:[-0.035,Math.PI,-0.14]},
+    BattleRifle:{pos:[0.22,-0.11,-0.56], rot:[-0.035,Math.PI,-0.14]},
+    InfantryRifle:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
+    WebaverseRifle:{pos:[0.22,-0.11,-0.54], rot:[-0.03,Math.PI,-0.12]},
+    Air908Rifle:{pos:[0.22,-0.11,-0.55], rot:[-0.035,Math.PI,-0.13]},
+    SniperAWP:{pos:[0.23,-0.11,-0.60], rot:[-0.04,Math.PI,-0.15]},
     Grenade:{pos:[0.16,-0.06,-0.42], rot:[-0.01,Math.PI,-0.08]}
   };
 
@@ -768,16 +877,17 @@ document.title = 'Tirana 2040 • Last Man Standing';
     group.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
     return group;
   }
-  function ejection(anc,key){
-    if(!anc) return;
-    const shell=makeShellInstance(key);
-    if(!shell) return;
-    const wp=new THREE.Vector3(); anc.getWorldPosition(wp);
-    shell.position.copy(wp);
-    scene.add(shell);
-    const power = key==='AK47'?1.25: key==='AR'?1.15:1.0;
-    const v=new THREE.Vector3((Math.random()*0.22+0.12)*power, (Math.random()*0.34+0.14), (Math.random()*0.24-0.12));
-    const spin=new THREE.Vector3((Math.random()*0.2+0.04)*power, (Math.random()*0.18+0.06), (Math.random()*0.2+0.04));
+    function ejection(anc,key){
+      if(!anc) return;
+      const shell=makeShellInstance(key);
+      if(!shell) return;
+      const wp=new THREE.Vector3(); anc.getWorldPosition(wp);
+      shell.position.copy(wp);
+      scene.add(shell);
+      const type=WEAPON_TYPES[key]||'pistol';
+      const power = type==='rifle'||type==='sniper'?1.25: type==='smg'?1.1:1.0;
+      const v=new THREE.Vector3((Math.random()*0.22+0.12)*power, (Math.random()*0.34+0.14), (Math.random()*0.24-0.12));
+      const spin=new THREE.Vector3((Math.random()*0.2+0.04)*power, (Math.random()*0.18+0.06), (Math.random()*0.2+0.04));
     const t0=performance.now();
     const id=setInterval(()=>{
       const t=(performance.now()-t0)/1000;
@@ -822,7 +932,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   function noiseBuffer(ctx){ const b=ctx.createBuffer(1, ctx.sampleRate*1.0, ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++){ d[i]= (Math.random()*2-1) * (1 - i/d.length); } return b; }
   function burstNoise({dur=0.12, freq=1500, type='bandpass', gain=0.12}){ withAC((ctx)=>{ const src=ctx.createBufferSource(); src.buffer=noiseBuffer(ctx); const bp=ctx.createBiquadFilter(); bp.type=type; bp.frequency.value=freq; const g=ctx.createGain(); g.gain.value=gain; src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start(); src.stop(ctx.currentTime+dur); }); }
   function click({freq=800,dur=0.02,gain=0.08}){ withAC((ctx)=>{ const o=ctx.createOscillator(); const g=ctx.createGain(); o.type='square'; o.frequency.value=freq; g.gain.value=gain; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+dur); }); }
-  function sfxGun(kind){ switch(kind){ case 'Glock': case 'Pistol': burstNoise({dur:0.09,freq:2200,gain:0.12}); click({freq:1800,dur:0.015,gain:0.06}); break; case 'AR': burstNoise({dur:0.08,freq:1900,gain:0.13}); click({freq:1600,dur:0.012,gain:0.05}); break; case 'Uzi': burstNoise({dur:0.05,freq:2300,gain:0.12}); click({freq:1900,dur:0.01,gain:0.05}); break; case 'AK47': burstNoise({dur:0.1,freq:1400,gain:0.14}); click({freq:1200,dur:0.015,gain:0.07}); break; default: burstNoise({dur:0.07,freq:1800,gain:0.12}); } }
+  function sfxGun(kind){ switch(kind){ case 'Glock': case 'Pistol': case 'Gun': burstNoise({dur:0.09,freq:2200,gain:0.12}); click({freq:1800,dur:0.015,gain:0.06}); break; case 'Uzi': case 'MP5': burstNoise({dur:0.05,freq:2300,gain:0.12}); click({freq:1900,dur:0.01,gain:0.05}); break; case 'AK47': case 'BattleRifle': case 'InfantryRifle': case 'WebaverseRifle': case 'Air908Rifle': burstNoise({dur:0.1,freq:1400,gain:0.14}); click({freq:1200,dur:0.015,gain:0.07}); break; case 'SniperAWP': burstNoise({dur:0.12,freq:900,gain:0.16}); click({freq:700,dur:0.02,gain:0.08}); break; default: burstNoise({dur:0.07,freq:1800,gain:0.12}); } }
   function sfxReload(){ click({freq:600,dur:0.05,gain:0.05}); setTimeout(()=>click({freq:900,dur:0.04,gain:0.05}),90); }
   $('muteBtn').addEventListener('click',(e)=>{ audio.muted=!audio.muted; e.target.textContent=audio.muted?'🔇':'🔊'; });
 
