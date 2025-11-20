@@ -75,6 +75,14 @@
   #mapClose{position:absolute;top:24px;right:24px;padding:12px 18px;border-radius:12px;border:1px solid rgba(255,255,255,.32);background:rgba(17,24,39,.92);color:#fff;font-weight:700;cursor:pointer;letter-spacing:.4px;text-transform:uppercase}
   #legend{position:absolute;left:24px;top:24px;color:#f9fafb;background:rgba(17,24,39,.78);padding:14px 16px;border-radius:12px;font-size:13px;line-height:1.4;max-width:240px}
   #legend strong{display:block;font-size:15px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+  #mapControls{position:absolute;right:24px;bottom:32px;display:flex;flex-direction:column;align-items:flex-end;gap:10px;pointer-events:auto;}
+  #mapControls .mapRow{display:flex;gap:8px;align-items:center;}
+  #mapZoomLabel{color:#e5e7eb;font-weight:700;background:rgba(15,23,42,.78);padding:6px 10px;border-radius:10px;font-size:12px;border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(6px)}
+  .mapButton{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,0.06);color:#f8fafc;border-radius:10px;cursor:pointer;padding:8px 12px;font-weight:800;font-size:16px;min-width:46px;box-shadow:0 10px 20px rgba(0,0,0,.35);transition:transform .14s ease, box-shadow .14s ease}
+  .mapButton:active{transform:translateY(1px);box-shadow:0 4px 12px rgba(0,0,0,.3)}
+  #mapZoom{appearance:none;width:200px;height:10px;border-radius:999px;border:1px solid rgba(255,255,255,.22);background:linear-gradient(90deg,rgba(56,189,248,0.7),rgba(167,139,250,0.7));outline:none;box-shadow:0 10px 18px rgba(0,0,0,.26)}
+  #mapZoom::-webkit-slider-thumb{appearance:none;width:20px;height:20px;border-radius:50%;background:#facc15;border:1px solid rgba(0,0,0,.35);box-shadow:0 8px 14px rgba(0,0,0,.26)}
+  #mapZoom::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:#facc15;border:1px solid rgba(0,0,0,.35);box-shadow:0 8px 14px rgba(0,0,0,.26)}
   #result{display:none !important}
 </style>
 </head>
@@ -110,6 +118,15 @@
     <canvas id="mapCanvas"></canvas>
     <button id="mapClose">Exit Map</button>
     <div id="legend"><strong>City Navigation</strong>Tap any district on the map to set a navigation waypoint and follow the dashed guidance in-game. Tap the same spot again to clear it. Use the Exit Map button to close. Icons: 🏥 Hospital · 🚓 Police · 🧯 Fire · 🛍 Mall · 🛫 Airport · 🚉 Station</div>
+    <div id="mapControls">
+      <div class="mapRow"><span id="mapZoomLabel">Zoom 1.0x</span></div>
+      <div class="mapRow">
+        <button id="mapZoomOut" class="mapButton" aria-label="Zoom out">−</button>
+        <input id="mapZoom" type="range" min="0.75" max="3" step="0.05" value="1" aria-label="Map zoom" />
+        <button id="mapZoomIn" class="mapButton" aria-label="Zoom in">+</button>
+      </div>
+      <div class="mapRow"><small style="color:#cbd5e1">Scroll or pinch to zoom. The map follows your position for detail.</small></div>
+    </div>
   </div>
 
   <button id="climbBtn">⬆ Use/Climb Ladder</button>
@@ -890,7 +907,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
       'https://raw.githubusercontent.com/LazerMaker/gun-models-ak47-and-supprest-pistol-/master/ak47.glb'
     ], s:0.8, stats:{ rpm:650, dmg:32, spread:0.012, mag:30, reload:1.9 }, auto:true },
     { key:'MP5',    name:'MP5', urls:[
-      'https://raw.githubusercontent.com/Jay-Oh-eN/assets/main/mp5.glb'
+      'https://raw.githubusercontent.com/webaverse/uzi/main/uzi.glb',
+      'https://raw.githubusercontent.com/webaverse-mmo/uzi/main/uzi.glb'
     ], s:0.75, stats:{ rpm:780, dmg:20, spread:0.016, mag:30, reload:1.6 }, auto:true },
     { key:'Grenade',name:'Grenade',urls:[
       'https://raw.githubusercontent.com/friuns2/bingextension/main/grenade.glb'
@@ -1171,12 +1189,21 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const audio={ ctx:null, muted:false };
   function ac(){ if(audio.muted) return null; try{ audio.ctx = audio.ctx || new (window.AudioContext||window.webkitAudioContext)(); return audio.ctx; }catch(_){ return null; } }
   function onMouseDownAudio(){ try{ ac()?.resume?.(); }catch(_){} }
-  function withAC(fn){ const ctx=ac(); if(!ctx) return; fn(ctx); }
-  function noiseBuffer(ctx){ const b=ctx.createBuffer(1, ctx.sampleRate*1.0, ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++){ d[i]= (Math.random()*2-1) * (1 - i/d.length); } return b; }
-  function burstNoise({dur=0.12, freq=1500, type='bandpass', gain=0.12}){ withAC((ctx)=>{ const src=ctx.createBufferSource(); src.buffer=noiseBuffer(ctx); const bp=ctx.createBiquadFilter(); bp.type=type; bp.frequency.value=freq; const g=ctx.createGain(); g.gain.value=gain; src.connect(bp); bp.connect(g); g.connect(ctx.destination); src.start(); src.stop(ctx.currentTime+dur); }); }
-  function click({freq=800,dur=0.02,gain=0.08}){ withAC((ctx)=>{ const o=ctx.createOscillator(); const g=ctx.createGain(); o.type='square'; o.frequency.value=freq; g.gain.value=gain; o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime+dur); }); }
-  function sfxGun(kind){ switch(kind){ case 'Glock': case 'Pistol': case 'Gun': burstNoise({dur:0.09,freq:2200,gain:0.12}); click({freq:1800,dur:0.015,gain:0.06}); break; case 'Uzi': case 'MP5': burstNoise({dur:0.05,freq:2300,gain:0.12}); click({freq:1900,dur:0.01,gain:0.05}); break; case 'AK47': case 'BattleRifle': case 'InfantryRifle': case 'WebaverseRifle': case 'Air908Rifle': burstNoise({dur:0.1,freq:1400,gain:0.14}); click({freq:1200,dur:0.015,gain:0.07}); break; case 'SniperAWP': burstNoise({dur:0.12,freq:900,gain:0.16}); click({freq:700,dur:0.02,gain:0.08}); break; default: burstNoise({dur:0.07,freq:1800,gain:0.12}); } }
-  function sfxReload(){ click({freq:600,dur:0.05,gain:0.05}); setTimeout(()=>click({freq:900,dur:0.04,gain:0.05}),90); }
+  function withAC(fn){ const ctx=ac(); if(!ctx) return; return fn(ctx); }
+  const GUN_PROFILES={
+    pistol:{ envelope:[1,0.82,0.58,0.35,0.2,0.12,0.08,0.05,0.03,0.015], color:1900, body:320, tail:0.65, gain:0.9, cacheKey:'pistol'},
+    smg:{ envelope:[1,0.78,0.55,0.32,0.18,0.1,0.05,0.03], color:2100, body:360, tail:0.5, gain:0.85, cacheKey:'smg'},
+    rifle:{ envelope:[1,0.86,0.7,0.46,0.28,0.16,0.08,0.04,0.02], color:1500, body:240, tail:0.8, gain:1.0, cacheKey:'rifle'},
+    sniper:{ envelope:[1,0.9,0.76,0.5,0.32,0.18,0.1,0.05,0.03], color:1100, body:180, tail:1.0, gain:1.05, cacheKey:'sniper'}
+  };
+  const shotCache=new Map();
+  function profileForWeapon(key){ const type=WEAPON_TYPES[key]||'pistol'; if(type==='smg') return GUN_PROFILES.smg; if(type==='rifle') return GUN_PROFILES.rifle; if(type==='sniper') return GUN_PROFILES.sniper; return GUN_PROFILES.pistol; }
+  function buildGunLayer(ctx, profile){ const duration=profile.tail; const len=Math.max(1, Math.floor(ctx.sampleRate*duration)); const env=profile.envelope; const buffer=ctx.createBuffer(1,len,ctx.sampleRate); const data=buffer.getChannelData(0); for(let i=0;i<len;i++){ const t=i/(len-1); const scaled=t*(env.length-1); const idx=Math.floor(scaled); const frac=scaled-idx; const a=env[idx]??env[env.length-1]; const b=env[idx+1]??a; const shaped=(a+(b-a)*frac)*Math.exp(-t*3.2); data[i]=(Math.random()*2-1)*shaped; } return buffer; }
+  function playShot(kind){ const profile=profileForWeapon(kind); withAC((ctx)=>{ const cacheKey=profile.cacheKey; let layer=shotCache.get(cacheKey); if(!layer){ layer=buildGunLayer(ctx, profile); shotCache.set(cacheKey, layer); }
+      const noise=ctx.createBufferSource(); noise.buffer=layer; const band=ctx.createBiquadFilter(); band.type='bandpass'; band.Q.value=1.1; band.frequency.value=profile.color; const body=ctx.createOscillator(); body.type='triangle'; body.frequency.value=profile.body; const bodyGain=ctx.createGain(); bodyGain.gain.setValueAtTime(0, ctx.currentTime); bodyGain.gain.linearRampToValueAtTime(profile.gain*0.35, ctx.currentTime+0.012); bodyGain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+profile.tail);
+      const out=ctx.createGain(); out.gain.value=profile.gain; const air=ctx.createBiquadFilter(); air.type='highshelf'; air.frequency.value=4200; air.gain.value=-3; const echo=ctx.createDelay(); echo.delayTime.value=0.08; const echoGain=ctx.createGain(); echoGain.gain.value=0.2; noise.connect(band); band.connect(out); body.connect(bodyGain); bodyGain.connect(out); out.connect(air); air.connect(ctx.destination); out.connect(echo); echo.connect(echoGain); echoGain.connect(out); noise.start(); noise.stop(ctx.currentTime+profile.tail); body.start(); body.stop(ctx.currentTime+profile.tail); }); }
+  function sfxGun(kind){ playShot(kind); }
+  function sfxReload(){ withAC((ctx)=>{ const steps=[0,0.14,0.3]; steps.forEach((t,i)=>{ const osc=ctx.createOscillator(); osc.type='square'; osc.frequency.value=260 + i*120; const g=ctx.createGain(); g.gain.setValueAtTime(0, ctx.currentTime+t); g.gain.linearRampToValueAtTime(0.26, ctx.currentTime+t+0.01); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+t+0.18); osc.connect(g); g.connect(ctx.destination); osc.start(ctx.currentTime+t); osc.stop(ctx.currentTime+t+0.22); }); }); }
   $('muteBtn').addEventListener('click',(e)=>{ audio.muted=!audio.muted; e.target.textContent=audio.muted?'🔇':'🔊'; });
 
   const keys=new Set(); addEventListener('keydown',e=>{ keys.add(e.code); if(e.code==='Space') doShot(); if(e.code==='KeyR') reload(); if(e.code==='ArrowRight'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()+1); } if(e.code==='ArrowLeft'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()-1); } }); addEventListener('keyup',e=>keys.delete(e.code));
@@ -1447,6 +1474,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   function startBR(){ for(let i=0;i<8;i++){ const a=(i/8)*Math.PI*2; const r=ringR*0.6; spawnEnemy(Math.cos(a)*r, Math.sin(a)*r, ['Soldier','Xbot'][i%2]); } }
   startBR();
+  updateStatus('Tirana 2040 • Ready');
+  window.__phase='ready';
 
   let inputMode='A';
   function applyMode(){
@@ -1471,27 +1500,40 @@ document.title = 'Tirana 2040 • Last Man Standing';
     if(nextY<=L.y0+0.6 && moveInput<-0.1){ detachFromLadder(); player.position.y = L.y0+0.6; }
   }
 
-  const mapOverlay=$('mapOverlay'), mapCanvas=$('mapCanvas'), mctx=mapCanvas.getContext('2d'); function resizeMap(){ mapCanvas.width=mapCanvas.clientWidth; mapCanvas.height=mapCanvas.clientHeight; }
-  function drawMap(){ resizeMap(); const w=mapCanvas.width,h=mapCanvas.height; const grad=mctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,'#0f172a'); grad.addColorStop(1,'#111827'); mctx.fillStyle=grad; mctx.fillRect(0,0,w,h); const cx=w/2, cy=h/2; const extent=Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.5 + ringR*0.7; const scale=Math.min(w,h)/(extent*2.05);
-    mctx.save(); mctx.translate(cx,cy);
-    mctx.strokeStyle='rgba(57,66,88,0.9)'; mctx.lineWidth=ROAD*scale*2; mctx.beginPath(); mctx.arc(0,0,ringR*scale,0,Math.PI*2); mctx.stroke();
-    mapRoads.forEach((road)=>{ const x1=(road.from.x)*scale; const y1=(road.from.z)*scale; const x2=(road.to.x)*scale; const y2=(road.to.z)*scale; mctx.strokeStyle='rgba(76,86,106,0.92)'; mctx.lineWidth=Math.max(3, (road.width||ROAD)*scale*1.15); mctx.beginPath(); mctx.moveTo(x1,y1); mctx.lineTo(x2,y2); mctx.stroke(); mctx.strokeStyle='rgba(255,255,255,0.16)'; mctx.lineWidth=Math.max(1, (road.width||ROAD)*scale*0.35); mctx.beginPath(); mctx.moveTo(x1,y1); mctx.lineTo(x2,y2); mctx.stroke(); });
-    mctx.font='13px 600 system-ui'; mctx.fillStyle='rgba(226,232,240,0.86)'; mapRoads.forEach((road)=>{ if(!road.name) return; const x1=(road.from.x)*scale; const y1=(road.from.z)*scale; const x2=(road.to.x)*scale; const y2=(road.to.z)*scale; if(Math.hypot(x2-x1,y2-y1)<12) return; const midX=(x1+x2)/2; const midY=(y1+y2)/2; const ang=Math.atan2(y2-y1,x2-x1); mctx.save(); mctx.translate(midX,midY); mctx.rotate(ang); const textW=mctx.measureText(road.name).width; mctx.fillText(road.name,-textW/2,-6); mctx.restore(); });
-    mapParks.forEach((park)=>{ const px=park.x*scale; const py=park.z*scale; const wpx=park.w*scale; const hpx=park.d*scale; mctx.fillStyle=park.type==='fountain'?'rgba(59,130,246,0.35)': park.type==='basket'?'rgba(239,68,68,0.32)':'rgba(34,197,94,0.32)'; mctx.fillRect(px-wpx/2, py-hpx/2, wpx, hpx); mctx.strokeStyle='rgba(255,255,255,0.12)'; mctx.strokeRect(px-wpx/2, py-hpx/2, wpx, hpx); });
-    mapBuildings.forEach((b)=>{ const px=b.x*scale, py=b.z*scale; const wpx=b.w*scale, hpx=b.d*scale; mctx.fillStyle='rgba(148,163,184,0.32)'; mctx.fillRect(px-wpx/2, py-hpx/2, wpx, hpx); });
-    mctx.font='17px 700 system-ui'; mctx.fillStyle='#facc15'; mapLandmarks.forEach((L)=>{ const px=L.x*scale, py=L.z*scale; mctx.fillText(L.label, px - mctx.measureText(L.label).width/2, py-8); });
-    POIS.forEach((p)=>{ const px=p.pos.x*scale, py=p.pos.z*scale; mctx.fillText(p.label, px-6, py-6); });
-    if(waypoint){ const wx=waypoint.x*scale, wy=waypoint.z*scale; mctx.strokeStyle='rgba(102,204,255,0.9)'; mctx.lineWidth=3; mctx.setLineDash([18,10]); mctx.beginPath(); mctx.moveTo(player.position.x*scale, player.position.z*scale); mctx.lineTo(wx,wy); mctx.stroke(); mctx.setLineDash([]); mctx.fillStyle='#38bdf8'; mctx.beginPath(); mctx.arc(wx,wy,8,0,Math.PI*2); mctx.fill(); mctx.fillStyle='#38bdf8'; mctx.fillText('Waypoint', wx-38, wy-12); }
-    mctx.fillStyle='#7dd3fc'; mctx.beginPath(); mctx.arc(player.position.x*scale, player.position.z*scale, 8, 0, Math.PI*2); mctx.fill(); mctx.strokeStyle='#38bdf8'; mctx.lineWidth=2.4; mctx.beginPath(); mctx.moveTo(player.position.x*scale, player.position.z*scale); mctx.lineTo(player.position.x*scale + Math.sin(yaw)*32, player.position.z*scale + Math.cos(yaw)*32); mctx.stroke();
-    mctx.restore();
+  const mapOverlay=$('mapOverlay'), mapCanvas=$('mapCanvas'), mctx=mapCanvas?.getContext('2d');
+  const mapZoomSlider=$('mapZoom'); const mapZoomLabel=$('mapZoomLabel');
+  const MAP_ZOOM_MIN=parseFloat(mapZoomSlider?.min||'0.75'), MAP_ZOOM_MAX=parseFloat(mapZoomSlider?.max||'3');
+  let mapZoom=1;
+  function setMapZoom(v){ const clamped=THREE.MathUtils.clamp(v||1, MAP_ZOOM_MIN, MAP_ZOOM_MAX); mapZoom=clamped; if(mapZoomSlider) mapZoomSlider.value=String(clamped); if(mapZoomLabel) mapZoomLabel.textContent=`Zoom ${clamped.toFixed(2)}x`; }
+  setMapZoom(1);
+  function resizeMap(){ if(!mapCanvas||!mctx) return; mapCanvas.width=mapCanvas.clientWidth; mapCanvas.height=mapCanvas.clientHeight; }
+  function mapProjection(){ if(!mapCanvas||!mctx) return null; resizeMap(); const w=mapCanvas.width,h=mapCanvas.height; const cx=w/2, cy=h/2; const extent=Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.5 + ringR*0.7; const baseScale=Math.min(w,h)/(extent*2.05); const zoomedScale=baseScale*mapZoom; const focusX=player?.position?.x||0; const focusZ=player?.position?.z||0; return {w,h,cx,cy,zoomedScale,focusX,focusZ}; }
+  function drawMap(){ if(!mapCanvas||!mctx) return; const proj=mapProjection(); if(!proj) return; const grad=mctx.createLinearGradient(0,0,0,proj.h); grad.addColorStop(0,'#0f172a'); grad.addColorStop(1,'#111827'); mctx.fillStyle=grad; mctx.fillRect(0,0,proj.w,proj.h); const toScreen=(x,z)=>({x:proj.cx + (x-proj.focusX)*proj.zoomedScale, y:proj.cy + (z-proj.focusZ)*proj.zoomedScale});
+    const ringCenter=toScreen(0,0); mctx.strokeStyle='rgba(57,66,88,0.9)'; mctx.lineWidth=ROAD*proj.zoomedScale*2; mctx.beginPath(); mctx.arc(ringCenter.x, ringCenter.y, ringR*proj.zoomedScale, 0, Math.PI*2); mctx.stroke();
+    mapRoads.forEach((road)=>{ const p1=toScreen(road.from.x, road.from.z); const p2=toScreen(road.to.x, road.to.z); mctx.strokeStyle='rgba(76,86,106,0.92)'; mctx.lineWidth=Math.max(3, (road.width||ROAD)*proj.zoomedScale*1.15); mctx.beginPath(); mctx.moveTo(p1.x,p1.y); mctx.lineTo(p2.x,p2.y); mctx.stroke(); mctx.strokeStyle='rgba(255,255,255,0.16)'; mctx.lineWidth=Math.max(1, (road.width||ROAD)*proj.zoomedScale*0.35); mctx.beginPath(); mctx.moveTo(p1.x,p1.y); mctx.lineTo(p2.x,p2.y); mctx.stroke(); });
+    mctx.font='13px 600 system-ui'; mctx.fillStyle='rgba(226,232,240,0.86)'; mapRoads.forEach((road)=>{ if(!road.name) return; const p1=toScreen(road.from.x, road.from.z); const p2=toScreen(road.to.x, road.to.z); if(Math.hypot(p2.x-p1.x,p2.y-p1.y)<12) return; const midX=(p1.x+p2.x)/2; const midY=(p1.y+p2.y)/2; const ang=Math.atan2(p2.y-p1.y,p2.x-p1.x); mctx.save(); mctx.translate(midX,midY); mctx.rotate(ang); const textW=mctx.measureText(road.name).width; mctx.fillText(road.name,-textW/2,-6); mctx.restore(); });
+    mapParks.forEach((park)=>{ const center=toScreen(park.x, park.z); const wpx=park.w*proj.zoomedScale; const hpx=park.d*proj.zoomedScale; mctx.fillStyle=park.type==='fountain'?'rgba(59,130,246,0.35)': park.type==='basket'?'rgba(239,68,68,0.32)':'rgba(34,197,94,0.32)'; mctx.fillRect(center.x-wpx/2, center.y-hpx/2, wpx, hpx); mctx.strokeStyle='rgba(255,255,255,0.12)'; mctx.strokeRect(center.x-wpx/2, center.y-hpx/2, wpx, hpx); });
+    mapBuildings.forEach((b)=>{ const center=toScreen(b.x, b.z); const wpx=b.w*proj.zoomedScale, hpx=b.d*proj.zoomedScale; mctx.fillStyle='rgba(148,163,184,0.32)'; mctx.fillRect(center.x-wpx/2, center.y-hpx/2, wpx, hpx); });
+    mctx.font='17px 700 system-ui'; mctx.fillStyle='#facc15'; mapLandmarks.forEach((L)=>{ const p=toScreen(L.x, L.z); mctx.fillText(L.label, p.x - mctx.measureText(L.label).width/2, p.y-8); });
+    POIS.forEach((p)=>{ const pos=toScreen(p.pos.x, p.pos.z); mctx.fillText(p.label, pos.x-6, pos.y-6); });
+    if(waypoint){ const wpt=toScreen(waypoint.x, waypoint.z); const playerScreen=toScreen(player.position.x, player.position.z); mctx.strokeStyle='rgba(102,204,255,0.9)'; mctx.lineWidth=3; mctx.setLineDash([18,10]); mctx.beginPath(); mctx.moveTo(playerScreen.x, playerScreen.y); mctx.lineTo(wpt.x,wpt.y); mctx.stroke(); mctx.setLineDash([]); mctx.fillStyle='#38bdf8'; mctx.beginPath(); mctx.arc(wpt.x,wpt.y,8,0,Math.PI*2); mctx.fill(); mctx.fillStyle='#38bdf8'; mctx.fillText('Waypoint', wpt.x-38, wpt.y-12); }
+    const playerScreen=toScreen(player.position.x, player.position.z); mctx.fillStyle='#7dd3fc'; mctx.beginPath(); mctx.arc(playerScreen.x, playerScreen.y, 8, 0, Math.PI*2); mctx.fill(); mctx.strokeStyle='#38bdf8'; mctx.lineWidth=2.4; mctx.beginPath(); mctx.moveTo(playerScreen.x, playerScreen.y); mctx.lineTo(playerScreen.x + Math.sin(yaw)*32, playerScreen.y + Math.cos(yaw)*32); mctx.stroke();
   }
   resizeMap(); addEventListener('resize', resizeMap);
   $('mapBtn').addEventListener('click', ()=>{ mapOverlay.style.display='flex'; requestAnimationFrame(()=>drawMap()); });
   $('mapClose').addEventListener('click', ()=>{ mapOverlay.style.display='none'; });
+  mapZoomSlider?.addEventListener('input', ()=>{ setMapZoom(parseFloat(mapZoomSlider.value||'1')); drawMap(); });
+  $('mapZoomIn')?.addEventListener('click', ()=>{ setMapZoom(mapZoom*1.12); drawMap(); });
+  $('mapZoomOut')?.addEventListener('click', ()=>{ setMapZoom(mapZoom/1.12); drawMap(); });
+  mapCanvas?.addEventListener('wheel', (e)=>{ const dir=Math.sign(e.deltaY||0); setMapZoom(mapZoom*(dir>0?0.92:1.08)); drawMap(); e.preventDefault(); }, {passive:false});
+  const mapPinch={active:false, start:0, baseZoom:1};
+  mapCanvas?.addEventListener('touchstart', (e)=>{ if(e.touches.length===2){ mapPinch.active=true; mapPinch.start=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); mapPinch.baseZoom=mapZoom; } }, {passive:false});
+  mapCanvas?.addEventListener('touchmove', (e)=>{ if(mapPinch.active && e.touches.length===2){ const dist=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY)||1; const scale=dist/(mapPinch.start||dist); setMapZoom(mapPinch.baseZoom*scale); drawMap(); e.preventDefault(); } }, {passive:false});
+  mapCanvas?.addEventListener('touchend', ()=>{ mapPinch.active=false; });
 
   let waypoint=null; let navGuide=null;
   function updateNavGuide(){ if(navGuide){ scene.remove(navGuide); navGuide.geometry.dispose(); navGuide.material.dispose(); navGuide=null; } if(!waypoint) return; const guideGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(player.position.x,0.1,player.position.z), new THREE.Vector3(waypoint.x,0.1,waypoint.z)]); const guideMat=new THREE.LineDashedMaterial({ color:0x66ccff, dashSize:2.2, gapSize:1.2, linewidth:1 }); navGuide=new THREE.Line(guideGeo, guideMat); navGuide.computeLineDistances(); scene.add(navGuide); }
-  mapCanvas.addEventListener('click', (e)=>{ const r=mapCanvas.getBoundingClientRect(); const x=e.clientX-r.left, y=e.clientY-r.top; const ux=x/mapCanvas.width, uz=y/mapCanvas.height; const wx = -BLOCKS_X*CELL/2 + ux*(BLOCKS_X*CELL); const wz = -BLOCKS_Z*CELL/2 + uz*(BLOCKS_Z*CELL); const candidate=new THREE.Vector3(wx,0,wz); if(waypoint && waypoint.distanceTo(candidate)<8){ waypoint=null; } else { waypoint=candidate; } updateNavGuide(); drawMap(); });
+  mapCanvas.addEventListener('click', (e)=>{ const proj=mapProjection(); if(!proj) return; const r=mapCanvas.getBoundingClientRect(); const sx=e.clientX-r.left, sy=e.clientY-r.top; const wx = (sx - proj.cx)/proj.zoomedScale + proj.focusX; const wz = (sy - proj.cy)/proj.zoomedScale + proj.focusZ; const candidate=new THREE.Vector3(wx,0,wz); if(waypoint && waypoint.distanceTo(candidate)<8){ waypoint=null; } else { waypoint=candidate; } updateNavGuide(); drawMap(); });
 
   function updateEmergencyUnits(dt){ for(const unit of emergencyUnits){ const mesh=unit.mesh; if(!mesh) continue; if(unit.state==='responding' || unit.state==='returning'){ if(unit.target){ const dir=new THREE.Vector3(unit.target.x-mesh.position.x,0,unit.target.z-mesh.position.z); const dist=dir.length(); if(dist>0.4){ dir.normalize(); const sp=(unit.state==='responding'?unit.speed:unit.speed*0.7); mesh.position.x += dir.x*sp*dt; mesh.position.z += dir.z*sp*dt; setHeading(mesh, Math.atan2(dir.x, dir.z)); } else { if(unit.state==='responding'){ unit.state='onsite'; unit.arrivalTimer=0; } else { unit.state='idle'; unit.target=null; mesh.position.copy(unit.base); setHeading(mesh, unit.baseHeading||0); } } } } else if(unit.state==='onsite'){ unit.arrivalTimer=(unit.arrivalTimer||0)+dt; if(unit.arrivalTimer>14){ unit.state='returning'; unit.target=unit.base.clone(); } } else if(unit.state==='idle'){ const drift=Math.hypot(mesh.position.x-unit.base.x, mesh.position.z-unit.base.z); if(drift>0.6){ unit.state='returning'; unit.target=unit.base.clone(); } }
       if(unit.siren){ unit.siren.phase += dt*6; const active=(unit.state==='responding'||unit.state==='onsite'); const pulse=Math.abs(Math.sin(unit.siren.phase)); const low=Math.max(0.16,0.18- dt*0.5); const leftIntensity=active?(0.45+0.55*pulse):low; const rightIntensity=active?(0.45+0.55*Math.abs(Math.sin(unit.siren.phase+Math.PI/2))):low; unit.siren.left.material.opacity=leftIntensity; unit.siren.right.material.opacity=rightIntensity; if(unit.siren.light){ const tint=unit.type==='fire'?0xff6b6b: unit.type==='ambulance'?0xffc857:0x60a5fa; unit.siren.light.intensity = active ? 8 + pulse*6 : 0; unit.siren.light.color.set(active ? tint : 0xffffff); } } }
