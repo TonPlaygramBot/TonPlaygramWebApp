@@ -819,8 +819,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.068; // sink the cushion base lower so the pads sit deeper against the rail face
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.085; // trim the cushion tops further so the green pads sit level with the wooden rail surface
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1385,19 +1385,19 @@ const hexNumberToCss = (hex) => `#${hex.toString(16).padStart(6, '0')}`;
 
 
 const SHARED_WOOD_REPEAT = Object.freeze({
-  x: TABLE_WOOD_REPEAT.x,
-  y: TABLE_WOOD_REPEAT.y
+  x: 1,
+  y: 5.5
 });
 const SHARED_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.12,
-  roughnessVariance: 0.18,
-  roughness: 0.32,
-  metalness: 0.18,
-  clearcoat: 0.58,
-  clearcoatRoughness: 0.12,
-  sheen: 0.26,
-  sheenRoughness: 0.42,
-  envMapIntensity: 1.25
+  roughnessBase: 0.16,
+  roughnessVariance: 0.22,
+  roughness: 0.34,
+  metalness: 0.12,
+  clearcoat: 0.46,
+  clearcoatRoughness: 0.16,
+  sheen: 0.18,
+  sheenRoughness: 0.36,
+  envMapIntensity: 1.05
 });
 
 const clampWoodRepeatScaleValue = () => DEFAULT_WOOD_REPEAT_SCALE;
@@ -1453,17 +1453,17 @@ const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   classicWood: 'walnut',
   goldenMaple: 'maple',
   matteGraphite: 'smokedOak',
-  hybridTwoTone: 'wenge'
+  hybridTwoTone: 'teak'
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
-  x: SHARED_WOOD_REPEAT.x,
-  y: SHARED_WOOD_REPEAT.y
+  x: 1,
+  y: 5.5
 });
 
 const POOL_ROYALE_WOOD_SURFACE_PROPS = Object.freeze({
-  roughnessBase: 0.12,
-  roughnessVariance: 0.08
+  roughnessBase: 0.16,
+  roughnessVariance: 0.22
 });
 
 const applySnookerStyleWoodPreset = (materials, finishId) => {
@@ -1777,10 +1777,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   freshGreen: Object.freeze({
     id: 'freshGreen',
     palette: {
-      shadow: 0x155b33,
-      base: 0x2f9753,
-      accent: 0x41b467,
-      highlight: 0x62d88b
+      shadow: 0x1d8048,
+      base: 0x3ab86e,
+      accent: 0x54cf88,
+      highlight: 0x7ef2af
     },
     sparkle: 1,
     stray: 1
@@ -1799,10 +1799,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   classicOlive: Object.freeze({
     id: 'classicOlive',
     palette: {
-      shadow: 0x1b2f1a,
-      base: 0x3e5a2c,
-      accent: 0x587a3e,
-      highlight: 0x8bb05b
+      shadow: 0x2a4b24,
+      base: 0x4f7b3f,
+      accent: 0x6b9d57,
+      highlight: 0x9bc97c
     },
     sparkle: 0.78,
     stray: 1.1
@@ -1810,10 +1810,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   deepBurgundy: Object.freeze({
     id: 'deepBurgundy',
     palette: {
-      shadow: 0x2c0c18,
-      base: 0x551829,
-      accent: 0x7d2339,
-      highlight: 0xb34b64
+      shadow: 0x3a1121,
+      base: 0x742643,
+      accent: 0xa63564,
+      highlight: 0xd86f96
     },
     sparkle: 0.72,
     stray: 1.2
@@ -1821,10 +1821,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   graphite: Object.freeze({
     id: 'graphite',
     palette: {
-      shadow: 0x0f1117,
-      base: 0x2e313b,
-      accent: 0x4a4f5d,
-      highlight: 0x7d8596
+      shadow: 0x181b23,
+      base: 0x3d414e,
+      accent: 0x626a7b,
+      highlight: 0x95a1b6
     },
     sparkle: 0.65,
     stray: 0.9
