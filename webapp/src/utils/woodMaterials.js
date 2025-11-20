@@ -119,14 +119,14 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Melamine — Arctic White Matte',
     source: 'ambientCG — Melamine White 001 (CC0)',
     rail: {
-      repeat: { x: 0.08, y: 0.96 },
-      rotation: 0,
-      textureSize: 3072
+      repeat: { x: 0.022, y: 1.08 },
+      rotation: Math.PI / 60,
+      textureSize: 4096
     },
     frame: {
-      repeat: { x: 0.12, y: 0.9 },
-      rotation: 0,
-      textureSize: 3072
+      repeat: { x: 0.26, y: 0.9 },
+      rotation: Math.PI / 20,
+      textureSize: 4096
     }
   }),
   Object.freeze({
@@ -134,14 +134,14 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Melamine — Cashmere Grey',
     source: 'ambientCG — Melamine Cashmere 002 (CC0)',
     rail: {
-      repeat: { x: 0.08, y: 0.92 },
-      rotation: 0,
-      textureSize: 3072
+      repeat: { x: 0.024, y: 1.04 },
+      rotation: Math.PI / 48,
+      textureSize: 4096
     },
     frame: {
-      repeat: { x: 0.12, y: 0.86 },
-      rotation: Math.PI / 12,
-      textureSize: 3072
+      repeat: { x: 0.24, y: 0.92 },
+      rotation: Math.PI / 16,
+      textureSize: 4096
     }
   }),
   Object.freeze({
@@ -149,14 +149,14 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Melamine — Warm Amber',
     source: 'ambientCG — Melamine Amber 003 (CC0)',
     rail: {
-      repeat: { x: 0.08, y: 0.94 },
-      rotation: Math.PI / 28,
-      textureSize: 3072
+      repeat: { x: 0.026, y: 1 },
+      rotation: Math.PI / 40,
+      textureSize: 4096
     },
     frame: {
-      repeat: { x: 0.12, y: 0.88 },
-      rotation: Math.PI / 14,
-      textureSize: 3072
+      repeat: { x: 0.22, y: 0.94 },
+      rotation: Math.PI / 12,
+      textureSize: 4096
     }
   }),
   Object.freeze({
@@ -164,14 +164,14 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Melamine — Graphite Anthracite',
     source: 'ambientCG — Melamine Graphite 004 (CC0)',
     rail: {
-      repeat: { x: 0.08, y: 1 },
-      rotation: Math.PI / 30,
-      textureSize: 3072
+      repeat: { x: 0.02, y: 1.12 },
+      rotation: Math.PI / 36,
+      textureSize: 4096
     },
     frame: {
-      repeat: { x: 0.12, y: 0.9 },
-      rotation: Math.PI / 16,
-      textureSize: 3072
+      repeat: { x: 0.28, y: 0.86 },
+      rotation: Math.PI / 10,
+      textureSize: 4096
     }
   }),
   Object.freeze({
@@ -179,14 +179,14 @@ export const WOOD_GRAIN_OPTIONS = Object.freeze([
     label: 'Melamine — Deep Teal Satin',
     source: 'ambientCG — Melamine Teal 005 (CC0)',
     rail: {
-      repeat: { x: 0.08, y: 0.98 },
-      rotation: Math.PI / 26,
-      textureSize: 3072
+      repeat: { x: 0.023, y: 1.06 },
+      rotation: Math.PI / 32,
+      textureSize: 4096
     },
     frame: {
-      repeat: { x: 0.12, y: 0.9 },
-      rotation: Math.PI / 18,
-      textureSize: 3072
+      repeat: { x: 0.25, y: 0.88 },
+      rotation: Math.PI / 14,
+      textureSize: 4096
     }
   })
 ]);
