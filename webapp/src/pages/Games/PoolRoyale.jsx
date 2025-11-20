@@ -2879,6 +2879,21 @@ function cloneWoodSurfaceConfig(config) {
   };
 }
 
+function orientRailWoodSurface(surface) {
+  if (!surface) {
+    return { repeat: { x: 1, y: 1 }, rotation: Math.PI / 2 };
+  }
+  return {
+    repeat: {
+      x: Number.isFinite(surface.repeat?.y) ? surface.repeat.y : 1,
+      y: Number.isFinite(surface.repeat?.x) ? surface.repeat.x : 1
+    },
+    rotation: (surface.rotation ?? 0) + Math.PI / 2,
+    textureSize:
+      typeof surface.textureSize === 'number' ? surface.textureSize : undefined
+  };
+}
+
 function enhanceChromeMaterial(material) {
   if (!material) return;
   const ensure = (key, value, transform) => {
@@ -5562,23 +5577,30 @@ function Table3D(
     resolvedWoodOption?.rail,
     resolvedWoodOption?.frame ?? baseRailFallback
   );
+  const orientedRailSurface = orientRailWoodSurface(woodRailSurface);
   applyWoodTextureToMaterial(railMat, {
-    repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
-    rotation: woodRailSurface.rotation,
-    textureSize: woodRailSurface.textureSize,
+    repeat: new THREE.Vector2(
+      orientedRailSurface.repeat.x,
+      orientedRailSurface.repeat.y
+    ),
+    rotation: orientedRailSurface.rotation,
+    textureSize: orientedRailSurface.textureSize,
     woodRepeatScale
   });
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
-      repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
-      rotation: woodRailSurface.rotation,
-      textureSize: woodRailSurface.textureSize,
+      repeat: new THREE.Vector2(
+        orientedRailSurface.repeat.x,
+        orientedRailSurface.repeat.y
+      ),
+      rotation: orientedRailSurface.rotation,
+      textureSize: orientedRailSurface.textureSize,
       woodRepeatScale
     });
     mesh.material.needsUpdate = true;
   });
-  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.006; // nudge the cushions outward so they kiss the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
@@ -7246,21 +7268,28 @@ function applyTableFinishToTable(table, finish) {
     resolvedWoodOption?.rail,
     resolvedWoodOption?.frame ?? woodSurfaces.rail ?? woodSurfaces.frame ?? nextFrameSurface
   );
+  const orientedNextRailSurface = orientRailWoodSurface(nextRailSurface);
   const woodRepeatScale = clampWoodRepeatScaleValue(
     resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
   );
   applyWoodTextureToMaterial(railMat, {
-    repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
-    rotation: nextRailSurface.rotation,
-    textureSize: nextRailSurface.textureSize,
+    repeat: new THREE.Vector2(
+      orientedNextRailSurface.repeat.x,
+      orientedNextRailSurface.repeat.y
+    ),
+    rotation: orientedNextRailSurface.rotation,
+    textureSize: orientedNextRailSurface.textureSize,
     woodRepeatScale
   });
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
-      repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
-      rotation: nextRailSurface.rotation,
-      textureSize: nextRailSurface.textureSize,
+      repeat: new THREE.Vector2(
+        orientedNextRailSurface.repeat.x,
+        orientedNextRailSurface.repeat.y
+      ),
+      rotation: orientedNextRailSurface.rotation,
+      textureSize: orientedNextRailSurface.textureSize,
       woodRepeatScale
     });
     if (mesh.material.color && railMat.color) {
@@ -7281,11 +7310,7 @@ function applyTableFinishToTable(table, finish) {
       textureSize: nextFrameSurface.textureSize
     });
   }
-  if (!resolvedWoodOption?.rail) {
-    woodSurfaces.rail = cloneWoodSurfaceConfig(nextFrameSurface);
-  } else {
-    woodSurfaces.rail = cloneWoodSurfaceConfig(nextRailSurface);
-  }
+  woodSurfaces.rail = cloneWoodSurfaceConfig(orientedNextRailSurface);
   woodSurfaces.frame = cloneWoodSurfaceConfig(nextFrameSurface);
   finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
   finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
