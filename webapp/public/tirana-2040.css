@@ -44,7 +44,11 @@
   @media (min-width: 1024px){ #armory{overflow-x:visible;} }
   #armory::-webkit-scrollbar{height:6px}
   #armory::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.25);border-radius:999px}
-  #armorySliderWrap{position:absolute;left:50%;bottom:calc(var(--hud-gap) - 8px);transform:translateX(-50%);display:none;flex-direction:column;gap:4px;align-items:center;pointer-events:auto;z-index:21}
+  #armorySliderWrap{position:absolute;left:50%;bottom:calc(var(--hud-gap) - 8px);transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:auto;z-index:21}
+  .armoryNav{display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.32);padding:8px 10px;border-radius:12px;backdrop-filter:blur(var(--hud-blur));box-shadow:0 8px 16px rgba(0,0,0,0.28)}
+  .armNavBtn{background:rgba(255,255,255,0.14);color:#f8fafc;border:1px solid rgba(255,255,255,0.28);border-radius:10px;padding:8px 10px;font-size:16px;cursor:pointer;transition:background 120ms ease, transform 120ms ease}
+  .armNavBtn:disabled{opacity:0.5;cursor:default}
+  .armNavBtn:not(:disabled):active{transform:scale(0.96)}
   #armorySlider{appearance:none;width:min(64vw,520px);height:14px;border-radius:999px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.22);outline:none;box-shadow:0 8px 18px rgba(0,0,0,0.28);}
   #armorySlider::-webkit-slider-thumb{appearance:none;width:26px;height:26px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,0.32);box-shadow:0 8px 16px rgba(0,0,0,0.28)}
   #armorySlider::-moz-range-thumb{width:26px;height:26px;border-radius:50%;background:#ffd966;border:1px solid rgba(0,0,0,0.32);box-shadow:0 8px 16px rgba(0,0,0,0.28)}

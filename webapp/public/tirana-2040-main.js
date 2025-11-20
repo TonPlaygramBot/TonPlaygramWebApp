@@ -8,6 +8,8 @@ export async function startTirana2040(){
   let armoryDiv;
   let armorySlider;
   let armorySliderWrap;
+  let armoryPrev;
+  let armoryNext;
   let syncArmorySlider;
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints>0);
   const isMobile = isTouch || /Android|webOS|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
@@ -163,7 +165,7 @@ export async function startTirana2040(){
   const groundBody = new CANNON.Body({ mass:0, material:matGround, shape:new CANNON.Plane() });
   groundBody.quaternion.setFromEuler(-Math.PI/2,0,0); world.addBody(groundBody);
 
-  function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#232a35'; x.fillRect(0,0,size,size); for(let i=0;i<2100;i++){ const r=Math.random()*4+2; const a=0.18+Math.random()*0.18; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<1400;i++){ x.strokeStyle='rgba(0,0,0,0.4)'; x.lineWidth=Math.random()*3+0.8; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*32-16), ez=sy+(Math.random()*32-16); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<920;i++){ x.strokeStyle='rgba(0,0,0,0.58)'; x.lineWidth=Math.random()*1.6+0.6; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*16-8), ez=sy+(Math.random()*16-8); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<14000;i++){ const a=0.16+Math.random()*0.16; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,1.1,1.1); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(14,14); t.anisotropy=Math.min(16,maxAniso); t.colorSpace=THREE.SRGBColorSpace; return t; }
+  function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#232a35'; x.fillRect(0,0,size,size); for(let i=0;i<2400;i++){ const r=Math.random()*2+0.8; const a=0.14+Math.random()*0.16; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<1400;i++){ x.strokeStyle='rgba(0,0,0,0.4)'; x.lineWidth=Math.random()*3+0.8; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*32-16), ez=sy+(Math.random()*32-16); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<920;i++){ x.strokeStyle='rgba(0,0,0,0.58)'; x.lineWidth=Math.random()*1.6+0.6; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*16-8), ez=sy+(Math.random()*16-8); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<16000;i++){ const a=0.14+Math.random()*0.14; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,0.9,0.9); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(18,18); t.anisotropy=Math.min(16,maxAniso); t.colorSpace=THREE.SRGBColorSpace; return t; }
   function makeSidewalk(size=512){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#c9ced6'; x.fillRect(0,0,size,size); x.strokeStyle='#9aa0a8'; x.lineWidth=6; for(let s=0;s<size;s+=64){ x.beginPath(); x.moveTo(s,0); x.lineTo(s,size); x.stroke(); x.beginPath(); x.moveTo(0,s); x.lineTo(size,s); x.stroke(); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(32,32); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
   const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 4;
   function grassProcedural(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#6fa863'; x.fillRect(0,0,size,size); for(let i=0;i<2600;i++){ x.fillStyle=`rgba(0,80,0,${Math.random()*0.12})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
@@ -235,7 +237,7 @@ export async function startTirana2040(){
   const guardRailGeoZ=new THREE.BoxGeometry(0.18,0.16,1);
   const guardRailGeoX=new THREE.BoxGeometry(1,0.16,0.18);
   const postGeo=new THREE.CylinderGeometry(0.12,0.12,1.05,10);
-  const fenceMatMetal=new THREE.MeshStandardMaterial({ map:fenceMat(), transparent:true, opacity:1.0, roughness:0.82, metalness:0.12, color:0xf8fafc });
+  const fenceMatMetal=new THREE.MeshStandardMaterial({ color:0x8c929c, metalness:0.62, roughness:0.34 });
   const fenceLift=1.0, fenceH=2.8;
   const dashMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.9 });
   const edgeMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.65 });
@@ -358,7 +360,7 @@ export async function startTirana2040(){
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
   const windowMat=makeGlassStdMat();
   const windowVoidGeo=new THREE.PlaneGeometry(1.34,2.02);
-  const windowVoidMat=new THREE.MeshStandardMaterial({ color:0x0b1324, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1.2, polygonOffsetUnits:-0.8, depthWrite:true, roughness:1.0, metalness:0.0 });
+  const windowVoidMat=new THREE.MeshStandardMaterial({ color:0x1b2538, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1.2, polygonOffsetUnits:-0.8, depthWrite:true, roughness:0.6, metalness:0.05, transparent:true, opacity:0.4 });
   const windowInstances=new THREE.InstancedMesh(windowGeo, windowMat, 4000);
   const windowVoids=new THREE.InstancedMesh(windowVoidGeo, windowVoidMat, 4000);
   windowInstances.count=0;
@@ -400,7 +402,7 @@ export async function startTirana2040(){
 
   function addStreetLight(x,z){ const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,6,12), new THREE.MeshStandardMaterial({color:0x5b5b65})); pole.position.set(x,3,z); const head=new THREE.Mesh(new THREE.SphereGeometry(0.4,16,12), new THREE.MeshBasicMaterial({color:0xfff6d0})); head.position.set(x,5.6,z+0.5); const arm=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.1,1.2), new THREE.MeshStandardMaterial({color:0x5b5b65})); arm.position.set(x,5.2,z+0.4); const g=new THREE.Group(); g.add(pole,arm,head); g.userData={kind:'street_bulb'}; streetLights.add(g); }
 
-  function addIntersectionPatch(x,z){ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(6,6), new THREE.MeshBasicMaterial({color:0xd1d5db, transparent:true, opacity:0.5})); mesh.rotation.x=-Math.PI/2; mesh.position.set(x,0.018,z); mesh.userData={kind:'interPatches'}; intersectionPatches.add(mesh); }
+  function addIntersectionPatch(x,z){ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(5.2,5.2), new THREE.MeshBasicMaterial({color:0xd1d5db, transparent:true, opacity:0.42, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-1.5})); mesh.rotation.x=-Math.PI/2; mesh.position.set(x,0.016,z); mesh.userData={kind:'interPatches'}; intersectionPatches.add(mesh); }
 
   function addBench(x,z,dir=0){ const seat=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.15,0.5), new THREE.MeshStandardMaterial({color:0x8b5a2b, roughness:0.7})); const back=new THREE.Mesh(new THREE.BoxGeometry(2.4,0.8,0.1), seat.material.clone()); back.position.set(0,0.5,-0.2); const legs=new THREE.Group(); for(const sx of [-0.9,0.9]){ const leg=new THREE.Mesh(new THREE.BoxGeometry(0.1,0.8,0.1), new THREE.MeshStandardMaterial({color:0x4b5563})); leg.position.set(sx,-0.4,0); legs.add(leg); } const bench=new THREE.Group(); bench.add(seat,back,legs); bench.position.set(x,0.6,z); bench.rotation.y=dir; bench.castShadow=allowShadows; benchesGroup.add(bench); }
 
@@ -452,7 +454,7 @@ export async function startTirana2040(){
   function addRoofStair(x,z,y){ const m=new THREE.Mesh(new THREE.BoxGeometry(1.2,0.5,1.2), new THREE.MeshLambertMaterial({ color:0x444b55 })); m.position.set(x,y+0.4,z); city.add(m); return m; }
 
   const structuralMat=new THREE.MeshStandardMaterial({ color:0xcad0d8, roughness:0.84, metalness:0.06 });
-  const columnMat=new THREE.MeshStandardMaterial({ map:brickTex, roughness:0.72, metalness:0.05 });
+  const columnMat=makeLambertAngleMat(plasterTex);
   function addInteriorFrames(xc,zc,w,d,floors){
     const slabGeo=new THREE.BoxGeometry(w*0.92,0.18,d*0.92);
     for(let i=0;i<=floors;i++){ const slab=new THREE.Mesh(slabGeo, structuralMat); slab.position.set(xc, i*SCALE.FLOOR_H + 0.09, zc); slab.receiveShadow=allowShadows; city.add(slab); }
@@ -481,7 +483,7 @@ export async function startTirana2040(){
     foyerPad.rotation.x=-Math.PI/2; foyerPad.position.set(xc+sideOffset-entryDepth/2,0.025,zc);
     const entryLabelTex=(function(){ const c=document.createElement('canvas'); c.width=256; c.height=96; const g=c.getContext('2d'); g.fillStyle='#111827'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#facc15'; g.font='700 44px system-ui'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('Hyrje', c.width/2, c.height/2); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
     const entryLabel=new THREE.Mesh(new THREE.PlaneGeometry(entryDepth,0.7), new THREE.MeshBasicMaterial({ map:entryLabelTex, transparent:true })); entryLabel.rotation.y=Math.PI/2; entryLabel.position.set(xc+sideOffset-0.18,2.4,zc);
-    const voidMat=makeGlassStdMat(); voidMat.opacity=0.22; voidMat.roughness=0.18;
+    const voidMat=makeGlassStdMat(); voidMat.opacity=0.12; voidMat.roughness=0.12; voidMat.transmission=0.92;
     const entryVoid=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2.6), voidMat); entryVoid.rotation.y=Math.PI/2; entryVoid.position.set(xc+sideOffset-0.22,1.6,zc);
     const group=new THREE.Group();
     group.add(jambFront,jambBack,header,awning,foyerPad,entryLabel,entryVoid);
@@ -504,6 +506,31 @@ export async function startTirana2040(){
     }
     const marqueeTex=(function(){ const c=document.createElement('canvas'); c.width=256; c.height=96; const g=c.getContext('2d'); g.fillStyle='#111827'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#facc15'; g.font='700 44px system-ui'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(label, c.width/2, c.height/2); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
     const marquee=new THREE.Mesh(new THREE.PlaneGeometry(6,1.2), new THREE.MeshBasicMaterial({ map:marqueeTex, transparent:true })); marquee.position.set(xc,2.4, zc + d/2 + 0.9); city.add(marquee); const marqueeBack=marquee.clone(); marqueeBack.rotation.y=Math.PI; marqueeBack.position.z=zc - d/2 - 0.9; city.add(marqueeBack);
+    addTerraceSeating(xc,zc,w,d);
+  }
+
+  function addTerraceSeating(xc,zc,w,d){
+    const tableTopGeo=new THREE.CylinderGeometry(0.55,0.55,0.08,14);
+    const tableLegGeo=new THREE.CylinderGeometry(0.12,0.16,0.9,10);
+    const chairSeatGeo=new THREE.BoxGeometry(0.5,0.08,0.48);
+    const chairBackGeo=new THREE.BoxGeometry(0.5,0.45,0.08);
+    const tableMat=new THREE.MeshStandardMaterial({ color:0xd8d9dc, roughness:0.42, metalness:0.4 });
+    const chairMat=new THREE.MeshStandardMaterial({ color:0x9ba3ad, roughness:0.38, metalness:0.28 });
+    const groups=Math.max(2, Math.floor(w/10));
+    const start=-w/2 + w/(groups*2);
+    for(let i=0;i<groups;i++){
+      const offset=start + i*(w/groups);
+      const placeTerrace=(zOffset)=>{
+        const table=new THREE.Group();
+        const top=new THREE.Mesh(tableTopGeo, tableMat); top.position.y=1.0;
+        const leg=new THREE.Mesh(tableLegGeo, tableMat); leg.position.y=0.5;
+        table.add(top,leg); table.position.set(xc+offset,0.04,zc+zOffset);
+        const chair=(sign)=>{ const g=new THREE.Group(); const seat=new THREE.Mesh(chairSeatGeo, chairMat); seat.position.set(0,0.55,0); const back=new THREE.Mesh(chairBackGeo, chairMat); back.position.set(0,0.85,-0.18); g.add(seat,back); g.position.set(xc+offset + sign*0.7,0.04,zc+zOffset+0.12*sign); g.rotation.y=Math.PI*0.5*sign; return g; };
+        city.add(table, chair(1), chair(-1));
+      };
+      placeTerrace(d/2 + 1.2);
+      placeTerrace(-(d/2 + 1.2));
+    }
   }
 
   function addInteriorStairs(xc,zc,w,d,floors){
@@ -513,12 +540,26 @@ export async function startTirana2040(){
     const stairGroup=new THREE.Group();
     for(let f=0; f<floors; f++){
       const baseY=f*SCALE.FLOOR_H + 0.08;
-      const baseX=xc - w*0.2;
-      const baseZ=zc - d*0.22;
-      for(let s=0;s<14;s++){ const step=new THREE.Mesh(stepGeo, stairMat); step.position.set(baseX, baseY + s*0.11, baseZ + s*0.16); step.castShadow=allowShadows; stairGroup.add(step); }
-      const landing=new THREE.Mesh(landingGeo, stairMat); landing.position.set(baseX, baseY + 14*0.11 + 0.06, baseZ + 14*0.16 + 0.7); landing.castShadow=allowShadows; stairGroup.add(landing);
+      const dir=(f%2===0)?1:-1;
+      const baseX=xc - w*0.2*dir;
+      const baseZ=zc - d*0.22*dir;
+      for(let s=0;s<14;s++){ const step=new THREE.Mesh(stepGeo, stairMat); step.position.set(baseX, baseY + s*0.11, baseZ + s*0.16*dir); step.castShadow=allowShadows; stairGroup.add(step); }
+      const landing=new THREE.Mesh(landingGeo, stairMat); landing.position.set(baseX, baseY + 14*0.11 + 0.06, baseZ + (14*0.16 + 0.7)*dir); landing.castShadow=allowShadows; stairGroup.add(landing);
     }
     city.add(stairGroup);
+    addRoofDeck(xc,zc,w,d,floors);
+  }
+
+  function addRoofDeck(xc,zc,w,d,floors){
+    const deckY=floors*SCALE.FLOOR_H + 0.12;
+    const deck=new THREE.Mesh(new THREE.BoxGeometry(w*0.7,0.12,d*0.7), new THREE.MeshStandardMaterial({ color:0xbcc4ce, roughness:0.42, metalness:0.32 }));
+    deck.position.set(xc,deckY,zc);
+    deck.receiveShadow=allowShadows;
+    city.add(deck);
+    const shade=new THREE.Mesh(new THREE.BoxGeometry(w*0.72,0.22,d*0.18), new THREE.MeshStandardMaterial({ color:0x8f98a3, roughness:0.5, metalness:0.45 }));
+    shade.position.set(xc,deckY+1.9,zc - d*0.16);
+    city.add(shade);
+    addRoofStair(xc,zc,deckY+0.06);
   }
 
   function addBuilding(xc,zc,opts={}){
@@ -556,7 +597,7 @@ export async function startTirana2040(){
     arc(wm*0.5, 0.5, 2.4, 0, Math.PI); arc(wm*0.5, hm-0.5, 2.4, Math.PI, Math.PI*2);
     const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(16,maxAniso); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.needsUpdate=true; return t; }
 
-  function fenceMat(){ const c=document.createElement('canvas'); c.width=512;c.height=512; const g=c.getContext('2d'); g.clearRect(0,0,512,512); g.strokeStyle='rgba(18,18,18,0.96)'; g.lineWidth=2; for(let i=16;i<512;i+=16){ g.beginPath(); g.moveTo(i,16); g.lineTo(i,496); g.stroke(); g.beginPath(); g.moveTo(16,i); g.lineTo(496,i); g.stroke(); } const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(8,maxAniso); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(4,2); return t; }
+  function fenceMat(){ const c=document.createElement('canvas'); c.width=512;c.height=512; const g=c.getContext('2d'); g.clearRect(0,0,512,512); g.strokeStyle='rgba(90,96,106,0.9)'; g.lineWidth=2; for(let i=16;i<512;i+=16){ g.beginPath(); g.moveTo(i,16); g.lineTo(i,496); g.stroke(); g.beginPath(); g.moveTo(16,i); g.lineTo(496,i); g.stroke(); } const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(8,maxAniso); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(4,2); return t; }
 
   function treesPerimeter(cx,cz){ const half=PLOT*0.45; const step=8;
     const trunkGeo=new THREE.CylinderGeometry(0.5,0.8,6,8); const crownGeo=new THREE.IcosahedronGeometry(3.2,1);
@@ -582,7 +623,7 @@ export async function startTirana2040(){
     track.rotation.x=-Math.PI/2; track.position.set(cx,0.02,cz); city.add(track);
     const surface=new THREE.Mesh(new THREE.PlaneGeometry(courtW,courtL), tennisMat);
     surface.rotation.x=-Math.PI/2; surface.position.set(cx,0.021,cz); city.add(surface);
-    const fenceH=3.2, fenceGap=0.4; const fMat=new THREE.MeshStandardMaterial({ map:fenceMat(), transparent:true, opacity:1.0, roughness:0.9, metalness:0.0, color:0xffffff });
+    const fenceH=3.2, fenceGap=0.4; const fMat=new THREE.MeshStandardMaterial({ map:fenceMat(), transparent:true, opacity:1.0, roughness:0.65, metalness:0.55, color:0xb2b8c0 });
     const fx=courtW/2+apron-fenceGap, fz=courtL/2+apron-fenceGap;
     const totalW=courtW+apron*2, gateW=3.2, segW=(totalW-gateW)/2;
     const addFencePanel=(w,h,rx,rz,rotY=0)=>{ const panel=new THREE.Mesh(new THREE.PlaneGeometry(w,h),fMat); panel.position.set(cx+rx, h/2, cz+rz); panel.rotation.y=rotY; city.add(panel); };
@@ -613,7 +654,7 @@ export async function startTirana2040(){
     const makeHoop=(sx)=>{ const g=new THREE.Group(); const board=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.1,0.08), hoopMat); board.position.set(0,2.9,-0.25); const rim=new THREE.Mesh(new THREE.TorusGeometry(0.45,0.06,12,32), postMat); rim.rotation.x=Math.PI/2; rim.position.set(0,2.3,0.42); const post=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.06,2.6,16), postMat); post.position.y=1.3; const arm=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.9), postMat); arm.position.set(0,2.5,0.1); const brace=new THREE.Mesh(new THREE.BoxGeometry(0.12,1.0,0.12), postMat); brace.position.set(0,1.9,0.05); g.add(post,board,rim,arm,brace); g.position.set(cx+sx*(wm*0.5-1.2),0,cz); city.add(g); };
     makeHoop(-1); makeHoop(1);
     for(let i=0;i<3;i++){ const ball=new THREE.Mesh(new THREE.SphereGeometry(0.3,20,16), new THREE.MeshStandardMaterial({ color:0xff8a00, roughness:0.65 })); ball.position.set(cx + (Math.random()*2-1)*4, 0.3, cz + (Math.random()*2-1)*3); city.add(ball); }
-    const fenceH=3.0; const fMat=new THREE.MeshStandardMaterial({ map:fenceMat(), transparent:true, opacity:1.0, roughness:0.9, metalness:0.0, color:0xffffff });
+    const fenceH=3.0; const fMat=new THREE.MeshStandardMaterial({ map:fenceMat(), transparent:true, opacity:1.0, roughness:0.65, metalness:0.55, color:0xb2b8c0 });
     const fx=wm/2+apron-0.4, fz=hm/2+apron-0.4;
     const gateW=3.6, fullW=wm+apron*2, segW=(fullW-gateW)/2;
     const addPanel=(w,h,rx,rz,rot=0)=>{ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,h), fMat); mesh.position.set(cx+rx, h/2, cz+rz); mesh.rotation.y=rot; city.add(mesh); };
@@ -829,7 +870,7 @@ export async function startTirana2040(){
   async function ensureGrenadeTemplate(){ if(grenadeProjectileTemplate || grenadeProjectileLoading) return; grenadeProjectileLoading=true; try{ const model=await loadWeapon('Grenade'); const holder=new THREE.Group(); const instance=model.clone(true); holder.add(instance); holder.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } }); grenadeProjectileTemplate=holder; }catch(_){ grenadeProjectileTemplate=null; }finally{ grenadeProjectileLoading=false; } }
   function buildGrenadeMesh(){ if(grenadeProjectileTemplate){ const inst=grenadeProjectileTemplate.clone(true); inst.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } }); return inst; } const fallback=new THREE.Mesh(grenadeFallbackGeo, grenadeFallbackMat.clone()); fallback.castShadow=allowShadows; fallback.receiveShadow=allowShadows; return fallback; }
 
-  armoryDiv=$('armory'); armorySlider=$('armorySlider'); armorySliderWrap=$('armorySliderWrap'); if(armorySliderWrap){ armorySliderWrap.style.display='none'; armorySliderWrap.setAttribute('aria-hidden','true'); armorySlider?.setAttribute('tabindex','-1'); }
+  armoryDiv=$('armory'); armorySlider=$('armorySlider'); armorySliderWrap=$('armorySliderWrap'); armoryPrev=$('armoryPrev'); armoryNext=$('armoryNext'); if(armorySliderWrap){ armorySliderWrap.style.display='flex'; armorySliderWrap.removeAttribute('aria-hidden'); armorySlider?.removeAttribute('tabindex'); }
   const thumbCache=new Map();
     function weaponIconURL(key){ const svg=(b)=>'data:image/svg+xml;utf8,'+encodeURIComponent(b); const base=(body)=>`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 112 68'><rect width='112' height='68' rx='8' ry='8' fill='rgba(0,0,0,0.18)'/><g fill='none' stroke='#e6eefc' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'>${body}</g></svg>`; switch(key){ case 'Glock': return svg(base(`<path d='M14 32h58l8 8H14z'/><path d='M64 32v-8h20l8 10'/>`)); case 'Pistol': case 'Gun': return svg(base(`<path d='M12 34h62l10 8H12z'/>`)); case 'Uzi': case 'MP5': return svg(base(`<path d='M10 34h52l8 6H10z'/>`)); case 'AK47': case 'BattleRifle': case 'InfantryRifle': case 'WebaverseRifle': case 'Air908Rifle': return svg(base(`<path d='M8 38h88l8 6H8z'/>`)); case 'SniperAWP': return svg(base(`<path d='M8 34h90l8 6H8z'/><path d='M74 26h10'/>`)); case 'Grenade': return svg(base(`<circle cx='42' cy='36' r='12'/>`)); default: return svg(base(`<path d='M16 34h80'/>`)); } }
   function weaponPreviewURL(key){ return thumbCache.get(key) || weaponIconURL(key); }
@@ -841,11 +882,16 @@ export async function startTirana2040(){
     const steps=Math.max(0, ARMORY.length-1);
     armorySlider.max=steps;
     armorySlider.disabled=steps<=0 || (!isMobile && maxScroll<=0);
-    if(armorySlider.disabled){ armorySlider.value=0; return; }
+    if(armorySlider.disabled){ armorySlider.value=0; setArmoryNavState(getCurrentWeaponIndex()); return; }
     const frac=maxScroll>0? Math.min(1, armoryDiv.scrollLeft / maxScroll):0;
     armorySlider.value=Math.round(frac*steps);
+    setArmoryNavState(getCurrentWeaponIndex());
   };
   function getCurrentWeaponIndex(){ return Math.max(0, ARMORY.findIndex(a=>a.key===currentKey)); }
+  function setArmoryNavState(idx){
+    if(armoryPrev) armoryPrev.disabled=idx<=0;
+    if(armoryNext) armoryNext.disabled=idx>=ARMORY.length-1;
+  }
   function setArmoryIndex(idx,{instant=false}={}){
     const clamped=Math.max(0, Math.min(idx, ARMORY.length-1));
     const pick=ARMORY[clamped];
@@ -855,6 +901,7 @@ export async function startTirana2040(){
     const target=maxScroll*(clamped/steps);
     armoryDiv.scrollTo({left:target, behavior:instant?'auto':'smooth'});
     if(armorySlider) armorySlider.value=clamped;
+    setArmoryNavState(clamped);
     selectWeapon(pick.key);
   }
   function snapWeaponToScroll(){ const maxScroll=Math.max(1, armoryDiv.scrollWidth - armoryDiv.clientWidth); const frac=Math.min(1, armoryDiv.scrollLeft / maxScroll); const idx=Math.min(ARMORY.length-1, Math.round(frac*(ARMORY.length-1))); setArmoryIndex(idx,{instant:true}); }
@@ -862,6 +909,8 @@ export async function startTirana2040(){
   armoryDiv.addEventListener('scroll',()=>syncArmorySlider());
   armorySlider.addEventListener('input',(e)=>{ const steps=Math.max(1, ARMORY.length-1); const idx=Math.max(0, Math.min(steps, Number(e.target.value||0))); setArmoryIndex(idx); });
   armorySlider.addEventListener('change', snapWeaponToScroll);
+  armoryPrev?.addEventListener('click',()=>setArmoryIndex(getCurrentWeaponIndex()-1));
+  armoryNext?.addEventListener('click',()=>setArmoryIndex(getCurrentWeaponIndex()+1));
   buildGallery();
 
   let currentKey=ARMORY[0].key, currentStats=ARMORY[0].stats; let weaponModel=null; const ammo=new Map(); ARMORY.forEach(a=>ammo.set(a.key,{mag:a.stats.mag,reserve:a.stats.mag*3}));
