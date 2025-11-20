@@ -161,7 +161,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const SCALE={ FLOOR_H:3.4, TRAFFIC_LIGHT_H:2.8 };
   const PERF={ bots:12 };
-  const FAST_BOOT=true;
+  const FAST_BOOT=false;
   window.SCALE=SCALE;
   window.PERF=PERF;
   window.FAST_BOOT=FAST_BOOT;
@@ -292,7 +292,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const groundBody = new CANNON.Body({ mass:0, material:matGround, shape:new CANNON.Plane() });
   groundBody.quaternion.setFromEuler(-Math.PI/2,0,0); world.addBody(groundBody);
 
-  function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#1f252f'; x.fillRect(0,0,size,size); for(let i=0;i<2100;i++){ const r=Math.random()*6+3; const a=0.22+Math.random()*0.2; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<1400;i++){ x.strokeStyle='rgba(0,0,0,0.38)'; x.lineWidth=Math.random()*3.4+0.8; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*48-24), ez=sy+(Math.random()*48-24); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<620;i++){ x.strokeStyle='rgba(0,0,0,0.62)'; x.lineWidth=Math.random()*1.6+0.5; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*18-9), ez=sy+(Math.random()*18-9); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<14000;i++){ const a=Math.random()*0.2; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,1,1); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(16,16); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
+  function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#232a35'; x.fillRect(0,0,size,size); for(let i=0;i<1600;i++){ const r=Math.random()*8+4; const a=0.24+Math.random()*0.28; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<1100;i++){ x.strokeStyle='rgba(0,0,0,0.4)'; x.lineWidth=Math.random()*4.5+1.4; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*54-27), ez=sy+(Math.random()*54-27); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<520;i++){ x.strokeStyle='rgba(0,0,0,0.62)'; x.lineWidth=Math.random()*2.4+0.8; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*22-11), ez=sy+(Math.random()*22-11); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<12000;i++){ const a=0.18+Math.random()*0.2; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,1.6,1.6); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(8,8); t.anisotropy=Math.min(16,maxAniso); t.colorSpace=THREE.SRGBColorSpace; return t; }
   function makeSidewalk(size=512){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#c9ced6'; x.fillRect(0,0,size,size); x.strokeStyle='#9aa0a8'; x.lineWidth=6; for(let s=0;s<size;s+=64){ x.beginPath(); x.moveTo(s,0); x.lineTo(s,size); x.stroke(); x.beginPath(); x.moveTo(0,s); x.lineTo(size,s); x.stroke(); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(32,32); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
   const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 4;
   function grassProcedural(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#6fa863'; x.fillRect(0,0,size,size); for(let i=0;i<2600;i++){ x.fillStyle=`rgba(0,80,0,${Math.random()*0.12})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
@@ -346,7 +346,8 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const groundMat = new THREE.MeshStandardMaterial({ color: 0xf0e4cf, roughness:0.95, metalness:0.02, side:THREE.DoubleSide });
   const gnd = new THREE.Mesh(groundGeo, groundMat); gnd.rotation.x=-Math.PI/2; gnd.receiveShadow=allowShadows; city.add(gnd);
 
-  const roadMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.92, metalness:0.05, side:THREE.DoubleSide });
+  const ROAD_SURFACE_Y = 0.035;
+  const roadMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.92, metalness:0.05, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.8, polygonOffsetUnits:-2 });
   window.roadMat = roadMat;
   const sidewalkMat = new THREE.MeshStandardMaterial({ map: sidewalkTex, roughness:0.9, metalness:0.04, side:THREE.DoubleSide });
   const curbMat = new THREE.MeshStandardMaterial({ color:0xbfc5cf, roughness:0.65, metalness:0.12 });
@@ -397,7 +398,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
     const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
     const zPos=ROAD*0.5-(BLOCKS_Z*CELL)/2;
     m.rotation.x=-Math.PI/2;
-    m.position.set(xPos, 0.01, zPos);
+    m.position.set(xPos, ROAD_SURFACE_Y, zPos);
     m.receiveShadow=allowShadows; city.add(m);
     const halfLen=(CELL)*BLOCKS_Z*0.5 + ROAD*0.5;
     mapRoads.push({name:northSouthStreets[ix]||`Rruga ${ix+1}`, from:{x:xPos, z:-halfLen}, to:{x:xPos, z:halfLen}, width:ROAD});
@@ -409,7 +410,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
     const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
     const xPos=ROAD*0.5-(BLOCKS_X*CELL)/2;
     m.rotation.x=-Math.PI/2;
-    m.position.set(xPos, 0.01, zPos);
+    m.position.set(xPos, ROAD_SURFACE_Y, zPos);
     m.receiveShadow=allowShadows; city.add(m);
     const halfLen=(CELL)*BLOCKS_X*0.5 + ROAD*0.5;
     mapRoads.push({name:eastWestStreets[iz]||`Bulevardi ${iz+1}`, from:{x:-halfLen, z:zPos}, to:{x:halfLen, z:zPos}, width:ROAD});
@@ -721,7 +722,7 @@ document.title = 'Tirana 2040 • Last Man Standing';
     {from:{x:0, z:cityHalfZ+ROAD*0.5}, to:{x:0, z:ringR-8}},
     {from:{x:0, z:-cityHalfZ-ROAD*0.5}, to:{x:0, z:-ringR+8}}
   ];
-  connectorTargets.forEach((c)=>{ const dx=c.to.x-c.from.x, dz=c.to.z-c.from.z; const len=Math.hypot(dx,dz); if(len<1) return; const mesh=new THREE.Mesh(new THREE.PlaneGeometry(len, ROAD), roadMat); mesh.rotation.x=-Math.PI/2; mesh.rotation.y=Math.atan2(dz,dx); mesh.position.set((c.from.x+c.to.x)/2, 0.012, (c.from.z+c.to.z)/2); city.add(mesh); mapRoads.push({name:ringRoadName, from:c.from, to:c.to, width:ROAD}); });
+  connectorTargets.forEach((c)=>{ const dx=c.to.x-c.from.x, dz=c.to.z-c.from.z; const len=Math.hypot(dx,dz); if(len<1) return; const mesh=new THREE.Mesh(new THREE.PlaneGeometry(len, ROAD), roadMat); mesh.rotation.x=-Math.PI/2; mesh.rotation.y=Math.atan2(dz,dx); mesh.position.set((c.from.x+c.to.x)/2, ROAD_SURFACE_Y + 0.001, (c.from.z+c.to.z)/2); city.add(mesh); mapRoads.push({name:ringRoadName, from:c.from, to:c.to, width:ROAD}); });
   addAirport(ringR*0.9,  -ringR*0.6);
   addTrainStation(-ringR*0.6, ringR*0.85);
 
