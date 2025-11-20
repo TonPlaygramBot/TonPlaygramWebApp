@@ -42,6 +42,51 @@ export async function startTirana2040(){
   async function loadWithRetry(urls){ return Array.isArray(urls) && urls.length>0; }
   window.loadWithRetry=loadWithRetry;
 
+  const TREE_LIBRARY = [
+    {
+      id: 'fir_tree_01',
+      name: 'Fir Tree 01 – Tall Conifers',
+      role: 'Forest tree',
+      image: 'https://cdn.polyhaven.com/asset_img/thumbs/fir_tree_01.png?format=png',
+      url: 'https://polyhaven.com/a/fir_tree_01'
+    },
+    {
+      id: 'tree_small_02',
+      name: 'Tree Small 02 – Dense Canopy (Hedge / Wall)',
+      role: 'Shumë e dendur, e mirë për rresht si mur bimësh',
+      image: 'https://cdn.polyhaven.com/asset_img/primary/tree_small_02.png?height=760&quality=95',
+      url: 'https://polyhaven.com/a/tree_small_02'
+    },
+    {
+      id: 'island_tree_01',
+      name: 'Island Tree 01 – Wide Crown',
+      role: 'Kur e vendos disa herë rresht, bën kurorë shumë të plotë',
+      image: 'https://cdn.polyhaven.com/asset_img/primary/island_tree_01.png?height=760&quality=95',
+      url: 'https://polyhaven.com/a/island_tree_01'
+    },
+    {
+      id: 'fir_sapling_medium',
+      name: 'Fir Sapling Medium – Pine Wall',
+      role: 'Vendose në rresht për mur pishash shumë të dendur',
+      image: 'https://cdn.polyhaven.com/asset_img/thumbs/fir_sapling_medium.png?format=png',
+      url: 'https://polyhaven.com/a/fir_sapling_medium'
+    },
+    {
+      id: 'quiver_tree_01',
+      name: 'Quiver Tree 01 – Desert Tree',
+      role: 'Pemë me trung të bardhë, stil më ekzotik',
+      image: 'https://cdn.polyhaven.com/asset_img/thumbs/quiver_tree_01.png?format=png',
+      url: 'https://polyhaven.com/a/quiver_tree_01'
+    },
+    {
+      id: 'quiver_tree_02',
+      name: 'Quiver Tree 02 – Compact Succulent Tree',
+      role: 'Trung i trashë + kurorë shumë kompakte me gjethe aloe',
+      image: 'https://cdn.polyhaven.com/asset_img/thumbs/quiver_tree_02.png?format=png',
+      url: 'https://polyhaven.com/a/quiver_tree_02'
+    }
+  ];
+
   function withTimeout(promise, ms=8000){
     return new Promise((resolve, reject)=>{
       const timer=setTimeout(()=>reject(new Error('timeout')), ms);
@@ -116,7 +161,14 @@ export async function startTirana2040(){
     'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'
   ]);
 
-  const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance', alpha:false, stencil:false, depth:true, precision:'mediump' });
+  const renderer = new THREE.WebGLRenderer({
+    antialias: !isMobile,
+    powerPreference: isMobile ? 'low-power' : 'high-performance',
+    alpha: false,
+    stencil: false,
+    depth: true,
+    precision: 'mediump'
+  });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.85;
@@ -141,11 +193,12 @@ export async function startTirana2040(){
   camera.position.set(0,1.7,5.6); scene.add(camera);
   window.camera=camera;
 
-  let dprBase = Math.min(window.devicePixelRatio||1.2, isMobile ? 2.5 : 2.8);
+  const maxMobileDpr = 1.8;
+  let dprBase = Math.min(window.devicePixelRatio||1.2, isMobile ? maxMobileDpr : 2.8);
   let dprScale = 1.0;
-  const DPR_MIN = isMobile ? 0.75 : 0.6;
-  const DPR_MAX_SCALE = isMobile ? 1.0 : 1.15;
-  function fit(){ const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight; const targetDpr=Math.min(dprBase*dprScale, isMobile?2.6:3.0); renderer.setPixelRatio(targetDpr); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); syncArmorySlider?.(); }
+  const DPR_MIN = isMobile ? 0.85 : 0.6;
+  const DPR_MAX_SCALE = isMobile ? 0.9 : 1.15;
+  function fit(){ const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight; const targetDpr=Math.min(dprBase*dprScale, isMobile?maxMobileDpr:3.0); renderer.setPixelRatio(targetDpr); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); syncArmorySlider?.(); }
   addEventListener('resize', fit); fit();
 
   const hemi = new THREE.HemisphereLight(0xfff3d6, 0x8a7a6a, 0.55);
@@ -168,6 +221,11 @@ export async function startTirana2040(){
   function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#232a35'; x.fillRect(0,0,size,size); for(let i=0;i<2400;i++){ const r=Math.random()*2+0.8; const a=0.14+Math.random()*0.16; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<1400;i++){ x.strokeStyle='rgba(0,0,0,0.4)'; x.lineWidth=Math.random()*3+0.8; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*32-16), ez=sy+(Math.random()*32-16); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<920;i++){ x.strokeStyle='rgba(0,0,0,0.58)'; x.lineWidth=Math.random()*1.6+0.6; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*16-8), ez=sy+(Math.random()*16-8); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<16000;i++){ const a=0.14+Math.random()*0.14; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,0.9,0.9); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(18,18); t.anisotropy=Math.min(16,maxAniso); t.colorSpace=THREE.SRGBColorSpace; return t; }
   function makeSidewalk(size=512){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#c9ced6'; x.fillRect(0,0,size,size); x.strokeStyle='#9aa0a8'; x.lineWidth=6; for(let s=0;s<size;s+=64){ x.beginPath(); x.moveTo(s,0); x.lineTo(s,size); x.stroke(); x.beginPath(); x.moveTo(0,s); x.lineTo(size,s); x.stroke(); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(32,32); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
   const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 4;
+  const treeTextureLoader = new THREE.TextureLoader();
+  treeTextureLoader.setCrossOrigin?.('anonymous');
+  function loadTreeBillboard(tree){ return new Promise((resolve)=>{ treeTextureLoader.load(tree.image, (tex)=>{ tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(4,maxAniso); resolve({ tree, material:new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false }) }); }, undefined, (err)=>{ console.warn('Failed to load tree texture', tree.id, err); resolve({ tree, material:new THREE.SpriteMaterial({ color:0x6da37c, transparent:true, opacity:0.9 }) }); }); }); }
+  async function buildTreePalette(){ const palette=await Promise.all(TREE_LIBRARY.map(loadTreeBillboard)); return palette.filter(Boolean); }
+  function nextTreeMaterial(seed, offset=0){ if(!treePalette.length) return null; return treePalette[(seed+offset)%treePalette.length]?.material||null; }
   function grassProcedural(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#6fa863'; x.fillRect(0,0,size,size); for(let i=0;i<2600;i++){ x.fillStyle=`rgba(0,80,0,${Math.random()*0.12})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
   function grassTex(){ return new Promise((resolve)=>{ const loader=new THREE.TextureLoader(); loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg', (tex)=>{ tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(6,6); tex.anisotropy=8; tex.colorSpace=THREE.SRGBColorSpace; resolve(tex); }, ()=>resolve(grassProcedural()), ()=>resolve(grassProcedural())); }); }
   function createCourtTexture(type){ const c=document.createElement('canvas'); c.width=1024; c.height=512; const ctx=c.getContext('2d'); ctx.fillStyle=(type==='tennis')?'#1d7d4f':'#c6864a'; ctx.fillRect(0,0,c.width,c.height); ctx.strokeStyle='#f9f5e6'; ctx.lineWidth=type==='tennis'?16:18; ctx.lineJoin='round'; if(type==='tennis'){ const margin=70; ctx.strokeRect(margin,margin,c.width-margin*2,c.height-margin*2); ctx.beginPath(); ctx.moveTo(c.width/2,margin); ctx.lineTo(c.width/2,c.height-margin); ctx.stroke(); ctx.strokeRect(margin*1.6,margin,c.width-margin*3.2,c.height-margin*2); } else { const r=180; ctx.beginPath(); ctx.rect(70,70,c.width-140,c.height-140); ctx.stroke(); ctx.beginPath(); ctx.arc(c.width/2,70,r,Math.PI,0,false); ctx.stroke(); ctx.beginPath(); ctx.arc(c.width/2,c.height-70,r,0,Math.PI,false); ctx.stroke(); ctx.beginPath(); ctx.arc(c.width/4, c.height/2, 90, Math.PI/2,-Math.PI/2,true); ctx.stroke(); ctx.beginPath(); ctx.arc(c.width*0.75, c.height/2, 90, -Math.PI/2,Math.PI/2,true); ctx.stroke(); } const t=new THREE.CanvasTexture(c); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
@@ -192,6 +250,9 @@ export async function startTirana2040(){
   const turfMat = new THREE.MeshStandardMaterial({ map:parkLawnTex, roughness:0.65, metalness:0.02, side:THREE.DoubleSide });
   const tennisMat = new THREE.MeshStandardMaterial({ map:tennisCourtTex, roughness:0.55, metalness:0.04, side:THREE.DoubleSide });
   const basketMat = new THREE.MeshStandardMaterial({ map:basketCourtTex, roughness:0.6, metalness:0.03, side:THREE.DoubleSide });
+
+  let treePalette = [];
+  treePalette = await buildTreePalette();
 
   window.__phase='textures-ready';
 
@@ -600,13 +661,13 @@ export async function startTirana2040(){
   function fenceMat(){ const c=document.createElement('canvas'); c.width=512;c.height=512; const g=c.getContext('2d'); g.clearRect(0,0,512,512); g.strokeStyle='rgba(90,96,106,0.9)'; g.lineWidth=2; for(let i=16;i<512;i+=16){ g.beginPath(); g.moveTo(i,16); g.lineTo(i,496); g.stroke(); g.beginPath(); g.moveTo(16,i); g.lineTo(496,i); g.stroke(); } const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(8,maxAniso); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(4,2); return t; }
 
   function treesPerimeter(cx,cz){ const half=PLOT*0.45; const step=8;
-    const trunkGeo=new THREE.CylinderGeometry(0.5,0.8,6,8); const crownGeo=new THREE.IcosahedronGeometry(3.2,1);
-    const trunks=new THREE.Group(), crowns=new THREE.Group();
-    const trunkMat=new THREE.MeshLambertMaterial({ color:0x6e4f2f }); const crownMat=new THREE.MeshLambertMaterial({ color:0x3a6f42 });
-    const place=(x,z)=>{ const t=new THREE.Mesh(trunkGeo,trunkMat); t.position.set(x,3,z); t.castShadow=allowShadows; t.receiveShadow=allowShadows; trunks.add(t); const cr=new THREE.Mesh(crownGeo,crownMat); cr.position.set(x,9,z); cr.castShadow=allowShadows; cr.receiveShadow=allowShadows; crowns.add(cr); };
+    const ring=new THREE.Group(); ring.userData.kind='trees';
+    const baseSeed=Math.abs(Math.round(cx+cz));
+    let placed=0;
+    const place=(x,z)=>{ const mat=nextTreeMaterial(baseSeed, placed) || new THREE.SpriteMaterial({ color:0x3c6f4d, transparent:true, opacity:0.92, depthWrite:false }); const sprite=new THREE.Sprite(mat); const height=8.4+Math.random()*2.6; const width=height*0.55*(1+Math.random()*0.18); sprite.scale.set(width,height,1); sprite.center.set(0.5,0); sprite.position.set(x, height*0.5, z); sprite.castShadow=allowShadows; sprite.receiveShadow=allowShadows; ring.add(sprite); placed++; };
     for(let x=-half;x<=half;x+=step){ place(cx+x, cz-half); place(cx+x, cz+half); }
     for(let z=-half;z<=half;z+=step){ place(cx-half, cz+z); place(cx+half, cz+z); }
-    city.add(trunks,crowns);
+    city.add(ring);
   }
 
   function scatterFlowers(cx,cz,scale=1){
