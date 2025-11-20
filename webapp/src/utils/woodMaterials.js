@@ -113,7 +113,9 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
   Object.freeze({ id: 'ebony', label: 'Ebony', hue: 25, sat: 0.35, light: 0.18, contrast: 0.85 })
 ]);
 
-const MELAMINE_LONG_PLANK_REPEAT_X = 0.02;
+// Keep the melamine on the short rails unchanged, but ensure the long rails read as a single
+// uninterrupted board from corner to corner (no visible tile seams).
+const MELAMINE_LONG_PLANK_REPEAT_X = 0.018;
 const MELAMINE_FRAME_REPEAT_X = MELAMINE_LONG_PLANK_REPEAT_X * 1.25;
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
