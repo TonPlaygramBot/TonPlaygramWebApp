@@ -130,12 +130,6 @@
 <div id="ctxlost">Context lost. Tap to reload.</div>
 
 <script type="module">
-import * as THREE from 'https://esm.sh/three@0.160.0';
-import * as CANNON from 'https://esm.sh/cannon-es@0.20.0';
-import { GLTFLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
-import { DRACOLoader } from 'https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js';
-import * as SkeletonUtils from 'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js';
-
 document.title = 'Tirana 2040 • Last Man Standing';
 
 (async function main(){
@@ -203,6 +197,46 @@ document.title = 'Tirana 2040 • Last Man Standing';
   }
 
   window.__phase='dom-wired';
+
+  function updateStatus(message){
+    const statusEl = $('status');
+    if(statusEl) statusEl.textContent = message;
+  }
+
+  async function importWithFallback(label, sources){
+    for(const url of sources){
+      try {
+        const mod = await import(url);
+        console.info(`${label} loaded from ${url}`);
+        return mod;
+      } catch(err){
+        console.warn(`${label} failed from ${url}`, err);
+      }
+    }
+    throw new Error(`${label} could not be loaded`);
+  }
+
+  updateStatus('Tirana 2040 • Loading engine…');
+  const THREE = await importWithFallback('THREE', [
+    'https://esm.sh/three@0.160.0',
+    'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'
+  ]);
+  const CANNON = await importWithFallback('CANNON', [
+    'https://esm.sh/cannon-es@0.20.0',
+    'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js'
+  ]);
+  const { GLTFLoader } = await importWithFallback('GLTFLoader', [
+    'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'
+  ]);
+  const { DRACOLoader } = await importWithFallback('DRACOLoader', [
+    'https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js',
+    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js'
+  ]);
+  const SkeletonUtils = await importWithFallback('SkeletonUtils', [
+    'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
+    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'
+  ]);
 
   const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance', alpha:false, stencil:false, depth:true, precision:'mediump' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
