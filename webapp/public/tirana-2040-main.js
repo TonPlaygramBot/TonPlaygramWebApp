@@ -197,7 +197,11 @@ export async function startTirana2040(){
   camera.position.set(0,1.7,5.6); scene.add(camera);
   window.camera=camera;
 
-  const maxMobileDpr = 1.8;
+  // Mobile handsets were failing to allocate a WebGL context when the canvas was
+  // initialized at the device's full DPR, leaving the screen blank. Keep the
+  // full-fidelity pipeline (FAST_BOOT stays off) but cap the render density on
+  // phones so the renderer reliably starts.
+  const maxMobileDpr = 1.35;
   let dprBase = Math.min(window.devicePixelRatio||1.2, isMobile ? maxMobileDpr : 2.8);
   let dprScale = 1.0;
   const DPR_MIN = isMobile ? 0.85 : 0.6;
@@ -224,7 +228,7 @@ export async function startTirana2040(){
 
   function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#232a35'; x.fillRect(0,0,size,size); for(let i=0;i<2400;i++){ const r=Math.random()*2+0.8; const a=0.14+Math.random()*0.16; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<1400;i++){ x.strokeStyle='rgba(0,0,0,0.4)'; x.lineWidth=Math.random()*3+0.8; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*32-16), ez=sy+(Math.random()*32-16); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<920;i++){ x.strokeStyle='rgba(0,0,0,0.58)'; x.lineWidth=Math.random()*1.6+0.6; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*16-8), ez=sy+(Math.random()*16-8); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<16000;i++){ const a=0.14+Math.random()*0.14; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,0.9,0.9); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(18,18); t.anisotropy=Math.min(16,maxAniso); t.colorSpace=THREE.SRGBColorSpace; return t; }
   function makeSidewalk(size=512){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#c9ced6'; x.fillRect(0,0,size,size); x.strokeStyle='#9aa0a8'; x.lineWidth=6; for(let s=0;s<size;s+=64){ x.beginPath(); x.moveTo(s,0); x.lineTo(s,size); x.stroke(); x.beginPath(); x.moveTo(0,s); x.lineTo(size,s); x.stroke(); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(32,32); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
-  const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 4;
+  const maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, isMobile ? 6 : 16);
   const textureLoader = new THREE.TextureLoader();
   textureLoader.setCrossOrigin?.('anonymous');
   const treeTextureLoader = textureLoader;
