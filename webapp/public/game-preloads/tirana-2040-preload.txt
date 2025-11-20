@@ -1,0 +1,8 @@
+Tirana 2040 preload bundle (tekst)
+
+Paketa narrative dhe placeholder-at e asset-eve për mini-lojën Tirana 2040.
+Kjo është një paketë tekstuale për të lejuar prefetching pa binare; zëvendësohet me build-in WebGL sapo të përfundojë.
+
+- Skema e qytetit, ngarkesa e dritave dhe këndet e kamerës për korridorin futuristik.
+- Hooks të kontrollit për gesturat mobile dhe lëvizjen e avatarit në korridorin 3D.
+- Përshkrimi i missions/tutorialeve për onboarding-in e lojtarit.

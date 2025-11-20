@@ -1,0 +1,8 @@
+3D Snooker preload bundle (tekst)
+
+Përmbledhja e klasave kryesore të fizikës dhe parametrave të llogaritjes së spin-it për Snooker 3D.
+Ruajeni pranë build-it final për ta zëvendësuar me module të minifikuara kur të jenë gati.
+
+- Graviteti -9.81, raporti real i topave dhe tavolinës.
+- Kontrolli pinch-to-zoom, orbitim me yaw/pitch dhe kufizim të këndeve ekstreme.
+- Shader-ët e tapetit dhe vija ndarëse për HUD-in snooker.

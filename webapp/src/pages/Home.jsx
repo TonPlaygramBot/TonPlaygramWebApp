@@ -40,6 +40,25 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  const launcherHref = `${baseUrl}tonplaygram-launcher.apk`;
+  const gamePreloads = [
+    {
+      name: 'Pool Royale preload',
+      description: 'Paketa tekstuale e kodit për animacionet dhe HUD-in e Pool Royale.',
+      href: `${baseUrl}game-preloads/pool-royale-preload.txt`
+    },
+    {
+      name: '3D Snooker preload',
+      description: 'Snippet-et kryesore për fizikën e bilardos dhe kontrollat mobile +Y.',
+      href: `${baseUrl}game-preloads/3d-snooker-preload.txt`
+    },
+    {
+      name: 'Tirana 2040 preload',
+      description: 'Paketa narrative + asset placeholders për mini-lojën Tirana 2040.',
+      href: `${baseUrl}game-preloads/tirana-2040-preload.txt`
+    }
+  ];
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
@@ -235,7 +254,7 @@ export default function Home() {
             Instaloni një paketë të lehtë pa të dhëna sensitive që hap direkt lojërat nga telefoni.
           </p>
           <a
-            href="/tonplaygram-launcher.apk"
+            href={launcherHref}
             download
             className="inline-flex items-center justify-center px-4 py-2 bg-primary text-surface font-semibold rounded-full shadow-lg shadow-primary/40 hover:shadow-primary/60 transition"
           >
@@ -244,6 +263,31 @@ export default function Home() {
           <p className="text-xs text-subtext">
             Skedari është vetëm tekst për rrjedhën e shkarkimit; zëvendësohet lehtësisht me build-in zyrtar kur të jetë gati.
           </p>
+        </div>
+      </div>
+      <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
+        <div className="text-center space-y-1">
+          <h3 className="text-lg font-semibold text-white">Preload game code (tekst)</h3>
+          <p className="text-sm text-subtext">
+            Shkarkoni paketa tekstuale për lojërat kryesore që Tirana Hallway t’i cache-ojë më shpejt.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {gamePreloads.map((preload) => (
+            <div key={preload.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-background/50 border border-border rounded-lg p-3">
+              <div className="space-y-0.5">
+                <p className="text-sm font-semibold text-white">{preload.name}</p>
+                <p className="text-xs text-subtext">{preload.description}</p>
+              </div>
+              <a
+                href={preload.href}
+                download
+                className="mt-2 sm:mt-0 inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow"
+              >
+                Shkarko paketën
+              </a>
+            </div>
+          ))}
         </div>
       </div>
       <p className="text-center text-xs text-subtext">Status: {status}</p>
