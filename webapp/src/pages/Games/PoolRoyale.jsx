@@ -2875,7 +2875,8 @@ function cloneWoodSurfaceConfig(config) {
     },
     rotation: typeof config.rotation === 'number' ? config.rotation : 0,
     textureSize:
-      typeof config.textureSize === 'number' ? config.textureSize : undefined
+      typeof config.textureSize === 'number' ? config.textureSize : undefined,
+    woodRepeatScale: clampWoodRepeatScaleValue(config.woodRepeatScale)
   };
 }
 
@@ -7149,29 +7150,25 @@ function Table3D(
     resolvedWoodOption?.frame,
     resolvedWoodOption?.rail ?? baseFrameFallback
   );
-  applyWoodTextureToMaterial(frameMat, {
-    repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
-    rotation: woodFrameSurface.rotation,
-    textureSize: woodFrameSurface.textureSize,
-    woodRepeatScale
-  });
-  if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, {
-      repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
-      rotation: woodFrameSurface.rotation,
-      textureSize: woodFrameSurface.textureSize
-    });
-  }
-  finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig(woodFrameSurface);
-
-  // Force the rail grain direction and scale to match the skirt/apron below so
-  // every side shares the exact same wood flow and texture density.
-  const alignedRailSurface = {
+  const synchronizedWoodSurface = {
     repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
     rotation: woodFrameSurface.rotation,
     textureSize: woodFrameSurface.textureSize,
     woodRepeatScale
   };
+
+  applyWoodTextureToMaterial(frameMat, synchronizedWoodSurface);
+  if (legMat !== frameMat) {
+    applyWoodTextureToMaterial(legMat, synchronizedWoodSurface);
+  }
+  finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig({
+    ...woodFrameSurface,
+    woodRepeatScale
+  });
+
+  // Force the rail grain direction and scale to match the skirt/apron below so
+  // every side shares the exact same wood flow and texture density.
+  const alignedRailSurface = { ...synchronizedWoodSurface };
 
   applyWoodTextureToMaterial(railMat, alignedRailSurface);
 
@@ -7181,11 +7178,7 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
 
-  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig({
-    repeat: alignedRailSurface.repeat,
-    rotation: alignedRailSurface.rotation,
-    textureSize: woodFrameSurface.textureSize
-  });
+  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
     leg.position.set(lx, legY, lz);
@@ -7335,7 +7328,7 @@ function applyTableFinishToTable(table, finish) {
   const woodRepeatScale = clampWoodRepeatScaleValue(
     resolvedFinish?.woodRepeatScale ?? finishInfo.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE
   );
-  applyWoodTextureToMaterial(railMat, {
+  const synchronizedRailSurface = {
     repeat: new THREE.Vector2(
       orientedNextRailSurface.repeat.x,
       orientedNextRailSurface.repeat.y
@@ -7343,38 +7336,30 @@ function applyTableFinishToTable(table, finish) {
     rotation: orientedNextRailSurface.rotation,
     textureSize: orientedNextRailSurface.textureSize,
     woodRepeatScale
-  });
+  };
+
+  applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-    applyWoodTextureToMaterial(mesh.material, {
-      repeat: new THREE.Vector2(
-        orientedNextRailSurface.repeat.x,
-        orientedNextRailSurface.repeat.y
-      ),
-      rotation: orientedNextRailSurface.rotation,
-      textureSize: orientedNextRailSurface.textureSize,
-      woodRepeatScale
-    });
+    applyWoodTextureToMaterial(mesh.material, synchronizedRailSurface);
     if (mesh.material.color && railMat.color) {
       mesh.material.color.copy(railMat.color);
     }
     mesh.material.needsUpdate = true;
   });
-  applyWoodTextureToMaterial(frameMat, {
+  const synchronizedFrameSurface = {
     repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
     rotation: nextFrameSurface.rotation,
     textureSize: nextFrameSurface.textureSize,
     woodRepeatScale
-  });
+  };
+
+  applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
   if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, {
-      repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
-      rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize
-    });
+    applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
   }
-  woodSurfaces.rail = cloneWoodSurfaceConfig(orientedNextRailSurface);
-  woodSurfaces.frame = cloneWoodSurfaceConfig(nextFrameSurface);
+  woodSurfaces.rail = cloneWoodSurfaceConfig(synchronizedRailSurface);
+  woodSurfaces.frame = cloneWoodSurfaceConfig(synchronizedFrameSurface);
   finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
   finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
   finishInfo.woodRepeatScale = woodRepeatScale;
