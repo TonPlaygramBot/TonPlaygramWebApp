@@ -60,7 +60,11 @@
     </div>
   </div>
   <div id="armorySliderWrap">
-    <input id="armorySlider" type="range" min="0" max="0" value="0" step="1" aria-label="Slide to browse weapons" />
+    <div class="armoryNav">
+      <button id="armoryPrev" class="armNavBtn" aria-label="Previous weapon">◀</button>
+      <input id="armorySlider" type="range" min="0" max="0" value="0" step="1" aria-label="Slide to browse weapons" />
+      <button id="armoryNext" class="armNavBtn" aria-label="Next weapon">▶</button>
+    </div>
   </div>
 </div>
 
