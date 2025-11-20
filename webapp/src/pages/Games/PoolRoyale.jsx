@@ -1967,6 +1967,112 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
+const DEFAULT_LIGHTING_ID = 'broadcast-balanced';
+const LIGHTING_OPTIONS = Object.freeze([
+  {
+    id: 'broadcast-balanced',
+    label: 'Balanced Broadcast',
+    description: 'Even TV-style mix with crisp shadows (default).',
+    settings: {
+      hemiSky: 0xdde7ff,
+      hemiGround: 0x0b1020,
+      hemiIntensity: 0.758625,
+      rimIntensity: 0.4284,
+      dirColor: 0xffffff,
+      dirIntensity: 1.176,
+      spotColor: 0xffffff,
+      spotIntensity: 12.7449,
+      spotAngle: Math.PI * 0.36,
+      ambientIntensity: 0.0799
+    }
+  },
+  {
+    id: 'arena-spot',
+    label: 'Arena Spotlight',
+    description: 'Tighter key light with stronger down-spot for dramatic pots.',
+    settings: {
+      hemiIntensity: 0.62,
+      rimIntensity: 0.32,
+      dirIntensity: 1.05,
+      spotIntensity: 14.5,
+      spotAngle: Math.PI * 0.32,
+      ambientIntensity: 0.065
+    }
+  },
+  {
+    id: 'stadium-flood',
+    label: 'Stadium Flood',
+    description: 'Broad cool wash with higher fill to mirror stadium rigs.',
+    settings: {
+      hemiSky: 0xdbe8ff,
+      hemiGround: 0x0c162b,
+      hemiIntensity: 0.92,
+      rimIntensity: 0.55,
+      dirColor: 0xe8f1ff,
+      dirIntensity: 1.12,
+      spotColor: 0xf6fbff,
+      spotIntensity: 10.5,
+      ambientIntensity: 0.12
+    }
+  },
+  {
+    id: 'cinematic',
+    label: 'Cinematic',
+    description: 'Warm key, cool fill, and softer ambient for highlight drama.',
+    settings: {
+      hemiSky: 0xdbe0ff,
+      hemiGround: 0x12192a,
+      hemiIntensity: 0.7,
+      rimIntensity: 0.46,
+      dirColor: 0xf6e2c3,
+      dirIntensity: 1.08,
+      spotColor: 0xcad8ff,
+      spotIntensity: 11.5,
+      spotAngle: Math.PI * 0.38,
+      ambientIntensity: 0.07
+    }
+  },
+  {
+    id: 'neon-rim',
+    label: 'Neon Rim',
+    description: 'Cool cyan rim and subtle magenta bounce for arcade flair.',
+    settings: {
+      hemiSky: 0xa7d5ff,
+      hemiGround: 0x14223a,
+      hemiIntensity: 0.82,
+      rimIntensity: 0.5,
+      dirColor: 0x38bdf8,
+      dirIntensity: 1.04,
+      spotColor: 0x7dd3fc,
+      spotIntensity: 12.2,
+      ambientIntensity: 0.09
+    }
+  },
+  {
+    id: 'studio-soft',
+    label: 'Studio Soft',
+    description: 'Gentle TV studio fill with reduced contrast for practice.',
+    settings: {
+      hemiSky: 0xe3ecff,
+      hemiGround: 0x0c101c,
+      hemiIntensity: 1.02,
+      rimIntensity: 0.62,
+      dirColor: 0xf5f7fb,
+      dirIntensity: 1.2,
+      spotColor: 0xfafcff,
+      spotIntensity: 9.6,
+      spotAngle: Math.PI * 0.4,
+      ambientIntensity: 0.14
+    }
+  }
+]);
+const LIGHTING_PRESET_MAP = Object.freeze(
+  LIGHTING_OPTIONS.reduce((acc, preset) => {
+    acc[preset.id] = preset;
+    return acc;
+  }, {})
+);
+
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
@@ -3251,13 +3357,15 @@ function createBroadcastCameras({
   const maxDepth = typeof arenaHalfDepth === 'number'
     ? Math.max(shortRailZ + BALL_R * 8, arenaHalfDepth)
     : fallbackDepth;
-  const cameraCenterZOffset = Math.min(maxDepth, fallbackDepth + BALL_R * 8);
+  const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
+  const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
     const base = new THREE.Group();
-    base.position.set(0, floorY, direction * cameraCenterZOffset);
+    const centeredZ = direction * cameraCenterZOffset;
+    base.position.set(0, floorY, centeredZ);
     const horizontalFocus = defaultFocus.clone();
     horizontalFocus.y = base.position.y;
     base.lookAt(horizontalFocus);
@@ -7336,6 +7444,7 @@ function applyTableFinishToTable(table, finish) {
 function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
+  const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
@@ -7393,6 +7502,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       }
     }
     return DEFAULT_CLOTH_COLOR_ID;
+  });
+  const [lightingId, setLightingId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolRoyaleLighting');
+      if (stored && LIGHTING_PRESET_MAP[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_LIGHTING_ID;
   });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -7791,6 +7909,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   }, [clothColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolRoyaleLighting', lightingId);
+    }
+  }, [lightingId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
@@ -7951,6 +8074,44 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     applySliderLock();
   }, [applySliderLock, hud.turn, hud.over, shotActive]);
+
+  const applyLightingPreset = useCallback(
+    (presetId = lightingId) => {
+      const rig = lightingRigRef.current;
+      const world = worldRef.current;
+      if (!rig || !world) return;
+      const preset =
+        LIGHTING_PRESET_MAP[presetId] ?? LIGHTING_PRESET_MAP[DEFAULT_LIGHTING_ID];
+      const settings = preset?.settings ?? {};
+      const {
+        hemisphere,
+        hemisphereRig,
+        dirLight,
+        spot,
+        ambient
+      } = rig;
+
+      if (settings.hemiSky && hemisphere) hemisphere.color.set(settings.hemiSky);
+      if (settings.hemiGround && hemisphereRig)
+        hemisphereRig.groundColor.set(settings.hemiGround);
+      if (settings.hemiIntensity && hemisphere)
+        hemisphere.intensity = settings.hemiIntensity;
+      if (settings.rimIntensity && hemisphereRig)
+        hemisphereRig.intensity = settings.rimIntensity;
+      if (settings.dirColor && dirLight) dirLight.color.set(settings.dirColor);
+      if (settings.dirIntensity && dirLight) dirLight.intensity = settings.dirIntensity;
+      if (settings.spotColor && spot) spot.color.set(settings.spotColor);
+      if (settings.spotIntensity && spot) spot.intensity = settings.spotIntensity;
+      if (settings.spotAngle && spot) spot.angle = settings.spotAngle;
+      if (settings.ambientIntensity && ambient)
+        ambient.intensity = settings.ambientIntensity;
+    },
+    [lightingId]
+  );
+
+  useEffect(() => {
+    applyLightingPreset(lightingId);
+  }, [applyLightingPreset, lightingId]);
   const [err, setErr] = useState(null);
   const fireRef = useRef(() => {}); // set from effect so slider can trigger fire()
   const cameraRef = useRef(null);
@@ -7961,6 +8122,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
+  const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
@@ -8510,6 +8672,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       scene.background = new THREE.Color(0x050505);
       const world = new THREE.Group();
       scene.add(world);
+      worldRef.current = world;
       let worldScaleFactor = 1;
       let cue;
       let clothMat;
@@ -11253,6 +11416,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           triangleRadius * LIGHT_LATERAL_SCALE * 0.12
         );
         lightingRig.add(ambient);
+
+        lightingRigRef.current = {
+          group: lightingRig,
+          hemisphere,
+          hemisphereRig,
+          dirLight,
+          spot,
+          ambient
+        };
+        applyLightingPreset();
       };
 
       addMobileLighting();
@@ -14264,6 +14437,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
+          lightingRigRef.current = null;
+          worldRef.current = null;
           activeRenderCameraRef.current = null;
           cueBodyRef.current = null;
           tipGroupRef.current = null;
@@ -14716,9 +14891,43 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                         </button>
                       );
                     })}
-                  </div>
                 </div>
-              ) : null}
+              </div>
+            ) : null}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Lighting
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {LIGHTING_OPTIONS.map((option) => {
+                    const active = option.id === lightingId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setLightingId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics

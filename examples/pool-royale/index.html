@@ -47,10 +47,14 @@
         transform: translate(-50%, -100%) rotate(0);
         pointer-events: none;
       }
+      :root {
+        --ball-size: 42px;
+      }
+
       .ball {
         position: absolute;
-        width: 42px;
-        height: 42px;
+        width: var(--ball-size);
+        height: var(--ball-size);
         border-radius: 50%;
         top: 50%;
         left: 50%;
@@ -89,8 +93,8 @@
         position: absolute;
         bottom: 10px;
         right: 10px;
-        width: 60px;
-        height: 60px;
+        width: var(--ball-size);
+        height: var(--ball-size);
         border-radius: 50%;
         background: rgba(255,255,255,0.25);
         cursor: crosshair;
