@@ -9,8 +9,11 @@ export const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 
 export const TABLE_WOOD_OPTIONS = [
-  { id: 'oakEstate', label: 'Lis Estate', presetId: 'oak', grainId: 'estateBands' },
-  { id: 'teakStudio', label: 'Tik Studio', presetId: 'teak', grainId: 'studioVeins' }
+  { id: 'oakHeritage', label: 'Lis Heritage', presetId: 'oak', grainId: 'oakQuarterSawnCc0' },
+  { id: 'walnutStudio', label: 'Arrë Studio', presetId: 'walnut', grainId: 'walnutWidePlankCc0' },
+  { id: 'mapleNordic', label: 'Pan Nordik', presetId: 'maple', grainId: 'mapleStraightCc0' },
+  { id: 'teakResort', label: 'Tik Resort', presetId: 'teak', grainId: 'teakRibbonCc0' },
+  { id: 'ashLoft', label: 'Fraxh Loft', presetId: 'birch', grainId: 'ashRusticCc0' }
 ];
 
 export const TABLE_CLOTH_OPTIONS = [

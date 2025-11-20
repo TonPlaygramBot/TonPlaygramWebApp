@@ -1298,10 +1298,10 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.62;
-const CLOTH_HAIR_INTENSITY = 0.56;
-const CLOTH_BUMP_INTENSITY = 0.82;
-const CLOTH_SOFT_BLEND = 0.46;
+const CLOTH_TEXTURE_INTENSITY = 0.74;
+const CLOTH_HAIR_INTENSITY = 0.7;
+const CLOTH_BUMP_INTENSITY = 0.94;
+const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
   const defaults = {
@@ -2346,7 +2346,7 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
-const CLOTH_THREAD_PITCH = 12 * 1.196; // enlarge thread spacing (~30%) so fibres read bigger
+const CLOTH_THREAD_PITCH = 12 * 1.32; // widen thread spacing (~10% more) for a coarser weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
 
 const createClothTextures = (() => {
@@ -5000,15 +5000,16 @@ function Table3D(
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 14; // base density before global scaling adjustments
-  const clothPatternUpscale = 1 / 1.12; // enlarge pattern features by ~12% so fibres read sooner
+  const threadsPerBallTarget = 12; // base density before global scaling adjustments
+  const clothPatternUpscale = 1 / 1.3; // enlarge pattern features so fibres read sooner
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const baseBumpScale = (0.64 * 1.52 * 1.34 * 1.26 * 1.18) * CLOTH_QUALITY.bumpScaleMultiplier;
+  const baseBumpScale =
+    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
