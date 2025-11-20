@@ -14,6 +14,22 @@ const hslString = (h, s, l) => {
   return `hsl(${normalizeHue(h)}, ${Math.round(sat * 100)}%, ${Math.round(light * 100)}%)`;
 };
 
+const TAU = Math.PI * 2;
+
+const seededRandom = (seed) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
+
+// Tileable low-frequency noise adapted from common open source texture recipes
+// that blend cosine-wrapped components so the pattern loops cleanly when repeated.
+const tileableNoise = (x, y, width, height, scale, seed = 1) => {
+  const nx = Math.cos(((x * scale) / width) * TAU + seed * 1.3);
+  const ny = Math.cos(((y * scale) / height) * TAU + seed * 2.1);
+  const nxy = Math.cos((((x + y) * scale) / (width + height)) * TAU + seed * 3.7);
+  return (nx + ny + nxy + 3) / 6; // normalize to [0,1]
+};
+
 const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -32,24 +48,72 @@ const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
 
   const imageData = ctx.getImageData(0, 0, width, height);
   const { data } = imageData;
-  const noiseStrength = Math.max(0.04, contrast * 0.22);
+  const baseNoiseStrength = Math.max(0.04, contrast * 0.22);
+  const grainStrength = 0.24 + contrast * 0.46;
+  const knotCount = 8 + Math.floor(seededRandom(width + height) * 6);
+  const knots = Array.from({ length: knotCount }, (_, idx) => {
+    const r = 18 + seededRandom(idx + 11) * 48;
+    return {
+      cx: seededRandom(idx + 7) * width,
+      cy: seededRandom(idx + 19) * height,
+      radius: r,
+      falloff: r * (1.6 + seededRandom(idx + 23) * 0.6)
+    };
+  });
 
   for (let i = 0; i < data.length; i += 4) {
-    const noise = (Math.random() - 0.5) * noiseStrength * 255;
-    data[i] = clamp01((data[i] + noise) / 255) * 255;
-    data[i + 1] = clamp01((data[i + 1] + noise) / 255) * 255;
-    data[i + 2] = clamp01((data[i + 2] + noise) / 255) * 255;
+    const pixelIndex = i / 4;
+    const x = pixelIndex % width;
+    const y = Math.floor(pixelIndex / width);
+
+    const baseNoise = (Math.random() - 0.5) * baseNoiseStrength;
+    const wrappedNoise = tileableNoise(x, y, width, height, 2.8, contrast * 7.3);
+    const ripple = tileableNoise(x * 1.4, y * 0.35 + wrappedNoise * 14, width, height, 1.4, 5.1);
+    const ring = 0.5 + 0.5 * Math.sin((x / width) * TAU * 2.2 + ripple * 3.4);
+    const grain = clamp01((ring * 0.65 + ripple * 0.35) * 1.08);
+
+    let knotFactor = 0;
+    for (let k = 0; k < knots.length; k += 1) {
+      const { cx, cy, radius, falloff } = knots[k];
+      const dx = Math.min(Math.abs(x - cx), width - Math.abs(x - cx));
+      const dy = Math.min(Math.abs(y - cy), height - Math.abs(y - cy));
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < falloff) {
+        const strength = clamp01(1 - dist / falloff);
+        knotFactor = Math.max(knotFactor, strength * (dist < radius ? 1 : 0.35));
+      }
+    }
+
+    const grainInfluence = (grain - 0.5 + baseNoise * 0.8) * grainStrength;
+    const knotInfluence = knotFactor * (0.22 + contrast * 0.28);
+    const finalInfluence = grainInfluence + knotInfluence;
+
+    const adjust = clamp01((data[i] / 255 + finalInfluence));
+    const gAdjust = clamp01((data[i + 1] / 255 + finalInfluence * 0.92));
+    const bAdjust = clamp01((data[i + 2] / 255 + finalInfluence * 0.88));
+
+    data[i] = adjust * 255;
+    data[i + 1] = gAdjust * 255;
+    data[i + 2] = bAdjust * 255;
   }
 
   ctx.putImageData(imageData, 0, 0);
 
-  // Subtle speckles emulate a sealed slab surface without visible grain lines.
-  ctx.globalAlpha = 0.08 + contrast * 0.12;
-  ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  for (let i = 0; i < 900; i += 1) {
-    const size = 0.5 + Math.random() * 1.4;
+  // Bold notches and filled grain pores layered above the base wood.
+  ctx.globalAlpha = 0.12 + contrast * 0.18;
+  ctx.fillStyle = 'rgba(48, 28, 10, 0.9)';
+  for (let i = 0; i < 480; i += 1) {
+    const size = 0.8 + Math.random() * 2.1;
     ctx.beginPath();
-    ctx.arc(Math.random() * width, Math.random() * height, size, 0, Math.PI * 2);
+    ctx.ellipse(
+      Math.random() * width,
+      Math.random() * height,
+      size * (0.8 + Math.random() * 1.6),
+      size,
+      Math.random() * TAU,
+      0,
+      TAU
+    );
     ctx.fill();
   }
 
@@ -115,7 +179,7 @@ export const WOOD_FINISH_PRESETS = Object.freeze([
 
 // Stretch large, seamless slabs along the rail direction so the table reads as a single board
 // with no visible tiling seams.
-const LARGE_SLAB_REPEAT_X = 0.012;
+const LARGE_SLAB_REPEAT_X = 0.009;
 const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
