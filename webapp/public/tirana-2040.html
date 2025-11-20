@@ -161,7 +161,11 @@ document.title = 'Tirana 2040 • Last Man Standing';
 
   const SCALE={ FLOOR_H:3.4, TRAFFIC_LIGHT_H:2.8 };
   const PERF={ bots:12 };
-  const FAST_BOOT=false;
+  // Loading full-detail weapon meshes can overwhelm mobile webviews (e.g. Telegram)
+  // and lead to crashes while the armory initializes. Prefer a fast boot path on
+  // touch devices so the game can start reliably, while still keeping high-fidelity
+  // assets for desktop sessions.
+  const FAST_BOOT=isMobile;
   window.SCALE=SCALE;
   window.PERF=PERF;
   window.FAST_BOOT=FAST_BOOT;
@@ -878,6 +882,18 @@ document.title = 'Tirana 2040 • Last Man Standing';
   const weaponRoot=new THREE.Group(); camera.add(weaponRoot);
   window.weaponAnchor=weaponRoot;
   const weaponCache=new Map();
+  async function loadWeaponGLTF(urls, timeoutMs=FAST_BOOT?3200:7000){
+    let lastErr=null;
+    for(const url of urls){
+      try{
+        const gltf=await withTimeout(gltfLoader.loadAsync(url), timeoutMs);
+        return gltf;
+      }catch(err){
+        lastErr=err;
+      }
+    }
+    throw lastErr || new Error('weapon load failed');
+  }
   const metalTex=(()=>{ const S=256,c=document.createElement('canvas'); c.width=c.height=S; const x=c.getContext('2d'); const g=x.createLinearGradient(0,0,S,S); g.addColorStop(0,'#2e2e2e'); g.addColorStop(1,'#4a4a4a'); x.fillStyle=g; x.fillRect(0,0,S,S); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=2; return t; })();
   const matMetal=new THREE.MeshLambertMaterial({ color:'#3b3b3b', map:metalTex }), matWood =new THREE.MeshLambertMaterial({ color:'#7b5331' });
   const WEAPON_TYPES={ Glock:'pistol', Pistol:'pistol', Gun:'pistol', Uzi:'smg', MP5:'smg', AK47:'rifle', BattleRifle:'rifle', InfantryRifle:'rifle', WebaverseRifle:'rifle', Air908Rifle:'rifle', SniperAWP:'sniper', Grenade:'grenade' };
@@ -889,9 +905,17 @@ document.title = 'Tirana 2040 • Last Man Standing';
   async function loadWeapon(key){ const entry=ARMORY.find(a=>a.key===key); if(!entry){ return new THREE.Group(); } if(weaponCache.has(key)){ const v=weaponCache.get(key); return (v.clone? v.clone(true) : v); }
     if(FAST_BOOT){ const alt=quickWeaponModel(key); normalizeAndCenter(alt, entry.s||0.6); weaponCache.set(key, alt); return (alt.clone? alt.clone(true) : alt); }
     const urls=Array.isArray(entry.urls)?entry.urls.filter(Boolean): (entry.url?[entry.url]:[]);
-    let gltf=null;
-    for(const url of urls){ try{ gltf=await gltfLoader.loadAsync(url); if(gltf) break; }catch(_){ } }
-    if(gltf){ const base=(gltf.scene||gltf.scenes?.[0]||null); let use = base || makePistolMesh(); normalizeAndCenter(use, entry.s); use.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; const m=o.material; o.material = new THREE.MeshLambertMaterial({ color:(m?.color||new THREE.Color('#888')), map:m?.map||null, transparent:!!m?.transparent, opacity:(m?.opacity??1) }); }}); weaponCache.set(key, use); return (use.clone? use.clone(true) : use); }
+    try{
+      const gltf=await loadWeaponGLTF(urls);
+      const base=(gltf.scene||gltf.scenes?.[0]||null);
+      let use = base || makePistolMesh();
+      normalizeAndCenter(use, entry.s);
+      use.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; const m=o.material; o.material = new THREE.MeshLambertMaterial({ color:(m?.color||new THREE.Color('#888')), map:m?.map||null, transparent:!!m?.transparent, opacity:(m?.opacity??1) }); }});
+      weaponCache.set(key, use);
+      return (use.clone? use.clone(true) : use);
+    }catch(err){
+      console.warn(`Weapon ${key} failed to stream GLB, using quick mesh`, err);
+    }
     const alt=quickWeaponModel(key); normalizeAndCenter(alt, entry.s||0.6); weaponCache.set(key, alt); return (alt.clone? alt.clone(true) : alt); }
   let grenadeProjectileTemplate=null; let grenadeProjectileLoading=false;
   async function ensureGrenadeTemplate(){ if(grenadeProjectileTemplate || grenadeProjectileLoading) return; grenadeProjectileLoading=true; try{ const model=await loadWeapon('Grenade'); const holder=new THREE.Group(); const instance=model.clone(true); holder.add(instance); holder.traverse?.(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } }); grenadeProjectileTemplate=holder; }catch(_){ grenadeProjectileTemplate=null; }finally{ grenadeProjectileLoading=false; } }
