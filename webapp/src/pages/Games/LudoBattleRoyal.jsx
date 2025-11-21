@@ -41,7 +41,8 @@ import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.j
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-const MODEL_SCALE = 0.75;
+const ARENA_SCALE = 0.85;
+const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
@@ -458,7 +459,7 @@ const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
 // Enlarge the Ludo board so it spans 2.7x the classic footprint.
-const BOARD_SCALE = 2.7;
+const BOARD_SCALE = 2.7 * ARENA_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
