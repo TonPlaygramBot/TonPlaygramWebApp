@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
@@ -8,9 +8,10 @@ import {
   getTelegramPhotoUrl,
   getTelegramFirstName
 } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction } from '../../utils/api.js';
+import { getAccountBalance, addTransaction, getOnlineUsers } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import PoolCareerMode from '../../components/PoolCareerMode.jsx';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -24,6 +25,13 @@ export default function PoolRoyaleLobby() {
   const searchParams = new URLSearchParams(search);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [playType, setPlayType] = useState('regular');
+  const [onlinePlayers, setOnlinePlayers] = useState([]);
+  const [wheelIndex, setWheelIndex] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+  const [matchedOpponent, setMatchedOpponent] = useState(null);
+  const [matchStatus, setMatchStatus] = useState('');
+  const [accountId, setAccountId] = useState('');
+  const spinTimerRef = useRef(null);
 
   useEffect(() => {
     try {
@@ -32,7 +40,121 @@ export default function PoolRoyaleLobby() {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    ensureAccountId()
+      .then((id) => setAccountId(id))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (playType === 'training' && mode !== 'ai') {
+      setMode('ai');
+    }
+  }, [playType, mode]);
+
+  const arenaLabel = useMemo(
+    () =>
+      `Pool Arena · ${variant.toUpperCase()} · ${tableSize || 'std'} · ${
+        stake.amount
+      } ${stake.token}`,
+    [variant, tableSize, stake.amount, stake.token]
+  );
+
+  useEffect(() => {
+    if (mode !== 'online' || playType === 'training') return undefined;
+    let cancelled = false;
+
+    const load = () => {
+      getOnlineUsers()
+        .then((res) => {
+          if (cancelled) return;
+          const list = Array.isArray(res?.users) ? res.users : [];
+          const normalized = list.map((u, index) => ({
+            id: u.accountId || u.id || u.telegramId || `user-${index}`,
+            name:
+              u.nickname ||
+              u.name ||
+              u.firstName ||
+              u.username ||
+              `Player ${index + 1}`,
+            stake: Number(u.preferredStake ?? u.stakeAmount ?? u.stake || stake.amount),
+            mode: u.gameMode || u.mode || u.playType || 'regular',
+            game: u.game || u.currentGame || u.currentTableId?.split('-')?.[0] || '',
+            tableId: u.currentTableId || ''
+          }));
+
+          const filtered = normalized.filter((u) => {
+            const stakeMatch = !u.stake || Number(u.stake) === Number(stake.amount);
+            const gameMatch = !u.game || u.game === 'poolroyale' || u.game === 'pollroyale';
+            const modeMatch = !u.mode || u.mode === playType || u.mode === 'regular';
+            const notSelf = !accountId || String(u.id) !== String(accountId);
+            return stakeMatch && gameMatch && modeMatch && notSelf;
+          });
+          setOnlinePlayers(filtered);
+        })
+        .catch(() => setOnlinePlayers([]));
+    };
+
+    load();
+    const id = setInterval(load, 8000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [mode, playType, stake.amount, variant, tableSize, accountId]);
+
+  useEffect(
+    () => () => {
+      if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
+    },
+    []
+  );
+
+  const spinForOpponent = () => {
+    if (!onlinePlayers.length) {
+      setMatchStatus('Nuk ka lojtarë online me këto kritere ende.');
+      setMatchedOpponent(null);
+      return;
+    }
+    setSpinning(true);
+    setMatchStatus('Duke përdorur rrotën e drejtë për të zgjedhur kundërshtarin...');
+    if (spinTimerRef.current) clearTimeout(spinTimerRef.current);
+
+    const interval = setInterval(() => {
+      setWheelIndex((prev) => (prev + 1) % onlinePlayers.length);
+    }, 140);
+
+    spinTimerRef.current = setTimeout(() => {
+      clearInterval(interval);
+      const candidates = onlinePlayers.filter(
+        (p) => !accountId || String(p.id) !== String(accountId)
+      );
+      if (!candidates.length) {
+        setSpinning(false);
+        setMatchStatus('Nuk gjetëm kundërshtar me kriteret e dhomës.');
+        setMatchedOpponent(null);
+        return;
+      }
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      const index = onlinePlayers.findIndex((p) => p.id === pick.id);
+      if (index >= 0) setWheelIndex(index);
+      setMatchedOpponent(pick);
+      setSpinning(false);
+      const table = pick.tableId || arenaLabel;
+      setMatchStatus(`Lidhur me ${pick.name || pick.id}. Arena/Tabela: ${table}`);
+    }, 2600);
+  };
+
+  useEffect(() => {
+    setMatchedOpponent(null);
+    setMatchStatus('');
+  }, [mode, stake.amount, variant, tableSize, playType]);
+
   const startGame = async () => {
+    if (mode === 'online' && !matchedOpponent) {
+      setMatchStatus('Zgjidh një kundërshtar me rrotën para se të nisësh ndeshjen.');
+      return;
+    }
     let tgId;
     let accountId;
     if (playType !== 'training') {
@@ -72,6 +194,12 @@ export default function PoolRoyaleLobby() {
     if (tableSize) params.set('tableSize', tableSize);
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
+    if (mode === 'online' && matchedOpponent) {
+      params.set('opponent', matchedOpponent.id);
+      if (matchedOpponent.name) params.set('opponentName', matchedOpponent.name);
+      params.set('arena', arenaLabel);
+      if (matchedOpponent.tableId) params.set('matchTable', matchedOpponent.tableId);
+    }
     const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
     const devAcc1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
     const devAcc2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
@@ -115,24 +243,15 @@ export default function PoolRoyaleLobby() {
           <div className="flex gap-2">
             {[
               { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online', disabled: true }
-            ].map(({ id, label, disabled }) => (
-              <div key={id} className="relative">
-                <button
-                  onClick={() => !disabled && setMode(id)}
-                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                    disabled ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={disabled}
-                >
-                  {label}
-                </button>
-                {disabled && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                    Under development
-                  </span>
-                )}
-              </div>
+              { id: 'online', label: '1v1 Online' }
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setMode(id)}
+                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
             ))}
           </div>
         </div>
@@ -161,6 +280,67 @@ export default function PoolRoyaleLobby() {
           <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
         </div>
       )}
+      {mode === 'online' && playType !== 'training' && (
+        <div className="space-y-3">
+          <div className="lobby-tile w-full text-sm space-y-1">
+            <div className="flex items-center justify-between">
+              <span>Account (TPC)</span>
+              <span className="font-semibold">{accountId || 'Duke u ngarkuar...'}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Arena &amp; Tabela</span>
+              <span className="font-semibold text-right">{arenaLabel}</span>
+            </div>
+            <p className="text-xs text-subtext">
+              Lojtarët filtrohen automatikisht sipas variantit, madhësisë së tavolinës dhe stake {stake.amount}{' '}
+              {stake.token}.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Matchmaking Live</h3>
+              <button
+                onClick={spinForOpponent}
+                disabled={spinning}
+                className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background disabled:opacity-60"
+              >
+                {spinning ? 'Duke u rrotulluar...' : 'Spin & Match'}
+              </button>
+            </div>
+            <div className={`matchmaking-wheel ${spinning ? 'spinning' : ''}`}>
+              <div className="flex flex-wrap gap-2 justify-center items-center">
+                {onlinePlayers.length === 0 && (
+                  <p className="text-xs text-center w-full">Nuk ka lojtarë në arenë me këto kushte ende.</p>
+                )}
+                {onlinePlayers.map((p, idx) => (
+                  <div
+                    key={`${p.id}-${idx}`}
+                    className={`px-3 py-1 rounded-full border text-xs ${
+                      idx === wheelIndex ? 'border-primary bg-primary/20' : 'border-border'
+                    }`}
+                  >
+                    {p.name || p.id}
+                  </div>
+                ))}
+              </div>
+            </div>
+            {matchedOpponent ? (
+              <div className="lobby-tile w-full text-sm space-y-1">
+                <p className="font-semibold">
+                  Gati për lojë kundër {matchedOpponent.name || matchedOpponent.id}
+                </p>
+                <p className="text-xs text-subtext">
+                  Tabela: {matchedOpponent.tableId || arenaLabel} · Stake: {stake.amount} {stake.token}
+                </p>
+              </div>
+            ) : (
+              <p className="text-xs text-subtext">Përdor rrotën për të gjetur kundërshtarin e radhës.</p>
+            )}
+            {matchStatus && <p className="text-xs text-primary">{matchStatus}</p>}
+          </div>
+        </div>
+      )}
+      <PoolCareerMode />
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
