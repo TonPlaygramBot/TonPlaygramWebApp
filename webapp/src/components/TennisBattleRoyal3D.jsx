@@ -258,7 +258,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
-    const camera = new THREE.PerspectiveCamera(56, W / H, 0.05, 800);
+    const isNarrow = Math.min(W, H) < 860;
+    const camera = new THREE.PerspectiveCamera(60, W / H, 0.05, 800);
 
     const courtL = 23.77;
     const courtW = 9.2;
@@ -270,8 +271,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const playerZ = halfL - 1.35;
     const cpuZ = -halfL + 1.35;
 
-    let camBack = 8.0;
-    let camHeight = 3.8;
+    let camBack = isNarrow ? 10.5 : 9.2;
+    let camHeight = isNarrow ? 4.6 : 4.2;
     const cameraMinZ = 1.2;
     const cameraMaxZ = halfL + 2.6;
 
@@ -1280,26 +1281,26 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       ly = e.clientY;
     }
     function deriveSwingFromSwipe(vx, vy, spd, { serve = false } = {}) {
-      const baseline = serve ? 900 : 1050;
-      const normalizedForce = THREE.MathUtils.clamp(spd / baseline, serve ? 0.32 : 0.2, 1);
+      const baseline = serve ? 720 : 880;
+      const normalizedForce = THREE.MathUtils.clamp(spd / baseline, serve ? 0.26 : 0.16, 1);
       const flat = new THREE.Vector2(vx, -vy);
       if (flat.lengthSq() < 1e-4) flat.set(0, 1);
       flat.normalize();
       flat.y = THREE.MathUtils.clamp(flat.y, 0.2, 1);
       const forwardDir = new THREE.Vector3(flat.x * 0.4, THREE.MathUtils.lerp(0.08, 0.35, flat.y), -1);
       forwardDir.normalize();
-      const swingSpeed = THREE.MathUtils.lerp(8, 24, normalizedForce) * (serve ? 1.1 : 1.0);
+      const swingSpeed = THREE.MathUtils.lerp(8, 24, normalizedForce) * (serve ? 1.12 : 1.0);
       const spinAxis = new THREE.Vector3(-flat.y, THREE.MathUtils.clamp(flat.x * 0.8, -0.8, 0.8), 0.4);
       const spinAmount = THREE.MathUtils.lerp(12, 32, normalizedForce);
       const additionalSpin = spinAxis.normalize().multiplyScalar(spinAmount);
       return {
         normal: forwardDir,
         speed: swingSpeed,
-        ttl: 0.22,
+        ttl: 0.28,
         extraSpin: additionalSpin,
         friction: 0.28,
         restitution: 1.12,
-        reach: ballR + 0.34,
+        reach: ballR + 0.46,
         force: normalizedForce
       };
     }
@@ -1371,8 +1372,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           }
         }
       } else {
-        const near = pos.z > 0 && Math.abs(pos.z - (playerZ - 0.75)) < 2.1;
-        if (near && pos.y <= 2.05) {
+        const near = pos.z > 0 && Math.abs(pos.z - (playerZ - 0.75)) < 2.6;
+        if (near && pos.y <= 2.4) {
           playerSwing = deriveSwingFromSwipe(vx, vy, spd, { serve: false });
           player.userData.swing = 0.5 + 0.9 * (playerSwing.force || 0.5);
           player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
