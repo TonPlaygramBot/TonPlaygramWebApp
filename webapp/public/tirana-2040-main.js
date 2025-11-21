@@ -231,7 +231,25 @@ export async function startTirana2040(){
   let dprScale = 1.1;
   const DPR_MIN = isMobile ? 0.85 : 0.75;
   const DPR_MAX_SCALE = isMobile ? 1.05 : 1.25;
-  function fit(){ const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight; const targetDpr=Math.min(dprBase*dprScale, isMobile?maxMobileDpr:3.0); renderer.setPixelRatio(targetDpr); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); syncArmorySlider?.(); }
+  function fit(){
+    const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight;
+    const targetDpr=Math.min(dprBase*dprScale, isMobile?maxMobileDpr:3.0);
+    try {
+      renderer.setPixelRatio(targetDpr);
+      renderer.setSize(w,h,false);
+    } catch(err){
+      if(isMobile && targetDpr>1){
+        const fallbackDpr=Math.max(1, targetDpr-0.4);
+        console.warn('Renderer resize failed at DPR', targetDpr, 'retrying with', fallbackDpr, err);
+        dprBase=Math.min(dprBase, fallbackDpr);
+        renderer.setPixelRatio(fallbackDpr);
+        renderer.setSize(w,h,false);
+      } else {
+        throw err;
+      }
+    }
+    camera.aspect=w/h; camera.updateProjectionMatrix(); syncArmorySlider?.();
+  }
   addEventListener('resize', fit); fit();
 
   const hemi = new THREE.HemisphereLight(0xfff3d6, 0x8a7a6a, 0.55);
