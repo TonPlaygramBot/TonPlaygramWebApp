@@ -89,11 +89,7 @@ export default function PoolRoyaleLobby() {
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       {winnerParam && (
         <div className="text-center font-semibold">
-          {winnerParam === '1'
-            ? 'You won!'
-            : winnerParam === 'tie'
-              ? 'Game tied!'
-              : 'CPU won!'}
+          {winnerParam === '1' ? 'You won!' : 'CPU won!'}
         </div>
       )}
       <h2 className="text-xl font-bold text-center">Pool Royale Lobby</h2>

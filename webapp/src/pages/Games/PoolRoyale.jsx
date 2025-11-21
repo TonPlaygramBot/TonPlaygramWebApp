@@ -10,7 +10,7 @@ import polygonClipping from 'polygon-clipping';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   getTelegramUsername,
   getTelegramPhotoUrl
@@ -1785,17 +1785,6 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     sparkle: 1,
     stray: 1
   }),
-  royalBlue: Object.freeze({
-    id: 'royalBlue',
-    palette: {
-      shadow: 0x112f73,
-      base: 0x2f63e6,
-      accent: 0x4f7eff,
-      highlight: 0x7fa5ff
-    },
-    sparkle: 0.72,
-    stray: 0.92
-  }),
   graphite: Object.freeze({
     id: 'graphite',
     palette: {
@@ -1822,18 +1811,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       sheen: 0.58,
       sheenRoughness: 0.42,
       emissiveIntensity: 0.52
-    }
-  },
-  {
-    id: 'royalBlue',
-    label: 'Royal Blue',
-    color: 0x2b5bff,
-    textureKey: 'royalBlue',
-    detail: {
-      bumpMultiplier: 1.05,
-      sheen: 0.64,
-      sheenRoughness: 0.4,
-      emissiveIntensity: 0.34
     }
   },
   {
@@ -6796,7 +6773,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = TABLE.THICK * 0.18;
+  const railMarkerOutset = TABLE.THICK * 0.12;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = TABLE.THICK * 0.06;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -6822,6 +6799,7 @@ function Table3D(
     railMarkerThickness,
     64
   );
+  circleGeometry.rotateX(-Math.PI / 2);
   const railMarkerGeometries = Object.freeze({
     diamond: diamondGeometry,
     circle: circleGeometry
@@ -7627,7 +7605,6 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
-  const navigate = useNavigate();
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -8153,28 +8130,13 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           ? players.A?.name ?? 'Player'
           : winner === 'B'
             ? players.B?.name ?? 'AI'
-          : 'Tie';
+            : 'Tie';
       const label = winner === 'TIE' ? 'Frame tied' : `${winnerName} wins`;
       setResultBanner({ winner, label });
     } else if (!frameState.frameOver) {
       setResultBanner(null);
     }
   }, [frameState]);
-  useEffect(() => {
-    if (!frameState.frameOver || !frameState.winner) return undefined;
-    const winnerParam =
-      frameState.winner === 'A'
-        ? '1'
-        : frameState.winner === 'B'
-          ? '0'
-          : 'tie';
-    const timeout = window.setTimeout(() => {
-      navigate(`/games/pollroyale/lobby?winner=${winnerParam}`, {
-        replace: true
-      });
-    }, 2800);
-    return () => window.clearTimeout(timeout);
-  }, [frameState.frameOver, frameState.winner, navigate]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -13028,23 +12990,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
-          const variantId = activeVariantRef.current?.id ?? variantKey;
-          let legalTargetsRaw = Array.isArray(state?.ballOn)
+          const legalTargetsRaw = Array.isArray(state?.ballOn)
             ? state.ballOn
             : ['RED'];
-          if (variantId === 'uk') {
-            const metaState = state?.meta;
-            const ukSnapshot =
-              metaState && metaState.variant === 'uk' ? metaState.state : null;
-            const resolved = resolveUkBallOnColour(state, ukSnapshot);
-            if (resolved === 'blue') {
-              legalTargetsRaw = ['YELLOW'];
-            } else if (resolved) {
-              legalTargetsRaw = [resolved.toUpperCase()];
-            } else if (ukSnapshot?.isOpenTable) {
-              legalTargetsRaw = ['RED', 'YELLOW'];
-            }
-          }
           const legalTargets = new Set(
             legalTargetsRaw
               .map((entry) =>
@@ -13181,7 +13129,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           return null;
         };
 
-        function resolveUkBallOnColour(frameSnapshot, metaState) {
+        const resolveUkBallOnColour = (frameSnapshot, metaState) => {
           if (!metaState || metaState.isOpenTable) return null;
           const assignments = metaState.assignments ?? {};
           const current = metaState.currentPlayer ?? 'A';
@@ -13201,7 +13149,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           }
           if (normalized.includes('RED')) return 'red';
           return null;
-        }
+        };
 
         const mapLocalPocketToAi = (id) => {
           if (id === 'TM') return 'ML';
