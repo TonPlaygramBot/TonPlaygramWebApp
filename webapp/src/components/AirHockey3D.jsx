@@ -221,8 +221,16 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     renderer.toneMappingExposure = 1.05;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.setPixelRatio(Math.min(3, window.devicePixelRatio || 1.5));
-    renderer.setSize(host.clientWidth, host.clientHeight);
+    renderer.setPixelRatio(1);
+    const updateRendererSize = () => {
+      const width = Math.min(host.clientWidth, 1920);
+      const height = Math.min(host.clientHeight, 1080);
+      renderer.setSize(width, height, false);
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+    };
+
+    updateRendererSize();
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -572,16 +580,16 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     puck.position.y = PUCK_HEIGHT / 2;
     tableGroup.add(puck);
 
-    const hemisphereKey = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
+    const hemisphereKey = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.95);
     const lightLift = TABLE.h * 0.32;
     hemisphereKey.position.set(0, elevatedTableSurfaceY + lightLift, -TABLE.h * 0.18);
     scene.add(hemisphereKey);
 
-    const hemisphereFill = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
+    const hemisphereFill = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.62);
     hemisphereFill.position.set(0, elevatedTableSurfaceY + lightLift, 0);
     scene.add(hemisphereFill);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1.42);
     dirLight.position.set(-TABLE.w * 0.28, elevatedTableSurfaceY + lightLift, TABLE.h * 0.18);
     dirLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.1, 0);
     dirLight.castShadow = true;
@@ -589,41 +597,6 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     dirLight.shadow.bias = -0.0002;
     scene.add(dirLight);
     scene.add(dirLight.target);
-
-    const spotLight = new THREE.SpotLight(
-      0xffffff,
-      12.7449,
-      0,
-      Math.PI * 0.36,
-      0.42,
-      1
-    );
-    spotLight.position.set(
-      TABLE.w * 0.32,
-      elevatedTableSurfaceY + lightLift * 1.3,
-      TABLE.h * 0.26
-    );
-    spotLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.4, 0);
-    spotLight.decay = 1.0;
-    spotLight.castShadow = true;
-    spotLight.shadow.mapSize.set(1024, 1024);
-    spotLight.shadow.bias = -0.0002;
-    scene.add(spotLight);
-    scene.add(spotLight.target);
-
-    const rimSpot = new THREE.SpotLight(0xc7d6ff, 9.6, 0, Math.PI * 0.34, 0.48, 1);
-    rimSpot.position.set(
-      -TABLE.w * 0.28,
-      elevatedTableSurfaceY + lightLift * 1.4,
-      -TABLE.h * 0.32
-    );
-    rimSpot.target.position.set(-TABLE.w * 0.1, elevatedTableSurfaceY + TABLE.thickness * 0.3, 0);
-    rimSpot.decay = 1.0;
-    rimSpot.castShadow = true;
-    rimSpot.shadow.mapSize.set(1024, 1024);
-    rimSpot.shadow.bias = -0.0002;
-    scene.add(rimSpot);
-    scene.add(rimSpot.target);
 
     world.traverse((obj) => {
       if (obj.isMesh) {
@@ -659,7 +632,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       camera.position.copy(cameraAnchor);
       camera.lookAt(cameraFocus);
       camera.updateProjectionMatrix();
-      renderer.setSize(host.clientWidth, host.clientHeight);
+      updateRendererSize();
       for (let i = 0; i < 20; i++) {
         const needsRetreat = tableCorners.some((corner) => {
           const sample = corner.clone();
