@@ -1447,13 +1447,13 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 const DEFAULT_WOOD_PRESET_ID = 'walnut';
 
-const DEFAULT_TABLE_FINISH_ID = 'hybridTwoTone';
+const DEFAULT_TABLE_FINISH_ID = 'rusticSplit';
 
 const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
-  classicWood: 'walnut',
-  goldenMaple: 'maple',
-  matteGraphite: 'smokedOak',
-  hybridTwoTone: 'teak'
+  rusticSplit: 'walnut',
+  charredTimber: 'wenge',
+  plankStudio: 'oak',
+  weatheredGrey: 'smokedOak'
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
@@ -1513,46 +1513,48 @@ const createPocketMaterials = () => ({
   })
 });
 
+
 const TABLE_FINISHES = Object.freeze({
-  classicWood: {
-    id: 'classicWood',
-    label: 'Classic Wood',
+  rusticSplit: {
+    id: 'rusticSplit',
+    label: 'Rustic Split',
     colors: makeColorPalette({
       cloth: 0x2d7f4b,
-      rail: 0x5e3d24,
-      base: 0x5e3d24
+      rail: 0x725536,
+      base: 0x725536
     }),
+    woodTextureId: 'frameRusticSplit',
     createMaterials: () => {
-      const frameColor = new THREE.Color('#5e3d24');
+      const frameColor = new THREE.Color('#725536');
       const frame = new THREE.MeshPhysicalMaterial({
         color: frameColor,
-        metalness: 0.18,
-        roughness: 0.32,
-        clearcoat: 0.28,
-        clearcoatRoughness: 0.18,
-        sheen: 0.12,
-        sheenRoughness: 0.52,
-        reflectivity: 0.42,
-        envMapIntensity: 0.7
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0, 0.02, 0.08),
         metalness: 0.2,
         roughness: 0.34,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.22,
+        clearcoat: 0.32,
+        clearcoatRoughness: 0.2,
         sheen: 0.14,
+        sheenRoughness: 0.48,
+        reflectivity: 0.44,
+        envMapIntensity: 0.78
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0.02, 0.04, 0.08),
+        metalness: 0.22,
+        roughness: 0.36,
+        clearcoat: 0.34,
+        clearcoatRoughness: 0.22,
+        sheen: 0.16,
         sheenRoughness: 0.5,
-        reflectivity: 0.45,
-        envMapIntensity: 0.74
+        reflectivity: 0.46,
+        envMapIntensity: 0.82
       });
       const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xcda87b,
-        metalness: 0.65,
-        roughness: 0.38,
-        clearcoat: 0.42,
-        clearcoatRoughness: 0.28,
-        envMapIntensity: 0.9
+        color: 0xcead7f,
+        metalness: 0.68,
+        roughness: 0.34,
+        clearcoat: 0.44,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 0.96
       });
       const materials = {
         frame,
@@ -1561,48 +1563,110 @@ const TABLE_FINISHES = Object.freeze({
         trim,
         accent: null
       };
-      applySnookerStyleWoodPreset(materials, 'classicWood');
+      applySnookerStyleWoodPreset(materials, 'rusticSplit');
       return { ...materials, ...createPocketMaterials() };
     }
   },
-  goldenMaple: {
-    id: 'goldenMaple',
-    label: 'Golden Maple',
+  charredTimber: {
+    id: 'charredTimber',
+    label: 'Charred Timber',
     colors: makeColorPalette({
       cloth: 0x2d7f4b,
-      rail: 0xc98738,
-      base: 0xc27a2f
+      rail: 0x3c2c22,
+      base: 0x302118
     }),
+    woodTextureId: 'frameCharred',
     createMaterials: () => {
-      const frameColor = new THREE.Color('#c98738');
+      const frameColor = new THREE.Color('#302118');
+      const railColor = new THREE.Color('#3c2c22');
       const frame = new THREE.MeshPhysicalMaterial({
         color: frameColor,
-        metalness: 0.16,
-        roughness: 0.28,
-        clearcoat: 0.36,
-        clearcoatRoughness: 0.16,
-        sheen: 0.14,
-        sheenRoughness: 0.48,
-        reflectivity: 0.46,
-        envMapIntensity: 0.82
+        metalness: 0.22,
+        roughness: 0.38,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.22,
+        sheen: 0.12,
+        sheenRoughness: 0.52,
+        reflectivity: 0.4,
+        envMapIntensity: 0.74
       });
       const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0.01, 0.06, 0.12),
-        metalness: 0.2,
-        roughness: 0.3,
+        color: railColor,
+        metalness: 0.26,
+        roughness: 0.36,
+        clearcoat: 0.34,
+        clearcoatRoughness: 0.2,
+        sheen: 0.16,
+        sheenRoughness: 0.48,
+        reflectivity: 0.46,
+        envMapIntensity: 0.8
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0.01, 0.06, 0.1),
+        metalness: 0.24,
+        roughness: 0.46,
+        clearcoat: 0.26,
+        clearcoatRoughness: 0.3
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xb88f5f,
+        metalness: 0.62,
+        roughness: 0.36,
         clearcoat: 0.38,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 0.9
+      });
+      const materials = {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: null
+      };
+      applySnookerStyleWoodPreset(materials, 'charredTimber');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  plankStudio: {
+    id: 'plankStudio',
+    label: 'Plank Studio',
+    colors: makeColorPalette({
+      cloth: 0x2d7f4b,
+      rail: 0xb88452,
+      base: 0xae7a46
+    }),
+    woodTextureId: 'framePlank',
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#ae7a46');
+      const railColor = new THREE.Color('#b88452');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.18,
+        roughness: 0.3,
+        clearcoat: 0.36,
         clearcoatRoughness: 0.18,
         sheen: 0.16,
         sheenRoughness: 0.46,
-        reflectivity: 0.52,
-        envMapIntensity: 0.88
+        reflectivity: 0.48,
+        envMapIntensity: 0.86
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.22,
+        roughness: 0.32,
+        clearcoat: 0.38,
+        clearcoatRoughness: 0.2,
+        sheen: 0.18,
+        sheenRoughness: 0.48,
+        reflectivity: 0.5,
+        envMapIntensity: 0.92
       });
       const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xe8c387,
-        metalness: 0.68,
-        roughness: 0.34,
-        clearcoat: 0.44,
-        clearcoatRoughness: 0.24,
+        color: 0xe5c185,
+        metalness: 0.7,
+        roughness: 0.32,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.22,
         envMapIntensity: 1
       });
       const materials = {
@@ -1612,128 +1676,58 @@ const TABLE_FINISHES = Object.freeze({
         trim,
         accent: null
       };
-      applySnookerStyleWoodPreset(materials, 'goldenMaple');
+      applySnookerStyleWoodPreset(materials, 'plankStudio');
       return { ...materials, ...createPocketMaterials() };
     }
   },
-  hybridTwoTone: {
-    id: 'hybridTwoTone',
-    label: 'Hybrid Two-Tone',
+  weatheredGrey: {
+    id: 'weatheredGrey',
+    label: 'Weathered Grey',
     colors: makeColorPalette({
       cloth: 0x2d7f4b,
-      rail: 0x9a6036,
-      base: 0x3b281c
+      rail: 0x5f5750,
+      base: 0x4e463f
     }),
+    woodTextureId: 'frameWeathered',
     createMaterials: () => {
-      const railColor = new THREE.Color('#9a6036');
-      const frameColor = new THREE.Color('#3b281c');
+      const frameColor = new THREE.Color('#4e463f');
+      const railColor = new THREE.Color('#5f5750');
       const frame = new THREE.MeshPhysicalMaterial({
         color: frameColor,
-        metalness: 0.2,
-        roughness: 0.34,
-        clearcoat: 0.34,
-        clearcoatRoughness: 0.22,
-        sheen: 0.16,
-        sheenRoughness: 0.5,
-        reflectivity: 0.44,
-        envMapIntensity: 0.8
+        metalness: 0.18,
+        roughness: 0.44,
+        clearcoat: 0.24,
+        clearcoatRoughness: 0.28,
+        sheen: 0.12,
+        sheenRoughness: 0.56,
+        reflectivity: 0.38,
+        envMapIntensity: 0.72
       });
       const rail = new THREE.MeshPhysicalMaterial({
         color: railColor,
-        metalness: 0.24,
-        roughness: 0.28,
-        clearcoat: 0.42,
-        clearcoatRoughness: 0.16,
-        sheen: 0.2,
-        sheenRoughness: 0.46,
-        reflectivity: 0.5,
-        envMapIntensity: 0.94
-      });
-      const leg = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0.01, 0.08, 0.12),
         metalness: 0.22,
-        roughness: 0.42,
-        clearcoat: 0.3,
-        clearcoatRoughness: 0.24,
-        sheen: 0.12,
+        roughness: 0.4,
+        clearcoat: 0.26,
+        clearcoatRoughness: 0.26,
+        sheen: 0.14,
         sheenRoughness: 0.54,
-        reflectivity: 0.38,
+        reflectivity: 0.42,
         envMapIntensity: 0.78
       });
-      const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xe2c49a,
-        metalness: 0.72,
-        roughness: 0.28,
-        clearcoat: 0.5,
-        clearcoatRoughness: 0.2,
-        envMapIntensity: 1.02
-      });
-      const accentMaterial = new THREE.MeshPhysicalMaterial({
-        color: 0x4b5a66,
-        metalness: 0.48,
-        roughness: 0.34,
-        clearcoat: 0.32,
-        clearcoatRoughness: 0.18,
-        envMapIntensity: 0.9
-      });
-      const materials = {
-        frame,
-        rail,
-        leg,
-        trim,
-        accent: {
-          material: accentMaterial,
-          thickness: 0.08,
-          height: 0.045,
-          inset: 0.18,
-          verticalOffset: 0.78
-        }
-      };
-      applySnookerStyleWoodPreset(materials, 'hybridTwoTone');
-      return { ...materials, ...createPocketMaterials() };
-    }
-  },
-  matteGraphite: {
-    id: 'matteGraphite',
-    label: 'Matte Graphite',
-    colors: makeColorPalette({
-      cloth: 0x2d7f4b,
-      rail: 0x2f2f2f,
-      base: 0x2b2b2b
-    }),
-    createMaterials: () => {
-      const frame = new THREE.MeshPhysicalMaterial({
-        color: 0x2b2b2b,
-        metalness: 0.22,
-        roughness: 0.6,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.46,
-        sheen: 0.05,
-        sheenRoughness: 0.72
-      });
-      const rail = new THREE.MeshPhysicalMaterial({
-        color: 0x303030,
-        metalness: 0.28,
-        roughness: 0.54,
-        clearcoat: 0.12,
-        clearcoatRoughness: 0.4,
-        sheen: 0.04,
-        sheenRoughness: 0.64
-      });
       const leg = new THREE.MeshPhysicalMaterial({
-        color: 0x232323,
-        metalness: 0.26,
-        roughness: 0.58,
-        clearcoat: 0.08,
-        clearcoatRoughness: 0.44
+        color: frameColor.clone().offsetHSL(0.01, 0.02, 0.06),
+        metalness: 0.2,
+        roughness: 0.5,
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.32
       });
       const trim = new THREE.MeshPhysicalMaterial({
-        color: 0x2a2f34,
-        metalness: 0.82,
+        color: 0xc0b8aa,
+        metalness: 0.64,
         roughness: 0.34,
-        clearcoat: 0.24,
-        clearcoatRoughness: 0.32,
-        envMapIntensity: 1.1
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 0.92
       });
       const materials = {
         frame,
@@ -1742,7 +1736,7 @@ const TABLE_FINISHES = Object.freeze({
         trim,
         accent: null
       };
-      applySnookerStyleWoodPreset(materials, 'matteGraphite');
+      applySnookerStyleWoodPreset(materials, 'weatheredGrey');
       return { ...materials, ...createPocketMaterials() };
     }
   }
@@ -1750,10 +1744,10 @@ const TABLE_FINISHES = Object.freeze({
 
 const TABLE_FINISH_OPTIONS = Object.freeze(
   [
-    TABLE_FINISHES.hybridTwoTone,
-    TABLE_FINISHES.goldenMaple,
-    TABLE_FINISHES.classicWood,
-    TABLE_FINISHES.matteGraphite
+    TABLE_FINISHES.rusticSplit,
+    TABLE_FINISHES.charredTimber,
+    TABLE_FINISHES.plankStudio,
+    TABLE_FINISHES.weatheredGrey
   ].filter(Boolean)
 );
 
@@ -2745,6 +2739,10 @@ function ensureMaterialWoodOptions(material, targetSettings) {
   const repeatVec = targetSettings?.repeat ?? new THREE.Vector2(1, 1);
   const rotation = targetSettings?.rotation ?? 0;
   const textureSize = targetSettings?.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE;
+  const mapUrl =
+    typeof targetSettings?.mapUrl === 'string' && targetSettings.mapUrl.trim().length > 0
+      ? targetSettings.mapUrl.trim()
+      : undefined;
   applyWoodTextures(material, {
     hue: preset.hue,
     sat: preset.sat,
@@ -2753,6 +2751,7 @@ function ensureMaterialWoodOptions(material, targetSettings) {
     repeat: { x: repeatVec.x, y: repeatVec.y },
     rotation,
     textureSize,
+    mapUrl,
     sharedKey: `pool-wood-${preset.id}`,
     ...SHARED_WOOD_SURFACE_PROPS
   });
@@ -2765,13 +2764,18 @@ function applyWoodTextureToMaterial(material, repeat) {
   const repeatVec = resolveRepeatVector(repeat, material);
   const rotation = resolveRotation(repeat, material);
   const textureSize = resolveTextureSize(repeat, material);
+  const mapUrl =
+    typeof repeat?.mapUrl === 'string' && repeat.mapUrl.trim().length > 0
+      ? repeat.mapUrl.trim()
+      : undefined;
   const repeatScale = clampWoodRepeatScaleValue(repeat?.woodRepeatScale ?? DEFAULT_WOOD_REPEAT_SCALE);
   const scaledRepeat = scaleWoodRepeatVector(repeatVec, repeatScale);
   const hadOptions = Boolean(material.userData?.__woodOptions);
   const options = ensureMaterialWoodOptions(material, {
     repeat: scaledRepeat,
     rotation,
-    textureSize
+    textureSize,
+    mapUrl
   });
   if (options) {
     const repeatChanged =
@@ -2782,12 +2786,14 @@ function applyWoodTextureToMaterial(material, repeat) {
     const textureSizeChanged =
       typeof textureSize === 'number' &&
       Math.abs((options.textureSize ?? DEFAULT_WOOD_TEXTURE_SIZE) - textureSize) > 1e-6;
-    if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged)) {
+    const mapChanged = options.mapUrl !== mapUrl;
+    if (hadOptions && (repeatChanged || rotationChanged || textureSizeChanged || mapChanged)) {
       applyWoodTextures(material, {
         ...options,
         repeat: { x: scaledRepeat.x, y: scaledRepeat.y },
         rotation,
-        textureSize: textureSize ?? options.textureSize
+        textureSize: textureSize ?? options.textureSize,
+        mapUrl: mapUrl ?? options.mapUrl
       });
     }
   } else {
@@ -2828,6 +2834,7 @@ function toPlainWoodSurfaceConfig(settings) {
   const repeatSource = settings.repeat ?? settings;
   let repeatX = null;
   let repeatY = null;
+  let mapUrl = null;
   if (repeatSource?.isVector2) {
     repeatX = repeatSource.x;
     repeatY = repeatSource.y;
@@ -2842,13 +2849,17 @@ function toPlainWoodSurfaceConfig(settings) {
   const rotation = typeof settings.rotation === 'number' ? settings.rotation : 0;
   const textureSize =
     typeof settings.textureSize === 'number' ? settings.textureSize : undefined;
+  if (typeof settings.mapUrl === 'string' && settings.mapUrl.trim().length > 0) {
+    mapUrl = settings.mapUrl.trim();
+  }
   return {
     repeat: {
       x: Number.isFinite(repeatX) ? repeatX : 1,
       y: Number.isFinite(repeatY) ? repeatY : 1
     },
     rotation,
-    textureSize
+    textureSize,
+    mapUrl
   };
 }
 
@@ -2863,7 +2874,8 @@ function resolveWoodSurfaceConfig(option, fallback) {
       y: resolvedOption?.repeat?.y ?? base.repeat.y
     },
     rotation: resolvedOption?.rotation ?? base.rotation,
-    textureSize: resolvedOption?.textureSize ?? base.textureSize
+    textureSize: resolvedOption?.textureSize ?? base.textureSize,
+    mapUrl: resolvedOption?.mapUrl ?? base.mapUrl
   };
 }
 
@@ -2877,6 +2889,7 @@ function cloneWoodSurfaceConfig(config) {
     rotation: typeof config.rotation === 'number' ? config.rotation : 0,
     textureSize:
       typeof config.textureSize === 'number' ? config.textureSize : undefined,
+    mapUrl: typeof config.mapUrl === 'string' ? config.mapUrl : undefined,
     woodRepeatScale: clampWoodRepeatScaleValue(config.woodRepeatScale)
   };
 }
@@ -2895,7 +2908,8 @@ function orientRailWoodSurface(surface) {
     },
     rotation: typeof surface.rotation === 'number' ? surface.rotation : 0,
     textureSize:
-      typeof surface.textureSize === 'number' ? surface.textureSize : undefined
+      typeof surface.textureSize === 'number' ? surface.textureSize : undefined,
+    mapUrl: typeof surface.mapUrl === 'string' ? surface.mapUrl : undefined
   };
 }
 

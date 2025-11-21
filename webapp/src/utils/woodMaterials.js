@@ -30,6 +30,8 @@ const tileableNoise = (x, y, width, height, scale, seed = 1) => {
   return (nx + ny + nxy + 3) / 6; // normalize to [0,1]
 };
 
+const woodTextureLoader = new THREE.TextureLoader();
+
 const makeSlabTexture = (width, height, hue, sat, light, contrast) => {
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -184,93 +186,79 @@ const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'acg_walnut_quarter',
-    label: 'Walnut Quarter-Sawn',
-    source: 'ambientCG — WalnutQuarter 002 (CC0)',
+    id: 'frameRusticSplit',
+    label: 'Rustic Split Planks',
+    source: 'Frame #3 cracked timber',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
+      mapUrl:
+        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
+      mapUrl:
+        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     }
   }),
   Object.freeze({
-    id: 'acg_birch_studio',
-    label: 'Birch Studio Slab',
-    source: 'ambientCG — Birch Planks 003 (CC0)',
+    id: 'frameCharred',
+    label: 'Charred Timber',
+    source: 'Frame #5 burnt wood',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 0.92, y: 0.96 },
+      mapUrl:
+        'https://images.pexels.com/photos/129733/pexels-photo-129733.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 0.92, y: 0.9 },
+      mapUrl:
+        'https://images.pexels.com/photos/129733/pexels-photo-129733.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     }
   }),
   Object.freeze({
-    id: 'acg_rosewood_satin',
-    label: 'Rosewood Satin',
-    source: 'ambientCG — Rosewood 001 (CC0)',
+    id: 'framePlank',
+    label: 'Plank Studio',
+    source: 'Frame #11 simple plank',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 0.88, y: 0.94 },
+      mapUrl:
+        'https://images.pexels.com/photos/172277/pexels-photo-172277.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 0.88, y: 0.9 },
+      mapUrl:
+        'https://images.pexels.com/photos/172277/pexels-photo-172277.jpeg?auto=compress&cs=tinysrgb&w=1600',
+      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     }
   }),
   Object.freeze({
-    id: 'acg_ebony_studio',
-    label: 'Ebony Studio Matte',
-    source: 'ambientCG — Ebony 003 (CC0)',
+    id: 'frameWeathered',
+    label: 'Weathered Grey',
+    source: 'Frame #12 aged grey',
     rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 0.84, y: 0.98 },
+      mapUrl:
+        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600&sat=-100',
+      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     },
     frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 0.84, y: 0.94 },
+      mapUrl:
+        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600&sat=-100',
+      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
       rotation: 0,
-      textureSize: 4096
-    }
-  }),
-  Object.freeze({
-    id: 'acg_smoked_oak_slab',
-    label: 'Smoked Oak Slab',
-    source: 'ambientCG — Oak Smoked 004 (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 1.1, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 1.1, y: 0.86 },
-      rotation: 0,
-      textureSize: 4096
-    }
-  }),
-  Object.freeze({
-    id: 'acg_ash_cerused',
-    label: 'Cerused Ash Ribbon',
-    source: 'ambientCG — Ash Wood 005 (CC0)',
-    rail: {
-      repeat: { x: LARGE_SLAB_REPEAT_X * 1.2, y: 0.94 },
-      rotation: 0,
-      textureSize: 4096
-    },
-    frame: {
-      repeat: { x: FRAME_SLAB_REPEAT_X * 1.2, y: 0.9 },
-      rotation: 0,
-      textureSize: 4096
+      textureSize: 2048
     }
   })
 ]);
@@ -389,6 +377,7 @@ export const applyWoodTextures = (
     sat,
     light,
     contrast,
+    mapUrl,
     repeat = { x: 1, y: 1 },
     rotation = 0,
     textureSize = DEFAULT_WOOD_TEXTURE_SIZE,
@@ -400,27 +389,51 @@ export const applyWoodTextures = (
 ) => {
   if (!material) return null;
   disposeWoodTextures(material);
-  const baseTextures = sharedKey
-    ? ensureSharedWoodTextures({
-        hue,
-        sat,
-        light,
-        contrast,
-        textureSize,
-        roughnessSize,
-        roughnessBase,
-        roughnessVariance,
-        sharedKey
-      })
-    : {
-        map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
-        roughnessMap: makeRoughnessMap(
-          roughnessSize,
+  const baseTextures = mapUrl
+    ? (() => {
+        const map = woodTextureLoader.load(mapUrl, (texture) => {
+          applySRGBColorSpace(texture);
+          texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+          texture.center.set(0.5, 0.5);
+          texture.anisotropy = 16;
+          texture.needsUpdate = true;
+        });
+        applySRGBColorSpace(map);
+        map.wrapS = map.wrapT = THREE.RepeatWrapping;
+        map.center.set(0.5, 0.5);
+        map.anisotropy = 16;
+        map.needsUpdate = true;
+        return {
+          map,
+          roughnessMap: makeRoughnessMap(
+            roughnessSize,
+            roughnessSize,
+            roughnessBase,
+            roughnessVariance
+          )
+        };
+      })()
+    : sharedKey
+      ? ensureSharedWoodTextures({
+          hue,
+          sat,
+          light,
+          contrast,
+          textureSize,
           roughnessSize,
           roughnessBase,
-          roughnessVariance
-        )
-      };
+          roughnessVariance,
+          sharedKey
+        })
+      : {
+          map: makeSlabTexture(textureSize, textureSize, hue, sat, light, contrast),
+          roughnessMap: makeRoughnessMap(
+            roughnessSize,
+            roughnessSize,
+            roughnessBase,
+            roughnessVariance
+          )
+        };
   const repeatVec = new THREE.Vector2(repeat?.x ?? 1, repeat?.y ?? 1);
   const map = cloneWoodTexture(baseTextures.map, repeatVec, rotation);
   const roughnessMap = cloneWoodTexture(baseTextures.roughnessMap, repeatVec, rotation);
@@ -443,6 +456,7 @@ export const applyWoodTextures = (
     sat,
     light,
     contrast,
+    mapUrl,
     repeat: { x: repeatVec.x, y: repeatVec.y },
     rotation,
     textureSize,
