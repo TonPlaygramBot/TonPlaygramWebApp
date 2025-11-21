@@ -635,7 +635,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
+const RAIL_HEIGHT = TABLE.THICK * 2.08; // lift the wooden rails a touch more so the timber tops sit above the cushions
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE * 0.986; // ease the side jaw clamp so it finishes flush with the side rails
@@ -920,10 +920,10 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 22; // keep at least half the field visible from the short rails
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 26; // pull back the short-rail broadcast cams to frame the full table from center
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
-  short: PLAY_W * 0.4,
+  short: PLAY_W * 0.28,
   side: PLAY_H * 0.45
 });
 const POCKET_VIEW_MIN_DURATION_MS = 560;
@@ -8030,6 +8030,23 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const [resultBanner, setResultBanner] = useState(null);
+  useEffect(() => {
+    const winner = frameState.winner;
+    if (frameState.frameOver && winner) {
+      const players = frameState.players ?? {};
+      const winnerName =
+        winner === 'A'
+          ? players.A?.name ?? 'Player'
+          : winner === 'B'
+            ? players.B?.name ?? 'AI'
+            : 'Tie';
+      const label = winner === 'TIE' ? 'Frame tied' : `${winnerName} wins`;
+      setResultBanner({ winner, label });
+    } else if (!frameState.frameOver) {
+      setResultBanner(null);
+    }
+  }, [frameState]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -8514,7 +8531,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         turn: isPlayerTurn ? 0 : 1,
         phase: phaseLabel,
         next: nextLabel,
-        over: frameState.frameOver
+        over: frameState.frameOver || Boolean(frameState.winner)
       };
     });
   }, [frameState]);
@@ -9214,10 +9231,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        PLAY_H / 2 + BALL_R * 8, // keep a modest clearance so the broadcast cameras sit closer to the table
+        PLAY_H / 2 + BALL_R * 10, // keep a modest clearance so the broadcast cameras sit closer to the table
         roomDepth / 2 - wallThickness - broadcastClearance
       );
-      const shortRailSlideLimit = CAMERA_LATERAL_CLAMP.short * 0.92;
+      const shortRailSlideLimit = 0; // lock the broadcast heads to the short-rail midpoint for balanced framing
       const broadcastRig = createBroadcastCameras({
         floorY,
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
@@ -13428,6 +13445,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             safeState = resolved;
           }
           shotResolved = true;
+          if (safeState.winner && !safeState.frameOver) {
+            safeState = { ...safeState, frameOver: true };
+          }
         } catch (err) {
           console.error('Pool Royale shot resolution failed:', err);
         }
@@ -14918,6 +14938,15 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           </div>
         )}
       </div>
+
+      {resultBanner && (
+        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
+          <div className="rounded-3xl bg-black/75 px-6 py-4 text-center shadow-[0_14px_48px_rgba(0,0,0,0.55)] backdrop-blur">
+            <p className="text-[10px] uppercase tracking-[0.32em] text-emerald-200/80">Frame complete</p>
+            <p className="mt-2 text-2xl font-bold text-white">{resultBanner.label}</p>
+          </div>
+        </div>
+      )}
 
       {bottomHudVisible && (
         <div
