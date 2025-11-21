@@ -26,6 +26,12 @@ import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import {
+  getNextIncompleteLevel,
+  loadTrainingProgress,
+  persistTrainingProgress,
+  resolvePlayableTrainingLevel
+} from '../../utils/poolRoyaleTrainingProgress.js';
+import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
 } from '../../utils/createCueRackDisplay.js';
@@ -51,45 +57,6 @@ function applyTablePhysicsSpec(meta) {
     ? meta.cushionRestitution
     : DEFAULT_CUSHION_RESTITUTION;
   CUSHION_RESTITUTION = restitution;
-}
-
-const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress';
-
-function loadTrainingProgress() {
-  if (typeof window === 'undefined') return { completed: [], lastLevel: 1 };
-  try {
-    const stored = window.localStorage.getItem(TRAINING_PROGRESS_KEY);
-    if (!stored) return { completed: [], lastLevel: 1 };
-    const parsed = JSON.parse(stored);
-    const completed = Array.isArray(parsed?.completed)
-      ? parsed.completed
-          .map((lvl) => Number(lvl))
-          .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
-          .sort((a, b) => a - b)
-      : [];
-    const lastLevel = Number.isFinite(parsed?.lastLevel) ? Number(parsed.lastLevel) : 1;
-    return { completed, lastLevel };
-  } catch (err) {
-    console.warn('Failed to load Pool Royale training progress', err);
-    return { completed: [], lastLevel: 1 };
-  }
-}
-
-function persistTrainingProgress(progress) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(TRAINING_PROGRESS_KEY, JSON.stringify(progress));
-  } catch (err) {
-    console.warn('Failed to persist Pool Royale training progress', err);
-  }
-}
-
-function getNextIncompleteLevel(completedLevels) {
-  const completedSet = new Set((completedLevels || []).map((lvl) => Number(lvl)));
-  for (let level = 1; level <= TRAINING_SCENARIOS.length; level++) {
-    if (!completedSet.has(level)) return level;
-  }
-  return null;
 }
 
 function detectCoarsePointer() {
@@ -7809,11 +7776,15 @@ function PoolRoyaleGame({
     [clothColorId]
   );
   const isTraining = playType === 'training';
-  const trainingScenario = useMemo(
-    () => (isTraining ? getTrainingScenario(trainingLevel) : null),
-    [isTraining, trainingLevel]
-  );
   const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
+  const resolvedTrainingLevel = useMemo(() => {
+    if (!isTraining) return trainingLevel;
+    return resolvePlayableTrainingLevel(trainingLevel, trainingProgress);
+  }, [isTraining, trainingLevel, trainingProgress]);
+  const trainingScenario = useMemo(
+    () => (isTraining ? getTrainingScenario(resolvedTrainingLevel) : null),
+    [isTraining, resolvedTrainingLevel]
+  );
   const trainingProgressRef = useRef(trainingProgress);
   const [trainingPopup, setTrainingPopup] = useState(null);
   const trainingRewardedRef = useRef(false);
@@ -7823,35 +7794,24 @@ function PoolRoyaleGame({
   }, [trainingProgress]);
   useEffect(() => {
     if (!isTraining) return;
+    if (trainingPopup) return;
+    if (resolvedTrainingLevel !== trainingLevel) {
+      goToTrainingLevel(resolvedTrainingLevel, true);
+      return;
+    }
     const completedSet = new Set(trainingProgressRef.current.completed || []);
-    if (!completedSet.has(trainingLevel)) return;
+    if (!completedSet.has(resolvedTrainingLevel)) return;
     const nextLevel = getNextIncompleteLevel(completedSet);
     if (nextLevel) {
       goToTrainingLevel(nextLevel, true);
     } else {
       goToTrainingLevel(null, true);
     }
-  }, [goToTrainingLevel, isTraining, trainingLevel]);
-  const trainingRoadmap = useMemo(() => {
-    const completedSet = new Set(trainingProgress.completed || []);
-    const start = Math.max(1, trainingLevel - 1);
-    const roadmap = [];
-    for (
-      let level = start;
-      level < start + 4 && level <= TRAINING_SCENARIOS.length;
-      level++
-    ) {
-      roadmap.push({
-        level,
-        completed: completedSet.has(level)
-      });
-    }
-    return roadmap;
-  }, [trainingProgress, trainingLevel]);
+  }, [goToTrainingLevel, isTraining, resolvedTrainingLevel, trainingLevel, trainingPopup]);
   const handleTrainingOutcome = useCallback(
     async (playerWon) => {
       const scenario = trainingScenario;
-      const level = trainingLevel || 1;
+      const level = resolvedTrainingLevel || 1;
       if (!playerWon) {
         setTrainingPopup({
           status: 'fail',
@@ -7905,7 +7865,7 @@ function PoolRoyaleGame({
         alreadyComplete
       });
     },
-    [trainingLevel, trainingScenario]
+    [resolvedTrainingLevel, trainingScenario]
   );
   const handleTrainingPopupContinue = useCallback(() => {
     if (!trainingPopup) return;
@@ -7921,7 +7881,7 @@ function PoolRoyaleGame({
     } else {
       goToTrainingLevel(null, true);
     }
-  }, [goToTrainingLevel, trainingLevel, trainingPopup]);
+  }, [goToTrainingLevel, trainingPopup]);
   useEffect(() => {
     if (!trainingPopup || trainingPopup.status !== 'success') return undefined;
     const timer = window.setTimeout(() => {
@@ -15448,45 +15408,6 @@ function PoolRoyaleGame({
           </div>
         )}
       </div>
-
-      {isTraining && trainingScenario && (
-        <div className="absolute left-4 top-4 z-50 max-w-xs space-y-3 text-white">
-          <div className="rounded-2xl border border-emerald-300/50 bg-black/70 p-3 shadow-lg backdrop-blur">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">
-                  Training roadmap
-                </p>
-                <h3 className="text-sm font-semibold leading-tight">
-                  Task {trainingLevel}: {trainingScenario.title}
-                </h3>
-              </div>
-              <span className="rounded-full bg-emerald-400/20 px-2 py-1 text-[11px] font-semibold text-emerald-50">
-                {trainingScenario.reward} TPC
-              </span>
-            </div>
-            <p className="mt-2 text-xs text-white/70">{trainingScenario.description}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {trainingRoadmap.map((item) => (
-                <span
-                  key={item.level}
-                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                    item.completed
-                      ? 'bg-emerald-500/30 text-emerald-50'
-                      : item.level === trainingLevel
-                        ? 'bg-white/30 text-white'
-                        : 'bg-white/10 text-white/70'
-                  }`}
-                >
-                  Task {item.level}
-                  {item.completed ? ' • Done' : item.level === trainingLevel ? ' • Active' : ''}
-                </span>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
@@ -15610,14 +15531,24 @@ function PoolRoyaleGame({
             <p className="text-xs uppercase tracking-[0.28em] text-emerald-200">
               Training task {trainingPopup.level}
             </p>
-            <h3 className="mt-2 text-2xl font-bold">
-              {trainingPopup.status === 'success' ? 'You won!' : 'Task incomplete'}
+            <h3 className="mt-2 flex items-center justify-center gap-2 text-2xl font-bold">
+              {trainingPopup.status === 'success' ? (
+                <>
+                  <span className="text-3xl">✅</span>
+                  <span>Task completed</span>
+                </>
+              ) : (
+                'Task incomplete'
+              )}
             </h3>
             <p className="mt-2 text-sm text-white/70">
               {trainingPopup.status === 'success'
-                ? 'Great job. Rewards are being transferred and your next roadmap step is loading.'
+                ? 'Great job clearing this round. We are moving you to the next task right away.'
                 : 'You can retry this roadmap step as many times as you want.'}
             </p>
+            {trainingPopup.title && (
+              <p className="mt-1 text-sm font-semibold text-emerald-100">{trainingPopup.title}</p>
+            )}
             {trainingPopup.status === 'success' && (
               <div className="mt-4 rounded-xl border border-emerald-400/60 bg-emerald-500/10 p-4">
                 <p className="text-lg font-semibold text-emerald-200">+{trainingPopup.reward} TPC</p>
