@@ -1,5 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { getGameVolume, isGameMuted } from "../utils/sound.js";
+
+const SOUND_SOURCES = {
+  net: encodeURI("/assets/sounds/goal net origjinal (2).mp3"),
+  kick: encodeURI("/assets/sounds/ball kick .mp3"),
+  score: encodeURI("/assets/sounds/football-crowd-3-69245.mp3"),
+  out: encodeURI("/assets/sounds/crowd-shocked-reaction-352766.mp3")
+};
 
 function buildRoyalGrandstand() {
   const group = new THREE.Group();
@@ -275,6 +283,56 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   );
   const lastTaskToastId = useRef(null);
   const [scoreboardOpen, setScoreboardOpen] = useState(false);
+
+  const audioRef = useRef({ net: null, kick: null, score: null, out: null });
+
+  const applySoundSettings = useCallback(() => {
+    const volume = getGameVolume();
+    const muted = isGameMuted();
+    Object.values(audioRef.current).forEach((audio) => {
+      if (!audio) return;
+      audio.volume = muted ? 0 : volume;
+      audio.muted = muted;
+    });
+  }, []);
+
+  useEffect(() => {
+    const net = new Audio(SOUND_SOURCES.net);
+    const kick = new Audio(SOUND_SOURCES.kick);
+    const score = new Audio(SOUND_SOURCES.score);
+    const out = new Audio(SOUND_SOURCES.out);
+    audioRef.current = { net, kick, score, out };
+    applySoundSettings();
+
+    const handleVolume = () => applySoundSettings();
+    const handleMute = () => applySoundSettings();
+    window.addEventListener('gameVolumeChanged', handleVolume);
+    window.addEventListener('gameMuteChanged', handleMute);
+
+    return () => {
+      window.removeEventListener('gameVolumeChanged', handleVolume);
+      window.removeEventListener('gameMuteChanged', handleMute);
+      Object.values(audioRef.current).forEach((audio) => {
+        try {
+          audio.pause();
+        } catch (err) {}
+      });
+      audioRef.current = { net: null, kick: null, score: null, out: null };
+    };
+  }, [applySoundSettings]);
+
+  const playSound = useCallback((key) => {
+    const audio = audioRef.current[key];
+    if (!audio || isGameMuted()) return;
+    audio.currentTime = 0;
+    audio.volume = getGameVolume();
+    audio.play().catch(() => {});
+  }, []);
+
+  const playKickSound = useCallback(() => playSound('kick'), [playSound]);
+  const playNetSound = useCallback(() => playSound('net'), [playSound]);
+  const playScoreSound = useCallback(() => playSound('score'), [playSound]);
+  const playOutSound = useCallback(() => playSound('out'), [playSound]);
 
   useEffect(() => {
     if (!trainingMode) return undefined;
@@ -1118,13 +1176,26 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function finishPoint(winner, reason = '') {
+      const normalizedReason = reason.toLowerCase();
       state.live = false;
       resetRally();
+      if (normalizedReason.includes('out')) {
+        playOutSound();
+      } else if (normalizedReason.includes('net')) {
+        playNetSound();
+      } else {
+        playScoreSound();
+      }
       awardPoint(winner, reason);
       if (trainingMode && winner === 'player') markTrainingStep('winPoint');
     }
 
     function registerFault(server, reason) {
+      const normalizedReason = reason.toLowerCase();
+      const notifyFault = () => {
+        if (normalizedReason.includes('net')) playNetSound();
+        else if (normalizedReason.includes('out')) playOutSound();
+      };
       state.live = false;
       state.awaitingServeBounce = false;
       if (state.matchOver) return;
@@ -1134,6 +1205,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         finishPoint(winner, `${reason} · Double Fault`);
         return;
       }
+      notifyFault();
       updateHud();
       const announce = state.attempts === 1 ? `${reason} · 2nd` : reason;
       prepareServe(server, { resetAttempts: false, announce });
@@ -1430,6 +1502,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       lastHitter = hitter;
       hitTTL = 1.0;
       hitRing.position.set(pos.x, 0.002, pos.z);
+      playKickSound();
       if (trainingMode && hitter === 'player' && state.live) {
         markTrainingStep('rallyHit');
       }
@@ -1861,7 +1934,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       } catch {}
       renderer.dispose();
     };
-  }, [playerLabel, setHudInfo]);
+  }, [playerLabel, playKickSound, playNetSound, playOutSound, playScoreSound, setHudInfo]);
 
   const serveAttemptLabel = hudInfo.attempts >= 2 ? '1st serve' : hudInfo.attempts === 1 ? '2nd serve' : 'Serve reset';
   const scoreboardRows = [
