@@ -264,12 +264,31 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   );
   const nextTrainingStep = trainingSteps.find((step) => !trainingStatus[step.id]);
   const trainingCompleted = !nextTrainingStep && trainingMode;
-  const trainingHint = trainingMode
-    ? trainingCompleted
-      ? 'Trajnimi u përfundua – luaj lirshëm pa stake.'
-      : nextTrainingStep?.detail
-    : null;
+  const [taskToast, setTaskToast] = useState(() =>
+    trainingMode
+      ? {
+          id: trainingSteps[0].id,
+          title: `Detyra: ${trainingSteps[0].title}`,
+          detail: trainingSteps[0].detail
+        }
+      : null
+  );
+  const lastTaskToastId = useRef(null);
   const [scoreboardOpen, setScoreboardOpen] = useState(false);
+
+  useEffect(() => {
+    if (!trainingMode) return undefined;
+    const stepId = nextTrainingStep?.id || (trainingCompleted ? 'done' : null);
+    if (!stepId || stepId === lastTaskToastId.current) return undefined;
+    lastTaskToastId.current = stepId;
+    const toastTitle = nextTrainingStep ? `Detyra: ${nextTrainingStep.title}` : 'Trajnimi u përfundua';
+    const toastDetail = nextTrainingStep
+      ? nextTrainingStep.detail
+      : 'Tasket u realizuan, vazhdo lojën!';
+    setTaskToast({ id: stepId, title: toastTitle, detail: toastDetail });
+    const timer = setTimeout(() => setTaskToast(null), 4200);
+    return () => clearTimeout(timer);
+  }, [nextTrainingStep, trainingCompleted, trainingMode]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1218,11 +1237,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       if (by === 'player') {
         const serveZ = halfL - 0.92;
         player.position.set(idleX, 0, serveZ);
-        pos.set(idleX * 0.82, 1.36, serveZ - 0.28);
+        const tossX = idleX;
+        const tossZ = serveZ - 0.28;
+        pos.set(tossX, 1.36, tossZ);
       } else {
         const serveZ = -halfL + 0.92;
         cpu.position.set(-idleX, 0, serveZ);
-        pos.set(-idleX * 0.82, 1.36, serveZ + 0.28);
+        const tossX = -idleX;
+        const tossZ = serveZ + 0.28;
+        pos.set(tossX, 1.36, tossZ);
       }
       vel.set(0, 0, 0);
       spin.set(0, 0, 0);
@@ -1850,6 +1873,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       isServer: hudInfo.server === cpuLabel
     }
   ];
+  const activeTrainingStepId = trainingMode ? nextTrainingStep?.id : null;
 
   return (
     <div
@@ -1971,6 +1995,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {trainingSteps.map((step) => {
                 const done = trainingStatus[step.id];
+                const isActive = activeTrainingStepId === step.id && !done;
                 return (
                   <div key={step.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                     <span
@@ -1979,21 +2004,66 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
                         height: 12,
                         borderRadius: '50%',
                         marginTop: 3,
-                        background: done ? '#22c55e' : 'rgba(226, 232, 240, 0.7)',
-                        boxShadow: done ? '0 0 10px rgba(34, 197, 94, 0.6)' : 'none'
+                        background: done ? '#22c55e' : isActive ? '#facc15' : 'rgba(226, 232, 240, 0.7)',
+                        boxShadow: done
+                          ? '0 0 10px rgba(34, 197, 94, 0.6)'
+                          : isActive
+                            ? '0 0 10px rgba(250, 204, 21, 0.65)'
+                            : 'none'
                       }}
                     />
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700 }}>{step.title}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>
+                        {step.title}
+                        {isActive ? (
+                          <span
+                            style={{
+                              marginLeft: 6,
+                              background: 'rgba(250, 204, 21, 0.16)',
+                              color: '#facc15',
+                              fontSize: 10,
+                              fontWeight: 800,
+                              padding: '2px 6px',
+                              borderRadius: 999
+                            }}
+                          >
+                            Aktive
+                          </span>
+                        ) : null}
+                      </span>
                       <span style={{ fontSize: 12, opacity: 0.75 }}>{step.detail}</span>
                     </div>
                   </div>
                 );
               })}
             </div>
-            {trainingHint ? (
-              <div style={{ marginTop: 10, fontSize: 12, color: '#cbd5e1' }}>👉 {trainingHint}</div>
-            ) : null}
+          </div>
+        </div>
+      )}
+      {trainingMode && taskToast && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 22,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            pointerEvents: 'none'
+          }}
+        >
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.92)',
+              color: '#f8fafc',
+              borderRadius: 14,
+              padding: '12px 16px',
+              boxShadow: '0 18px 32px rgba(15, 23, 42, 0.35)',
+              minWidth: 240,
+              textAlign: 'center',
+              fontFamily: 'ui-sans-serif, system-ui'
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.2 }}>{taskToast.title}</div>
+            <div style={{ fontSize: 12, opacity: 0.82, marginTop: 4 }}>{taskToast.detail}</div>
           </div>
         </div>
       )}
