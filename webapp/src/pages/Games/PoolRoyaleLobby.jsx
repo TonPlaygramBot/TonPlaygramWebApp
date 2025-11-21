@@ -60,6 +60,7 @@ export default function PoolRoyaleLobby() {
     const params = new URLSearchParams();
     params.set('variant', variant);
     params.set('type', playType);
+    if (playType === 'tournament') params.set('tournament', '1');
     if (playType !== 'training') params.set('mode', mode);
     const initData = window.Telegram?.WebApp?.initData;
     if (playType !== 'training') {
@@ -97,7 +98,8 @@ export default function PoolRoyaleLobby() {
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' }
+            { id: 'training', label: 'Training' },
+            { id: 'tournament', label: 'Tournament (3D)' }
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -108,6 +110,11 @@ export default function PoolRoyaleLobby() {
             </button>
           ))}
         </div>
+        {playType === 'tournament' && (
+          <p className="text-xs text-subtext">
+            Bracket matches now launch in the 3D build with the updated broadcast table.
+          </p>
+        )}
       </div>
       {playType !== 'training' && (
         <div className="space-y-2">

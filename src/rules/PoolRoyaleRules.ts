@@ -334,6 +334,8 @@ export class PoolRoyaleRules {
       phase: snapshot.isOpenTable ? 'open' : 'groups',
       scores: playerScores
     };
+    const resolvedWinner = shotResult.winner ?? game.state.winner ?? undefined;
+    const frameOver = game.state.frameOver || Boolean(shotResult.frameOver);
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -342,8 +344,8 @@ export class PoolRoyaleRules {
         B: { ...state.players.B, score: playerScores.B }
       },
       ballOn,
-      frameOver: game.state.frameOver,
-      winner: game.state.winner ?? undefined,
+      frameOver,
+      winner: resolvedWinner,
       foul: shotResult.foul
         ? {
             points: 0,
@@ -425,17 +427,19 @@ export class PoolRoyaleRules {
     const snapshot = serializeAmericanState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
     const tableClear = snapshot.ballsOnTable.length === 0;
+    const existingWinner = state.frameOver ? state.winner : undefined;
     const hud: HudInfo = {
       next: lowest != null ? `ball ${lowest}` : tableClear ? 'frame over' : 'rack clear',
       phase: tableClear ? 'complete' : 'rotation',
       scores: { ...snapshot.scores }
     };
-    let winner: FrameState['winner'];
+    let winner: FrameState['winner'] = existingWinner;
     if (tableClear) {
       if (snapshot.scores.A > snapshot.scores.B) winner = 'A';
       else if (snapshot.scores.B > snapshot.scores.A) winner = 'B';
       else winner = 'TIE';
     }
+    const frameOver = tableClear || state.frameOver;
     const nextState: FrameState = {
       ...state,
       activePlayer: game.state.currentPlayer,
@@ -444,7 +448,7 @@ export class PoolRoyaleRules {
         B: { ...state.players.B, score: snapshot.scores.B }
       },
       ballOn: lowest != null ? [`BALL_${lowest}`] : [],
-      frameOver: tableClear,
+      frameOver,
       winner,
       foul: result.foul
         ? {
@@ -492,6 +496,8 @@ export class PoolRoyaleRules {
     });
     const snapshot = serializeNineState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
+    const frameOver = game.state.gameOver || result.frameOver || state.frameOver;
+    const resolvedWinner = game.state.winner ?? result.winner ?? state.winner;
     const hud: HudInfo = {
       next: lowest != null ? `ball ${lowest}` : 'nine',
       phase: 'run',
@@ -505,8 +511,8 @@ export class PoolRoyaleRules {
         B: { ...state.players.B, score: 0 }
       },
       ballOn: lowest != null ? [`BALL_${lowest}`] : [],
-      frameOver: game.state.gameOver,
-      winner: game.state.winner ?? undefined,
+      frameOver,
+      winner: resolvedWinner ?? undefined,
       foul: result.foul
         ? {
             points: 0,
