@@ -14,6 +14,60 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 
+const TRAINING_TASKS = [
+  {
+    description: 'Roll a single object ball that is already near the corner pocket – just tap to pot.',
+    tip: 'Line up straight and use a soft stroke to sink the ball.',
+    reward: 50
+  },
+  {
+    description: 'Move the cue ball a few inches and pot a ball hanging over the middle pocket.',
+    tip: 'Feather the cue to feel table speed before committing.',
+    reward: 75
+  },
+  {
+    description: 'Play a gentle follow (top spin) to hold shape for the next ball.',
+    tip: 'Drag the spin marker slightly above center, aim straight, and push through.',
+    reward: 100
+  },
+  {
+    description: 'Stun the cue ball after potting to stay on the same line.',
+    tip: 'Keep the spin marker at center ball and strike cleanly.',
+    reward: 120
+  },
+  {
+    description: 'Use a small draw (back spin) to pull back for an easy next shot.',
+    tip: 'Set the spin marker just below center and reduce power.',
+    reward: 150
+  },
+  {
+    description: 'Pot two open balls in sequence without touching cushions.',
+    tip: 'Prioritize straight pots and soft pace to keep control.',
+    reward: 180
+  },
+  {
+    description: 'Bank a ball cross-side with center-ball strike.',
+    tip: 'Visualize the mirror angle and keep power moderate.',
+    reward: 220
+  },
+  {
+    description: 'Play a thin cut to the corner while avoiding a scratch.',
+    tip: 'Aim for the far jaw and favor stun over follow.',
+    reward: 260
+  },
+  {
+    description: 'Run a three-ball pattern using only follow and stun.',
+    tip: 'Alternate between soft top spin and stop shots to stay in line.',
+    reward: 320
+  },
+  {
+    description: 'Finish a mini-rack in under two minutes with clean position.',
+    tip: 'Plan the order, use gentle spin, and avoid risky power shots.',
+    reward: 500,
+    nft: true
+  }
+];
+
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -83,7 +137,7 @@ export default function PoolRoyaleLobby() {
         setMatchingError('Unable to resolve your TPC account.');
         return;
       }
-      socket.emit('register', { playerId: accountId });
+      socket.emit('register', { playerId: accountId, accountId });
       socket.emit(
         'seatTable',
         {
@@ -91,6 +145,10 @@ export default function PoolRoyaleLobby() {
           gameType: 'poolroyale',
           stake: stake.amount,
           maxPlayers: 2,
+          token: stake.token,
+          variant,
+          tableSize,
+          playType,
           playerName: getTelegramFirstName() || `TPC ${accountId}`,
           avatar
         },
@@ -106,7 +164,9 @@ export default function PoolRoyaleLobby() {
             });
             setMatching(true);
           } else {
-            setMatchingError('Failed to join the online arena. Please retry.');
+            setMatchingError(
+              res?.message || 'Failed to join the online arena. Please retry.'
+            );
           }
         }
       );
@@ -135,6 +195,9 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
+    if (playType === 'training' && TRAINING_TASKS[0]?.tip) {
+      window.alert(`Training tip: ${TRAINING_TASKS[0].tip}`);
+    }
     navigate(`/games/pollroyale?${params.toString()}`);
   };
 
@@ -272,71 +335,13 @@ export default function PoolRoyaleLobby() {
 
   const careerRounds = useMemo(
     () =>
-      [
-        'Pocket the cue ball softly to feel cloth speed.',
-        'Complete a straight-in pot from the kitchen.',
-        'Pot two object balls in a row without scratching.',
-        'Play a gentle stun shot to hold the cue ball in place.',
-        'Sink a long corner shot with a smooth follow-through.',
-        'Clear three open balls with center-ball hits only.',
-        'Use a simple stop shot to finish shape for the next ball.',
-        'Make a cut shot to the middle pocket at medium pace.',
-        'Run a mini pattern of four balls without bumping cushions.',
-        'Finish a basic rack with no fouls.',
-        'Control cue ball speed on a three-ball drill.',
-        'Execute a gentle draw shot to pull back a table diamond.',
-        'Bank an object ball cross-side with planned speed.',
-        'Play a thin cut to the corner while avoiding the scratch.',
-        'Run five balls using only center and stop shots.',
-        'Break a mini-rack and pot any ball off the break.',
-        'Hold white on the rail and pot a middle-pocket shot.',
-        'Plan a three-ball pattern with one rail of position.',
-        'Deliver a controlled lag to land within a hand span.',
-        'Finish a practice rack in under two minutes.',
-        'Break and run the first three balls of a rack.',
-        'Pot from behind a blocker using slight swerve.',
-        'Two-rail kick safe to touch an object ball.',
-        'Complete a stop-draw-follow ladder of five shots.',
-        'Play a defensive thin hit leaving cue ball on the rail.',
-        'Bank two balls in one turn to opposite sides.',
-        'Run half a rack with purposeful cue-ball zones.',
-        'Deliver a controlled nine-ball style soft break.',
-        'Play a jump over a chalk to pot a close ball.',
-        'Close a rack with zero unforced errors.',
-        'Break and clear four balls while keeping shape.',
-        'Kick-safe using a diamond system reference.',
-        'Draw two rails to land on a precise target zone.',
-        'Navigate traffic with a three-rail positional route.',
-        'Bank-kick combination to score a tough pot.',
-        'Run a full practice rack under shot clock pressure.',
-        'Execute a break-and-run of six balls.',
-        'Lock down a safety leaving opponent snookered.',
-        'Three-rail escape landing on the correct side of the ball.',
-        'Run a rack alternating draw and follow for shape.',
-        'Perform a power break keeping cue ball center-table.',
-        'Clear a rack after a dry break from the opponent.',
-        'Hit a jump-masse combo to save the rack.',
-        'Back-to-back racks with no fouls or scratches.',
-        'Force-follow three rails to perfect shape on the last two balls.',
-        'Run-out after a clustered break by opening balls safely.',
-        'Execute a precise two-way shot (make or lock safe).',
-        'Complete a six-rail kick to contact a chosen ball.',
-        'Win a simulated hill-hill rack with safety-first play.',
-        'Dominate a full 50-shot drill without missing.'
-      ].map((description, index) => {
-        const level = index + 1;
-        let reward = 100;
-        if (level === 50) reward = 2000;
-        else if (level >= 40) reward = 400;
-        else if (level >= 30) reward = 300;
-        else if (level >= 20) reward = 200;
-        return {
-          level,
-          description,
-          reward,
-          nft: level % 10 === 0 || level === 50
-        };
-      }),
+      TRAINING_TASKS.map((task, index) => ({
+        level: index + 1,
+        description: task.description,
+        reward: task.reward,
+        tip: task.tip,
+        nft: Boolean(task.nft)
+      })),
     []
   );
 
@@ -478,17 +483,18 @@ export default function PoolRoyaleLobby() {
         {mode === 'online' ? (matching ? 'Waiting for opponent…' : 'START ONLINE') : 'START'}
       </button>
       <div className="space-y-2">
-        <h3 className="font-semibold">Career Mode · 50 Rounds</h3>
+        <h3 className="font-semibold">Training Ladder · 10 Rounds</h3>
         <p className="text-sm text-subtext">
-          Climb from fundamentals to super pro drills. Every 10 levels award an NFT, and rewards scale with
-          progress. Finish level 50 for a 2,000 TPC jackpot and a special NFT gift.
+          Start with simple one-ball pots, then layer in spin control, position play, and gentle banks.
+          Each round explains the objective so new players learn step by step while still earning TPC.
         </p>
         <div className="max-h-64 overflow-y-auto space-y-2">
-          {careerRounds.map(({ level, description, reward, nft }) => (
+          {careerRounds.map(({ level, description, reward, nft, tip }) => (
             <div key={level} className="lobby-tile w-full flex items-center justify-between">
               <div>
                 <p className="font-semibold">Round {level}</p>
                 <p className="text-sm text-subtext">{description}</p>
+                {tip && <p className="text-xs text-amber-200 mt-1">Tip: {tip}</p>}
               </div>
               <div className="text-right text-sm">
                 <div className="font-semibold">Reward: {reward} TPC</div>
