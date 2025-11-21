@@ -938,7 +938,7 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-const SHOT_FORCE_BOOST = 1.5 * 0.75;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85; // trim cue strike force by 15%
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -994,14 +994,6 @@ const MAX_SPIN_CONTACT_OFFSET = BALL_R * 0.85;
 const MAX_SPIN_FORWARD = MAX_SPIN_CONTACT_OFFSET;
 const MAX_SPIN_SIDE = BALL_R * 0.35;
 const MAX_SPIN_VERTICAL = MAX_SPIN_CONTACT_OFFSET;
-const SPIN_BOX_FILL_RATIO =
-  BALL_R > 0
-    ? THREE.MathUtils.clamp(
-        MAX_SPIN_CONTACT_OFFSET / BALL_R,
-        0,
-        1
-      )
-    : 1;
 const SPIN_RING_RATIO = THREE.MathUtils.clamp(SWERVE_THRESHOLD, 0, 1);
 const SPIN_CLEARANCE_MARGIN = BALL_R * 0.4;
 const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
@@ -1458,7 +1450,8 @@ const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   rusticSplit: 'walnut',
   charredTimber: 'wenge',
   plankStudio: 'oak',
-  weatheredGrey: 'smokedOak'
+  weatheredGrey: 'smokedOak',
+  jetBlackCarbon: 'ebony'
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
@@ -1746,6 +1739,68 @@ const TABLE_FINISHES = Object.freeze({
       applySnookerStyleWoodPreset(materials, 'weatheredGrey');
       return { ...materials, ...createPocketMaterials() };
     }
+  },
+  jetBlackCarbon: {
+    id: 'jetBlackCarbon',
+    label: 'Jet Black Matte Carbon Fibre',
+    colors: makeColorPalette({
+      cloth: 0x1a1a1c,
+      rail: 0x16181c,
+      base: 0x0d0f12
+    }),
+    woodTextureId: null,
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#0d0f12');
+      const railColor = new THREE.Color('#16181c');
+      const fiberSheen = new THREE.Color('#2d323a');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.36,
+        roughness: 0.68,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.42,
+        sheen: 0.3,
+        sheenColor: fiberSheen,
+        sheenRoughness: 0.65,
+        envMapIntensity: 0.62
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.32,
+        roughness: 0.6,
+        clearcoat: 0.12,
+        clearcoatRoughness: 0.4,
+        sheen: 0.34,
+        sheenColor: fiberSheen,
+        sheenRoughness: 0.62,
+        envMapIntensity: 0.7
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0x2e3138,
+        metalness: 0.72,
+        roughness: 0.32,
+        clearcoat: 0.28,
+        clearcoatRoughness: 0.36,
+        envMapIntensity: 0.9
+      });
+      const accent = new THREE.MeshPhysicalMaterial({
+        color: 0x111319,
+        metalness: 0.28,
+        roughness: 0.54,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.46,
+        envMapIntensity: 0.58
+      });
+      const materials = {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent
+      };
+      applySnookerStyleWoodPreset(materials, 'jetBlackCarbon');
+      return { ...materials, ...createPocketMaterials() };
+    }
   }
 });
 
@@ -1754,7 +1809,8 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
     TABLE_FINISHES.rusticSplit,
     TABLE_FINISHES.charredTimber,
     TABLE_FINISHES.plankStudio,
-    TABLE_FINISHES.weatheredGrey
+    TABLE_FINISHES.weatheredGrey,
+    TABLE_FINISHES.jetBlackCarbon
   ].filter(Boolean)
 );
 
@@ -1797,17 +1853,6 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     sparkle: 0.65,
     stray: 0.9
   }),
-  royalBlue: Object.freeze({
-    id: 'royalBlue',
-    palette: {
-      shadow: 0x0b2a49,
-      base: 0x1d4e89,
-      accent: 0x2f72c4,
-      highlight: 0x5aa2ff
-    },
-    sparkle: 0.92,
-    stray: 1
-  }),
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
@@ -1818,28 +1863,6 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     },
     sparkle: 1.05,
     stray: 1.12
-  }),
-  midnightBlue: Object.freeze({
-    id: 'midnightBlue',
-    palette: {
-      shadow: 0x0c1a2c,
-      base: 0x142c46,
-      accent: 0x1c3d63,
-      highlight: 0x2d5d8e
-    },
-    sparkle: 0.52,
-    stray: 0.8
-  }),
-  emberOrange: Object.freeze({
-    id: 'emberOrange',
-    palette: {
-      shadow: 0x5a2006,
-      base: 0xc54b0f,
-      accent: 0xf06f22,
-      highlight: 0xffa25c
-    },
-    sparkle: 0.88,
-    stray: 1.02
   })
 });
 
@@ -1870,17 +1893,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'royalBlue',
-    label: 'Royal Blue',
-    color: 0x2462a6,
-    textureKey: 'royalBlue',
-    detail: {
-      sheen: 0.64,
-      sheenRoughness: 0.46,
-      emissiveIntensity: 0.44
-    }
-  },
-  {
     id: 'arcticBlue',
     label: 'Arctic Blue',
     color: 0x3e98d8,
@@ -1889,30 +1901,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       sheen: 0.72,
       sheenRoughness: 0.4,
       envMapIntensity: 0.22
-    }
-  },
-  {
-    id: 'midnightBlue',
-    label: 'Midnight Blue',
-    color: 0x1a3554,
-    textureKey: 'midnightBlue',
-    detail: {
-      bumpMultiplier: 1.12,
-      roughness: 0.78,
-      envMapIntensity: 0.12
-    }
-  },
-  {
-    id: 'emberOrange',
-    label: 'Ember Orange',
-    color: 0xd45a16,
-    textureKey: 'emberOrange',
-    cushionColor: 0x0f0f0f,
-    detail: {
-      bumpMultiplier: 0.98,
-      sheen: 0.56,
-      sheenRoughness: 0.38,
-      emissiveIntensity: 0.36
     }
   }
 ]);
@@ -15289,8 +15277,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
             className="relative w-28 h-28 rounded-full shadow-lg border border-white/70 overflow-hidden"
             style={{
               background: `radial-gradient(circle, #f9fafb 0%, #f9fafb ${
-                SPIN_BOX_FILL_RATIO * 100
-              }%, #fde68a ${SPIN_BOX_FILL_RATIO * 100}%, #fde68a 100%)`
+                SWERVE_THRESHOLD * 100
+              }%, #facc15 ${SWERVE_THRESHOLD * 100}%, #facc15 100%)`
             }}
           >
             <div
