@@ -8905,6 +8905,21 @@ function PoolRoyaleGame({
     }, 1200);
     return () => window.clearTimeout(redirectTimer);
   }, [frameState.frameOver, frameState.winner, handleTrainingOutcome, isTraining, player.name]);
+
+  useEffect(() => {
+    if (!isTraining || trainingPopup) return;
+    if (gameOverHandledRef.current) return;
+    const balls = Array.isArray(frameState?.balls) ? frameState.balls : [];
+    const remaining = balls.filter((ball) => {
+      if (!ball || ball.id === 'cue') return false;
+      const onTable = ball.onTable ?? !ball.potted;
+      return onTable === true;
+    }).length;
+    if (remaining === 0) {
+      gameOverHandledRef.current = true;
+      handleTrainingOutcome(true);
+    }
+  }, [frameState?.balls, handleTrainingOutcome, isTraining, trainingPopup]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
