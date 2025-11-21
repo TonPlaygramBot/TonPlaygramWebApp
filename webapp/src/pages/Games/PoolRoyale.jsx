@@ -1362,10 +1362,11 @@ const CLOTH_QUALITY = (() => {
   return defaults;
 })();
 
-const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
+const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff, cushion }) => ({
   cloth,
   rail,
   base,
+  cushion: cushion ?? cloth,
   markings,
   ...BASE_BALL_COLORS
 });
@@ -1795,6 +1796,50 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     },
     sparkle: 0.65,
     stray: 0.9
+  }),
+  royalBlue: Object.freeze({
+    id: 'royalBlue',
+    palette: {
+      shadow: 0x0b2a49,
+      base: 0x1d4e89,
+      accent: 0x2f72c4,
+      highlight: 0x5aa2ff
+    },
+    sparkle: 0.92,
+    stray: 1
+  }),
+  arcticBlue: Object.freeze({
+    id: 'arcticBlue',
+    palette: {
+      shadow: 0x1f506c,
+      base: 0x2f7fb1,
+      accent: 0x6ab5ef,
+      highlight: 0xa0d7ff
+    },
+    sparkle: 1.05,
+    stray: 1.12
+  }),
+  midnightBlue: Object.freeze({
+    id: 'midnightBlue',
+    palette: {
+      shadow: 0x0c1a2c,
+      base: 0x142c46,
+      accent: 0x1c3d63,
+      highlight: 0x2d5d8e
+    },
+    sparkle: 0.52,
+    stray: 0.8
+  }),
+  emberOrange: Object.freeze({
+    id: 'emberOrange',
+    palette: {
+      shadow: 0x5a2006,
+      base: 0xc54b0f,
+      accent: 0xf06f22,
+      highlight: 0xffa25c
+    },
+    sparkle: 0.88,
+    stray: 1.02
   })
 });
 
@@ -1823,6 +1868,52 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       roughness: 0.72,
       envMapIntensity: 0.16
     }
+  },
+  {
+    id: 'royalBlue',
+    label: 'Royal Blue',
+    color: 0x2462a6,
+    textureKey: 'royalBlue',
+    detail: {
+      sheen: 0.64,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.44
+    }
+  },
+  {
+    id: 'arcticBlue',
+    label: 'Arctic Blue',
+    color: 0x3e98d8,
+    textureKey: 'arcticBlue',
+    detail: {
+      sheen: 0.72,
+      sheenRoughness: 0.4,
+      envMapIntensity: 0.22
+    }
+  },
+  {
+    id: 'midnightBlue',
+    label: 'Midnight Blue',
+    color: 0x1a3554,
+    textureKey: 'midnightBlue',
+    detail: {
+      bumpMultiplier: 1.12,
+      roughness: 0.78,
+      envMapIntensity: 0.12
+    }
+  },
+  {
+    id: 'emberOrange',
+    label: 'Ember Orange',
+    color: 0xd45a16,
+    textureKey: 'emberOrange',
+    cushionColor: 0x0f0f0f,
+    detail: {
+      bumpMultiplier: 0.98,
+      sheen: 0.56,
+      sheenRoughness: 0.38,
+      emissiveIntensity: 0.36
+    }
   }
 ]);
 
@@ -1844,15 +1935,6 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
     clearcoatRoughness: 0.18
   },
   {
-    id: 'gold',
-    label: 'Gold',
-    color: 0xd5b26e,
-    metalness: 0.94,
-    roughness: 0.3,
-    clearcoat: 0.52,
-    clearcoatRoughness: 0.16
-  },
-  {
     id: 'pearl',
     label: 'Pearl',
     color: 0xf3ede3,
@@ -1862,15 +1944,6 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
     clearcoatRoughness: 0.12,
     sheen: 0.28,
     sheenRoughness: 0.42
-  },
-  {
-    id: 'white',
-    label: 'White',
-    color: 0xf9f9f7,
-    metalness: 0.16,
-    roughness: 0.32,
-    clearcoat: 0.4,
-    clearcoatRoughness: 0.18
   }
 ]);
 
@@ -5072,8 +5145,10 @@ function Table3D(
 
   const { map: clothMap, bump: clothBump } = createClothTextures(clothTextureKey);
   const clothPrimary = new THREE.Color(palette.cloth);
+  const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
+  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
@@ -5125,6 +5200,8 @@ function Table3D(
   };
 
   const cushionMat = clothMat.clone();
+  cushionMat.color.copy(cushionColor);
+  cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.side = THREE.DoubleSide;
@@ -6773,7 +6850,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = TABLE.THICK * 0.12;
+  const railMarkerOutset = longRailW * 0.7;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = TABLE.THICK * 0.06;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -6793,12 +6870,16 @@ function Table3D(
   });
   diamondGeometry.rotateX(-Math.PI / 2);
   const circleRadius = railMarkerWidth * 0.36;
-  const circleGeometry = new THREE.CylinderGeometry(
-    circleRadius,
-    circleRadius,
-    railMarkerThickness,
-    64
-  );
+  const circleShape = new THREE.Shape();
+  circleShape.absarc(0, 0, circleRadius, 0, Math.PI * 2, false);
+  const circleGeometry = new THREE.ExtrudeGeometry(circleShape, {
+    depth: railMarkerThickness,
+    bevelEnabled: true,
+    bevelThickness: railMarkerThickness * 0.28,
+    bevelSize: railMarkerThickness * 0.24,
+    bevelSegments: 2,
+    curveSegments: 48
+  });
   circleGeometry.rotateX(-Math.PI / 2);
   const railMarkerGeometries = Object.freeze({
     diamond: diamondGeometry,
@@ -6862,8 +6943,8 @@ function Table3D(
     clearRailMarkerMeshes();
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW * 0.5 + railMarkerOutset;
-    const shortRailZ = halfH + endRailW * 0.5 + railMarkerOutset;
+    const longRailX = halfW + longRailW + railMarkerOutset;
+    const shortRailZ = halfH + endRailW + railMarkerOutset;
     const addMarker = (x, z, rotation = 0) => {
       const mesh = new THREE.Mesh(geometry, railMarkerMat);
       mesh.position.set(x, railMarkerLift, z);
@@ -7544,15 +7625,19 @@ function applyTableFinishToTable(table, finish) {
   }
 
   const clothColor = new THREE.Color(resolvedFinish.colors.cloth);
+  const cushionColor = new THREE.Color(
+    resolvedFinish.colors.cushion ?? resolvedFinish.colors.cloth
+  );
   const emissiveColor = clothColor.clone().multiplyScalar(0.06);
+  const cushionEmissive = cushionColor.clone().multiplyScalar(0.06);
   if (finishInfo.clothMat) {
     finishInfo.clothMat.color.copy(clothColor);
     finishInfo.clothMat.emissive.copy(emissiveColor);
     finishInfo.clothMat.needsUpdate = true;
   }
   if (finishInfo.cushionMat) {
-    finishInfo.cushionMat.color.copy(clothColor);
-    finishInfo.cushionMat.emissive.copy(emissiveColor);
+    finishInfo.cushionMat.color.copy(cushionColor);
+    finishInfo.cushionMat.emissive.copy(cushionEmissive);
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
@@ -7983,7 +8068,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       clothTextureKey,
       colors: {
         ...baseFinish.colors,
-        cloth: clothSelection.color
+        cloth: clothSelection.color,
+        cushion: clothSelection.cushionColor ?? clothSelection.color
       },
       woodTexture: null,
       woodTextureEnabled: WOOD_TEXTURES_ENABLED,
@@ -8096,6 +8182,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     contactMade: false,
     cushionAfterContact: false
   });
+  const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
   const stopAiThinkingRef = useRef(() => {});
@@ -8608,6 +8695,34 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       };
     });
   }, [frameState]);
+  useEffect(() => {
+    if (!frameState.frameOver) {
+      gameOverHandledRef.current = false;
+      return;
+    }
+    if (gameOverHandledRef.current) return;
+    gameOverHandledRef.current = true;
+    setHud((prev) => ({ ...prev, over: true }));
+    const winnerId = frameState.winner;
+    const winnerLabel = winnerId === 'A'
+      ? player.name || 'You'
+      : winnerId === 'B'
+        ? 'AI'
+        : 'No winner';
+    const announcement =
+      winnerId === 'A'
+        ? `${winnerLabel} wins!`
+        : winnerId === 'B'
+          ? `${winnerLabel} wins!`
+          : 'Frame tied!';
+    window.alert(`${announcement} Returning to the lobby...`);
+    const winnerParam = winnerId === 'A' ? '1' : '0';
+    const lobbyUrl = `/games/pollroyale/lobby?winner=${winnerParam}`;
+    const redirectTimer = window.setTimeout(() => {
+      window.location.assign(lobbyUrl);
+    }, 1200);
+    return () => window.clearTimeout(redirectTimer);
+  }, [frameState.frameOver, frameState.winner, player.name]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
@@ -12984,9 +13099,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               .filter(Boolean)
           );
           if (legalTargets.size === 0) legalTargets.add('RED');
+          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
-          const clearance = BALL_R * 1.45;
+          const clearance = BALL_R * (activeVariantId === 'uk' ? 1.2 : 1.45);
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
@@ -13096,9 +13212,12 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
+          const bestPot = potShots[0] ?? null;
+          const bestSafety =
+            activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
           return {
-            bestPot: potShots[0] ?? null,
-            bestSafety: safetyShots[0] ?? null
+            bestPot,
+            bestSafety
           };
         };
 
