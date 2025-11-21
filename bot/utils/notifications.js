@@ -1,6 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createCanvas, loadImage } from 'canvas';
+import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { fetchTelegramInfo } from './telegram.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
