@@ -40,7 +40,7 @@ export function getAIOpponentFlag(playerFlag) {
   if (Array.isArray(rivals) && rivals.length > 0) {
     return rivals[Math.floor(Math.random() * rivals.length)];
   }
-  const flags = Object.keys(RIVAL_FLAGS);
+  const flags = FLAG_EMOJIS.length ? FLAG_EMOJIS : Object.keys(RIVAL_FLAGS);
   let flag;
   do {
     flag = flags[Math.floor(Math.random() * flags.length)];

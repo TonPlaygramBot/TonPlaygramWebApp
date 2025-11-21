@@ -36,6 +36,7 @@ import {
   detectCombo,
   sortHand
 } from '../../../../lib/murlan.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
@@ -48,8 +49,6 @@ const CUSTOM_SEAT_ANGLES = [
   THREE.MathUtils.degToRad(270),
   THREE.MathUtils.degToRad(225)
 ];
-
-const FLAG_EMOJIS = ['🇦🇱', '🇺🇸', '🇫🇷', '🇬🇧', '🇮🇹', '🇩🇪', '🇯🇵', '🇨🇦'];
 
 const SUITS = ['♠', '♥', '♦', '♣'];
 const SUIT_COLORS = {
