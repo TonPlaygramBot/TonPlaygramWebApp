@@ -115,7 +115,7 @@ export default function AirHockey3D({ player, ai }) {
 
     const TABLE_SCALE = 1.2;
     const BASE_TABLE_LENGTH = POOL_ENVIRONMENT.tableLength * TABLE_SCALE;
-    const TOP_EXTENSION_FACTOR = 0.15;
+    const TOP_EXTENSION_FACTOR = 0.3;
     const TABLE = {
       w: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE,
       h:
@@ -132,7 +132,7 @@ export default function AirHockey3D({ player, ai }) {
     const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.06 / 0.12);
     const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.08 / 0.12);
     const PUCK_RADIUS = TABLE.w * 0.027272727272727268;
-    const PUCK_HEIGHT = PUCK_RADIUS * (0.04 / 0.06);
+    const PUCK_HEIGHT = PUCK_RADIUS * (0.06 / 0.06);
 
     const camera = new THREE.PerspectiveCamera(
       56,
@@ -144,7 +144,7 @@ export default function AirHockey3D({ player, ai }) {
     const world = new THREE.Group();
     scene.add(world);
 
-    const TABLE_ELEVATION_FACTOR = 1.2;
+    const TABLE_ELEVATION_FACTOR = 2;
     const tableFloorGap =
       POOL_ENVIRONMENT.tableSurfaceY - POOL_ENVIRONMENT.floorY;
     const tableLift = tableFloorGap * (TABLE_ELEVATION_FACTOR - 1);
@@ -308,7 +308,8 @@ export default function AirHockey3D({ player, ai }) {
     });
     const legRadius = Math.min(TABLE.w, TABLE.h) * 0.055;
     const legTopLocal = cabinetBottomLocal - TABLE.thickness * 0.08;
-    const legHeight = Math.max(0.1, legTopLocal - floorLocalY);
+    const legHeightGap = legTopLocal - floorLocalY;
+    const legHeight = Math.max(0.1, legHeightGap);
     const legGeometry = new THREE.CylinderGeometry(
       legRadius * 0.92,
       legRadius,
@@ -492,12 +493,12 @@ export default function AirHockey3D({ player, ai }) {
     const playerRailZ = TABLE.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.thickness * 0.08,
+      elevatedTableSurfaceY + TABLE.thickness * 0.06,
       tableCenterZ
     );
     const cameraAnchor = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.h * 0.42,
+      elevatedTableSurfaceY + TABLE.h * 0.36,
       tableCenterZ + playerRailZ + railThickness * 0.35
     );
     const cameraDirection = new THREE.Vector3()
@@ -532,7 +533,7 @@ export default function AirHockey3D({ player, ai }) {
 
     const S = {
       vel: new THREE.Vector3(0, 0, 0),
-      friction: 0.94
+      friction: 0.996
     };
 
     const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -573,16 +574,16 @@ export default function AirHockey3D({ player, ai }) {
     });
     renderer.domElement.addEventListener('mousemove', onMove);
 
-    const SPEED_BOOST = 1.15;
+    const SPEED_BOOST = 1.25;
     const HIT_FORCE = 0.5 * SPEED_SCALE * SPEED_BOOST;
-    const MAX_SPEED = 0.08 * SPEED_SCALE * SPEED_BOOST;
-    const SERVE_SPEED = 0.05 * SPEED_SCALE * SPEED_BOOST;
+    const MAX_SPEED = 0.095 * SPEED_SCALE * SPEED_BOOST;
+    const SERVE_SPEED = 0.055 * SPEED_SCALE * SPEED_BOOST;
 
     const handleCollision = (mallet, isPlayer = false) => {
       const dx = puck.position.x - mallet.position.x;
       const dz = puck.position.z - mallet.position.z;
       const d2 = dx * dx + dz * dz;
-      const collideRadius = MALLET_RADIUS + PUCK_RADIUS * 0.3;
+      const collideRadius = MALLET_RADIUS + PUCK_RADIUS * 0.8;
       if (d2 < collideRadius * collideRadius) {
         const distance = Math.max(Math.sqrt(d2), 1e-6);
         const overlap = collideRadius - distance;
@@ -593,6 +594,14 @@ export default function AirHockey3D({ player, ai }) {
 
         const directionalForce = HIT_FORCE * (isPlayer ? 1.2 : 1);
         S.vel.addScaledVector(normal, directionalForce);
+
+        if (isPlayer) {
+          const guardOffset = MALLET_RADIUS + PUCK_RADIUS * 0.2;
+          puck.position.z = Math.min(puck.position.z, mallet.position.z - guardOffset);
+          if (S.vel.z > 0) {
+            S.vel.z = -Math.abs(S.vel.z);
+          }
+        }
 
         const alongNormal = S.vel.dot(normal);
         if (alongNormal < SERVE_SPEED * 0.4) {
@@ -641,7 +650,7 @@ export default function AirHockey3D({ player, ai }) {
 
       puck.position.x += S.vel.x;
       puck.position.z += S.vel.z;
-      S.vel.multiplyScalar(S.friction);
+      S.vel.multiplyScalar(Math.pow(S.friction, dt * 60));
       // keep puck speed manageable
       S.vel.clampLength(0, MAX_SPEED);
 
