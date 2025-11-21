@@ -1457,8 +1457,8 @@ const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
 });
 
 const POOL_ROYALE_WOOD_REPEAT = Object.freeze({
-  x: 1,
-  y: 5.5
+  x: CUE_WOOD_REPEAT.x,
+  y: CUE_WOOD_REPEAT.y
 });
 
 const POOL_ROYALE_WOOD_SURFACE_PROPS = Object.freeze({
@@ -1477,7 +1477,7 @@ const applySnookerStyleWoodPreset = (materials, finishId) => {
     light: preset.light,
     contrast: preset.contrast,
     repeat: POOL_ROYALE_WOOD_REPEAT,
-    sharedKey: `pool-royale-wood-${preset.id}`,
+    sharedKey: `snooker-wood-${preset.id}`,
     ...POOL_ROYALE_WOOD_SURFACE_PROPS
   };
   const uniqueMaterials = new Set(
