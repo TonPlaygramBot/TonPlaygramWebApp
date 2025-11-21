@@ -31,7 +31,7 @@ export async function startTirana2040(){
   window.gate = gate;
 
   const SCALE={ FLOOR_H:3.4, TRAFFIC_LIGHT_H:2.8 };
-  const PERF={ bots:12 };
+  const PERF={ bots:10 };
   // Fast boot trades visual fidelity for stability on mobile. Explicitly disable it
   // so every client uses the full-detail pipeline.
   const FAST_BOOT=false;
@@ -231,6 +231,9 @@ export async function startTirana2040(){
   let dprScale = 1.1;
   const DPR_MIN = isMobile ? 0.85 : 0.75;
   const DPR_MAX_SCALE = isMobile ? 1.05 : 1.25;
+  const PERF_TARGET_FPS = 50;
+  let lowFpsTime = 0;
+  let perfBoosted = false;
   function fit(){
     const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight;
     const targetDpr=Math.min(dprBase*dprScale, isMobile?maxMobileDpr:3.0);
@@ -258,6 +261,16 @@ export async function startTirana2040(){
   const fill = new THREE.DirectionalLight(0xffffff, 0.9); fill.position.set(-320, 140, -260);
   const rim  = new THREE.DirectionalLight(0xffffff, 0.8); rim.position.set(120, 200, -520);
   scene.add(hemi, key, fill, rim);
+  function applyPerformanceBoost(){
+    if(perfBoosted) return;
+    perfBoosted=true;
+    renderer.shadowMap.enabled=false;
+    [key,fill,rim].forEach((l)=>{ l.castShadow=false; if(l.shadow?.mapSize){ l.shadow.mapSize.set(512,512); } });
+    dprBase=Math.min(dprBase,1.0);
+    dprScale=Math.max(DPR_MIN, dprScale-0.15);
+    fit();
+    updateStatus('Tirana 2040 • Performance boost (50fps)');
+  }
   const muzzleLight = new THREE.PointLight(0xfff1c6, 0.0, 2.0); scene.add(muzzleLight);
 
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0,-9.81,0) });
@@ -383,11 +396,13 @@ export async function startTirana2040(){
   function makeGlassStdMat(){ return new THREE.MeshPhysicalMaterial({ color:0xffffff, roughness:0.08, metalness:0.0, transmission:0.95, thickness:0.08, transparent:true, opacity:0.1, envMapIntensity:0.35, depthWrite:false }); }
   function makeWaterMaterial(){ const tex = new THREE.CanvasTexture((()=>{ const c=document.createElement('canvas'); c.width=c.height=256; const ctx=c.getContext('2d'); const grd=ctx.createRadialGradient(128,128,20,128,128,128); grd.addColorStop(0,'rgba(80,180,255,0.95)'); grd.addColorStop(1,'rgba(30,90,140,0.65)'); ctx.fillStyle=grd; ctx.fillRect(0,0,256,256); return c; })()); tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(2,2); return new THREE.MeshStandardMaterial({ map:tex, transparent:true, opacity:0.9, roughness:0.2, metalness:0.15, side:THREE.DoubleSide }); }
   function trackTex(w=1024,h=1024){ const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.fillStyle='#b33a2c'; g.fillRect(0,0,w,h); const dots=Math.floor(w*h*0.004); for(let i=0;i<dots;i++){ const x=Math.random()*w, y=Math.random()*h, r=Math.random()*1.6+0.2; g.fillStyle=Math.random()<0.5?'rgba(255,190,180,0.35)':'rgba(40,12,10,0.35)'; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); } const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(16,maxAniso); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.colorSpace=THREE.SRGBColorSpace; t.repeat.set(1,1); return t; }
+  function makeBikeLaneTexture(){ const c=document.createElement('canvas'); c.width=256; c.height=1024; const g=c.getContext('2d'); g.fillStyle='#b91c1c'; g.fillRect(0,0,c.width,c.height); g.strokeStyle='rgba(255,255,255,0.9)'; g.lineWidth=10; const dash=72, gap=54; for(let y=gap; y<c.height; y+=dash+gap){ g.beginPath(); g.moveTo(c.width/2, y); g.lineTo(c.width/2, y+dash); g.stroke(); } const tex=new THREE.CanvasTexture(c); tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(1,8); tex.anisotropy=Math.min(8,maxAniso); tex.colorSpace=THREE.SRGBColorSpace; return tex; }
 
   const brickTex = makeBrickTexture();
   const plasterTex = makePlasterTexture();
 
   const asphaltTex = makeAsphalt(), sidewalkTex = makeSidewalk(), redTrackTex = trackTex();
+  const bikeLaneTex = makeBikeLaneTexture();
   const tennisGrassTex = await grassTex();
   const naturalParkTex = grassProcedural(1024); naturalParkTex.repeat.set(10,10); naturalParkTex.needsUpdate=true;
   const turfTex = naturalParkTex;
@@ -440,7 +455,8 @@ export async function startTirana2040(){
   const roadMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.92, metalness:0.05, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.8, polygonOffsetUnits:-2 });
   const intersectionMat = new THREE.MeshStandardMaterial({ map: asphaltTex, color:0x1f1f1f, roughness:0.86, metalness:0.05, transparent:false, opacity:1.0, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-1.5 });
   window.roadMat = roadMat;
-  const sidewalkMat = new THREE.MeshStandardMaterial({ color:0xd7dce2, roughness:0.9, metalness:0.04, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-0.6 });
+  const sidewalkMat = new THREE.MeshStandardMaterial({ map: sidewalkTex, color:0xd7dce2, roughness:0.9, metalness:0.04, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-0.6 });
+  const bikeLaneMat = new THREE.MeshStandardMaterial({ map: bikeLaneTex, color:0xb91c1c, roughness:0.7, metalness:0.04, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.4, polygonOffsetUnits:-0.4 });
   const curbMat = new THREE.MeshStandardMaterial({ color:0xbfc5cf, roughness:0.65, metalness:0.12 });
   const crosswalks=new THREE.Group(); crosswalks.userData={kind:'markings'}; city.add(crosswalks);
   const laneMarkings=new THREE.Group(); laneMarkings.userData={kind:'lane_markings'}; city.add(laneMarkings);
@@ -459,6 +475,9 @@ export async function startTirana2040(){
   const postGeo=new THREE.CylinderGeometry(0.12,0.12,1.05,10);
   const fenceMatMetal=new THREE.MeshStandardMaterial({ color:0x8c929c, metalness:0.62, roughness:0.34 });
   const fenceLift=1.0, fenceH=2.8;
+  const pavementHeight=0.16;
+  const pavementWidth=3.2;
+  const bikeLaneWidth=2.1;
   const dashMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.9 });
   const edgeMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.65 });
   const dashGeoZ=new THREE.PlaneGeometry(0.35,2.8);
@@ -496,6 +515,33 @@ export async function startTirana2040(){
     mesh.userData={kind:'roadside_fence'};
     roadsideFences.add(mesh);
   }
+  function addRoadsideBands(x,z,len,orient='vertical'){
+    const pavGeo=new THREE.BoxGeometry(orient==='vertical'? pavementWidth : len, pavementHeight, orient==='vertical'? len : pavementWidth);
+    const bikeGeo=new THREE.BoxGeometry(orient==='vertical'? bikeLaneWidth : len, pavementHeight*0.7, orient==='vertical'? len : bikeLaneWidth);
+    const orientLift = orient==='vertical' ? 0 : 0.01;
+    const baseY=pavementHeight/2 + orientLift;
+    if(orient==='vertical'){
+      const leftPav=new THREE.Mesh(pavGeo, sidewalkMat); leftPav.position.set(x - ROAD/2 - pavementWidth/2, baseY, z);
+      const rightPav=leftPav.clone(); rightPav.position.x = x + ROAD/2 + pavementWidth/2;
+      const innerY=orientLift + pavementHeight*0.35;
+      const leftBike=new THREE.Mesh(bikeGeo, bikeLaneMat); leftBike.position.set(x - ROAD/2 + bikeLaneWidth/2, innerY, z);
+      const rightBike=leftBike.clone(); rightBike.position.x = x + ROAD/2 - bikeLaneWidth/2;
+      leftPav.receiveShadow=rightPav.receiveShadow=allowShadows;
+      leftPav.castShadow=rightPav.castShadow=allowShadows;
+      leftBike.receiveShadow=rightBike.receiveShadow=allowShadows;
+      city.add(leftPav,rightPav,leftBike,rightBike);
+    } else {
+      const topPav=new THREE.Mesh(pavGeo, sidewalkMat); topPav.position.set(x, baseY, z - ROAD/2 - pavementWidth/2);
+      const bottomPav=topPav.clone(); bottomPav.position.z = z + ROAD/2 + pavementWidth/2;
+      const innerY=orientLift + pavementHeight*0.35;
+      const topBike=new THREE.Mesh(bikeGeo, bikeLaneMat); topBike.position.set(x, innerY, z - ROAD/2 + bikeLaneWidth/2);
+      const bottomBike=topBike.clone(); bottomBike.position.z = z + ROAD/2 - bikeLaneWidth/2;
+      topPav.receiveShadow=bottomPav.receiveShadow=allowShadows;
+      topPav.castShadow=bottomPav.castShadow=allowShadows;
+      topBike.receiveShadow=bottomBike.receiveShadow=allowShadows;
+      city.add(topPav,bottomPav,topBike,bottomBike);
+    }
+  }
 
   for(let ix=0; ix<=BLOCKS_X; ix++){
     const geo=new THREE.PlaneGeometry(ROAD,(CELL)*BLOCKS_Z + ROAD);
@@ -507,6 +553,7 @@ export async function startTirana2040(){
     m.receiveShadow=allowShadows; city.add(m);
     const halfLen=(CELL)*BLOCKS_Z*0.5 + ROAD*0.5;
     mapRoads.push({name:northSouthStreets[ix]||`Rruga ${ix+1}`, from:{x:xPos, z:-halfLen}, to:{x:xPos, z:halfLen}, width:ROAD});
+    addRoadsideBands(xPos, zPos, (CELL)*BLOCKS_Z + ROAD, 'vertical');
     paintRoadMarkings(xPos, -halfLen, xPos, halfLen, 'vertical');
     if(northSouthStreets[ix]){ const label=makeLabel(northSouthStreets[ix],0.55); label.position.set(xPos,0.12,-(BLOCKS_Z*CELL)/2 - 18); label.rotation.y=Math.PI; city.add(label); }
   }
@@ -520,6 +567,7 @@ export async function startTirana2040(){
     m.receiveShadow=allowShadows; city.add(m);
     const halfLen=(CELL)*BLOCKS_X*0.5 + ROAD*0.5;
     mapRoads.push({name:eastWestStreets[iz]||`Bulevardi ${iz+1}`, from:{x:-halfLen, z:zPos}, to:{x:halfLen, z:zPos}, width:ROAD});
+    addRoadsideBands(xPos, zPos, (CELL)*BLOCKS_X + ROAD, 'horizontal');
     paintRoadMarkings(-halfLen, zPos, halfLen, zPos, 'horizontal');
     if(eastWestStreets[iz]){ const label=makeLabel(eastWestStreets[iz],0.55); label.position.set(-(BLOCKS_X*CELL)/2 - 18,0.12,zPos); label.rotation.y=Math.PI/2; city.add(label); }
   }
@@ -891,18 +939,18 @@ export async function startTirana2040(){
   function addTennisCourt(cx,cz){
     const courtW=10.97, courtL=23.77, apron=4.2;
     const concourseW=courtW+apron*2+10, concourseL=courtL+apron*2+12;
-    const concourse=new THREE.Mesh(new THREE.PlaneGeometry(concourseW, concourseL), new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0xbfc5cf, roughness:0.78, metalness:0.06 }));
-    concourse.rotation.x=-Math.PI/2; concourse.position.set(cx,0.012,cz); concourse.receiveShadow=allowShadows; city.add(concourse);
+    const concourse=new THREE.Mesh(new THREE.BoxGeometry(concourseW,0.18, concourseL), new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0xbfc5cf, roughness:0.78, metalness:0.06 }));
+    concourse.position.set(cx,0.09,cz); concourse.receiveShadow=allowShadows; concourse.castShadow=allowShadows; city.add(concourse);
     const apronMat=new THREE.MeshStandardMaterial({ color:0x2f855a, roughness:0.62, metalness:0.05, side:THREE.DoubleSide });
-    const apronMesh=new THREE.Mesh(new THREE.PlaneGeometry(courtW+apron*2,courtL+apron*2), apronMat);
-    apronMesh.rotation.x=-Math.PI/2; apronMesh.position.set(cx,0.016,cz); apronMesh.receiveShadow=allowShadows; city.add(apronMesh);
-    const surface=new THREE.Mesh(new THREE.PlaneGeometry(courtW,courtL), new THREE.MeshStandardMaterial({ color:0x1d4ed8, map:courtLinesTex(courtW,courtL), roughness:0.48, metalness:0.05, side:THREE.DoubleSide }));
-    surface.rotation.x=-Math.PI/2; surface.position.set(cx,0.018,cz); surface.receiveShadow=allowShadows; city.add(surface);
-    const centerLine=new THREE.Mesh(new THREE.PlaneGeometry(0.32,courtW), new THREE.MeshBasicMaterial({ color:0xf8fafc, transparent:true, opacity:0.8 }));
-    centerLine.rotation.x=-Math.PI/2; centerLine.rotation.z=Math.PI/2; centerLine.position.set(cx,0.019,cz); centerLine.renderOrder=3; city.add(centerLine);
+    const apronMesh=new THREE.Mesh(new THREE.BoxGeometry(courtW+apron*2,0.12,courtL+apron*2), apronMat);
+    apronMesh.position.set(cx,0.21,cz); apronMesh.receiveShadow=allowShadows; apronMesh.castShadow=allowShadows; city.add(apronMesh);
+    const surface=new THREE.Mesh(new THREE.BoxGeometry(courtW,0.08,courtL), new THREE.MeshStandardMaterial({ color:0x1d4ed8, map:courtLinesTex(courtW,courtL), roughness:0.48, metalness:0.05, side:THREE.DoubleSide }));
+    surface.position.set(cx,0.31,cz); surface.receiveShadow=allowShadows; surface.castShadow=allowShadows; city.add(surface);
+    const centerLine=new THREE.Mesh(new THREE.PlaneGeometry(0.32,courtW), new THREE.MeshBasicMaterial({ color:0xf8fafc, transparent:true, opacity:0.82 }));
+    centerLine.rotation.x=-Math.PI/2; centerLine.rotation.z=Math.PI/2; centerLine.position.set(cx,0.351,cz); centerLine.renderOrder=3; city.add(centerLine);
     const bleacherInnerW=courtW+apron*2+2.2, bleacherInnerL=courtL+apron*2+2.2; const bleacherOffset=bleacherInnerL*0.5 + 2.4;
     const longSection=makeBleacherSection(bleacherInnerW+6,6); const shortSection=makeBleacherSection(bleacherInnerL+4,5,0.85);
-    const placeBleachers=(section,x,z)=>{ const m=section.mesh.clone(true); m.position.set(x,0.012,z); m.lookAt(new THREE.Vector3(cx,0,cz)); city.add(m); };
+    const placeBleachers=(section,x,z)=>{ const m=section.mesh.clone(true); m.position.set(x,0.012,z); m.lookAt(new THREE.Vector3(cx,0,cz)); m.rotateY(Math.PI); city.add(m); };
     placeBleachers(longSection, cx, cz+bleacherOffset);
     placeBleachers(longSection, cx, cz-bleacherOffset);
     const sideOffset=bleacherInnerW*0.5 + 2.8;
@@ -1810,7 +1858,7 @@ export async function startTirana2040(){
   function loop(now){
     try{
     const dt=Math.min((now-last)/1000,0.05); last=now;
-    frameCount++; fpsTimer+=dt; if(fpsTimer>=0.5){ const fps=(frameCount/fpsTimer)|0; mini.textContent='fps: '+fps; if(fps<55 && dprScale>DPR_MIN){ dprScale=Math.max(DPR_MIN,dprScale-0.05); fit(); } else if(fps>70 && dprScale<DPR_MAX_SCALE){ dprScale=Math.min(DPR_MAX_SCALE,dprScale+0.04); fit(); } frameCount=0; fpsTimer=0; }
+    frameCount++; fpsTimer+=dt; if(fpsTimer>=0.5){ const fps=(frameCount/fpsTimer)|0; mini.textContent='fps: '+fps; if(fps<55 && dprScale>DPR_MIN){ dprScale=Math.max(DPR_MIN,dprScale-0.05); fit(); } else if(fps>70 && dprScale<DPR_MAX_SCALE){ dprScale=Math.min(DPR_MAX_SCALE,dprScale+0.04); fit(); } if(fps<PERF_TARGET_FPS){ lowFpsTime+=fpsTimer; if(lowFpsTime>1.2) applyPerformanceBoost(); } else { lowFpsTime=Math.max(0, lowFpsTime-0.5); } frameCount=0; fpsTimer=0; }
 
     if(inputMode==='A'){ const k = Math.min(1, dt*AIM_SMOOTH_A); const ax = lookAccumX * LOOK_SENS_A; const ay = lookAccumY * LOOK_SENS_A; lookAccumX=0; lookAccumY=0; aimSmoothX += (ax - aimSmoothX)*k; aimSmoothY += (ay - aimSmoothY)*k; yaw   -= aimSmoothX * AIM_RATE_A * dt; pitch -= aimSmoothY * AIM_RATE_A * dt; clampPitch(); }
 
