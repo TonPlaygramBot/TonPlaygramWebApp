@@ -17,7 +17,7 @@ const POOL_ENVIRONMENT = (() => {
 
   const LEG_SCALE = 6.2;
   const LEG_HEIGHT_FACTOR = 4;
-  const LEG_HEIGHT_MULTIPLIER = 2.25;
+  const LEG_HEIGHT_MULTIPLIER = 4.5;
   const TABLE_HEIGHT_REDUCTION = 0.8;
   const TABLE_DROP = 0.4;
   const BASE_TABLE_LIFT = 3.6;
@@ -114,11 +114,15 @@ export default function AirHockey3D({ player, ai }) {
     scene.background = new THREE.Color(0x050505);
 
     const TABLE_SCALE = 1.2;
+    const BASE_TABLE_LENGTH = POOL_ENVIRONMENT.tableLength * TABLE_SCALE;
+    const TOP_EXTENSION_FACTOR = 0.15;
     const TABLE = {
       w: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE,
-      h: POOL_ENVIRONMENT.tableLength * TABLE_SCALE,
+      h:
+        BASE_TABLE_LENGTH / 2 + (BASE_TABLE_LENGTH / 2) * (1 + TOP_EXTENSION_FACTOR),
       thickness: POOL_ENVIRONMENT.tableThickness,
-      goalW: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE * 0.45454545454545453
+      goalW: POOL_ENVIRONMENT.tableWidth * TABLE_SCALE * 0.45454545454545453,
+      topExtension: (BASE_TABLE_LENGTH / 2) * TOP_EXTENSION_FACTOR
     };
     const SCALE_WIDTH = TABLE.w / 2.2;
     const SCALE_LENGTH = TABLE.h / (4.8 * 1.2);
@@ -128,7 +132,7 @@ export default function AirHockey3D({ player, ai }) {
     const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.06 / 0.12);
     const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.08 / 0.12);
     const PUCK_RADIUS = TABLE.w * 0.027272727272727268;
-    const PUCK_HEIGHT = PUCK_RADIUS * (0.02 / 0.06);
+    const PUCK_HEIGHT = PUCK_RADIUS * (0.04 / 0.06);
 
     const camera = new THREE.PerspectiveCamera(
       56,
@@ -148,6 +152,8 @@ export default function AirHockey3D({ player, ai }) {
 
     const tableGroup = new THREE.Group();
     tableGroup.position.y = elevatedTableSurfaceY;
+    tableGroup.position.z = -TABLE.topExtension / 2;
+    const tableCenterZ = tableGroup.position.z;
     world.add(tableGroup);
 
     const carpet = new THREE.Mesh(
@@ -487,22 +493,22 @@ export default function AirHockey3D({ player, ai }) {
     const cameraFocus = new THREE.Vector3(
       0,
       elevatedTableSurfaceY + TABLE.thickness * 0.08,
-      0
+      tableCenterZ
     );
     const cameraAnchor = new THREE.Vector3(
       0,
       elevatedTableSurfaceY + TABLE.h * 0.42,
-      playerRailZ + railThickness * 0.35
+      tableCenterZ + playerRailZ + railThickness * 0.35
     );
     const cameraDirection = new THREE.Vector3()
       .subVectors(cameraAnchor, cameraFocus)
       .normalize();
 
     const tableCorners = [
-      new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2),
-      new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2),
-      new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2),
-      new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2)
+      new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2 + tableCenterZ),
+      new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, -TABLE.h / 2 + tableCenterZ),
+      new THREE.Vector3(-TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2 + tableCenterZ),
+      new THREE.Vector3(TABLE.w / 2, elevatedTableSurfaceY, TABLE.h / 2 + tableCenterZ)
     ];
 
     const fitCameraToTable = () => {
@@ -567,18 +573,32 @@ export default function AirHockey3D({ player, ai }) {
     });
     renderer.domElement.addEventListener('mousemove', onMove);
 
-    const HIT_FORCE = 0.5 * SPEED_SCALE;
-    const MAX_SPEED = 0.08 * SPEED_SCALE;
-    const SERVE_SPEED = 0.05 * SPEED_SCALE;
+    const SPEED_BOOST = 1.15;
+    const HIT_FORCE = 0.5 * SPEED_SCALE * SPEED_BOOST;
+    const MAX_SPEED = 0.08 * SPEED_SCALE * SPEED_BOOST;
+    const SERVE_SPEED = 0.05 * SPEED_SCALE * SPEED_BOOST;
 
-    const handleCollision = (mallet) => {
+    const handleCollision = (mallet, isPlayer = false) => {
       const dx = puck.position.x - mallet.position.x;
       const dz = puck.position.z - mallet.position.z;
       const d2 = dx * dx + dz * dz;
       const collideRadius = MALLET_RADIUS + PUCK_RADIUS * 0.3;
       if (d2 < collideRadius * collideRadius) {
-        S.vel.x += dx * HIT_FORCE;
-        S.vel.z += dz * HIT_FORCE;
+        const distance = Math.max(Math.sqrt(d2), 1e-6);
+        const overlap = collideRadius - distance;
+        const normal = new THREE.Vector3(dx / distance, 0, dz / distance);
+
+        puck.position.x += normal.x * overlap;
+        puck.position.z += normal.z * overlap;
+
+        const directionalForce = HIT_FORCE * (isPlayer ? 1.2 : 1);
+        S.vel.addScaledVector(normal, directionalForce);
+
+        const alongNormal = S.vel.dot(normal);
+        if (alongNormal < SERVE_SPEED * 0.4) {
+          S.vel.addScaledVector(normal, SERVE_SPEED * 0.4 - alongNormal);
+        }
+
         playHit();
       }
     };
@@ -658,7 +678,7 @@ export default function AirHockey3D({ player, ai }) {
       }
 
       aiUpdate(dt);
-      handleCollision(you);
+      handleCollision(you, true);
       handleCollision(aiMallet);
       renderer.render(scene, camera);
       raf.current = requestAnimationFrame(tick);
