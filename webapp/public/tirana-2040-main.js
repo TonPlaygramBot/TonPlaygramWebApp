@@ -543,6 +543,17 @@ export async function startTirana2040(){
     }
   }
 
+  function addBikeCorridor(x1,z1,x2,z2,{width=3.6,label=null}={}){
+    const dx=x2-x1, dz=z2-z1; const len=Math.hypot(dx,dz); if(len<1) return;
+    const mesh=new THREE.Mesh(new THREE.PlaneGeometry(len,width), bikeLaneMat.clone());
+    mesh.rotation.x=-Math.PI/2;
+    mesh.rotation.y=Math.atan2(dz,dx);
+    mesh.position.set((x1+x2)/2, ROAD_SURFACE_Y + 0.004, (z1+z2)/2);
+    mesh.material.opacity=0.82; mesh.material.transparent=true;
+    city.add(mesh);
+    if(label) mapLandmarks.push({x:(x1+x2)/2, z:(z1+z2)/2, label});
+  }
+
   for(let ix=0; ix<=BLOCKS_X; ix++){
     const geo=new THREE.PlaneGeometry(ROAD,(CELL)*BLOCKS_Z + ROAD);
     const m=new THREE.Mesh(geo, roadMat);
@@ -624,6 +635,9 @@ export async function startTirana2040(){
   buildPerimeterWalls();
   addBusStop(-cityHalfX*0.6, cityHalfZ+ROAD*0.8, 0);
   addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
+  addBikeCorridor(-cityHalfX, startZ + CELL*2.5, cityHalfX, startZ + CELL*2.5, {label:'Korsi kryesore lindje-perendim'});
+  addBikeCorridor(startX + CELL*1.5, -cityHalfZ, startX + CELL*1.5, cityHalfZ, {label:'Boshti veri-jug i biçikletave'});
+  addBikeCorridor(startX + CELL*4.5, -cityHalfZ, startX + CELL*4.5, cityHalfZ, {label:'Greenway periferik'});
 
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
   const windowMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.12, depthWrite:false });
@@ -1027,24 +1041,81 @@ export async function startTirana2040(){
   function addAirport(x,z){ const runway=new THREE.Mesh(new THREE.PlaneGeometry(400,26), new THREE.MeshBasicMaterial({ color:0x2f2f2f })); runway.rotation.x=-Math.PI/2; runway.position.set(x,0.02,z); city.add(runway); const stripe=new THREE.Mesh(new THREE.PlaneGeometry(400*0.9,3), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.7 })); stripe.rotation.x=-Math.PI/2; stripe.position.set(x,0.03,z); city.add(stripe); const tower=new THREE.Mesh(new THREE.CylinderGeometry(4,4,28,16), new THREE.MeshStandardMaterial({ color:0x9aa0a8 })); tower.position.set(x+40,14,z-20); city.add(tower); const top=new THREE.Mesh(new THREE.SphereGeometry(6,16,12), new THREE.MeshStandardMaterial({ color:0xbfc6cf, metalness:0.2, roughness:0.6 })); top.position.set(x+40,28,z-20); city.add(top); POIS.push({type:'airport', pos:new THREE.Vector3(x,0,z), label:'🛫'}); mapLandmarks.push({x,z,label:'🛫 Airport'}); }
   function addTrainStation(x,z){ const plat=new THREE.Mesh(new THREE.PlaneGeometry(160,8), new THREE.MeshBasicMaterial({ color:0x666b73 })); plat.rotation.x=-Math.PI/2; plat.position.set(x,0.02,z); city.add(plat); const rails=new THREE.Group(); for(let i=0;i<4;i++){ const r=new THREE.Mesh(new THREE.PlaneGeometry(160,0.3), new THREE.MeshBasicMaterial({ color:0x444 })); r.rotation.x=-Math.PI/2; r.position.set(x,0.021,z-2+i*1.2); rails.add(r);} city.add(rails); addBuilding(x+30,z-8,{floors:5,w:50,d:16,hue:48,sign:'STATION', landmark:false}); POIS.push({type:'station', pos:new THREE.Vector3(x,0,z), label:'🚉'}); mapLandmarks.push({x,z,label:'🚉 Station'}); }
 
+  const blockPlan=[
+    ['res_high','green','civic','civic','green','res_high'],
+    ['res_mid','green','res_mid','res_mid','green','res_mid'],
+    ['gateway','green','plaza','plaza','green','campus'],
+    ['gateway','green','plaza','plaza','green','campus'],
+    ['res_mid','green','res_mid','res_mid','green','res_mid'],
+    ['res_high','green','civic','civic','green','res_high']
+  ];
   const parkKinds=['tennis','basket','fountain'];
+  const parkOverrides=new Map([
+    ['2,2','fountain'],
+    ['3,2','basket'],
+    ['2,3','basket'],
+    ['3,3','fountain']
+  ]);
+  function pickPark(ix,iz){ return parkOverrides.get(`${ix},${iz}`) || parkKinds[(ix+iz)%parkKinds.length]; }
+  function addCivicBenches(cx,cz){ addBench(cx+PLOT*0.32, cz, Math.PI/2); addBench(cx-PLOT*0.32, cz, -Math.PI/2); addBench(cx, cz+PLOT*0.32, 0); addBench(cx, cz-PLOT*0.32, Math.PI); }
+  function layoutResidentialCluster(ix,iz,{density='mid'}={}){
+    const cx=startX+ix*CELL, cz=startZ+iz*CELL;
+    addSidewalk(cx,cz);
+    const slotSpread=density==='high'? PLOT*0.32 : PLOT*0.26;
+    const slots=density==='high'
+      ? [ [-slotSpread, -PLOT*0.18], [slotSpread, -PLOT*0.1], [0, PLOT*0.16], [0, -PLOT*0.36] ]
+      : [ [-slotSpread, -PLOT*0.14], [slotSpread, 0], [0, PLOT*0.2] ];
+    const baseFloors=density==='high'?10:7;
+    slots.forEach((slot,idx)=>{ addBuilding(cx+slot[0], cz+slot[1], {plot:{ix,iz}, floors:baseFloors+idx, w: density==='high'?38:32, d:density==='high'?30:26}); });
+    treesPerimeter(cx,cz);
+  }
+  function placeCivicCore(ix,iz,label){
+    const cx=startX+ix*CELL, cz=startZ+iz*CELL;
+    registerPlotArea(ix,iz,cx,cz,PLOT*0.95,PLOT*0.95);
+    addSidewalk(cx,cz);
+    addFountain(cx,cz);
+    addBuilding(cx, cz-8, {plot:{ix,iz}, floors:9, w:58, d:42, sign:label, landmark:true});
+    addCivicBenches(cx,cz);
+  }
+  function placeCampus(ix,iz){
+    const cx=startX+ix*CELL, cz=startZ+iz*CELL;
+    registerPlotArea(ix,iz,cx,cz,PLOT*0.9,PLOT*0.9);
+    addSidewalk(cx,cz);
+    addBuilding(cx-PLOT*0.18, cz-10, {plot:{ix,iz}, floors:6, w:40, d:24, sign:'LAB', landmark:false});
+    addBuilding(cx+PLOT*0.14, cz+12, {plot:{ix,iz}, floors:5, w:34, d:26, sign:'DORMS', landmark:false});
+    addBasketCourt(cx,cz);
+  }
+  function placeGateway(ix,iz){
+    const cx=startX+ix*CELL, cz=startZ+iz*CELL;
+    registerPlotArea(ix,iz,cx,cz,PLOT*0.9,PLOT*0.9);
+    addSidewalk(cx,cz);
+    addBasketCourt(cx,cz);
+    addBuilding(cx-PLOT*0.18, cz+PLOT*0.22, {plot:{ix,iz}, floors:8, w:36, d:32});
+    addBuilding(cx+PLOT*0.2, cz-PLOT*0.16, {plot:{ix,iz}, floors:7, w:32, d:24});
+  }
+  function placePark(ix,iz){
+    const cx=startX+ix*CELL, cz=startZ+iz*CELL;
+    registerPlotArea(ix,iz,cx,cz,PLOT*0.9,PLOT*0.9);
+    const pick=pickPark(ix,iz);
+    if(pick==='tennis') addTennisCourt(cx,cz);
+    else if(pick==='basket') addBasketCourt(cx,cz);
+    else addFountain(cx,cz);
+    addCivicBenches(cx,cz);
+  }
+
   for(let ix=0; ix<BLOCKS_X; ix++){
     for(let iz=0; iz<BLOCKS_Z; iz++){
-      const cx=startX+ix*CELL, cz=startZ+iz*CELL;
-      const makePark = ((ix+iz)%2===0);
-      if(makePark){
-        registerPlotArea(ix,iz,cx,cz,PLOT*0.9,PLOT*0.9);
-        const pick = parkKinds[(ix+iz)%parkKinds.length];
-        if(pick==='tennis') addTennisCourt(cx,cz);
-        else if(pick==='basket') addBasketCourt(cx,cz);
-        else addFountain(cx,cz);
-      } else {
-        const bCount=2+Math.floor(Math.random()*3); for(let b=0;b<bCount;b++){ const bx=cx+(Math.random()-0.5)*PLOT*0.7; const bz=cz+(Math.random()-0.5)*PLOT*0.7; addBuilding(bx,bz,{plot:{ix,iz}}); }
-      }
+      const type=blockPlan[iz]?.[ix] || (((ix+iz)%2===0)?'green':'res_mid');
+      if(type==='green') placePark(ix,iz);
+      else if(type==='civic') placeCivicCore(ix,iz,'CIVIC');
+      else if(type==='plaza') placeCivicCore(ix,iz,'PLAZA');
+      else if(type==='campus') placeCampus(ix,iz);
+      else if(type==='gateway') placeGateway(ix,iz);
+      else if(type==='res_high') layoutResidentialCluster(ix,iz,{density:'high'});
+      else layoutResidentialCluster(ix,iz,{density:'mid'});
     }
   }
-  // Guarantee showcase courts even if procedural picks change.
-  addTennisCourt(startX + CELL*0.6, startZ + CELL*0.6);
+  addFountain(startX + CELL*0.6, startZ + CELL*0.6);
   addBasketCourt(startX + CELL*2.4, startZ - CELL*1.2);
   commitWindows();
   for(let i=-BLOCKS_X;i<=BLOCKS_X;i+=2){ addTrafficLight(i*CELL*0.5, -BLOCKS_Z*CELL*0.5, 0); addTrafficLight(i*CELL*0.5, BLOCKS_Z*CELL*0.5, Math.PI); }
@@ -1059,17 +1130,21 @@ export async function startTirana2040(){
     {from:{x:cityHalfX+ROAD*0.5, z:0}, to:{x:ringR-8, z:0}},
     {from:{x:-cityHalfX-ROAD*0.5, z:0}, to:{x:-ringR+8, z:0}},
     {from:{x:0, z:cityHalfZ+ROAD*0.5}, to:{x:0, z:ringR-8}},
-    {from:{x:0, z:-cityHalfZ-ROAD*0.5}, to:{x:0, z:-ringR+8}}
+    {from:{x:0, z:-cityHalfZ-ROAD*0.5}, to:{x:0, z:-ringR+8}},
+    {from:{x:cityHalfX+ROAD*0.5, z:cityHalfZ*0.6}, to:{x:ringR-10, z:ringR*0.6}},
+    {from:{x:-cityHalfX-ROAD*0.5, z:-cityHalfZ*0.6}, to:{x:-ringR+10, z:-ringR*0.6}},
+    {from:{x:cityHalfX*0.25, z:cityHalfZ+ROAD*0.5}, to:{x:ringR*0.25, z:ringR-10}},
+    {from:{x:-cityHalfX*0.25, z:-cityHalfZ-ROAD*0.5}, to:{x:-ringR*0.25, z:-ringR+10}}
   ];
   connectorTargets.forEach((c)=>{ const dx=c.to.x-c.from.x, dz=c.to.z-c.from.z; const len=Math.hypot(dx,dz); if(len<1) return; const mesh=new THREE.Mesh(new THREE.PlaneGeometry(len, ROAD), roadMat); mesh.rotation.x=-Math.PI/2; mesh.rotation.y=Math.atan2(dz,dx); mesh.position.set((c.from.x+c.to.x)/2, ROAD_SURFACE_Y + 0.001, (c.from.z+c.to.z)/2); city.add(mesh); mapRoads.push({name:ringRoadName, from:c.from, to:c.to, width:ROAD}); });
   addAirport(ringR*0.9,  -ringR*0.6);
   addTrainStation(-ringR*0.6, ringR*0.85);
 
-  addInstitution('police',   startX+CELL*1.2, startZ+CELL*1.0);
-  addInstitution('hospital', startX+CELL*2.6, startZ+CELL*2.0);
-  addInstitution('school',   startX+CELL*0.4, startZ+CELL*3.2);
-  addInstitution('fire',     startX+CELL*3.5, startZ+CELL*0.6);
-  addInstitution('mall',     startX+CELL*4.2, startZ+CELL*2.6);
+  addInstitution('police',   startX+CELL*0.6, startZ+CELL*0.8);
+  addInstitution('hospital', startX+CELL*4.6, startZ+CELL*3.0);
+  addInstitution('school',   startX+CELL*2.4, startZ+CELL*4.4);
+  addInstitution('fire',     startX+CELL*0.8, startZ+CELL*4.8);
+  addInstitution('mall',     startX+CELL*3.6, startZ+CELL*1.4);
 
   const playerRadius=0.32; const player=new CANNON.Body({ mass:72, material:matPlayer, shape:new CANNON.Sphere(playerRadius), position:new CANNON.Vec3(0,0.94,10), linearDamping:0.18, angularDamping:0.9 });
   player.fixedRotation=true; player.allowSleep=false; world.addBody(player);
