@@ -21,9 +21,11 @@ export async function startTirana2040(){
   // the device or the user would be stuck on a blank "Mobile layout gate"
   // screen. Keep the element for potential future notices but don't display it
   // automatically.
-  gate.style.display = 'none';
-  gate.setAttribute('hidden', 'hidden');
-  gate.style.pointerEvents = 'none';
+  if (gate) {
+    gate.style.display = 'none';
+    gate.setAttribute('hidden', 'hidden');
+    gate.style.pointerEvents = 'none';
+  }
 
   window.isMobile = isMobile;
   window.gate = gate;
@@ -95,7 +97,7 @@ export async function startTirana2040(){
     });
   }
 
-  window.__frameCapMs = 1000/120;
+  window.__frameCapMs = 1000/60;
   window.__forceStubFallback = ()=>location.reload();
   const usingStub=false;
   const ktx2Enabled=false;
@@ -194,9 +196,14 @@ export async function startTirana2040(){
   const allowShadows = !isMobile;
   renderer.shadowMap.enabled = allowShadows; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   wrap.appendChild(renderer.domElement);
-  renderer.domElement.addEventListener('webglcontextlost',(e)=>{ e.preventDefault(); ctxlost.style.display='grid'; });
-  renderer.domElement.addEventListener('webglcontextrestored',()=>{ ctxlost.style.display='none'; fit(); });
-  ctxlost.addEventListener('click', ()=>location.reload());
+  if (ctxlost) {
+    renderer.domElement.addEventListener('webglcontextlost',(e)=>{ e.preventDefault(); ctxlost.style.display='grid'; });
+    renderer.domElement.addEventListener('webglcontextrestored',()=>{ ctxlost.style.display='none'; fit(); });
+    ctxlost.addEventListener('click', ()=>location.reload());
+  } else {
+    renderer.domElement.addEventListener('webglcontextlost',(e)=>{ e.preventDefault(); fit(); });
+    renderer.domElement.addEventListener('webglcontextrestored',()=>{ fit(); });
+  }
   renderer.domElement.addEventListener('mousedown', onMouseDownAudio, {once:true});
   window.renderer=renderer;
   THREE.Cache.enabled = true;
@@ -1706,7 +1713,7 @@ export async function startTirana2040(){
 
   let waypoint=null; let navGuide=null;
   function updateNavGuide(){ if(navGuide){ scene.remove(navGuide); navGuide.geometry.dispose(); navGuide.material.dispose(); navGuide=null; } if(!waypoint) return; const guideGeo=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(player.position.x,0.1,player.position.z), new THREE.Vector3(waypoint.x,0.1,waypoint.z)]); const guideMat=new THREE.LineDashedMaterial({ color:0x66ccff, dashSize:2.2, gapSize:1.2, linewidth:1 }); navGuide=new THREE.Line(guideGeo, guideMat); navGuide.computeLineDistances(); scene.add(navGuide); }
-  mapCanvas.addEventListener('click', (e)=>{ const proj=mapProjection(); if(!proj) return; const r=mapCanvas.getBoundingClientRect(); const sx=e.clientX-r.left, sy=e.clientY-r.top; const wx = (sx - proj.cx)/proj.zoomedScale + proj.focusX; const wz = (sy - proj.cy)/proj.zoomedScale + proj.focusZ; const candidate=new THREE.Vector3(wx,0,wz); if(waypoint && waypoint.distanceTo(candidate)<8){ waypoint=null; } else { waypoint=candidate; } updateNavGuide(); drawMap(); });
+  mapCanvas?.addEventListener('click', (e)=>{ const proj=mapProjection(); if(!proj) return; const r=mapCanvas.getBoundingClientRect(); const sx=e.clientX-r.left, sy=e.clientY-r.top; const wx = (sx - proj.cx)/proj.zoomedScale + proj.focusX; const wz = (sy - proj.cy)/proj.zoomedScale + proj.focusZ; const candidate=new THREE.Vector3(wx,0,wz); if(waypoint && waypoint.distanceTo(candidate)<8){ waypoint=null; } else { waypoint=candidate; } updateNavGuide(); drawMap(); });
 
   function updateEmergencyUnits(dt){ for(const unit of emergencyUnits){ const mesh=unit.mesh; if(!mesh) continue; if(unit.state==='responding' || unit.state==='returning'){ if(unit.target){ const dir=new THREE.Vector3(unit.target.x-mesh.position.x,0,unit.target.z-mesh.position.z); const dist=dir.length(); if(dist>0.4){ dir.normalize(); const sp=(unit.state==='responding'?unit.speed:unit.speed*0.7); mesh.position.x += dir.x*sp*dt; mesh.position.z += dir.z*sp*dt; setHeading(mesh, Math.atan2(dir.x, dir.z)); } else { if(unit.state==='responding'){ unit.state='onsite'; unit.arrivalTimer=0; } else { unit.state='idle'; unit.target=null; mesh.position.copy(unit.base); setHeading(mesh, unit.baseHeading||0); } } } } else if(unit.state==='onsite'){ unit.arrivalTimer=(unit.arrivalTimer||0)+dt; if(unit.arrivalTimer>14){ unit.state='returning'; unit.target=unit.base.clone(); } } else if(unit.state==='idle'){ const drift=Math.hypot(mesh.position.x-unit.base.x, mesh.position.z-unit.base.z); if(drift>0.6){ unit.state='returning'; unit.target=unit.base.clone(); } }
       if(unit.siren){ unit.siren.phase += dt*6; const active=(unit.state==='responding'||unit.state==='onsite'); const pulse=Math.abs(Math.sin(unit.siren.phase)); const low=Math.max(0.16,0.18- dt*0.5); const leftIntensity=active?(0.45+0.55*pulse):low; const rightIntensity=active?(0.45+0.55*Math.abs(Math.sin(unit.siren.phase+Math.PI/2))):low; unit.siren.left.material.opacity=leftIntensity; unit.siren.right.material.opacity=rightIntensity; if(unit.siren.light){ const tint=unit.type==='fire'?0xff6b6b: unit.type==='ambulance'?0xffc857:0x60a5fa; unit.siren.light.intensity = active ? 8 + pulse*6 : 0; unit.siren.light.color.set(active ? tint : 0xffffff); } } }
@@ -1716,7 +1723,7 @@ export async function startTirana2040(){
   function loop(now){
     try{
     const dt=Math.min((now-last)/1000,0.05); last=now;
-    frameCount++; fpsTimer+=dt; if(fpsTimer>=0.5){ const fps=(frameCount/fpsTimer)|0; mini.textContent='fps: '+fps; if(fps<88 && dprScale>DPR_MIN){ dprScale=Math.max(DPR_MIN,dprScale-0.05); fit(); } else if(fps>120 && dprScale<DPR_MAX_SCALE){ dprScale=Math.min(DPR_MAX_SCALE,dprScale+0.04); fit(); } frameCount=0; fpsTimer=0; }
+    frameCount++; fpsTimer+=dt; if(fpsTimer>=0.5){ const fps=(frameCount/fpsTimer)|0; mini.textContent='fps: '+fps; if(fps<55 && dprScale>DPR_MIN){ dprScale=Math.max(DPR_MIN,dprScale-0.05); fit(); } else if(fps>70 && dprScale<DPR_MAX_SCALE){ dprScale=Math.min(DPR_MAX_SCALE,dprScale+0.04); fit(); } frameCount=0; fpsTimer=0; }
 
     if(inputMode==='A'){ const k = Math.min(1, dt*AIM_SMOOTH_A); const ax = lookAccumX * LOOK_SENS_A; const ay = lookAccumY * LOOK_SENS_A; lookAccumX=0; lookAccumY=0; aimSmoothX += (ax - aimSmoothX)*k; aimSmoothY += (ay - aimSmoothY)*k; yaw   -= aimSmoothX * AIM_RATE_A * dt; pitch -= aimSmoothY * AIM_RATE_A * dt; clampPitch(); }
 
