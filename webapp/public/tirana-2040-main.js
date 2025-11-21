@@ -219,6 +219,9 @@ export async function startTirana2040(){
   camera.position.set(0,1.7,5.6); scene.add(camera);
   window.camera=camera;
 
+  const CAMERA_MODES={ FOLLOW:'follow', COCKPIT:'cockpit' };
+  let cameraMode=CAMERA_MODES.FOLLOW;
+
   // Mobile handsets were failing to allocate a WebGL context when the canvas was
   // initialized at the device's full DPR, leaving the screen blank. Keep the
   // full-fidelity pipeline (FAST_BOOT stays off) but cap the render density on
@@ -252,7 +255,7 @@ export async function startTirana2040(){
     const c=document.createElement("canvas");
     c.width=c.height=size;
     const x=c.getContext('2d');
-    x.fillStyle='#161c23';
+    x.fillStyle='#1d1d1d';
     x.fillRect(0,0,size,size);
     for(let i=0;i<1400;i++){
       const r=Math.random()*2+0.6;
@@ -359,7 +362,7 @@ export async function startTirana2040(){
   function makeBrickTexture(){ const c=document.createElement('canvas'); c.width=512; c.height=512; const ctx=c.getContext('2d'); ctx.fillStyle='#c26b44'; ctx.fillRect(0,0,512,512); const rows=16, cols=32; ctx.strokeStyle='rgba(0,0,0,0.18)'; ctx.lineWidth=2; for(let r=0;r<=rows;r++){ const y=(r/rows)*c.height; ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(c.width,y); ctx.stroke(); } for(let r=0;r<rows;r++){ const offset=(r%2?0.5:0)*c.width/cols; for(let cix=0;cix<=cols;cix++){ const x=(cix/cols)*c.width+offset; ctx.beginPath(); ctx.moveTo(x%c.width, r*c.height/rows); ctx.lineTo(x%c.width, (r+1)*c.height/rows); ctx.stroke(); } } for(let i=0;i<2600;i++){ const alpha=Math.random()*0.2; ctx.fillStyle=`rgba(0,0,0,${alpha})`; ctx.fillRect(Math.random()*c.width, Math.random()*c.height, 1, 1); } const tex=new THREE.CanvasTexture(c); tex.anisotropy=8; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.colorSpace=THREE.SRGBColorSpace; return tex; }
   function makePlasterTexture(){ const c=document.createElement('canvas'); c.width=512; c.height=512; const ctx=c.getContext('2d'); ctx.fillStyle='#d6d0c4'; ctx.fillRect(0,0,512,512); const noise=ctx.createImageData(c.width,c.height); for(let i=0;i<noise.data.length;i+=4){ const v=210+Math.random()*30; noise.data[i]=v; noise.data[i+1]=v; noise.data[i+2]=v-8; noise.data[i+3]=255; } ctx.putImageData(noise,0,0); for(let i=0;i<900;i++){ ctx.fillStyle=`rgba(0,0,0,${Math.random()*0.08})`; const x=Math.random()*c.width; const y=Math.random()*c.height; const w=Math.random()*3+1; const h=Math.random()*9+1; ctx.fillRect(x,y,w,h); } const tex=new THREE.CanvasTexture(c); tex.anisotropy=8; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(4,4); tex.colorSpace=THREE.SRGBColorSpace; return tex; }
   function makeLambertAngleMat(baseTex){ const mat=new THREE.MeshStandardMaterial({ map:baseTex, roughness:0.7, metalness:0.08 }); mat.onBeforeCompile=(shader)=>{ shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\nfloat facing=max(0.2,dot(normalize(vNormal),vec3(0.0,1.0,0.0)));\nvec3 cool=vec3(0.92,0.94,0.98);\nvec3 warm=vec3(1.08,1.04,0.98);\ndiffuseColor.rgb*=mix(cool,warm,facing);'); }; return mat; }
-  function makeGlassStdMat(){ return new THREE.MeshPhysicalMaterial({ color:0xffffff, roughness:0.18, metalness:0.0, transmission:0.8, thickness:0.35, transparent:true, opacity:0.35, envMapIntensity:0.45 }); }
+  function makeGlassStdMat(){ return new THREE.MeshPhysicalMaterial({ color:0xffffff, roughness:0.08, metalness:0.0, transmission:0.95, thickness:0.08, transparent:true, opacity:0.1, envMapIntensity:0.35, depthWrite:false }); }
   function makeWaterMaterial(){ const tex = new THREE.CanvasTexture((()=>{ const c=document.createElement('canvas'); c.width=c.height=256; const ctx=c.getContext('2d'); const grd=ctx.createRadialGradient(128,128,20,128,128,128); grd.addColorStop(0,'rgba(80,180,255,0.95)'); grd.addColorStop(1,'rgba(30,90,140,0.65)'); ctx.fillStyle=grd; ctx.fillRect(0,0,256,256); return c; })()); tex.colorSpace=THREE.SRGBColorSpace; tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(2,2); return new THREE.MeshStandardMaterial({ map:tex, transparent:true, opacity:0.9, roughness:0.2, metalness:0.15, side:THREE.DoubleSide }); }
   function trackTex(w=1024,h=1024){ const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.fillStyle='#b33a2c'; g.fillRect(0,0,w,h); const dots=Math.floor(w*h*0.004); for(let i=0;i<dots;i++){ const x=Math.random()*w, y=Math.random()*h, r=Math.random()*1.6+0.2; g.fillStyle=Math.random()<0.5?'rgba(255,190,180,0.35)':'rgba(40,12,10,0.35)'; g.beginPath(); g.arc(x,y,r,0,Math.PI*2); g.fill(); } const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(16,maxAniso); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.colorSpace=THREE.SRGBColorSpace; t.repeat.set(1,1); return t; }
 
@@ -368,8 +371,9 @@ export async function startTirana2040(){
 
   const asphaltTex = makeAsphalt(), sidewalkTex = makeSidewalk(), redTrackTex = trackTex();
   const tennisGrassTex = await grassTex();
-  const turfTex = await grassTex();
-  const parkLawnTex = tennisGrassTex.clone(); parkLawnTex.repeat.set(10,10); parkLawnTex.needsUpdate=true;
+  const naturalParkTex = grassProcedural(1024); naturalParkTex.repeat.set(10,10); naturalParkTex.needsUpdate=true;
+  const turfTex = naturalParkTex;
+  const parkLawnTex = naturalParkTex;
   const waterMat = makeWaterMaterial();
   function makeStoneTilesTexture(){
     const c=document.createElement('canvas'); c.width=c.height=512; const ctx=c.getContext('2d');
@@ -416,9 +420,9 @@ export async function startTirana2040(){
 
   const ROAD_SURFACE_Y = 0.035;
   const roadMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.92, metalness:0.05, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.8, polygonOffsetUnits:-2 });
-  const intersectionMat = new THREE.MeshStandardMaterial({ map: asphaltTex, color:0x242a33, roughness:0.86, metalness:0.05, transparent:false, opacity:1.0, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-1.5 });
+  const intersectionMat = new THREE.MeshStandardMaterial({ map: asphaltTex, color:0x1f1f1f, roughness:0.86, metalness:0.05, transparent:false, opacity:1.0, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-1.5 });
   window.roadMat = roadMat;
-  const sidewalkMat = new THREE.MeshStandardMaterial({ map: sidewalkTex, roughness:0.9, metalness:0.04, side:THREE.DoubleSide });
+  const sidewalkMat = new THREE.MeshStandardMaterial({ color:0xd7dce2, roughness:0.9, metalness:0.04, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-0.6, polygonOffsetUnits:-0.6 });
   const curbMat = new THREE.MeshStandardMaterial({ color:0xbfc5cf, roughness:0.65, metalness:0.12 });
   const crosswalks=new THREE.Group(); crosswalks.userData={kind:'markings'}; city.add(crosswalks);
   const laneMarkings=new THREE.Group(); laneMarkings.userData={kind:'lane_markings'}; city.add(laneMarkings);
@@ -556,9 +560,9 @@ export async function startTirana2040(){
   addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
 
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
-  const windowMat=makeGlassStdMat();
+  const windowMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.12, depthWrite:false });
   const windowVoidGeo=new THREE.PlaneGeometry(1.34,2.02);
-  const windowVoidMat=new THREE.MeshStandardMaterial({ color:0x1b2538, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1.2, polygonOffsetUnits:-0.8, depthWrite:true, roughness:0.6, metalness:0.05, transparent:true, opacity:0.4 });
+  const windowVoidMat=new THREE.MeshBasicMaterial({ color:0xffffff, side:THREE.DoubleSide, polygonOffset:true, polygonOffsetFactor:-1.2, polygonOffsetUnits:-0.8, depthWrite:false, transparent:true, opacity:0.02 });
   const windowInstances=new THREE.InstancedMesh(windowGeo, windowMat, 4000);
   const windowVoids=new THREE.InstancedMesh(windowVoidGeo, windowVoidMat, 4000);
   windowInstances.count=0;
@@ -708,7 +712,7 @@ export async function startTirana2040(){
     foyerPad.rotation.x=-Math.PI/2; foyerPad.position.set(xc+sideOffset-entryDepth/2,0.025,zc);
     const entryLabelTex=(function(){ const c=document.createElement('canvas'); c.width=256; c.height=96; const g=c.getContext('2d'); g.fillStyle='#111827'; g.fillRect(0,0,c.width,c.height); g.fillStyle='#facc15'; g.font='700 44px system-ui'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('Hyrje', c.width/2, c.height/2); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
     const entryLabel=new THREE.Mesh(new THREE.PlaneGeometry(entryDepth,0.7), new THREE.MeshBasicMaterial({ map:entryLabelTex, transparent:true })); entryLabel.rotation.y=Math.PI/2; entryLabel.position.set(xc+sideOffset-0.18,2.4,zc);
-    const voidMat=makeGlassStdMat(); voidMat.opacity=0.12; voidMat.roughness=0.12; voidMat.transmission=0.92;
+    const voidMat=makeGlassStdMat(); voidMat.opacity=0.08; voidMat.roughness=0.08; voidMat.transmission=0.95;
     const entryVoid=new THREE.Mesh(new THREE.PlaneGeometry(2.4,2.6), voidMat); entryVoid.rotation.y=Math.PI/2; entryVoid.position.set(xc+sideOffset-0.22,1.6,zc);
     const group=new THREE.Group();
     group.add(jambFront,jambBack,header,awning,foyerPad,entryLabel,entryVoid);
@@ -716,7 +720,7 @@ export async function startTirana2040(){
   }
 
   function addGroundShops(xc,zc,w,d,sign){
-    const glassMat=makeGlassStdMat(); glassMat.opacity=0.48; glassMat.roughness=0.08;
+    const glassMat=makeGlassStdMat(); glassMat.opacity=0.14; glassMat.roughness=0.06;
     const columnGeo=new THREE.BoxGeometry(0.7, SCALE.FLOOR_H, 0.9);
     const panelGeo=new THREE.PlaneGeometry(Math.max(2.2, w/Math.max(3,Math.floor(w/5))) - 0.8, SCALE.FLOOR_H*0.8);
     const shopNames=['Café','Restaurant','Market','Bakery','Lounge','Bookshop'];
@@ -864,7 +868,7 @@ export async function startTirana2040(){
     g.add(stair);
     return {mesh:g, depth:totalDepth};
   }
-  function addParkGrass(cx,cz,scale=1.0){ const g=new THREE.Mesh(new THREE.PlaneGeometry(PLOT*0.9*scale,PLOT*0.9*scale), turfMat); g.rotation.x=-Math.PI/2; g.position.set(cx,0.015,cz); g.receiveShadow=allowShadows; g.userData={kind:'park_grassOriginal'}; city.add(g); const gardenBed=new THREE.Mesh(new THREE.CircleGeometry(PLOT*0.34*scale,32), new THREE.MeshStandardMaterial({ map:tennisGrassTex, roughness:0.6, metalness:0.04 })); gardenBed.rotation.x=-Math.PI/2; gardenBed.position.set(cx,0.018,cz); gardenBed.receiveShadow=allowShadows; city.add(gardenBed); scatterFlowers(cx,cz,scale); addBench(cx+PLOT*0.25, cz+PLOT*0.25); addBench(cx-PLOT*0.25, cz-PLOT*0.25, Math.PI); addBench(cx+PLOT*0.25, cz-PLOT*0.25, Math.PI/2); addBench(cx-PLOT*0.25, cz+PLOT*0.25, -Math.PI/2); }
+  function addParkGrass(cx,cz,scale=1.0){ const g=new THREE.Mesh(new THREE.PlaneGeometry(PLOT*0.9*scale,PLOT*0.9*scale), turfMat); g.rotation.x=-Math.PI/2; g.position.set(cx,0.015,cz); g.receiveShadow=allowShadows; g.userData={kind:'park_grassOriginal'}; city.add(g); const gardenBed=new THREE.Mesh(new THREE.CircleGeometry(PLOT*0.34*scale,32), new THREE.MeshStandardMaterial({ map:parkLawnTex, color:0x7fab63, roughness:0.55, metalness:0.03 })); gardenBed.rotation.x=-Math.PI/2; gardenBed.position.set(cx,0.018,cz); gardenBed.receiveShadow=allowShadows; city.add(gardenBed); scatterFlowers(cx,cz,scale); addBench(cx+PLOT*0.25, cz+PLOT*0.25); addBench(cx-PLOT*0.25, cz-PLOT*0.25, Math.PI); addBench(cx+PLOT*0.25, cz-PLOT*0.25, Math.PI/2); addBench(cx-PLOT*0.25, cz+PLOT*0.25, -Math.PI/2); }
 
   function addTennisCourt(cx,cz){
     const courtW=10.97, courtL=23.77, apron=4.2;
@@ -1010,7 +1014,47 @@ export async function startTirana2040(){
   const PITCH_LIMIT=Math.PI*0.49;
   function clampPitch(){ pitch=Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch)); }
   let camDist=4.2;
-  function camFollow(pos,distMul=1,headingOverride=null){ const heading = headingOverride==null ? yaw : headingOverride; const back=new THREE.Vector3(Math.sin(heading),0,Math.cos(heading)); const eye=new THREE.Vector3(pos.x - back.x*camDist*distMul, pos.y+1.9, pos.z - back.z*camDist*distMul); camera.position.lerp(eye,0.25); const look=new THREE.Vector3(pos.x + back.x*(camDist+0.2)*distMul, pos.y+1.05 + Math.sin(pitch)*0.7, pos.z + back.z*(camDist+0.2)*distMul); camera.lookAt(look); }
+  function cacheVehicleBounds(mesh){
+    if(!mesh) return { size:new THREE.Vector3(4.6,1.6,2.1), center:new THREE.Vector3() };
+    if(!mesh.userData.bounds){
+      const box=new THREE.Box3().setFromObject(mesh);
+      const size=new THREE.Vector3(); box.getSize(size);
+      const center=new THREE.Vector3(); box.getCenter(center);
+      mesh.userData.bounds={ size, center };
+    }
+    return mesh.userData.bounds;
+  }
+  function camFollow(pos,distMul=1,headingOverride=null){
+    const heading = headingOverride==null ? yaw : headingOverride;
+    const forward=new THREE.Vector3(Math.sin(heading),0,Math.cos(heading));
+    let followDist = camDist*distMul;
+    let eyeHeight = pos.y + 1.6;
+    let lookHeight = pos.y + 1.05 + Math.sin(pitch)*0.7;
+    let lookOffset = forward.clone().multiplyScalar(1.6*distMul);
+    let offset = forward.clone().multiplyScalar(-followDist);
+    if(driveState.active){
+      const bounds=cacheVehicleBounds(driveState.vehicle||null);
+      const vehHeight=bounds.size?.y || 1.6;
+      const vehLength=bounds.size?.z || 3.0;
+      if(cameraMode===CAMERA_MODES.COCKPIT){
+        followDist=Math.max(1.2, vehLength*0.22);
+        offset = forward.clone().multiplyScalar(0.15);
+        eyeHeight = pos.y + vehHeight*0.72;
+        lookHeight = pos.y + vehHeight*0.68;
+        lookOffset = forward.clone().multiplyScalar(Math.max(2.2, vehLength*0.6));
+      } else {
+        followDist=Math.max(camDist*1.4, vehLength*1.3);
+        offset = forward.clone().multiplyScalar(-followDist);
+        offset.y += vehHeight*0.32;
+        eyeHeight = pos.y + Math.max(1.2, vehHeight*0.8);
+        lookOffset = forward.clone().multiplyScalar(Math.max(2.4, vehLength*0.75));
+      }
+    }
+    const eye=new THREE.Vector3(pos.x, eyeHeight, pos.z).add(offset);
+    const look=new THREE.Vector3(pos.x, lookHeight, pos.z).add(lookOffset);
+    camera.position.lerp(eye,0.25);
+    camera.lookAt(look);
+  }
   function grounded(){ return player.position.y < 0.34 && Math.abs(player.velocity.y) < 0.05; }
   function jump(){ if(grounded()){ player.velocity.y = 5.2; } }
 
@@ -1405,7 +1449,7 @@ export async function startTirana2040(){
   const LOOK_SENS_A  = isMobile ? 0.22 : 0.18;
   const AIM_RATE_A   = 1.05;
   const AIM_SMOOTH_A = 4.6;
-  function setAimFromEvent(e){ if(isUIBlock(e.target)) return; const rect=canvasEl.getBoundingClientRect(); const nx=((e.clientX-rect.left)/rect.width)*2-1; const ny=-(((e.clientY-rect.top)/rect.height)*2-1); aimPoint.set(nx,ny); updateCrosshairScreen(); }
+  function setAimFromEvent(e){ if(isUIBlock(e.target)) return; aimPoint.set(0,0); updateCrosshairScreen(); }
   function isUIBlock(el){ return el.closest('#joyMove')||el.closest('#shootPad')||el.closest('#armory')||el.closest('#reloadMini')||el.closest('#climbBtn')||el.closest('#driveBtn')||el.closest('#zoomBox'); }
   canvasEl.addEventListener('pointerdown',(e)=>{ if(inputMode!=='A') return; if(isUIBlock(e.target)) return; setAimFromEvent(e); if(look.active) return; look.active=true; look.id=e.pointerId; look.lastX=e.clientX; look.lastY=e.clientY; try{ canvasEl.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); });
   canvasEl.addEventListener('pointermove',(e)=>{ if(inputMode!=='A') return; setAimFromEvent(e); if(!look.active||e.pointerId!==look.id) return; const dx=e.clientX-look.lastX; const dy=e.clientY-look.lastY; look.lastX=e.clientX; look.lastY=e.clientY; lookAccumX += dx; lookAccumY += dy; e.preventDefault(); });
@@ -1684,11 +1728,22 @@ export async function startTirana2040(){
   climbBtn.addEventListener('click', ()=>{ if(ladderState.active){ detachFromLadder(); return; } const n=nearestLadder(); if(n.dist<1.2 && n.idx>=0){ snapToLadder(n.idx); vib(16); } });
 
   const driveBtn=$('driveBtn');
+  const cameraModeBtn=$('cameraModeBtn');
+  function updateCameraModeButton(){
+    if(!cameraModeBtn) return;
+    cameraModeBtn.style.display = driveState.active ? 'block' : 'none';
+    cameraModeBtn.textContent = cameraMode===CAMERA_MODES.COCKPIT? '🎥 Inside' : '🎥 Behind';
+  }
+  function setCameraMode(mode){
+    cameraMode = mode===CAMERA_MODES.COCKPIT ? CAMERA_MODES.COCKPIT : CAMERA_MODES.FOLLOW;
+    updateCameraModeButton();
+  }
   function nearestDriveable(){ let best=null, bd=1e9; driveableVehicles.forEach(({mesh})=>{ const dx=(player.position.x||0)-(mesh.position.x||0); const dz=(player.position.z||0)-(mesh.position.z||0); const d=Math.hypot(dx,dz); if(d<bd){ bd=d; best=mesh; } }); return {mesh:best, dist:bd}; }
-  function enterVehicle(mesh){ if(!mesh) return; driveState.active=true; driveState.vehicle=mesh; driveState.speed=0; driveState.heading=(mesh.rotation.y||0)-Math.PI/2; player.velocity.set(0,0,0); player.position.set(mesh.position.x, player.position.y, mesh.position.z); driveBtn.textContent='⬅ Exit Car'; driveBtn.style.display='block'; setDrivePedals(); }
-  function exitVehicle(){ if(!driveState.active) return; const vehicle=driveState.vehicle; const dir=new THREE.Vector3(Math.cos(driveState.heading),0,Math.sin(driveState.heading)); player.position.set(vehicle?.position.x || 0, 0.94, (vehicle?.position.z||0)); player.position.x += -dir.z*1.8; player.position.z += dir.x*1.8; driveState.active=false; driveState.vehicle=null; driveState.speed=0; driveInput.throttle=0; driveInput.brake=0; driveBtn.textContent='🚗 Drive'; driveBtn.style.display='none'; setDrivePedals(); }
-  function setDriveUI(){ if(driveState.active){ driveBtn.style.display='block'; driveBtn.textContent='⬅ Exit Car'; setDrivePedals(); return; } const n=nearestDriveable(); const show=n.mesh && n.dist<4.2; driveBtn.style.display = show? 'block':'none'; driveBtn.textContent='🚗 Drive'; driveBtn.dataset.target = show? (n.mesh.uuid||'') : ''; setDrivePedals(); }
+  function enterVehicle(mesh){ if(!mesh) return; driveState.active=true; driveState.vehicle=mesh; driveState.speed=0; driveState.heading=(mesh.rotation.y||0)-Math.PI/2; player.velocity.set(0,0,0); player.position.set(mesh.position.x, player.position.y, mesh.position.z); driveBtn.textContent='⬅ Exit Car'; driveBtn.style.display='block'; setDrivePedals(); setCameraMode(CAMERA_MODES.FOLLOW); }
+  function exitVehicle(){ if(!driveState.active) return; const vehicle=driveState.vehicle; const dir=new THREE.Vector3(Math.cos(driveState.heading),0,Math.sin(driveState.heading)); player.position.set(vehicle?.position.x || 0, 0.94, (vehicle?.position.z||0)); player.position.x += -dir.z*1.8; player.position.z += dir.x*1.8; driveState.active=false; driveState.vehicle=null; driveState.speed=0; driveInput.throttle=0; driveInput.brake=0; driveBtn.textContent='🚗 Drive'; driveBtn.style.display='none'; setDrivePedals(); setCameraMode(CAMERA_MODES.FOLLOW); }
+  function setDriveUI(){ if(driveState.active){ driveBtn.style.display='block'; driveBtn.textContent='⬅ Exit Car'; setDrivePedals(); updateCameraModeButton(); return; } const n=nearestDriveable(); const show=n.mesh && n.dist<4.2; driveBtn.style.display = show? 'block':'none'; driveBtn.textContent='🚗 Drive'; driveBtn.dataset.target = show? (n.mesh.uuid||'') : ''; setDrivePedals(); updateCameraModeButton(); }
   driveBtn.addEventListener('click', ()=>{ if(driveState.active){ exitVehicle(); return; } const n=nearestDriveable(); if(n.mesh && n.dist<4.2){ enterVehicle(n.mesh); vib(18); } });
+  cameraModeBtn?.addEventListener('click', ()=>{ if(!driveState.active) return; setCameraMode(cameraMode===CAMERA_MODES.COCKPIT?CAMERA_MODES.FOLLOW:CAMERA_MODES.COCKPIT); vib(10); });
 
   function updateClimbMovement(moveInput,dt){ const idx=ladderState.index; const L=ladders[idx]; if(!ladderState.active || !L) return; const climbSpeed=2.6*MOVE_SPEED_MULT; const nextY = THREE.MathUtils.clamp(player.position.y + moveInput*climbSpeed*dt, L.y0+0.6, L.y1+1.1); player.position.y = nextY; player.position.x = L.x; player.position.z = L.z; player.velocity.set(0,0,0); player.angularVelocity.set(0,0,0); if(nextY>=L.y1+0.95 && moveInput>0.1){ detachFromLadder(); player.position.y = L.y1+1.0; player.position.x += Math.sin(yaw)*1.1; player.position.z += Math.cos(yaw)*1.1; }
     if(nextY<=L.y0+0.6 && moveInput<-0.1){ detachFromLadder(); player.position.y = L.y0+0.6; }
@@ -1751,7 +1806,7 @@ export async function startTirana2040(){
     if(driveState.active && !driveState.vehicle){ driveState.active=false; driveBtn.textContent='🚗 Drive'; setDrivePedals(); }
     driveableVehicles.forEach(({label})=>{ if(label){ label.lookAt(camera.position); } });
 
-    const move={x:0,z:0}; if(keys.has('KeyW')) move.z+=1; if(keys.has('KeyS')) move.z-=1; if(keys.has('KeyA')) move.x-=1; if(keys.has('KeyD')) move.x+=1; move.x += mv.vx; move.z += mv.vz; if(driveState.active){ move.z += driveInput.throttle*1.2; move.z -= driveInput.brake*1.3; } let l=Math.hypot(move.x,move.z); if(l>1){ move.x/=l; move.z/=l; }
+    const move={x:0,z:0}; if(keys.has('KeyW')) move.z+=1; if(keys.has('KeyS')) move.z-=1; if(keys.has('KeyA')) move.x-=1; if(keys.has('KeyD')) move.x+=1; move.x += mv.vx; move.z += driveState.active ? 0 : mv.vz; if(driveState.active){ move.z += driveInput.throttle*1.2; move.z -= driveInput.brake*1.3; } let l=Math.hypot(move.x,move.z); if(l>1){ move.x/=l; move.z/=l; }
     const speedBase = ARM_SPEED_BASE; const speedRun = SPEED_RUN;
     if(driveState.active && driveState.vehicle){
       const carAccel=trafficTarget*0.9; const carMax=trafficTarget*1.35;
