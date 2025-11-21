@@ -10,7 +10,7 @@ import polygonClipping from 'polygon-clipping';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   getTelegramUsername,
   getTelegramPhotoUrl,
@@ -21,7 +21,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import { getTrainingScenario } from '../../config/poolRoyaleTraining.js';
+import { TRAINING_SCENARIOS, getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
@@ -51,6 +51,45 @@ function applyTablePhysicsSpec(meta) {
     ? meta.cushionRestitution
     : DEFAULT_CUSHION_RESTITUTION;
   CUSHION_RESTITUTION = restitution;
+}
+
+const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress';
+
+function loadTrainingProgress() {
+  if (typeof window === 'undefined') return { completed: [], lastLevel: 1 };
+  try {
+    const stored = window.localStorage.getItem(TRAINING_PROGRESS_KEY);
+    if (!stored) return { completed: [], lastLevel: 1 };
+    const parsed = JSON.parse(stored);
+    const completed = Array.isArray(parsed?.completed)
+      ? parsed.completed
+          .map((lvl) => Number(lvl))
+          .filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+          .sort((a, b) => a - b)
+      : [];
+    const lastLevel = Number.isFinite(parsed?.lastLevel) ? Number(parsed.lastLevel) : 1;
+    return { completed, lastLevel };
+  } catch (err) {
+    console.warn('Failed to load Pool Royale training progress', err);
+    return { completed: [], lastLevel: 1 };
+  }
+}
+
+function persistTrainingProgress(progress) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(TRAINING_PROGRESS_KEY, JSON.stringify(progress));
+  } catch (err) {
+    console.warn('Failed to persist Pool Royale training progress', err);
+  }
+}
+
+function getNextIncompleteLevel(completedLevels) {
+  const completedSet = new Set((completedLevels || []).map((lvl) => Number(lvl)));
+  for (let level = 1; level <= TRAINING_SCENARIOS.length; level++) {
+    if (!completedSet.has(level)) return level;
+  }
+  return null;
 }
 
 function detectCoarsePointer() {
@@ -7679,6 +7718,20 @@ function PoolRoyaleGame({
   playerName,
   opponentName
 }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const goToTrainingLevel = useCallback(
+    (level, replace = false) => {
+      if (!level) {
+        navigate('/games/pollroyale/lobby', { replace });
+        return;
+      }
+      const params = new URLSearchParams(location.search);
+      params.set('task', level);
+      navigate(`${location.pathname}?${params.toString()}`, { replace });
+    },
+    [location.pathname, location.search, navigate]
+  );
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -7760,6 +7813,122 @@ function PoolRoyaleGame({
     () => (isTraining ? getTrainingScenario(trainingLevel) : null),
     [isTraining, trainingLevel]
   );
+  const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
+  const trainingProgressRef = useRef(trainingProgress);
+  const [trainingPopup, setTrainingPopup] = useState(null);
+  const trainingRewardedRef = useRef(false);
+  useEffect(() => {
+    trainingProgressRef.current = trainingProgress;
+    persistTrainingProgress(trainingProgress);
+  }, [trainingProgress]);
+  useEffect(() => {
+    if (!isTraining) return;
+    const completedSet = new Set(trainingProgressRef.current.completed || []);
+    if (!completedSet.has(trainingLevel)) return;
+    const nextLevel = getNextIncompleteLevel(completedSet);
+    if (nextLevel) {
+      goToTrainingLevel(nextLevel, true);
+    } else {
+      goToTrainingLevel(null, true);
+    }
+  }, [goToTrainingLevel, isTraining, trainingLevel]);
+  const trainingRoadmap = useMemo(() => {
+    const completedSet = new Set(trainingProgress.completed || []);
+    const start = Math.max(1, trainingLevel - 1);
+    const roadmap = [];
+    for (
+      let level = start;
+      level < start + 4 && level <= TRAINING_SCENARIOS.length;
+      level++
+    ) {
+      roadmap.push({
+        level,
+        completed: completedSet.has(level)
+      });
+    }
+    return roadmap;
+  }, [trainingProgress, trainingLevel]);
+  const handleTrainingOutcome = useCallback(
+    async (playerWon) => {
+      const scenario = trainingScenario;
+      const level = trainingLevel || 1;
+      if (!playerWon) {
+        setTrainingPopup({
+          status: 'fail',
+          level,
+          reward: 0,
+          rewardGranted: false,
+          nextLevel: level,
+          title: scenario?.title,
+          description: scenario?.description
+        });
+        return;
+      }
+
+      const completedSet = new Set(trainingProgressRef.current.completed || []);
+      const alreadyComplete = completedSet.has(level);
+      const nextCompleted = new Set(completedSet);
+      nextCompleted.add(level);
+      const reward = Number.isFinite(scenario?.reward) ? Number(scenario.reward) : 0;
+      let rewardGranted = false;
+      if (!alreadyComplete && reward > 0 && accountIdRef.current && !trainingRewardedRef.current) {
+        try {
+          const telegramId = tgIdRef.current || getTelegramId();
+          await addTransaction(telegramId, reward, 'task_reward', {
+            game: 'poolroyale-training',
+            level,
+            accountId: accountIdRef.current
+          });
+          rewardGranted = true;
+          trainingRewardedRef.current = true;
+        } catch (err) {
+          console.error('Failed to transfer training reward', err);
+        }
+      }
+
+      if (!alreadyComplete) {
+        setTrainingProgress({
+          completed: Array.from(nextCompleted).sort((a, b) => a - b),
+          lastLevel: level
+        });
+      }
+
+      const nextLevel = getNextIncompleteLevel(nextCompleted) ?? null;
+      setTrainingPopup({
+        status: 'success',
+        level,
+        reward: reward || 0,
+        rewardGranted,
+        nextLevel,
+        title: scenario?.title,
+        description: scenario?.description,
+        alreadyComplete
+      });
+    },
+    [trainingLevel, trainingScenario]
+  );
+  const handleTrainingPopupContinue = useCallback(() => {
+    if (!trainingPopup) return;
+    const { nextLevel, status } = trainingPopup;
+    setTrainingPopup(null);
+    trainingRewardedRef.current = false;
+    if (status === 'fail') {
+      window.location.reload();
+      return;
+    }
+    if (nextLevel) {
+      goToTrainingLevel(nextLevel, true);
+    } else {
+      goToTrainingLevel(null, true);
+    }
+  }, [goToTrainingLevel, trainingLevel, trainingPopup]);
+  useEffect(() => {
+    if (!trainingPopup || trainingPopup.status !== 'success') return undefined;
+    const timer = window.setTimeout(() => {
+      handleTrainingPopupContinue();
+    }, 2200);
+    return () => window.clearTimeout(timer);
+  }, [handleTrainingPopupContinue, trainingPopup]);
   const railMarkerStyleRef = useRef({
     shape: railMarkerShapeId,
     colorId: railMarkerColorId
@@ -8753,6 +8922,10 @@ function PoolRoyaleGame({
     gameOverHandledRef.current = true;
     setHud((prev) => ({ ...prev, over: true }));
     const winnerId = frameState.winner;
+    if (isTraining) {
+      handleTrainingOutcome(winnerId === 'A');
+      return undefined;
+    }
     const winnerLabel = winnerId === 'A'
       ? player.name || 'You'
       : winnerId === 'B'
@@ -8771,7 +8944,7 @@ function PoolRoyaleGame({
       window.location.assign(lobbyUrl);
     }, 1200);
     return () => window.clearTimeout(redirectTimer);
-  }, [frameState.frameOver, frameState.winner, player.name]);
+  }, [frameState.frameOver, frameState.winner, handleTrainingOutcome, isTraining, player.name]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
@@ -15276,6 +15449,44 @@ function PoolRoyaleGame({
         )}
       </div>
 
+      {isTraining && trainingScenario && (
+        <div className="absolute left-4 top-4 z-50 max-w-xs space-y-3 text-white">
+          <div className="rounded-2xl border border-emerald-300/50 bg-black/70 p-3 shadow-lg backdrop-blur">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">
+                  Training roadmap
+                </p>
+                <h3 className="text-sm font-semibold leading-tight">
+                  Task {trainingLevel}: {trainingScenario.title}
+                </h3>
+              </div>
+              <span className="rounded-full bg-emerald-400/20 px-2 py-1 text-[11px] font-semibold text-emerald-50">
+                {trainingScenario.reward} TPC
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-white/70">{trainingScenario.description}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {trainingRoadmap.map((item) => (
+                <span
+                  key={item.level}
+                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                    item.completed
+                      ? 'bg-emerald-500/30 text-emerald-50'
+                      : item.level === trainingLevel
+                        ? 'bg-white/30 text-white'
+                        : 'bg-white/10 text-white/70'
+                  }`}
+                >
+                  Task {item.level}
+                  {item.completed ? ' • Done' : item.level === trainingLevel ? ' • Active' : ''}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
@@ -15392,6 +15603,56 @@ function PoolRoyaleGame({
           </div>
         </div>
       )}
+
+      {trainingPopup && (
+        <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/80 px-4 text-white">
+          <div className="w-full max-w-md rounded-2xl border border-emerald-300/60 bg-gray-900 p-6 text-center shadow-2xl">
+            <p className="text-xs uppercase tracking-[0.28em] text-emerald-200">
+              Training task {trainingPopup.level}
+            </p>
+            <h3 className="mt-2 text-2xl font-bold">
+              {trainingPopup.status === 'success' ? 'You won!' : 'Task incomplete'}
+            </h3>
+            <p className="mt-2 text-sm text-white/70">
+              {trainingPopup.status === 'success'
+                ? 'Great job. Rewards are being transferred and your next roadmap step is loading.'
+                : 'You can retry this roadmap step as many times as you want.'}
+            </p>
+            {trainingPopup.status === 'success' && (
+              <div className="mt-4 rounded-xl border border-emerald-400/60 bg-emerald-500/10 p-4">
+                <p className="text-lg font-semibold text-emerald-200">+{trainingPopup.reward} TPC</p>
+                <p className="text-xs text-white/70">
+                  {trainingPopup.rewardGranted
+                    ? 'TPC transferred to your account.'
+                    : 'Transfer requested. Refresh your balance to confirm.'}
+                </p>
+              </div>
+            )}
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button
+                type="button"
+                onClick={handleTrainingPopupContinue}
+                className={
+                  'rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-black shadow-lg transition ' +
+                  'hover:bg-emerald-300'
+                }
+              >
+                {trainingPopup.status === 'success' ? 'Continue to next task' : 'Retry task'}
+              </button>
+              <button
+                type="button"
+                onClick={() => goToTrainingLevel(null, true)}
+                className={
+                  'rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white/80 transition ' +
+                  'hover:bg-white/10'
+                }
+              >
+                Back to lobby
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -15437,6 +15698,38 @@ export default function PoolRoyale() {
       'Player'
     );
   }, [location.search]);
+  const stakeAmount = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return Number(params.get('amount')) || 0;
+  }, [location.search]);
+  const stakeToken = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('token') || 'TPC';
+  }, [location.search]);
+  useEffect(() => {
+    const message =
+      stakeAmount > 0
+        ? `Are you sure you want to exit? Your ${stakeAmount} ${stakeToken} stake will be lost.`
+        : 'Are you sure you want to exit the match?';
+    const handleBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = message;
+      return message;
+    };
+    const handlePopState = () => {
+      const confirmed = window.confirm(message);
+      if (!confirmed) {
+        window.history.pushState(null, '', window.location.href);
+      }
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [stakeAmount, stakeToken]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
