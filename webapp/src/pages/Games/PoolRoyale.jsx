@@ -1362,8 +1362,15 @@ const CLOTH_QUALITY = (() => {
   return defaults;
 })();
 
-const makeColorPalette = ({ cloth, rail, base, markings = 0xffffff }) => ({
+const makeColorPalette = ({
   cloth,
+  cushion = cloth,
+  rail,
+  base,
+  markings = 0xffffff
+}) => ({
+  cloth,
+  cushion,
   rail,
   base,
   markings,
@@ -1788,13 +1795,24 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   royalBlue: Object.freeze({
     id: 'royalBlue',
     palette: {
-      shadow: 0x112f73,
-      base: 0x2f63e6,
-      accent: 0x4f7eff,
-      highlight: 0x7fa5ff
+      shadow: 0x17428e,
+      base: 0x3b79f2,
+      accent: 0x5b92ff,
+      highlight: 0x94b6ff
     },
     sparkle: 0.72,
     stray: 0.92
+  }),
+  matteBlack: Object.freeze({
+    id: 'matteBlack',
+    palette: {
+      shadow: 0x0a0b0f,
+      base: 0x1a1b21,
+      accent: 0x2a2b31,
+      highlight: 0x3b3d45
+    },
+    sparkle: 0.52,
+    stray: 0.72
   }),
   graphite: Object.freeze({
     id: 'graphite',
@@ -1827,13 +1845,13 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'royalBlue',
     label: 'Royal Blue',
-    color: 0x2b5bff,
+    color: 0x3b7ff0,
     textureKey: 'royalBlue',
     detail: {
       bumpMultiplier: 1.05,
       sheen: 0.64,
       sheenRoughness: 0.4,
-      emissiveIntensity: 0.34
+      emissiveIntensity: 0.3
     }
   },
   {
@@ -1845,6 +1863,21 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       bumpMultiplier: 0.92,
       roughness: 0.72,
       envMapIntensity: 0.16
+    }
+  },
+  {
+    id: 'matteBlack',
+    label: 'Midnight Velvet',
+    color: 0x14151a,
+    cushionColor: 0x6b1b2b,
+    textureKey: 'matteBlack',
+    detail: {
+      bumpMultiplier: 0.88,
+      roughness: 0.82,
+      sheen: 0.28,
+      sheenRoughness: 0.66,
+      emissiveIntensity: 0.26,
+      envMapIntensity: 0.08
     }
   }
 ]);
@@ -6796,7 +6829,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = TABLE.THICK * 0.18;
+  const railMarkerOutset = TABLE.THICK * 0.26;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = TABLE.THICK * 0.06;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
@@ -7566,6 +7599,9 @@ function applyTableFinishToTable(table, finish) {
   }
 
   const clothColor = new THREE.Color(resolvedFinish.colors.cloth);
+  const cushionColorHex =
+    resolvedFinish.colors.cushion ?? resolvedFinish.colors.cloth;
+  const cushionColor = new THREE.Color(cushionColorHex);
   const emissiveColor = clothColor.clone().multiplyScalar(0.06);
   if (finishInfo.clothMat) {
     finishInfo.clothMat.color.copy(clothColor);
@@ -7573,8 +7609,10 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.clothMat.needsUpdate = true;
   }
   if (finishInfo.cushionMat) {
-    finishInfo.cushionMat.color.copy(clothColor);
-    finishInfo.cushionMat.emissive.copy(emissiveColor);
+    finishInfo.cushionMat.color.copy(cushionColor);
+    finishInfo.cushionMat.emissive.copy(
+      cushionColor.clone().multiplyScalar(0.06)
+    );
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
@@ -8006,7 +8044,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       clothTextureKey,
       colors: {
         ...baseFinish.colors,
-        cloth: clothSelection.color
+        cloth: clothSelection.color,
+        cushion:
+          clothSelection.cushionColor ??
+          baseFinish.colors.cushion ??
+          clothSelection.color
       },
       woodTexture: null,
       woodTextureEnabled: WOOD_TEXTURES_ENABLED,
@@ -13053,6 +13095,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
               .filter(Boolean)
           );
           if (legalTargets.size === 0) legalTargets.add('RED');
+          if (variantId === 'uk' && legalTargets.size === 0) {
+            const hasBlack = balls.some(
+              (ball) => ball.active && toBallColorId(ball.id) === 'BLACK'
+            );
+            if (hasBlack) {
+              legalTargets.add('BLACK');
+            } else {
+              legalTargets.add('YELLOW');
+            }
+          }
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
           const clearance = BALL_R * 1.45;
