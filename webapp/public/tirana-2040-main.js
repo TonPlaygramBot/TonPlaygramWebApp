@@ -299,10 +299,23 @@ export async function startTirana2040(){
   const maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, isMobile ? 6 : 16);
   const textureLoader = new THREE.TextureLoader();
   textureLoader.setCrossOrigin?.('anonymous');
-  const waterNormals = textureLoader.load('https://threejs.org/examples/textures/waternormals.jpg', (tex)=>{
-    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  function makeFlatNormalTexture(size=8){
+    const data = new Uint8Array(size*size*4);
+    for(let i=0;i<size*size;i++){
+      const base=i*4;
+      data[base]=128; // X
+      data[base+1]=128; // Y
+      data[base+2]=255; // Z
+      data[base+3]=255; // A
+    }
+    const tex=new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tex.colorSpace=THREE.LinearSRGBColorSpace;
+    tex.wrapS=tex.wrapT=THREE.RepeatWrapping;
     tex.repeat.set(4,4);
-  });
+    tex.needsUpdate=true;
+    return tex;
+  }
+  const waterNormalTile = makeFlatNormalTexture();
   function makeTreeFallback(){
     const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d');
     x.fillStyle='#4e7f56'; x.fillRect(0,48,128,80);
@@ -909,7 +922,8 @@ export async function startTirana2040(){
       textureHeight:512,
       scale:2.2,
       flowSpeed:0.15,
-      waterNormals
+      normalMap0: waterNormalTile,
+      normalMap1: waterNormalTile
     });
     waterSurface.rotation.x=-Math.PI/2; waterSurface.position.set(cx,0.52,cz); city.add(waterSurface);
     const rimStones=new THREE.Group(); const stoneGeo=new THREE.CylinderGeometry(0.45,0.5,0.2,10); const stoneMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0x8d96a1, roughness:0.65 }); for(let i=0;i<42;i++){ const ang=Math.random()*Math.PI*2; const r=ringR*0.9 + Math.random()*0.8; const stone=new THREE.Mesh(stoneGeo, stoneMat); stone.position.set(cx+Math.cos(ang)*r,0.2,cz+Math.sin(ang)*r); stone.rotation.y=ang; rimStones.add(stone); }
