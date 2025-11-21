@@ -92,6 +92,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
   const audioRef = useRef({ hit: null, goal: null, whistle: null, post: null });
+  const audioStartedRef = useRef(false);
   const scoreRef = useRef({ left: 0, right: 0 });
 
   useEffect(() => {
@@ -107,9 +108,47 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     audioRef.current.whistle = new Audio('/assets/sounds/metal-whistle-6121.mp3');
     audioRef.current.post = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
 
+    const primeAudio = () => {
+      const audios = Object.values(audioRef.current).filter(Boolean);
+      if (!audios.length || audioStartedRef.current) return;
+
+      let unlocked = false;
+      let pending = audios.length;
+
+      audios.forEach((audio) => {
+        const originalVolume = audio.volume;
+        audio.volume = Math.max(0.0001, originalVolume * 0.0001);
+        audio.currentTime = 0;
+
+        const finalize = (wasUnlocked) => {
+          unlocked = unlocked || wasUnlocked;
+          audio.volume = originalVolume;
+          pending -= 1;
+          if (pending === 0) {
+            audioStartedRef.current = unlocked;
+          }
+        };
+
+        const playPromise = audio.play();
+        if (playPromise && playPromise.then) {
+          playPromise
+            .then(() => {
+              audio.pause();
+              audio.currentTime = 0;
+              finalize(true);
+            })
+            .catch(() => finalize(false));
+        } else {
+          audio.pause();
+          audio.currentTime = 0;
+          finalize(true);
+        }
+      });
+    };
+
     const playWhistle = () => {
       const whistle = audioRef.current.whistle;
-      if (!whistle) return;
+      if (!whistle || !audioStartedRef.current) return;
       whistle.volume = getGameVolume();
       whistle.currentTime = 0;
       whistle.play().catch(() => {});
@@ -121,7 +160,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
 
     const playHit = () => {
       const hit = audioRef.current.hit;
-      if (!hit) return;
+      if (!hit || !audioStartedRef.current) return;
       hit.volume = getGameVolume();
       hit.currentTime = 0;
       hit.play().catch(() => {});
@@ -132,7 +171,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
 
     const playPost = () => {
       const post = audioRef.current.post;
-      if (!post) return;
+      if (!post || !audioStartedRef.current) return;
       post.volume = Math.min(1, getGameVolume() * 0.7);
       post.currentTime = 0.15;
       post.play().catch(() => {});
@@ -144,7 +183,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
 
     const playGoal = () => {
       const goal = audioRef.current.goal;
-      if (!goal) return;
+      if (!goal || !audioStartedRef.current) return;
       goal.volume = getGameVolume();
       goal.currentTime = 0;
       goal.play().catch(() => {});
@@ -633,11 +672,15 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     };
 
     const onMove = (e) => {
+      primeAudio();
       const t = e.touches ? e.touches[0] : e;
       const { x, z } = touchToXZ(t.clientX, t.clientY);
       you.position.set(x, 0, z);
     };
 
+    renderer.domElement.addEventListener('pointerdown', primeAudio, {
+      passive: true
+    });
     renderer.domElement.addEventListener('touchstart', onMove, {
       passive: true
     });
@@ -778,6 +821,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       renderer.domElement.removeEventListener('touchstart', onMove);
       renderer.domElement.removeEventListener('touchmove', onMove);
       renderer.domElement.removeEventListener('mousemove', onMove);
+      renderer.domElement.removeEventListener('pointerdown', primeAudio);
       Object.keys(audioRef.current).forEach((key) => {
         const audio = audioRef.current[key];
         if (audio) {
