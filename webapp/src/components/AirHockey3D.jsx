@@ -89,11 +89,42 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
   const [ui, setUi] = useState({ left: 0, right: 0 });
   const [gameOver, setGameOver] = useState(false);
   const [winner, setWinner] = useState('');
+  const [goalPopup, setGoalPopup] = useState(null);
+  const [postPopup, setPostPopup] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
-  const audioRef = useRef({ hit: null, goal: null, whistle: null, post: null });
+  const audioRef = useRef({
+    hit: null,
+    goal: null,
+    whistle: null,
+    post: null,
+    crowd: null
+  });
   const audioStartedRef = useRef(false);
   const scoreRef = useRef({ left: 0, right: 0 });
+  const goalTimeoutRef = useRef(null);
+  const postTimeoutRef = useRef(null);
+  const redirectTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    if (!gameOver) return undefined;
+
+    setRedirecting(true);
+    redirectTimeoutRef.current = setTimeout(() => {
+      window.location.href = '/games/airhockey/lobby';
+    }, 2000);
+
+    return () => {
+      clearTimeout(redirectTimeoutRef.current);
+    };
+  }, [gameOver]);
+
+  useEffect(() => () => {
+    clearTimeout(goalTimeoutRef.current);
+    clearTimeout(postTimeoutRef.current);
+    clearTimeout(redirectTimeoutRef.current);
+  }, []);
 
   useEffect(() => {
     targetRef.current = Number(target) || 3;
@@ -107,6 +138,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     audioRef.current.goal = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
     audioRef.current.whistle = new Audio('/assets/sounds/metal-whistle-6121.mp3');
     audioRef.current.post = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
+    audioRef.current.crowd = new Audio('/assets/sounds/football-crowd-3-69245.mp3');
 
     const primeAudio = () => {
       const audios = Object.values(audioRef.current).filter(Boolean);
@@ -179,10 +211,14 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
         post.pause();
         post.currentTime = 0.15;
       }, 1000);
+      setPostPopup(true);
+      clearTimeout(postTimeoutRef.current);
+      postTimeoutRef.current = setTimeout(() => setPostPopup(false), 900);
     };
 
     const playGoal = () => {
       const goal = audioRef.current.goal;
+      const crowd = audioRef.current.crowd;
       if (!goal || !audioStartedRef.current) return;
       goal.volume = getGameVolume();
       goal.currentTime = 0;
@@ -191,6 +227,15 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
         goal.pause();
         goal.currentTime = 0;
       }, 2000);
+      if (crowd) {
+        crowd.volume = Math.min(1, getGameVolume() * 0.8);
+        crowd.currentTime = 0;
+        crowd.play().catch(() => {});
+        setTimeout(() => {
+          crowd.pause();
+          crowd.currentTime = 0;
+        }, 2500);
+      }
       playWhistle();
     };
 
@@ -200,6 +245,13 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
         right: scoreRef.current.right + (playerScored ? 0 : 1)
       };
       setUi({ ...scoreRef.current });
+      setGoalPopup({
+        scorer: playerScored ? player.name : ai.name,
+        scoreLine: `${scoreRef.current.left} - ${scoreRef.current.right}`,
+        isPlayer: playerScored
+      });
+      clearTimeout(goalTimeoutRef.current);
+      goalTimeoutRef.current = setTimeout(() => setGoalPopup(null), 1500);
       const targetScore = targetRef.current;
       if (
         targetScore &&
@@ -866,21 +918,52 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
           className="w-5 h-5 rounded-full object-cover"
         />
       </div>
-      {gameOver && (
+      {goalPopup && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-black/70 text-white text-center rounded-lg px-4 py-3 space-y-1 mx-4">
-            <div className="text-sm font-semibold">Game Over</div>
-            <div className="text-xs">{winner} wins to {targetValue}.</div>
-            <div className="text-[11px] text-white/80">Tap Reset to play again.</div>
+          <div
+            className={`text-center drop-shadow-[0_0_12px_rgba(0,0,0,0.9)] px-4 py-3 rounded-lg bg-black/50 border border-white/10 ${goalPopup.isPlayer ? 'text-emerald-200' : 'text-amber-200'}`}
+          >
+            <div className="text-4xl font-extrabold tracking-[0.2em] uppercase">Goal!</div>
+            <div className="text-lg font-semibold mt-1">{goalPopup.scorer}</div>
+            <div className="text-sm font-semibold mt-1">Score: {goalPopup.scoreLine}</div>
           </div>
         </div>
       )}
-      <button
-        onClick={() => window.location.reload()}
-        className="absolute left-2 bottom-2 text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1"
-      >
-        Reset
-      </button>
+      {postPopup && !goalPopup && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center text-amber-200 text-3xl font-extrabold uppercase tracking-[0.15em] drop-shadow-[0_0_12px_rgba(0,0,0,0.9)] bg-black/50 border border-white/10 rounded-lg px-4 py-2">
+            Post!
+          </div>
+        </div>
+      )}
+      {gameOver && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/70 text-white text-center px-4">
+          <div className="rounded-lg border border-white/10 bg-white/5 px-5 py-4 space-y-2 max-w-sm w-full">
+            <div className="text-lg font-semibold">Game Over</div>
+            <div className="text-sm font-medium">Winner: {winner}</div>
+            <div className="text-xs text-white/80">Final Score: {scoreRef.current.left} - {scoreRef.current.right}</div>
+            <div className="text-[11px] text-white/70">
+              {redirecting ? 'Redirecting to the Air Hockey lobby...' : 'Preparing lobby return...'}
+            </div>
+            <div className="pt-2">
+              <button
+                onClick={() => (window.location.href = '/games/airhockey/lobby')}
+                className="w-full rounded bg-emerald-500/90 hover:bg-emerald-500 text-black font-semibold py-2 text-sm"
+              >
+                Go to Lobby
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {!gameOver && (
+        <button
+          onClick={() => (window.location.href = '/games/airhockey/lobby')}
+          className="absolute left-2 bottom-2 text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1"
+        >
+          Exit to Lobby
+        </button>
+      )}
     </div>
   );
 }
