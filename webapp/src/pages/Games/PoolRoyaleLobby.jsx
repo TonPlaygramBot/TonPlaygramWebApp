@@ -13,60 +13,7 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
-
-const TRAINING_TASKS = [
-  {
-    description: 'Roll a single object ball that is already near the corner pocket – just tap to pot.',
-    tip: 'Line up straight and use a soft stroke to sink the ball.',
-    reward: 50
-  },
-  {
-    description: 'Move the cue ball a few inches and pot a ball hanging over the middle pocket.',
-    tip: 'Feather the cue to feel table speed before committing.',
-    reward: 75
-  },
-  {
-    description: 'Play a gentle follow (top spin) to hold shape for the next ball.',
-    tip: 'Drag the spin marker slightly above center, aim straight, and push through.',
-    reward: 100
-  },
-  {
-    description: 'Stun the cue ball after potting to stay on the same line.',
-    tip: 'Keep the spin marker at center ball and strike cleanly.',
-    reward: 120
-  },
-  {
-    description: 'Use a small draw (back spin) to pull back for an easy next shot.',
-    tip: 'Set the spin marker just below center and reduce power.',
-    reward: 150
-  },
-  {
-    description: 'Pot two open balls in sequence without touching cushions.',
-    tip: 'Prioritize straight pots and soft pace to keep control.',
-    reward: 180
-  },
-  {
-    description: 'Bank a ball cross-side with center-ball strike.',
-    tip: 'Visualize the mirror angle and keep power moderate.',
-    reward: 220
-  },
-  {
-    description: 'Play a thin cut to the corner while avoiding a scratch.',
-    tip: 'Aim for the far jaw and favor stun over follow.',
-    reward: 260
-  },
-  {
-    description: 'Run a three-ball pattern using only follow and stun.',
-    tip: 'Alternate between soft top spin and stop shots to stay in line.',
-    reward: 320
-  },
-  {
-    description: 'Finish a mini-rack in under two minutes with clean position.',
-    tip: 'Plan the order, use gentle spin, and avoid risky power shots.',
-    reward: 500,
-    nft: true
-  }
-];
+import { TRAINING_SCENARIOS, getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -88,6 +35,7 @@ export default function PoolRoyaleLobby() {
   const [readyList, setReadyList] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
+  const [trainingLevel, setTrainingLevel] = useState(1);
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const stakeChargedRef = useRef(false);
@@ -195,8 +143,12 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    if (playType === 'training' && TRAINING_TASKS[0]?.tip) {
-      window.alert(`Training tip: ${TRAINING_TASKS[0].tip}`);
+    if (playType === 'training') {
+      params.set('task', trainingLevel);
+      const task = getTrainingScenario(trainingLevel);
+      if (task?.tip) {
+        window.alert(`Training tip: ${task.tip}`);
+      }
     }
     navigate(`/games/pollroyale?${params.toString()}`);
   };
@@ -335,8 +287,8 @@ export default function PoolRoyaleLobby() {
 
   const careerRounds = useMemo(
     () =>
-      TRAINING_TASKS.map((task, index) => ({
-        level: index + 1,
+      TRAINING_SCENARIOS.map((task) => ({
+        level: task.level,
         description: task.description,
         reward: task.reward,
         tip: task.tip,
@@ -483,14 +435,21 @@ export default function PoolRoyaleLobby() {
         {mode === 'online' ? (matching ? 'Waiting for opponent…' : 'START ONLINE') : 'START'}
       </button>
       <div className="space-y-2">
-        <h3 className="font-semibold">Training Ladder · 10 Rounds</h3>
+        <h3 className="font-semibold">Training Ladder · 50 Rounds</h3>
         <p className="text-sm text-subtext">
-          Start with simple one-ball pots, then layer in spin control, position play, and gentle banks.
-          Each round explains the objective so new players learn step by step while still earning TPC.
+          Start with simple one-ball pots, then layer in spin control, position play, banks, safeties, and
+          multi-ball routes. Pick any round to practice: every tenth level drops a new cue NFT gift.
         </p>
         <div className="max-h-64 overflow-y-auto space-y-2">
           {careerRounds.map(({ level, description, reward, nft, tip }) => (
-            <div key={level} className="lobby-tile w-full flex items-center justify-between">
+            <button
+              key={level}
+              type="button"
+              onClick={() => setTrainingLevel(level)}
+              className={`lobby-tile w-full flex items-center justify-between text-left ${
+                trainingLevel === level ? 'lobby-selected border-primary/80' : ''
+              }`}
+            >
               <div>
                 <p className="font-semibold">Round {level}</p>
                 <p className="text-sm text-subtext">{description}</p>
@@ -500,7 +459,7 @@ export default function PoolRoyaleLobby() {
                 <div className="font-semibold">Reward: {reward} TPC</div>
                 {nft && <div className="text-amber-300 text-xs">NFT gift unlocked</div>}
               </div>
-            </div>
+            </button>
           ))}
         </div>
       </div>

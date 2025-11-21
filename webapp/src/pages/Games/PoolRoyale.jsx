@@ -13,12 +13,15 @@ import '../../../../snooker-power-slider.css';
 import { useLocation } from 'react-router-dom';
 import {
   getTelegramUsername,
-  getTelegramPhotoUrl
+  getTelegramPhotoUrl,
+  getTelegramId
 } from '../../utils/telegram.js';
+import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
+import { getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
@@ -7665,7 +7668,17 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({ variantKey, tableSizeKey }) {
+function PoolRoyaleGame({
+  variantKey,
+  tableSizeKey,
+  playType = 'ai',
+  mode = 'ai',
+  trainingLevel = 1,
+  accountId,
+  tgId,
+  playerName,
+  opponentName
+}) {
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -7742,6 +7755,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
   );
+  const isTraining = playType === 'training';
+  const trainingScenario = useMemo(
+    () => (isTraining ? getTrainingScenario(trainingLevel) : null),
+    [isTraining, trainingLevel]
+  );
   const railMarkerStyleRef = useRef({
     shape: railMarkerShapeId,
     colorId: railMarkerColorId
@@ -7771,6 +7789,47 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
+  const accountIdRef = useRef(accountId || '');
+  const tgIdRef = useRef(tgId || '');
+  const cueFeePaidRef = useRef(false);
+  const cueFeePendingRef = useRef(false);
+  useEffect(() => {
+    accountIdRef.current = accountId || '';
+  }, [accountId]);
+  useEffect(() => {
+    tgIdRef.current = tgId || '';
+  }, [tgId]);
+  const ensureCueFeePaid = useCallback(async () => {
+    if (cueFeePaidRef.current) return true;
+    const id = accountIdRef.current;
+    if (!id) {
+      alert('Link your TPC account before switching cues.');
+      return false;
+    }
+    if (cueFeePendingRef.current) return false;
+    cueFeePendingRef.current = true;
+    try {
+      const balRes = await getAccountBalance(id);
+      if ((balRes?.balance || 0) < 50) {
+        alert('You need at least 50 TPC to change cues for this game.');
+        return false;
+      }
+      const telegramId = tgIdRef.current || getTelegramId();
+      await addTransaction(telegramId, -50, 'cue_fee', {
+        game: 'poolroyale',
+        reason: 'cue_switch',
+        accountId: id
+      });
+      cueFeePaidRef.current = true;
+      return true;
+    } catch (err) {
+      console.error('Failed to charge cue switch fee', err);
+      alert('Unable to charge the cue switch fee. Please try again.');
+      return false;
+    } finally {
+      cueFeePendingRef.current = false;
+    }
+  }, []);
   const chalkMeshesRef = useRef([]);
   const chalkAreaRef = useRef(null);
   const [uiScale, setUiScale] = useState(() =>
@@ -8148,12 +8207,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     };
   }, [configOpen]);
   const applyFinishRef = useRef(() => {});
+  const playerLabel = playerName || 'Player';
+  const opponentLabel = mode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
   const [frameState, setFrameState] = useState(() =>
-    rules.getInitialFrame('Player', 'AI')
+    rules.getInitialFrame(playerLabel, opponentLabel)
   );
   useEffect(() => {
-    setFrameState(rules.getInitialFrame('Player', 'AI'));
-  }, [rules]);
+    setFrameState(rules.getInitialFrame(playerLabel, opponentLabel));
+  }, [rules, playerLabel, opponentLabel]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -11768,27 +11829,57 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
       }
 
-      const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
-      const rackLayout = variantConfig?.rackLayout || 'triangle';
-      const rackColors = Array.isArray(variantConfig?.objectColors)
-        ? variantConfig.objectColors
-        : [];
-      const rackPositions = generateRackPositions(
-        rackColors.length,
-        rackLayout,
-        BALL_R,
-        rackStartZ
-      );
-      for (let rid = 0; rid < rackColors.length; rid++) {
-        const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
-          x: 0,
-          z: rackStartZ + rid * BALL_R * 1.9
-        };
-        const color = getPoolBallColor(variantConfig, rid);
-        const number = getPoolBallNumber(variantConfig, rid);
-        const pattern = getPoolBallPattern(variantConfig, rid);
-        const ballId = getPoolBallId(variantConfig, rid);
-        add(ballId, color, pos.x, pos.z, { number, pattern });
+      const placeTrainingLayout = (layout) => {
+        if (!layout) return false;
+        const limitX = PLAY_W / 2 - BALL_R * 2.5;
+        const limitZ = PLAY_H / 2 - BALL_R * 2.5;
+        const normalize = (val, limit) => Math.min(limit, Math.max(-limit, (val ?? 0) * limit));
+        if (layout.cue) {
+          cue.pos.set(normalize(layout.cue.x, limitX), normalize(layout.cue.z, limitZ));
+        }
+        const entries = Array.isArray(layout.balls) ? layout.balls : [];
+        entries.forEach((ball, idx) => {
+          const rid = Number.isFinite(ball?.rackIndex)
+            ? Math.max(0, Math.floor(ball.rackIndex))
+            : idx % (variantConfig?.objectColors?.length || 15);
+          const color = getPoolBallColor(variantConfig, rid);
+          const number = getPoolBallNumber(variantConfig, rid);
+          const pattern = getPoolBallPattern(variantConfig, rid);
+          const ballId = getPoolBallId(variantConfig, rid);
+          const px = normalize(ball?.x, limitX);
+          const pz = normalize(ball?.z, limitZ);
+          add(ballId, color, px, pz, { number, pattern });
+        });
+        return entries.length > 0;
+      };
+
+      const appliedTraining = isTraining && trainingScenario
+        ? placeTrainingLayout(trainingScenario)
+        : false;
+
+      if (!appliedTraining) {
+        const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
+        const rackLayout = variantConfig?.rackLayout || 'triangle';
+        const rackColors = Array.isArray(variantConfig?.objectColors)
+          ? variantConfig.objectColors
+          : [];
+        const rackPositions = generateRackPositions(
+          rackColors.length,
+          rackLayout,
+          BALL_R,
+          rackStartZ
+        );
+        for (let rid = 0; rid < rackColors.length; rid++) {
+          const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
+            x: 0,
+            z: rackStartZ + rid * BALL_R * 1.9
+          };
+          const color = getPoolBallColor(variantConfig, rid);
+          const number = getPoolBallNumber(variantConfig, rid);
+          const pattern = getPoolBallPattern(variantConfig, rid);
+          const ballId = getPoolBallId(variantConfig, rid);
+          add(ballId, color, pos.x, pos.z, { number, pattern });
+        }
       }
 
       // colours
@@ -12202,7 +12293,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         return true;
       };
 
-      const attemptCueSelection = (ev) => {
+      const attemptCueSelection = async (ev) => {
         const state = cueGalleryStateRef.current;
         if (!state?.active) return false;
         const rect = dom.getBoundingClientRect();
@@ -12239,6 +12330,8 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         }
         const cueIndex = hit.userData?.cueOptionIndex;
         if (cueIndex == null) return true;
+        const charged = await ensureCueFeePaid();
+        if (!charged) return true;
         const paletteLength = CUE_RACK_PALETTE.length || 1;
         const normalized =
           ((cueIndex % paletteLength) + paletteLength) % paletteLength;
@@ -15315,5 +15408,50 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
-  return <PoolRoyaleGame variantKey={variantKey} tableSizeKey={tableSizeKey} />;
+  const playType = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('type') || 'ai';
+  }, [location.search]);
+  const mode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('mode') || 'ai';
+  }, [location.search]);
+  const trainingLevel = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return Number(params.get('task') || 1) || 1;
+  }, [location.search]);
+  const accountId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('accountId') || '';
+  }, [location.search]);
+  const tgId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tgId') || '';
+  }, [location.search]);
+  const playerName = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return (
+      params.get('name') ||
+      getTelegramUsername() ||
+      getTelegramId() ||
+      'Player'
+    );
+  }, [location.search]);
+  const opponentName = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('opponent') || '';
+  }, [location.search]);
+  return (
+    <PoolRoyaleGame
+      variantKey={variantKey}
+      tableSizeKey={tableSizeKey}
+      playType={playType}
+      mode={mode}
+      trainingLevel={trainingLevel}
+      accountId={accountId}
+      tgId={tgId}
+      playerName={playerName}
+      opponentName={opponentName}
+    />
+  );
 }
