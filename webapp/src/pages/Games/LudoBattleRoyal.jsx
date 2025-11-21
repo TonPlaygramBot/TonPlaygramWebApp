@@ -470,12 +470,14 @@ const CENTER_HOME_BASE_OFFSET = -0.0045;
 // Align the Ludo board quadrants with the token rails that sit on the table edges.
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
+const CAMERA_EXTRA_ZOOM_IN = 0.9;
+const CAMERA_EXTRA_ZOOM_OUT = 1.1;
 const CAM = {
   fov: CAMERA_FOV,
   near: CAMERA_NEAR,
   far: CAMERA_FAR,
-  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor,
-  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor,
+  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor * CAMERA_EXTRA_ZOOM_IN,
+  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor * CAMERA_EXTRA_ZOOM_OUT,
   phiMin: ARENA_CAMERA_DEFAULTS.phiMin,
   phiMax: ARENA_CAMERA_DEFAULTS.phiMax
 };
