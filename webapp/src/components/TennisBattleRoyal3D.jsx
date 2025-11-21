@@ -213,7 +213,7 @@ function buildBroadcastCameraRig(scale = 1) {
   return { group, headPivot };
 }
 
-export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
+export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMode = false }) {
   const containerRef = useRef(null);
   const playerLabel = playerName || 'You';
   const cpuLabel = 'CPU';
@@ -221,7 +221,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
   if (playerName) suffixParts.push(`${playerName} vs AI`);
   if (stakeLabel) suffixParts.push(`Stake ${stakeLabel}`);
   const matchTag = suffixParts.join(' · ');
-  const introMessage = 'Swipe & Hit';
+  const introMessage = trainingMode ? 'Training · Swipe për shërbim' : 'Swipe & Hit';
   const [msg, setMsg] = useState(introMessage);
   const [hudInfo, setHudInfo] = useState(() => ({
     points: '0 - 0',
@@ -237,6 +237,38 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     playerPointLabel: '0',
     cpuPointLabel: '0'
   }));
+  const trainingSteps = [
+    {
+      id: 'swipeServe',
+      title: 'Shërbe me swipe',
+      detail: 'Fërko gishtin nga poshtë-lart për të nisur topin.'
+    },
+    {
+      id: 'landServe',
+      title: 'Topi në kutinë e shërbimit',
+      detail: 'Sigurohu që kërcimi i parë të bjerë në anën e kundërshtarit.'
+    },
+    {
+      id: 'rallyHit',
+      title: 'Godit një rally',
+      detail: 'Prit rikthimin e CPU dhe godit topin përsëri.'
+    },
+    {
+      id: 'winPoint',
+      title: 'Fito një pikë',
+      detail: 'Mbaje rally deri sa CPU të gabojë.'
+    }
+  ];
+  const [trainingStatus, setTrainingStatus] = useState(() =>
+    Object.fromEntries(trainingSteps.map((step) => [step.id, !trainingMode]))
+  );
+  const nextTrainingStep = trainingSteps.find((step) => !trainingStatus[step.id]);
+  const trainingCompleted = !nextTrainingStep && trainingMode;
+  const trainingHint = trainingMode
+    ? trainingCompleted
+      ? 'Trajnimi u përfundua – luaj lirshëm pa stake.'
+      : nextTrainingStep?.detail
+    : null;
   const [scoreboardOpen, setScoreboardOpen] = useState(false);
 
   useEffect(() => {
@@ -271,10 +303,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     const playerZ = halfL - 1.35;
     const cpuZ = -halfL + 1.35;
 
-    let camBack = isNarrow ? 12.2 : 10.6;
-    let camHeight = isNarrow ? 5.2 : 4.7;
-    const cameraMinZ = 1.2;
-    const cameraMaxZ = halfL + 4.0;
+    let camBack = isNarrow ? 14.2 : 12.8;
+    let camHeight = isNarrow ? 5.8 : 5.35;
+    const cameraMinZ = 0.8;
+    const cameraMaxZ = halfL + 5.0;
 
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 1.05);
     hemi.position.set(0, 60, 0);
@@ -1070,6 +1102,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       state.live = false;
       resetRally();
       awardPoint(winner, reason);
+      if (trainingMode && winner === 'player') markTrainingStep('winPoint');
     }
 
     function registerFault(server, reason) {
@@ -1163,7 +1196,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
 
     let cpuSrvTO = null;
     let playerSrvTO = null;
-    const formatMsg = (base) => base;
+    const markTrainingStep = (id) => {
+      if (!trainingMode) return;
+      setTrainingStatus((prev) => {
+        if (prev[id]) return prev;
+        return { ...prev, [id]: true };
+      });
+    };
+
+    const formatMsg = (base) => (trainingMode ? `Training · ${base}` : base);
 
     function prepareServe(by, options = {}) {
       const { resetAttempts = true, announce } = options;
@@ -1173,13 +1214,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       resetRally();
       playerSwing = null;
       cpuSwing = null;
-      const idleX = state.serveSide === 'deuce' ? halfW - 0.2 : -halfW + 0.2;
+      const idleX = state.serveSide === 'deuce' ? halfW - 0.4 : -halfW + 0.4;
       if (by === 'player') {
-        player.position.set(idleX, 0, halfL + 0.55);
-        pos.set(idleX * 0.88, 1.34, halfL - 0.25);
+        const serveZ = halfL - 0.92;
+        player.position.set(idleX, 0, serveZ);
+        pos.set(idleX * 0.82, 1.36, serveZ - 0.28);
       } else {
-        cpu.position.set(-idleX, 0, -halfL - 0.55);
-        pos.set(-idleX * 0.88, 1.34, -halfL + 0.25);
+        const serveZ = -halfL + 0.92;
+        cpu.position.set(-idleX, 0, serveZ);
+        pos.set(-idleX * 0.82, 1.36, serveZ + 0.28);
       }
       vel.set(0, 0, 0);
       spin.set(0, 0, 0);
@@ -1357,6 +1400,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       lastHitter = hitter;
       hitTTL = 1.0;
       hitRing.position.set(pos.x, 0.002, pos.z);
+      if (trainingMode && hitter === 'player' && state.live) {
+        markTrainingStep('rallyHit');
+      }
       return true;
     }
 
@@ -1386,6 +1432,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
       if (!state.live) {
         if (state.serveBy === 'player') {
           playerSwing = deriveSwingFromGesture(vx, vy, spd, { serve: true });
+          markTrainingStep('swipeServe');
           setMsg(formatMsg(`Serve · ${playerLabel}`));
           player.userData.swing = 0.55 + 0.85 * (playerSwing.force || 0.5);
           player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
@@ -1573,22 +1620,23 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         hitTTL = 1.0;
         hitRing.position.set(pos.x, 0.002, pos.z);
         const side = pos.z >= 0 ? 'player' : 'cpu';
-        if (state.awaitingServeBounce) {
-          if (side !== opponentOf(state.serveBy)) {
-            registerFault(state.serveBy, 'Fault · Side');
-            return false;
-          }
-          const box = serviceBoxFor(state.serveBy);
-          if (!inBox(pos.x, pos.z, box)) {
-            registerFault(state.serveBy, 'Fault · Box');
-            return false;
-          }
-          state.awaitingServeBounce = false;
-          state.rallyStarted = true;
-          state.bounceSide = side;
-        } else {
-          if (state.rallyStarted && lastHitter === side) {
-            finishPoint(opponentOf(side), 'Net');
+          if (state.awaitingServeBounce) {
+            if (side !== opponentOf(state.serveBy)) {
+              registerFault(state.serveBy, 'Fault · Side');
+              return false;
+            }
+            const box = serviceBoxFor(state.serveBy);
+            if (!inBox(pos.x, pos.z, box)) {
+              registerFault(state.serveBy, 'Fault · Box');
+              return false;
+            }
+            state.awaitingServeBounce = false;
+            state.rallyStarted = true;
+            state.bounceSide = side;
+            markTrainingStep('landServe');
+          } else {
+            if (state.rallyStarted && lastHitter === side) {
+              finishPoint(opponentOf(side), 'Net');
             return false;
           }
           if (state.bounceSide === side) {
@@ -1645,22 +1693,26 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
     let last = performance.now();
     let raf = 0;
     function step(dt) {
+      const servingPlayer = !state.live && state.serveBy === 'player';
+      const serveHomeZ = halfL - 0.92;
+      const serveHomeX = state.serveSide === 'deuce' ? halfW - 0.45 : -halfW + 0.45;
       if (state.live && vel.z > 0) {
         const strikeZ = playerZ - 0.8;
       const t = Math.max(0.05, (strikeZ - pos.z) / (vel.z || 1e-6));
       const predX = pos.x + vel.x * t;
       player.position.x += (THREE.MathUtils.clamp(predX, -halfW, halfW) - player.position.x) * 0.22;
     } else {
-      player.position.x += (0 - player.position.x) * 0.08;
+      const targetX = servingPlayer ? serveHomeX : 0;
+      player.position.x += (targetX - player.position.x) * (servingPlayer ? 0.18 : 0.08);
       }
-      const homeZ = playerZ - 0.3;
-      player.position.z += (homeZ - player.position.z) * 0.08;
+      const homeZ = servingPlayer ? serveHomeZ : playerZ - 0.3;
+      player.position.z += (homeZ - player.position.z) * (servingPlayer ? 0.18 : 0.08);
 
       if (playerSwing) {
         const racketPos = new THREE.Vector3(
           player.position.x,
           THREE.MathUtils.clamp(pos.y, ballR * 1.05, 2.0),
-          playerZ - 0.72
+          player.position.z - 0.72
         );
         if (tryApplySwing('player', playerSwing, racketPos)) {
           playerSwing.ttl = 0;
@@ -1672,7 +1724,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
         const racketPos = new THREE.Vector3(
           cpu.position.x,
           THREE.MathUtils.clamp(pos.y, ballR * 1.05, 2.0),
-          cpuZ + 0.72
+          cpu.position.z + 0.72
         );
         if (tryApplySwing('cpu', cpuSwing, racketPos)) {
           cpuSwing.ttl = 0;
@@ -1900,6 +1952,51 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel }) {
           </div>
         </div>
       </div>
+      {trainingMode && (
+        <div style={{ position: 'absolute', bottom: 24, left: 24, pointerEvents: 'auto', maxWidth: 320 }}>
+          <div
+            style={{
+              background: 'rgba(15, 23, 42, 0.9)',
+              color: '#f8fafc',
+              borderRadius: 16,
+              padding: '14px 16px',
+              boxShadow: '0 22px 36px rgba(15, 23, 42, 0.32)',
+              fontFamily: 'ui-sans-serif, system-ui'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <span style={{ fontWeight: 700 }}>Training Tasks</span>
+              <span style={{ fontSize: 11, opacity: 0.75 }}>{trainingCompleted ? 'Përfunduar' : 'Në progres'}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {trainingSteps.map((step) => {
+                const done = trainingStatus[step.id];
+                return (
+                  <div key={step.id} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <span
+                      style={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        marginTop: 3,
+                        background: done ? '#22c55e' : 'rgba(226, 232, 240, 0.7)',
+                        boxShadow: done ? '0 0 10px rgba(34, 197, 94, 0.6)' : 'none'
+                      }}
+                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>{step.title}</span>
+                      <span style={{ fontSize: 12, opacity: 0.75 }}>{step.detail}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {trainingHint ? (
+              <div style={{ marginTop: 10, fontSize: 12, color: '#cbd5e1' }}>👉 {trainingHint}</div>
+            ) : null}
+          </div>
+        </div>
+      )}
       <div style={{ position: 'absolute', bottom: 24, right: 24, pointerEvents: 'auto' }}>
         <button
           type="button"

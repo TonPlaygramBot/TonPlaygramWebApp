@@ -64,6 +64,17 @@ export default function TennisBattleRoyalLobby() {
     }
   };
 
+  const startTraining = () => {
+    const params = new URLSearchParams();
+    params.set('mode', 'training');
+    const name = getTelegramFirstName();
+    if (name) params.set('name', name);
+    const tgId = getTelegramId();
+    if (tgId) params.set('tgId', tgId);
+    if (avatar) params.set('avatar', avatar);
+    navigate(`/games/tennisbattleroyal?${params.toString()}`);
+  };
+
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center">3D Tennis Battle Royal Lobby</h2>
@@ -88,6 +99,18 @@ export default function TennisBattleRoyalLobby() {
       >
         {loading ? 'Duke u përgatitur…' : 'Start Fundraising Rally'}
       </button>
+      <div className="space-y-2 pt-3 border-t border-border/60">
+        <h3 className="font-semibold">Training</h3>
+        <p className="text-xs text-subtext">
+          Luaj pa stake, mëso kontrollin me swipe dhe ndiq hapat e udhëzuesit në lojë para se të sfidosh AI-në.
+        </p>
+        <button
+          onClick={startTraining}
+          className="px-4 py-2 w-full bg-surface hover:bg-muted text-text rounded border border-border"
+        >
+          Start Training pa stake
+        </button>
+      </div>
     </div>
   );
 }

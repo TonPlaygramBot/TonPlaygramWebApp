@@ -7,9 +7,11 @@ export default function TennisBattleRoyal() {
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const playerName = params.get('name') || undefined;
+  const mode = params.get('mode');
   const amount = params.get('amount');
   const token = params.get('token');
-  const stakeLabel = amount && token ? `${amount} ${token}` : undefined;
+  const trainingMode = mode === 'training';
+  const stakeLabel = !trainingMode && amount && token ? `${amount} ${token}` : undefined;
 
-  return <TennisBattleRoyal3D playerName={playerName} stakeLabel={stakeLabel} />;
+  return <TennisBattleRoyal3D playerName={playerName} stakeLabel={stakeLabel} trainingMode={trainingMode} />;
 }
