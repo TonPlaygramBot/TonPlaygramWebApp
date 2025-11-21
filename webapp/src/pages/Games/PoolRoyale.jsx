@@ -819,8 +819,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.154; // trim the cushion tops further so the pads sit level with the wooden rails
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.072; // keep the cushion base closer to the cloth so the pads sit lower overall
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.182; // trim the cushion tops further so the pads sit level with the wooden rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1522,45 +1522,45 @@ const createPocketMaterials = () => ({
 const TABLE_FINISHES = Object.freeze({
   rusticSplit: {
     id: 'rusticSplit',
-    label: 'Pearl Cream',
+    label: 'Pearl Milk',
     colors: makeColorPalette({
       cloth: 0x2d7f4b,
-      rail: 0xf2e8d7,
-      base: 0xe9ddc9
+      rail: 0xf6efe1,
+      base: 0xf1e7d7
     }),
     woodTextureId: 'frameRusticSplit',
     createMaterials: () => {
-      const frameColor = new THREE.Color('#f4eddc');
-      const railColor = new THREE.Color('#e7ddca');
+      const frameColor = new THREE.Color('#f8f3e7');
+      const railColor = new THREE.Color('#f1e7d7');
       const frame = new THREE.MeshPhysicalMaterial({
         color: frameColor,
-        metalness: 0.18,
-        roughness: 0.32,
-        clearcoat: 0.4,
-        clearcoatRoughness: 0.22,
-        sheen: 0.18,
-        sheenRoughness: 0.46,
-        reflectivity: 0.5,
-        envMapIntensity: 0.86
+        metalness: 0.12,
+        roughness: 0.26,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.2,
+        sheen: 0.24,
+        sheenRoughness: 0.44,
+        reflectivity: 0.56,
+        envMapIntensity: 0.9
       });
       const rail = new THREE.MeshPhysicalMaterial({
         color: railColor,
-        metalness: 0.2,
-        roughness: 0.34,
-        clearcoat: 0.46,
-        clearcoatRoughness: 0.2,
-        sheen: 0.22,
-        sheenRoughness: 0.48,
-        reflectivity: 0.54,
-        envMapIntensity: 0.9
+        metalness: 0.16,
+        roughness: 0.28,
+        clearcoat: 0.52,
+        clearcoatRoughness: 0.18,
+        sheen: 0.28,
+        sheenRoughness: 0.46,
+        reflectivity: 0.6,
+        envMapIntensity: 0.94
       });
       const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xf7e6be,
-        metalness: 0.72,
-        roughness: 0.32,
-        clearcoat: 0.48,
-        clearcoatRoughness: 0.22,
-        envMapIntensity: 1
+        color: 0xfbf3da,
+        metalness: 0.68,
+        roughness: 0.28,
+        clearcoat: 0.54,
+        clearcoatRoughness: 0.2,
+        envMapIntensity: 1.02
       });
       const materials = {
         frame,
@@ -1867,6 +1867,13 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
 
 const DEFAULT_CLOTH_TEXTURE_KEY = 'freshGreen';
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
+const DEPRECATED_CLOTH_COLOR_IDS = new Set([
+  'classicOlive',
+  'granitoBurgandy',
+  'granitoBurgundy',
+  'powderBlue',
+  'poweredBlue'
+]);
 const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
@@ -5705,7 +5712,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.214; // stretch the short rail cushions deeper into the corner pocket throats per latest spec tweak and extend them slightly toward the corners so the cushion noses kiss the jaw shoulders
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.06; // trim the side cushions so they stop right where the wooden rail arch begins
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.082; // trim the side cushions so they stop right where the wooden rail arch begins
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -6892,8 +6899,8 @@ function Table3D(
     };
     const longDiamondSpacing = PLAY_H / 8;
     const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW * 0.82;
-    const shortRailZ = halfH + endRailW * 0.82;
+    const longRailX = halfW + longRailW * 0.94;
+    const shortRailZ = halfH + endRailW * 0.94;
     [1, 2, 3, 5, 6, 7].forEach((step) => {
       const z = -PLAY_H / 2 + step * longDiamondSpacing;
       addMarker(longRailX, z, 0);
@@ -7630,7 +7637,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const [clothColorId, setClothColorId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerClothColor');
-      if (stored && CLOTH_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
+      if (stored && DEPRECATED_CLOTH_COLOR_IDS.has(stored)) {
+        window.localStorage.removeItem('snookerClothColor');
+      } else if (stored && CLOTH_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
     }
