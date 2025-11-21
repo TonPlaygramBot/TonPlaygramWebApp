@@ -1845,7 +1845,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'royalBlue',
     label: 'Royal Blue',
-    color: 0x64a8ff,
+    color: 0x3b7ff0,
     textureKey: 'royalBlue',
     detail: {
       bumpMultiplier: 1.05,
@@ -1869,7 +1869,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     id: 'matteBlack',
     label: 'Midnight Velvet',
     color: 0x14151a,
-    cushionColor: 0xff8a2b,
+    cushionColor: 0x6b1b2b,
     textureKey: 'matteBlack',
     detail: {
       bumpMultiplier: 0.88,
@@ -6829,7 +6829,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.32; // sit markers fully on the wooden rails away from the cushions
+  const railMarkerOutset = TABLE.THICK * 0.26;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = TABLE.THICK * 0.06;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
