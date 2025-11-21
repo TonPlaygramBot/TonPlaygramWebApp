@@ -219,7 +219,7 @@ export async function startTirana2040(){
   const maxMobileDpr = 1.6;
   let dprBase = Math.min(window.devicePixelRatio||1.2, isMobile ? maxMobileDpr : 3.2);
   let dprScale = 1.1;
-  const DPR_MIN = isMobile ? 0.95 : 0.75;
+  const DPR_MIN = isMobile ? 0.85 : 0.75;
   const DPR_MAX_SCALE = isMobile ? 1.05 : 1.25;
   function fit(){ const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight; const targetDpr=Math.min(dprBase*dprScale, isMobile?maxMobileDpr:3.0); renderer.setPixelRatio(targetDpr); renderer.setSize(w,h,false); camera.aspect=w/h; camera.updateProjectionMatrix(); syncArmorySlider?.(); }
   addEventListener('resize', fit); fit();
@@ -241,11 +241,61 @@ export async function startTirana2040(){
   const groundBody = new CANNON.Body({ mass:0, material:matGround, shape:new CANNON.Plane() });
   groundBody.quaternion.setFromEuler(-Math.PI/2,0,0); world.addBody(groundBody);
 
-  function makeAsphalt(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#1f262f'; x.fillRect(0,0,size,size); for(let i=0;i<1200;i++){ const r=Math.random()*3.6+1.4; const a=0.18+Math.random()*0.2; x.fillStyle=`rgba(255,255,255,${a})`; x.beginPath(); x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2); x.fill(); } for(let i=0;i<900;i++){ x.strokeStyle='rgba(0,0,0,0.48)'; x.lineWidth=Math.random()*4.2+1.2; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*38-19), ez=sy+(Math.random()*38-19); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<640;i++){ x.strokeStyle='rgba(0,0,0,0.68)'; x.lineWidth=Math.random()*2.6+1.1; x.beginPath(); const sx=Math.random()*size, sy=Math.random()*size; const ex=sx+(Math.random()*22-11), ez=sy+(Math.random()*22-11); x.moveTo(sx,sy); x.lineTo(ex,ez); x.stroke(); } for(let i=0;i<11000;i++){ const a=0.16+Math.random()*0.18; x.fillStyle=`rgba(255,255,255,${a})`; x.fillRect(Math.random()*size,Math.random()*size,1.6,1.6); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(12,12); t.anisotropy=Math.min(16,maxAniso); t.colorSpace=THREE.SRGBColorSpace; return t; }
+  function makeAsphalt(size=1024){
+    const c=document.createElement("canvas");
+    c.width=c.height=size;
+    const x=c.getContext('2d');
+    x.fillStyle='#161c23';
+    x.fillRect(0,0,size,size);
+    for(let i=0;i<1400;i++){
+      const r=Math.random()*2+0.6;
+      const a=0.14+Math.random()*0.16;
+      x.fillStyle=`rgba(255,255,255,${a})`;
+      x.beginPath();
+      x.arc(Math.random()*size,Math.random()*size,r,0,Math.PI*2);
+      x.fill();
+    }
+    for(let i=0;i<1100;i++){
+      x.strokeStyle='rgba(0,0,0,0.52)';
+      x.lineWidth=Math.random()*5.2+1.8;
+      x.beginPath();
+      const sx=Math.random()*size, sy=Math.random()*size;
+      const ex=sx+(Math.random()*48-24), ez=sy+(Math.random()*48-24);
+      x.moveTo(sx,sy);
+      x.lineTo(ex,ez);
+      x.stroke();
+    }
+    for(let i=0;i<880;i++){
+      x.strokeStyle='rgba(0,0,0,0.72)';
+      x.lineWidth=Math.random()*3.2+1.2;
+      x.beginPath();
+      const sx=Math.random()*size, sy=Math.random()*size;
+      const ex=sx+(Math.random()*26-13), ez=sy+(Math.random()*26-13);
+      x.moveTo(sx,sy);
+      x.lineTo(ex,ez);
+      x.stroke();
+    }
+    for(let i=0;i<12000;i++){
+      const a=0.12+Math.random()*0.16;
+      x.fillStyle=`rgba(255,255,255,${a})`;
+      const sizeDot=1+Math.random()*0.9;
+      x.fillRect(Math.random()*size,Math.random()*size,sizeDot,sizeDot);
+    }
+    const t=new THREE.CanvasTexture(c);
+    t.wrapS=t.wrapT=THREE.RepeatWrapping;
+    t.repeat.set(9,9);
+    t.anisotropy=Math.min(16,maxAniso);
+    t.colorSpace=THREE.SRGBColorSpace;
+    return t;
+  }
   function makeSidewalk(size=512){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#c9ced6'; x.fillRect(0,0,size,size); x.strokeStyle='#9aa0a8'; x.lineWidth=6; for(let s=0;s<size;s+=64){ x.beginPath(); x.moveTo(s,0); x.lineTo(s,size); x.stroke(); x.beginPath(); x.moveTo(0,s); x.lineTo(size,s); x.stroke(); } const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(32,32); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
   const maxAniso = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, isMobile ? 6 : 16);
   const textureLoader = new THREE.TextureLoader();
   textureLoader.setCrossOrigin?.('anonymous');
+  const waterNormals = textureLoader.load('https://threejs.org/examples/textures/waternormals.jpg', (tex)=>{
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(4,4);
+  });
   function makeTreeFallback(){
     const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d');
     x.fillStyle='#4e7f56'; x.fillRect(0,48,128,80);
@@ -591,8 +641,9 @@ export async function startTirana2040(){
     const bridgesGroup=new THREE.Group(); bridgesGroup.userData={kind:'bridges'}; const placements=[-cityHalfX*0.5, 0, cityHalfX*0.5]; placements.forEach((px)=>{ const t=(px + cityHalfX + extra)/(2*(cityHalfX+extra)); const pz=Math.sin(t*Math.PI*1.1)*40 + THREE.MathUtils.lerp(-60,60,t); const bridge=new THREE.Mesh(new THREE.BoxGeometry(40,2,6), new THREE.MeshStandardMaterial({color:0xb3bac6, roughness:0.6})); bridge.position.set(px,1.5,pz); bridge.castShadow=allowShadows; bridgesGroup.add(bridge); }); city.add(bridgesGroup);
     return {group, distance, bridges:bridgesGroup}; }
 
-  const coast=buildCoast();
-  const mountains=buildMountains();
+  // Disable distant coast and mountain backdrops to keep park views clear of large grey forms.
+  const coast=null;
+  const mountains=null;
   const riverDistance=()=>({ d:Infinity, hw:0 });
   window.river=null;
   window.riverDistance=riverDistance;
@@ -844,7 +895,15 @@ export async function startTirana2040(){
     const ringR=12;
     const baseMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0xaeb8c6, roughness:0.55 });
     const base=new THREE.Mesh(new THREE.CylinderGeometry(ringR,ringR,0.6,48), baseMat); base.position.set(cx,0.3,cz); base.castShadow=false; base.receiveShadow=true; city.add(base);
-    const waterSurface=new Water(new THREE.CircleGeometry(ringR*0.9, 72), { color:'#5cc4ff', flowDirection:new THREE.Vector2(1,1), textureWidth:256, textureHeight:256, scale:2.6 });
+    const waterSurface=new Water(new THREE.CircleGeometry(ringR*0.9, 72), {
+      color:'#4da1d6',
+      flowDirection:new THREE.Vector2(1,1),
+      textureWidth:512,
+      textureHeight:512,
+      scale:2.2,
+      flowSpeed:0.15,
+      waterNormals
+    });
     waterSurface.rotation.x=-Math.PI/2; waterSurface.position.set(cx,0.52,cz); city.add(waterSurface);
     const rimStones=new THREE.Group(); const stoneGeo=new THREE.CylinderGeometry(0.45,0.5,0.2,10); const stoneMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0x8d96a1, roughness:0.65 }); for(let i=0;i<42;i++){ const ang=Math.random()*Math.PI*2; const r=ringR*0.9 + Math.random()*0.8; const stone=new THREE.Mesh(stoneGeo, stoneMat); stone.position.set(cx+Math.cos(ang)*r,0.2,cz+Math.sin(ang)*r); stone.rotation.y=ang; rimStones.add(stone); }
     const outerRim=new THREE.Group(); for(let i=0;i<32;i++){ const ang=Math.random()*Math.PI*2; const r=ringR*1.18 + Math.random()*1.6; const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(0.9+Math.random()*0.6), stoneMat.clone()); boulder.position.set(cx+Math.cos(ang)*r,0.24,cz+Math.sin(ang)*r); boulder.rotation.y=ang; outerRim.add(boulder); }
@@ -930,7 +989,7 @@ export async function startTirana2040(){
   const PITCH_LIMIT=Math.PI*0.49;
   function clampPitch(){ pitch=Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, pitch)); }
   let camDist=4.2;
-  function camFollow(pos,distMul=1){ const back=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)); const eye=new THREE.Vector3(pos.x - back.x*camDist*distMul, pos.y+1.9, pos.z - back.z*camDist*distMul); camera.position.lerp(eye,0.25); const look=new THREE.Vector3(pos.x + back.x*(camDist+0.2)*distMul, pos.y+1.05 + Math.sin(pitch)*0.7, pos.z + back.z*(camDist+0.2)*distMul); camera.lookAt(look); }
+  function camFollow(pos,distMul=1,headingOverride=null){ const heading = headingOverride==null ? yaw : headingOverride; const back=new THREE.Vector3(Math.sin(heading),0,Math.cos(heading)); const eye=new THREE.Vector3(pos.x - back.x*camDist*distMul, pos.y+1.9, pos.z - back.z*camDist*distMul); camera.position.lerp(eye,0.25); const look=new THREE.Vector3(pos.x + back.x*(camDist+0.2)*distMul, pos.y+1.05 + Math.sin(pitch)*0.7, pos.z + back.z*(camDist+0.2)*distMul); camera.lookAt(look); }
   function grounded(){ return player.position.y < 0.34 && Math.abs(player.velocity.y) < 0.05; }
   function jump(){ if(grounded()){ player.velocity.y = 5.2; } }
 
@@ -1090,7 +1149,9 @@ export async function startTirana2040(){
   armoryNext?.addEventListener('click',()=>setArmoryIndex(getCurrentWeaponIndex()+1));
   buildGallery();
 
-    function updateAmmoHUD(){ const a=ammo.get(currentKey); if(!currentKey||!a) return; const label=ARMORY.find(x=>x.key===currentKey)?.name||currentKey; $('ammo').textContent=`${label} — ${a.mag}/${a.reserve}`; const badge=$('weaponName'); if(badge) badge.textContent=`Weapon: ${label}`; document.querySelectorAll('.armBtn').forEach(el=>el.classList.remove('active')); const ab=$('arm_'+currentKey); if(ab) ab.classList.add('active'); }
+    const ammoLabel=$('ammo');
+    const weaponBadge=$('weaponName');
+    function updateAmmoHUD(){ const a=ammo.get(currentKey); if(!currentKey||!a) return; const label=ARMORY.find(x=>x.key===currentKey)?.name||currentKey; if(ammoLabel) ammoLabel.textContent=`${label} — ${a.mag}/${a.reserve}`; if(weaponBadge) weaponBadge.textContent=`Weapon: ${label}`; document.querySelectorAll('.armBtn').forEach(el=>el.classList.remove('active')); const ab=$('arm_'+currentKey); if(ab) ab.classList.add('active'); }
   const MUZZLE_OFF={
     Glock:[0.0,-0.02,-0.74], Pistol:[0.0,-0.02,-0.74], Gun:[0.0,-0.02,-0.74],
     Uzi:[0.0,-0.03,-0.78], MP5:[0.0,-0.03,-0.78],
@@ -1155,7 +1216,6 @@ export async function startTirana2040(){
   function addBlood(point, normal=new THREE.Vector3(0,1,0)){ const s=0.42; const g=new THREE.PlaneGeometry(s,s); const m=new THREE.MeshBasicMaterial({ map:bloodTex, transparent:true, depthWrite:false }); const mesh=new THREE.Mesh(g,m); const dir=normal.clone().normalize(); const quat=new THREE.Quaternion(); quat.setFromUnitVectors(new THREE.Vector3(0,0,1), dir); mesh.quaternion.copy(quat); mesh.rotateZ(Math.random()*Math.PI*2); mesh.position.copy(point).addScaledVector(dir,0.02); scene.add(mesh); }
 
   let reloading=false; function reload(){ const a=ammo.get(currentKey); const st=currentStats; if(reloading || !a) return; const need=st.mag-a.mag; if(need<=0||a.reserve<=0) return; const take=Math.min(need,a.reserve); reloading=true; setTimeout(()=>{ a.mag+=take; a.reserve-=take; reloading=false; updateAmmoHUD(); sfxReload(); }, st.reload*1000); }
-  $('reloadMini').addEventListener('click', reload);
 
   function sfxGrenadeThrow(){ burstNoise({dur:0.12,freq:900,gain:0.1}); click({freq:520,dur:0.06,gain:0.04}); }
   function sfxExplosion(){ burstNoise({dur:0.65,freq:220,gain:0.28}); setTimeout(()=>burstNoise({dur:0.35,freq:320,gain:0.18}),110); }
@@ -1178,7 +1238,7 @@ export async function startTirana2040(){
     const scorch=new THREE.Mesh(new THREE.CircleGeometry(1.8,28), new THREE.MeshBasicMaterial({ map:scorchTex, transparent:true, opacity:0.85, depthWrite:false })); scorch.rotation.x=-Math.PI/2; scorch.position.set(pos.x,0.025,pos.z); scorch.rotation.z=Math.random()*Math.PI*2; scene.add(scorch); setTimeout(()=>{ scene.remove(scorch); scorch.geometry.dispose(); scorch.material.dispose(); }, 20000);
     explosionFX.push({core, ring, light:flash, smoke, shards, life:1.2, maxLife:1.2}); }
 
-  function applyExplosionDamage(center,radius,power){ enemies.forEach((enemy)=>{ if(enemy.dead) return; const dx=enemy.body.position.x-center.x; const dz=enemy.body.position.z-center.z; const dy=enemy.body.position.y-center.y; const dist=Math.sqrt(dx*dx + dy*dy + dz*dz); if(dist<radius){ const impact=(1 - dist/radius); enemy.hp -= power*impact; enemy.bleed=Math.max(enemy.bleed||0, 0.35); enemy.bleedTimer=0; addBlood(new THREE.Vector3(enemy.body.position.x, enemy.body.position.y+1.2, enemy.body.position.z), new THREE.Vector3(0,1,0)); if(enemy.hp<=0){ enemy.dead=true; enemy.body.mass=0; enemy.body.updateMassProperties(); enemy.root.visible=false; enemy.hpBar.visible=false; } else { updateBillboardBar(enemy.hpBar, enemy.hp/120); enemy.body.velocity.x += (dx/dist||0)*impact*6; enemy.body.velocity.z += (dz/dist||0)*impact*6; } } }); const pdx=player.position.x-center.x; const pdz=player.position.z-center.z; const pdist=Math.hypot(pdx,pdz); if(pdist<radius*0.9){ const hurt=Math.max(6, power*0.35*(1 - pdist/(radius*0.9))); hp=Math.max(0,hp-hurt); updateHealth(); if(pdist>0.1){ player.velocity.x += (pdx/pdist)*3; player.velocity.z += (pdz/pdist)*3; } }
+  function applyExplosionDamage(center,radius,power){ enemies.forEach((enemy)=>{ if(enemy.dead) return; const dx=enemy.body.position.x-center.x; const dz=enemy.body.position.z-center.z; const dy=enemy.body.position.y-center.y; const dist=Math.sqrt(dx*dx + dy*dy + dz*dz); if(dist<radius){ const impact=(1 - dist/radius); const hitPoint=new THREE.Vector3(enemy.body.position.x, enemy.body.position.y+1.2, enemy.body.position.z); woundEnemy(enemy, power*impact, 0.35, hitPoint, new THREE.Vector3(0,1,0)); if(!enemy.dead){ enemy.body.velocity.x += (dx/dist||0)*impact*6; enemy.body.velocity.z += (dz/dist||0)*impact*6; } } }); const pdx=player.position.x-center.x; const pdz=player.position.z-center.z; const pdist=Math.hypot(pdx,pdz); if(pdist<radius*0.9){ const hurt=Math.max(6, power*0.35*(1 - pdist/(radius*0.9))); hurtPlayer(hurt); if(pdist>0.1){ player.velocity.x += (pdx/pdist)*3; player.velocity.z += (pdz/pdist)*3; } }
     for(const car of trafficCars){ const dx=car.mesh.position.x-center.x; const dz=car.mesh.position.z-center.z; const dist=Math.hypot(dx,dz); if(dist<radius*1.3){ const push=(1-dist/(radius*1.3))*8; const dirX=(dx/dist)||0, dirZ=(dz/dist)||0; let newX=car.mesh.position.x + dirX*push; let newZ=car.mesh.position.z + dirZ*push; const ang=Math.atan2(newZ,newX); const clampR=Math.max(ringR-4, Math.min(ringR+4, Math.hypot(newX,newZ))); newX=Math.cos(ang)*clampR; newZ=Math.sin(ang)*clampR; car.mesh.position.set(newX,0,newZ); car.angle=ang; } }
   }
 
@@ -1259,7 +1319,7 @@ export async function startTirana2040(){
     const hits = raycaster.intersectObjects(impactTargets, true).filter(h=>h.object!==weaponModel && h.object !== aimLine);
     if(hits.length){ const h=hits[0]; const normal = h.face?.normal?.clone()?.transformDirection(h.object.matrixWorld)||new THREE.Vector3(0,0,1); addDecal(h.point, normal); }
     const hitsEnemy = raycaster.intersectObjects(enemyRoots(), true);
-    if(hitsEnemy.length){ const h=hitsEnemy[0]; const root=(function find(o){ let p=o; while(p && !p.userData?.enemy){ p=p.parent; } return p; })(h.object); const e=enemies.get(root.uuid); if(e && !e.dead){ const hitNormal=h.face?.normal?.clone()?.transformDirection(h.object.matrixWorld)||new THREE.Vector3(0,1,0); e.hp -= st.dmg; e.bleed=Math.max(e.bleed||0, 0.25); e.bleedTimer=0; addBlood(h.point, hitNormal); if(e.hp<=0){ e.dead=true; e.body.mass=0; e.body.updateMassProperties(); e.root.visible=false; e.hpBar.visible=false; } else { updateBillboardBar(e.hpBar, e.hp/120); } } }
+    if(hitsEnemy.length){ const h=hitsEnemy[0]; const root=(function find(o){ let p=o; while(p && !p.userData?.enemy){ p=p.parent; } return p; })(h.object); const e=enemies.get(root.uuid); if(e && !e.dead){ const hitNormal=h.face?.normal?.clone()?.transformDirection(h.object.matrixWorld)||new THREE.Vector3(0,1,0); woundEnemy(e, st.dmg, 0.25, h.point, hitNormal); } }
     if(weaponModel?.userData?.ejectAnchor && currentKey!=='Grenade'){ ejection(weaponModel.userData.ejectAnchor, currentKey); }
     a.mag--; updateAmmoHUD();
   }
@@ -1284,7 +1344,7 @@ export async function startTirana2040(){
   function sfxReload(){ withAC((ctx)=>{ const steps=[0,0.14,0.3]; steps.forEach((t,i)=>{ const osc=ctx.createOscillator(); osc.type='square'; osc.frequency.value=260 + i*120; const g=ctx.createGain(); g.gain.setValueAtTime(0, ctx.currentTime+t); g.gain.linearRampToValueAtTime(0.26, ctx.currentTime+t+0.01); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+t+0.18); osc.connect(g); g.connect(ctx.destination); osc.start(ctx.currentTime+t); osc.stop(ctx.currentTime+t+0.22); }); }); }
   $('muteBtn').addEventListener('click',(e)=>{ audio.muted=!audio.muted; e.target.textContent=audio.muted?'🔇':'🔊'; });
 
-  const keys=new Set(); addEventListener('keydown',e=>{ keys.add(e.code); if(e.code==='Space') doShot(); if(e.code==='KeyR') reload(); if(e.code==='ArrowRight'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()+1); } if(e.code==='ArrowLeft'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()-1); } }); addEventListener('keyup',e=>keys.delete(e.code));
+  const keys=new Set(); addEventListener('keydown',e=>{ keys.add(e.code); if(e.code==='Space'){ if(driveState.active){ driveInput.throttle=1; } else { doShot(); } } if(e.code==='KeyR'){ if(driveState.active){ driveInput.brake=1; } else { reload(); } } if(e.code==='ArrowRight'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()+1); } if(e.code==='ArrowLeft'){ e.preventDefault(); setArmoryIndex(getCurrentWeaponIndex()-1); } }); addEventListener('keyup',e=>{ if(e.code==='Space' && driveState.active){ driveInput.throttle=0; } if(e.code==='KeyR' && driveState.active){ driveInput.brake=0; } keys.delete(e.code); });
   const joyMove=$('joyMove'), knobMove=joyMove.querySelector('.knob');
   const R=150, K=85, DEAD=0.16;
   const mv={active:false,id:null,vx:0,vz:0, tapStart:0, moved:false, dx:0, dy:0};
@@ -1299,14 +1359,23 @@ export async function startTirana2040(){
   joyMove.addEventListener('pointerup', mvRelease); joyMove.addEventListener('pointercancel', mvRelease);
 
   const shootPad=$('shootPad');
+  const reloadBtn=$('reloadMini');
+  const controlLabels={ shoot: shootPad?.textContent||'Shoot', reload: reloadBtn?.textContent||'Reload' };
+  const driveInput={ throttle:0, brake:0 };
   let fireHeld=false;
-  function shootDown(){ if(FIRE_MODES.get(currentKey)==='auto'){ fireHeld=true; } else { doShot(); } }
-  function shootUp(){ fireHeld=false; }
+  function shootDown(){ if(driveState.active){ driveInput.throttle=1; return; } if(FIRE_MODES.get(currentKey)==='auto'){ fireHeld=true; } else { doShot(); } }
+  function shootUp(){ fireHeld=false; if(driveState.active){ driveInput.throttle=0; } }
+  function brakeDown(){ if(driveState.active){ driveInput.brake=1; return; } reload(); }
+  function brakeUp(){ if(driveState.active){ driveInput.brake=0; } }
+  function setDrivePedals(){ if(!shootPad||!reloadBtn) return; if(driveState.active){ shootPad.textContent='Accelerate'; reloadBtn.textContent='Brake'; } else { shootPad.textContent=controlLabels.shoot; reloadBtn.textContent=controlLabels.reload; driveInput.throttle=0; driveInput.brake=0; } }
   shootPad.addEventListener('pointerdown', (e)=>{ if(inputMode!=='A') return; shootDown(); e.preventDefault(); });
   shootPad.addEventListener('pointerup', (e)=>{ if(inputMode!=='A') return; shootUp(); e.preventDefault(); });
   shootPad.addEventListener('pointercancel', (e)=>{ if(inputMode!=='A') return; shootUp(); e.preventDefault(); });
   shootPad.addEventListener('touchstart', (e)=>{ if(inputMode!=='A') return; shootDown(); e.preventDefault(); }, {passive:false});
   shootPad.addEventListener('touchend', (e)=>{ if(inputMode!=='A') return; shootUp(); e.preventDefault(); }, {passive:false});
+  reloadBtn?.addEventListener('pointerdown', (e)=>{ if(inputMode!=='A') return; brakeDown(); e.preventDefault(); });
+  reloadBtn?.addEventListener('pointerup', (e)=>{ if(inputMode!=='A') return; brakeUp(); e.preventDefault(); });
+  reloadBtn?.addEventListener('pointercancel', (e)=>{ if(inputMode!=='A') return; brakeUp(); e.preventDefault(); });
 
 
   const canvasEl=renderer.domElement; canvasEl.style.touchAction='none';
@@ -1324,6 +1393,7 @@ export async function startTirana2040(){
 
   let hp=100; function updateHealth(){ const f=$('healthfill'); f.style.width=Math.max(0,hp)+'%'; f.style.background = hp>60? 'linear-gradient(90deg,#29ff9a,#00c876)': hp>30? 'linear-gradient(90deg,#ffd966,#ff9f1a)' : 'linear-gradient(90deg,#ff6b6b,#ff2e2e)'; }
   updateHealth();
+  function hurtPlayer(amount){ hp=Math.max(0, hp-amount); updateHealth(); }
 
   /* Vehicles (GLTF fleet) */
   const URLS = {
@@ -1557,7 +1627,12 @@ export async function startTirana2040(){
   async function safeCloneSkinned(src){ try{ if(src && SkeletonUtils?.clone){ return SkeletonUtils.clone(src); } if(src?.clone){ return src.clone(true); } }catch(_){ } return makeCapsulePlaceholder(); }
   async function spawnEnemy(x,z,key='Soldier'){ if(enemies.size>=12) return null; const base=await getCharacter(key); const clone=await safeCloneSkinned(base?.root); clone.traverse(o=>{ o.castShadow=allowShadows; }); clone.position.set(x,0,z); clone.userData.enemy=true; scene.add(clone); const r=0.32,h=1.45; const shape=new CANNON.Cylinder(r,r,h,8); const q=new CANNON.Quaternion(); q.setFromEuler(Math.PI/2,0,0); const body=new CANNON.Body({ mass:80, material:matEnemy, linearDamping:0.3, angularDamping:0.9 }); body.fixedRotation=true; body.addShape(shape,new CANNON.Vec3(0,h/2,0),q); body.position.set(x,0.82,z); world.addBody(body); const hpBar=makeBillboardBar(); scene.add(hpBar); enemies.set(clone.uuid,{root:clone, body, hp:120, dead:false, hpBar, cooldown:0, bleed:0, bleedTimer:0}); return clone; }
   function enemyRoots(){ return Array.from(enemies.values()).map(e=>e.root); }
-  function enemyTryFire(e, dt){ if(e.dead) return; e.cooldown -= dt; const toP = new THREE.Vector3(player.position.x-e.body.position.x, 0, player.position.z-e.body.position.z); const dist = toP.length(); if(dist>55) return; if(e.cooldown>0) return; const dir = new THREE.Vector3(player.position.x - e.body.position.x, (player.position.y+0.9) - (e.body.position.y+0.9), player.position.z - e.body.position.z).normalize(); dir.x += (Math.random()-0.5)*0.02; dir.y += (Math.random()-0.5)*0.01; dir.z += (Math.random()-0.5)*0.02; dir.normalize(); const origin = new THREE.Vector3(e.body.position.x, e.body.position.y+1.1, e.body.position.z); const to = origin.clone().addScaledVector(dir, 150); tracer(origin,to,0xff8888); e.cooldown = 0.2 + Math.random()*0.6; }
+  function knockDownEnemy(e, hitPoint=null, hitNormal=new THREE.Vector3(0,1,0)){ if(!e) return; e.dead=true; e.downTimer=1.4; e.body.mass=0; e.body.updateMassProperties(); e.body.velocity.set(0,0,0); e.body.angularVelocity.set(0,0,0); if(e.hpBar) e.hpBar.visible=false; const basePos=new THREE.Vector3(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); e.root.position.copy(basePos); e.root.rotation.set(-Math.PI/2, e.root.rotation.y, 0); if(hitPoint) addBlood(hitPoint.clone(), hitNormal||new THREE.Vector3(0,1,0)); }
+  function woundEnemy(e, dmg, bleed=0.25, hitPoint=null, hitNormal=new THREE.Vector3(0,1,0)){ if(!e||e.dead) return; e.hp -= dmg; e.bleed=Math.max(e.bleed||0, bleed); e.bleedTimer=0; if(hitPoint) addBlood(hitPoint, hitNormal||new THREE.Vector3(0,1,0)); if(e.hp<=0){ knockDownEnemy(e, hitPoint, hitNormal); return; } updateBillboardBar(e.hpBar, e.hp/120); }
+  function enemyPos(e){ return new THREE.Vector3(e.body.position.x, e.body.position.y, e.body.position.z); }
+  function findTargetForEnemy(e){ const selfPos=enemyPos(e); const playerPos=new THREE.Vector3(player.position.x, player.position.y, player.position.z); let best={ type:'player', pos:playerPos, dist:selfPos.distanceTo(playerPos) }; enemies.forEach((other)=>{ if(other===e || other.dead) return; const p=enemyPos(other); const d=selfPos.distanceTo(p); if(d<best.dist*0.85){ best={ type:'enemy', pos:p, dist:d, ref:other }; } }); return best; }
+  function enemyTryFire(e, dt, target){ if(e.dead||!target) return; e.cooldown -= dt; if(target.dist>55) return; if(e.cooldown>0) return; const origin = new THREE.Vector3(e.body.position.x, e.body.position.y+1.1, e.body.position.z); const aimPos = target.pos.clone(); aimPos.y += 0.9; const dir = aimPos.clone().sub(origin).normalize(); dir.x += (Math.random()-0.5)*0.02; dir.y += (Math.random()-0.5)*0.01; dir.z += (Math.random()-0.5)*0.02; dir.normalize(); const to = origin.clone().addScaledVector(dir, 150); tracer(origin,to,0xff8888); if(target.type==='player'){ hurtPlayer(6 + Math.random()*4); } else if(target.ref){ woundEnemy(target.ref, 14, 0.3, target.pos.clone(), new THREE.Vector3(0,1,0)); }
+    e.cooldown = 0.35 + Math.random()*0.45; }
 
   function makeBillboardBar(){ const c=document.createElement('canvas'); c.width=128; c.height=16; const t=new THREE.CanvasTexture(c); const m=new THREE.SpriteMaterial({ map:t, depthWrite:false }); const s=new THREE.Sprite(m); s.scale.set(0.9, 0.12, 1); s.userData.canvas=c; s.userData.tex=t; updateBillboardBar(s,1); return s; }
   function updateBillboardBar(s,ratio){ const c=s.userData.canvas; const x=c.getContext('2d'); x.clearRect(0,0,c.width,c.height); x.fillStyle='rgba(0,0,0,0.6)'; x.fillRect(0,0,c.width,c.height); x.fillStyle= ratio>0.6? '#29ff9a' : ratio>0.3? '#ffd966':'#ff4d4f'; x.fillRect(2,2,(c.width-4)*Math.max(0,Math.min(1,ratio)), c.height-4); s.userData.tex.needsUpdate=true; }
@@ -1570,7 +1645,7 @@ export async function startTirana2040(){
   let inputMode='A';
   function applyMode(){
     shootPad.style.display='block';
-    $('reloadMini').style.display='block';
+    if(reloadBtn) reloadBtn.style.display='block';
     updateZoomUI();
   }
   applyMode();
@@ -1589,9 +1664,9 @@ export async function startTirana2040(){
 
   const driveBtn=$('driveBtn');
   function nearestDriveable(){ let best=null, bd=1e9; driveableVehicles.forEach(({mesh})=>{ const dx=(player.position.x||0)-(mesh.position.x||0); const dz=(player.position.z||0)-(mesh.position.z||0); const d=Math.hypot(dx,dz); if(d<bd){ bd=d; best=mesh; } }); return {mesh:best, dist:bd}; }
-  function enterVehicle(mesh){ if(!mesh) return; driveState.active=true; driveState.vehicle=mesh; driveState.speed=0; driveState.heading=(mesh.rotation.y||0)-Math.PI/2; player.velocity.set(0,0,0); player.position.set(mesh.position.x, player.position.y, mesh.position.z); driveBtn.textContent='⬅ Exit Car'; driveBtn.style.display='block'; }
-  function exitVehicle(){ if(!driveState.active) return; const vehicle=driveState.vehicle; const dir=new THREE.Vector3(Math.cos(driveState.heading),0,Math.sin(driveState.heading)); player.position.set(vehicle?.position.x || 0, 0.94, (vehicle?.position.z||0)); player.position.x += -dir.z*1.8; player.position.z += dir.x*1.8; driveState.active=false; driveState.vehicle=null; driveState.speed=0; driveBtn.textContent='🚗 Drive'; driveBtn.style.display='none'; }
-  function setDriveUI(){ if(driveState.active){ driveBtn.style.display='block'; driveBtn.textContent='⬅ Exit Car'; return; } const n=nearestDriveable(); const show=n.mesh && n.dist<4.2; driveBtn.style.display = show? 'block':'none'; driveBtn.textContent='🚗 Drive'; driveBtn.dataset.target = show? (n.mesh.uuid||'') : ''; }
+  function enterVehicle(mesh){ if(!mesh) return; driveState.active=true; driveState.vehicle=mesh; driveState.speed=0; driveState.heading=(mesh.rotation.y||0)-Math.PI/2; player.velocity.set(0,0,0); player.position.set(mesh.position.x, player.position.y, mesh.position.z); driveBtn.textContent='⬅ Exit Car'; driveBtn.style.display='block'; setDrivePedals(); }
+  function exitVehicle(){ if(!driveState.active) return; const vehicle=driveState.vehicle; const dir=new THREE.Vector3(Math.cos(driveState.heading),0,Math.sin(driveState.heading)); player.position.set(vehicle?.position.x || 0, 0.94, (vehicle?.position.z||0)); player.position.x += -dir.z*1.8; player.position.z += dir.x*1.8; driveState.active=false; driveState.vehicle=null; driveState.speed=0; driveInput.throttle=0; driveInput.brake=0; driveBtn.textContent='🚗 Drive'; driveBtn.style.display='none'; setDrivePedals(); }
+  function setDriveUI(){ if(driveState.active){ driveBtn.style.display='block'; driveBtn.textContent='⬅ Exit Car'; setDrivePedals(); return; } const n=nearestDriveable(); const show=n.mesh && n.dist<4.2; driveBtn.style.display = show? 'block':'none'; driveBtn.textContent='🚗 Drive'; driveBtn.dataset.target = show? (n.mesh.uuid||'') : ''; setDrivePedals(); }
   driveBtn.addEventListener('click', ()=>{ if(driveState.active){ exitVehicle(); return; } const n=nearestDriveable(); if(n.mesh && n.dist<4.2){ enterVehicle(n.mesh); vib(18); } });
 
   function updateClimbMovement(moveInput,dt){ const idx=ladderState.index; const L=ladders[idx]; if(!ladderState.active || !L) return; const climbSpeed=2.6*MOVE_SPEED_MULT; const nextY = THREE.MathUtils.clamp(player.position.y + moveInput*climbSpeed*dt, L.y0+0.6, L.y1+1.1); player.position.y = nextY; player.position.x = L.x; player.position.z = L.z; player.velocity.set(0,0,0); player.angularVelocity.set(0,0,0); if(nextY>=L.y1+0.95 && moveInput>0.1){ detachFromLadder(); player.position.y = L.y1+1.0; player.position.x += Math.sin(yaw)*1.1; player.position.z += Math.cos(yaw)*1.1; }
@@ -1652,22 +1727,23 @@ export async function startTirana2040(){
     crosshairEl.style.setProperty('--aimColor', onEnemy? '#2fe56b' : '#ff3c3c');
     aimDotMat.color.set(onEnemy? 0x2fe56b : 0xff3c3c);
 
-    if(driveState.active && !driveState.vehicle){ driveState.active=false; driveBtn.textContent='🚗 Drive'; }
+    if(driveState.active && !driveState.vehicle){ driveState.active=false; driveBtn.textContent='🚗 Drive'; setDrivePedals(); }
     driveableVehicles.forEach(({label})=>{ if(label){ label.lookAt(camera.position); } });
 
-    const move={x:0,z:0}; if(keys.has('KeyW')) move.z+=1; if(keys.has('KeyS')) move.z-=1; if(keys.has('KeyA')) move.x-=1; if(keys.has('KeyD')) move.x+=1; move.x += mv.vx; move.z += mv.vz; let l=Math.hypot(move.x,move.z); if(l>1){ move.x/=l; move.z/=l; }
+    const move={x:0,z:0}; if(keys.has('KeyW')) move.z+=1; if(keys.has('KeyS')) move.z-=1; if(keys.has('KeyA')) move.x-=1; if(keys.has('KeyD')) move.x+=1; move.x += mv.vx; move.z += mv.vz; if(driveState.active){ move.z += driveInput.throttle*1.2; move.z -= driveInput.brake*1.3; } let l=Math.hypot(move.x,move.z); if(l>1){ move.x/=l; move.z/=l; }
     const speedBase = ARM_SPEED_BASE; const speedRun = SPEED_RUN;
     if(driveState.active && driveState.vehicle){
       const carAccel=trafficTarget*0.9; const carMax=trafficTarget*1.35;
       driveState.speed = THREE.MathUtils.clamp(driveState.speed + move.z*carAccel*dt, -carMax*0.55, carMax);
       driveState.speed *= 0.986;
       driveState.heading += move.x * 1.8 * dt * (0.5 + Math.min(1, Math.abs(driveState.speed)/carMax));
+      yaw = THREE.MathUtils.lerp(yaw, driveState.heading, dt*3.2);
       const vx=Math.cos(driveState.heading)*driveState.speed;
       const vz=Math.sin(driveState.heading)*driveState.speed;
       const vehicle=driveState.vehicle;
       vehicle.position.set(vehicle.position.x + vx*dt, ROAD_SURFACE_Y, vehicle.position.z + vz*dt);
       setHeading(vehicle, driveState.heading);
-      player.velocity.x=player.velocity.z=0; player.position.set(vehicle.position.x, player.position.y, vehicle.position.z); camFollow(vehicle.position,1.4);
+      player.velocity.x=player.velocity.z=0; player.position.set(vehicle.position.x, player.position.y, vehicle.position.z); camFollow(vehicle.position,1.6, driveState.heading);
     } else if(!ladderState.active){ const forward=new THREE.Vector3(Math.sin(yaw),0,Math.cos(yaw)); const right=new THREE.Vector3(Math.cos(yaw),0,-Math.sin(yaw)); const sprint = (l>0.9 ? speedRun : speedBase); const vx=forward.x*move.z + right.x*move.x; const vz=forward.z*move.z + right.z*move.x; player.velocity.x=vx*sprint; player.velocity.z=vz*sprint; player.wakeUp(); camFollow(player.position,1.0); } else { player.velocity.x=player.velocity.z=0; updateClimbMovement(move.z, dt); camFollow(player.position,1.0); }
 
     setClimbUI();
@@ -1675,8 +1751,8 @@ export async function startTirana2040(){
 
     if(fireHeld){ const per=60.0/(currentStats.rpm); fireCd-=dt; while(fireCd<=0){ doShot(); fireCd+=per; } }
 
-    enemies.forEach((e)=>{ if(e.dead) return; if(e.bleed>0){ e.bleedTimer=(e.bleedTimer||0)+dt; e.hp -= e.bleed*dt*18; if(e.bleedTimer>0.55){ e.bleedTimer=0; addBlood(new THREE.Vector3(e.body.position.x, Math.max(0.18,e.body.position.y+0.2), e.body.position.z), new THREE.Vector3(0,1,0)); } if(e.hp<=0){ e.dead=true; e.body.mass=0; e.body.updateMassProperties(); e.root.visible=false; e.hpBar.visible=false; return; } updateBillboardBar(e.hpBar, e.hp/120); }
-      const toP = new THREE.Vector3(player.position.x-e.body.position.x, 0, player.position.z-e.body.position.z); const d = toP.length(); if(d>0.01){ toP.normalize(); const sp=d>12?2.4:1.6; e.body.velocity.x = toP.x*sp; e.body.velocity.z = toP.z*sp; } enemyTryFire(e, dt); e.root.position.set(e.body.position.x, 0, e.body.position.z); e.hpBar.position.set(e.body.position.x, 1.9, e.body.position.z); e.hpBar.lookAt(camera.position); });
+    enemies.forEach((e)=>{ if(e.dead){ e.root.position.set(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); if(e.downTimer!=null){ const tilt=Math.min(Math.PI/2, (1 - Math.max(0,(e.downTimer||0))/1.4)*Math.PI/2); e.root.rotation.x = -tilt; e.downTimer=Math.max(0,(e.downTimer||0)-dt); } return; } if(e.bleed>0){ e.bleedTimer=(e.bleedTimer||0)+dt; e.hp -= e.bleed*dt*18; if(e.bleedTimer>0.55){ e.bleedTimer=0; addBlood(new THREE.Vector3(e.body.position.x, Math.max(0.18,e.body.position.y+0.2), e.body.position.z), new THREE.Vector3(0,1,0)); } if(e.hp<=0){ knockDownEnemy(e, new THREE.Vector3(e.body.position.x, e.body.position.y+0.2, e.body.position.z)); return; } updateBillboardBar(e.hpBar, e.hp/120); }
+      const target=findTargetForEnemy(e); const toT = target? new THREE.Vector3(target.pos.x-e.body.position.x, 0, target.pos.z-e.body.position.z):new THREE.Vector3(); const d = toT.length(); if(d>0.01){ toT.normalize(); const sp=d>12?2.4:1.6; e.body.velocity.x = toT.x*sp; e.body.velocity.z = toT.z*sp; } enemyTryFire(e, dt, target); e.root.position.set(e.body.position.x, 0, e.body.position.z); e.hpBar.position.set(e.body.position.x, 1.9, e.body.position.z); e.hpBar.lookAt(camera.position); });
 
     // traffic move: v = 3x run speed
     for(const c of trafficCars){ if(!c.speed){ c.speed = trafficTarget*(0.8+Math.random()*0.4); } const radPerSec = c.speed / ringR; c.angle = (c.angle + radPerSec*dt)%(Math.PI*2); const nx=Math.cos(c.angle)*ringR, nz=Math.sin(c.angle)*ringR; // obey red
@@ -1689,7 +1765,7 @@ export async function startTirana2040(){
 
     if(!waypoint && navGuide){ updateNavGuide(); }
 
-    world.step(1/90, dt, 3);
+    world.step(1/90, dt, 2);
     updateTracers(dt);
     fountainWaters.forEach((w)=>{ const uniforms=w.material?.uniforms; if(uniforms?.time){ uniforms.time.value += dt; } });
     fountainJets.forEach((jet)=>{ jet.phase += dt*jet.speed; const pulse=0.7 + Math.abs(Math.sin(jet.phase))*1.3; jet.mesh.scale.set(1, pulse, 1); jet.mesh.position.y = jet.baseY + pulse*0.42; });
