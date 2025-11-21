@@ -13,12 +13,6 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
-import { TRAINING_SCENARIOS, getTrainingScenario } from '../../config/poolRoyaleTraining.js';
-import {
-  getNextIncompleteLevel,
-  loadTrainingProgress,
-  resolvePlayableTrainingLevel
-} from '../../utils/poolRoyaleTrainingProgress.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -31,7 +25,7 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const searchParams = new URLSearchParams(search);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
-  const [playType, setPlayType] = useState('regular');
+  const playType = 'regular';
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
@@ -40,8 +34,6 @@ export default function PoolRoyaleLobby() {
   const [readyList, setReadyList] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
-  const [trainingLevel, setTrainingLevel] = useState(1);
-  const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const stakeChargedRef = useRef(false);
@@ -53,42 +45,25 @@ export default function PoolRoyaleLobby() {
     } catch {}
   }, []);
 
-  useEffect(() => {
-    const refreshProgress = () => setTrainingProgress(loadTrainingProgress());
-    refreshProgress();
-    window.addEventListener('focus', refreshProgress);
-    return () => window.removeEventListener('focus', refreshProgress);
-  }, []);
-
   const startGame = async () => {
-    let nextTrainingLevel = trainingLevel;
     let tgId;
     let accountId;
-    if (playType !== 'training') {
-      try {
-        accountId = await ensureAccountId();
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        tgId = getTelegramId();
-        if (mode !== 'online') {
-          await addTransaction(tgId, -stake.amount, 'stake', {
-            game: 'poolroyale',
-            players: 2,
-            accountId
-          });
-        }
-      } catch {}
-    } else {
-      try {
-        tgId = getTelegramId();
-        accountId = await ensureAccountId();
-        nextTrainingLevel = resolvePlayableTrainingLevel(trainingLevel, trainingProgress);
-        setTrainingLevel(nextTrainingLevel);
-      } catch {}
-    }
+    try {
+      accountId = await ensureAccountId();
+      const balRes = await getAccountBalance(accountId);
+      if ((balRes.balance || 0) < stake.amount) {
+        alert('Insufficient balance');
+        return;
+      }
+      tgId = getTelegramId();
+      if (mode !== 'online') {
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'poolroyale',
+          players: 2,
+          accountId
+        });
+      }
+    } catch {}
 
     accountIdRef.current = accountId;
 
@@ -140,12 +115,10 @@ export default function PoolRoyaleLobby() {
     const params = new URLSearchParams();
     params.set('variant', variant);
     params.set('type', playType);
-    if (playType !== 'training') params.set('mode', mode);
+    params.set('mode', mode);
     const initData = window.Telegram?.WebApp?.initData;
-    if (playType !== 'training') {
-      if (stake.token) params.set('token', stake.token);
-      if (stake.amount) params.set('amount', stake.amount);
-    }
+    if (stake.token) params.set('token', stake.token);
+    if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
@@ -159,13 +132,6 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
-    if (playType === 'training') {
-      params.set('task', nextTrainingLevel);
-      const task = getTrainingScenario(nextTrainingLevel);
-      if (task?.tip) {
-        window.alert(`Training tip: ${task.tip}`);
-      }
-    }
     navigate(`/games/pollroyale?${params.toString()}`);
   };
 
@@ -236,7 +202,7 @@ export default function PoolRoyaleLobby() {
 
     const onStart = async ({ tableId: incomingId }) => {
       if (incomingId !== tableId) return;
-      if (!stakeChargedRef.current && stake.amount && playType !== 'training') {
+      if (!stakeChargedRef.current && stake.amount) {
         const tgId = getTelegramId();
         const accountId = accountIdRef.current;
         try {
@@ -273,7 +239,7 @@ export default function PoolRoyaleLobby() {
       socket.off('lobbyUpdate', onUpdate);
       socket.off('gameStart', onStart);
     };
-  }, [avatar, matchTableId, navigate, playType, stake, tableSize, variant]);
+  }, [avatar, matchTableId, navigate, stake, tableSize, variant]);
 
   useEffect(() => {
     const id = accountIdRef.current;
@@ -301,43 +267,6 @@ export default function PoolRoyaleLobby() {
     [readyList]
   );
 
-  const unlockedTrainingLevel = useMemo(() => {
-    const nextIncomplete = getNextIncompleteLevel(trainingProgress.completed);
-    if (nextIncomplete === null) {
-      return trainingProgress.lastLevel || TRAINING_SCENARIOS.length;
-    }
-    return nextIncomplete;
-  }, [trainingProgress]);
-
-  useEffect(() => {
-    setTrainingLevel((prev) => resolvePlayableTrainingLevel(prev, trainingProgress));
-  }, [trainingProgress]);
-
-  const careerRounds = useMemo(
-    () =>
-      TRAINING_SCENARIOS.map((task) => ({
-        level: task.level,
-        description: task.description,
-        reward: task.reward,
-        tip: task.tip,
-        nft: Boolean(task.nft)
-      })),
-    []
-  );
-
-  const trainingRoadmap = useMemo(() => {
-    const completedSet = new Set(trainingProgress.completed || []);
-    const start = Math.max(1, trainingLevel - 1);
-    const roadmap = [];
-    for (let level = start; level < start + 4 && level <= TRAINING_SCENARIOS.length; level++) {
-      roadmap.push({
-        level,
-        completed: completedSet.has(level)
-      });
-    }
-    return roadmap;
-  }, [trainingLevel, trainingProgress]);
-
   const winnerParam = searchParams.get('winner');
 
   return (
@@ -351,40 +280,27 @@ export default function PoolRoyaleLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
+          <div className="lobby-tile lobby-selected">Regular</div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Mode</h3>
+        <div className="flex gap-2">
           {[
-            { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' }
+            { id: 'ai', label: 'Vs AI' },
+            { id: 'online', label: '1v1 Online' }
           ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setPlayType(id)}
-              className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
+            <div key={id} className="relative">
+              <button
+                onClick={() => setMode(id)}
+                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
+            </div>
           ))}
         </div>
       </div>
-      {playType !== 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Mode</h3>
-          <div className="flex gap-2">
-            {[
-              { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online' }
-            ].map(({ id, label }) => (
-              <div key={id} className="relative">
-                <button
-                  onClick={() => setMode(id)}
-                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
-                >
-                  {label}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
@@ -403,12 +319,10 @@ export default function PoolRoyaleLobby() {
           ))}
         </div>
       </div>
-      {playType !== 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Stake</h3>
-          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-        </div>
-      )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Stake</h3>
+        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+      </div>
       {mode === 'online' && (
         <div className="space-y-3 p-3 rounded-lg border border-border bg-surface/60">
           <div className="flex items-center justify-between">
@@ -475,62 +389,6 @@ export default function PoolRoyaleLobby() {
       >
         {mode === 'online' ? (matching ? 'Waiting for opponent…' : 'START ONLINE') : 'START'}
       </button>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Training Ladder · 50 Rounds</h3>
-        <p className="text-sm text-subtext">
-          Start with simple one-ball pots, then layer in spin control, position play, banks, safeties, and
-          multi-ball routes. Progress one round at a time — you can replay cleared rounds, but only the next
-          unlocked task can be advanced.
-        </p>
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-surface/60 p-3 text-sm">
-          <div className="font-semibold text-emerald-200">Next unlocked: Round {unlockedTrainingLevel}</div>
-          <div className="flex flex-wrap gap-2">
-            {trainingRoadmap.map((item) => (
-              <span
-                key={item.level}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  item.completed
-                    ? 'bg-emerald-500/20 text-emerald-50'
-                    : item.level === trainingLevel
-                      ? 'bg-primary/20 text-primary'
-                      : 'bg-white/5 text-subtext'
-                }`}
-              >
-                Round {item.level} {item.completed ? '• Done' : item.level === trainingLevel ? '• Selected' : ''}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="max-h-64 overflow-y-auto space-y-2">
-          {careerRounds.map(({ level, description, reward, nft, tip }) => {
-            const locked = level > unlockedTrainingLevel;
-            return (
-              <button
-                key={level}
-                type="button"
-                onClick={() => {
-                  if (!locked) setTrainingLevel(level);
-                }}
-                className={`lobby-tile w-full flex items-center justify-between text-left transition ${
-                  trainingLevel === level ? 'lobby-selected border-primary/80' : ''
-                } ${locked ? 'cursor-not-allowed opacity-60' : ''}`}
-                disabled={locked}
-              >
-                <div>
-                  <p className="font-semibold">Round {level}</p>
-                  <p className="text-sm text-subtext">{description}</p>
-                  {tip && <p className="text-xs text-amber-200 mt-1">Tip: {tip}</p>}
-                </div>
-                <div className="text-right text-sm">
-                  <div className="font-semibold">Reward: {reward} TPC</div>
-                  {nft && <div className="text-amber-300 text-xs">NFT gift unlocked</div>}
-                  {locked && <div className="text-xs text-subtext">Clear earlier rounds first</div>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

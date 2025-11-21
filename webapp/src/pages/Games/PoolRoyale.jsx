@@ -7692,7 +7692,7 @@ function applyTableFinishToTable(table, finish) {
 function PoolRoyaleGame({
   variantKey,
   tableSizeKey,
-  playType = 'ai',
+  playType = 'regular',
   mode = 'ai',
   trainingLevel = 1,
   accountId,
@@ -7796,7 +7796,7 @@ function PoolRoyaleGame({
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
   );
-  const isTraining = playType === 'training';
+  const isTraining = false;
   const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
   const resolvedTrainingLevel = useMemo(() => {
     if (!isTraining) return trainingLevel;
@@ -7810,9 +7810,10 @@ function PoolRoyaleGame({
   const [trainingPopup, setTrainingPopup] = useState(null);
   const trainingRewardedRef = useRef(false);
   useEffect(() => {
+    if (!isTraining) return;
     trainingProgressRef.current = trainingProgress;
     persistTrainingProgress(trainingProgress);
-  }, [trainingProgress]);
+  }, [isTraining, trainingProgress]);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingPopup) return;
@@ -15661,18 +15662,12 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
-  const playType = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('type') || 'ai';
-  }, [location.search]);
+  const playType = 'regular';
   const mode = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('mode') || 'ai';
   }, [location.search]);
-  const trainingLevel = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return Number(params.get('task') || 1) || 1;
-  }, [location.search]);
+  const trainingLevel = 1;
   const accountId = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('accountId') || '';
