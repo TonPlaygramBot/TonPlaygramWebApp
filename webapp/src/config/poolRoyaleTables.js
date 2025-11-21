@@ -6,7 +6,7 @@ const BASE_PLAYFIELD_WIDTH_MM = 2540; // WPA 9 ft playing surface width (100")
 const TABLE_PHYSICAL_SPECS = Object.freeze({
   '9ft': {
     id: '9ft',
-    label: '9 ft',
+    label: '9 ft (Tournament)',
     playfield: Object.freeze({ widthMm: 2540, heightMm: 1270 }), // 100" × 50"
     ballDiameterMm: 57.15,
     pocketMouthMm: Object.freeze({
