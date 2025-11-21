@@ -92,6 +92,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
   const audioRef = useRef({ hit: null, goal: null, whistle: null, post: null });
+  const audioUnlockCleanup = useRef(() => {});
   const scoreRef = useRef({ left: 0, right: 0 });
 
   useEffect(() => {
@@ -107,10 +108,41 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     audioRef.current.whistle = new Audio('/assets/sounds/metal-whistle-6121.mp3');
     audioRef.current.post = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
 
+    const primeAudio = () => {
+      Object.values(audioRef.current).forEach((audio) => {
+        if (!audio) return;
+        const volume = Math.min(1, getGameVolume());
+        audio.volume = volume;
+        audio.muted = volume === 0;
+        try {
+          audio.currentTime = 0.001;
+          audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+          });
+        } catch {}
+      });
+    };
+
+    const unlockAudio = () => {
+      primeAudio();
+      host.removeEventListener('pointerdown', unlockAudio);
+      host.removeEventListener('touchstart', unlockAudio);
+    };
+
+    host.addEventListener('pointerdown', unlockAudio);
+    host.addEventListener('touchstart', unlockAudio);
+    audioUnlockCleanup.current = () => {
+      host.removeEventListener('pointerdown', unlockAudio);
+      host.removeEventListener('touchstart', unlockAudio);
+    };
+
     const playWhistle = () => {
       const whistle = audioRef.current.whistle;
       if (!whistle) return;
-      whistle.volume = getGameVolume();
+      const volume = Math.min(1, getGameVolume());
+      whistle.volume = volume;
+      whistle.muted = volume === 0;
       whistle.currentTime = 0;
       whistle.play().catch(() => {});
       setTimeout(() => {
@@ -122,7 +154,9 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     const playHit = () => {
       const hit = audioRef.current.hit;
       if (!hit) return;
-      hit.volume = getGameVolume();
+      const volume = Math.min(1, getGameVolume());
+      hit.volume = volume;
+      hit.muted = volume === 0;
       hit.currentTime = 0;
       hit.play().catch(() => {});
       setTimeout(() => {
@@ -133,7 +167,9 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     const playPost = () => {
       const post = audioRef.current.post;
       if (!post) return;
-      post.volume = Math.min(1, getGameVolume() * 0.7);
+      const volume = Math.min(1, getGameVolume() * 0.7);
+      post.volume = volume;
+      post.muted = volume === 0;
       post.currentTime = 0.15;
       post.play().catch(() => {});
       setTimeout(() => {
@@ -145,7 +181,9 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     const playGoal = () => {
       const goal = audioRef.current.goal;
       if (!goal) return;
-      goal.volume = getGameVolume();
+      const volume = Math.min(1, getGameVolume());
+      goal.volume = volume;
+      goal.muted = volume === 0;
       goal.currentTime = 0;
       goal.play().catch(() => {});
       setTimeout(() => {
@@ -178,7 +216,12 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       antialias: true,
       powerPreference: 'high-performance'
     });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.outputEncoding = THREE.sRGBEncoding;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setPixelRatio(Math.min(3, window.devicePixelRatio || 1.5));
     renderer.setSize(host.clientWidth, host.clientHeight);
     host.appendChild(renderer.domElement);
 
@@ -541,6 +584,9 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
     dirLight.position.set(-TABLE.w * 0.28, elevatedTableSurfaceY + lightLift, TABLE.h * 0.18);
     dirLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.1, 0);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.set(1024, 1024);
+    dirLight.shadow.bias = -0.0002;
     scene.add(dirLight);
     scene.add(dirLight.target);
 
@@ -559,8 +605,32 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     );
     spotLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.4, 0);
     spotLight.decay = 1.0;
+    spotLight.castShadow = true;
+    spotLight.shadow.mapSize.set(1024, 1024);
+    spotLight.shadow.bias = -0.0002;
     scene.add(spotLight);
     scene.add(spotLight.target);
+
+    const rimSpot = new THREE.SpotLight(0xc7d6ff, 9.6, 0, Math.PI * 0.34, 0.48, 1);
+    rimSpot.position.set(
+      -TABLE.w * 0.28,
+      elevatedTableSurfaceY + lightLift * 1.4,
+      -TABLE.h * 0.32
+    );
+    rimSpot.target.position.set(-TABLE.w * 0.1, elevatedTableSurfaceY + TABLE.thickness * 0.3, 0);
+    rimSpot.decay = 1.0;
+    rimSpot.castShadow = true;
+    rimSpot.shadow.mapSize.set(1024, 1024);
+    rimSpot.shadow.bias = -0.0002;
+    scene.add(rimSpot);
+    scene.add(rimSpot.target);
+
+    world.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.castShadow = true;
+        obj.receiveShadow = true;
+      }
+    });
 
     const playerRailZ = TABLE.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
@@ -714,17 +784,21 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
 
     // loop
     const clock = new THREE.Clock();
+    const BASE_FRAME = 1 / 60;
+    const MAX_FRAME_SCALE = 2.5;
     reset();
     fitCameraToTable();
 
     const tick = () => {
-      const dt = Math.min(0.033, clock.getDelta());
+      const delta = clock.getDelta();
+      const frameScale = Math.min(MAX_FRAME_SCALE, Math.max(delta / BASE_FRAME, 0.0001));
 
-      puck.position.x += S.vel.x;
-      puck.position.z += S.vel.z;
-      S.vel.multiplyScalar(Math.pow(S.friction, dt * 60));
-      // keep puck speed manageable
-      S.vel.clampLength(0, MAX_SPEED);
+      puck.position.x += S.vel.x * frameScale;
+      puck.position.z += S.vel.z * frameScale;
+      S.vel.multiplyScalar(Math.pow(S.friction, frameScale * 60));
+      // keep puck speed manageable across fluctuating frame times
+      const scaledMaxSpeed = Math.max(MAX_SPEED / frameScale, MAX_SPEED * 0.5);
+      S.vel.clampLength(0, scaledMaxSpeed);
 
       if (Math.abs(puck.position.x) > TABLE.w / 2 - PUCK_RADIUS) {
         puck.position.x = clamp(
@@ -756,7 +830,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
         }
       }
 
-      aiUpdate(dt);
+      aiUpdate(delta);
       handleCollision(you, true);
       handleCollision(aiMallet);
       renderer.render(scene, camera);
@@ -778,6 +852,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       renderer.domElement.removeEventListener('touchstart', onMove);
       renderer.domElement.removeEventListener('touchmove', onMove);
       renderer.domElement.removeEventListener('mousemove', onMove);
+      audioUnlockCleanup.current();
       Object.keys(audioRef.current).forEach((key) => {
         const audio = audioRef.current[key];
         if (audio) {
