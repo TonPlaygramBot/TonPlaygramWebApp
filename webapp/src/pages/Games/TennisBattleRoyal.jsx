@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import TennisBattleRoyal3D from '../../components/TennisBattleRoyal3D.jsx';
+import ArcadeRacketGame from '../../components/ArcadeRacketGame.jsx';
 
 export default function TennisBattleRoyal() {
   useTelegramBackButton();
@@ -13,5 +13,7 @@ export default function TennisBattleRoyal() {
   const trainingMode = mode === 'training';
   const stakeLabel = !trainingMode && amount && token ? `${amount} ${token}` : undefined;
 
-  return <TennisBattleRoyal3D playerName={playerName} stakeLabel={stakeLabel} trainingMode={trainingMode} />;
+  const title = playerName ? `${playerName} vs AI` : '3D Tennis Battle Royal';
+
+  return <ArcadeRacketGame mode="tennis" title={title} stakeLabel={stakeLabel} trainingMode={trainingMode} />;
 }
