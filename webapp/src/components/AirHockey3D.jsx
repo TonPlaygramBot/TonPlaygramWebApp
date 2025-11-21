@@ -82,24 +82,96 @@ const POOL_ENVIRONMENT = (() => {
  * • Scoreboard with avatars
  */
 
-export default function AirHockey3D({ player, ai }) {
+export default function AirHockey3D({ player, ai, target = 3, playType = 'regular' }) {
+  const targetValue = Number(target) || 3;
   const hostRef = useRef(null);
   const raf = useRef(0);
   const [ui, setUi] = useState({ left: 0, right: 0 });
+  const [gameOver, setGameOver] = useState(false);
+  const [winner, setWinner] = useState('');
+  const targetRef = useRef(Number(target) || 3);
+  const gameOverRef = useRef(false);
+  const audioRef = useRef({ hit: null, goal: null, whistle: null, post: null });
+  const scoreRef = useRef({ left: 0, right: 0 });
+
+  useEffect(() => {
+    targetRef.current = Number(target) || 3;
+  }, [target]);
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
-    const playHit = () => {
-      const a = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
-      a.volume = getGameVolume();
-      a.play().catch(() => {});
+    audioRef.current.hit = new Audio('/assets/sounds/football-game-sound-effects-359284.mp3');
+    audioRef.current.goal = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
+    audioRef.current.whistle = new Audio('/assets/sounds/metal-whistle-6121.mp3');
+    audioRef.current.post = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
+
+    const playWhistle = () => {
+      const whistle = audioRef.current.whistle;
+      if (!whistle) return;
+      whistle.volume = getGameVolume();
+      whistle.currentTime = 0;
+      whistle.play().catch(() => {});
+      setTimeout(() => {
+        whistle.pause();
+        whistle.currentTime = 0;
+      }, 2000);
     };
+
+    const playHit = () => {
+      const hit = audioRef.current.hit;
+      if (!hit) return;
+      hit.volume = getGameVolume();
+      hit.currentTime = 0;
+      hit.play().catch(() => {});
+      setTimeout(() => {
+        hit.pause();
+      }, 700);
+    };
+
+    const playPost = () => {
+      const post = audioRef.current.post;
+      if (!post) return;
+      post.volume = Math.min(1, getGameVolume() * 0.7);
+      post.currentTime = 0.15;
+      post.play().catch(() => {});
+      setTimeout(() => {
+        post.pause();
+        post.currentTime = 0.15;
+      }, 1000);
+    };
+
     const playGoal = () => {
-      const a = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
-      a.volume = getGameVolume();
-      a.play().catch(() => {});
+      const goal = audioRef.current.goal;
+      if (!goal) return;
+      goal.volume = getGameVolume();
+      goal.currentTime = 0;
+      goal.play().catch(() => {});
+      setTimeout(() => {
+        goal.pause();
+        goal.currentTime = 0;
+      }, 2000);
+      playWhistle();
+    };
+
+    const recordGoal = (playerScored) => {
+      scoreRef.current = {
+        left: scoreRef.current.left + (playerScored ? 1 : 0),
+        right: scoreRef.current.right + (playerScored ? 0 : 1)
+      };
+      setUi({ ...scoreRef.current });
+      const targetScore = targetRef.current;
+      if (
+        targetScore &&
+        (scoreRef.current.left >= targetScore || scoreRef.current.right >= targetScore)
+      ) {
+        gameOverRef.current = true;
+        setGameOver(true);
+        setWinner(playerScored ? player.name : ai.name);
+        return true;
+      }
+      return false;
     };
 
     const renderer = new THREE.WebGLRenderer({
@@ -669,12 +741,10 @@ export default function AirHockey3D({ player, ai }) {
       const atBot = puck.position.z > TABLE.h / 2 - PUCK_RADIUS;
       if (atTop || atBot) {
         if (Math.abs(puck.position.x) <= goalHalf) {
-          setUi((s) => ({
-            left: s.left + (atBot ? 1 : 0),
-            right: s.right + (atTop ? 1 : 0)
-          }));
+          const playerScored = atBot;
+          const ended = recordGoal(playerScored);
           playGoal();
-          reset(!atBot);
+          if (!ended) reset(!atBot);
         } else {
           S.vel.z = -S.vel.z;
           puck.position.z = clamp(
@@ -682,7 +752,7 @@ export default function AirHockey3D({ player, ai }) {
             -TABLE.h / 2 + PUCK_RADIUS,
             TABLE.h / 2 - PUCK_RADIUS
           );
-          playHit();
+          playPost();
         }
       }
 
@@ -690,7 +760,9 @@ export default function AirHockey3D({ player, ai }) {
       handleCollision(you, true);
       handleCollision(aiMallet);
       renderer.render(scene, camera);
-      raf.current = requestAnimationFrame(tick);
+      if (!gameOverRef.current) {
+        raf.current = requestAnimationFrame(tick);
+      }
     };
 
     tick();
@@ -706,6 +778,13 @@ export default function AirHockey3D({ player, ai }) {
       renderer.domElement.removeEventListener('touchstart', onMove);
       renderer.domElement.removeEventListener('touchmove', onMove);
       renderer.domElement.removeEventListener('mousemove', onMove);
+      Object.keys(audioRef.current).forEach((key) => {
+        const audio = audioRef.current[key];
+        if (audio) {
+          audio.pause();
+          audioRef.current[key] = null;
+        }
+      });
       try {
         host.removeChild(renderer.domElement);
       } catch {}
@@ -718,6 +797,11 @@ export default function AirHockey3D({ player, ai }) {
       ref={hostRef}
       className="w-full h-[100dvh] bg-black relative overflow-hidden select-none"
     >
+      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[10px] bg-white/10 rounded px-3 py-1 backdrop-blur">
+        <span className="uppercase tracking-wide">{playType}</span>
+        <span className="mx-2">•</span>
+        <span>Target: {targetValue}</span>
+      </div>
       <div className="absolute top-1 left-2 flex items-center space-x-2 text-white text-xs bg-white/10 rounded px-2 py-1">
         <img
           src={getAvatarUrl(player.avatar)}
@@ -738,6 +822,15 @@ export default function AirHockey3D({ player, ai }) {
           className="w-5 h-5 rounded-full object-cover"
         />
       </div>
+      {gameOver && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-black/70 text-white text-center rounded-lg px-4 py-3 space-y-1 mx-4">
+            <div className="text-sm font-semibold">Game Over</div>
+            <div className="text-xs">{winner} wins to {targetValue}.</div>
+            <div className="text-[11px] text-white/80">Tap Reset to play again.</div>
+          </div>
+        </div>
+      )}
       <button
         onClick={() => window.location.reload()}
         className="absolute left-2 bottom-2 text-white text-xs bg-white/10 hover:bg-white/20 rounded px-2 py-1"
