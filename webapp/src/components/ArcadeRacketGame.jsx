@@ -10,8 +10,6 @@ const GAME_CONFIGS = {
     playerZOffset: 1.5,
     cameraHeight: 9,
     cameraOffset: 16,
-    speedScale: 1,
-    powerCap: 0.45,
     background: 0x134e2a,
     groundColor: 0x1f7a3a,
     playerColor: 0x00b4ff,
@@ -26,8 +24,6 @@ const GAME_CONFIGS = {
     playerZOffset: 0.28,
     cameraHeight: 2.4,
     cameraOffset: 4.2,
-    speedScale: 0.32,
-    powerCap: 0.34,
     background: 0x0d3b1e,
     groundColor: 0x1a4d2d,
     playerColor: 0x22c55e,
@@ -47,6 +43,8 @@ function useGoalRushToast(text) {
 
   return [toast, setToast];
 }
+
+const BASE_CONFIG = GAME_CONFIGS.tennis;
 
 export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, trainingMode = false }) {
   const mountRef = useRef(null);
@@ -163,8 +161,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       started = true;
 
       const power = Math.min((distY / time) * 0.001, 0.6);
-      const lateralScale = config.courtW / (8.23 * 2.5);
-      const forwardScale = config.courtL / (23.77 * 2.5);
+      const lateralScale = config.courtW / BASE_CONFIG.courtW;
+      const forwardScale = config.courtL / BASE_CONFIG.courtL;
 
       velocity.x = THREE.MathUtils.clamp(distX * 0.001 * lateralScale, -0.25 * lateralScale, 0.25 * lateralScale);
       velocity.y = 0.18 + power * 0.3;
@@ -206,7 +204,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
       const hitDistance = Math.max(halfW * 0.08, config.ballRadius * 6);
       if (ball.position.distanceTo(enemy.position) < hitDistance && velocity.z < 0) {
-        velocity.z = Math.abs(velocity.z) + 0.2 * (config.courtL / (23.77 * 2.5));
+        velocity.z = Math.abs(velocity.z) + 0.2 * (config.courtL / BASE_CONFIG.courtL);
         velocity.y = 0.2 + Math.random() * 0.1;
       }
     }
@@ -244,7 +242,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       }
 
       if (ball.position.distanceTo(player.position) < hitDistance && velocity.z > 0) {
-        velocity.z = -Math.abs(velocity.z) - 0.15 * (config.courtL / (23.77 * 2.5));
+        velocity.z = -Math.abs(velocity.z) - 0.15 * (config.courtL / BASE_CONFIG.courtL);
         velocity.y = 0.2;
       }
 
