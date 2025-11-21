@@ -13921,6 +13921,26 @@ function PoolRoyaleGame({
                 simBall.mesh.visible = false;
               }
             });
+            if (isTraining) {
+              const remainingObjectBalls = balls.filter(
+                (ball) => ball && ball.active && String(ball.id).toLowerCase() !== 'cue'
+              );
+              if (remainingObjectBalls.length === 0) {
+                const meta =
+                  safeState && typeof safeState.meta === 'object' ? { ...safeState.meta } : {};
+                const hudMeta = meta && typeof meta.hud === 'object' ? meta.hud : null;
+                const hud = hudMeta
+                  ? { ...hudMeta, next: 'task complete', phase: 'complete' }
+                  : undefined;
+                safeState = {
+                  ...safeState,
+                  ballOn: [],
+                  frameOver: true,
+                  winner: 'A',
+                  meta: hud ? { ...meta, hud } : meta
+                };
+              }
+            }
             if (cueBallPotted) {
               cue.active = false;
               pocketDropRef.current.delete(cue.id);
