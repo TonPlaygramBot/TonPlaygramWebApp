@@ -104,6 +104,21 @@ function detectLowRefreshDisplay() {
   return false;
 }
 
+function isWebGLAvailable() {
+  if (typeof document === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl2', { failIfMajorPerformanceCaveat: true }) ||
+      canvas.getContext('webgl', { failIfMajorPerformanceCaveat: true }) ||
+      canvas.getContext('experimental-webgl', { failIfMajorPerformanceCaveat: true });
+    return Boolean(gl);
+  } catch (err) {
+    console.warn('WebGL availability check failed', err);
+    return false;
+  }
+}
+
 let cachedRendererString = null;
 let rendererLookupAttempted = false;
 
@@ -9075,6 +9090,11 @@ function PoolRoyaleGame({
   useEffect(() => {
     const host = mountRef.current;
     if (!host) return;
+    setErr(null);
+    if (!isWebGLAvailable()) {
+      setErr('WebGL is not available on this device. Enable hardware acceleration to play.');
+      return;
+    }
     const cueRackDisposers = [];
     try {
       const updatePocketCameraState = (active) => {
