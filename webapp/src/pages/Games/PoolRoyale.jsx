@@ -7688,14 +7688,20 @@ function PoolRoyaleGame({
   const navigate = useNavigate();
   const location = useLocation();
   const goToTrainingLevel = useCallback(
-    (level, replace = false) => {
-      if (!level) {
-        navigate('/games/pollroyale/lobby', { replace });
+    (level, replace = false, reload = false) => {
+      const target = (() => {
+        if (!level) return '/games/pollroyale/lobby';
+        const params = new URLSearchParams(location.search);
+        params.set('task', level);
+        return `${location.pathname}?${params.toString()}`;
+      })();
+
+      if (reload) {
+        window.location.assign(target);
         return;
       }
-      const params = new URLSearchParams(location.search);
-      params.set('task', level);
-      navigate(`${location.pathname}?${params.toString()}`, { replace });
+
+      navigate(target, { replace });
     },
     [location.pathname, location.search, navigate]
   );
@@ -7877,7 +7883,7 @@ function PoolRoyaleGame({
       return;
     }
     if (nextLevel) {
-      goToTrainingLevel(nextLevel, true);
+      goToTrainingLevel(nextLevel, true, true);
     } else {
       goToTrainingLevel(null, true);
     }
