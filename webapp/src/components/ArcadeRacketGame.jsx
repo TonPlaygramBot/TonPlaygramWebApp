@@ -129,6 +129,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
     let startX = 0;
     let startY = 0;
+    let lastX = 0;
+    let lastY = 0;
     let startT = 0;
 
     function clampX(x) {
@@ -139,7 +141,13 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const t = e.touches ? e.touches[0] : e;
       startX = t.clientX;
       startY = t.clientY;
+      lastX = startX;
+      lastY = startY;
       startT = Date.now();
+      const rect = renderer.domElement.getBoundingClientRect();
+      const normX = (t.clientX - rect.left) / rect.width;
+      const targetX = clampX((normX - 0.5) * (config.courtW * 0.9));
+      player.position.x = targetX;
     }
 
     function launchFromSwipe(endX, endY) {
@@ -159,13 +167,25 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
     function onPointerUp(e) {
       const end = e.changedTouches ? e.changedTouches[0] : e;
-      launchFromSwipe(end.clientX, end.clientY);
+      launchFromSwipe(end.clientX || lastX, end.clientY || lastY);
+    }
+
+    function onPointerMove(e) {
+      const t = e.touches ? e.touches[0] : e;
+      lastX = t.clientX;
+      lastY = t.clientY;
+      const rect = renderer.domElement.getBoundingClientRect();
+      const normX = (t.clientX - rect.left) / rect.width;
+      const targetX = clampX((normX - 0.5) * (config.courtW * 0.9));
+      player.position.x += (targetX - player.position.x) * 0.35;
     }
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
     renderer.domElement.addEventListener('touchstart', onPointerDown, { passive: true });
     renderer.domElement.addEventListener('touchend', onPointerUp, { passive: true });
+    renderer.domElement.addEventListener('touchmove', onPointerMove, { passive: true });
 
     function updateRacketHeight() {
       const targetY = Math.max(config.ballRadius + 0.6, Math.min(ball.position.y, config.ballRadius + 2.5));
@@ -185,9 +205,14 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     }
 
     function updateCamera() {
-      const camTarget = new THREE.Vector3(ball.position.x, config.cameraHeight, ball.position.z + config.cameraOffset);
-      camera.position.lerp(camTarget, 0.08);
-      camera.lookAt(ball.position);
+      const camTarget = new THREE.Vector3(
+        THREE.MathUtils.clamp(ball.position.x * 0.75, -halfW, halfW),
+        Math.max(config.cameraHeight * 0.8, ball.position.y + config.cameraHeight * 0.22),
+        ball.position.z + config.cameraOffset
+      );
+      camera.position.lerp(camTarget, 0.1);
+      const lookY = Math.max(config.ballRadius, ball.position.y * 0.9 + config.ballRadius * 0.8);
+      camera.lookAt(ball.position.x, lookY, ball.position.z);
     }
 
     function physics() {
@@ -244,8 +269,10 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('touchstart', onPointerDown);
       renderer.domElement.removeEventListener('touchend', onPointerUp);
+      renderer.domElement.removeEventListener('touchmove', onPointerMove);
       try {
         container.removeChild(renderer.domElement);
       } catch (err) {
