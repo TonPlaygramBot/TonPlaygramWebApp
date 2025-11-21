@@ -820,7 +820,7 @@ const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the clot
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.154; // trim the cushion tops further so the pads sit level with the wooden rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -1522,44 +1522,45 @@ const createPocketMaterials = () => ({
 const TABLE_FINISHES = Object.freeze({
   rusticSplit: {
     id: 'rusticSplit',
-    label: 'Rustic Split',
+    label: 'Pearl Cream',
     colors: makeColorPalette({
       cloth: 0x2d7f4b,
-      rail: 0x725536,
-      base: 0x725536
+      rail: 0xf2e8d7,
+      base: 0xe9ddc9
     }),
     woodTextureId: 'frameRusticSplit',
     createMaterials: () => {
-      const frameColor = new THREE.Color('#725536');
+      const frameColor = new THREE.Color('#f4eddc');
+      const railColor = new THREE.Color('#e7ddca');
       const frame = new THREE.MeshPhysicalMaterial({
         color: frameColor,
-        metalness: 0.2,
-        roughness: 0.34,
-        clearcoat: 0.32,
-        clearcoatRoughness: 0.2,
-        sheen: 0.14,
-        sheenRoughness: 0.48,
-        reflectivity: 0.44,
-        envMapIntensity: 0.78
+        metalness: 0.18,
+        roughness: 0.32,
+        clearcoat: 0.4,
+        clearcoatRoughness: 0.22,
+        sheen: 0.18,
+        sheenRoughness: 0.46,
+        reflectivity: 0.5,
+        envMapIntensity: 0.86
       });
       const rail = new THREE.MeshPhysicalMaterial({
-        color: frameColor.clone().offsetHSL(0.02, 0.04, 0.08),
-        metalness: 0.22,
-        roughness: 0.36,
-        clearcoat: 0.34,
-        clearcoatRoughness: 0.22,
-        sheen: 0.16,
-        sheenRoughness: 0.5,
-        reflectivity: 0.46,
-        envMapIntensity: 0.82
+        color: railColor,
+        metalness: 0.2,
+        roughness: 0.34,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.2,
+        sheen: 0.22,
+        sheenRoughness: 0.48,
+        reflectivity: 0.54,
+        envMapIntensity: 0.9
       });
       const trim = new THREE.MeshPhysicalMaterial({
-        color: 0xcead7f,
-        metalness: 0.68,
-        roughness: 0.34,
-        clearcoat: 0.44,
-        clearcoatRoughness: 0.24,
-        envMapIntensity: 0.96
+        color: 0xf7e6be,
+        metalness: 0.72,
+        roughness: 0.32,
+        clearcoat: 0.48,
+        clearcoatRoughness: 0.22,
+        envMapIntensity: 1
       });
       const materials = {
         frame,
@@ -1770,6 +1771,62 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
+const DEFAULT_RAIL_MARKER_SHAPE_ID = 'diamond';
+const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
+  { id: 'diamond', label: 'Diamond' },
+  { id: 'circle', label: 'Circle' }
+]);
+
+const DEFAULT_RAIL_MARKER_COLOR_ID = 'chrome';
+const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
+  {
+    id: 'chrome',
+    label: 'Chrome',
+    color: 0xd6dbe4,
+    metalness: 0.9,
+    roughness: 0.24,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 1.05
+  },
+  {
+    id: 'gold',
+    label: 'Gold',
+    color: 0xf6d173,
+    metalness: 0.82,
+    roughness: 0.3,
+    clearcoat: 0.52,
+    clearcoatRoughness: 0.22,
+    envMapIntensity: 1.02
+  },
+  {
+    id: 'pearl',
+    label: 'Pearl',
+    color: 0xf4f0e8,
+    metalness: 0.52,
+    roughness: 0.36,
+    clearcoat: 0.56,
+    clearcoatRoughness: 0.24,
+    envMapIntensity: 0.92
+  },
+  {
+    id: 'white',
+    label: 'White',
+    color: 0xffffff,
+    metalness: 0.58,
+    roughness: 0.32,
+    clearcoat: 0.54,
+    clearcoatRoughness: 0.18,
+    envMapIntensity: 0.94
+  }
+]);
+const RAIL_MARKER_COLOR_MAP = Object.freeze(
+  RAIL_MARKER_COLOR_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
 // Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
 // popular tournament felts so every option mirrors a real pool cloth.
 const CLOTH_TEXTURE_PRESETS = Object.freeze({
@@ -1795,28 +1852,6 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     sparkle: 0.9,
     stray: 0.85
   }),
-  classicOlive: Object.freeze({
-    id: 'classicOlive',
-    palette: {
-      shadow: 0x2a4b24,
-      base: 0x4f7b3f,
-      accent: 0x6b9d57,
-      highlight: 0x9bc97c
-    },
-    sparkle: 0.78,
-    stray: 1.1
-  }),
-  deepBurgundy: Object.freeze({
-    id: 'deepBurgundy',
-    palette: {
-      shadow: 0x3a1121,
-      base: 0x742643,
-      accent: 0xa63564,
-      highlight: 0xd86f96
-    },
-    sparkle: 0.72,
-    stray: 1.2
-  }),
   graphite: Object.freeze({
     id: 'graphite',
     palette: {
@@ -1827,17 +1862,6 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     },
     sparkle: 0.65,
     stray: 0.9
-  }),
-  arcticIce: Object.freeze({
-    id: 'arcticIce',
-    palette: {
-      shadow: 0x1a3b48,
-      base: 0x4d90ac,
-      accent: 0x7cc0da,
-      highlight: 0xbfe7f5
-    },
-    sparkle: 1.08,
-    stray: 0.95
   })
 });
 
@@ -1869,28 +1893,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'classicOlive',
-    label: 'Classic Olive',
-    color: 0x769c5c,
-    textureKey: 'classicOlive',
-    detail: {
-      bumpMultiplier: 1.12,
-      roughness: 0.82,
-      sheenRoughness: 0.58
-    }
-  },
-  {
-    id: 'deepBurgundy',
-    label: 'Granito Burgundy',
-    color: 0x9a2b45,
-    textureKey: 'deepBurgundy',
-    detail: {
-      bumpMultiplier: 1.18,
-      sheen: 0.52,
-      clearcoat: 0.05
-    }
-  },
-  {
     id: 'graphite',
     label: 'Arcadia Graphite',
     color: 0x4a5566,
@@ -1899,17 +1901,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       bumpMultiplier: 0.92,
       roughness: 0.72,
       envMapIntensity: 0.16
-    }
-  },
-  {
-    id: 'arcticIce',
-    label: 'Powder Blue',
-    color: 0x9cd8f2,
-    textureKey: 'arcticIce',
-    detail: {
-      bumpMultiplier: 0.98,
-      sheen: 0.66,
-      sheenRoughness: 0.38
     }
   }
 ]);
@@ -4975,7 +4966,8 @@ function createAccentMesh(accent, dims) {
 function Table3D(
   parent,
   finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
-  tableSpecMeta = null
+  tableSpecMeta = null,
+  railMarkerOptions = null
 ) {
   const tableSizeMeta =
     tableSpecMeta && typeof tableSpecMeta === 'object' ? tableSpecMeta : null;
@@ -5713,7 +5705,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.214; // stretch the short rail cushions deeper into the corner pocket throats per latest spec tweak and extend them slightly toward the corners so the cushion noses kiss the jaw shoulders
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * -0.02; // push the side cushions deeper toward the pocket arches so balls meet the nose tips instead of bouncing on early helper geometry
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.06; // trim the side cushions so they stop right where the wooden rail arch begins
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -6800,54 +6792,122 @@ function Table3D(
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
-  const diamondGroup = new THREE.Group();
-  const diamondThickness = TABLE.THICK * 0.06;
-  const diamondWidth = ORIGINAL_RAIL_WIDTH * 0.64;
-  const diamondLength = diamondWidth * 0.62;
-  const diamondShape = new THREE.Shape();
-  diamondShape.moveTo(0, diamondLength / 2);
-  diamondShape.lineTo(diamondWidth / 2, 0);
-  diamondShape.lineTo(0, -diamondLength / 2);
-  diamondShape.lineTo(-diamondWidth / 2, 0);
-  diamondShape.closePath();
-  const diamondGeometry = new THREE.ExtrudeGeometry(diamondShape, {
-    depth: diamondThickness,
-    bevelEnabled: true,
-    bevelThickness: diamondThickness * 0.35,
-    bevelSize: diamondThickness * 0.3,
-    bevelSegments: 2
-  });
-  diamondGeometry.rotateX(-Math.PI / 2);
-  const diamondMat = trimMat.clone();
-  enhanceChromeMaterial(diamondMat);
-  diamondMat.color.copy(trimMat.color);
-  diamondMat.needsUpdate = true;
-  const diamondLift = railsTopY + MICRO_EPS * 6;
-  const addDiamond = (x, z, rotation = 0) => {
-    const mesh = new THREE.Mesh(diamondGeometry, diamondMat);
-    mesh.position.set(x, diamondLift, z);
-    mesh.rotation.y = rotation;
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
-    diamondGroup.add(mesh);
-    finishParts.trimMeshes.push(mesh);
+  let railMarkerGroup = null;
+  const markerState = {
+    shapeId:
+      (railMarkerOptions && (railMarkerOptions.shapeId || railMarkerOptions.shape)) ||
+      DEFAULT_RAIL_MARKER_SHAPE_ID,
+    colorId:
+      (railMarkerOptions && (railMarkerOptions.colorId || railMarkerOptions.color)) ||
+      DEFAULT_RAIL_MARKER_COLOR_ID
   };
-  const longDiamondSpacing = PLAY_H / 8;
-  const shortDiamondSpacing = PLAY_W / 4;
-  const longRailX = halfW + longRailW * 0.5;
-  const shortRailZ = halfH + endRailW * 0.5;
-  [1, 2, 3, 5, 6, 7].forEach((step) => {
-    const z = -PLAY_H / 2 + step * longDiamondSpacing;
-    addDiamond(longRailX, z, 0);
-    addDiamond(-longRailX, z, 0);
-  });
-  [1, 2, 3].forEach((step) => {
-    const x = -PLAY_W / 2 + step * shortDiamondSpacing;
-    addDiamond(x, shortRailZ, Math.PI / 2);
-    addDiamond(x, -shortRailZ, Math.PI / 2);
-  });
-  railsGroup.add(diamondGroup);
+  const markerThickness = TABLE.THICK * 0.06;
+  const markerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
+  const markerLength = markerWidth * 0.62;
+
+  const createRailMarkerGeometry = (shapeId = DEFAULT_RAIL_MARKER_SHAPE_ID) => {
+    if (shapeId === 'circle') {
+      const circleShape = new THREE.Shape();
+      circleShape.absarc(0, 0, markerWidth * 0.4, 0, Math.PI * 2, false);
+      const geo = new THREE.ExtrudeGeometry(circleShape, {
+        depth: markerThickness,
+        bevelEnabled: true,
+        bevelThickness: markerThickness * 0.32,
+        bevelSize: markerThickness * 0.28,
+        bevelSegments: 2,
+        curveSegments: 40
+      });
+      geo.rotateX(-Math.PI / 2);
+      return geo;
+    }
+    const diamondShape = new THREE.Shape();
+    diamondShape.moveTo(0, markerLength / 2);
+    diamondShape.lineTo(markerWidth / 2, 0);
+    diamondShape.lineTo(0, -markerLength / 2);
+    diamondShape.lineTo(-markerWidth / 2, 0);
+    diamondShape.closePath();
+    const geo = new THREE.ExtrudeGeometry(diamondShape, {
+      depth: markerThickness,
+      bevelEnabled: true,
+      bevelThickness: markerThickness * 0.35,
+      bevelSize: markerThickness * 0.3,
+      bevelSegments: 2
+    });
+    geo.rotateX(-Math.PI / 2);
+    return geo;
+  };
+
+  const applyRailMarkers = (options = {}) => {
+    markerState.shapeId =
+      RAIL_MARKER_SHAPE_OPTIONS.find((opt) => opt.id === options.shapeId)?.id ?? markerState.shapeId;
+    markerState.colorId =
+      RAIL_MARKER_COLOR_MAP[options.colorId]?.id ?? markerState.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID;
+
+    if (railMarkerGroup) {
+      railsGroup.remove(railMarkerGroup);
+      const disposedGeometries = new Set();
+      const disposedMaterials = new Set();
+      railMarkerGroup.traverse((child) => {
+        if (child.isMesh) {
+          if (child.geometry && !disposedGeometries.has(child.geometry)) {
+            child.geometry.dispose();
+            disposedGeometries.add(child.geometry);
+          }
+          if (child.material && !disposedMaterials.has(child.material)) {
+            disposeMaterial(child.material);
+            disposedMaterials.add(child.material);
+          }
+        }
+      });
+      railMarkerGroup.clear();
+      railMarkerGroup = null;
+    }
+
+    railMarkerGroup = new THREE.Group();
+    const colorConfig =
+      RAIL_MARKER_COLOR_MAP[markerState.colorId] ?? RAIL_MARKER_COLOR_MAP[DEFAULT_RAIL_MARKER_COLOR_ID];
+    const markerMat = new THREE.MeshPhysicalMaterial({
+      color: colorConfig.color,
+      metalness: colorConfig.metalness,
+      roughness: colorConfig.roughness,
+      clearcoat: colorConfig.clearcoat,
+      clearcoatRoughness: colorConfig.clearcoatRoughness,
+      envMapIntensity: colorConfig.envMapIntensity,
+      sheen: colorConfig.sheen ?? 0,
+      sheenRoughness: colorConfig.sheenRoughness ?? 0.5
+    });
+    enhanceChromeMaterial(markerMat);
+    markerMat.needsUpdate = true;
+
+    const markerGeometry = createRailMarkerGeometry(markerState.shapeId);
+    const markerLift = railsTopY + MICRO_EPS * 6;
+    const addMarker = (x, z, rotation = 0) => {
+      const mesh = new THREE.Mesh(markerGeometry, markerMat.clone());
+      mesh.position.set(x, markerLift, z);
+      mesh.rotation.y = rotation;
+      mesh.castShadow = false;
+      mesh.receiveShadow = false;
+      mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
+      railMarkerGroup.add(mesh);
+    };
+    const longDiamondSpacing = PLAY_H / 8;
+    const shortDiamondSpacing = PLAY_W / 4;
+    const longRailX = halfW + longRailW * 0.82;
+    const shortRailZ = halfH + endRailW * 0.82;
+    [1, 2, 3, 5, 6, 7].forEach((step) => {
+      const z = -PLAY_H / 2 + step * longDiamondSpacing;
+      addMarker(longRailX, z, 0);
+      addMarker(-longRailX, z, 0);
+    });
+    [1, 2, 3].forEach((step) => {
+      const x = -PLAY_W / 2 + step * shortDiamondSpacing;
+      addMarker(x, shortRailZ, Math.PI / 2);
+      addMarker(x, -shortRailZ, Math.PI / 2);
+    });
+    railsGroup.add(railMarkerGroup);
+  };
+
+  applyRailMarkers(markerState);
 
   table.add(railsGroup);
 
@@ -7282,6 +7342,7 @@ function Table3D(
   table.userData.cushionLipClearance = clothPlaneWorld;
   table.userData.clothPlaneLocal = clothPlaneLocal;
   table.userData.finish = finishInfo;
+  table.userData.applyRailMarkers = applyRailMarkers;
   parent.add(table);
 
   const baulkZ = baulkLineZ;
@@ -7291,7 +7352,8 @@ function Table3D(
     baulkZ,
     group: table,
     clothMat,
-    cushionMat
+    cushionMat,
+    applyRailMarkers
   };
 }
 
@@ -7574,6 +7636,24 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolRailMarkerShape');
+      if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_RAIL_MARKER_SHAPE_ID;
+  });
+  const [railMarkerColorId, setRailMarkerColorId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolRailMarkerColor');
+      if (stored && RAIL_MARKER_COLOR_MAP[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_RAIL_MARKER_COLOR_ID;
+  });
   const lightingId = DEFAULT_LIGHTING_ID;
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -7600,6 +7680,14 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
+  );
+  const activeRailMarkerSelection = useMemo(
+    () => ({
+      shapeId: RAIL_MARKER_SHAPE_OPTIONS.find((opt) => opt.id === railMarkerShapeId)?.id ??
+        DEFAULT_RAIL_MARKER_SHAPE_ID,
+      colorId: RAIL_MARKER_COLOR_MAP[railMarkerColorId]?.id ?? DEFAULT_RAIL_MARKER_COLOR_ID
+    }),
+    [railMarkerShapeId, railMarkerColorId]
   );
   const resolvedFrameTiming = useMemo(() => {
     const fallbackFps =
@@ -7946,6 +8034,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     activeVariantRef.current = activeVariant;
   }, [activeVariant]);
+  const applyRailMarkersRef = useRef(() => {});
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerTableFinish', tableFinishId);
@@ -7956,6 +8045,16 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolRailMarkerShape', railMarkerShapeId);
+    }
+  }, [railMarkerShapeId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolRailMarkerColor', railMarkerColorId);
+    }
+  }, [railMarkerColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -11490,8 +11589,9 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
         baulkZ,
         group: table,
         clothMat: tableCloth,
-        cushionMat: tableCushion
-      } = Table3D(world, finishForScene, tableSizeMeta);
+        cushionMat: tableCushion,
+        applyRailMarkers
+      } = Table3D(world, finishForScene, tableSizeMeta, activeRailMarkerSelection);
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -11502,6 +11602,11 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
       applyFinishRef.current = (nextFinish) => {
         if (table && nextFinish) {
           applyTableFinishToTable(table, nextFinish);
+        }
+      };
+      applyRailMarkersRef.current = (markerSelection) => {
+        if (typeof applyRailMarkers === 'function') {
+          applyRailMarkers(markerSelection);
         }
       };
       if (table?.userData) {
@@ -14542,6 +14647,7 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyFinishRef.current = () => {};
+          applyRailMarkersRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
@@ -14575,6 +14681,10 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
   useEffect(() => {
     applyFinishRef.current?.(tableFinish);
   }, [tableFinish]);
+
+  useEffect(() => {
+    applyRailMarkersRef.current?.(activeRailMarkerSelection);
+  }, [activeRailMarkerSelection, tableFinish]);
 
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
@@ -14895,6 +15005,60 @@ function PoolRoyaleGame({ variantKey, tableSizeKey }) {
                 </div>
               </div>
             ) : null}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Rail Markers
+                </h3>
+                <div className="mt-2 space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
+                      const active = option.id === activeRailMarkerSelection.shapeId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setRailMarkerShapeId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[7.5rem] rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {RAIL_MARKER_COLOR_OPTIONS.map((option) => {
+                      const active = option.id === activeRailMarkerSelection.colorId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setRailMarkerColorId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full border border-white/30"
+                              style={{ backgroundColor: toHexColor(option.color) }}
+                              aria-hidden="true"
+                            />
+                            {option.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Graphics
