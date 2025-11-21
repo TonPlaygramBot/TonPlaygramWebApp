@@ -186,79 +186,33 @@ const FRAME_SLAB_REPEAT_X = LARGE_SLAB_REPEAT_X * 1.18;
 
 export const WOOD_GRAIN_OPTIONS = Object.freeze([
   Object.freeze({
-    id: 'frameRusticSplit',
-    label: 'Rustic Split Planks',
-    source: 'Frame #3 cracked timber',
+    id: 'acg_walnut_quarter',
+    label: 'Walnut Quarter-Sawn',
+    source: 'ambientCG — WalnutQuarter 002 (CC0)',
     rail: {
-      mapUrl:
-        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600',
-      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
+      repeat: { x: LARGE_SLAB_REPEAT_X, y: 0.92 },
       rotation: 0,
-      textureSize: 2048
+      textureSize: 4096
     },
     frame: {
-      mapUrl:
-        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600',
-      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
+      repeat: { x: FRAME_SLAB_REPEAT_X, y: 0.9 },
       rotation: 0,
-      textureSize: 2048
+      textureSize: 4096
     }
   }),
   Object.freeze({
-    id: 'frameCharred',
-    label: 'Charred Timber',
-    source: 'Frame #5 burnt wood',
+    id: 'acg_birch_studio',
+    label: 'Birch Studio Slab',
+    source: 'ambientCG — Birch Planks 003 (CC0)',
     rail: {
-      mapUrl:
-        'https://images.pexels.com/photos/129733/pexels-photo-129733.jpeg?auto=compress&cs=tinysrgb&w=1600',
-      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
+      repeat: { x: LARGE_SLAB_REPEAT_X * 0.92, y: 0.96 },
       rotation: 0,
-      textureSize: 2048
+      textureSize: 4096
     },
     frame: {
-      mapUrl:
-        'https://images.pexels.com/photos/129733/pexels-photo-129733.jpeg?auto=compress&cs=tinysrgb&w=1600',
-      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
+      repeat: { x: FRAME_SLAB_REPEAT_X * 0.92, y: 0.9 },
       rotation: 0,
-      textureSize: 2048
-    }
-  }),
-  Object.freeze({
-    id: 'framePlank',
-    label: 'Plank Studio',
-    source: 'Frame #11 simple plank',
-    rail: {
-      mapUrl:
-        'https://images.pexels.com/photos/172277/pexels-photo-172277.jpeg?auto=compress&cs=tinysrgb&w=1600',
-      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
-      rotation: 0,
-      textureSize: 2048
-    },
-    frame: {
-      mapUrl:
-        'https://images.pexels.com/photos/172277/pexels-photo-172277.jpeg?auto=compress&cs=tinysrgb&w=1600',
-      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
-      rotation: 0,
-      textureSize: 2048
-    }
-  }),
-  Object.freeze({
-    id: 'frameWeathered',
-    label: 'Weathered Grey',
-    source: 'Frame #12 aged grey',
-    rail: {
-      mapUrl:
-        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600&sat=-100',
-      repeat: { x: LARGE_SLAB_REPEAT_X * 18, y: 0.8 },
-      rotation: 0,
-      textureSize: 2048
-    },
-    frame: {
-      mapUrl:
-        'https://images.pexels.com/photos/172289/pexels-photo-172289.jpeg?auto=compress&cs=tinysrgb&w=1600&sat=-100',
-      repeat: { x: FRAME_SLAB_REPEAT_X * 18, y: 0.8 },
-      rotation: 0,
-      textureSize: 2048
+      textureSize: 4096
     }
   })
 ]);
