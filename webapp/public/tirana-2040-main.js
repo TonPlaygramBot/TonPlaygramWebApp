@@ -1939,8 +1939,20 @@ export async function startTirana2040(){
   applyMode();
 
   const zoomSlider=$('zoomSlider');
+  const MIN_ZOOM_FOV=12;
+  function applyZoomFromSlider(){
+    if(!zoomSlider) return;
+    const v=parseFloat(zoomSlider.value||'1');
+    const zoomedFov = 70 / v;
+    camera.fov = THREE.MathUtils.clamp(zoomedFov, MIN_ZOOM_FOV, 70);
+    camera.updateProjectionMatrix();
+  }
+  if(zoomSlider){
+    zoomSlider.value = zoomSlider.value || '3';
+    zoomSlider.addEventListener('input', applyZoomFromSlider);
+    applyZoomFromSlider();
+  }
   function updateZoomUI(){ const box=$('zoomBox'); if(!box) return; if(currentKey==='AK47' && inputMode==='A'){ box.style.display='flex'; } else { box.style.display='none'; } }
-  zoomSlider.addEventListener('input',()=>{ const v=parseFloat(zoomSlider.value||'1'); camera.fov = THREE.MathUtils.clamp(70 / v, 18, 70); camera.updateProjectionMatrix(); });
 
   const climbBtn=$('climbBtn');
   const ladderState={ active:false, index:-1 };
@@ -2105,5 +2117,7 @@ export async function startTirana2040(){
   } catch(err){
     console.error('Tirana 2040 failed to bootstrap', err);
     window.__phase = `error:${err?.message||err}`;
+    try { updateStatus('Tirana 2040 • Failed to load'); } catch(_){ }
+    throw err;
   }
 }
