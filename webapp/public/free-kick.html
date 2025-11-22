@@ -349,8 +349,8 @@
   let myScore = 0;
 
   const BALL_R = 28;
-  // slightly slower initial shot to reduce overall ball power
-  const SHOT_SPEED = 12; // reduced by 50% for gentler kicks
+  // Halved baseline shot speed to cut overall ball power by 50%
+  const SHOT_SPEED = 6;
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -386,10 +386,12 @@
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false,dir:1,targetX:0,targetY:0};
   const keeperImg = new Image();
   keeperImg.crossOrigin = 'anonymous';
+  // Use the CesiumWoman glTF sample as the dedicated goalkeeper character.
   keeperImg.src = 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumWoman/screenshot/screenshot.png';
   const defenders={x:0,y:0,w:40,h:100,baseY:0,vy:0,jumping:false};
   const defendersImg = new Image();
   defendersImg.crossOrigin = 'anonymous';
+  // Swap the wall to CesiumMan so defenders use the new 3D character preset.
   defendersImg.src = 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/screenshot/screenshot.png';
   const aimOn = true;
 
@@ -1818,7 +1820,7 @@ function onUp(e){
   keeper.targetX = centerX;
   keeper.targetY = keeper.baseY + geom.goal.h * 0.02;
   if(!defenders.jumping){
-    defenders.vy = -0.75*geom.scale;
+    defenders.vy = -0.375*geom.scale;
     defenders.jumping = true;
   }
   playBallKickSound();
