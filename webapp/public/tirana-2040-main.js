@@ -142,30 +142,42 @@ export async function startTirana2040(){
   }
 
   updateStatus('Tirana 2040 • Loading engine…');
-  const THREE = await importWithFallback('THREE', [
-    'https://esm.sh/three@0.160.0',
-    'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'
+  const [
+    THREE,
+    CANNON,
+    gltfLoaderMod,
+    dracoLoaderMod,
+    waterMod,
+    SkeletonUtils
+  ] = await Promise.all([
+    importWithFallback('THREE', [
+      'https://esm.sh/three@0.160.0',
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'
+    ]),
+    importWithFallback('CANNON', [
+      'https://esm.sh/cannon-es@0.20.0',
+      'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js'
+    ]),
+    importWithFallback('GLTFLoader', [
+      'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'
+    ]),
+    importWithFallback('DRACOLoader', [
+      'https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js',
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js'
+    ]),
+    importWithFallback('Water', [
+      'https://esm.sh/three@0.160.0/examples/jsm/objects/Water2.js',
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Water2.js'
+    ]),
+    importWithFallback('SkeletonUtils', [
+      'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
+      'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'
+    ])
   ]);
-  const CANNON = await importWithFallback('CANNON', [
-    'https://esm.sh/cannon-es@0.20.0',
-    'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js'
-  ]);
-  const { GLTFLoader } = await importWithFallback('GLTFLoader', [
-    'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'
-  ]);
-  const { DRACOLoader } = await importWithFallback('DRACOLoader', [
-    'https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js',
-    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js'
-  ]);
-  const { Water } = await importWithFallback('Water', [
-    'https://esm.sh/three@0.160.0/examples/jsm/objects/Water2.js',
-    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Water2.js'
-  ]);
-  const SkeletonUtils = await importWithFallback('SkeletonUtils', [
-    'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
-    'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'
-  ]);
+  const { GLTFLoader } = gltfLoaderMod;
+  const { DRACOLoader } = dracoLoaderMod;
+  const { Water } = waterMod;
 
   function makeRendererOpts(quality='high'){ return {
     antialias: quality==='high' && !isMobile,
@@ -226,23 +238,24 @@ export async function startTirana2040(){
   // initialized at the device's full DPR, leaving the screen blank. Keep the
   // full-fidelity pipeline (FAST_BOOT stays off) but cap the render density on
   // phones so the renderer reliably starts.
-  const maxMobileDpr = 1.35;
-  let dprBase = Math.min(window.devicePixelRatio||1.2, isMobile ? maxMobileDpr : 3.2);
-  let dprScale = 1.1;
-  const DPR_MIN = isMobile ? 0.85 : 0.75;
-  const DPR_MAX_SCALE = isMobile ? 1.0 : 1.25;
+  const maxMobileDpr = 1.6;
+  const minVisualDpr = isMobile ? 1.0 : 1.1;
+  let dprBase = Math.max(minVisualDpr, Math.min(window.devicePixelRatio||1.2, isMobile ? maxMobileDpr : 3.2));
+  let dprScale = isMobile ? 1.0 : 1.18;
+  const DPR_MIN = isMobile ? 1.0 : 0.95;
+  const DPR_MAX_SCALE = isMobile ? 1.15 : 1.35;
   const PERF_TARGET_FPS = 50;
   let lowFpsTime = 0;
   let perfBoosted = false;
   function fit(){
     const w=wrap.clientWidth||innerWidth, h=wrap.clientHeight||innerHeight;
-    const targetDpr=Math.min(dprBase*dprScale, isMobile?maxMobileDpr:3.0);
+    const targetDpr=Math.max(minVisualDpr, Math.min(dprBase*dprScale, isMobile?maxMobileDpr:3.0));
     try {
       renderer.setPixelRatio(targetDpr);
       renderer.setSize(w,h,false);
     } catch(err){
       if(isMobile && targetDpr>1){
-        const fallbackDpr=Math.max(1, targetDpr-0.4);
+        const fallbackDpr=Math.max(minVisualDpr, targetDpr-0.4);
         console.warn('Renderer resize failed at DPR', targetDpr, 'retrying with', fallbackDpr, err);
         dprBase=Math.min(dprBase, fallbackDpr);
         renderer.setPixelRatio(fallbackDpr);
@@ -1438,7 +1451,43 @@ export async function startTirana2040(){
   function makePickupLabel(key){ const g=new THREE.SpriteMaterial({ color:0xffffff }); const s=new THREE.Sprite(g); s.scale.set(0.8,0.25,1); const tex=document.createElement('canvas'); tex.width=256; tex.height=64; const x=tex.getContext('2d'); x.fillStyle='rgba(0,0,0,0.65)'; x.fillRect(0,0,256,64); x.fillStyle='#8bd3ff'; x.font='bold 26px sans-serif'; x.textAlign='center'; x.textBaseline='middle'; x.fillText(key,128,32); const t=new THREE.CanvasTexture(tex); t.colorSpace=THREE.SRGBColorSpace; g.map=t; return s; }
   function spawnWeaponPickupAt(pos,key,highlight=false){ const mesh=new THREE.Mesh(pickupGeo, pickupMat.clone()); mesh.material.emissiveIntensity=highlight?0.9:0.6; mesh.position.copy(pos); mesh.position.y=Math.max(ROAD_SURFACE_Y+0.08, mesh.position.y); mesh.userData.weaponKey=key; mesh.userData.spin=0.9+Math.random()*0.6; const label=makePickupLabel(key); label.position.set(0,0.6,0); mesh.add(label); scene.add(mesh); weaponPickups.push(mesh); }
   function randomCityPoint(){ const margin=ROAD*0.75; const x=(Math.random()-0.5)*2*(cityHalfX-margin); const z=(Math.random()-0.5)*2*(cityHalfZ-margin); return new THREE.Vector3(x, ROAD_SURFACE_Y+0.08, z); }
-  function scatterCityPickups(){ ARMORY.filter(a=>!STARTING_WEAPONS.includes(a.key)).forEach((entry)=>{ spawnWeaponPickupAt(randomCityPoint(), entry.key); }); }
+  function shuffled(arr){ const copy=[...arr]; for(let i=copy.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [copy[i],copy[j]]=[copy[j],copy[i]]; } return copy; }
+  function weaponPool(){ return ARMORY.filter((a)=>!STARTING_WEAPONS.includes(a.key)); }
+  function roofPickupSpots(){
+    const spots=[];
+    buildings.forEach((b)=>{
+      const roofY=b.h + 0.32;
+      const count = b.h>36 ? 2 : 1;
+      for(let i=0;i<count;i++){
+        const offX=(Math.random()-0.5)*b.w*0.42;
+        const offZ=(Math.random()-0.5)*b.d*0.42;
+        spots.push(new THREE.Vector3(b.cx+offX, roofY, b.cz+offZ));
+      }
+    });
+    return spots;
+  }
+  function parkPickupSpots(){
+    const spots=[];
+    mapParks.forEach((p)=>{
+      const drops=Math.max(1, Math.round((p.w*p.d)/1400));
+      for(let i=0;i<drops;i++){
+        const px=p.x + (Math.random()-0.5)*p.w*0.5;
+        const pz=p.z + (Math.random()-0.5)*p.d*0.5;
+        spots.push(new THREE.Vector3(px, ROAD_SURFACE_Y+0.08, pz));
+      }
+    });
+    return spots;
+  }
+  function scatterCityPickups(){
+    const pool=weaponPool();
+    if(pool.length===0) return;
+    const keys=shuffled(pool.map((a)=>a.key));
+    let idx=0; const nextKey=()=>keys[idx++ % keys.length];
+    roofPickupSpots().forEach((pos)=>{ spawnWeaponPickupAt(pos, nextKey(), true); });
+    parkPickupSpots().forEach((pos)=>{ spawnWeaponPickupAt(pos, nextKey()); });
+    const extraDrops=Math.max(pool.length, 12);
+    for(let i=0;i<extraDrops;i++){ spawnWeaponPickupAt(randomCityPoint(), nextKey()); }
+  }
   function collectWeaponPickup(mesh){ if(!mesh) return; const key=mesh.userData?.weaponKey; scene.remove(mesh); mesh.geometry?.dispose?.(); mesh.material?.dispose?.(); mesh.children.forEach((c)=>{ if(c.material?.map){ c.material.map.dispose?.(); } c.material?.dispose?.(); }); const idx=weaponPickups.indexOf(mesh); if(idx>=0) weaponPickups.splice(idx,1); if(key) unlockWeapon(key); }
 
   let reloading=false; function reload(){ const a=ammo.get(currentKey); const st=currentStats; if(reloading || !a) return; const need=st.mag-a.mag; if(need<=0||a.reserve<=0) return; const take=Math.min(need,a.reserve); reloading=true; setTimeout(()=>{ a.mag+=take; a.reserve-=take; reloading=false; updateAmmoHUD(); sfxReload(); }, st.reload*1000); }
@@ -1827,7 +1876,7 @@ export async function startTirana2040(){
 
   function dispatchEmergency(pos){ const total=Math.max(1, emergencyUnits.length); emergencyUnits.forEach((unit,idx)=>{ const offsetAngle=(idx/total)*Math.PI*2; const offset=new THREE.Vector3(Math.cos(offsetAngle)*2.4,0,Math.sin(offsetAngle)*2.4); unit.target=pos.clone().add(offset); unit.state='responding'; unit.arrivalTimer=0; if(unit.siren){ unit.siren.phase=0; unit.siren.left.material.opacity=0.9; unit.siren.right.material.opacity=0.9; if(unit.siren.light){ unit.siren.light.intensity=14; } } }); }
 
-  const MOVE_SPEED_MULT = 3.0;
+  const MOVE_SPEED_MULT = 3.6;
   const ARM_SPEED_BASE = 4.8 * MOVE_SPEED_MULT;
   const SPEED_RUN = 7.2 * MOVE_SPEED_MULT;
   const trafficTarget = 3 * SPEED_RUN; // 3x run speed
