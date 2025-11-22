@@ -411,8 +411,8 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.7; // thicken fascia depth so corner and side plates share the same chunky profile
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // middle pocket fascias get a touch more mass for a heftier chrome read
+const CHROME_PLATE_THICKNESS_SCALE = 0.030612244897959183; // match fascia depth to rail diamond thickness (0.06 / 1.96)
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1; // keep side fascias the same depth as the diamonds
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
@@ -745,7 +745,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.6; // draw the middle pockets closer to centre so the jaw shoulders and chrome cuts align with the new inward target
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.9; // pull the middle pockets and cloth cuts slightly closer to centre for tighter entrances
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -2004,13 +2004,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     fps: 60,
     resolution: '1600×900',
     description: 'Balanced frame pacing tuned for modern mobile displays.'
-  },
-  {
-    id: 'fullHd',
-    label: 'Full HD',
-    fps: 90,
-    resolution: '1920×1080',
-    description: 'Enhanced clarity and effects for Full HD setups.'
   },
   {
     id: 'performance50',
@@ -7825,6 +7818,9 @@ function PoolRoyaleGame({
       level,
       title: trainingScenario.title,
       description: trainingScenario.description,
+      objective: trainingScenario.objective,
+      discipline: trainingScenario.discipline,
+      difficulty: trainingScenario.difficultyLabel,
       tip: trainingScenario.tip
     };
   }, [isTraining, resolvedTrainingLevel, trainingLevel, trainingScenario]);
@@ -7837,11 +7833,6 @@ function PoolRoyaleGame({
     if (!isTraining || !trainingTaskDetails) return;
     setTrainingGuideVisible(true);
   }, [isTraining, trainingTaskDetails?.level]);
-  useEffect(() => {
-    if (!isTraining || !trainingGuideVisible || trainingPopup) return undefined;
-    const timer = window.setTimeout(() => setTrainingGuideVisible(false), 3000);
-    return () => window.clearTimeout(timer);
-  }, [isTraining, trainingGuideVisible, trainingPopup]);
   useEffect(() => {
     if (!isTraining || !trainingPopup) return;
     setTrainingGuideVisible(true);
@@ -13505,6 +13496,17 @@ function PoolRoyaleGame({
               const toPocketLen = Math.sqrt(toPocketLenSq);
               const toPocketDir = toPocket.clone().divideScalar(toPocketLen);
               if (!isPathClear(targetBall.pos, pocketCenter, ignore)) continue;
+              const pocketMouth = i >= 4 ? POCKET_SIDE_MOUTH : POCKET_CORNER_MOUTH;
+              const idealEntryDir = pocketCenter.clone().normalize().multiplyScalar(-1);
+              const entryAlignment = Math.max(
+                0.1,
+                toPocketDir.clone().normalize().dot(idealEntryDir)
+              );
+              const entranceFavor = THREE.MathUtils.clamp(
+                entryAlignment * (pocketMouth / POCKET_CORNER_MOUTH),
+                0.2,
+                2.8
+              );
               const ghost = targetBall.pos
                 .clone()
                 .sub(toPocketDir.clone().multiplyScalar(ballDiameter));
@@ -13513,10 +13515,14 @@ function PoolRoyaleGame({
               let cueDist = cueVec.length();
               let cushionAid = null;
               if (!directGhostClear) {
-                cushionAid = tryCushionRoute(cuePos, ghost, ignore);
-                if (!cushionAid) continue;
-                cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
-                cueDist = cueVec.length();
+                if (!directClear) {
+                  cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                  if (!cushionAid) continue;
+                  cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
+                  cueDist = cueVec.length();
+                } else {
+                  continue;
+                }
               }
               if (cueDist < 1e-6) continue;
               const aimDir = cueVec.clone().normalize();
@@ -13528,7 +13534,9 @@ function PoolRoyaleGame({
               );
               const cutAngle = Math.acos(Math.abs(cutCos));
               const totalDist = cueDist + toPocketLen;
-              const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.05 : 0;
+              const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
+              const baseDifficulty =
+                cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40 + cushionTax;
               const plan = {
                 type: 'pot',
                 aimDir,
@@ -13537,8 +13545,7 @@ function PoolRoyaleGame({
                 targetBall,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
-                difficulty:
-                  cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40 + cushionTax,
+                difficulty: baseDifficulty / entranceFavor,
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
@@ -15614,10 +15621,37 @@ function PoolRoyaleGame({
                   </p>
                   <p className="mt-1 text-base font-bold leading-tight">{trainingTaskDetails.title}</p>
                   <p className="mt-1 text-xs leading-snug text-white/80">{trainingTaskDetails.description}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+                    {trainingTaskDetails.discipline && (
+                      <span className="rounded-full bg-white/10 px-2 py-1 font-semibold uppercase tracking-[0.22em] text-white/80">
+                        {trainingTaskDetails.discipline}
+                      </span>
+                    )}
+                    {trainingTaskDetails.difficulty && (
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-semibold uppercase tracking-[0.22em] text-emerald-100">
+                        Difficulty: {trainingTaskDetails.difficulty}
+                      </span>
+                    )}
+                  </div>
+                  {trainingTaskDetails.objective && (
+                    <p className="mt-3 rounded-lg bg-emerald-900/40 px-3 py-2 text-[12px] leading-snug text-emerald-50">
+                      Objective: {trainingTaskDetails.objective}
+                    </p>
+                  )}
                 </div>
-                <span className="shrink-0 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-100">
-                  Complete the layout
-                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-100">
+                    Complete the layout
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTrainingGuideVisible(false)}
+                    aria-label="Close training task details"
+                    className="grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-white/10 text-lg font-bold leading-none text-white transition hover:border-white/40 hover:bg-white/20"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               {trainingTaskDetails.tip && (
                 <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-[12px] leading-snug text-emerald-100">
@@ -15625,7 +15659,7 @@ function PoolRoyaleGame({
                 </p>
               )}
               <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
-                {["Line up", "Smooth stroke", "Collect reward"].map((step, idx) => (
+                {["Study the task", "Play the pattern", "Collect reward"].map((step, idx) => (
                   <motion.div
                     key={step}
                     className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-3 py-2"
