@@ -965,7 +965,9 @@ const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is 
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8;
+// Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3;
+const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -13076,10 +13078,13 @@ function PoolRoyaleGame({
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
           playCueHit(clampedPower * 0.6);
+          const frameStateCurrent = frameRef.current ?? null;
+          const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
+          const speedBase = SHOT_BASE_SPEED * (isBreakShot ? SHOT_BREAK_MULTIPLIER : 1);
           const base = aimDir
             .clone()
-            .multiplyScalar(SHOT_BASE_SPEED * powerScale);
+            .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           const allowLongShotCameraSwitch =
