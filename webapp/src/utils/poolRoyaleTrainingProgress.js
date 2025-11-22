@@ -41,7 +41,12 @@ export function resolvePlayableTrainingLevel(requestedLevel, progress) {
   const completed = progress?.completed || [];
   const nextIncomplete = getNextIncompleteLevel(completed);
   const lastLevel = Number.isFinite(progress?.lastLevel) ? progress.lastLevel : 1;
-  const unlocked = nextIncomplete === null ? lastLevel || 1 : nextIncomplete;
-  const desired = Number.isFinite(requestedLevel) && requestedLevel > 0 ? requestedLevel : unlocked;
-  return Math.max(1, Math.min(desired, unlocked));
+  const desired = Number.isFinite(requestedLevel) && requestedLevel > 0 ? requestedLevel : nextIncomplete || lastLevel || 1;
+
+  // Force players onto the first incomplete task so completed steps can't be re-selected.
+  if (nextIncomplete !== null) {
+    return Math.max(1, Math.min(50, nextIncomplete));
+  }
+
+  return Math.max(1, Math.min(desired, lastLevel || 50));
 }

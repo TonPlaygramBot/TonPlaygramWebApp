@@ -36,6 +36,10 @@ export default function PoolRoyaleLobby() {
       getNextIncompleteLevel(trainingProgress.completed) ?? trainingProgress.lastLevel ?? 1;
     return resolvePlayableTrainingLevel(next, trainingProgress);
   });
+  const nextIncompleteTrainingLevel = useMemo(
+    () => getNextIncompleteLevel(trainingProgress.completed),
+    [trainingProgress]
+  );
   const searchParams = new URLSearchParams(search);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
@@ -64,6 +68,11 @@ export default function PoolRoyaleLobby() {
     const next = getNextIncompleteLevel(progress.completed) ?? progress.lastLevel ?? 1;
     setTrainingTask(resolvePlayableTrainingLevel(next, progress));
   }, [playType]);
+
+  useEffect(() => {
+    if (playType !== 'training') return;
+    setTrainingTask((current) => resolvePlayableTrainingLevel(current, trainingProgress));
+  }, [playType, trainingProgress]);
 
   const startGame = async () => {
     let tgId;
@@ -369,34 +378,20 @@ export default function PoolRoyaleLobby() {
       {playType === 'training' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Training Tasks</h3>
-          <div className="lobby-tile flex items-center justify-between">
+          <div className="lobby-tile flex flex-col gap-2">
             <div>
               <p className="text-sm font-semibold">Task {trainingTask} of 50</p>
               <p className="text-xs text-subtext">Progressive drills with rewards every completion.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  setTrainingTask((t) =>
-                    resolvePlayableTrainingLevel(Math.max(1, t - 1), trainingProgress)
-                  )
-                }
-                className="px-3 py-1 text-sm rounded border border-border"
-              >
-                -
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  setTrainingTask((t) =>
-                    resolvePlayableTrainingLevel(Math.min(50, t + 1), trainingProgress)
-                  )
-                }
-                className="px-3 py-1 text-sm rounded border border-border"
-              >
-                +
-              </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                {nextIncompleteTrainingLevel === null
+                  ? 'All tasks cleared'
+                  : `Next available: Task ${nextIncompleteTrainingLevel}`}
+              </span>
+              <span className="rounded-full bg-surface px-3 py-1 text-xs text-subtext">
+                Completed tasks are locked to keep you moving forward automatically.
+              </span>
             </div>
           </div>
         </div>
