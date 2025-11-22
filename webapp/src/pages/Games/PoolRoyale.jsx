@@ -13488,20 +13488,6 @@ function PoolRoyaleGame({
             routes.sort((a, b) => a.totalDist - b.totalDist);
             return routes[0];
           };
-          const scorePotPlan = (plan) => {
-            const cutPenalty = (plan.cutAngle ?? 0) * BALL_R * 55;
-            const railPenalty = plan.viaCushion ? BALL_R * 35 : 0;
-            const distancePenalty = plan.cueToTarget + plan.targetToPocket * 1.25;
-            const shapeBonus = plan.positioningScore ?? 0;
-            const ruleBonus = legalTargets.has(plan.target) ? BALL_R * 20 : 0;
-            return shapeBonus + ruleBonus - distancePenalty - cutPenalty - railPenalty;
-          };
-          const scoreSafetyPlan = (plan) => {
-            const distanceTax = plan.cueToTarget + plan.targetToPocket;
-            const hideBonus = plan.hideBehind ? BALL_R * 60 : 0;
-            const railBonus = plan.viaCushion ? BALL_R * 10 : 0;
-            return hideBonus + railBonus - distanceTax;
-          };
           const potShots = [];
           const safetyShots = [];
           let fallbackPlan = null;
@@ -13556,13 +13542,9 @@ function PoolRoyaleGame({
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
-                viaCushion: Boolean(cushionAid),
-                cutAngle
+                viaCushion: Boolean(cushionAid)
               };
               plan.spin = computePlanSpin(plan, state);
-              plan.positioningScore =
-                plan.spin?.positioningScore ?? Math.max(0, (1 - cutAngle / Math.PI) * 40);
-              plan.score = scorePotPlan(plan);
               potShots.push(plan);
             }
             const cueToBall = targetBall.pos.clone().sub(cuePos);
@@ -13597,21 +13579,12 @@ function PoolRoyaleGame({
               difficulty: cueDist + safetyDist * 1.2,
               cueToTarget: cueDist,
               targetToPocket: safetyDist,
-              spin: { x: 0, y: -0.2 },
-              score: scoreSafetyPlan({ cueToTarget: cueDist, targetToPocket: safetyDist })
+              spin: { x: 0, y: -0.2 }
             };
             safetyShots.push(safetyPlan);
           });
-          potShots.sort((a, b) => {
-            const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
-            if (Math.abs(scoreDiff) > 1e-4) return scoreDiff;
-            return (a.difficulty ?? Infinity) - (b.difficulty ?? Infinity);
-          });
-          safetyShots.sort((a, b) => {
-            const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
-            if (Math.abs(scoreDiff) > 1e-4) return scoreDiff;
-            return (a.difficulty ?? Infinity) - (b.difficulty ?? Infinity);
-          });
+          potShots.sort((a, b) => a.difficulty - b.difficulty);
+          safetyShots.sort((a, b) => a.difficulty - b.difficulty);
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
@@ -13879,8 +13852,7 @@ function PoolRoyaleGame({
         };
         const startAiThinking = () => {
           stopAiThinking();
-          const hud = hudRef.current;
-          if (!cue?.active || hud?.over) {
+          if (!cue?.active) {
             setAiPlanning(null);
             return;
           }
@@ -13899,8 +13871,7 @@ function PoolRoyaleGame({
           );
           const deadline = started + thinkingBudget;
           const think = () => {
-            const currentHud = hudRef.current;
-            if (shooting || currentHud?.over || currentHud?.turn !== 1) {
+            if (shooting || hudRef.current?.turn !== 1) {
               setAiPlanning(null);
               aiPlanRef.current = null;
               aiThinkingHandle = null;
