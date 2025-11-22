@@ -1493,6 +1493,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         vel.copy(blended.multiplyScalar(currentSpeed));
       }
 
+      const baseLift = state.live ? 2.6 : 3.4;
+      const minUpward = baseLift + (swing.force ?? 0.5) * 2.0;
+      if (vel.y < minUpward) {
+        vel.y = minUpward;
+      }
+
       const capped = THREE.MathUtils.clamp(vel.length(), 0, OUTGOING_SPEED_CAP);
       if (vel.length() > capped) {
         vel.setLength(capped);
