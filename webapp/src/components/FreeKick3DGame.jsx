@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
 
 const INSTRUCTION_TEXT = 'Swipe up to shoot • Curve by swiping sideways';
 const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
@@ -187,42 +185,6 @@ function updateNetSimulation(sim, dt) {
   }
   positionAttr.needsUpdate = true;
   sim.mesh.geometry.computeVertexNormals();
-}
-
-function disposeChildren(group) {
-  if (!group || !group.children) return;
-  [...group.children].forEach((child) => {
-    group.remove(child);
-    if (child.isMesh) {
-      child.geometry?.dispose?.();
-      if (Array.isArray(child.material)) {
-        child.material.forEach((material) => material.dispose?.());
-      } else {
-        child.material?.dispose?.();
-      }
-    }
-  });
-}
-
-function attachModelToContainer(container, model, targetHeight) {
-  if (!container || !model) return;
-  const instance = SkeletonUtils.clone(model);
-  const box = new THREE.Box3().setFromObject(instance);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const safeHeight = Math.max(size.y, 1e-4);
-  const scale = targetHeight > 0 ? targetHeight / safeHeight : 1;
-  instance.scale.setScalar(scale);
-  box.setFromObject(instance);
-  instance.position.y -= box.min.y;
-  instance.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = true;
-    }
-  });
-  disposeChildren(container);
-  container.add(instance);
 }
 function makeUCLBallTexture(size = 1024) {
   const canvas = document.createElement('canvas');
@@ -425,13 +387,6 @@ const BOMB_TIME_PENALTY = 15;
 const BOMB_SCORE_PENALTY = 50;
 const BOMB_RESET_DELAY = 0.7;
 
-const DEFENDER_MODEL_URL =
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb';
-const GOALKEEPER_MODEL_URL =
-  'https://cdn.jsdelivr.net/gh/BabylonJS/Assets@master/meshes/HVGirl.glb';
-const DEFENDER_TARGET_HEIGHT = 1.4;
-const GOALKEEPER_TARGET_HEIGHT = 1.84;
-
 const PENALTY_AREA_DEPTH = 16.5;
 const BALL_PENALTY_BUFFER = 1.5; // ensures kick is taken outside of the box
 const BALL_RADIUS = 0.184; // 20% smaller ball for tighter mobile play
@@ -443,7 +398,7 @@ const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
 const DEFENDER_WALL_Z = 1.2; // legacy spot where the ball used to start
-const SHOOT_POWER_SCALE = 1.125; // reduced to curb shot power for softer strikes
+const SHOOT_POWER_SCALE = 2.25; // additional top-end power for faster, punchier strikes
 const SHOOT_VERTICAL_POWER_MIN = 0.38;
 const SHOOT_VERTICAL_POWER_MAX = 0.58;
 const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.68;
@@ -463,7 +418,7 @@ const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
     2 * Math.abs(GRAVITY.y) * Math.max(0, GOAL_CONFIG.height + CROSSBAR_HEIGHT_MARGIN - BALL_RADIUS)
   )
 );
-const DEFENDER_JUMP_VELOCITY = 1.8;
+const DEFENDER_JUMP_VELOCITY = 3.6;
 const DEFENDER_GRAVITY_SCALE = 0.85;
 const DEFENDER_MAX_OFFSET = GOAL_CONFIG.width * 0.48;
 const KEEPER_RETURN_EASE = 0.05;
@@ -614,8 +569,6 @@ export default function FreeKick3DGame({ config }) {
     const host = hostRef.current;
     if (!host) return;
 
-    let cancelled = false;
-
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(host.clientWidth, host.clientHeight);
@@ -654,31 +607,6 @@ export default function FreeKick3DGame({ config }) {
     };
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin?.('anonymous');
-
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setCrossOrigin?.('anonymous');
-    const modelCache = {};
-    const loadModelScene = (key, url) =>
-      new Promise((resolve, reject) => {
-        if (modelCache[key]) {
-          resolve(modelCache[key]);
-          return;
-        }
-        gltfLoader.load(
-          url,
-          (gltf) => {
-            const root = gltf.scene || (gltf.scenes && gltf.scenes[0]);
-            if (!root) {
-              reject(new Error('Model missing scene'));
-              return;
-            }
-            modelCache[key] = root;
-            resolve(root);
-          },
-          undefined,
-          (error) => reject(error)
-        );
-      });
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
@@ -1820,16 +1748,13 @@ export default function FreeKick3DGame({ config }) {
     const wallGroup = new THREE.Group();
     wallGroup.position.set(0, 0, DEFENDER_WALL_Z);
     const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0x20232a, roughness: 0.6 });
-    const defenderPlaceholderGeometry = new THREE.CapsuleGeometry(0.25, 0.9, 4, 8);
     const defenders = [];
     const defenderOffsets = [];
     const defenderBaseY = 1.1;
     for (let i = 0; i < 3; i += 1) {
-      const body = new THREE.Group();
-      const placeholder = new THREE.Mesh(defenderPlaceholderGeometry, wallMaterial);
-      placeholder.castShadow = true;
-      placeholder.receiveShadow = true;
-      body.add(placeholder);
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.9, 4, 8), wallMaterial);
+      body.castShadow = true;
+      body.receiveShadow = true;
       const offsetX = (i - 1) * 0.8;
       body.position.set(offsetX, defenderBaseY, 0);
       wallGroup.add(body);
@@ -1839,11 +1764,9 @@ export default function FreeKick3DGame({ config }) {
     scene.add(wallGroup);
 
     const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0x1c2432, roughness: 0.45 });
-    const keeperMesh = new THREE.Group();
-    const keeperPlaceholder = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.2, 6, 12), keeperMaterial);
-    keeperPlaceholder.castShadow = true;
-    keeperPlaceholder.receiveShadow = true;
-    keeperMesh.add(keeperPlaceholder);
+    const keeperMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.2, 6, 12), keeperMaterial);
+    keeperMesh.castShadow = true;
+    keeperMesh.receiveShadow = true;
     keeperMesh.position.set(0, 1.02, goalZ + 0.32);
     scene.add(keeperMesh);
 
@@ -1862,13 +1785,6 @@ export default function FreeKick3DGame({ config }) {
       jumping: false
     };
 
-    loadModelScene('defender', DEFENDER_MODEL_URL)
-      .then((modelRoot) => {
-        if (cancelled) return;
-        defenders.forEach(({ mesh }) => attachModelToContainer(mesh, modelRoot, DEFENDER_TARGET_HEIGHT));
-      })
-      .catch((error) => console.warn('Defender model failed to load', error));
-
     const keeperState = {
       mesh: keeperMesh,
       radius: 0.34,
@@ -1881,13 +1797,6 @@ export default function FreeKick3DGame({ config }) {
       moveEase: KEEPER_RETURN_EASE,
       side: 0
     };
-
-    loadModelScene('keeper', GOALKEEPER_MODEL_URL)
-      .then((modelRoot) => {
-        if (cancelled) return;
-        attachModelToContainer(keeperMesh, modelRoot, GOALKEEPER_TARGET_HEIGHT);
-      })
-      .catch((error) => console.warn('Goalkeeper model failed to load', error));
 
     const ballTexture = makeUCLBallTexture(2048);
     const bumpMap = makeBumpFromColor(ballTexture);
@@ -3236,7 +3145,6 @@ export default function FreeKick3DGame({ config }) {
     window.addEventListener('resize', onResize);
 
     return () => {
-      cancelled = true;
       state.disposed = true;
       cancelAnimationFrame(state.animationId);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
