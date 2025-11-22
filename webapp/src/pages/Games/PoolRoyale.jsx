@@ -15831,6 +15831,7 @@ function PoolRoyaleGame({
 }
 
 export default function PoolRoyale() {
+  const navigate = useNavigate();
   const location = useLocation();
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
