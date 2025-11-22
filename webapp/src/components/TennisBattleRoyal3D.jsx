@@ -889,17 +889,17 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       return root;
     }
 
-    const ballR = 0.076 * 1.5;
+    const ballR = 0.076 * 1.25;
     const ball = buildBallURT();
     const s = ballR / 0.26;
     ball.scale.setScalar(s);
     scene.add(ball);
     const ballPhysics = {
-      mass: 0.0577,
-      airDensity: 1.2,
-      dragCoeff: 0.56,
-      magnusCoeff: 0.24,
-      spinDecay: 1.35
+      mass: 0.057,
+      airDensity: 1.18,
+      dragCoeff: 0.53,
+      magnusCoeff: 0.16,
+      spinDecay: 2.25
     };
     const ballArea = Math.PI * ballR * ballR;
     const dragFactor = (0.5 * ballPhysics.airDensity * ballPhysics.dragCoeff * ballArea) / ballPhysics.mass;
@@ -953,13 +953,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.rotation.y = -Math.PI / 2;
     scene.add(cpu);
 
-    const OUTGOING_SPEED_CAP = 17.5;
+    const OUTGOING_SPEED_CAP = 16.4;
 
     const state = {
       gravity: -9.81,
       drag: 0.48,
-      cor: 0.8,
-      fric: 0.18,
+      cor: 0.74,
+      fric: 0.24,
       live: false,
       serveBy: 'player',
       serveSide: 'deuce',
@@ -984,24 +984,24 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let playerSwing = null;
     let cpuSwing = null;
     function respondToCourtImpact(impactSpeed) {
-      const forwardSpin = THREE.MathUtils.clamp(spin.x / 70, -1, 1);
+      const forwardSpin = THREE.MathUtils.clamp(spin.x / 60, -1, 1);
       const sideSpin = THREE.MathUtils.clamp(spin.y / 55, -1, 1);
-      const bounceScale = THREE.MathUtils.clamp(state.cor + impactSpeed / 42, state.cor, 0.94);
-      const spinDampen = 1 - 0.18 * Math.abs(forwardSpin);
-      const skidInfluence = THREE.MathUtils.clamp(impactSpeed / 24, 0.35, 1);
+      const bounceScale = THREE.MathUtils.clamp(state.cor + impactSpeed / 58, state.cor * 0.95, 0.9);
+      const spinDampen = 1 - 0.12 * Math.abs(forwardSpin);
+      const skidInfluence = THREE.MathUtils.clamp(impactSpeed / 22, 0.42, 1);
       vel.y = impactSpeed * bounceScale * spinDampen;
       tangentVel.set(vel.x, 0, vel.z);
       spinSurfaceVel.set(-spin.z * ballR, 0, spin.x * ballR);
-      const bite = THREE.MathUtils.lerp(0.25, 0.64, skidInfluence);
-      tangentVel.addScaledVector(spinSurfaceVel, bite);
-      tangentVel.x += sideSpin * 0.4;
+      const bite = THREE.MathUtils.lerp(0.2, 0.58, skidInfluence);
+      tangentVel.addScaledVector(spinSurfaceVel, bite * 0.82);
+      tangentVel.x += sideSpin * 0.32;
       tangentVel.multiplyScalar(1 - state.fric * skidInfluence);
       vel.x = tangentVel.x;
       vel.z = tangentVel.z;
-      const spinDecay = THREE.MathUtils.lerp(0.52, 0.7, skidInfluence);
+      const spinDecay = THREE.MathUtils.lerp(0.48, 0.66, skidInfluence);
       spin.x *= spinDecay;
-      spin.y *= 0.58;
-      spin.z *= Math.max(0.48, 0.72 - Math.abs(forwardSpin) * 0.12);
+      spin.y *= 0.52;
+      spin.z *= Math.max(0.46, 0.68 - Math.abs(forwardSpin) * 0.1);
     }
     let lastHitter = 'player';
     ball.position.copy(pos);
@@ -1430,19 +1430,19 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       while (gestureTrail.length > 1 && now - gestureTrail[0].t > 260) gestureTrail.shift();
     }
     function deriveSwingFromGesture(vx, vy, spd, { serve = false } = {}) {
-      const baseline = serve ? 520 : 650;
-      const normalizedForce = THREE.MathUtils.clamp(spd / baseline, serve ? 0.28 : 0.18, 1);
+      const baseline = serve ? 420 : 540;
+      const normalizedForce = THREE.MathUtils.clamp(spd / baseline, serve ? 0.35 : 0.26, 1);
       const flat = new THREE.Vector2(vx, -vy);
       if (flat.lengthSq() < 1e-4) flat.set(0, 1);
       flat.normalize();
-      const depthBias = THREE.MathUtils.clamp(THREE.MathUtils.mapLinear(flat.y, 0, 1, 0.5, 1.08), 0.5, 1.08);
-      const lateralLean = THREE.MathUtils.clamp(flat.x, -0.95, 0.95);
-      const forwardDir = new THREE.Vector3(lateralLean * 0.55, THREE.MathUtils.lerp(0.16, 0.38, depthBias), -1);
+      const depthBias = THREE.MathUtils.clamp(THREE.MathUtils.mapLinear(flat.y, 0, 1, 0.55, 1.05), 0.55, 1.05);
+      const lateralLean = THREE.MathUtils.clamp(flat.x, -0.9, 0.9);
+      const forwardDir = new THREE.Vector3(lateralLean * 0.52, THREE.MathUtils.lerp(0.2, 0.42, depthBias), -1);
       forwardDir.normalize();
-      const swingSpeed = THREE.MathUtils.lerp(6.5, 17.5, normalizedForce) * (serve ? 1.02 : 0.94);
-      const spinAxis = new THREE.Vector3(-depthBias, THREE.MathUtils.clamp(lateralLean * 0.9, -0.9, 0.9), 0.42);
-      const topSpin = THREE.MathUtils.lerp(12, 26, normalizedForce * depthBias);
-      const sideSpin = THREE.MathUtils.lerp(4, 14, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
+      const swingSpeed = THREE.MathUtils.lerp(6.2, 15.5, normalizedForce) * (serve ? 1.05 : 0.98);
+      const spinAxis = new THREE.Vector3(-depthBias * 0.92, THREE.MathUtils.clamp(lateralLean * 0.86, -0.86, 0.86), 0.4);
+      const topSpin = THREE.MathUtils.lerp(10, 24, normalizedForce * depthBias);
+      const sideSpin = THREE.MathUtils.lerp(3, 12, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
       const additionalSpin = spinAxis.normalize().multiplyScalar(topSpin);
       additionalSpin.y += sideSpin;
       return {
@@ -1450,9 +1450,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         speed: swingSpeed,
         ttl: 0.32,
         extraSpin: additionalSpin,
-        friction: 0.22,
-        restitution: 1.1,
-        reach: ballR + 0.55,
+        friction: 0.2,
+        restitution: 1.06,
+        reach: ballR + 0.7,
         force: normalizedForce,
         aimDirection: forwardDir.clone()
       };
@@ -1493,8 +1493,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         vel.copy(blended.multiplyScalar(currentSpeed));
       }
 
-      const baseLift = state.live ? 2.6 : 3.4;
-      const minUpward = baseLift + (swing.force ?? 0.5) * 2.0;
+      const baseLift = state.live ? 2.2 : 3.1;
+      const minUpward = baseLift + (swing.force ?? 0.5) * 1.8;
       if (vel.y < minUpward) {
         vel.y = minUpward;
       }
@@ -1727,7 +1727,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const MAX_SUBSTEP = 1 / 360;
     const MIN_SUBSTEP = 1 / 960;
     const MAX_SUBSTEP_ITER = 8;
-    const GROUND_GLIDE = 0.085;
+    const GROUND_GLIDE = 0.095;
     function advanceBallState(dt) {
       const prevZ = pos.z;
       const prevY = pos.y;
