@@ -105,6 +105,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
   const scoreRef = useRef({ left: 0, right: 0 });
   const goalTimeoutRef = useRef(null);
   const postTimeoutRef = useRef(null);
+  const restartTimeoutRef = useRef(null);
   const redirectTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -123,6 +124,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
   useEffect(() => () => {
     clearTimeout(goalTimeoutRef.current);
     clearTimeout(postTimeoutRef.current);
+    clearTimeout(restartTimeoutRef.current);
     clearTimeout(redirectTimeoutRef.current);
   }, []);
 
@@ -236,7 +238,6 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
           crowd.currentTime = 0;
         }, 2500);
       }
-      playWhistle();
     };
 
     const recordGoal = (playerScored) => {
@@ -273,6 +274,58 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     renderer.setSize(host.clientWidth, host.clientHeight);
     host.appendChild(renderer.domElement);
 
+    const createPuckTexture = () => {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const cx = size / 2;
+      const cy = size / 2;
+
+      ctx.fillStyle = '#0b0c0f';
+      ctx.fillRect(0, 0, size, size);
+
+      const rim = ctx.createRadialGradient(cx, cy, size * 0.08, cx, cy, size * 0.48);
+      rim.addColorStop(0, '#1d1f22');
+      rim.addColorStop(0.6, '#0d0e11');
+      rim.addColorStop(1, '#050505');
+      ctx.fillStyle = rim;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#1b1d1f';
+      ctx.lineWidth = size * 0.03;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.36, 0, Math.PI * 2);
+      ctx.stroke();
+
+      const top = ctx.createRadialGradient(cx, cy * 0.98, size * 0.06, cx, cy, size * 0.35);
+      top.addColorStop(0, 'rgba(255,255,255,0.26)');
+      top.addColorStop(0.6, 'rgba(80,85,90,0.12)');
+      top.addColorStop(1, 'rgba(10,10,10,0.5)');
+      ctx.fillStyle = top;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.36, 0, Math.PI * 2);
+      ctx.fill();
+
+      const sheen = ctx.createLinearGradient(cx - size * 0.18, cy - size * 0.14, cx + size * 0.1, cy + size * 0.22);
+      sheen.addColorStop(0, 'rgba(255,255,255,0.08)');
+      sheen.addColorStop(0.5, 'rgba(255,255,255,0.22)');
+      sheen.addColorStop(1, 'rgba(255,255,255,0.02)');
+      ctx.fillStyle = sheen;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + size * 0.02, size * 0.36, size * 0.24, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texture.needsUpdate = true;
+      return texture;
+    };
+
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x050505);
 
@@ -290,12 +343,12 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     const SCALE_WIDTH = TABLE.w / 2.2;
     const SCALE_LENGTH = TABLE.h / (4.8 * 1.2);
     const SPEED_SCALE = (SCALE_WIDTH + SCALE_LENGTH) / 2;
-    const MALLET_RADIUS = TABLE.w * 0.054545454545454536;
+    const MALLET_RADIUS = TABLE.w * 0.06;
     const MALLET_HEIGHT = MALLET_RADIUS * (0.05 / 0.12);
     const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.06 / 0.12);
     const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.08 / 0.12);
-    const PUCK_RADIUS = TABLE.w * 0.027272727272727268;
-    const PUCK_HEIGHT = PUCK_RADIUS * (0.06 / 0.06);
+    const PUCK_RADIUS = TABLE.w * 0.0295;
+    const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
 
     const camera = new THREE.PerspectiveCamera(
       56,
@@ -613,9 +666,15 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     aiMallet.position.set(0, 0, -TABLE.h * 0.36);
     tableGroup.add(aiMallet);
 
+    const puckTexture = createPuckTexture();
     const puck = new THREE.Mesh(
       new THREE.CylinderGeometry(PUCK_RADIUS, PUCK_RADIUS, PUCK_HEIGHT, 32),
-      new THREE.MeshStandardMaterial({ color: 0x111111 })
+      new THREE.MeshStandardMaterial({
+        color: 0x111111,
+        map: puckTexture,
+        roughness: 0.42,
+        metalness: 0.36
+      })
     );
     puck.position.y = PUCK_HEIGHT / 2;
     tableGroup.add(puck);
@@ -745,6 +804,12 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     const HIT_FORCE = 0.5 * SPEED_SCALE * SPEED_BOOST;
     const MAX_SPEED = 0.095 * SPEED_SCALE * SPEED_BOOST;
     const SERVE_SPEED = 0.055 * SPEED_SCALE * SPEED_BOOST;
+    const GOAL_RESET_DELAY = 1500;
+
+    const servePuck = (towardTop = false) => {
+      S.vel.set(0, 0, towardTop ? -SERVE_SPEED : SERVE_SPEED);
+      playWhistle();
+    };
 
     const handleCollision = (mallet, isPlayer = false) => {
       const dx = puck.position.x - mallet.position.x;
@@ -800,11 +865,14 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       aiMallet.position.z += (targetZ - aiMallet.position.z) * chaseSpeed * dt;
     };
 
-    const reset = (towardTop = false) => {
+    const reset = (towardTop = false, shouldServe = true) => {
       puck.position.set(0, PUCK_HEIGHT / 2, 0);
-      S.vel.set(0, 0, towardTop ? -SERVE_SPEED : SERVE_SPEED);
+      S.vel.set(0, 0, 0);
       you.position.set(0, 0, TABLE.h * 0.42);
       aiMallet.position.set(0, 0, -TABLE.h * 0.36);
+      if (shouldServe) {
+        servePuck(towardTop);
+      }
     };
 
     // loop
@@ -839,7 +907,14 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
           const playerScored = atBot;
           const ended = recordGoal(playerScored);
           playGoal();
-          if (!ended) reset(!atBot);
+          S.vel.set(0, 0, 0);
+          clearTimeout(restartTimeoutRef.current);
+          if (!ended) {
+            reset(!atBot, false);
+            restartTimeoutRef.current = setTimeout(() => {
+              servePuck(!atBot);
+            }, GOAL_RESET_DELAY);
+          }
         } else {
           S.vel.z = -S.vel.z;
           puck.position.z = clamp(
