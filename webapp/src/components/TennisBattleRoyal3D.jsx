@@ -1401,6 +1401,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     const el = renderer.domElement;
     el.style.touchAction = 'none';
+    let usingTouch = false;
     let touching = false;
     let sx = 0;
     let sy = 0;
@@ -1409,6 +1410,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let st = 0;
     const gestureTrail = [];
     function onDown(e) {
+      if (usingTouch && e.pointerType === 'touch') return;
       touching = true;
       sx = lx = e.clientX;
       sy = ly = e.clientY;
@@ -1420,6 +1422,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
     function onMove(e) {
       if (!touching) return;
+      if (usingTouch && e.pointerType === 'touch') return;
       lx = e.clientX;
       ly = e.clientY;
       const now = performance.now();
@@ -1518,8 +1521,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const randTwist = THREE.MathUtils.randFloatSpread(6);
       return new THREE.Vector3(forwardSign * top, bias * side + randSide, randTwist);
     }
-    function onUp() {
+    function onUp(evt, { fromTouch = false } = {}) {
       if (!touching) return;
+      if (!fromTouch && usingTouch && evt?.pointerType === 'touch') return;
       touching = false;
       const dt = Math.max(1, performance.now() - st);
       let vx = ((lx - sx) / dt) * 1000;
@@ -1560,6 +1564,32 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     el.addEventListener('pointerdown', onDown);
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerup', onUp);
+
+    function onTouchStart(e) {
+      usingTouch = true;
+      const t = e.touches[0];
+      if (!t) return;
+      onDown({ clientX: t.clientX, clientY: t.clientY });
+    }
+    function onTouchMove(e) {
+      const t = e.touches[0];
+      if (!t) return;
+      onMove({ clientX: t.clientX, clientY: t.clientY });
+    }
+    function onTouchEnd(e) {
+      const t = e.changedTouches[0];
+      if (!t) {
+        usingTouch = false;
+        return;
+      }
+      onUp({ clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }, { fromTouch: true });
+      usingTouch = false;
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
     let cpuWind = 0;
     let cpuPlan = null;
@@ -1810,6 +1840,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       }
       const homeZ = servingPlayer ? serveHomeZ : playerZ - 0.3;
       player.position.z += (homeZ - player.position.z) * (servingPlayer ? 0.18 : 0.08);
+      const targetY = THREE.MathUtils.clamp(pos.y, ballR * 0.9, 2.4);
+      player.position.y = THREE.MathUtils.damp(player.position.y, targetY, 6, dt);
+      cpu.position.y = THREE.MathUtils.damp(cpu.position.y, targetY, 6, dt);
 
       if (playerSwing) {
         const racketPos = new THREE.Vector3(
@@ -1914,6 +1947,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       el.removeEventListener('pointerdown', onDown);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
       if (cpuSrvTO) {
         try {
           clearTimeout(cpuSrvTO);
