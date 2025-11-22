@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
+import { AnimatePresence, motion } from 'framer-motion';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -15582,29 +15583,59 @@ function PoolRoyaleGame({
         )}
       </div>
 
-      {isTraining && trainingTaskDetails && trainingGuideVisible && (
-        <div className="pointer-events-none absolute left-3 right-3 top-3 z-40 flex justify-center">
-          <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-emerald-400/50 bg-black/70 p-4 text-white shadow-lg backdrop-blur">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-200">
-                  Training task {trainingTaskDetails.level}
-                </p>
-                <p className="mt-1 text-base font-bold leading-tight">{trainingTaskDetails.title}</p>
-                <p className="mt-1 text-xs leading-snug text-white/80">{trainingTaskDetails.description}</p>
+      <AnimatePresence>
+        {isTraining && trainingTaskDetails && trainingGuideVisible && (
+          <motion.div
+            className="pointer-events-none absolute left-3 right-3 top-3 z-40 flex justify-center"
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+          >
+            <motion.div
+              className="pointer-events-auto w-full max-w-xl rounded-2xl border border-emerald-400/50 bg-black/70 p-4 text-white shadow-lg backdrop-blur"
+              initial={{ scale: 0.96 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.94 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-200">
+                    Training task {trainingTaskDetails.level}
+                  </p>
+                  <p className="mt-1 text-base font-bold leading-tight">{trainingTaskDetails.title}</p>
+                  <p className="mt-1 text-xs leading-snug text-white/80">{trainingTaskDetails.description}</p>
+                </div>
+                <span className="shrink-0 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-100">
+                  Complete the layout
+                </span>
               </div>
-              <span className="shrink-0 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-100">
-                Complete the layout
-              </span>
-            </div>
-            {trainingTaskDetails.tip && (
-              <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-[12px] leading-snug text-emerald-100">
-                Tip: {trainingTaskDetails.tip}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+              {trainingTaskDetails.tip && (
+                <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-[12px] leading-snug text-emerald-100">
+                  Tip: {trainingTaskDetails.tip}
+                </p>
+              )}
+              <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
+                {["Line up", "Smooth stroke", "Collect reward"].map((step, idx) => (
+                  <motion.div
+                    key={step}
+                    className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-3 py-2"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.06 * idx, type: 'spring', stiffness: 260, damping: 20 }}
+                  >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/30 text-[10px] font-bold text-emerald-50">
+                      {idx + 1}
+                    </span>
+                    <span className="leading-tight text-white/80">{step}</span>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
