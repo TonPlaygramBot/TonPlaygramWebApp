@@ -16,6 +16,7 @@ import {
   getTelegramPhotoUrl,
   getTelegramId
 } from '../../utils/telegram.js';
+import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
@@ -7810,6 +7811,7 @@ function PoolRoyaleGame({
   const trainingProgressRef = useRef(trainingProgress);
   const [trainingPopup, setTrainingPopup] = useState(null);
   const trainingRewardedRef = useRef(false);
+  const [trainingGuideVisible, setTrainingGuideVisible] = useState(true);
   const trainingTaskDetails = useMemo(() => {
     if (!isTraining || !trainingScenario) return null;
     const level = resolvedTrainingLevel || trainingLevel || 1;
@@ -7825,6 +7827,19 @@ function PoolRoyaleGame({
     trainingProgressRef.current = trainingProgress;
     persistTrainingProgress(trainingProgress);
   }, [isTraining, trainingProgress]);
+  useEffect(() => {
+    if (!isTraining || !trainingTaskDetails) return;
+    setTrainingGuideVisible(true);
+  }, [isTraining, trainingTaskDetails?.level]);
+  useEffect(() => {
+    if (!isTraining || !trainingGuideVisible || trainingPopup) return undefined;
+    const timer = window.setTimeout(() => setTrainingGuideVisible(false), 3000);
+    return () => window.clearTimeout(timer);
+  }, [isTraining, trainingGuideVisible, trainingPopup]);
+  useEffect(() => {
+    if (!isTraining || !trainingPopup) return;
+    setTrainingGuideVisible(true);
+  }, [isTraining, trainingPopup]);
   useEffect(() => {
     if (!isTraining) return;
     if (trainingPopup) return;
@@ -15564,7 +15579,7 @@ function PoolRoyaleGame({
         )}
       </div>
 
-      {isTraining && trainingTaskDetails && !trainingPopup && (
+      {isTraining && trainingTaskDetails && trainingGuideVisible && (
         <div className="pointer-events-none absolute left-3 right-3 top-3 z-40 flex justify-center">
           <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-emerald-400/50 bg-black/70 p-4 text-white shadow-lg backdrop-blur">
             <div className="flex items-start justify-between gap-3">
@@ -15836,21 +15851,55 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('token') || 'TPC';
   }, [location.search]);
-  useEffect(() => {
-    const message =
+  const exitMessage = useMemo(
+    () =>
       stakeAmount > 0
         ? `Are you sure you want to exit? Your ${stakeAmount} ${stakeToken} stake will be lost.`
-        : 'Are you sure you want to exit the match?';
+        : 'Are you sure you want to exit the match?',
+    [stakeAmount, stakeToken]
+  );
+  const confirmExit = useCallback(() => {
+    return new Promise((resolve) => {
+      const tg = window?.Telegram?.WebApp;
+      if (tg?.showPopup) {
+        tg.showPopup(
+          {
+            title: 'Exit game?',
+            message: exitMessage,
+            buttons: [
+              { id: 'yes', type: 'destructive', text: 'Yes' },
+              { id: 'no', type: 'default', text: 'No' }
+            ]
+          },
+          (buttonId) => resolve(buttonId === 'yes')
+        );
+        return;
+      }
+
+      resolve(window.confirm(exitMessage));
+    });
+  }, [exitMessage]);
+  useTelegramBackButton(() => {
+    confirmExit().then((confirmed) => {
+      if (confirmed) {
+        navigate('/games/pollroyale/lobby');
+      }
+    });
+  });
+  useEffect(() => {
     const handleBeforeUnload = (event) => {
       event.preventDefault();
-      event.returnValue = message;
-      return message;
+      event.returnValue = exitMessage;
+      return exitMessage;
     };
     const handlePopState = () => {
-      const confirmed = window.confirm(message);
-      if (!confirmed) {
-        window.history.pushState(null, '', window.location.href);
-      }
+      confirmExit().then((confirmed) => {
+        if (!confirmed) {
+          window.history.pushState(null, '', window.location.href);
+        } else {
+          navigate('/games/pollroyale/lobby');
+        }
+      });
     };
     window.history.pushState(null, '', window.location.href);
     window.addEventListener('beforeunload', handleBeforeUnload);
@@ -15859,7 +15908,7 @@ export default function PoolRoyale() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [stakeAmount, stakeToken]);
+  }, [confirmExit, exitMessage, navigate]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
