@@ -904,7 +904,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       const atBot = puck.position.z > TABLE.h / 2 - PUCK_RADIUS;
       if (atTop || atBot) {
         if (Math.abs(puck.position.x) <= goalHalf) {
-          const playerScored = atBot;
+          const playerScored = atTop;
           const ended = recordGoal(playerScored);
           playGoal();
           S.vel.set(0, 0, 0);
