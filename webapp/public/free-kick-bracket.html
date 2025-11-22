@@ -454,7 +454,7 @@
     const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
     localStorage.setItem(OPP_KEY, JSON.stringify(st.seedToPlayer[opponentSeed]));
     localStorage.setItem(STATE_KEY, JSON.stringify(st));
-    window.location.href = '/games/freekick' + window.location.search;
+    window.location.href = '/free-kick.html' + window.location.search;
   }
 
   (function init(){
