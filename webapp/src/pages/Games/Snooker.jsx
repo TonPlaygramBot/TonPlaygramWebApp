@@ -10229,6 +10229,24 @@ function SnookerGame() {
             }
             return true;
           };
+          const scorePotPlan = (plan) => {
+            const cutPenalty = (plan.cutAngle ?? 0) * BALL_R * 40;
+            const distancePenalty = plan.cueToTarget + plan.targetToPocket * 1.2;
+            const positioning = plan.positioningScore ?? 0;
+            const railPenalty = plan.viaCushion ? BALL_R * 18 : 0;
+            return positioning - distancePenalty - cutPenalty - railPenalty;
+          };
+          const scoreSafetyPlan = (plan) => {
+            const distancePenalty = plan.cueToTarget + plan.targetToPocket;
+            const hideBonus = plan.hideBehind ? BALL_R * 50 : 0;
+            const railBonus = plan.viaCushion ? BALL_R * 10 : 0;
+            return hideBonus + railBonus - distancePenalty;
+          };
+          const scoreEscapePlan = (plan) => {
+            const travelPenalty = plan.cueToTarget + plan.targetToPocket;
+            const cushionTax = plan.cushion ? BALL_R * 14 : 0;
+            return -travelPenalty - cushionTax;
+          };
           const potShots = [];
           const safetyShots = [];
           const escapeShots = [];
@@ -10358,12 +10376,14 @@ function SnookerGame() {
                 difficulty:
                   cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40,
                 cueToTarget: cueDist,
-                targetToPocket: toPocketLen
+                targetToPocket: toPocketLen,
+                cutAngle
               };
               plan.spin = computePlanSpin(plan, state);
               if (Number.isFinite(plan.positioningScore)) {
                 plan.difficulty -= plan.positioningScore;
               }
+              plan.score = scorePotPlan(plan);
               potShots.push(plan);
             }
             const cueToBall = targetBall.pos.clone().sub(cuePos);
@@ -10398,14 +10418,35 @@ function SnookerGame() {
               difficulty: cueDist + safetyDist * 1.2,
               cueToTarget: cueDist,
               targetToPocket: safetyDist,
-              spin: { x: 0, y: -0.2 }
+              spin: { x: 0, y: -0.2 },
+              score: scoreSafetyPlan({
+                cueToTarget: cueDist,
+                targetToPocket: safetyDist,
+                hideBehind: safetyPlan?.hideBehind,
+                viaCushion: false
+              })
             };
             safetyShots.push(safetyPlan);
             tryAddHideSafety(safetyPlan, targetBall);
           });
-          potShots.sort((a, b) => a.difficulty - b.difficulty);
-          safetyShots.sort((a, b) => a.difficulty - b.difficulty);
-          escapeShots.sort((a, b) => a.difficulty - b.difficulty);
+          potShots.sort((a, b) => {
+            const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
+            if (Math.abs(scoreDiff) > 1e-4) return scoreDiff;
+            return (a.difficulty ?? Infinity) - (b.difficulty ?? Infinity);
+          });
+          safetyShots.sort((a, b) => {
+            const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
+            if (Math.abs(scoreDiff) > 1e-4) return scoreDiff;
+            return (a.difficulty ?? Infinity) - (b.difficulty ?? Infinity);
+          });
+          escapeShots.forEach((plan) => {
+            plan.score = scoreEscapePlan(plan);
+          });
+          escapeShots.sort((a, b) => {
+            const scoreDiff = (b.score ?? -Infinity) - (a.score ?? -Infinity);
+            if (Math.abs(scoreDiff) > 1e-4) return scoreDiff;
+            return (a.difficulty ?? Infinity) - (b.difficulty ?? Infinity);
+          });
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
@@ -10449,13 +10490,15 @@ function SnookerGame() {
         };
         const startAiThinking = () => {
           stopAiThinking();
-          if (!cue?.active) {
+          const hud = hudRef.current;
+          if (!cue?.active || hud?.over) {
             setAiPlanning(null);
             return;
           }
           const started = performance.now();
           const think = () => {
-            if (shooting || hudRef.current?.turn !== 1) {
+            const currentHud = hudRef.current;
+            if (shooting || currentHud?.over || currentHud?.turn !== 1) {
               setAiPlanning(null);
               aiPlanRef.current = null;
               aiThinkingHandle = null;
