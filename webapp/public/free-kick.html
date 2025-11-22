@@ -349,8 +349,8 @@
   let myScore = 0;
 
   const BALL_R = 28;
-  // slightly faster initial shot for a snappier feel
-  const SHOT_SPEED = 24; // previously 22
+  // slightly slower initial shot to reduce overall ball power
+  const SHOT_SPEED = 12; // reduced by 50% for gentler kicks
   const MIN_GOAL_POINTS = 5;
   const ball = {
     x: 0,
@@ -385,10 +385,12 @@
   const SHOT_RESET_DELAY = 300; // delay before resetting after a shot (ms)
   const keeper={x:0,y:0,w:40,h:100,vx:0,vy:0,a:0,baseY:0,baseX:0,dive:0,jumping:false,dir:1,targetX:0,targetY:0};
   const keeperImg = new Image();
-  keeperImg.src = '/assets/icons/file_00000000945461f8bb9a2974fb9ee402.webp';
+  keeperImg.crossOrigin = 'anonymous';
+  keeperImg.src = 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumWoman/screenshot/screenshot.png';
   const defenders={x:0,y:0,w:40,h:100,baseY:0,vy:0,jumping:false};
   const defendersImg = new Image();
-  defendersImg.src = '/assets/icons/file_0000000091b0624395c9e8d8acf66e69.webp';
+  defendersImg.crossOrigin = 'anonymous';
+  defendersImg.src = 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/screenshot/screenshot.png';
   const aimOn = true;
 
   const rivals=[
@@ -1816,7 +1818,7 @@ function onUp(e){
   keeper.targetX = centerX;
   keeper.targetY = keeper.baseY + geom.goal.h * 0.02;
   if(!defenders.jumping){
-    defenders.vy = -1.5*geom.scale;
+    defenders.vy = -0.75*geom.scale;
     defenders.jumping = true;
   }
   playBallKickSound();
@@ -1862,7 +1864,7 @@ function onUp(e){
 
       const DEFENDER_PREVIEW_SCALE=0.7;
       const dw=defenders.w*scale*DEFENDER_PREVIEW_SCALE;
-      const dh=(defenders.h*scale*DEFENDER_PREVIEW_SCALE)/2;
+      const dh=defenders.h*scale*DEFENDER_PREVIEW_SCALE;
       if(init){
         r.defW = dw;
         r.defX = goal.x + Math.random()*(goal.w - dw);
@@ -1928,7 +1930,7 @@ function onUp(e){
       c.beginPath();
       c.rect(field.x,field.y,field.w,field.h);
       c.clip();
-      c.drawImage(defendersImg,0,0,defendersImg.width,defendersImg.height/2,dx,dy,dw,dh);
+      c.drawImage(defendersImg,0,0,defendersImg.width,defendersImg.height,dx,dy,dw,dh);
       c.restore();
       if(r.flash>0){
         c.save();
@@ -2001,7 +2003,7 @@ function onUp(e){
           }
           const startX = rnd(g.x, g.x + g.w);
           r.defX = clamp(startX - r.defW/2, g.x, g.x + g.w - r.defW);
-          if(!r.defJump){ r.defVy = -1*r.scale; r.defJump = true; }
+          if(!r.defJump){ r.defVy = -0.5*r.scale; r.defJump = true; }
           const vx = (target.x - startX) / 15;
           const vy = (target.y - (g.y + g.h)) / 15;
           r.shots.push({x:startX,y:g.y+g.h,vx,vy,life:1,saved});
