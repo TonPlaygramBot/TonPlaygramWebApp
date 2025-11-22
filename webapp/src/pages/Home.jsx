@@ -40,24 +40,6 @@ export default function Home() {
   const [status, setStatus] = useState('checking');
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
-  const baseUrl = import.meta.env.BASE_URL || '/';
-  const gamePreloads = [
-    {
-      name: 'Pool Royale preload',
-      description: 'Paketa tekstuale e kodit për animacionet dhe HUD-in e Pool Royale.',
-      href: `${baseUrl}game-preloads/pool-royale-preload.txt`
-    },
-    {
-      name: '3D Snooker preload',
-      description: 'Snippet-et kryesore për fizikën e bilardos dhe kontrollat mobile +Y.',
-      href: `${baseUrl}game-preloads/3d-snooker-preload.txt`
-    },
-    {
-      name: 'Tirana 2040 preload',
-      description: 'Paketa narrative + asset placeholders për mini-lojën Tirana 2040.',
-      href: `${baseUrl}game-preloads/tirana-2040-preload.txt`
-    }
-  ];
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
   const usdValue = useWalletUsdValue(tonBalance, tpcWalletBalance);
   const walletAddress = useTonAddress();
@@ -246,27 +228,43 @@ export default function Home() {
 
       <div className="mt-4 bg-surface border border-border rounded-xl p-4 space-y-3">
         <div className="text-center space-y-1">
-          <h3 className="text-lg font-semibold text-white">Preload game code (tekst)</h3>
+          <h3 className="text-lg font-semibold text-white">TonPlaygram AI Service Desk</h3>
           <p className="text-sm text-subtext">
-            Shkarkoni paketa tekstuale për lojërat kryesore që Tirana Hallway t’i cache-ojë më shpejt.
+            Asistenti ynë i avancuar i ndërtuar për t’u përgjigjur klientëve me informacion në kohë reale për platformën,
+            pa ndarë të dhëna të ndjeshme dhe me përditësime të vazhdueshme nga deploy-t më të fundit.
           </p>
         </div>
-        <div className="space-y-2">
-          {gamePreloads.map((preload) => (
-            <div key={preload.name} className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-background/50 border border-border rounded-lg p-3">
-              <div className="space-y-0.5">
-                <p className="text-sm font-semibold text-white">{preload.name}</p>
-                <p className="text-xs text-subtext">{preload.description}</p>
-              </div>
-              <a
-                href={preload.href}
-                download
-                className="mt-2 sm:mt-0 inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow"
-              >
-                Shkarko paketën
-              </a>
-            </div>
-          ))}
+        <div className="grid gap-2 text-sm text-subtext">
+          <div className="flex items-start space-x-2">
+            <span className="text-primary font-semibold">1.</span>
+            <p>
+              Mban historikun e përditësuar të ndryshimeve të fundit në TonPlaygram, që të ndihmojë klientët me informacion të saktë.
+            </p>
+          </div>
+          <div className="flex items-start space-x-2">
+            <span className="text-primary font-semibold">2.</span>
+            <p>
+              Filtron automatikisht çdo kërkesë për të shmangur publikimin e çfarëdo informacioni të brendshëm ose të mbrojtur.
+            </p>
+          </div>
+          <div className="flex items-start space-x-2">
+            <span className="text-primary font-semibold">3.</span>
+            <p>
+              Moduli “Dev Access” lejon vetëm llogaritë e verifikuara të zhvilluesve të marrin qasje të plotë në log, metrika dhe plane pune.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between bg-background/50 border border-border rounded-lg p-3 space-y-2 sm:space-y-0">
+          <div>
+            <p className="text-white font-semibold text-sm">Ndihmë e menjëhershme</p>
+            <p className="text-xs text-subtext">Kliko më poshtë për të hapur chat-in e AI Agent dhe merr suportin e duhur.</p>
+          </div>
+          <Link
+            to="/messages?channel=ai-agent"
+            className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow"
+          >
+            Hap AI Agent
+          </Link>
         </div>
       </div>
       <p className="text-center text-xs text-subtext">Status: {status}</p>
