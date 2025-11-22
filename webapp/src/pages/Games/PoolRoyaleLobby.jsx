@@ -13,6 +13,11 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
+import {
+  getNextIncompleteLevel,
+  loadTrainingProgress,
+  resolvePlayableTrainingLevel
+} from '../../utils/poolRoyaleTrainingProgress.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -23,9 +28,16 @@ export default function PoolRoyaleLobby() {
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
+  const [playType, setPlayType] = useState('regular');
+  const [players, setPlayers] = useState(8);
+  const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
+  const [trainingTask, setTrainingTask] = useState(() => {
+    const next =
+      getNextIncompleteLevel(trainingProgress.completed) ?? trainingProgress.lastLevel ?? 1;
+    return resolvePlayableTrainingLevel(next, trainingProgress);
+  });
   const searchParams = new URLSearchParams(search);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
-  const playType = 'regular';
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
@@ -45,29 +57,44 @@ export default function PoolRoyaleLobby() {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    if (playType !== 'training') return;
+    const progress = loadTrainingProgress();
+    setTrainingProgress(progress);
+    const next = getNextIncompleteLevel(progress.completed) ?? progress.lastLevel ?? 1;
+    setTrainingTask(resolvePlayableTrainingLevel(next, progress));
+  }, [playType]);
+
   const startGame = async () => {
     let tgId;
     let accountId;
-    try {
-      accountId = await ensureAccountId();
-      const balRes = await getAccountBalance(accountId);
-      if ((balRes.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
-      }
-      tgId = getTelegramId();
-      if (mode !== 'online') {
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'poolroyale',
-          players: 2,
-          accountId
-        });
-      }
-    } catch {}
+    if (playType !== 'training') {
+      try {
+        accountId = await ensureAccountId();
+        const balRes = await getAccountBalance(accountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        tgId = getTelegramId();
+        if (mode !== 'online') {
+          await addTransaction(tgId, -stake.amount, 'stake', {
+            game: 'poolroyale',
+            players: playType === 'tournament' ? players : 2,
+            accountId
+          });
+        }
+      } catch {}
+    } else {
+      try {
+        tgId = getTelegramId();
+        accountId = await ensureAccountId();
+      } catch {}
+    }
 
     accountIdRef.current = accountId;
 
-    if (mode === 'online') {
+    if (mode === 'online' && playType === 'regular') {
       setMatchingError('');
       setIsSearching(true);
       stakeChargedRef.current = false;
@@ -114,15 +141,19 @@ export default function PoolRoyaleLobby() {
 
     const params = new URLSearchParams();
     params.set('variant', variant);
+    params.set('tableSize', tableSize);
     params.set('type', playType);
-    params.set('mode', mode);
+    if (playType !== 'training') {
+      params.set('mode', mode);
+      if (stake.token) params.set('token', stake.token);
+      if (stake.amount) params.set('amount', stake.amount);
+      if (playType === 'tournament') params.set('players', players);
+    }
+    if (playType === 'training') params.set('task', trainingTask);
     const initData = window.Telegram?.WebApp?.initData;
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
-    if (tableSize) params.set('tableSize', tableSize);
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
     const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -132,6 +163,12 @@ export default function PoolRoyaleLobby() {
     if (devAcc1) params.set('dev1', devAcc1);
     if (devAcc2) params.set('dev2', devAcc2);
     if (initData) params.set('init', encodeURIComponent(initData));
+
+    if (playType === 'tournament') {
+      window.location.href = `/pool-royale-bracket.html?${params.toString()}`;
+      return;
+    }
+
     navigate(`/games/pollroyale?${params.toString()}`);
   };
 
@@ -239,7 +276,7 @@ export default function PoolRoyaleLobby() {
       socket.off('lobbyUpdate', onUpdate);
       socket.off('gameStart', onStart);
     };
-  }, [avatar, matchTableId, navigate, stake, tableSize, variant]);
+  }, [avatar, matchTableId, navigate, playType, stake, tableSize, variant]);
 
   useEffect(() => {
     const id = accountIdRef.current;
@@ -253,14 +290,20 @@ export default function PoolRoyaleLobby() {
   }, [matchTableId]);
 
   useEffect(() => {
-    if (mode !== 'online') {
+    if (playType === 'training' || playType === 'tournament') {
+      setMode('ai');
+    }
+  }, [playType]);
+
+  useEffect(() => {
+    if (mode !== 'online' || playType !== 'regular') {
       setMatching(false);
       setMatchTableId('');
       setMatchPlayers([]);
       setReadyList([]);
       stakeChargedRef.current = false;
     }
-  }, [mode]);
+  }, [mode, playType]);
 
   const readyIds = useMemo(
     () => new Set((readyList || []).map((id) => String(id))),
@@ -280,27 +323,84 @@ export default function PoolRoyaleLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
-          <div className="lobby-tile lobby-selected">Regular</div>
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Mode</h3>
-        <div className="flex gap-2">
           {[
-            { id: 'ai', label: 'Vs AI' },
-            { id: 'online', label: '1v1 Online' }
+            { id: 'regular', label: 'Regular' },
+            { id: 'training', label: 'Training' },
+            { id: 'tournament', label: 'Tournament' }
           ].map(({ id, label }) => (
-            <div key={id} className="relative">
-              <button
-                onClick={() => setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
-              >
-                {label}
-              </button>
-            </div>
+            <button
+              key={id}
+              onClick={() => setPlayType(id)}
+              className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
           ))}
         </div>
       </div>
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Mode</h3>
+          <div className="flex gap-2">
+            {[
+              { id: 'ai', label: 'Vs AI' },
+              { id: 'online', label: '1v1 Online', disabled: playType === 'tournament' }
+            ].map(({ id, label, disabled }) => (
+              <div key={id} className="relative">
+                <button
+                  onClick={() => !disabled && setMode(id)}
+                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                    disabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={disabled}
+                >
+                  {label}
+                </button>
+                {disabled && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                    Tournament bracket only
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {playType === 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Training Tasks</h3>
+          <div className="lobby-tile flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold">Task {trainingTask} of 50</p>
+              <p className="text-xs text-subtext">Progressive drills with rewards every completion.</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setTrainingTask((t) =>
+                    resolvePlayableTrainingLevel(Math.max(1, t - 1), trainingProgress)
+                  )
+                }
+                className="px-3 py-1 text-sm rounded border border-border"
+              >
+                -
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setTrainingTask((t) =>
+                    resolvePlayableTrainingLevel(Math.min(50, t + 1), trainingProgress)
+                  )
+                }
+                className="px-3 py-1 text-sm rounded border border-border"
+              >
+                +
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
@@ -319,11 +419,30 @@ export default function PoolRoyaleLobby() {
           ))}
         </div>
       </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-      </div>
-      {mode === 'online' && (
+      {playType === 'tournament' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Players</h3>
+          <div className="flex gap-2">
+            {[8, 16, 24].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPlayers(p)}
+                className={`lobby-tile ${players === p ? 'lobby-selected' : ''}`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs">Winner takes pot minus 10% developer fee.</p>
+        </div>
+      )}
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Stake</h3>
+          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        </div>
+      )}
+      {mode === 'online' && playType === 'regular' && (
         <div className="space-y-3 p-3 rounded-lg border border-border bg-surface/60">
           <div className="flex items-center justify-between">
             <div>
