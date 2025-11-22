@@ -178,7 +178,7 @@ export default function PoolRoyaleLobby() {
       return;
     }
 
-    navigate(`/games/pollroyale?${params.toString()}`);
+    navigate(`/games/poolroyale?${params.toString()}`);
   };
 
   useEffect(() => {
@@ -276,7 +276,7 @@ export default function PoolRoyaleLobby() {
       if (tableSize) params.set('tableSize', tableSize);
       const name = getTelegramFirstName();
       if (name) params.set('name', name);
-      navigate(`/games/pollroyale?${params.toString()}`);
+      navigate(`/games/poolroyale?${params.toString()}`);
     };
 
     socket.on('lobbyUpdate', onUpdate);
