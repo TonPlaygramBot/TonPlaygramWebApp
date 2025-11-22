@@ -449,13 +449,19 @@ const SOUND_SOURCES = {
   goal: encodeURI('/assets/sounds/goal net origjinal (2).mp3'),
   kick: encodeURI('/assets/sounds/ball kick .mp3')
 };
-export default function FreeKick3DGame({ config }) {
+export default function FreeKick3DGame({
+  config,
+  disableRestart = false,
+  onComplete,
+  onScoreChange
+}) {
   const hostRef = useRef(null);
   const threeRef = useRef(null);
   const gestureRef = useRef({ start: null, last: null, pointerId: null, history: [], plan: null });
   const messageTimeoutRef = useRef(null);
   const resetTimeoutRef = useRef(null);
   const gameStateRef = useRef({ gameOver: false });
+  const completionReported = useRef(false);
   const audioRef = useRef({
     started: false,
     crowd: null,
@@ -1762,14 +1768,14 @@ export default function FreeKick3DGame({ config }) {
     const defenderOffsets = [];
     const defenderAnchors = [];
     const defenderBaseY = 1.1;
-    for (let i = 0; i < 3; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       const anchor = new THREE.Group();
       const placeholderGeo = new THREE.CapsuleGeometry(0.25, 0.9, 4, 8);
       const placeholder = new THREE.Mesh(placeholderGeo, wallMaterial);
       placeholder.castShadow = true;
       placeholder.receiveShadow = true;
       anchor.add(placeholder);
-      const offsetX = (i - 1) * 0.8;
+      const offsetX = (i - 2) * 0.8;
       anchor.position.set(offsetX, defenderBaseY, 0);
       wallGroup.add(anchor);
       defenders.push({ mesh: anchor, radius: 0.28, halfHeight: 0.7, offsetX });
@@ -3296,6 +3302,20 @@ export default function FreeKick3DGame({ config }) {
   }, [gameOver]);
 
   useEffect(() => {
+    if (typeof onScoreChange === 'function') {
+      onScoreChange(score);
+    }
+  }, [onScoreChange, score]);
+
+  useEffect(() => {
+    if (!gameOver || completionReported.current) return;
+    completionReported.current = true;
+    if (typeof onComplete === 'function') {
+      onComplete({ score, shots, goals });
+    }
+  }, [gameOver, goals, onComplete, score, shots]);
+
+  useEffect(() => {
     if (gameOver || !isRunning) {
       pauseCrowdSound();
     } else if (audioRef.current.started) {
@@ -3324,6 +3344,7 @@ export default function FreeKick3DGame({ config }) {
     setIsRunning(false);
     setGameOver(false);
     setMessage(INSTRUCTION_TEXT);
+    completionReported.current = false;
     if (threeRef.current) {
       threeRef.current.resetBall();
       threeRef.current.started = false;
@@ -3363,13 +3384,15 @@ export default function FreeKick3DGame({ config }) {
             <p className="mt-2 text-sm text-white/70">Shots taken: {shots}</p>
             <p className="text-sm text-white/70">Goals scored: {goals}</p>
             <p className="text-sm text-white/70">Total points: {score}</p>
-            <button
-              type="button"
-              onClick={restart}
-              className="mt-4 w-full rounded-lg bg-emerald-500 py-2 font-semibold text-white shadow-lg shadow-emerald-500/30"
-            >
-              Play again
-            </button>
+            {!disableRestart && (
+              <button
+                type="button"
+                onClick={restart}
+                className="mt-4 w-full rounded-lg bg-emerald-500 py-2 font-semibold text-white shadow-lg shadow-emerald-500/30"
+              >
+                Play again
+              </button>
+            )}
           </div>
         </div>
       )}
