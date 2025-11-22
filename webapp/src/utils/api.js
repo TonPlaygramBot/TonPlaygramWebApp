@@ -394,6 +394,15 @@ export function sendMessage(fromId, toId, text) {
   return post('/api/social/send-message', { fromId, toId, text });
 }
 
+export function askAiAgent({ telegramId, message, history = [], context } = {}) {
+  return post('/api/ai/chat', {
+    telegramId,
+    message,
+    history,
+    context
+  });
+}
+
 export function sendGift(fromId, toId, gift) {
   return post('/api/account/gift', {
     fromAccount: fromId,
