@@ -190,6 +190,35 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     renderer.domElement.addEventListener('touchend', onPointerUp, { passive: true });
     renderer.domElement.addEventListener('touchmove', onPointerMove, { passive: true });
 
+    // Global touch handlers so swipes that begin on the canvas but end off of it still launch the ball.
+    function isInsideCanvas(touch) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      return touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
+    }
+
+    let touchActive = false;
+    function onDocumentTouchStart(e) {
+      const t = e.touches?.[0];
+      if (!t || !isInsideCanvas(t)) return;
+      touchActive = true;
+      startX = t.clientX;
+      startY = t.clientY;
+      lastX = startX;
+      lastY = startY;
+      startT = Date.now();
+    }
+
+    function onDocumentTouchEnd(e) {
+      if (!touchActive) return;
+      touchActive = false;
+      const t = e.changedTouches?.[0];
+      if (!t) return;
+      launchFromSwipe(t.clientX, t.clientY);
+    }
+
+    document.addEventListener('touchstart', onDocumentTouchStart, { passive: true });
+    document.addEventListener('touchend', onDocumentTouchEnd, { passive: true });
+
     function updateRacketHeight() {
       const targetY = Math.max(config.ballRadius + 0.7, Math.min(ball.position.y, config.ballRadius + 3.5));
       player.position.y += (targetY - player.position.y) * 0.2;
@@ -278,6 +307,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       renderer.domElement.removeEventListener('touchstart', onPointerDown);
       renderer.domElement.removeEventListener('touchend', onPointerUp);
       renderer.domElement.removeEventListener('touchmove', onPointerMove);
+      document.removeEventListener('touchstart', onDocumentTouchStart);
+      document.removeEventListener('touchend', onDocumentTouchEnd);
       try {
         container.removeChild(renderer.domElement);
       } catch (err) {
