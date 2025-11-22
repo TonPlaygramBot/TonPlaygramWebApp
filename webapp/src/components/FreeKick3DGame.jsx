@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const INSTRUCTION_TEXT = 'Swipe up to shoot • Curve by swiping sideways';
 const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
@@ -381,6 +382,11 @@ const GOAL_CONFIG = {
   z: -10.2
 };
 
+const CESIUM_MAN_URL =
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb';
+const DEFENDER_MODEL_HEIGHT = 1.4;
+const KEEPER_MODEL_HEIGHT = 1.92;
+
 const MIN_GOAL_POINTS = 5;
 const TIMER_BONUS_OPTIONS = Object.freeze([10, 15, 20]);
 const BOMB_TIME_PENALTY = 15;
@@ -569,6 +575,8 @@ export default function FreeKick3DGame({ config }) {
     const host = hostRef.current;
     if (!host) return;
 
+    let disposed = false;
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(host.clientWidth, host.clientHeight);
@@ -607,6 +615,8 @@ export default function FreeKick3DGame({ config }) {
     };
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin?.('anonymous');
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setCrossOrigin?.('anonymous');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
@@ -1750,25 +1760,32 @@ export default function FreeKick3DGame({ config }) {
     const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0x20232a, roughness: 0.6 });
     const defenders = [];
     const defenderOffsets = [];
+    const defenderAnchors = [];
     const defenderBaseY = 1.1;
     for (let i = 0; i < 3; i += 1) {
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.9, 4, 8), wallMaterial);
-      body.castShadow = true;
-      body.receiveShadow = true;
+      const anchor = new THREE.Group();
+      const placeholderGeo = new THREE.CapsuleGeometry(0.25, 0.9, 4, 8);
+      const placeholder = new THREE.Mesh(placeholderGeo, wallMaterial);
+      placeholder.castShadow = true;
+      placeholder.receiveShadow = true;
+      anchor.add(placeholder);
       const offsetX = (i - 1) * 0.8;
-      body.position.set(offsetX, defenderBaseY, 0);
-      wallGroup.add(body);
-      defenders.push({ mesh: body, radius: 0.28, halfHeight: 0.7, offsetX });
+      anchor.position.set(offsetX, defenderBaseY, 0);
+      wallGroup.add(anchor);
+      defenders.push({ mesh: anchor, radius: 0.28, halfHeight: 0.7, offsetX });
       defenderOffsets.push(offsetX);
+      defenderAnchors.push(anchor);
     }
     scene.add(wallGroup);
 
     const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0x1c2432, roughness: 0.45 });
+    const keeperAnchor = new THREE.Group();
     const keeperMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.2, 6, 12), keeperMaterial);
     keeperMesh.castShadow = true;
     keeperMesh.receiveShadow = true;
-    keeperMesh.position.set(0, 1.02, goalZ + 0.32);
-    scene.add(keeperMesh);
+    keeperAnchor.add(keeperMesh);
+    keeperAnchor.position.set(0, 1.02, goalZ + 0.32);
+    scene.add(keeperAnchor);
 
     const targetGroup = new THREE.Group();
     targetGroup.position.set(0, 0, goalZ - 0.08);
@@ -1786,17 +1803,91 @@ export default function FreeKick3DGame({ config }) {
     };
 
     const keeperState = {
-      mesh: keeperMesh,
+      mesh: keeperAnchor,
       radius: 0.34,
       halfHeight: 0.92,
-      baseY: keeperMesh.position.y,
-      baseZ: keeperMesh.position.z,
-      baseX: keeperMesh.position.x,
-      targetX: keeperMesh.position.x,
-      targetY: keeperMesh.position.y,
+      baseY: keeperAnchor.position.y,
+      baseZ: keeperAnchor.position.z,
+      baseX: keeperAnchor.position.x,
+      targetX: keeperAnchor.position.x,
+      targetY: keeperAnchor.position.y,
       moveEase: KEEPER_RETURN_EASE,
       side: 0
     };
+
+    const characterSize = new THREE.Vector3();
+
+    const disposeAnchorChildren = (anchor) => {
+      anchor.children.slice().forEach((child) => {
+        anchor.remove(child);
+        if (child.isMesh) {
+          child.geometry?.dispose?.();
+          if (Array.isArray(child.material)) {
+            child.material.forEach((material) => material?.dispose?.());
+          } else {
+            child.material?.dispose?.();
+          }
+        }
+      });
+    };
+
+    const cloneCharacter = (root, tintColor) => {
+      const clone = root.clone(true);
+      clone.traverse((child) => {
+        if (!child.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        if (Array.isArray(child.material)) {
+          child.material = child.material.map((material) => {
+            const next = material?.clone ? material.clone() : material;
+            if (next?.color) {
+              next.color = next.color.clone();
+              if (tintColor !== undefined) next.color.setHex(tintColor);
+            }
+            next.needsUpdate = true;
+            return next;
+          });
+        } else if (child.material) {
+          const material = child.material.clone ? child.material.clone() : child.material;
+          if (material?.color) {
+            material.color = material.color.clone();
+            if (tintColor !== undefined) material.color.setHex(tintColor);
+          }
+          material.needsUpdate = true;
+          child.material = material;
+        }
+      });
+      return clone;
+    };
+
+    gltfLoader.load(
+      CESIUM_MAN_URL,
+      (gltf) => {
+        if (disposed) return;
+        const root = gltf.scene || gltf.scenes?.[0];
+        if (!root) return;
+        const baseBox = new THREE.Box3().setFromObject(root);
+        const baseHeight = baseBox.getSize(characterSize).y || 1;
+        const attachCharacter = (anchor, targetHeight, tintColor) => {
+          if (!anchor) return;
+          const character = cloneCharacter(root, tintColor);
+          const scale = targetHeight / baseHeight;
+          character.scale.setScalar(scale);
+          const box = new THREE.Box3().setFromObject(character);
+          character.position.set(0, -box.min.y, 0);
+          disposeAnchorChildren(anchor);
+          anchor.add(character);
+        };
+
+        defenderAnchors.forEach((anchor) => attachCharacter(anchor, DEFENDER_MODEL_HEIGHT, 0x1d4ed8));
+        attachCharacter(keeperAnchor, KEEPER_MODEL_HEIGHT, 0x16a34a);
+      },
+      undefined,
+      (error) => {
+        if (disposed) return;
+        console.error('Failed to load CesiumMan model for Free Kick 3D', error);
+      }
+    );
 
     const ballTexture = makeUCLBallTexture(2048);
     const bumpMap = makeBumpFromColor(ballTexture);
@@ -3145,6 +3236,7 @@ export default function FreeKick3DGame({ config }) {
     window.addEventListener('resize', onResize);
 
     return () => {
+      disposed = true;
       state.disposed = true;
       cancelAnimationFrame(state.animationId);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
