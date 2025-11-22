@@ -67,23 +67,14 @@ function pathBlocked (a, b, balls, ignoreIds, radius, margin = 1) {
   )
 }
 
-function pocketEntry (pocket, radius, width, height, target = null) {
-  const fallback = { x: width / 2, y: height / 2 }
-  const dir = target
-    ? { x: target.x - pocket.x, y: target.y - pocket.y }
-    : { x: fallback.x - pocket.x, y: fallback.y - pocket.y }
+function pocketEntry (pocket, radius, width, height) {
+  const center = { x: width / 2, y: height / 2 }
+  const dir = { x: center.x - pocket.x, y: center.y - pocket.y }
   const len = Math.hypot(dir.x, dir.y) || 1
-  // Aim toward the centre of the pocket along the line of the target, but keep
-  // the contact just inside the playable area to avoid clipping the jaws.
-  const offset = radius * 0.9
-  const entry = {
+  const offset = radius * 1.05
+  return {
     x: pocket.x + (dir.x / len) * offset,
     y: pocket.y + (dir.y / len) * offset
-  }
-  const inset = radius * 0.6
-  return {
-    x: Math.min(Math.max(entry.x, inset), width - inset),
-    y: Math.min(Math.max(entry.y, inset), height - inset)
   }
 }
 
@@ -173,7 +164,7 @@ function clearShotCandidates (req) {
 
   for (const target of targets) {
     for (const pocket of pockets) {
-      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
+      const entry = pocketEntry(pocket, r, req.state.width, req.state.height)
       const ghost = {
         x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
         y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
@@ -325,7 +316,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
     if (!preview) continue
     let score = preview.quality
     if (depth > 1) {
-      const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
+      const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height)
       const nextCueAfter = estimateCueAfterShot(
         cue,
         target,
@@ -345,7 +336,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
 function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false, options = {}) {
   const r = req.state.ballRadius
   const balls = ballsOverride || req.state.balls
-  const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
+  const entry = pocketEntry(pocket, r, req.state.width, req.state.height)
   const ghost = {
     x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
     y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
@@ -385,8 +376,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const nearHole = 1 - Math.min(dist(target, entry) / (r * 20), 1)
   const viewAngle = Math.atan2(r * 2, dist(target, entry))
   const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
-  const pocketCentering = 1 - Math.min(dist(entry, pocket) / (r * 2), 1)
-  if (strict && (centerAlign < 0.5 || viewScore < 0.3 || pocketCentering < 0.4)) {
+  if (strict && (centerAlign < 0.5 || viewScore < 0.3)) {
     return null
   }
   const lookaheadDepth = Number.isFinite(options.lookaheadDepth)
@@ -399,13 +389,12 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     0,
     Math.min(
       1,
-      0.28 * potChance +
-        0.22 * centerAlign +
-        0.16 * viewScore +
+      0.3 * potChance +
+        0.2 * centerAlign +
+        0.18 * viewScore +
         0.08 * nextScore +
         0.08 * nearHole +
-        0.12 * runoutPotential +
-        0.06 * pocketCentering -
+        0.16 * runoutPotential -
         0.2 * risk
     )
   )
@@ -418,7 +407,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
     targetPocket: entry,
     aimPoint: ghost,
     quality,
-    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} cen=${pocketCentering.toFixed(2)} r=${risk.toFixed(2)}`,
+    rationale: `target=${target.id} pocket=(${pocket.x.toFixed(0)},${pocket.y.toFixed(0)}) angle=${angle.toFixed(2)} power=${power.toFixed(2)} spin=${spin.top.toFixed(2)},${spin.side.toFixed(2)},${spin.back.toFixed(2)} pc=${potChance.toFixed(2)} ca=${centerAlign.toFixed(2)} nh=${nearHole.toFixed(2)} np=${nextScore.toFixed(2)} r=${risk.toFixed(2)}`,
     nextScore,
     hasNext
   }
@@ -473,7 +462,7 @@ export function planShot (req) {
 
   for (const strict of [true, false]) {
     for (const { target, pocket } of candidatePairs) {
-      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
+      const entry = pocketEntry(pocket, r, req.state.width, req.state.height)
       // ball in hand: sample cue placements along pocket-target line
       const placements = []
       if (req.state.ballInHand) {
