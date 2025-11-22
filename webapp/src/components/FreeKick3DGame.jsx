@@ -1,9 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
 const INSTRUCTION_TEXT = 'Swipe up to shoot • Curve by swiping sideways';
 const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
+const DEFENDER_MODEL_URL =
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb';
+const KEEPER_MODEL_URL =
+  'https://cdn.jsdelivr.net/gh/BabylonJS/Assets@master/meshes/HVGirl.glb';
 
 function formatTime(totalSeconds) {
   const clamped = Math.max(0, Math.floor(totalSeconds));
@@ -607,6 +613,63 @@ export default function FreeKick3DGame({ config }) {
     };
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin?.('anonymous');
+
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setCrossOrigin?.('anonymous');
+
+    const modelCache = new Map();
+    const loadModel = (key, url) => {
+      if (!modelCache.has(key)) {
+        const promise = new Promise((resolve, reject) => {
+          gltfLoader.load(
+            url,
+            (gltf) => {
+              const root = gltf.scene || gltf.scenes?.[0];
+              if (!root) {
+                reject(new Error('Invalid GLTF scene'));
+                return;
+              }
+              root.traverse((node) => {
+                if (node.isMesh) {
+                  node.castShadow = true;
+                  node.receiveShadow = true;
+                  if (node.material?.map) {
+                    node.material.map.colorSpace = THREE.SRGBColorSpace;
+                  }
+                }
+              });
+              resolve(root);
+            },
+            undefined,
+            (error) => reject(error)
+          );
+        });
+        modelCache.set(key, promise);
+      }
+      return modelCache.get(key);
+    };
+
+    const cloneModel = async (key, url, scale = 1, rotationY = 0) => {
+      const model = await loadModel(key, url);
+      const clone = SkeletonUtils.clone(model);
+      clone.scale.setScalar(scale);
+      clone.rotation.y = rotationY;
+      return clone;
+    };
+
+    const getModelBounds = (object) => {
+      const box = new THREE.Box3().setFromObject(object);
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      return {
+        size,
+        radius: Math.max(size.x, size.z) / 2,
+        halfHeight: size.y / 2,
+        groundOffset: -box.min.y
+      };
+    };
+
+    let cancelled = false;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
@@ -1747,20 +1810,9 @@ export default function FreeKick3DGame({ config }) {
 
     const wallGroup = new THREE.Group();
     wallGroup.position.set(0, 0, DEFENDER_WALL_Z);
-    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0x20232a, roughness: 0.6 });
     const defenders = [];
     const defenderOffsets = [];
-    const defenderBaseY = 1.1;
-    for (let i = 0; i < 3; i += 1) {
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.9, 4, 8), wallMaterial);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      const offsetX = (i - 1) * 0.8;
-      body.position.set(offsetX, defenderBaseY, 0);
-      wallGroup.add(body);
-      defenders.push({ mesh: body, radius: 0.28, halfHeight: 0.7, offsetX });
-      defenderOffsets.push(offsetX);
-    }
+    let defenderBaseY = 1.1;
     scene.add(wallGroup);
 
     const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0x1c2432, roughness: 0.45 });
@@ -1773,6 +1825,60 @@ export default function FreeKick3DGame({ config }) {
     const targetGroup = new THREE.Group();
     targetGroup.position.set(0, 0, goalZ - 0.08);
     scene.add(targetGroup);
+
+    const buildDefenderWall = async () => {
+      try {
+        const template = await cloneModel('defender', DEFENDER_MODEL_URL, 1, 0);
+        if (cancelled) return;
+        const bounds = getModelBounds(template);
+        const colliderRadius = Math.max(0.26, bounds.radius * 0.7);
+        const colliderHalfHeight = Math.max(0.8, bounds.halfHeight * 0.9);
+        defenderBaseY = bounds.groundOffset + 0.02;
+        wallState.baseY = defenderBaseY;
+        wallGroup.clear?.();
+        defenders.length = 0;
+        defenderOffsets.length = 0;
+        for (let i = 0; i < 3; i += 1) {
+          const offsetX = (i - 1) * 0.8;
+          const defender = SkeletonUtils.clone(template);
+          defender.position.set(offsetX, defenderBaseY, 0);
+          wallGroup.add(defender);
+          defenders.push({ mesh: defender, radius: colliderRadius, halfHeight: colliderHalfHeight, offsetX });
+          defenderOffsets.push(offsetX);
+        }
+      } catch (error) {
+        console.error('Failed to load defender models', error);
+      }
+    };
+
+    const replaceKeeperWithModel = async () => {
+      try {
+        const keeperModel = await cloneModel('keeper', KEEPER_MODEL_URL, 0.94, 0);
+        if (cancelled) return;
+        const bounds = getModelBounds(keeperModel);
+        const colliderRadius = Math.max(0.32, bounds.radius * 0.6);
+        const colliderHalfHeight = Math.max(0.95, bounds.halfHeight * 0.92);
+        keeperModel.position.set(0, bounds.groundOffset + 0.02, goalZ + 0.32);
+        scene.remove(keeperMesh);
+        keeperMesh.geometry.dispose();
+        if (Array.isArray(keeperMesh.material)) {
+          keeperMesh.material.forEach((material) => material.dispose?.());
+        } else {
+          keeperMesh.material?.dispose?.();
+        }
+        scene.add(keeperModel);
+        keeperState.mesh = keeperModel;
+        keeperState.radius = colliderRadius;
+        keeperState.halfHeight = colliderHalfHeight;
+        keeperState.baseY = keeperModel.position.y;
+        keeperState.baseZ = keeperModel.position.z;
+        keeperState.baseX = keeperModel.position.x;
+        keeperState.targetX = keeperModel.position.x;
+        keeperState.targetY = keeperModel.position.y;
+      } catch (error) {
+        console.error('Failed to load goalkeeper model', error);
+      }
+    };
 
     const wallState = {
       group: wallGroup,
@@ -1797,6 +1903,9 @@ export default function FreeKick3DGame({ config }) {
       moveEase: KEEPER_RETURN_EASE,
       side: 0
     };
+
+    buildDefenderWall();
+    replaceKeeperWithModel();
 
     const ballTexture = makeUCLBallTexture(2048);
     const bumpMap = makeBumpFromColor(ballTexture);
@@ -3145,6 +3254,7 @@ export default function FreeKick3DGame({ config }) {
     window.addEventListener('resize', onResize);
 
     return () => {
+      cancelled = true;
       state.disposed = true;
       cancelAnimationFrame(state.animationId);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
