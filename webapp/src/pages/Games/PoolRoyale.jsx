@@ -7707,8 +7707,11 @@ function PoolRoyaleGame({
   const goToTrainingLevel = useCallback(
     (level, replace = false, reload = false) => {
       const target = (() => {
-        if (!level) return '/games/poolroyale/lobby';
+        if (!level) return '/games/poolroyale/lobby?type=training';
         const params = new URLSearchParams(location.search);
+        if (params.get('type') !== 'training') {
+          params.set('type', 'training');
+        }
         params.set('task', level);
         return `${location.pathname}?${params.toString()}`;
       })();

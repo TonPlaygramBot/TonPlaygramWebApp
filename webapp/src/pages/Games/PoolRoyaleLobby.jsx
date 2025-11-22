@@ -24,11 +24,19 @@ export default function PoolRoyaleLobby() {
   const { search } = useLocation();
   useTelegramBackButton();
 
+  const searchParams = new URLSearchParams(search);
+  const initialPlayType = (() => {
+    const requestedType = searchParams.get('type');
+    return requestedType === 'training' || requestedType === 'tournament'
+      ? requestedType
+      : 'regular';
+  })();
+
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [variant, setVariant] = useState('uk');
-  const [playType, setPlayType] = useState('regular');
+  const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
   const [trainingTask, setTrainingTask] = useState(() => {
@@ -40,7 +48,6 @@ export default function PoolRoyaleLobby() {
     () => getNextIncompleteLevel(trainingProgress.completed),
     [trainingProgress]
   );
-  const searchParams = new URLSearchParams(search);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
