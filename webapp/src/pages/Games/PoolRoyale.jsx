@@ -9695,12 +9695,22 @@ function PoolRoyaleGame({
       });
       updateCueRackHighlights();
 
+      const resolveBroadcastDistance = () => {
+        const verticalFov = THREE.MathUtils.degToRad(STANDING_VIEW_FOV);
+        const aspect = 9 / 16; // worst-case portrait aspect to guarantee full coverage
+        const halfVertical = verticalFov / 2;
+        const halfHorizontal = Math.atan(Math.tan(halfVertical) * aspect);
+        const safety = BALL_R * 6;
+        const verticalNeed = (PLAY_H / 2 + safety) / Math.tan(halfVertical);
+        const horizontalNeed = (PLAY_W / 2 + safety) / Math.tan(halfHorizontal);
+        return Math.max(verticalNeed, horizontalNeed);
+      };
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        PLAY_H / 2 + BALL_R * 8, // keep a modest clearance so the broadcast cameras sit closer to the table
+        resolveBroadcastDistance(),
         roomDepth / 2 - wallThickness - broadcastClearance
       );
-      const shortRailSlideLimit = CAMERA_LATERAL_CLAMP.short * 0.92;
+      const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
         cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
@@ -9722,17 +9732,10 @@ function PoolRoyaleGame({
         tripodExtra;
       const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
       const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
-      const tripodSideTuck = BALL_R * 1.5;
-      const tripodDesiredX =
-        TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
-      const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
-      const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
       const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
       const tripodPositions = [
-        { x: tripodXOffset, z: tripodZOffset },
-        { x: -tripodXOffset, z: tripodZOffset },
-        { x: tripodXOffset, z: -tripodZOffset },
-        { x: -tripodXOffset, z: -tripodZOffset }
+        { x: 0, z: tripodZOffset },
+        { x: 0, z: -tripodZOffset }
       ];
       tripodPositions.forEach(({ x, z }) => {
         const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
