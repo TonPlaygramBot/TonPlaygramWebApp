@@ -1,9 +1,10 @@
+import { useEffect, useState } from 'react';
+
 import TasksCard from '../components/TasksCard.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
 import ProjectAchievementsCard from '../components/ProjectAchievementsCard.jsx';
 import HomeGamesCard from '../components/HomeGamesCard.jsx';
 import DailyCheckIn from '../components/DailyCheckIn.jsx';
-import { useEffect, useState } from 'react';
 
 import {
   FaArrowUp,
@@ -32,13 +33,11 @@ import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
 import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
-import AiAgentChat from '../components/AiAgentChat.jsx';
 
 
 export default function Home() {
 
   const [status, setStatus] = useState('checking');
-  const [showAiChat, setShowAiChat] = useState(false);
 
   const [photoUrl, setPhotoUrl] = useState(loadAvatar() || '');
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
@@ -260,13 +259,12 @@ export default function Home() {
             <p className="text-white font-semibold text-sm">Ndihmë e menjëhershme</p>
             <p className="text-xs text-subtext">Kliko më poshtë për të hapur chat-in e AI Agent dhe merr suportin e duhur.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAiChat(true)}
+          <Link
+            to="/messages?channel=ai-agent"
             className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow"
           >
             Hap AI Agent
-          </button>
+          </Link>
         </div>
       </div>
       <p className="text-center text-xs text-subtext">Status: {status}</p>
@@ -292,8 +290,6 @@ export default function Home() {
           future of crypto gaming. 🚀
         </p>
       </div>
-
-      <AiAgentChat open={showAiChat} onClose={() => setShowAiChat(false)} />
     </div>
 
   );
