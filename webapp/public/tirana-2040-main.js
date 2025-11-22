@@ -13,6 +13,7 @@ export async function startTirana2040(){
   let syncArmorySlider;
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints>0);
   const isMobile = isTouch || /Android|webOS|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
+  const DRIVE_ENABLED=false;
   const gate = $('gate');
   const ctxlost = $('ctxlost');
   // The mobile layout gate was originally used to block phones from loading the
@@ -32,9 +33,10 @@ export async function startTirana2040(){
 
   const SCALE={ FLOOR_H:3.4, TRAFFIC_LIGHT_H:2.8 };
   const PERF={ bots:10 };
-  // Fast boot trades visual fidelity for stability on mobile. Explicitly disable it
-  // so every client uses the full-detail pipeline.
-  const FAST_BOOT=false;
+  // Prefer the lighter startup path on mobile to avoid crashes before the
+  // experience finishes loading. Desktop clients keep the higher fidelity
+  // defaults.
+  const FAST_BOOT=isMobile;
   window.SCALE=SCALE;
   window.PERF=PERF;
   window.FAST_BOOT=FAST_BOOT;
@@ -1638,11 +1640,21 @@ export async function startTirana2040(){
   const controlLabels={ shoot: shootPad?.textContent||'Shoot', reload: reloadBtn?.textContent||'Reload' };
   const driveInput={ throttle:0, brake:0 };
   let fireHeld=false;
-  function shootDown(){ if(driveState.active){ driveInput.throttle=1; return; } if(FIRE_MODES.get(currentKey)==='auto'){ fireHeld=true; } else { doShot(); } }
-  function shootUp(){ fireHeld=false; if(driveState.active){ driveInput.throttle=0; } }
-  function brakeDown(){ if(driveState.active){ driveInput.brake=1; return; } reload(); }
-  function brakeUp(){ if(driveState.active){ driveInput.brake=0; } }
-  function setDrivePedals(){ if(!shootPad||!reloadBtn) return; if(driveState.active){ shootPad.textContent='Accelerate'; reloadBtn.textContent='Brake'; } else { shootPad.textContent=controlLabels.shoot; reloadBtn.textContent=controlLabels.reload; driveInput.throttle=0; driveInput.brake=0; } }
+  function shootDown(){ if(DRIVE_ENABLED && driveState.active){ driveInput.throttle=1; return; } if(FIRE_MODES.get(currentKey)==='auto'){ fireHeld=true; } else { doShot(); } }
+  function shootUp(){ fireHeld=false; if(DRIVE_ENABLED && driveState.active){ driveInput.throttle=0; } }
+  function brakeDown(){ if(DRIVE_ENABLED && driveState.active){ driveInput.brake=1; return; } reload(); }
+  function brakeUp(){ if(DRIVE_ENABLED && driveState.active){ driveInput.brake=0; } }
+  function setDrivePedals(){
+    if(!shootPad||!reloadBtn) return;
+    if(!DRIVE_ENABLED){
+      shootPad.textContent=controlLabels.shoot;
+      reloadBtn.textContent=controlLabels.reload;
+      driveInput.throttle=0;
+      driveInput.brake=0;
+      return;
+    }
+    if(driveState.active){ shootPad.textContent='Accelerate'; reloadBtn.textContent='Brake'; } else { shootPad.textContent=controlLabels.shoot; reloadBtn.textContent=controlLabels.reload; driveInput.throttle=0; driveInput.brake=0; }
+  }
   shootPad.addEventListener('pointerdown', (e)=>{ if(inputMode!=='A') return; shootDown(); e.preventDefault(); });
   shootPad.addEventListener('pointerup', (e)=>{ if(inputMode!=='A') return; shootUp(); e.preventDefault(); });
   shootPad.addEventListener('pointercancel', (e)=>{ if(inputMode!=='A') return; shootUp(); e.preventDefault(); });
@@ -1764,7 +1776,7 @@ export async function startTirana2040(){
 
   const parked=[]; const trafficCars=[]; const emergencyUnits=[]; const driveableVehicles=[];
   const driveState={ active:false, vehicle:null, speed:0, heading:0 };
-  function labelDriveable(vehicle){ if(!vehicle) return; const box=new THREE.Box3().setFromObject(vehicle); const height=box.max.y - box.min.y; const lbl=makeLabel('DRIVE',0.6); lbl.position.set(0, box.max.y - vehicle.position.y + 0.6 + height*0.1, 0); lbl.material.depthTest=false; lbl.userData.billboard=true; vehicle.add(lbl); driveableVehicles.push({mesh:vehicle,label:lbl}); }
+  function labelDriveable(vehicle){ if(!DRIVE_ENABLED || !vehicle) return; const box=new THREE.Box3().setFromObject(vehicle); const height=box.max.y - box.min.y; const lbl=makeLabel('DRIVE',0.6); lbl.position.set(0, box.max.y - vehicle.position.y + 0.6 + height*0.1, 0); lbl.material.depthTest=false; lbl.userData.billboard=true; vehicle.add(lbl); driveableVehicles.push({mesh:vehicle,label:lbl}); }
   async function spawnParkedEmergency(){
     const hosp=POIS.find(p=>p.type==='hospital'); const pol=POIS.find(p=>p.type==='police'); const fire=POIS.find(p=>p.type==='fire');
     if(hosp){ const v=(await getVehicle('ambulance')).clone(true); centerXZ(v); scaleToLength(v,4.4); placeOnGround(v,0); addSideLabels(v,'AMBULANCE'); tintVehicle(v,'#ef4444'); v.position.set(hosp.pos.x,0, hosp.pos.z + hosp.dims.d/2 + 6); setHeading(v,Math.PI); scene.add(v); const siren=attachSiren(v); emergencyUnits.push({mesh:v, base:v.position.clone(), baseHeading:v.rotation.y, target:null, state:'idle', siren, speed:12, type:'ambulance'}); parked.push(v); labelDriveable(v); }
@@ -1871,7 +1883,7 @@ export async function startTirana2040(){
   window.__phase='after-emergency';
   await spawnParkedCommons();
   window.__phase='after-commons';
-  await spawnTraffic(18);
+  await spawnTraffic(isMobile ? 10 : 18);
   window.__phase='after-traffic';
 
   function dispatchEmergency(pos){ const total=Math.max(1, emergencyUnits.length); emergencyUnits.forEach((unit,idx)=>{ const offsetAngle=(idx/total)*Math.PI*2; const offset=new THREE.Vector3(Math.cos(offsetAngle)*2.4,0,Math.sin(offsetAngle)*2.4); unit.target=pos.clone().add(offset); unit.state='responding'; unit.arrivalTimer=0; if(unit.siren){ unit.siren.phase=0; unit.siren.left.material.opacity=0.9; unit.siren.right.material.opacity=0.9; if(unit.siren.light){ unit.siren.light.intensity=14; } } }); }
@@ -1954,6 +1966,10 @@ export async function startTirana2040(){
   const cameraModeBtn=$('cameraModeBtn');
   function updateCameraModeButton(){
     if(!cameraModeBtn) return;
+    if(!DRIVE_ENABLED){
+      cameraModeBtn.style.display='none';
+      return;
+    }
     cameraModeBtn.style.display = driveState.active ? 'block' : 'none';
     cameraModeBtn.textContent = cameraMode===CAMERA_MODES.COCKPIT? '🎥 Inside' : '🎥 Behind';
   }
@@ -1961,12 +1977,19 @@ export async function startTirana2040(){
     cameraMode = mode===CAMERA_MODES.COCKPIT ? CAMERA_MODES.COCKPIT : CAMERA_MODES.FOLLOW;
     updateCameraModeButton();
   }
-  function nearestDriveable(){ let best=null, bd=1e9; driveableVehicles.forEach(({mesh})=>{ const dx=(player.position.x||0)-(mesh.position.x||0); const dz=(player.position.z||0)-(mesh.position.z||0); const d=Math.hypot(dx,dz); if(d<bd){ bd=d; best=mesh; } }); return {mesh:best, dist:bd}; }
-  function enterVehicle(mesh){ if(!mesh) return; driveState.active=true; driveState.vehicle=mesh; driveState.speed=0; driveState.heading=(mesh.rotation.y||0)-Math.PI/2; player.velocity.set(0,0,0); player.position.set(mesh.position.x, player.position.y, mesh.position.z); driveBtn.textContent='⬅ Exit Car'; driveBtn.style.display='block'; setDrivePedals(); setCameraMode(CAMERA_MODES.FOLLOW); }
-  function exitVehicle(){ if(!driveState.active) return; const vehicle=driveState.vehicle; const dir=new THREE.Vector3(Math.cos(driveState.heading),0,Math.sin(driveState.heading)); player.position.set(vehicle?.position.x || 0, 0.94, (vehicle?.position.z||0)); player.position.x += -dir.z*1.8; player.position.z += dir.x*1.8; driveState.active=false; driveState.vehicle=null; driveState.speed=0; driveInput.throttle=0; driveInput.brake=0; driveBtn.textContent='🚗 Drive'; driveBtn.style.display='none'; setDrivePedals(); setCameraMode(CAMERA_MODES.FOLLOW); }
-  function setDriveUI(){ if(driveState.active){ driveBtn.style.display='block'; driveBtn.textContent='⬅ Exit Car'; setDrivePedals(); updateCameraModeButton(); return; } const n=nearestDriveable(); const show=n.mesh && n.dist<4.2; driveBtn.style.display = show? 'block':'none'; driveBtn.textContent='🚗 Drive'; driveBtn.dataset.target = show? (n.mesh.uuid||'') : ''; setDrivePedals(); updateCameraModeButton(); }
-  driveBtn.addEventListener('click', ()=>{ if(driveState.active){ exitVehicle(); return; } const n=nearestDriveable(); if(n.mesh && n.dist<4.2){ enterVehicle(n.mesh); vib(18); } });
-  cameraModeBtn?.addEventListener('click', ()=>{ if(!driveState.active) return; setCameraMode(cameraMode===CAMERA_MODES.COCKPIT?CAMERA_MODES.FOLLOW:CAMERA_MODES.COCKPIT); vib(10); });
+  function nearestDriveable(){ if(!DRIVE_ENABLED) return {mesh:null, dist:1e9}; let best=null, bd=1e9; driveableVehicles.forEach(({mesh})=>{ const dx=(player.position.x||0)-(mesh.position.x||0); const dz=(player.position.z||0)-(mesh.position.z||0); const d=Math.hypot(dx,dz); if(d<bd){ bd=d; best=mesh; } }); return {mesh:best, dist:bd}; }
+  function enterVehicle(mesh){ if(!DRIVE_ENABLED||!mesh) return; driveState.active=true; driveState.vehicle=mesh; driveState.speed=0; driveState.heading=(mesh.rotation.y||0)-Math.PI/2; player.velocity.set(0,0,0); player.position.set(mesh.position.x, player.position.y, mesh.position.z); driveBtn.textContent='⬅ Exit Car'; driveBtn.style.display='block'; setDrivePedals(); setCameraMode(CAMERA_MODES.FOLLOW); }
+  function exitVehicle(){ if(!DRIVE_ENABLED||!driveState.active) return; const vehicle=driveState.vehicle; const dir=new THREE.Vector3(Math.cos(driveState.heading),0,Math.sin(driveState.heading)); player.position.set(vehicle?.position.x || 0, 0.94, (vehicle?.position.z||0)); player.position.x += -dir.z*1.8; player.position.z += dir.x*1.8; driveState.active=false; driveState.vehicle=null; driveState.speed=0; driveInput.throttle=0; driveInput.brake=0; driveBtn.textContent='🚗 Drive'; driveBtn.style.display='none'; setDrivePedals(); setCameraMode(CAMERA_MODES.FOLLOW); }
+  function setDriveUI(){
+    if(!driveBtn){ setDrivePedals(); return; }
+    if(!DRIVE_ENABLED){ if(driveBtn){ driveBtn.style.display='none'; driveBtn.setAttribute('aria-hidden','true'); } if(cameraModeBtn){ cameraModeBtn.style.display='none'; cameraModeBtn.setAttribute('aria-hidden','true'); } setDrivePedals(); return; }
+    if(driveState.active){ driveBtn.style.display='block'; driveBtn.textContent='⬅ Exit Car'; setDrivePedals(); updateCameraModeButton(); return; } const n=nearestDriveable(); const show=n.mesh && n.dist<4.2; driveBtn.style.display = show? 'block':'none'; driveBtn.textContent='🚗 Drive'; driveBtn.dataset.target = show? (n.mesh.uuid||'') : ''; setDrivePedals(); updateCameraModeButton(); }
+  if(DRIVE_ENABLED){
+    driveBtn.addEventListener('click', ()=>{ if(driveState.active){ exitVehicle(); return; } const n=nearestDriveable(); if(n.mesh && n.dist<4.2){ enterVehicle(n.mesh); vib(18); } });
+    cameraModeBtn?.addEventListener('click', ()=>{ if(!driveState.active) return; setCameraMode(cameraMode===CAMERA_MODES.COCKPIT?CAMERA_MODES.FOLLOW:CAMERA_MODES.COCKPIT); vib(10); });
+  } else {
+    driveBtn?.addEventListener('click', ()=>{ updateStatus('Driving is disabled for stability.'); });
+  }
 
   function updateClimbMovement(moveInput,dt){ const idx=ladderState.index; const L=ladders[idx]; if(!ladderState.active || !L) return; const climbSpeed=2.6*MOVE_SPEED_MULT; const nextY = THREE.MathUtils.clamp(player.position.y + moveInput*climbSpeed*dt, L.y0+0.6, L.y1+1.1); player.position.y = nextY; player.position.x = L.x; player.position.z = L.z; player.velocity.set(0,0,0); player.angularVelocity.set(0,0,0); if(nextY>=L.y1+0.95 && moveInput>0.1){ detachFromLadder(); player.position.y = L.y1+1.0; player.position.x += Math.sin(yaw)*1.1; player.position.z += Math.cos(yaw)*1.1; }
     if(nextY<=L.y0+0.6 && moveInput<-0.1){ detachFromLadder(); player.position.y = L.y0+0.6; }
@@ -2026,8 +2049,12 @@ export async function startTirana2040(){
     crosshairEl.style.setProperty('--aimColor', onEnemy? '#2fe56b' : '#ff3c3c');
     aimDotMat.color.set(onEnemy? 0x2fe56b : 0xff3c3c);
 
-    if(driveState.active && !driveState.vehicle){ driveState.active=false; driveBtn.textContent='🚗 Drive'; setDrivePedals(); }
-    driveableVehicles.forEach(({label})=>{ if(label){ label.lookAt(camera.position); } });
+    if(DRIVE_ENABLED){
+      if(driveState.active && !driveState.vehicle){ driveState.active=false; driveBtn.textContent='🚗 Drive'; setDrivePedals(); }
+      driveableVehicles.forEach(({label})=>{ if(label){ label.lookAt(camera.position); } });
+    } else {
+      driveState.active=false;
+    }
 
     const move={x:0,z:0}; if(keys.has('KeyW')) move.z+=1; if(keys.has('KeyS')) move.z-=1; if(keys.has('KeyA')) move.x-=1; if(keys.has('KeyD')) move.x+=1; move.x += mv.vx; move.z += driveState.active ? 0 : mv.vz; if(driveState.active){ move.z += driveInput.throttle*1.2; move.z -= driveInput.brake*1.3; } let l=Math.hypot(move.x,move.z); if(l>1){ move.x/=l; move.z/=l; }
     const speedBase = ARM_SPEED_BASE; const speedRun = SPEED_RUN;
