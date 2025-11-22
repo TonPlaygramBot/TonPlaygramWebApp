@@ -4,6 +4,11 @@ import { AiOutlineClose, AiOutlineSend } from 'react-icons/ai';
 import LoginOptions from './LoginOptions.jsx';
 import { askAiAgent } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
+import {
+  SAFE_CONTEXT,
+  detectSensitiveRequest,
+  findKnowledgeMatch
+} from '../utils/aiKnowledgeBase.js';
 
 const QUICK_PROMPTS = [
   'Çfarë është TonPlaygram dhe si funksionon?',
@@ -14,6 +19,9 @@ const QUICK_PROMPTS = [
 
 const CONTEXT_SNIPPET =
   'TonPlaygram ofron mining ditor, lojëra si Pool Royale, Goal Rush dhe Free Kick, ku fitimet llogariten me stake të paracaktuara. Balancat TPC ruhen off-chain brenda aplikacionit. Referral pages japin bonuse dhe çdo përdorues ka profile me foto dhe bio.';
+
+const FALLBACK_NOTICE =
+  'U përgjigja duke përdorur njohuritë lokale të aplikacionit sepse shërbimi i jashtëm i AI nuk ishte i disponueshëm. Asnjë informacion i ndjeshëm nuk ndahet nga frontend.';
 
 export default function AiAgentChat({ open, onClose }) {
   const [messages, setMessages] = useState([
@@ -72,28 +80,54 @@ export default function AiAgentChat({ open, onClose }) {
     setLoading(true);
     setError('');
 
-    const res = await askAiAgent({
-      telegramId,
-      message: text,
-      history,
-      context: CONTEXT_SNIPPET
-    });
-
-    setLoading(false);
-    if (res?.error) {
-      setError(res.error);
+    if (detectSensitiveRequest(text)) {
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Nuk arrita të marr përgjigje. Provo përsëri pas pak.'
+          content:
+            'Nuk mund të ndaj informacione të ndjeshme si çelësa privatë, mnemonics ose kredenciale. Pyet për funksionalitetin e aplikacionit, lojërat, wallet apo mining.'
         }
+      ]);
+      setLoading(false);
+      return;
+    }
+
+    const res = await askAiAgent({
+      telegramId,
+      message: text,
+      history,
+      context: `${CONTEXT_SNIPPET}\n\n${SAFE_CONTEXT}`
+    });
+
+    setLoading(false);
+    if (res?.reply) {
+      setMessages((prev) => [...prev, { role: 'assistant', content: res.reply }]);
+      return;
+    }
+
+    const { match, score } = findKnowledgeMatch(text);
+
+    if (res?.error) {
+      setError(res.error);
+    }
+
+    if (match && score > 0) {
+      setMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `${match.answer}\n\n${FALLBACK_NOTICE}` }
       ]);
       return;
     }
-    if (res?.reply) {
-      setMessages((prev) => [...prev, { role: 'assistant', content: res.reply }]);
-    }
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: 'assistant',
+        content:
+          'Nuk arrita të marr përgjigje nga shërbimi i AI. Përpiqu sërish më vonë ose pyet për mining, lojërat, wallet dhe funksione të tjera të TonPlaygram.'
+      }
+    ]);
   }
 
   if (!open) return null;
