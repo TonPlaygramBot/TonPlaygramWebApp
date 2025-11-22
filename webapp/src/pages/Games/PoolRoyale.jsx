@@ -962,7 +962,8 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85; // trim cue strike force by 15%
+// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -7809,6 +7810,16 @@ function PoolRoyaleGame({
   const trainingProgressRef = useRef(trainingProgress);
   const [trainingPopup, setTrainingPopup] = useState(null);
   const trainingRewardedRef = useRef(false);
+  const trainingTaskDetails = useMemo(() => {
+    if (!isTraining || !trainingScenario) return null;
+    const level = resolvedTrainingLevel || trainingLevel || 1;
+    return {
+      level,
+      title: trainingScenario.title,
+      description: trainingScenario.description,
+      tip: trainingScenario.tip
+    };
+  }, [isTraining, resolvedTrainingLevel, trainingLevel, trainingScenario]);
   useEffect(() => {
     if (!isTraining) return;
     trainingProgressRef.current = trainingProgress;
@@ -7835,6 +7846,13 @@ function PoolRoyaleGame({
       const scenario = trainingScenario;
       const level = resolvedTrainingLevel || 1;
       if (!playerWon) {
+        setHud((prev) => ({
+          ...prev,
+          over: true,
+          phase: 'Training failed',
+          next: 'Retry the task or return to lobby',
+          turn: 0
+        }));
         setTrainingPopup({
           status: 'fail',
           level,
@@ -7842,10 +7860,19 @@ function PoolRoyaleGame({
           rewardGranted: false,
           nextLevel: level,
           title: scenario?.title,
-          description: scenario?.description
+          description: scenario?.description,
+          tip: scenario?.tip
         });
         return;
       }
+
+      setHud((prev) => ({
+        ...prev,
+        over: true,
+        phase: 'Training complete',
+        next: 'Task cleared',
+        turn: 0
+      }));
 
       const completedSet = new Set(trainingProgressRef.current.completed || []);
       const alreadyComplete = completedSet.has(level);
@@ -7884,6 +7911,7 @@ function PoolRoyaleGame({
         nextLevel,
         title: scenario?.title,
         description: scenario?.description,
+        tip: scenario?.tip,
         alreadyComplete
       });
     },
@@ -7895,7 +7923,7 @@ function PoolRoyaleGame({
     setTrainingPopup(null);
     trainingRewardedRef.current = false;
     if (status === 'fail') {
-      window.location.reload();
+      goToTrainingLevel(trainingPopup.level, true, true);
       return;
     }
     if (nextLevel) {
@@ -7903,6 +7931,11 @@ function PoolRoyaleGame({
     } else {
       goToTrainingLevel(null, true);
     }
+  }, [goToTrainingLevel, trainingPopup]);
+  const retryTrainingTask = useCallback(() => {
+    if (!trainingPopup) return;
+    trainingRewardedRef.current = false;
+    goToTrainingLevel(trainingPopup.level, true, true);
   }, [goToTrainingLevel, trainingPopup]);
   useEffect(() => {
     if (!trainingPopup || trainingPopup.status !== 'success') return undefined;
@@ -13362,6 +13395,9 @@ function PoolRoyaleGame({
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
+          const halfW = PLAY_W / 2;
+          const halfH = PLAY_H / 2;
+          const cushionMargin = BALL_R * 1.4;
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -13377,6 +13413,53 @@ function PoolRoyaleGame({
               if (distSq < clearanceSq) return false;
             }
             return true;
+          };
+          const tryCushionRoute = (start, target, ignoreIds = new Set()) => {
+            const walls = [
+              { axis: 'x', wall: halfW - cushionMargin, normal: new THREE.Vector2(-1, 0) },
+              { axis: 'x', wall: -halfW + cushionMargin, normal: new THREE.Vector2(1, 0) },
+              { axis: 'y', wall: halfH - cushionMargin, normal: new THREE.Vector2(0, -1) },
+              { axis: 'y', wall: -halfH + cushionMargin, normal: new THREE.Vector2(0, 1) }
+            ];
+            const routes = [];
+            walls.forEach((entry) => {
+              const mirrored = target.clone();
+              if (entry.axis === 'x') {
+                mirrored.x = entry.wall + (entry.wall - target.x);
+              } else {
+                mirrored.y = entry.wall + (entry.wall - target.y);
+              }
+              const dir = mirrored.clone().sub(start);
+              if (dir.lengthSq() < 1e-6) return;
+              const t =
+                entry.axis === 'x'
+                  ? (entry.wall - start.x) / dir.x
+                  : (entry.wall - start.y) / dir.y;
+              if (t <= 0 || t >= 1) return;
+              const cushionPoint = start.clone().add(dir.clone().multiplyScalar(t));
+              if (
+                Math.abs(cushionPoint.x) > halfW - cushionMargin ||
+                Math.abs(cushionPoint.y) > halfH - cushionMargin
+              ) {
+                return;
+              }
+              if (
+                !isPathClear(start, cushionPoint, ignoreIds) ||
+                !isPathClear(cushionPoint, target, ignoreIds)
+              ) {
+                return;
+              }
+              const totalDist =
+                cushionPoint.distanceTo(start) + cushionPoint.distanceTo(target);
+              routes.push({
+                totalDist,
+                cushionPoint,
+                railNormal: entry.normal.clone()
+              });
+            });
+            if (routes.length === 0) return null;
+            routes.sort((a, b) => a.totalDist - b.totalDist);
+            return routes[0];
           };
           const potShots = [];
           const safetyShots = [];
@@ -13398,9 +13481,16 @@ function PoolRoyaleGame({
               const ghost = targetBall.pos
                 .clone()
                 .sub(toPocketDir.clone().multiplyScalar(ballDiameter));
-              if (!isPathClear(cuePos, ghost, ignore)) continue;
-              const cueVec = ghost.clone().sub(cuePos);
-              const cueDist = cueVec.length();
+              const directGhostClear = isPathClear(cuePos, ghost, ignore);
+              let cueVec = ghost.clone().sub(cuePos);
+              let cueDist = cueVec.length();
+              let cushionAid = null;
+              if (!directGhostClear) {
+                cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                if (!cushionAid) continue;
+                cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
+                cueDist = cueVec.length();
+              }
               if (cueDist < 1e-6) continue;
               const aimDir = cueVec.clone().normalize();
               const impactNormal = targetBall.pos.clone().sub(ghost).normalize();
@@ -13411,18 +13501,21 @@ function PoolRoyaleGame({
               );
               const cutAngle = Math.acos(Math.abs(cutCos));
               const totalDist = cueDist + toPocketLen;
+              const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.05 : 0;
               const plan = {
                 type: 'pot',
                 aimDir,
-                power: computePowerFromDistance(totalDist),
+                power: computePowerFromDistance(totalDist + cushionTax),
                 target: colorId,
                 targetBall,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
                 difficulty:
-                  cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40,
+                  cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40 + cushionTax,
                 cueToTarget: cueDist,
-                targetToPocket: toPocketLen
+                targetToPocket: toPocketLen,
+                railNormal: cushionAid?.railNormal ?? null,
+                viaCushion: Boolean(cushionAid)
               };
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
@@ -15470,6 +15563,30 @@ function PoolRoyaleGame({
           </div>
         )}
       </div>
+
+      {isTraining && trainingTaskDetails && !trainingPopup && (
+        <div className="pointer-events-none absolute left-3 right-3 top-3 z-40 flex justify-center">
+          <div className="pointer-events-auto w-full max-w-xl rounded-2xl border border-emerald-400/50 bg-black/70 p-4 text-white shadow-lg backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-200">
+                  Training task {trainingTaskDetails.level}
+                </p>
+                <p className="mt-1 text-base font-bold leading-tight">{trainingTaskDetails.title}</p>
+                <p className="mt-1 text-xs leading-snug text-white/80">{trainingTaskDetails.description}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-100">
+                Complete the layout
+              </span>
+            </div>
+            {trainingTaskDetails.tip && (
+              <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-[12px] leading-snug text-emerald-100">
+                Tip: {trainingTaskDetails.tip}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
@@ -15606,10 +15723,20 @@ function PoolRoyaleGame({
             <p className="mt-2 text-sm text-white/70">
               {trainingPopup.status === 'success'
                 ? 'Great job clearing this round. We are moving you to the next task right away.'
-                : 'You can retry this roadmap step as many times as you want.'}
+                : 'You can retry this roadmap step as many times as you want or return to the lobby.'}
             </p>
             {trainingPopup.title && (
               <p className="mt-1 text-sm font-semibold text-emerald-100">{trainingPopup.title}</p>
+            )}
+            {trainingPopup.description && (
+              <p className="mt-3 rounded-lg bg-white/5 p-3 text-sm leading-snug text-white/80">
+                {trainingPopup.description}
+              </p>
+            )}
+            {trainingPopup.tip && (
+              <p className="mt-2 rounded-lg bg-emerald-500/10 p-3 text-sm leading-snug text-emerald-100">
+                Tip: {trainingPopup.tip}
+              </p>
             )}
             {trainingPopup.status === 'success' && (
               <div className="mt-4 rounded-xl border border-emerald-400/60 bg-emerald-500/10 p-4">
@@ -15624,7 +15751,11 @@ function PoolRoyaleGame({
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button
                 type="button"
-                onClick={handleTrainingPopupContinue}
+                onClick={
+                  trainingPopup.status === 'success'
+                    ? handleTrainingPopupContinue
+                    : retryTrainingTask
+                }
                 className={
                   'rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-black shadow-lg transition ' +
                   'hover:bg-emerald-300'
