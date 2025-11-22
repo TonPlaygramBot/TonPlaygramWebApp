@@ -454,7 +454,7 @@
     const opponentSeed = info.pair[0] === st.userSeed ? info.pair[1] : info.pair[0];
     localStorage.setItem(OPP_KEY, JSON.stringify(st.seedToPlayer[opponentSeed]));
     localStorage.setItem(STATE_KEY, JSON.stringify(st));
-    window.location.href = '/games/pollroyale' + window.location.search;
+    window.location.href = '/games/poolroyale' + window.location.search;
   }
 
   (function init(){
@@ -511,7 +511,7 @@
       ret.style.background='#2563eb';ret.style.border='none';
       ret.style.borderRadius='4px';ret.style.color='#fff';
       box.appendChild(quit);box.appendChild(ret);overlay.appendChild(box);document.body.appendChild(overlay);
-      quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/pollroyale/lobby';};
+      quit.onclick=()=>{localStorage.removeItem(STATE_KEY);localStorage.removeItem(OPP_KEY);if(tg) tg.BackButton.hide();window.location.href='/games/poolroyale/lobby';};
       ret.onclick=()=>{document.body.removeChild(overlay);if(tg) tg.BackButton.show();};
     }
     const tg = window.Telegram?.WebApp;
@@ -547,7 +547,7 @@
         localStorage.removeItem(STATE_KEY);
         localStorage.removeItem(OPP_KEY);
         localStorage.removeItem(`poolRoyaleLastResult_${tgKey}`);
-        window.location.href='/games/pollroyale/lobby';
+        window.location.href='/games/poolroyale/lobby';
       });
       overlay.appendChild(btn);
       document.body.appendChild(overlay);

@@ -7707,7 +7707,7 @@ function PoolRoyaleGame({
   const goToTrainingLevel = useCallback(
     (level, replace = false, reload = false) => {
       const target = (() => {
-        if (!level) return '/games/pollroyale/lobby';
+        if (!level) return '/games/poolroyale/lobby';
         const params = new URLSearchParams(location.search);
         params.set('task', level);
         return `${location.pathname}?${params.toString()}`;
@@ -8969,7 +8969,7 @@ function PoolRoyaleGame({
           : 'Frame tied!';
     window.alert(`${announcement} Returning to the lobby...`);
     const winnerParam = winnerId === 'A' ? '1' : '0';
-    const lobbyUrl = `/games/pollroyale/lobby?winner=${winnerParam}`;
+    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
     const redirectTimer = window.setTimeout(() => {
       window.location.assign(lobbyUrl);
     }, 1200);
@@ -15882,7 +15882,7 @@ export default function PoolRoyale() {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate('/games/pollroyale/lobby');
+        navigate('/games/poolroyale/lobby');
       }
     });
   });
@@ -15897,7 +15897,7 @@ export default function PoolRoyale() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate('/games/pollroyale/lobby');
+          navigate('/games/poolroyale/lobby');
         }
       });
     };

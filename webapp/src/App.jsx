@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
 import Home from './pages/Home.jsx';
@@ -135,10 +135,18 @@ export default function App() {
             />
             <Route path="/games/murlanroyale" element={<MurlanRoyale />} />
             <Route
-              path="/games/pollroyale/lobby"
+              path="/games/poolroyale/lobby"
               element={<PoolRoyaleLobby />}
             />
-            <Route path="/games/pollroyale" element={<PoolRoyale />} />
+            <Route path="/games/poolroyale" element={<PoolRoyale />} />
+            <Route
+              path="/games/pollroyale/lobby"
+              element={<Navigate to="/games/poolroyale/lobby" replace />}
+            />
+            <Route
+              path="/games/pollroyale"
+              element={<Navigate to="/games/poolroyale" replace />}
+            />
             <Route path="/games/snooker/lobby" element={<SnookerLobby />} />
             <Route path="/games/snooker" element={<Snooker />} />
             <Route path="/games/tirana2040/lobby" element={<Tirana2040Lobby />} />
