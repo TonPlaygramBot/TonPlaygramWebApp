@@ -2,7 +2,7 @@
 .ps {
   /* slimmer slider to match pool game styling */
   --ps-width: 46px;
-  --ps-height: 576px;
+  --ps-height: 640px;
   --ps-radius: 23px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
   --ps-gradient-low: #ffe066;
