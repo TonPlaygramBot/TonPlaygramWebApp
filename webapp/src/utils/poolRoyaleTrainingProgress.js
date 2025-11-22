@@ -43,8 +43,15 @@ export function resolvePlayableTrainingLevel(requestedLevel, progress) {
   const lastLevel = Number.isFinite(progress?.lastLevel) ? progress.lastLevel : 1;
   const desired = Number.isFinite(requestedLevel) && requestedLevel > 0 ? requestedLevel : nextIncomplete || lastLevel || 1;
 
-  // Force players onto the first incomplete task so completed steps can't be re-selected.
+  // Let players replay any unlocked task while still preventing them from skipping ahead
+  // of the current progression. This fixes the flow where selecting a specific task
+  // from the lobby could redirect back to the first incomplete level and render a
+  // blank screen before the redirect finishes.
   if (nextIncomplete !== null) {
+    const cappedDesired = Math.max(1, Math.min(50, Math.floor(desired)));
+    if (cappedDesired <= nextIncomplete) {
+      return cappedDesired;
+    }
     return Math.max(1, Math.min(50, nextIncomplete));
   }
 
