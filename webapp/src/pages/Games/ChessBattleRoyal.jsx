@@ -1984,6 +1984,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     paletteRef.current = palette;
     const boardTheme = palette.board;
     const pieceStyleOption = palette.pieces;
+    const initialPlayerFlag =
+      playerFlag ||
+      resolvedInitialFlag ||
+      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
+    const initialAiFlagValue =
+      aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
     const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
@@ -2524,39 +2530,39 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         if (p) placePieceMesh(r, c, p);
       }
 
-    arenaRef.current = {
-      renderer,
-      scene,
-      camera,
-      controls,
-      arenaGroup: arena,
-      tableInfo,
-      tableShapeId: tableInfo.shapeId,
-      boardGroup,
-      boardLookTarget,
-      chairMaterials,
-      chairs,
-      seatAnchors: chairs.map((chair) => chair.anchor),
-      sandTimer,
-      spotLight: spot,
-      spotTarget,
-      studioCameras: [studioCamA, studioCamB],
-      boardMaterials: arena.boardMaterials,
-      pieceMaterials,
-      allPieceMeshes,
-      capturedByWhite,
-      capturedByBlack,
-      palette,
-      playerFlag: initialPlayerFlag,
-      aiFlag: initialAiFlag
-    };
-    arenaRef.current.sandTimer = sandTimer;
-    arenaRef.current.palette = palette;
+      arenaRef.current = {
+        renderer,
+        scene,
+        camera,
+        controls,
+        arenaGroup: arena,
+        tableInfo,
+        tableShapeId: tableInfo.shapeId,
+        boardGroup,
+        boardLookTarget,
+        chairMaterials,
+        chairs,
+        seatAnchors: chairs.map((chair) => chair.anchor),
+        sandTimer,
+        spotLight: spot,
+        spotTarget,
+        studioCameras: [studioCamA, studioCamB],
+        boardMaterials: arena.boardMaterials,
+        pieceMaterials,
+        allPieceMeshes,
+        capturedByWhite,
+        capturedByBlack,
+        palette,
+        playerFlag: initialPlayerFlag,
+        aiFlag: initialAiFlagValue
+      };
+      arenaRef.current.sandTimer = sandTimer;
+      arenaRef.current.palette = palette;
 
-    arena.sandTimer = sandTimer;
-    arena.palette = palette;
-    arena.playerFlag = initialPlayerFlag;
-    arena.aiFlag = initialAiFlag;
+      arena.sandTimer = sandTimer;
+      arena.palette = palette;
+      arena.playerFlag = initialPlayerFlag;
+      arena.aiFlag = initialAiFlagValue;
 
     // Raycaster for picking
     ray = new THREE.Raycaster();
