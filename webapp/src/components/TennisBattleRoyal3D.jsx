@@ -120,87 +120,6 @@ function buildRoyalGrandstand() {
   return group;
 }
 
-function buildSidelineChair() {
-  const chair = new THREE.Group();
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.52, metalness: 0.32 });
-  const seatMat = new THREE.MeshPhysicalMaterial({
-    color: 0x1e40af,
-    roughness: 0.36,
-    metalness: 0.22,
-    clearcoat: 0.4,
-    clearcoatRoughness: 0.3
-  });
-
-  const ladderWidth = 0.72;
-  const stepDepth = 0.18;
-  const stepHeight = 0.22;
-  for (let i = 0; i < 6; i += 1) {
-    const step = new THREE.Mesh(new THREE.BoxGeometry(ladderWidth, stepHeight * 0.36, stepDepth), frameMat);
-    step.position.set(0, (i + 0.35) * stepHeight, -0.45 - i * stepDepth * 0.75);
-    chair.add(step);
-  }
-
-  const railsGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.8, 10);
-  const railL = new THREE.Mesh(railsGeo, frameMat);
-  railL.position.set(-ladderWidth / 2, 1.4, -1.2);
-  const railR = railL.clone();
-  railR.position.x = ladderWidth / 2;
-  chair.add(railL, railR);
-
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.08, 0.78), seatMat);
-  seat.position.set(0, 1.82, -1.8);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.62, 0.08), seatMat);
-  back.position.set(0, 2.13, -2.18);
-  chair.add(seat, back);
-
-  const canopy = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.4), seatMat);
-  canopy.rotation.x = -Math.PI / 2.4;
-  canopy.position.set(0, 2.65, -1.8);
-  chair.add(canopy);
-
-  return chair;
-}
-
-function makeCourtSurfaceTexture(w = 2048, h = 4096) {
-  const c = document.createElement("canvas");
-  c.width = w;
-  c.height = h;
-  const g = c.getContext("2d");
-
-  const grad = g.createLinearGradient(0, 0, 0, h);
-  grad.addColorStop(0, "#2f3673");
-  grad.addColorStop(0.5, "#1f2b57");
-  grad.addColorStop(1, "#182648");
-  g.fillStyle = grad;
-  g.fillRect(0, 0, w, h);
-
-  g.globalAlpha = 0.1;
-  for (let i = 0; i < 1200; i += 1) {
-    const x = Math.random() * w;
-    const y = Math.random() * h;
-    const r = Math.random() * 3 + 1;
-    g.fillStyle = `rgba(255,255,255,${Math.random() * 0.35})`;
-    g.beginPath();
-    g.arc(x, y, r, 0, Math.PI * 2);
-    g.fill();
-  }
-  g.globalAlpha = 1;
-
-  const stripeCount = 6;
-  for (let i = 0; i <= stripeCount; i += 1) {
-    const t = i / stripeCount;
-    const y = t * h;
-    g.strokeStyle = "rgba(255,255,255,0.04)";
-    g.lineWidth = 8;
-    g.beginPath();
-    g.moveTo(0, y);
-    g.lineTo(w, y);
-    g.stroke();
-  }
-
-  return new THREE.CanvasTexture(c);
-}
-
 function buildGrandEntranceStairs({ stepCount = 12, run = 0.46, rise = 0.22, width = 26, landingDepth = 1.6 } = {}) {
   const stairs = new THREE.Group();
   const treadMat = new THREE.MeshStandardMaterial({ color: 0xcdd5e0, roughness: 0.82, metalness: 0.12 });
@@ -233,146 +152,6 @@ function buildGrandEntranceStairs({ stepCount = 12, run = 0.46, rise = 0.22, wid
   stairs.add(sideL, sideR);
 
   return stairs;
-}
-
-function buildBillboard({ width = 8, height = 2.6, depth = 0.2, message = "TonPlaygram Championships" } = {}) {
-  const board = new THREE.Group();
-  const canvas = document.createElement("canvas");
-  canvas.width = 1024;
-  canvas.height = 320;
-  const g = canvas.getContext("2d");
-  const gradient = g.createLinearGradient(0, 0, canvas.width, 0);
-  gradient.addColorStop(0, "#111827");
-  gradient.addColorStop(1, "#0f172a");
-  g.fillStyle = gradient;
-  g.fillRect(0, 0, canvas.width, canvas.height);
-  g.fillStyle = "#10b981";
-  g.font = "bold 96px 'Segoe UI', sans-serif";
-  g.textAlign = "center";
-  g.textBaseline = "middle";
-  g.fillText(message, canvas.width / 2, canvas.height / 2);
-
-  const tex = new THREE.CanvasTexture(canvas);
-  const panel = new THREE.Mesh(
-    new THREE.BoxGeometry(width, height, depth),
-    [
-      new THREE.MeshStandardMaterial({ color: 0x0b1224 }),
-      new THREE.MeshStandardMaterial({ color: 0x0b1224 }),
-      new THREE.MeshStandardMaterial({ color: 0x0b1224 }),
-      new THREE.MeshStandardMaterial({ color: 0x0b1224 }),
-      new THREE.MeshStandardMaterial({ map: tex, roughness: 0.6, metalness: 0.2 }),
-      new THREE.MeshStandardMaterial({ color: 0x0b1224 })
-    ]
-  );
-  panel.position.y = height / 2;
-  board.add(panel);
-
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.7, metalness: 0.1 });
-  const leg = new THREE.CylinderGeometry(0.08, 0.08, 1.4, 12);
-  const legL = new THREE.Mesh(leg, legMat);
-  legL.position.set(-width * 0.35, 0.7, 0);
-  const legR = legL.clone();
-  legR.position.x = width * 0.35;
-  board.add(legL, legR);
-
-  return board;
-}
-
-function buildUmpireChair() {
-  const chair = new THREE.Group();
-  const frameMat = new THREE.MeshStandardMaterial({ color: 0x0b172a, roughness: 0.65, metalness: 0.22 });
-  const seatMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, roughness: 0.35, metalness: 0.12 });
-
-  const ladder = new THREE.Mesh(new THREE.BoxGeometry(0.32, 2.2, 0.16), frameMat);
-  ladder.position.y = 1.1;
-  chair.add(ladder);
-
-  const steps = 6;
-  for (let i = 0; i < steps; i += 1) {
-    const rung = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 0.2), frameMat);
-    rung.position.set(0, 0.2 + (i / steps) * 1.9, 0.12);
-    chair.add(rung);
-  }
-
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.14, 0.6), seatMat);
-  seat.position.set(0, 2.3, 0);
-  chair.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.08), seatMat);
-  back.position.set(0, 2.53, -0.26);
-  chair.add(back);
-
-  const canopy = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.08, 0.9), new THREE.MeshStandardMaterial({ color: 0x0ea5e9, roughness: 0.55 }));
-  canopy.position.set(0, 2.85, 0);
-  chair.add(canopy);
-
-  chair.position.set(0, 0, 0.6);
-  return chair;
-}
-
-function buildNetAssembly(width) {
-  const netGroup = new THREE.Group();
-  const netHeight = 0.9;
-  const net = new THREE.Mesh(
-    new THREE.BoxGeometry(width, netHeight, 0.12),
-    new THREE.MeshStandardMaterial({ color: 0xf8f8f8, roughness: 0.7 })
-  );
-  net.position.y = netHeight / 2;
-  netGroup.add(net);
-
-  const tape = new THREE.Mesh(new THREE.BoxGeometry(width, 0.08, 0.14), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 }));
-  tape.position.y = netHeight + 0.04;
-  netGroup.add(tape);
-
-  const postGeo = new THREE.CylinderGeometry(0.12, 0.12, netHeight + 0.6, 16);
-  const postMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.35, metalness: 0.35 });
-  const postL = new THREE.Mesh(postGeo, postMat);
-  postL.position.set(-width / 2 - 0.05, (netHeight + 0.6) / 2, 0);
-  const postR = postL.clone();
-  postR.position.x = width / 2 + 0.05;
-  netGroup.add(postL, postR);
-
-  const strap = new THREE.Mesh(new THREE.BoxGeometry(0.12, netHeight * 0.9, 0.04), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.25 }));
-  strap.position.set(0, netHeight * 0.45, 0.07);
-  netGroup.add(strap);
-
-  const umpire = buildUmpireChair();
-  umpire.position.set(width / 2 + 1.1, 0, 0);
-  netGroup.add(umpire);
-
-  return netGroup;
-}
-
-function buildCourtSurroundings({ courtW, courtL, apron }) {
-  const group = new THREE.Group();
-  const trackMesh = new THREE.Mesh(
-    new THREE.PlaneGeometry(courtW + apron * 2.6, courtL + apron * 2.6),
-    new THREE.MeshStandardMaterial({ color: 0x17192f, roughness: 0.92, metalness: 0.05 })
-  );
-  trackMesh.rotation.x = -Math.PI / 2;
-  trackMesh.position.y = -0.0004;
-  group.add(trackMesh);
-
-  const surfaceTex = makeCourtSurfaceTexture();
-  surfaceTex.anisotropy = 8;
-  surfaceTex.wrapS = surfaceTex.wrapT = THREE.RepeatWrapping;
-  surfaceTex.repeat.set(1, 1);
-  const courtSurface = new THREE.Mesh(
-    new THREE.PlaneGeometry(courtW, courtL),
-    new THREE.MeshStandardMaterial({ map: surfaceTex, roughness: 0.82, metalness: 0.04 })
-  );
-  courtSurface.rotation.x = -Math.PI / 2;
-  courtSurface.position.y = 0.0006;
-  group.add(courtSurface);
-
-  const apronEdge = new THREE.Mesh(
-    new THREE.PlaneGeometry(courtW + apron * 2, courtL + apron * 2),
-    new THREE.MeshStandardMaterial({ color: 0x101426, roughness: 0.9, metalness: 0.02 })
-  );
-  apronEdge.rotation.x = -Math.PI / 2;
-  apronEdge.position.y = 0.0002;
-  group.add(apronEdge);
-
-  return group;
 }
 
 function buildBroadcastCameraRig(scale = 1) {
@@ -533,10 +312,6 @@ function makeRacket() {
 
 export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMode = false }) {
   const mountRef = useRef(null);
-  const modeLabel = trainingMode ? "Training Mode" : "Fundraising AI";
-  const modeSummary = trainingMode
-    ? "Practice swipes and timing without staking."
-    : "Stake contributes to the rally community pot.";
 
   useEffect(() => {
     const container = mountRef.current;
@@ -597,8 +372,21 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const apron = 4.2;
     const SERVICE_LINE_Z = 6.4;
     const SERVICE_BOX_INNER = 0.2;
-    const courtSurroundings = buildCourtSurroundings({ courtW, courtL, apron });
-    scene.add(courtSurroundings);
+    const trackMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(courtW + apron * 2, courtL + apron * 2),
+      new THREE.MeshStandardMaterial({ color: 0x2e2b44, roughness: 0.9, metalness: 0.04 })
+    );
+    trackMesh.rotation.x = -Math.PI / 2;
+    trackMesh.position.y = -0.0004;
+    scene.add(trackMesh);
+
+    const grassMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(courtW, courtL),
+      new THREE.MeshStandardMaterial({ color: 0x4fa94c, roughness: 0.9, metalness: 0.0 })
+    );
+    grassMesh.rotation.x = -Math.PI / 2;
+    grassMesh.position.y = 0.0004;
+    scene.add(grassMesh);
 
     function courtLinesTex(w = 2048, h = 4096) {
       const c = document.createElement("canvas");
@@ -646,48 +434,25 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     );
     linesMesh.rotation.x = -Math.PI / 2;
     linesMesh.position.y = 0.001;
-    courtSurroundings.add(linesMesh);
+    scene.add(linesMesh);
 
-    const netAssembly = buildNetAssembly(courtW);
-    scene.add(netAssembly);
+    const net = new THREE.Mesh(
+      new THREE.BoxGeometry(courtW, 0.9, 0.12),
+      new THREE.MeshStandardMaterial({ color: 0xf8f8f8, roughness: 0.7 })
+    );
+    net.position.y = 0.45;
+    scene.add(net);
 
-    const billboards = [
-      buildBillboard({ message: "Battle Royal Centre Court" }),
-      buildBillboard({ message: "Powered by TonPlaygram" }),
-      buildBillboard({ message: "Ace the Competition" })
-    ];
-    billboards[0].position.set(0, 0, -halfL - apron + 0.6);
-    billboards[1].position.set(0, 0, halfL + apron - 0.6);
-    billboards[2].position.set(-halfW - apron + 0.4, 0, 0);
-    billboards[2].rotation.y = Math.PI / 2;
-    billboards.forEach((b) => scene.add(b));
-
-    const standOffsetZ = halfL + apron + 2.2;
-    const northGrandstand = buildRoyalGrandstand();
-    northGrandstand.position.set(0, 0, -standOffsetZ);
-    scene.add(northGrandstand);
-
-    const southGrandstand = buildRoyalGrandstand();
-    southGrandstand.rotation.y = Math.PI;
-    southGrandstand.position.set(0, 0, standOffsetZ);
-    scene.add(southGrandstand);
+    const grandstand = buildRoyalGrandstand();
+    grandstand.position.set(0, 0, -8);
+    scene.add(grandstand);
     const stairs = buildGrandEntranceStairs();
-    stairs.rotation.y = Math.PI / 2;
-    stairs.position.set(halfW + apron + 3.2, 0, standOffsetZ - 1);
+    stairs.rotation.y = Math.PI;
+    stairs.position.set(-0.4, 0, halfL + 1.2);
     scene.add(stairs);
     const broadcastRig = buildBroadcastCameraRig(1.25);
     broadcastRig.position.set(halfW + 1.8, 0, 0);
     scene.add(broadcastRig);
-
-    const chairOffsetX = halfW + apron - 0.2;
-    const leftChair = buildSidelineChair();
-    leftChair.position.set(-chairOffsetX, 0, 0.6);
-    leftChair.rotation.y = Math.PI / 2;
-    scene.add(leftChair);
-    const rightChair = buildSidelineChair();
-    rightChair.position.set(chairOffsetX, 0, -0.6);
-    rightChair.rotation.y = -Math.PI / 2;
-    scene.add(rightChair);
 
     // Rackets and ball
     const ballR = 0.076 * 1.25;
@@ -696,11 +461,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     scene.add(ball);
 
     const player = makeRacket();
-    player.position.set(0, 0.65, playerZ);
+    player.position.set(0, 0, playerZ);
     player.rotation.y = Math.PI / 2;
     scene.add(player);
     const enemy = makeRacket();
-    enemy.position.set(0, 0.65, cpuZ);
+    enemy.position.set(0, 0, cpuZ);
     enemy.rotation.y = -Math.PI / 2;
     scene.add(enemy);
 
@@ -731,13 +496,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
       if (distY > 40) {
         started = true;
-        const power = Math.min((distY / time) * 0.0008, 0.38);
-        velocity.x = THREE.MathUtils.clamp(distX * 0.00075, -0.18, 0.18);
-        velocity.y = 0.12 + power * 0.18;
-        velocity.z = -0.12 - power * 0.36;
+        const power = Math.min((distY / time) * 0.001, 0.6);
+        velocity.x = THREE.MathUtils.clamp(distX * 0.001, -0.25, 0.25);
+        velocity.y = 0.18 + power * 0.3;
+        velocity.z = -0.2 - power * 0.6;
 
         player.position.x = screenToCourt(startX);
-        ball.position.set(player.position.x, player.position.y + 0.45, player.position.z - 0.42);
+        ball.position.set(player.position.x, player.position.y + 1, player.position.z - 0.4);
       }
     };
 
@@ -761,7 +526,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     // Helpers
     function updateRacketHeight() {
-      const targetY = Math.max(0.65, Math.min(ball.position.y, 3));
+      const targetY = Math.max(1, Math.min(ball.position.y, 4));
       player.position.y += (targetY - player.position.y) * 0.2;
       enemy.position.y += (targetY - enemy.position.y) * 0.2;
     }
@@ -778,10 +543,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function updateCamera() {
-      const camTarget = new THREE.Vector3(player.position.x, 5.6, player.position.z + 9.8);
+      const camTarget = new THREE.Vector3(ball.position.x, 6, ball.position.z + 10);
       camera.position.lerp(camTarget, 0.08);
-      const lookTarget = new THREE.Vector3(player.position.x, player.position.y + 0.6, player.position.z - 1.2);
-      camera.lookAt(lookTarget);
+      camera.lookAt(ball.position);
     }
 
     function physics() {
@@ -857,37 +621,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       style={{ position: "relative", width: "100%", height: "100vh", overflow: "hidden", touchAction: "none" }}
       aria-label="3D Tennis Battle Royal"
     >
-      <div
-        style={{
-          position: "absolute",
-          top: 10,
-          left: 10,
-          padding: "10px 12px",
-          background: "rgba(8,11,24,0.7)",
-          borderRadius: 12,
-          color: "#e5e7eb",
-          fontFamily: "'Inter', 'Segoe UI', sans-serif",
-          maxWidth: 260,
-          border: "1px solid rgba(255,255,255,0.06)",
-          boxShadow: "0 8px 20px rgba(0,0,0,0.35)",
-          backdropFilter: "blur(6px)",
-          pointerEvents: "none",
-          zIndex: 12
-        }}
-      >
-        <div style={{ fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase", color: "#9ca3af" }}>
-          Tennis Battle Royal
-        </div>
-        <div style={{ fontSize: 16, fontWeight: 700 }}>{modeLabel}</div>
-        <div style={{ fontSize: 12, marginTop: 4, color: "#cbd5e1" }}>
-          {stakeLabel ? `Stake: ${stakeLabel}` : "No stake applied"}
-        </div>
-        {playerName ? (
-          <div style={{ fontSize: 12, marginTop: 2, color: "#cbd5e1" }}>Player: {playerName}</div>
-        ) : null}
-        <div style={{ fontSize: 11, marginTop: 6, color: "#94a3b8" }}>{modeSummary}</div>
-        <div style={{ fontSize: 11, marginTop: 4, color: "#a5b4fc" }}>Opponent: Rally AI</div>
-      </div>
       <div
         style={{
           position: "absolute",
