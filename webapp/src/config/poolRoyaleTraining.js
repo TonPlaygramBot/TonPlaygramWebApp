@@ -1,101 +1,114 @@
 const DIFFICULTY_LABELS = ['Intro', 'Rookie', 'Challenger', 'Advanced', 'Elite'];
 
-const TRAINING_TEMPLATES = [
+const TRAINING_BLUEPRINTS = [
   {
-    title: 'Tap-in to corner',
+    title: 'Corner tap-in',
     discipline: 'American Billiards',
     objective: 'Feather the overhanging ball into the corner without scratching.',
-    cue: { x: -0.55, z: -0.6 },
-    balls: [{ rackIndex: 1, x: 0.82, z: 0.82 }],
-    tip: 'Gently roll through center ball to let gravity do the work.'
+    cue: { x: -0.62, z: -0.68 },
+    balls: [{ rackIndex: 1, x: 0.78, z: 0.84 }],
+    tip: 'Gently roll through center ball to let gravity do the work.',
+    shotLimit: 3
   },
   {
-    title: 'UK 8-ball cut',
+    title: 'Side pocket control',
     discipline: 'UK 8-Ball',
-    objective: 'Cut the object ball to the corner and hold the cue ball for the next shot.',
-    cue: { x: -0.38, z: -0.18 },
-    balls: [{ rackIndex: 2, x: 0.42, z: 0.24 }],
-    tip: 'Use a soft stun and favor the center of the pocket mouth.'
+    objective: 'Slide the ball into the side pocket while keeping the cue ball out of the scratch lanes.',
+    cue: { x: -0.48, z: -0.32 },
+    balls: [{ rackIndex: 2, x: -0.02, z: 0.24 }],
+    tip: 'Favor a touch of stun and aim for the heart of the side jaw.',
+    shotLimit: 3
   },
   {
-    title: 'Side pocket tester',
-    discipline: 'UK 8-Ball',
-    objective: 'Slide the ball into the side pocket while avoiding the scratch lanes.',
-    cue: { x: -0.62, z: 0.02 },
-    balls: [{ rackIndex: 3, x: 0.02, z: 0.08 }],
-    tip: 'Aim for the middle of the side opening and keep the pace light.'
-  },
-  {
-    title: 'Long rail bank',
+    title: 'Long straight stun',
     discipline: 'American Billiards',
-    objective: 'Bank off the long rail and drop the ball in the opposite corner.',
-    cue: { x: -0.65, z: -0.45 },
-    balls: [{ rackIndex: 4, x: 0.28, z: 0.46 }],
-    tip: 'Mirror the line with the diamonds and commit to a medium stroke.'
+    objective: 'Drill the down-table ball cleanly and leave the cue ball centred for the next shot.',
+    cue: { x: -0.36, z: 0.52 },
+    balls: [{ rackIndex: 3, x: 0, z: -0.64 }],
+    tip: 'Keep the stroke smooth and stay on the vertical axis for a firm stop.',
+    shotLimit: 4
   },
   {
-    title: '9-ball side starter',
-    discipline: '9-Ball',
-    objective: 'Pocket the 1-ball in the side and drift down-table for position.',
-    cue: { x: -0.44, z: -0.38 },
-    balls: [
-      { rackIndex: 1, x: -0.02, z: 0.12 },
-      { rackIndex: 9, x: 0.46, z: 0.46 }
-    ],
-    tip: 'Favor a thin hit so the cue ball clears the top rail safely.'
+    title: 'Back-cut to corner',
+    discipline: 'UK 8-Ball',
+    objective: 'Cut the ball back to the near corner and check the cue ball off the short rail.',
+    cue: { x: -0.58, z: -0.12 },
+    balls: [{ rackIndex: 4, x: 0.54, z: 0.18 }],
+    tip: 'Aim thin, trust the throw, and keep the speed under control.',
+    shotLimit: 4
   },
   {
     title: 'Two-ball pattern',
     discipline: 'American Billiards',
     objective: 'Clear two open balls while floating gently into shape.',
-    cue: { x: -0.46, z: -0.26 },
+    cue: { x: -0.52, z: -0.28 },
     balls: [
-      { rackIndex: 6, x: 0.24, z: -0.12 },
-      { rackIndex: 7, x: 0.38, z: 0.34 }
+      { rackIndex: 6, x: 0.28, z: -0.22 },
+      { rackIndex: 7, x: 0.46, z: 0.38 }
     ],
-    tip: 'Play the nearer ball first and let a soft follow open the angle.'
+    tip: 'Play the nearer ball first and let a soft follow open the angle.',
+    shotLimit: 5
   },
   {
-    title: 'Three-ball ladder',
-    discipline: 'UK 8-Ball',
-    objective: 'Work up the rail through three balls without losing angle.',
-    cue: { x: -0.32, z: -0.36 },
-    balls: [
-      { rackIndex: 8, x: 0.18, z: -0.26 },
-      { rackIndex: 10, x: 0.34, z: -0.06 },
-      { rackIndex: 11, x: 0.5, z: 0.14 }
-    ],
-    tip: 'Use gentle follow to step the cue ball up-table one pocket at a time.'
-  },
-  {
-    title: 'Safety tuck',
-    discipline: 'American Billiards',
-    objective: 'Hide the cue ball behind a blocker after contacting the target.',
-    cue: { x: -0.52, z: -0.2 },
-    balls: [
-      { rackIndex: 12, x: 0.22, z: 0.1 },
-      { rackIndex: 13, x: 0.36, z: 0.14 }
-    ],
-    tip: 'Feather the hit and let the blocker carry the defensive weight.'
-  },
-  {
-    title: 'Double-kiss escape',
-    discipline: 'UK 8-Ball',
-    objective: 'Use the long rail to double the ball back to the corner.',
-    cue: { x: -0.58, z: 0.36 },
-    balls: [{ rackIndex: 14, x: 0.24, z: 0.64 }],
-    tip: 'Count the diamonds and trust the mirror line to find the pocket center.'
-  },
-  {
-    title: 'Rail-first 9-ball',
+    title: '9-ball starter',
     discipline: '9-Ball',
-    objective: 'Kick at the lowest ball first and open the rack without fouling.',
-    cue: { x: -0.62, z: -0.12 },
+    objective: 'Pocket the 1-ball in the side and drift down-table for position.',
+    cue: { x: -0.44, z: -0.36 },
     balls: [
-      { rackIndex: 1, x: 0.02, z: -0.3 },
-      { rackIndex: 9, x: 0.46, z: 0.28 }
+      { rackIndex: 1, x: -0.06, z: 0.14 },
+      { rackIndex: 9, x: 0.38, z: 0.52 }
     ],
-    tip: 'Use the rail to guarantee a legal hit and let the cue ball run free.'
+    tip: 'Favor a thin hit so the cue ball clears the top rail safely.',
+    shotLimit: 4
+  },
+  {
+    title: 'Bank safety',
+    discipline: 'American Billiards',
+    objective: 'Bank off the long rail, pocket the ball, and hide behind the blocker.',
+    cue: { x: -0.62, z: -0.14 },
+    balls: [
+      { rackIndex: 8, x: 0.18, z: 0.66 },
+      { rackIndex: 11, x: 0.34, z: 0.18 }
+    ],
+    tip: 'Let the blocker do the defensive work after the rail-first contact.',
+    shotLimit: 4
+  },
+  {
+    title: 'Ladder drill',
+    discipline: 'UK 8-Ball',
+    objective: 'Work up the long rail through three balls without losing angle.',
+    cue: { x: -0.28, z: -0.48 },
+    balls: [
+      { rackIndex: 10, x: 0.16, z: -0.32 },
+      { rackIndex: 12, x: 0.18, z: -0.06 },
+      { rackIndex: 13, x: 0.18, z: 0.26 }
+    ],
+    tip: 'Use gentle follow to step the cue ball up-table one pocket at a time.',
+    shotLimit: 6
+  },
+  {
+    title: 'Kick escape',
+    discipline: '9-Ball',
+    objective: 'Kick to the lowest ball first and stay safe after contact.',
+    cue: { x: -0.64, z: -0.08 },
+    balls: [
+      { rackIndex: 5, x: 0.08, z: 0.7 },
+      { rackIndex: 9, x: 0.52, z: 0.4 }
+    ],
+    tip: 'Use the rail to guarantee a legal hit and bleed speed on return.',
+    shotLimit: 4
+  },
+  {
+    title: 'Combo finisher',
+    discipline: 'American Billiards',
+    objective: 'Nudge the lead ball to combo the hanger while keeping shape.',
+    cue: { x: -0.46, z: -0.22 },
+    balls: [
+      { rackIndex: 14, x: 0.62, z: 0.18 },
+      { rackIndex: 15, x: 0.66, z: 0.12 }
+    ],
+    tip: 'Commit to the line and let the combo fall with pocket speed.',
+    shotLimit: 5
   }
 ];
 
@@ -107,60 +120,61 @@ const DISCIPLINE_TO_VARIANT = {
   'American Billiards': 'american'
 };
 
-function resolveShotLimit(template, tier) {
-  const base = 3 + (template?.balls?.length || 1);
-  const tierBonus = Math.max(0, tier - 1);
-  return Math.min(10, base + tierBonus);
+const DIFFICULTY_STEPS = [
+  { label: DIFFICULTY_LABELS[0], spread: 0, drift: 0, shotBonus: 0, rewardBonus: 0 },
+  { label: DIFFICULTY_LABELS[1], spread: 0.02, drift: 0.02, shotBonus: 1, rewardBonus: 12 },
+  { label: DIFFICULTY_LABELS[2], spread: 0.035, drift: 0.03, shotBonus: 2, rewardBonus: 24 },
+  { label: DIFFICULTY_LABELS[3], spread: 0.045, drift: 0.04, shotBonus: 3, rewardBonus: 36 },
+  { label: DIFFICULTY_LABELS[4], spread: 0.06, drift: 0.05, shotBonus: 4, rewardBonus: 48 }
+];
+
+function resolveShotLimit(blueprint, tier) {
+  const base = Number.isFinite(blueprint?.shotLimit) ? blueprint.shotLimit : 3;
+  const scaled = base + (tier?.shotBonus ?? 0);
+  return Math.min(10, Math.max(1, scaled));
 }
 
 export const TRAINING_SCENARIOS = (() => {
   const scenarios = [];
-  for (let i = 0; i < 50; i++) {
-    const level = i + 1;
-    const template = TRAINING_TEMPLATES[i % TRAINING_TEMPLATES.length];
-    const tier = Math.min(DIFFICULTY_LABELS.length - 1, Math.floor(i / 10));
-    const drift = (level % 5) * 0.018 + tier * 0.02;
-    const rotation = ((level + 1) % 2 === 0 ? 1 : -1) * 0.03 * tier;
+  let level = 1;
 
-    const balls = template.balls.map((ball, idx) => {
-      const xOffset = (idx % 2 === 0 ? 1 : -1) * drift + rotation;
-      const zOffset = (idx % 2 === 0 ? -1 : 1) * drift;
-      return {
-        rackIndex: ball.rackIndex,
-        x: clamp(ball.x + xOffset),
-        z: clamp(ball.z + zOffset)
+  for (const tier of DIFFICULTY_STEPS) {
+    for (const blueprint of TRAINING_BLUEPRINTS) {
+      const balls = blueprint.balls.map((ball, idx) => {
+        const lateral = (idx % 2 === 0 ? 1 : -1) * tier.spread;
+        const depth = (idx % 3 === 0 ? -1 : 1) * tier.drift;
+        return {
+          rackIndex: ball.rackIndex,
+          x: clamp(ball.x + lateral),
+          z: clamp(ball.z + depth)
+        };
+      });
+
+      const cue = {
+        x: clamp((blueprint.cue?.x ?? -0.4) - tier.spread * 0.5),
+        z: clamp((blueprint.cue?.z ?? -0.2) - tier.drift * 0.6)
       };
-    });
 
-    if (tier >= 2 && template.balls.length < 3) {
-      balls.push({ rackIndex: 15 + tier, x: clamp(0.32 - drift), z: clamp(0.22 + drift) });
+      const shotLimit = resolveShotLimit(blueprint, tier);
+      const variant = DISCIPLINE_TO_VARIANT[blueprint.discipline] || 'american';
+      const reward = Math.round(60 + level * 10 + (tier.rewardBonus || 0));
+      scenarios.push({
+        level,
+        title: `${blueprint.title} (${blueprint.discipline})`,
+        discipline: blueprint.discipline,
+        objective: blueprint.objective,
+        description: `${blueprint.objective} — ${blueprint.discipline} path ${tier.label}.`,
+        cue,
+        balls,
+        tip: blueprint.tip,
+        difficultyLabel: tier.label,
+        shotLimit,
+        variant,
+        reward,
+        nft: level % 10 === 0
+      });
+      level += 1;
     }
-    if (tier >= 3) {
-      balls.push({ rackIndex: 30 + tier, x: clamp(-0.18 - rotation), z: clamp(-0.14 - drift) });
-    }
-
-    const cue = {
-      x: clamp((template.cue?.x ?? -0.4) - drift * 0.6),
-      z: clamp((template.cue?.z ?? -0.2) - drift * 0.35)
-    };
-
-    const shotLimit = resolveShotLimit(template, tier);
-    const variant = DISCIPLINE_TO_VARIANT[template.discipline] || 'american';
-    scenarios.push({
-      level,
-      title: `${template.title} (${template.discipline})`,
-      discipline: template.discipline,
-      objective: template.objective,
-      description: `${template.objective} — ${template.discipline} path ${DIFFICULTY_LABELS[tier]}.`,
-      cue,
-      balls,
-      tip: template.tip,
-      difficultyLabel: DIFFICULTY_LABELS[tier],
-      shotLimit,
-      variant,
-      reward: 60 + level * 12,
-      nft: level % 10 === 0
-    });
   }
   return scenarios;
 })();

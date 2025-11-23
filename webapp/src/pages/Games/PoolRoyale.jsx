@@ -417,12 +417,12 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.34; // widen the middle fascia further so it blankets the entire arch reveal
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46; // widen the middle fascia along the wooden rails so both edges stretch toward the end pockets
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.032; // reduce the middle chrome arch slightly so the rounded cut stays tighter to the wood rail
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.044; // nudge the middle chrome cut farther toward centre so the rounded plate opening hugs the inward-shifted jaws
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.028; // keep the chrome cut centred on the jaw opening without over-pulling toward table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -747,8 +747,8 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.82; // trim the middle pocket shift so the jaws finish at the wood rail edge instead of protruding onto the cloth
-const SIDE_POCKET_FIELD_PULL = BALL_R * 0.72; // pull the middle pocket centres back toward the rails so the wooden apron stops before the playing field
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.9; // push the middle pockets slightly farther into the rails so the centres sit off the table axis
+const SIDE_POCKET_FIELD_PULL = BALL_R * 0.5; // ease the centre pull so the shifted side pockets remain tucked against the wooden apron
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -834,7 +834,7 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // thicken the plywood deck beneath the cloth to sell the wooden sub-structure
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // thicken the plywood deck beneath the cloth to sell the wooden sub-structure
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
 const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // sink the plywood panel further to prevent z-fighting around the middle pocket cuts
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint so the board follows the playable field
@@ -16087,7 +16087,7 @@ function PoolRoyaleGame({
               {trainingPopup.status === 'success' ? (
                 <>
                   <span className="text-3xl">✅</span>
-                  <span>Task completed</span>
+                  <span>Congratulations</span>
                 </>
               ) : (
                 'Task incomplete'
@@ -16095,7 +16095,7 @@ function PoolRoyaleGame({
             </h3>
             <p className="mt-2 text-sm text-white/70">
               {trainingPopup.status === 'success'
-                ? 'Great job clearing this round. We are moving you to the next task right away.'
+                ? 'Great job clearing this round. Tap Next round to keep the streak going.'
                 : 'We will reset this drill automatically so you can try again or head back to the lobby.'}
             </p>
             {trainingPopup.title && (
@@ -16145,7 +16145,7 @@ function PoolRoyaleGame({
                   'hover:bg-emerald-300'
                 }
               >
-                {trainingPopup.status === 'success' ? 'Continue to next task' : 'Retry task'}
+                {trainingPopup.status === 'success' ? 'Next round' : 'Try again'}
               </button>
               <button
                 type="button"
@@ -16155,7 +16155,7 @@ function PoolRoyaleGame({
                   'hover:bg-white/10'
                 }
               >
-                Back to lobby
+                Return to lobby
               </button>
             </div>
           </div>
