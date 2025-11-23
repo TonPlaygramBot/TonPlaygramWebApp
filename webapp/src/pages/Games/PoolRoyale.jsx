@@ -411,23 +411,23 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.034; // thicken fascia depth so the chrome plates read as chunky as the rail diamonds
+const CHROME_PLATE_THICKNESS_SCALE = 0.052; // thicken fascia depth so the chrome plates read as chunky as the rail diamonds
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1; // keep side fascias the same depth as the diamonds
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.68; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46; // widen the middle fascia along the wooden rails so both edges stretch toward the end pockets
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.006; // nudge the middle chrome cut outward so the arch sits farther from the table centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012; // nudge the middle chrome cut outward so the arch sits farther from the table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.982; // pull the middle rail arches slightly farther outward so the relief hugs the rail edge instead of the playfield
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.956; // pull the middle rail arches farther outward so the relief hugs the rail edge instead of the playfield
 
 function buildChromePlateGeometry({
   width,
@@ -698,7 +698,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9; // push the middle jaw shoulders outward so the arches sit farther from the table centre
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.94; // push the middle jaw shoulders outward so the arches sit farther from the table centre
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
@@ -969,7 +969,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -1935,18 +1935,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   },
   {
-    id: 'snookerGreen',
-    label: 'Snooker Cloth',
-    color: 0x2d7f4b,
-    textureKey: 'snookerGreen',
-    detail: {
-      bumpMultiplier: 0.96,
-      sheen: 0.62,
-      sheenRoughness: 0.4,
-      emissiveIntensity: 0.5
-    }
-  },
-  {
     id: 'graphite',
     label: 'Arcadia Graphite',
     color: 0x4a5566,
@@ -1966,20 +1954,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       sheen: 0.72,
       sheenRoughness: 0.4,
       envMapIntensity: 0.22
-    }
-  },
-  {
-    id: 'emeraldClassic',
-    label: 'Green Cloth',
-    color: 0x19a34a,
-    textureKey: 'freshGreen',
-    detail: {
-      bumpMultiplier: 1.22,
-      roughness: 0.78,
-      sheenRoughness: 0.52,
-      clearcoat: 0.05,
-      clearcoatRoughness: 0.32,
-      emissiveIntensity: 0.52
     }
   }
 ]);
@@ -2011,6 +1985,17 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
     clearcoatRoughness: 0.12,
     sheen: 0.28,
     sheenRoughness: 0.42
+  },
+  {
+    id: 'gold',
+    label: 'Gold',
+    color: 0xd4af37,
+    metalness: 0.88,
+    roughness: 0.26,
+    clearcoat: 0.58,
+    clearcoatRoughness: 0.18,
+    sheen: 0.32,
+    sheenRoughness: 0.4
   }
 ]);
 
@@ -7085,48 +7070,76 @@ function Table3D(
   const chalkBaseY = railsTopY + chalkHeight / 2;
   const sideRailCenterX = PLAY_W / 2 + longRailW * 0.5;
   const endRailCenterZ = PLAY_H / 2 + endRailW * 0.5;
-  const chalkSideRailOffset = Math.min(longRailW * 0.18, Math.max(0, longRailW * 0.45 - chalkSize * 0.5));
-  const chalkEndRailOffset = Math.min(endRailW * 0.18, Math.max(0, endRailW * 0.45 - chalkSize * 0.5));
+  const chalkSideRailOffset = Math.min(
+    longRailW * 0.32,
+    Math.max(0, longRailW * 0.6 - chalkSize * 0.5)
+  );
+  const chalkEndRailOffset = Math.min(
+    endRailW * 0.32,
+    Math.max(0, endRailW * 0.6 - chalkSize * 0.5)
+  );
   const chalkLongOffsetLimit = Math.max(0, PLAY_H / 2 - BALL_R * 3.5);
   const chalkShortOffsetLimit = Math.max(0, PLAY_W / 2 - BALL_R * 3.5);
-  const chalkLongAxisOffset = Math.min(chalkLongOffsetLimit, PLAY_H * 0.22);
-  const chalkShortAxisOffset = Math.min(chalkShortOffsetLimit, PLAY_W * 0.22);
+  const chalkLongAxisOffset = Math.min(chalkLongOffsetLimit, PLAY_H * 0.32);
+  const chalkShortAxisOffset = Math.min(chalkShortOffsetLimit, PLAY_W * 0.32);
   const chalkSlots = [
     {
-      position: new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0).add(
-        new THREE.Vector3(0, 0, 1).multiplyScalar(chalkLongAxisOffset)
-      ),
+      basePosition: new THREE.Vector3(-sideRailCenterX - chalkSideRailOffset, chalkBaseY, 0),
+      tangent: new THREE.Vector3(0, 0, 1),
+      defaultOffset: chalkLongAxisOffset,
+      offsetLimits: { min: -chalkLongOffsetLimit, max: chalkLongOffsetLimit },
       rotationY: Math.PI / 2
     },
     {
-      position: new THREE.Vector3(sideRailCenterX + chalkSideRailOffset, chalkBaseY, 0).add(
-        new THREE.Vector3(0, 0, -1).multiplyScalar(chalkLongAxisOffset)
-      ),
+      basePosition: new THREE.Vector3(sideRailCenterX + chalkSideRailOffset, chalkBaseY, 0),
+      tangent: new THREE.Vector3(0, 0, -1),
+      defaultOffset: chalkLongAxisOffset,
+      offsetLimits: { min: -chalkLongOffsetLimit, max: chalkLongOffsetLimit },
       rotationY: -Math.PI / 2
     },
     {
-      position: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ - chalkEndRailOffset).add(
-        new THREE.Vector3(-1, 0, 0).multiplyScalar(chalkShortAxisOffset)
-      ),
+      basePosition: new THREE.Vector3(0, chalkBaseY, -endRailCenterZ - chalkEndRailOffset),
+      tangent: new THREE.Vector3(-1, 0, 0),
+      defaultOffset: -chalkShortAxisOffset,
+      offsetLimits: { min: -chalkShortOffsetLimit, max: chalkShortOffsetLimit },
       rotationY: 0
     },
     {
-      position: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset).add(
-        new THREE.Vector3(1, 0, 0).multiplyScalar(chalkShortAxisOffset)
-      ),
+      basePosition: new THREE.Vector3(0, chalkBaseY, endRailCenterZ + chalkEndRailOffset),
+      tangent: new THREE.Vector3(1, 0, 0),
+      defaultOffset: chalkShortAxisOffset,
+      offsetLimits: { min: -chalkShortOffsetLimit, max: chalkShortOffsetLimit },
       rotationY: Math.PI
     }
   ];
-  chalkSlots.forEach(({ position, rotationY }) => {
+  chalkSlots.forEach((slot, index) => {
     const mesh = new THREE.Mesh(chalkGeometry, createChalkMaterials());
-    mesh.position.copy(position);
-    mesh.rotation.y = rotationY;
+    mesh.position
+      .copy(slot.basePosition)
+      .addScaledVector(slot.tangent, slot.defaultOffset ?? 0);
+    mesh.rotation.set(Math.PI, slot.rotationY, 0);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.visible = true;
+    mesh.userData = {
+      ...(mesh.userData || {}),
+      isChalk: true,
+      chalkIndex: index
+    };
     chalkGroup.add(mesh);
+    slot.position = mesh.position.clone();
+    slot.currentOffset = slot.defaultOffset ?? 0;
   });
   table.add(chalkGroup);
+  table.userData.chalks = chalkGroup.children.slice();
+  table.userData.chalkSlots = chalkSlots;
+  table.userData.chalkMeta = {
+    slack: BALL_R * 0.35,
+    sideReach: longRailW + chalkSideRailOffset + chalkSize * 0.5,
+    endReach: endRailW + chalkEndRailOffset + chalkSize * 0.5,
+    overlapThreshold: chalkSize * 0.6,
+    nudgeDistance: chalkSize * 0.25
+  };
 
   const FACE_SHRINK_LONG = 1;
   const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
@@ -8354,8 +8367,8 @@ function PoolRoyaleGame({
     }
   }, [activeChalkIndex, highlightChalks]);
 
-  const toggleChalkAssist = useCallback(() => {
-    setActiveChalkIndex(null);
+  const toggleChalkAssist = useCallback((index = null) => {
+    setActiveChalkIndex((prev) => (prev === index ? null : index));
   }, []);
   const tableSizeRef = useRef(responsiveTableSize);
   useEffect(() => {
