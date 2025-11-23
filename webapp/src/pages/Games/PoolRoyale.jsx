@@ -12282,7 +12282,7 @@ function PoolRoyaleGame({
         new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
-          opacity: 0.65,
+          opacity: 0.0,
           side: THREE.DoubleSide
         })
       );
@@ -14515,16 +14515,24 @@ function PoolRoyaleGame({
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+          const spinSideInfluence = (appliedSpin.x || 0) * 0.35 * (0.6 + 0.4 * powerStrength);
+          const spinVerticalInfluence = (appliedSpin.y || 0) * 0.55 * (0.5 + 0.5 * powerStrength);
+          const cueFollowDirSpinAdjusted = cueFollowDir
+            .clone()
+            .add(perp.clone().multiplyScalar(spinSideInfluence));
+          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+            cueFollowDirSpinAdjusted.normalize();
+          }
+          const cueFollowLength =
+            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
-            .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
+            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
           cueAfterGeom.setFromPoints([end, followEnd]);
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
-          impactRing.visible = true;
-          impactRing.position.set(end.x, tableSurfaceY + 0.004, end.z);
+          impactRing.visible = false;
           impactRing.scale.set(1, 1, 1);
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
@@ -14668,10 +14676,16 @@ function PoolRoyaleGame({
           cueStick.visible = true;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 20);
-            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y).normalize();
-            const tEnd = end
-              .clone()
-              .add(tDir.clone().multiplyScalar(travelScale));
+            const targetSpinInfluence = (appliedSpin.x || 0) * 0.28 * (0.5 + 0.5 * powerStrength);
+            const spinThrow = perp.clone().multiplyScalar(-targetSpinInfluence);
+            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y)
+              .normalize()
+              .add(spinThrow);
+            if (tDir.lengthSq() > 1e-8) {
+              tDir.normalize();
+            }
+            const distanceScale = travelScale * (1 + Math.abs(appliedSpin.y || 0) * 0.2);
+            const tEnd = end.clone().add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([end, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.25 * powerStrength;
