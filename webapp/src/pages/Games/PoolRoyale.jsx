@@ -422,12 +422,12 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.016; // push the middle chrome cut slightly outward so the arch sits farther from the table centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.006; // nudge the middle chrome cut outward so the arch sits farther from the table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.988; // pull the middle rail arches outward so the relief hugs the rail edge instead of the playfield
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.982; // pull the middle rail arches slightly farther outward so the relief hugs the rail edge instead of the playfield
 
 function buildChromePlateGeometry({
   width,
@@ -1865,7 +1865,8 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     metalness: 0.88,
     roughness: 0.35,
     clearcoat: 0.26,
-    clearcoatRoughness: 0.2
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.58
   }
 ]);
 
@@ -5274,6 +5275,8 @@ function Table3D(
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.side = THREE.DoubleSide;
+  clothEdgeMat.envMapIntensity = clothMat.envMapIntensity * 0.65;
+  clothEdgeMat.emissiveIntensity = clothMat.emissiveIntensity * 0.9;
   if (clothMat.map) {
     const clonedMap = clothMat.map.clone();
     clonedMap.image = clothMat.map.image;
@@ -7834,6 +7837,15 @@ function PoolRoyaleGame({
     return DEFAULT_RAIL_MARKER_COLOR_ID;
   });
   const lightingId = DEFAULT_LIGHTING_ID;
+  const [chromeColorId, setChromeColorId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolChromeColor');
+      if (stored && CHROME_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_CHROME_COLOR_ID;
+  });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
@@ -7853,9 +7865,10 @@ function PoolRoyaleGame({
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
-  const activeChromeOption =
-    CHROME_COLOR_OPTIONS.find((opt) => opt.id === DEFAULT_CHROME_COLOR_ID) ??
-    CHROME_COLOR_OPTIONS[0];
+  const activeChromeOption = useMemo(
+    () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
+    [chromeColorId]
+  );
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
@@ -8422,11 +8435,7 @@ function PoolRoyaleGame({
         materials.trim.clearcoat = chromeSelection.clearcoat;
         materials.trim.clearcoatRoughness = chromeSelection.clearcoatRoughness;
         if (typeof chromeSelection.envMapIntensity === 'number') {
-          materials.trim.envMapIntensity = THREE.MathUtils.clamp(
-            chromeSelection.envMapIntensity,
-            0.9,
-            1.1
-          );
+          materials.trim.envMapIntensity = chromeSelection.envMapIntensity;
         }
         if (materials.accent?.material) {
           materials.accent = {
@@ -8459,6 +8468,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem('snookerClothColor', clothColorId);
     }
   }, [clothColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolChromeColor', chromeColorId);
+    }
+  }, [chromeColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
@@ -15748,6 +15762,38 @@ function PoolRoyaleGame({
                         }`}
                       >
                         {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Chrome Plates
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {CHROME_COLOR_OPTIONS.map((option) => {
+                    const active = option.id === chromeColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setChromeColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
                       </button>
                     );
                   })}

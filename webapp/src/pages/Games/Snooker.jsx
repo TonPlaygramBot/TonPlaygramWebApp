@@ -201,7 +201,7 @@ function createDefaultPocketJawMaterial() {
 
 const POCKET_VISUAL_EXPANSION = 1.012;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.052; // pull the rounded chrome cut deeper toward the table centre
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // match Pool Royale chrome inset depth
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -211,7 +211,7 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1;
 const CHROME_CORNER_WIDTH_SCALE = 0.982;
 const CHROME_CORNER_HEIGHT_SCALE = 0.962;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.0313; // reuse Pool Royale side pocket arch width
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.028; // reuse Pool Royale side pocket arch width
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
@@ -2876,10 +2876,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0405; // ease the player camera slightly closer to the table
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0365; // pull the player camera tighter to match the reduced table footprint
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.06;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.29;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
