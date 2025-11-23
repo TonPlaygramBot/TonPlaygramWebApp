@@ -13062,6 +13062,7 @@ function PoolRoyaleGame({
         if (pos) {
           tryUpdatePlacement(pos, true);
           setInHandPlacementMode(false);
+          autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
       };
@@ -15987,9 +15988,6 @@ function PoolRoyaleGame({
       )}
       {hud?.inHand && (
         <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
-          <div className="rounded-full border border-white/15 bg-black/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em]">
-            Ball in hand
-          </div>
           <button
             type="button"
             onClick={toggleInHandPlacement}
@@ -15999,13 +15997,8 @@ function PoolRoyaleGame({
                 : 'bg-white/90 text-gray-900 ring-1 ring-white/60 hover:bg-white'
             }`}
           >
-            {inHandPlacementMode ? 'Placing cue ball' : 'Move cue ball'}
+            {inHandPlacementMode ? 'Ball in hand (placing)' : 'Ball in hand'}
           </button>
-          <p className="text-[11px] font-medium text-white/90">
-            {inHandPlacementMode
-              ? 'Drag to position the cue ball, then release to return to aiming.'
-              : 'Tap to enable placement; once you drop the ball, aiming controls resume.'}
-          </p>
         </div>
       )}
       {/* Power Slider */}
