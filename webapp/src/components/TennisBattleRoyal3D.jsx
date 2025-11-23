@@ -631,8 +631,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     southGrandstand.position.set(0, 0, standOffsetZ);
     scene.add(southGrandstand);
     const stairs = buildGrandEntranceStairs();
-    stairs.rotation.y = Math.PI;
-    stairs.position.set(-0.4, 0, standOffsetZ - 2.4);
+    stairs.rotation.y = Math.PI / 2;
+    stairs.position.set(halfW + apron + 3.2, 0, standOffsetZ - 1);
     scene.add(stairs);
     const broadcastRig = buildBroadcastCameraRig(1.25);
     broadcastRig.position.set(halfW + 1.8, 0, 0);
@@ -680,10 +680,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
       if (distY > 40) {
         started = true;
-        const power = Math.min((distY / time) * 0.001, 0.6);
-        velocity.x = THREE.MathUtils.clamp(distX * 0.001, -0.25, 0.25);
-        velocity.y = 0.18 + power * 0.3;
-        velocity.z = -0.2 - power * 0.6;
+        const power = Math.min((distY / time) * 0.001, 0.48);
+        velocity.x = THREE.MathUtils.clamp(distX * 0.0009, -0.22, 0.22);
+        velocity.y = 0.16 + power * 0.26;
+        velocity.z = -0.16 - power * 0.48;
 
         player.position.x = screenToCourt(startX);
         ball.position.set(player.position.x, player.position.y + 1, player.position.z - 0.4);
