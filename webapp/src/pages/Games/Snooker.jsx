@@ -208,7 +208,7 @@ function createDefaultPocketJawMaterial() {
 
 const POCKET_VISUAL_EXPANSION = 1.012;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // match Pool Royale chrome inset depth
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -240,7 +240,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.006;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.004;
 const WOOD_CORNER_CUT_SCALE = 1; // keep wood cuts identical to chrome plate reliefs
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
@@ -4604,7 +4604,7 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const sideInset = SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
