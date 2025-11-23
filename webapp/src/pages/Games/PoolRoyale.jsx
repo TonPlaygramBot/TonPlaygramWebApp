@@ -12975,10 +12975,6 @@ function PoolRoyaleGame({
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
         if (!p) return;
-        if (cueBallPlacedFromHandRef.current) {
-          const dist = p.distanceTo(cue?.pos ?? new THREE.Vector2());
-          if (!Number.isFinite(dist) || dist > BALL_R * 1.2) return;
-        }
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
@@ -15911,7 +15907,7 @@ function PoolRoyaleGame({
         </div>
       )}
       {hud?.inHand && (
-        <div className="absolute bottom-24 left-1/2 z-40 -translate-x-1/2 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
+        <div className="pointer-events-none absolute left-1/2 top-4 z-40 -translate-x-1/2 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <p className="text-sm font-semibold">Ball in hand</p>
           <p className="text-xs text-white/80">Tap, hold, and release the cue ball to move it.</p>
         </div>
