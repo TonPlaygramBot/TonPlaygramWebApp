@@ -407,10 +407,11 @@ const CHROME_PLATE_THICKNESS_SCALE = 0.052; // thicken fascia depth so the chrom
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1; // keep side fascias the same depth as the diamonds
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.68; // extend the middle fascia deeper along the pocket arch so it blankets the expanded rail relief
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.54; // trim the field-side reach so the fascia ends flush with the wooden rail while still covering the relieved arch
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46; // widen the middle fascia along the wooden rails so both edges stretch toward the end pockets
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.58; // widen the middle fascia along the wooden rails so both edges stretch toward the end pockets
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.04; // pull the side fascias toward the wooden rail so the field edge stops at the rail line and the exterior face grows
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
@@ -6277,11 +6278,16 @@ function Table3D(
     finishParts.trimMeshes.push(plate);
   });
 
+  const sideChromePlateOutwardShift =
+    TABLE.THICK * CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE;
+
   [
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
+    const centerX =
+      sx *
+      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift);
     const centerZ = 0;
     const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
     const sidePocketCutCenterPull =
