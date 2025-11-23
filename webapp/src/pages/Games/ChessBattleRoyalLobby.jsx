@@ -112,48 +112,52 @@ export default function ChessBattleRoyalLobby() {
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center">Chess Battle Royal Lobby</h2>
-      <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-2 shadow">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold">Online duel ready</div>
-          <div className="text-xs text-subtext">
-            {onlineCount != null ? `${onlineCount} players online` : 'Syncing players…'}
-          </div>
-        </div>
-        <p className="text-xs text-subtext leading-snug">
-          Stakes use your TPC account
-          {accountId ? ` #${accountId}` : ''} as the tracker and escrow for every online round.
+      <p className="text-center text-sm">
+        Online users: {onlineCount != null ? onlineCount : 'Syncing…'}
+      </p>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Select Stake</h3>
+        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        <p className="text-center text-subtext text-sm">
+          Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
         </p>
-        <div className="flex items-center gap-3">
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Your Flag & Avatar</h3>
+        <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-2 shadow">
           <button
             type="button"
             onClick={() => setShowFlagPicker(true)}
-            className="flex-1 px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
           >
-            <div className="text-[11px] uppercase tracking-wide text-subtext">Your flag</div>
+            <div className="text-[11px] uppercase tracking-wide text-subtext">Flag</div>
             <div className="flex items-center gap-2 text-base font-semibold">
               <span className="text-lg">{selectedFlag || '🌐'}</span>
               <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
             </div>
           </button>
           {avatar && (
-            <img
-              src={avatar}
-              alt="Your avatar"
-              className="h-12 w-12 rounded-full border border-border object-cover"
-            />
+            <div className="flex items-center gap-3">
+              <img
+                src={avatar}
+                alt="Your avatar"
+                className="h-12 w-12 rounded-full border border-border object-cover"
+              />
+              <div className="text-sm text-subtext">Your avatar will appear in the match intro.</div>
+            </div>
           )}
         </div>
       </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-      </div>
+
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
       >
-        START ONLINE MATCH
+        Start Game
       </button>
+
       <FlagPickerModal
         open={showFlagPicker}
         count={1}
