@@ -8455,6 +8455,8 @@ function PoolRoyaleGame({
     contactMade: false,
     cushionAfterContact: false
   });
+  const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
+  const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
   const startAiThinkingRef = useRef(() => {});
@@ -8472,6 +8474,9 @@ function PoolRoyaleGame({
     inHand: true,
     over: false
   });
+  useEffect(() => {
+    inHandPlacementModeRef.current = inHandPlacementMode;
+  }, [inHandPlacementMode]);
   const powerRef = useRef(hud.power);
   useEffect(() => {
     powerRef.current = hud.power;
@@ -8482,10 +8487,20 @@ function PoolRoyaleGame({
   }, [hud]);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
+    setInHandPlacementMode(false);
     if (hud.inHand) {
       cueBallPlacedFromHandRef.current = false;
     }
   }, [hud.inHand]);
+  const toggleInHandPlacement = useCallback(() => {
+    setInHandPlacementMode((prev) => {
+      const next = !prev;
+      if (next) {
+        cueBallPlacedFromHandRef.current = false;
+      }
+      return next;
+    });
+  }, []);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -12198,7 +12213,7 @@ function PoolRoyaleGame({
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
-        color: 0xffffff,
+        color: 0x7ce7ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
         opacity: 0.9
@@ -12210,6 +12225,23 @@ function PoolRoyaleGame({
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
       table.add(aim);
+      const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+      const cueAfter = new THREE.Line(
+        cueAfterGeom,
+        new THREE.LineDashedMaterial({
+          color: 0x7ce7ff,
+          linewidth: AIM_LINE_WIDTH,
+          dashSize: AIM_DASH_SIZE * 0.9,
+          gapSize: AIM_GAP_SIZE,
+          transparent: true,
+          opacity: 0.45
+        })
+      );
+      cueAfter.visible = false;
+      table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
@@ -12228,16 +12260,28 @@ function PoolRoyaleGame({
       const target = new THREE.Line(
         targetGeom,
         new THREE.LineDashedMaterial({
-          color: 0xffffff,
+          color: 0xffd166,
           linewidth: AIM_LINE_WIDTH,
           dashSize: AIM_DASH_SIZE,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.5
+          opacity: 0.65
         })
       );
       target.visible = false;
       table.add(target);
+      const impactRing = new THREE.Mesh(
+        new THREE.RingGeometry(BALL_R * 0.9, BALL_R * 1.2, 32),
+        new THREE.MeshBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.65,
+          side: THREE.DoubleSide
+        })
+      );
+      impactRing.rotation.x = -Math.PI / 2;
+      impactRing.visible = false;
+      table.add(impactRing);
 
       const chalkPrecisionArea = new THREE.Mesh(
         new THREE.CircleGeometry(CHALK_TARGET_RING_RADIUS, 48),
@@ -12971,6 +13015,7 @@ function PoolRoyaleGame({
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
+        if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
@@ -13016,6 +13061,7 @@ function PoolRoyaleGame({
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
+          setInHandPlacementMode(false);
         }
         e.preventDefault?.();
       };
@@ -14383,6 +14429,7 @@ function PoolRoyaleGame({
           allStopped(balls) &&
           cue?.active &&
           !(currentHud?.over) &&
+          !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
@@ -14394,6 +14441,11 @@ function PoolRoyaleGame({
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          const powerStrength = THREE.MathUtils.clamp(
+            powerRef.current ?? 0,
+            0,
+            1
+          );
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
@@ -14433,13 +14485,13 @@ function PoolRoyaleGame({
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
-          aim.material.color.set(
-            aimingWrong
-              ? 0xff3333
-              : targetBall && !railNormal
-                ? 0xffff00
-                : 0xffffff
-          );
+          const primaryColor = aimingWrong
+            ? 0xff3333
+            : targetBall && !railNormal
+              ? 0xffd166
+              : 0x7ce7ff;
+          aim.material.color.set(primaryColor);
+          aim.material.opacity = 0.55 + 0.35 * powerStrength;
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
@@ -14447,6 +14499,22 @@ function PoolRoyaleGame({
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
+          const cueFollowDir =
+            railNormal && afterDir && !targetBall
+              ? new THREE.Vector3(afterDir.x, 0, afterDir.y).normalize()
+              : dir.clone();
+          const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+          const followEnd = end
+            .clone()
+            .add(cueFollowDir.clone().multiplyScalar(cueFollowLength));
+          cueAfterGeom.setFromPoints([end, followEnd]);
+          cueAfter.visible = true;
+          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+          cueAfter.computeLineDistances();
+          impactRing.visible = true;
+          impactRing.position.set(end.x, tableSurfaceY + 0.004, end.z);
+          const impactScale = 1 + powerStrength * 0.35;
+          impactRing.scale.set(impactScale, impactScale, impactScale);
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
@@ -14588,12 +14656,16 @@ function PoolRoyaleGame({
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
           if (afterDir) {
-            const tEnd = new THREE.Vector3(
-              end.x + afterDir.x * 30,
-              BALL_R,
-              end.z + afterDir.y * 30
-            );
+            const travelScale = BALL_R * (14 + powerStrength * 20);
+            const tDir = new THREE.Vector3(afterDir.x, 0, afterDir.y).normalize();
+            const tEnd = end
+              .clone()
+              .add(tDir.clone().multiplyScalar(travelScale));
             targetGeom.setFromPoints([end, tEnd]);
+            target.material.color.setHex(targetBall ? 0xffd166 : 0x7ce7ff);
+            target.material.opacity = targetBall
+              ? 0.65 + 0.25 * powerStrength
+              : 0.45 + 0.25 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
           } else {
@@ -14603,6 +14675,8 @@ function PoolRoyaleGame({
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          cueAfter.visible = false;
+          impactRing.visible = false;
           updateChalkVisibility(null);
           const planDir = activeAiPlan.aimDir
             ? activeAiPlan.aimDir.clone()
@@ -14660,6 +14734,8 @@ function PoolRoyaleGame({
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          cueAfter.visible = false;
+          impactRing.visible = false;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -15334,11 +15410,14 @@ function PoolRoyaleGame({
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
-      onCommit: () => {
-        fireRef.current?.();
+      onCommit: (value) => {
+        const pct = Number.isFinite(value) ? value : slider.get?.() ?? 0;
+        const isZeroShot = pct <= slider.min + 0.0001;
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
         });
+        if (isZeroShot) return;
+        fireRef.current?.();
       }
     });
     sliderInstanceRef.current = slider;
@@ -15907,9 +15986,26 @@ function PoolRoyaleGame({
         </div>
       )}
       {hud?.inHand && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-40 -translate-x-1/2 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
-          <p className="text-sm font-semibold">Ball in hand</p>
-          <p className="text-xs text-white/80">Tap, hold, and release the cue ball to move it.</p>
+        <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
+          <div className="rounded-full border border-white/15 bg-black/60 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em]">
+            Ball in hand
+          </div>
+          <button
+            type="button"
+            onClick={toggleInHandPlacement}
+            className={`min-w-[9rem] rounded-full px-4 py-2 text-sm font-semibold shadow-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 focus:ring-offset-black ${
+              inHandPlacementMode
+                ? 'bg-emerald-400 text-black ring-1 ring-emerald-200/80'
+                : 'bg-white/90 text-gray-900 ring-1 ring-white/60 hover:bg-white'
+            }`}
+          >
+            {inHandPlacementMode ? 'Placing cue ball' : 'Move cue ball'}
+          </button>
+          <p className="text-[11px] font-medium text-white/90">
+            {inHandPlacementMode
+              ? 'Drag to position the cue ball, then release to return to aiming.'
+              : 'Tap to enable placement; once you drop the ball, aiming controls resume.'}
+          </p>
         </div>
       )}
       {/* Power Slider */}

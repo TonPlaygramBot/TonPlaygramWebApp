@@ -2,8 +2,8 @@
 .ps {
   /* slimmer slider to match pool game styling */
   --ps-width: 46px;
-  --ps-height: 640px;
-  --ps-radius: 23px;
+  --ps-height: 832px;
+  --ps-radius: 30px;
   --ps-track-bg: rgba(255, 255, 255, 0.15);
   --ps-gradient-low: #ffe066;
   --ps-gradient-mid: #ff8c00;
@@ -147,8 +147,19 @@
     var(--ps-gradient-high)
   );
   padding: 7.2px 2.4px;
+  touch-action: none;
+  overflow: visible;
   pointer-events: auto;
   z-index: 1;
+}
+
+.ps .ps-handle::before {
+  content: '';
+  position: absolute;
+  inset: -12px -10px;
+  border-radius: 14px;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .ps .ps-handle-text {
