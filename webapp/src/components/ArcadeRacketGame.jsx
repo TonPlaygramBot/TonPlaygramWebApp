@@ -136,6 +136,12 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     let lastY = 0;
     let startT = 0;
     let queuedSwing = null;
+    let server = 'player';
+    let enemyServeTimer = null;
+
+    const MIN_SWIPE_SPEED = 220;
+    const MAX_SWIPE_SPEED = 1400;
+    const BASE_POWER = 12;
 
     function clampX(x) {
       return THREE.MathUtils.clamp(x, -halfW + config.ballRadius * 2, halfW - config.ballRadius * 2);
@@ -147,16 +153,74 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       return clampX((normX - 0.5) * config.courtW);
     }
 
+    function clearEnemyServeTimer() {
+      if (enemyServeTimer) {
+        clearTimeout(enemyServeTimer);
+        enemyServeTimer = null;
+      }
+    }
+
+    function mapPowerFromSpeed(speed) {
+      const normalized = THREE.MathUtils.clamp((speed - MIN_SWIPE_SPEED) / (MAX_SWIPE_SPEED - MIN_SWIPE_SPEED), 0, 1);
+      return 8 + normalized * 12;
+    }
+
+    function swipePower(distX, distY, swipeTime) {
+      const distance = Math.hypot(distX, distY);
+      const speed = distance / Math.max(swipeTime, 0.05);
+      const power = mapPowerFromSpeed(speed);
+      const aimBias = THREE.MathUtils.clamp(distY / Math.max(distance, 1), 0, 1);
+      return { distance, speed, power, aimBias };
+    }
+
+    function nextServer() {
+      server = server === 'player' ? 'enemy' : 'player';
+    }
+
+    function scheduleEnemyServe() {
+      if (server !== 'enemy') return;
+      clearEnemyServeTimer();
+      enemyServeTimer = setTimeout(() => {
+        const lateralScale = config.courtW / BASE_CONFIG.courtW;
+        const forwardScale = config.courtL / BASE_CONFIG.courtL;
+        const targetX = clampX((Math.random() - 0.5) * halfW * 0.8);
+        const servePower = 12 + Math.random() * 6;
+        const powerScale = servePower / BASE_POWER;
+        const forward = THREE.MathUtils.clamp(
+          THREE.MathUtils.mapLinear(servePower, 8, 20, 4 * forwardScale, 12.4 * forwardScale),
+          4 * forwardScale,
+          12.4 * forwardScale
+        );
+        const lateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 0.9, -2.4 * lateralScale, 2.4 * lateralScale);
+        const lift = THREE.MathUtils.clamp(3 + powerScale * 1.1, 3, 7.6);
+        velocity.set(lateral, lift, forward);
+        started = true;
+        setToast('AI shërben · mbrohu!');
+      }, 900);
+    }
+
     function resetBall(showToast = true) {
       started = false;
       velocity.set(0, 0, 0);
       queuedSwing = null;
-      const zOffset = halfL - config.playerZOffset - 0.3;
+      clearEnemyServeTimer();
+
+      const serverIsPlayer = server === 'player';
+      const zOffset = serverIsPlayer ? halfL - config.playerZOffset - 0.3 : -halfL + config.playerZOffset + 0.3;
       ball.position.set(0, config.ballRadius + 0.7, zOffset);
       camera.position.set(0, config.cameraHeight, ball.position.z + config.cameraOffset);
       camera.lookAt(ball.position);
+
       if (showToast) {
-        setToast(trainingMode ? 'Modaliteti Trajnim · Swipe për shërbim' : 'Swipe UP për shërbim');
+        if (!serverIsPlayer) {
+          setToast('AI do të shërbejë · gati për kthim');
+        } else {
+          setToast(trainingMode ? 'Modaliteti Trajnim · Swipe për shërbim' : 'Swipe UP për shërbim');
+        }
+      }
+
+      if (!serverIsPlayer) {
+        scheduleEnemyServe();
       }
     }
 
@@ -168,9 +232,24 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const lateralScale = config.courtW / BASE_CONFIG.courtW;
       const forwardScale = config.courtL / BASE_CONFIG.courtL;
 
-      const lateral = THREE.MathUtils.clamp((distX / Math.max(swipeTime, 0.12)) * 0.0022 * lateralScale, -2.2 * lateralScale, 2.2 * lateralScale);
-      const forward = THREE.MathUtils.clamp((distY / Math.max(swipeTime, 0.12)) * 0.003 * forwardScale, 3 * forwardScale, 9.5 * forwardScale);
-      const vertical = THREE.MathUtils.clamp((distY / Math.max(swipeTime, 0.12)) * 0.0018, 2.2, 8.5);
+      const swipeT = Math.max(swipeTime, 0.12);
+      const { power, aimBias } = swipePower(distX, distY, swipeT);
+      const powerScale = power / BASE_POWER;
+
+      const lateral = THREE.MathUtils.clamp(
+        (distX / swipeT) * 0.002 * lateralScale * powerScale,
+        -2.4 * lateralScale,
+        2.4 * lateralScale
+      );
+
+      const forwardBase = THREE.MathUtils.clamp(
+        (distY / swipeT) * 0.0032 * forwardScale * powerScale,
+        3.2 * forwardScale,
+        11.2 * forwardScale
+      );
+      const forward = THREE.MathUtils.lerp(3.2 * forwardScale, forwardBase, Math.max(aimBias, 0.28));
+
+      const vertical = THREE.MathUtils.clamp(2.2 + aimBias * powerScale * 6.2, 2.2, 9.8);
 
       const direction = ball.position.z >= 0 ? -1 : 1;
       const hitOffset = Math.max(0.32, config.ballRadius * 6);
@@ -199,9 +278,11 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
       if (started) {
         const lateralScale = config.courtW / BASE_CONFIG.courtW;
+        const { power } = swipePower(distX, distY, time);
         queuedSwing = {
           lateral: THREE.MathUtils.clamp((distX / Math.max(time, 0.12)) * 0.0015 * lateralScale, -1.6 * lateralScale, 1.6 * lateralScale),
           lift: THREE.MathUtils.clamp((distY / Math.max(time, 0.12)) * 0.0012, 0, 2.5),
+          power,
         };
         setToast('Swing i gati · prit topin');
         return;
@@ -276,9 +357,13 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const hitWindow = Math.max(halfW * 0.08, config.ballRadius * 8);
       const approachingEnemy = velocity.z < 0 && ball.position.z < enemy.position.z + hitWindow;
       if (approachingEnemy && ball.position.distanceTo(enemy.position) < hitWindow) {
-        const aimForward = THREE.MathUtils.clamp(Math.abs(velocity.z) + 2.8, 3.4, 9.2) * (config.courtL / BASE_CONFIG.courtL);
-        const aimLateral = THREE.MathUtils.clamp((ball.position.x - enemy.position.x) * 1.4, -2.2, 2.2);
-        velocity.set(aimLateral, 3 + Math.random() * 1.2, Math.abs(aimForward));
+        const targetX = clampX(player.position.x + (Math.random() - 0.5) * halfW * 0.35);
+        const aiPower = THREE.MathUtils.clamp(10 + Math.abs(velocity.z) * 0.35, 8, 20);
+        const powerScale = aiPower / BASE_POWER;
+        const aimForward = THREE.MathUtils.clamp((Math.abs(velocity.z) + 3.4) * powerScale, 4 * (config.courtL / BASE_CONFIG.courtL), 12 * (config.courtL / BASE_CONFIG.courtL));
+        const aimLateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 0.95, -2.4, 2.4);
+        const lift = THREE.MathUtils.clamp(3.2 + powerScale * 1.2 + Math.random() * 0.9, 3, 9);
+        velocity.set(aimLateral, lift, Math.abs(aimForward));
       }
     }
 
@@ -287,11 +372,19 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const approachingPlayer = velocity.z > 0 && ball.position.z > player.position.z - hitWindow;
       if (!approachingPlayer || ball.position.distanceTo(player.position) >= hitWindow) return;
 
-      const rebound = THREE.MathUtils.clamp(Math.abs(velocity.z) + 2.2, 3.2, 9) * (config.courtL / BASE_CONFIG.courtL);
-      const correction = THREE.MathUtils.clamp((ball.position.x - player.position.x) * 1.3, -1.8, 1.8);
       const queuedLateral = queuedSwing?.lateral ?? 0;
       const queuedLift = queuedSwing?.lift ?? 0;
-      velocity.set(correction + queuedLateral, 3.4 + queuedLift + Math.random() * 0.8, -Math.abs(rebound));
+      const swingPower = queuedSwing?.power ?? mapPowerFromSpeed(Math.abs(velocity.z) * 1200);
+      const powerScale = swingPower / BASE_POWER;
+
+      const rebound = THREE.MathUtils.clamp(
+        (Math.abs(velocity.z) + 2.2) * (0.85 + powerScale * 0.18),
+        3.2,
+        11
+      ) * (config.courtL / BASE_CONFIG.courtL);
+      const correction = THREE.MathUtils.clamp((ball.position.x - player.position.x) * 1.3 * powerScale, -2.2, 2.2);
+
+      velocity.set(correction + queuedLateral, 3.4 + queuedLift * powerScale + Math.random() * 0.8, -Math.abs(rebound));
       queuedSwing = null;
       setToast('Kthim perfekt!');
       started = true;
@@ -339,6 +432,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
           velocity.set(0, 0, 0);
           started = false;
           setToast('Jashtë fushës · Swipe për të rifilluar');
+          nextServer();
           resetBall(false);
         }
       }
@@ -348,6 +442,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         velocity.set(0, 0, 0);
         started = false;
         setToast('Rally përfundoi · Swipe për të rifilluar');
+        nextServer();
         resetBall(false);
       }
     }
@@ -396,6 +491,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       renderer.domElement.removeEventListener('touchmove', onPointerMove);
       document.removeEventListener('touchstart', onDocumentTouchStart);
       document.removeEventListener('touchend', onDocumentTouchEnd);
+      clearEnemyServeTimer();
       try {
         container.removeChild(renderer.domElement);
       } catch (err) {
