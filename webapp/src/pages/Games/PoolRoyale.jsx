@@ -7,7 +7,6 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
-import { AnimatePresence, motion } from 'framer-motion';
 // Snooker uses its own slimmer power slider
 import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
 import '../../../../snooker-power-slider.css';
@@ -23,16 +22,9 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import { TRAINING_SCENARIOS, getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
-import {
-  getNextIncompleteLevel,
-  loadTrainingProgress,
-  persistTrainingProgress,
-  resolvePlayableTrainingLevel
-} from '../../utils/poolRoyaleTrainingProgress.js';
 import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
@@ -427,7 +419,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.956; // pull the middle rail arches farther outward so the relief hugs the rail edge instead of the playfield
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.978; // open the middle rail arches slightly more so the rounded cut breathes around the side pockets
 
 function buildChromePlateGeometry({
   width,
@@ -671,7 +663,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly fart
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 0.944; // tighten the middle pocket fascia so it remains centred without shifting position
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.936; // trim the middle pocket fascia a hair smaller while keeping it centred on the rail
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
@@ -698,7 +690,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.94; // push the middle jaw shoulders outward so the arches sit farther from the table centre
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.952; // push the middle jaw shoulders farther toward the rails so the arches sit away from table centre
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
@@ -7763,7 +7755,8 @@ function PoolRoyaleGame({
   tableSizeKey,
   playType = 'regular',
   mode = 'ai',
-  trainingLevel = 1,
+  trainingMode = 'solo',
+  trainingRulesEnabled = true,
   accountId,
   tgId,
   playerName,
@@ -7771,27 +7764,6 @@ function PoolRoyaleGame({
 }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const goToTrainingLevel = useCallback(
-    (level, replace = false, reload = false) => {
-      const target = (() => {
-        if (!level) return '/games/poolroyale/lobby?type=training';
-        const params = new URLSearchParams(location.search);
-        if (params.get('type') !== 'training') {
-          params.set('type', 'training');
-        }
-        params.set('task', level);
-        return `${location.pathname}?${params.toString()}`;
-      })();
-
-      if (reload) {
-        window.location.assign(target);
-        return;
-      }
-
-      navigate(target, { replace });
-    },
-    [location.pathname, location.search, navigate]
-  );
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
@@ -7879,185 +7851,19 @@ function PoolRoyaleGame({
     [clothColorId]
   );
   const isTraining = playType === 'training';
-  const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
-  const resolvedTrainingLevel = useMemo(() => {
-    if (!isTraining) return trainingLevel;
-    return resolvePlayableTrainingLevel(trainingLevel, trainingProgress);
-  }, [isTraining, trainingLevel, trainingProgress]);
-  const trainingScenario = useMemo(
-    () => (isTraining ? getTrainingScenario(resolvedTrainingLevel) : null),
-    [isTraining, resolvedTrainingLevel]
+  const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
+  const [trainingModeState, setTrainingModeState] = useState(
+    trainingMode === 'ai' ? 'ai' : 'solo'
   );
-  const trainingProgressRef = useRef(trainingProgress);
-  const [trainingPopup, setTrainingPopup] = useState(null);
-  const trainingRewardedRef = useRef(false);
-  const [trainingGuideVisible, setTrainingGuideVisible] = useState(true);
-  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(() =>
-    isTraining && trainingScenario ? trainingScenario.shotLimit ?? null : null
-  );
-  const trainingShotsRemainingRef = useRef(trainingShotsRemaining);
-  const trainingShotLimitLockedRef = useRef(false);
-  const trainingTaskDetails = useMemo(() => {
-    if (!isTraining || !trainingScenario) return null;
-    const level = resolvedTrainingLevel || trainingLevel || 1;
-    return {
-      level,
-      title: trainingScenario.title,
-      description: trainingScenario.description,
-      objective: trainingScenario.objective,
-      discipline: trainingScenario.discipline,
-      difficulty: trainingScenario.difficultyLabel,
-      tip: trainingScenario.tip,
-      shotsAllowed: trainingScenario.shotLimit
-    };
-  }, [isTraining, resolvedTrainingLevel, trainingLevel, trainingScenario]);
+  const [trainingRulesOn, setTrainingRulesOn] = useState(Boolean(trainingRulesEnabled));
+  const trainingModeRef = useRef(trainingModeState);
+  const trainingRulesRef = useRef(trainingRulesOn);
   useEffect(() => {
-    if (!isTraining) return;
-    trainingProgressRef.current = trainingProgress;
-    persistTrainingProgress(trainingProgress);
-  }, [isTraining, trainingProgress]);
+    trainingModeRef.current = trainingModeState;
+  }, [trainingModeState]);
   useEffect(() => {
-    if (!isTraining || !trainingScenario) return;
-    const limit = Math.max(1, trainingScenario.shotLimit || 5);
-    trainingShotLimitLockedRef.current = false;
-    trainingShotsRemainingRef.current = limit;
-    setTrainingShotsRemaining(limit);
-  }, [isTraining, trainingScenario]);
-  useEffect(() => {
-    if (!isTraining || !trainingTaskDetails) return;
-    setTrainingGuideVisible(true);
-  }, [isTraining, trainingTaskDetails?.level]);
-  useEffect(() => {
-    if (!isTraining || !trainingPopup) return;
-    setTrainingGuideVisible(true);
-  }, [isTraining, trainingPopup]);
-  useEffect(() => {
-    if (!isTraining) return;
-    if (trainingPopup) return;
-    if (resolvedTrainingLevel !== trainingLevel) {
-      goToTrainingLevel(resolvedTrainingLevel, true);
-      return;
-    }
-    const completedSet = new Set(trainingProgressRef.current.completed || []);
-    if (!completedSet.has(resolvedTrainingLevel)) return;
-    const nextLevel = getNextIncompleteLevel(completedSet);
-    if (nextLevel) {
-      goToTrainingLevel(nextLevel, true);
-    } else {
-      goToTrainingLevel(null, true);
-    }
-  }, [goToTrainingLevel, isTraining, resolvedTrainingLevel, trainingLevel, trainingPopup]);
-  const handleTrainingOutcome = useCallback(
-    async (playerWon, failReason) => {
-      const scenario = trainingScenario;
-      const level = resolvedTrainingLevel || 1;
-      if (!playerWon) {
-        setTrainingProgress((prev) => ({
-          completed: prev?.completed || [],
-          lastLevel: level
-        }));
-        setHud((prev) => ({
-          ...prev,
-          over: true,
-          phase: 'Training failed',
-          next: 'Retry the task or return to lobby',
-          turn: 0
-        }));
-        setTrainingPopup({
-          status: 'fail',
-          level,
-          reward: 0,
-          rewardGranted: false,
-          nextLevel: level,
-          title: scenario?.title,
-          description: scenario?.description,
-          tip: scenario?.tip,
-          shotsAllowed: scenario?.shotLimit,
-          reason: failReason || 'Task failed. Regroup and try again.'
-        });
-        return;
-      }
-
-      setHud((prev) => ({
-        ...prev,
-        over: true,
-        phase: 'Training complete',
-        next: 'Task cleared',
-        turn: 0
-      }));
-
-      const completedSet = new Set(trainingProgressRef.current.completed || []);
-      const alreadyComplete = completedSet.has(level);
-      const nextCompleted = new Set(completedSet);
-      nextCompleted.add(level);
-      const reward = Number.isFinite(scenario?.reward) ? Number(scenario.reward) : 0;
-      let rewardGranted = false;
-      if (!alreadyComplete && reward > 0 && accountIdRef.current && !trainingRewardedRef.current) {
-        try {
-          const telegramId = tgIdRef.current || getTelegramId();
-          await addTransaction(telegramId, reward, 'task_reward', {
-            game: 'poolroyale-training',
-            level,
-            accountId: accountIdRef.current
-          });
-          rewardGranted = true;
-          trainingRewardedRef.current = true;
-        } catch (err) {
-          console.error('Failed to transfer training reward', err);
-        }
-      }
-
-      if (!alreadyComplete) {
-        setTrainingProgress({
-          completed: Array.from(nextCompleted).sort((a, b) => a - b),
-          lastLevel: level
-        });
-      }
-
-      const nextLevel = getNextIncompleteLevel(nextCompleted) ?? null;
-      setTrainingPopup({
-        status: 'success',
-        level,
-        reward: reward || 0,
-        rewardGranted,
-        nextLevel,
-        title: scenario?.title,
-        description: scenario?.description,
-        tip: scenario?.tip,
-        shotsAllowed: scenario?.shotLimit,
-        alreadyComplete
-      });
-    },
-    [resolvedTrainingLevel, trainingScenario]
-  );
-  const handleTrainingPopupContinue = useCallback(() => {
-    if (!trainingPopup) return;
-    const { nextLevel, status } = trainingPopup;
-    setTrainingPopup(null);
-    trainingRewardedRef.current = false;
-    if (status === 'fail') {
-      goToTrainingLevel(trainingPopup.level, true, true);
-      return;
-    }
-    if (nextLevel) {
-      goToTrainingLevel(nextLevel, true, true);
-    } else {
-      goToTrainingLevel(null, true);
-    }
-  }, [goToTrainingLevel, trainingPopup]);
-  const retryTrainingTask = useCallback(() => {
-    if (!trainingPopup) return;
-    trainingRewardedRef.current = false;
-    goToTrainingLevel(trainingPopup.level, true, true);
-  }, [goToTrainingLevel, trainingPopup]);
-  useEffect(() => {
-    if (!trainingPopup) return undefined;
-    const delay = trainingPopup.status === 'success' ? 2200 : 2600;
-    const timer = window.setTimeout(() => {
-      handleTrainingPopupContinue();
-    }, delay);
-    return () => window.clearTimeout(timer);
-  }, [handleTrainingPopupContinue, trainingPopup]);
+    trainingRulesRef.current = trainingRulesOn;
+  }, [trainingRulesOn]);
   const railMarkerStyleRef = useRef({
     shape: railMarkerShapeId,
     colorId: railMarkerColorId
@@ -8507,7 +8313,9 @@ function PoolRoyaleGame({
   }, [configOpen]);
   const applyFinishRef = useRef(() => {});
   const playerLabel = playerName || 'Player';
-  const opponentLabel = mode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
+  const effectiveMode = isTraining ? trainingModeState : mode;
+  const opponentLabel =
+    effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
   const [frameState, setFrameState] = useState(() =>
     rules.getInitialFrame(playerLabel, opponentLabel)
   );
@@ -8560,6 +8368,22 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  useEffect(() => {
+    if (!isTraining) return;
+    gameOverHandledRef.current = false;
+    setFrameState((prev) => ({
+      ...prev,
+      activePlayer: trainingModeState === 'solo' ? 'A' : prev.activePlayer ?? 'A',
+      foul: trainingRulesOn ? prev.foul : undefined,
+      frameOver: trainingRulesOn ? prev.frameOver : false,
+      winner: trainingRulesOn ? prev.winner : undefined
+    }));
+    setHud((prev) => ({
+      ...prev,
+      turn: trainingModeState === 'solo' ? 0 : prev.turn ?? 0,
+      over: trainingRulesOn ? prev.over : false
+    }));
+  }, [isTraining, trainingModeState, trainingRulesOn, setFrameState]);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
     setInHandPlacementMode(false);
@@ -9072,10 +8896,10 @@ function PoolRoyaleGame({
         turn: isPlayerTurn ? 0 : 1,
         phase: phaseLabel,
         next: nextLabel,
-        over: frameState.frameOver
+        over: isTraining ? false : frameState.frameOver
       };
     });
-  }, [frameState]);
+  }, [frameState, isTraining]);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
@@ -9083,12 +8907,12 @@ function PoolRoyaleGame({
     }
     if (gameOverHandledRef.current) return;
     gameOverHandledRef.current = true;
-    setHud((prev) => ({ ...prev, over: true }));
-    const winnerId = frameState.winner;
     if (isTraining) {
-      handleTrainingOutcome(winnerId === 'A');
+      setHud((prev) => ({ ...prev, over: false }));
       return undefined;
     }
+    setHud((prev) => ({ ...prev, over: true }));
+    const winnerId = frameState.winner;
     const winnerLabel = winnerId === 'A'
       ? player.name || 'You'
       : winnerId === 'B'
@@ -9107,39 +8931,8 @@ function PoolRoyaleGame({
       window.location.assign(lobbyUrl);
     }, 1200);
     return () => window.clearTimeout(redirectTimer);
-  }, [frameState.frameOver, frameState.winner, handleTrainingOutcome, isTraining, player.name]);
+  }, [frameState.frameOver, frameState.winner, isTraining, player.name]);
 
-  useEffect(() => {
-    if (!isTraining || trainingPopup) return;
-    if (gameOverHandledRef.current) return;
-    const balls = Array.isArray(frameState?.balls) ? frameState.balls : [];
-    const remaining = balls.filter((ball) => {
-      if (!ball || ball.id === 'cue') return false;
-      const onTable = ball.onTable ?? !ball.potted;
-      return onTable === true;
-    }).length;
-    if (remaining === 0) {
-      gameOverHandledRef.current = true;
-      handleTrainingOutcome(true);
-    }
-  }, [frameState?.balls, handleTrainingOutcome, isTraining, trainingPopup]);
-  useEffect(() => {
-    if (!isTraining) return;
-    if (trainingShotsRemaining == null) return;
-    if (trainingShotsRemaining > 0) return;
-    if (shotActive || hud.over || trainingPopup) return;
-    if (trainingShotLimitLockedRef.current) return;
-    const balls = Array.isArray(frameState?.balls) ? frameState.balls : [];
-    const remaining = balls.filter((ball) => {
-      if (!ball || ball.id === 'cue') return false;
-      const onTable = ball.onTable ?? !ball.potted;
-      return onTable === true;
-    }).length;
-    if (remaining > 0) {
-      trainingShotLimitLockedRef.current = true;
-      handleTrainingOutcome(false, 'You ran out of shots before clearing the layout.');
-    }
-  }, [frameState?.balls, handleTrainingOutcome, hud.over, isTraining, shotActive, trainingPopup, trainingShotsRemaining]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
@@ -12233,9 +12026,7 @@ function PoolRoyaleGame({
         return entries.length > 0;
       };
 
-      const appliedTraining = isTraining && trainingScenario
-        ? placeTrainingLayout(trainingScenario)
-        : false;
+      const appliedTraining = false;
 
       if (!appliedTraining) {
         const rackStartZ = SPOTS.pink[1] + BALL_R * 2;
@@ -13261,20 +13052,6 @@ function PoolRoyaleGame({
             placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
         }
-        if (isTraining && hudRef.current?.turn === 0) {
-          const available =
-            trainingShotsRemainingRef.current ??
-            trainingShotsRemaining ??
-            trainingScenario?.shotLimit ??
-            0;
-          if (available <= 0) {
-            handleTrainingOutcome(false, 'No shots remaining for this task.');
-            return;
-          }
-          const nextShots = Math.max(0, available - 1);
-          trainingShotsRemainingRef.current = nextShots;
-          setTrainingShotsRemaining(nextShots);
-        }
         shotContextRef.current = {
           placedFromHand,
           contactMade: false,
@@ -14293,6 +14070,19 @@ function PoolRoyaleGame({
           shotResolved = true;
         } catch (err) {
           console.error('Pool Royale shot resolution failed:', err);
+        }
+        if (isTraining) {
+          if (!trainingRulesRef.current) {
+            safeState = {
+              ...safeState,
+              foul: undefined,
+              frameOver: false,
+              winner: undefined
+            };
+          }
+          if (trainingModeRef.current === 'solo') {
+            safeState = { ...safeState, activePlayer: 'A' };
+          }
         }
         shotContextRef.current = {
           placedFromHand: false,
@@ -15959,92 +15749,86 @@ function PoolRoyaleGame({
         )}
       </div>
 
-      <AnimatePresence>
-        {isTraining && trainingTaskDetails && trainingGuideVisible && (
-          <motion.div
-            className="pointer-events-none absolute left-3 right-3 top-3 z-40 flex justify-center"
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+      {isTraining && (
+        <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
+          <button
+            type="button"
+            onClick={() => setTrainingMenuOpen((open) => !open)}
+            aria-expanded={trainingMenuOpen}
+            aria-label="Toggle training menu"
+            className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full border border-emerald-400/60 bg-black/70 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition hover:bg-black/60"
           >
-            <motion.div
-              className="pointer-events-auto w-full max-w-xl rounded-2xl border border-emerald-400/50 bg-black/70 p-4 text-white shadow-lg backdrop-blur"
-              initial={{ scale: 0.96 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.94 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-6 w-6"
+              aria-hidden="true"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-200">
-                    Training task {trainingTaskDetails.level}
-                  </p>
-                  <p className="mt-1 text-base font-bold leading-tight">{trainingTaskDetails.title}</p>
-                  <p className="mt-1 text-xs leading-snug text-white/80">{trainingTaskDetails.description}</p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                    {trainingTaskDetails.discipline && (
-                      <span className="rounded-full bg-white/10 px-2 py-1 font-semibold uppercase tracking-[0.22em] text-white/80">
-                        {trainingTaskDetails.discipline}
-                      </span>
-                    )}
-                    {trainingTaskDetails.difficulty && (
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-1 font-semibold uppercase tracking-[0.22em] text-emerald-100">
-                        Difficulty: {trainingTaskDetails.difficulty}
-                      </span>
-                    )}
-                    {Number.isFinite(trainingTaskDetails.shotsAllowed) && (
-                      <span className="rounded-full bg-amber-500/15 px-2 py-1 font-semibold uppercase tracking-[0.22em] text-amber-100">
-                        Shots: {trainingShotsRemaining ?? trainingTaskDetails.shotsAllowed} /
-                        {trainingTaskDetails.shotsAllowed}
-                      </span>
-                    )}
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
+          {trainingMenuOpen && (
+            <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/85 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training menu</span>
+                <button
+                  type="button"
+                  onClick={() => setTrainingMenuOpen(false)}
+                  className="rounded-full p-1 text-white/70 transition hover:text-white"
+                  aria-label="Close training menu"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <p className="font-semibold">Opponent</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[{ id: 'solo', label: 'Solo practice' }, { id: 'ai', label: 'Vs AI' }].map(({ id, label }) => (
+                      <button
+                        key={id}
+                        type="button"
+                        onClick={() => setTrainingModeState(id)}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          trainingModeState === id
+                            ? 'border-emerald-300 bg-emerald-400/20 text-emerald-100'
+                            : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
-                  {trainingTaskDetails.objective && (
-                    <p className="mt-3 rounded-lg bg-emerald-900/40 px-3 py-2 text-[12px] leading-snug text-emerald-50">
-                      Objective: {trainingTaskDetails.objective}
-                    </p>
-                  )}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-[11px] font-semibold text-emerald-100">
-                    Complete the layout
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setTrainingGuideVisible(false)}
-                    aria-label="Close training task details"
-                    className="grid h-8 w-8 place-items-center rounded-full border border-white/20 bg-white/10 text-lg font-bold leading-none text-white transition hover:border-white/40 hover:bg-white/20"
-                  >
-                    ×
-                  </button>
+                <div>
+                  <p className="font-semibold">Rules</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {[{ id: true, label: 'With rules' }, { id: false, label: 'No rules' }].map(({ id, label }) => (
+                      <button
+                        key={String(id)}
+                        type="button"
+                        onClick={() => setTrainingRulesOn(Boolean(id))}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                          trainingRulesOn === Boolean(id)
+                            ? 'border-emerald-300 bg-emerald-400/20 text-emerald-100'
+                            : 'border-white/30 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                <p className="text-xs text-white/70">Practice with every ball on the table and switch options anytime.</p>
               </div>
-              {trainingTaskDetails.tip && (
-                <p className="mt-3 rounded-lg bg-emerald-500/10 px-3 py-2 text-[12px] leading-snug text-emerald-100">
-                  Tip: {trainingTaskDetails.tip}
-                </p>
-              )}
-              <div className="mt-4 grid grid-cols-3 gap-2 text-[11px]">
-                {["Study the task", "Play the pattern", "Collect reward"].map((step, idx) => (
-                  <motion.div
-                    key={step}
-                    className="flex items-center gap-2 rounded-xl border border-emerald-400/20 bg-emerald-400/5 px-3 py-2"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.06 * idx, type: 'spring', stiffness: 260, damping: 20 }}
-                  >
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/30 text-[10px] font-bold text-emerald-50">
-                      {idx + 1}
-                    </span>
-                    <span className="leading-tight text-white/80">{step}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          )}
+        </div>
+      )}
+
       {bottomHudVisible && (
         <div
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
@@ -16126,7 +15910,7 @@ function PoolRoyaleGame({
       {/* Power Slider */}
       {showPowerSlider && (
         <div
-          className="absolute right-3 top-1/2 -translate-y-1/2"
+          className="absolute right-3 top-[56%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
@@ -16177,89 +15961,6 @@ function PoolRoyaleGame({
         </div>
       )}
 
-      {trainingPopup && (
-        <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/80 px-4 text-white">
-          <div className="w-full max-w-md rounded-2xl border border-emerald-300/60 bg-gray-900 p-6 text-center shadow-2xl">
-            <p className="text-xs uppercase tracking-[0.28em] text-emerald-200">
-              Training task {trainingPopup.level}
-            </p>
-            <h3 className="mt-2 flex items-center justify-center gap-2 text-2xl font-bold">
-              {trainingPopup.status === 'success' ? (
-                <>
-                  <span className="text-3xl">✅</span>
-                  <span>Congratulations</span>
-                </>
-              ) : (
-                'Task incomplete'
-              )}
-            </h3>
-            <p className="mt-2 text-sm text-white/70">
-              {trainingPopup.status === 'success'
-                ? 'Great job clearing this round. Tap Next round to keep the streak going.'
-                : 'We will reset this drill automatically so you can try again or head back to the lobby.'}
-            </p>
-            {trainingPopup.title && (
-              <p className="mt-1 text-sm font-semibold text-emerald-100">{trainingPopup.title}</p>
-            )}
-            {trainingPopup.description && (
-              <p className="mt-3 rounded-lg bg-white/5 p-3 text-sm leading-snug text-white/80">
-                {trainingPopup.description}
-              </p>
-            )}
-            {trainingPopup.status === 'fail' && trainingPopup.reason && (
-              <p className="mt-2 rounded-lg bg-red-500/10 p-3 text-sm leading-snug text-red-100">
-                {trainingPopup.reason}
-              </p>
-            )}
-            {Number.isFinite(trainingPopup.shotsAllowed) && (
-              <p className="mt-2 text-xs text-white/70">
-                Shots used this attempt: {Math.max(0, (trainingPopup.shotsAllowed ?? 0) - (trainingShotsRemainingRef.current ?? 0))} /
-                {trainingPopup.shotsAllowed}
-              </p>
-            )}
-            {trainingPopup.tip && (
-              <p className="mt-2 rounded-lg bg-emerald-500/10 p-3 text-sm leading-snug text-emerald-100">
-                Tip: {trainingPopup.tip}
-              </p>
-            )}
-            {trainingPopup.status === 'success' && (
-              <div className="mt-4 rounded-xl border border-emerald-400/60 bg-emerald-500/10 p-4">
-                <p className="text-lg font-semibold text-emerald-200">+{trainingPopup.reward} TPC</p>
-                <p className="text-xs text-white/70">
-                  {trainingPopup.rewardGranted
-                    ? 'TPC transferred to your account.'
-                    : 'Transfer requested. Refresh your balance to confirm.'}
-                </p>
-              </div>
-            )}
-            <div className="mt-6 flex flex-wrap justify-center gap-3">
-              <button
-                type="button"
-                onClick={
-                  trainingPopup.status === 'success'
-                    ? handleTrainingPopupContinue
-                    : retryTrainingTask
-                }
-                className={
-                  'rounded-full bg-emerald-400 px-4 py-2 text-sm font-semibold text-black shadow-lg transition ' +
-                  'hover:bg-emerald-300'
-                }
-              >
-                {trainingPopup.status === 'success' ? 'Next round' : 'Try again'}
-              </button>
-              <button
-                type="button"
-                onClick={() => goToTrainingLevel(null, true)}
-                className={
-                  'rounded-full border border-white/30 px-4 py-2 text-sm font-semibold text-white/80 transition ' +
-                  'hover:bg-white/10'
-                }
-              >
-                Return to lobby
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
@@ -16289,12 +15990,9 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('mode') || 'ai';
   }, [location.search]);
-  const trainingLevel = useMemo(() => {
+  const trainingRulesEnabled = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    const requested = Number(params.get('task'));
-    const progress = loadTrainingProgress();
-    const desired = Number.isFinite(requested) ? requested : progress?.lastLevel ?? 1;
-    return resolvePlayableTrainingLevel(desired, progress);
+    return params.get('rules') !== 'off';
   }, [location.search]);
   const accountId = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -16389,7 +16087,8 @@ export default function PoolRoyale() {
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}
-      trainingLevel={trainingLevel}
+      trainingMode={mode}
+      trainingRulesEnabled={trainingRulesEnabled}
       accountId={accountId}
       tgId={tgId}
       playerName={playerName}
