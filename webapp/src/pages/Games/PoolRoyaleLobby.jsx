@@ -392,21 +392,16 @@ export default function PoolRoyaleLobby() {
       )}
       {playType === 'training' && (
         <div className="space-y-2">
-          <h3 className="font-semibold">Training Tasks</h3>
+          <h3 className="font-semibold">Training setup</h3>
           <div className="lobby-tile flex flex-col gap-2">
             <div>
-              <p className="text-sm font-semibold">Task {trainingTask} of 50</p>
-              <p className="text-xs text-subtext">Progressive drills with rewards every completion.</p>
+              <p className="text-sm font-semibold">Free practice</p>
+              <p className="text-xs text-subtext">
+                Start a session, then use the in-game training menu (top right) to switch between solo or AI and toggle rules.
+              </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                {nextIncompleteTrainingLevel === null
-                  ? 'All tasks cleared'
-                  : `Next available: Task ${nextIncompleteTrainingLevel}`}
-              </span>
-              <span className="rounded-full bg-surface px-3 py-1 text-xs text-subtext">
-                Completed tasks are locked to keep you moving forward automatically.
-              </span>
+            <div className="rounded-full bg-surface px-3 py-1 text-xs text-subtext">
+              Table variants and layouts stay available once you enter training; swap opponents anytime.
             </div>
           </div>
         </div>
@@ -428,22 +423,6 @@ export default function PoolRoyaleLobby() {
                 {label}
               </button>
             ))}
-          </div>
-        </div>
-      )}
-      {playType === 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Training variant</h3>
-          <div className="lobby-tile flex flex-col gap-2">
-            <p className="text-sm font-semibold">Variant assigned automatically</p>
-            <p className="text-xs text-subtext">
-              Tasks now rotate variants to match each drill, so the three manual options stay hidden.
-              Current pick: {trainingScenario?.variant === 'uk'
-                ? '8 Pool UK'
-                : trainingScenario?.variant === '9ball'
-                  ? '9-Ball'
-                  : 'American'}
-            </p>
           </div>
         </div>
       )}
