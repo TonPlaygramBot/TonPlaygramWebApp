@@ -7811,6 +7811,11 @@ function PoolRoyaleGame({
   const [trainingPopup, setTrainingPopup] = useState(null);
   const trainingRewardedRef = useRef(false);
   const [trainingGuideVisible, setTrainingGuideVisible] = useState(true);
+  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(() =>
+    isTraining && trainingScenario ? trainingScenario.shotLimit ?? null : null
+  );
+  const trainingShotsRemainingRef = useRef(trainingShotsRemaining);
+  const trainingShotLimitLockedRef = useRef(false);
   const trainingTaskDetails = useMemo(() => {
     if (!isTraining || !trainingScenario) return null;
     const level = resolvedTrainingLevel || trainingLevel || 1;
@@ -7821,7 +7826,8 @@ function PoolRoyaleGame({
       objective: trainingScenario.objective,
       discipline: trainingScenario.discipline,
       difficulty: trainingScenario.difficultyLabel,
-      tip: trainingScenario.tip
+      tip: trainingScenario.tip,
+      shotsAllowed: trainingScenario.shotLimit
     };
   }, [isTraining, resolvedTrainingLevel, trainingLevel, trainingScenario]);
   useEffect(() => {
@@ -7829,6 +7835,13 @@ function PoolRoyaleGame({
     trainingProgressRef.current = trainingProgress;
     persistTrainingProgress(trainingProgress);
   }, [isTraining, trainingProgress]);
+  useEffect(() => {
+    if (!isTraining || !trainingScenario) return;
+    const limit = Math.max(1, trainingScenario.shotLimit || 5);
+    trainingShotLimitLockedRef.current = false;
+    trainingShotsRemainingRef.current = limit;
+    setTrainingShotsRemaining(limit);
+  }, [isTraining, trainingScenario]);
   useEffect(() => {
     if (!isTraining || !trainingTaskDetails) return;
     setTrainingGuideVisible(true);
@@ -7854,10 +7867,14 @@ function PoolRoyaleGame({
     }
   }, [goToTrainingLevel, isTraining, resolvedTrainingLevel, trainingLevel, trainingPopup]);
   const handleTrainingOutcome = useCallback(
-    async (playerWon) => {
+    async (playerWon, failReason) => {
       const scenario = trainingScenario;
       const level = resolvedTrainingLevel || 1;
       if (!playerWon) {
+        setTrainingProgress((prev) => ({
+          completed: prev?.completed || [],
+          lastLevel: level
+        }));
         setHud((prev) => ({
           ...prev,
           over: true,
@@ -7873,7 +7890,9 @@ function PoolRoyaleGame({
           nextLevel: level,
           title: scenario?.title,
           description: scenario?.description,
-          tip: scenario?.tip
+          tip: scenario?.tip,
+          shotsAllowed: scenario?.shotLimit,
+          reason: failReason || 'Task failed. Regroup and try again.'
         });
         return;
       }
@@ -7924,6 +7943,7 @@ function PoolRoyaleGame({
         title: scenario?.title,
         description: scenario?.description,
         tip: scenario?.tip,
+        shotsAllowed: scenario?.shotLimit,
         alreadyComplete
       });
     },
@@ -7950,10 +7970,11 @@ function PoolRoyaleGame({
     goToTrainingLevel(trainingPopup.level, true, true);
   }, [goToTrainingLevel, trainingPopup]);
   useEffect(() => {
-    if (!trainingPopup || trainingPopup.status !== 'success') return undefined;
+    if (!trainingPopup) return undefined;
+    const delay = trainingPopup.status === 'success' ? 2200 : 2600;
     const timer = window.setTimeout(() => {
       handleTrainingPopupContinue();
-    }, 2200);
+    }, delay);
     return () => window.clearTimeout(timer);
   }, [handleTrainingPopupContinue, trainingPopup]);
   const railMarkerStyleRef = useRef({
@@ -8987,6 +9008,23 @@ function PoolRoyaleGame({
       handleTrainingOutcome(true);
     }
   }, [frameState?.balls, handleTrainingOutcome, isTraining, trainingPopup]);
+  useEffect(() => {
+    if (!isTraining) return;
+    if (trainingShotsRemaining == null) return;
+    if (trainingShotsRemaining > 0) return;
+    if (shotActive || hud.over || trainingPopup) return;
+    if (trainingShotLimitLockedRef.current) return;
+    const balls = Array.isArray(frameState?.balls) ? frameState.balls : [];
+    const remaining = balls.filter((ball) => {
+      if (!ball || ball.id === 'cue') return false;
+      const onTable = ball.onTable ?? !ball.potted;
+      return onTable === true;
+    }).length;
+    if (remaining > 0) {
+      trainingShotLimitLockedRef.current = true;
+      handleTrainingOutcome(false, 'You ran out of shots before clearing the layout.');
+    }
+  }, [frameState?.balls, handleTrainingOutcome, hud.over, isTraining, shotActive, trainingPopup, trainingShotsRemaining]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
@@ -13017,6 +13055,20 @@ function PoolRoyaleGame({
             placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
         }
+        if (isTraining && hudRef.current?.turn === 0) {
+          const available =
+            trainingShotsRemainingRef.current ??
+            trainingShotsRemaining ??
+            trainingScenario?.shotLimit ??
+            0;
+          if (available <= 0) {
+            handleTrainingOutcome(false, 'No shots remaining for this task.');
+            return;
+          }
+          const nextShots = Math.max(0, available - 1);
+          trainingShotsRemainingRef.current = nextShots;
+          setTrainingShotsRemaining(nextShots);
+        }
         shotContextRef.current = {
           placedFromHand,
           contactMade: false,
@@ -15632,6 +15684,12 @@ function PoolRoyaleGame({
                         Difficulty: {trainingTaskDetails.difficulty}
                       </span>
                     )}
+                    {Number.isFinite(trainingTaskDetails.shotsAllowed) && (
+                      <span className="rounded-full bg-amber-500/15 px-2 py-1 font-semibold uppercase tracking-[0.22em] text-amber-100">
+                        Shots: {trainingShotsRemaining ?? trainingTaskDetails.shotsAllowed} /
+                        {trainingTaskDetails.shotsAllowed}
+                      </span>
+                    )}
                   </div>
                   {trainingTaskDetails.objective && (
                     <p className="mt-3 rounded-lg bg-emerald-900/40 px-3 py-2 text-[12px] leading-snug text-emerald-50">
@@ -15814,7 +15872,7 @@ function PoolRoyaleGame({
             <p className="mt-2 text-sm text-white/70">
               {trainingPopup.status === 'success'
                 ? 'Great job clearing this round. We are moving you to the next task right away.'
-                : 'You can retry this roadmap step as many times as you want or return to the lobby.'}
+                : 'We will reset this drill automatically so you can try again or head back to the lobby.'}
             </p>
             {trainingPopup.title && (
               <p className="mt-1 text-sm font-semibold text-emerald-100">{trainingPopup.title}</p>
@@ -15822,6 +15880,17 @@ function PoolRoyaleGame({
             {trainingPopup.description && (
               <p className="mt-3 rounded-lg bg-white/5 p-3 text-sm leading-snug text-white/80">
                 {trainingPopup.description}
+              </p>
+            )}
+            {trainingPopup.status === 'fail' && trainingPopup.reason && (
+              <p className="mt-2 rounded-lg bg-red-500/10 p-3 text-sm leading-snug text-red-100">
+                {trainingPopup.reason}
+              </p>
+            )}
+            {Number.isFinite(trainingPopup.shotsAllowed) && (
+              <p className="mt-2 text-xs text-white/70">
+                Shots used this attempt: {Math.max(0, (trainingPopup.shotsAllowed ?? 0) - (trainingShotsRemainingRef.current ?? 0))} /
+                {trainingPopup.shotsAllowed}
               </p>
             )}
             {trainingPopup.tip && (
