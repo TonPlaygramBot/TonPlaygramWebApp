@@ -6,7 +6,7 @@ import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
-import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { applyRendererSRGB } from '../../utils/colorSpace.js';
 import {
   createMurlanStyleTable,
   applyTableMaterials,
@@ -500,6 +500,102 @@ function disposeChessChairMaterials(materials) {
   if (!materials) return;
   materials.fabricMaterial?.dispose?.();
   materials.legMaterial?.dispose?.();
+}
+
+function createSandTimer(accentColor = '#f4b400') {
+  const group = new THREE.Group();
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: 0x1e293b,
+    metalness: 0.45,
+    roughness: 0.32
+  });
+  const accentMat = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(accentColor),
+    emissive: new THREE.Color(accentColor).multiplyScalar(0.25),
+    metalness: 0.2,
+    roughness: 0.42
+  });
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    transmission: 0.8,
+    opacity: 0.45,
+    transparent: true,
+    roughness: 0.08,
+    metalness: 0.05,
+    thickness: 0.08,
+    envMapIntensity: 0.4
+  });
+
+  const capGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.06, 24);
+  const topCap = new THREE.Mesh(capGeo, frameMat);
+  topCap.position.y = 0.32;
+  const bottomCap = new THREE.Mesh(capGeo, frameMat);
+  bottomCap.position.y = -0.32;
+  group.add(topCap, bottomCap);
+
+  const pillarGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 10);
+  const pillarA = new THREE.Mesh(pillarGeo, frameMat);
+  pillarA.position.set(0.18, 0, 0.18);
+  const pillarB = pillarA.clone();
+  pillarB.position.set(-0.18, 0, 0.18);
+  const pillarC = pillarA.clone();
+  pillarC.position.set(0.18, 0, -0.18);
+  const pillarD = pillarA.clone();
+  pillarD.position.set(-0.18, 0, -0.18);
+  group.add(pillarA, pillarB, pillarC, pillarD);
+
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.08, 16), frameMat);
+  group.add(neck);
+
+  const glassTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.34, 24), glassMat);
+  glassTop.position.y = 0.12;
+  glassTop.rotation.x = Math.PI;
+  const glassBottom = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.34, 24), glassMat);
+  glassBottom.position.y = -0.12;
+  group.add(glassTop, glassBottom);
+
+  const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.22, 20), accentMat);
+  sandTop.position.y = 0.08;
+  sandTop.rotation.x = Math.PI;
+  const sandBottom = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.24, 20), accentMat);
+  sandBottom.position.y = -0.14;
+  group.add(sandTop, sandBottom);
+
+  const shimmer = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.02, 0.02, 0.18, 12),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6 })
+  );
+  shimmer.position.y = -0.02;
+  group.add(shimmer);
+
+  group.scale.setScalar(0.55);
+
+  return {
+    group,
+    parts: { sandTop, sandBottom },
+    updateAccent: (color) => {
+      accentMat.color.set(color);
+      accentMat.emissive.set(color).multiplyScalar(0.25);
+    },
+    setFill: (value) => {
+      const pct = clamp01(value, 1);
+      sandTop.scale.y = Math.max(0.12, pct);
+      sandBottom.scale.y = Math.max(0.18, 1.1 - pct * 0.9);
+    },
+    dispose: () => {
+      capGeo.dispose();
+      pillarGeo.dispose();
+      glassTop.geometry.dispose();
+      glassBottom.geometry.dispose();
+      sandTop.geometry.dispose();
+      sandBottom.geometry.dispose();
+      shimmer.geometry.dispose();
+      frameMat.dispose();
+      accentMat.dispose();
+      glassMat.dispose();
+      shimmer.material.dispose();
+    }
+  };
 }
 
 function buildBoardTheme(option) {
@@ -1416,7 +1512,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   });
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
-  const seatLabelsRef = useRef(null);
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
     if (initialFlag && FLAG_EMOJIS.includes(initialFlag)) {
@@ -1454,6 +1549,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   });
   const [whiteTime, setWhiteTime] = useState(60);
   const [blackTime, setBlackTime] = useState(5);
+  const whiteTimeRef = useRef(whiteTime);
+  const blackTimeRef = useRef(blackTime);
+  const initialWhiteTimeRef = useRef(60);
+  const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
@@ -1469,6 +1568,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     uiRef.current = ui;
   }, [ui]);
 
+  useEffect(() => {
+    whiteTimeRef.current = whiteTime;
+  }, [whiteTime]);
+
+  useEffect(() => {
+    blackTimeRef.current = blackTime;
+  }, [blackTime]);
+
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
     seatAnchors.forEach((anchor) => {
@@ -1478,6 +1585,19 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     });
     return map;
   }, [seatAnchors]);
+
+  const updateSandTimerPlacement = useCallback(
+    (turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
+      const arena = arenaRef.current;
+      if (!arena?.sandTimer) return;
+      const surfaceY = arena.tableInfo?.surfaceY ?? TABLE_HEIGHT;
+      const radius = (arena.tableInfo?.radius ?? TABLE_RADIUS) * 0.42;
+      const targetZ = turnWhiteValue ? -radius : radius;
+      arena.sandTimer.group.position.set(0, surfaceY + 0.2, targetZ);
+      arena.sandTimer.group.rotation.y = turnWhiteValue ? Math.PI : 0;
+    },
+    []
+  );
 
   const players = useMemo(() => {
     const accentColor = paletteRef.current?.accent ?? '#4ce0c3';
@@ -1507,6 +1627,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     ];
   }, [aiFlag, appearance, avatar, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
+
+  useEffect(() => {
+    updateSandTimerPlacement(ui.turnWhite);
+  }, [ui.turnWhite, updateSandTimerPlacement]);
 
   useEffect(() => {
     if (aiFlag && FLAG_EMOJIS.includes(aiFlag)) {
@@ -1656,38 +1780,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     if (!playerFlag) return;
     setAiFlag(getAIOpponentFlag(playerFlag));
   }, [playerFlag]);
-
-  useEffect(() => {
-    const seatLabels = seatLabelsRef.current;
-    if (!seatLabels) return;
-    const accentColor =
-      arenaRef.current?.palette?.accent ??
-      paletteRef.current?.accent ??
-      '#4ce0c3';
-    const effectivePlayerFlag =
-      playerFlag ||
-      resolvedInitialFlag ||
-      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
-    const playerNameFromFlag = avatarToName(effectivePlayerFlag);
-    const fallbackPlayerName =
-      username || avatarToName(avatar) || 'You';
-    const playerLabel =
-      (playerNameFromFlag || fallbackPlayerName || 'Player').toString();
-    seatLabels.player?.update?.(
-      effectivePlayerFlag,
-      playerLabel,
-      accentColor
-    );
-    const effectiveAiFlag =
-      aiFlag ||
-      getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
-    const aiLabel = avatarToName(effectiveAiFlag) || 'AI Rival';
-    seatLabels.ai?.update?.(effectiveAiFlag, aiLabel, accentColor);
-    if (arenaRef.current) {
-      arenaRef.current.playerFlag = effectivePlayerFlag;
-      arenaRef.current.aiFlag = effectiveAiFlag;
-    }
-  }, [playerFlag, aiFlag, avatar, username, resolvedInitialFlag, appearance]);
 
   useEffect(() => {
     settingsRef.current.showHighlights = showHighlights;
@@ -1854,28 +1946,18 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arena.playerFlag ||
       resolvedInitialFlag ||
       (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
-    const playerNameFromFlag = avatarToName(effectivePlayerFlag);
-    const fallbackPlayerName =
-      username || avatarToName(avatar) || 'Player';
-    const playerLabel =
-      (playerNameFromFlag || fallbackPlayerName || 'Player').toString();
-    arena.seatLabels?.player?.update?.(
-      effectivePlayerFlag,
-      playerLabel,
-      accentColor
-    );
     const effectiveAiFlag =
       aiFlag ||
       arena.aiFlag ||
       getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
-    const aiLabel = avatarToName(effectiveAiFlag) || 'AI Rival';
-    arena.seatLabels?.ai?.update?.(effectiveAiFlag, aiLabel, accentColor);
     arena.playerFlag = effectivePlayerFlag;
     arena.aiFlag = effectiveAiFlag;
+    arena.sandTimer?.updateAccent?.(accentColor);
+    updateSandTimerPlacement(uiRef.current?.turnWhite ?? ui.turnWhite);
     if (arenaRef.current) {
       arenaRef.current.playerFlag = effectivePlayerFlag;
       arenaRef.current.aiFlag = effectiveAiFlag;
-      arenaRef.current.seatLabels = arena.seatLabels;
+      arenaRef.current.sandTimer = arena.sandTimer;
     }
   }, [appearance]);
 
@@ -2125,115 +2207,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       };
     }
 
-    function createSeatLabelSprite(flagValue, labelValue, accentColor) {
-      const canvas = document.createElement('canvas');
-      canvas.width = 512;
-      canvas.height = 256;
-      const ctx = canvas.getContext('2d');
-      const texture = new THREE.CanvasTexture(canvas);
-      applySRGBColorSpace(texture);
-      texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-      const material = new THREE.SpriteMaterial({
-        map: texture,
-        transparent: true,
-        depthTest: false,
-        depthWrite: false
-      });
-      const sprite = new THREE.Sprite(material);
-      sprite.center.set(0.5, 0);
-      sprite.renderOrder = 5;
-      let storedAccent = accentColor || '#38bdf8';
-
-      const draw = (flagSymbol, labelText, accentOverride) => {
-        const width = canvas.width;
-        const height = canvas.height;
-        const safeFlag =
-          typeof flagSymbol === 'string' && flagSymbol.length
-            ? flagSymbol
-            : FALLBACK_FLAG;
-        const baseLabel =
-          typeof labelText === 'string' && labelText.trim().length
-            ? labelText.trim()
-            : 'Player';
-        const trimmedLabel =
-          baseLabel.length > 22 ? `${baseLabel.slice(0, 21)}…` : baseLabel;
-        const accentValue = accentOverride || storedAccent || '#38bdf8';
-        storedAccent = accentValue;
-
-        ctx.clearRect(0, 0, width, height);
-        const radius = 48;
-        ctx.beginPath();
-        ctx.moveTo(radius, 0);
-        ctx.lineTo(width - radius, 0);
-        ctx.quadraticCurveTo(width, 0, width, radius);
-        ctx.lineTo(width, height - radius);
-        ctx.quadraticCurveTo(width, height, width - radius, height);
-        ctx.lineTo(radius, height);
-        ctx.quadraticCurveTo(0, height, 0, height - radius);
-        ctx.lineTo(0, radius);
-        ctx.quadraticCurveTo(0, 0, radius, 0);
-        ctx.closePath();
-        ctx.fillStyle = 'rgba(6, 11, 22, 0.92)';
-        ctx.fill();
-
-        const accentColorObj = new THREE.Color(accentValue || '#38bdf8');
-        const topColor = accentColorObj
-          .clone()
-          .lerp(new THREE.Color('#ffffff'), 0.45)
-          .getStyle();
-        const bottomColor = accentColorObj
-          .clone()
-          .lerp(new THREE.Color('#000000'), 0.35)
-          .getStyle();
-        const borderGradient = ctx.createLinearGradient(0, 0, 0, height);
-        borderGradient.addColorStop(0, topColor);
-        borderGradient.addColorStop(1, bottomColor);
-        ctx.lineWidth = 10;
-        ctx.strokeStyle = borderGradient;
-        ctx.stroke();
-
-        ctx.save();
-        ctx.clip();
-        const sheen = ctx.createLinearGradient(0, 0, 0, height);
-        sheen.addColorStop(0, 'rgba(255,255,255,0.16)');
-        sheen.addColorStop(0.6, 'rgba(255,255,255,0.05)');
-        sheen.addColorStop(1, 'rgba(0,0,0,0.4)');
-        ctx.fillStyle = sheen;
-        ctx.fillRect(0, 0, width, height);
-        ctx.restore();
-
-        ctx.font = `${Math.floor(height * 0.56)}px "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = 'rgba(0,0,0,0.35)';
-        ctx.shadowBlur = 12;
-        ctx.shadowOffsetY = 6;
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(safeFlag, width * 0.08, height / 2 + height * 0.02);
-        ctx.shadowColor = 'transparent';
-        ctx.shadowBlur = 0;
-        ctx.shadowOffsetY = 0;
-
-        ctx.font = `700 ${Math.floor(height * 0.3)}px "Inter", sans-serif`;
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillText(trimmedLabel, width * 0.28, height / 2);
-        texture.needsUpdate = true;
-      };
-
-      draw(flagValue, labelValue, storedAccent);
-
-      return {
-        sprite,
-        update: (nextFlag, nextLabel, nextAccent) => {
-          draw(nextFlag, nextLabel, nextAccent ?? storedAccent);
-        },
-        dispose: () => {
-          texture.dispose();
-          material.dispose();
-        }
-      };
-    }
-
     const chairDistance =
       (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
 
@@ -2248,49 +2221,19 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     arena.add(chairB.group);
     chairs.push(chairB);
 
-    const accentColor = palette.accent ?? '#4ce0c3';
-    const initialPlayerFlag =
-      playerFlag ||
-      resolvedInitialFlag ||
-      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
-    const initialPlayerLabel =
-      avatarToName(initialPlayerFlag) ||
-      username ||
-      avatarToName(avatar) ||
-      'Player';
-    const playerSeatLabel = createSeatLabelSprite(
-      initialPlayerFlag,
-      initialPlayerLabel,
-      accentColor
-    );
-    playerSeatLabel.sprite.position.set(0, SEAT_LABEL_HEIGHT, SEAT_LABEL_FORWARD_OFFSET);
-    playerSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
-    chairA.group.add(playerSeatLabel.sprite);
-
-    const initialAiFlag =
-      aiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
-    const initialAiLabel = avatarToName(initialAiFlag) || 'AI Rival';
-    const aiSeatLabel = createSeatLabelSprite(
-      initialAiFlag,
-      initialAiLabel,
-      accentColor
-    );
-    aiSeatLabel.sprite.position.set(0, SEAT_LABEL_HEIGHT, SEAT_LABEL_FORWARD_OFFSET);
-    aiSeatLabel.sprite.scale.set(1.8 / CHAIR_SCALE, 0.9 / CHAIR_SCALE, 1);
-    chairB.group.add(aiSeatLabel.sprite);
-
-    const seatLabels = { player: playerSeatLabel, ai: aiSeatLabel };
-    seatLabelsRef.current = seatLabels;
+    const sandTimer = createSandTimer(palette.accent ?? '#4ce0c3');
+    const sandTimerRadius = (tableInfo?.radius ?? TABLE_RADIUS) * 0.42;
+    const sandTimerSurfaceY = (tableInfo?.surfaceY ?? TABLE_HEIGHT) + 0.2;
+    const initialTurn = uiRef.current?.turnWhite ?? ui.turnWhite;
+    sandTimer.setFill?.(1);
+    sandTimer.group.position.set(0, sandTimerSurfaceY, initialTurn ? -sandTimerRadius : sandTimerRadius);
+    sandTimer.group.rotation.y = initialTurn ? Math.PI : 0;
+    arena.add(sandTimer.group);
     disposers.push(() => {
-      seatLabelsRef.current = null;
       try {
-        chairA.group.remove(playerSeatLabel.sprite);
+        arena.remove(sandTimer.group);
       } catch {}
-      try {
-        chairB.group.remove(aiSeatLabel.sprite);
-      } catch {}
-      playerSeatLabel.dispose();
-      aiSeatLabel.dispose();
+      sandTimer.dispose();
     });
 
     function makeStudioCamera() {
@@ -2364,7 +2307,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
     arena.add(studioCamB);
 
-      const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
+    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
     boardGroup.position.set(0, tableSurfaceY + 0.004, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
@@ -2594,7 +2537,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       chairMaterials,
       chairs,
       seatAnchors: chairs.map((chair) => chair.anchor),
-      seatLabels,
+      sandTimer,
       spotLight: spot,
       spotTarget,
       studioCameras: [studioCamA, studioCamB],
@@ -2607,10 +2550,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       playerFlag: initialPlayerFlag,
       aiFlag: initialAiFlag
     };
-    arenaRef.current.seatLabels = seatLabels;
+    arenaRef.current.sandTimer = sandTimer;
     arenaRef.current.palette = palette;
 
-    arena.seatLabels = seatLabels;
+    arena.sandTimer = sandTimer;
     arena.palette = palette;
     arena.playerFlag = initialPlayerFlag;
     arena.aiFlag = initialAiFlag;
@@ -2641,6 +2584,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     function startTimer(isWhite) {
       clearInterval(timerRef.current);
       if (isWhite) {
+        initialWhiteTimeRef.current = 60;
+        whiteTimeRef.current = 60;
         setWhiteTime(60);
         timerRef.current = setInterval(() => {
           setWhiteTime((t) => {
@@ -2653,6 +2598,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           });
         }, 1000);
       } else {
+        initialBlackTimeRef.current = 5;
+        blackTimeRef.current = 5;
         setBlackTime(5);
         timerRef.current = setInterval(() => {
           setBlackTime((t) => {
@@ -2880,6 +2827,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       } else if (seatPositionsRef.current.length) {
         seatPositionsRef.current = [];
         setSeatAnchors([]);
+      }
+
+      if (arenaState?.sandTimer) {
+        const activeTotal = uiRef.current.turnWhite
+          ? initialWhiteTimeRef.current || 1
+          : initialBlackTimeRef.current || 1;
+        const activeLeft = uiRef.current.turnWhite ? whiteTimeRef.current : blackTimeRef.current;
+        const pct = clamp01(activeLeft / Math.max(1, activeTotal));
+        arenaState.sandTimer.setFill?.(pct);
+        arenaState.sandTimer.group.rotation.z = Math.sin(performance.now() * 0.002) * 0.06;
       }
 
       controls?.update();
