@@ -23,7 +23,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import { TRAINING_SCENARIOS, getTrainingScenario } from '../../config/poolRoyaleTraining.js';
+import { getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
@@ -421,13 +421,13 @@ const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46; // widen the middle fascia
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012; // nudge the middle chrome cut outward so the arch sits farther from the table centre
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.018; // open the middle chrome arch slightly more so the rounded rail relief grows
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.016; // nudge the middle chrome cut farther outward so the arch sits away from the table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.956; // pull the middle rail arches farther outward so the relief hugs the rail edge instead of the playfield
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.012; // expand the middle rail arches so the rounded wood cut grows around the pocket
 
 function buildChromePlateGeometry({
   width,
@@ -668,10 +668,10 @@ const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outwa
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE * 0.986; // ease the side jaw clamp so it finishes flush with the side rails
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.984; // slim the middle jaws slightly so the side arches look leaner
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 0.944; // tighten the middle pocket fascia so it remains centred without shifting position
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.932; // trim the middle pocket fascia so the jaws read smaller without collapsing the arc
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
@@ -698,7 +698,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.94; // push the middle jaw shoulders outward so the arches sit farther from the table centre
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.972; // push the middle jaw shoulders farther outward so the arches drift away from the centre line
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
@@ -7879,76 +7879,57 @@ function PoolRoyaleGame({
     [clothColorId]
   );
   const isTraining = playType === 'training';
+  const trainingTasksEnabled = false;
   const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
-  const resolvedTrainingLevel = useMemo(() => {
-    if (!isTraining) return trainingLevel;
-    return resolvePlayableTrainingLevel(trainingLevel, trainingProgress);
-  }, [isTraining, trainingLevel, trainingProgress]);
+  const resolvedTrainingLevel = useMemo(
+    () => (isTraining ? 1 : trainingLevel),
+    [isTraining, trainingLevel]
+  );
   const trainingScenario = useMemo(
-    () => (isTraining ? getTrainingScenario(resolvedTrainingLevel) : null),
-    [isTraining, resolvedTrainingLevel]
+    () => (isTraining ? getTrainingScenario() : null),
+    [isTraining]
   );
   const trainingProgressRef = useRef(trainingProgress);
   const [trainingPopup, setTrainingPopup] = useState(null);
   const trainingRewardedRef = useRef(false);
-  const [trainingGuideVisible, setTrainingGuideVisible] = useState(true);
-  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(() =>
-    isTraining && trainingScenario ? trainingScenario.shotLimit ?? null : null
-  );
+  const [trainingGuideVisible, setTrainingGuideVisible] = useState(false);
+  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(null);
   const trainingShotsRemainingRef = useRef(trainingShotsRemaining);
   const trainingShotLimitLockedRef = useRef(false);
-  const trainingTaskDetails = useMemo(() => {
-    if (!isTraining || !trainingScenario) return null;
-    const level = resolvedTrainingLevel || trainingLevel || 1;
-    return {
-      level,
-      title: trainingScenario.title,
-      description: trainingScenario.description,
-      objective: trainingScenario.objective,
-      discipline: trainingScenario.discipline,
-      difficulty: trainingScenario.difficultyLabel,
-      tip: trainingScenario.tip,
-      shotsAllowed: trainingScenario.shotLimit
-    };
-  }, [isTraining, resolvedTrainingLevel, trainingLevel, trainingScenario]);
+  const trainingTaskDetails = useMemo(() => null, []);
   useEffect(() => {
     if (!isTraining) return;
     trainingProgressRef.current = trainingProgress;
     persistTrainingProgress(trainingProgress);
   }, [isTraining, trainingProgress]);
   useEffect(() => {
-    if (!isTraining || !trainingScenario) return;
+    if (!isTraining || !trainingTasksEnabled || !trainingScenario) {
+      trainingShotLimitLockedRef.current = false;
+      trainingShotsRemainingRef.current = null;
+      setTrainingShotsRemaining(null);
+      return;
+    }
     const limit = Math.max(1, trainingScenario.shotLimit || 5);
     trainingShotLimitLockedRef.current = false;
     trainingShotsRemainingRef.current = limit;
     setTrainingShotsRemaining(limit);
-  }, [isTraining, trainingScenario]);
-  useEffect(() => {
-    if (!isTraining || !trainingTaskDetails) return;
-    setTrainingGuideVisible(true);
-  }, [isTraining, trainingTaskDetails?.level]);
-  useEffect(() => {
-    if (!isTraining || !trainingPopup) return;
-    setTrainingGuideVisible(true);
-  }, [isTraining, trainingPopup]);
-  useEffect(() => {
-    if (!isTraining) return;
-    if (trainingPopup) return;
-    if (resolvedTrainingLevel !== trainingLevel) {
-      goToTrainingLevel(resolvedTrainingLevel, true);
-      return;
-    }
-    const completedSet = new Set(trainingProgressRef.current.completed || []);
-    if (!completedSet.has(resolvedTrainingLevel)) return;
-    const nextLevel = getNextIncompleteLevel(completedSet);
-    if (nextLevel) {
-      goToTrainingLevel(nextLevel, true);
-    } else {
-      goToTrainingLevel(null, true);
-    }
-  }, [goToTrainingLevel, isTraining, resolvedTrainingLevel, trainingLevel, trainingPopup]);
+  }, [isTraining, trainingScenario, trainingTasksEnabled]);
   const handleTrainingOutcome = useCallback(
     async (playerWon, failReason) => {
+      if (!isTraining) return;
+      if (!trainingTasksEnabled || !trainingScenario) {
+        setHud((prev) => ({
+          ...prev,
+          over: false,
+          phase: playerWon ? 'Training' : 'Practice reset',
+          next: failReason || 'Adjust the training menu anytime',
+          turn: 0
+        }));
+        setTrainingPopup(null);
+        trainingRewardedRef.current = false;
+        return;
+      }
+
       const scenario = trainingScenario;
       const level = resolvedTrainingLevel || 1;
       if (!playerWon) {
@@ -8028,36 +8009,58 @@ function PoolRoyaleGame({
         alreadyComplete
       });
     },
-    [resolvedTrainingLevel, trainingScenario]
+    [accountIdRef, getTelegramId, isTraining, resolvedTrainingLevel, trainingScenario, trainingTasksEnabled]
   );
   const handleTrainingPopupContinue = useCallback(() => {
-    if (!trainingPopup) return;
-    const { nextLevel, status } = trainingPopup;
     setTrainingPopup(null);
     trainingRewardedRef.current = false;
-    if (status === 'fail') {
-      goToTrainingLevel(trainingPopup.level, true, true);
-      return;
-    }
-    if (nextLevel) {
-      goToTrainingLevel(nextLevel, true, true);
-    } else {
-      goToTrainingLevel(null, true);
-    }
-  }, [goToTrainingLevel, trainingPopup]);
+  }, []);
   const retryTrainingTask = useCallback(() => {
-    if (!trainingPopup) return;
+    setTrainingPopup(null);
     trainingRewardedRef.current = false;
-    goToTrainingLevel(trainingPopup.level, true, true);
-  }, [goToTrainingLevel, trainingPopup]);
+  }, []);
   useEffect(() => {
-    if (!trainingPopup) return undefined;
+    if (!trainingPopup || !trainingTasksEnabled) return undefined;
     const delay = trainingPopup.status === 'success' ? 2200 : 2600;
     const timer = window.setTimeout(() => {
       handleTrainingPopupContinue();
     }, delay);
     return () => window.clearTimeout(timer);
-  }, [handleTrainingPopupContinue, trainingPopup]);
+  }, [handleTrainingPopupContinue, trainingPopup, trainingTasksEnabled]);
+  const TRAINING_SETTINGS_STORAGE_KEY = 'poolRoyaleTrainingSettings';
+  const defaultTrainingSettings = useMemo(
+    () => ({ opponent: 'solo', rules: 'withRules' }),
+    []
+  );
+  const [trainingSettings, setTrainingSettings] = useState(() => {
+    if (typeof window === 'undefined') return defaultTrainingSettings;
+    try {
+      const storedRaw = window.localStorage.getItem(TRAINING_SETTINGS_STORAGE_KEY);
+      if (!storedRaw) return defaultTrainingSettings;
+      const parsed = JSON.parse(storedRaw);
+      return {
+        opponent: parsed?.opponent === 'ai' ? 'ai' : 'solo',
+        rules: parsed?.rules === 'noRules' ? 'noRules' : 'withRules'
+      };
+    } catch (err) {
+      console.warn('Failed to load training settings', err);
+      return defaultTrainingSettings;
+    }
+  });
+  const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
+  const trainingSoloOpponent = isTraining && trainingSettings.opponent === 'solo';
+  const trainingRulesRelaxed = isTraining && trainingSettings.rules === 'noRules';
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        TRAINING_SETTINGS_STORAGE_KEY,
+        JSON.stringify(trainingSettings)
+      );
+    } catch (err) {
+      console.warn('Failed to persist training settings', err);
+    }
+  }, [trainingSettings]);
   const railMarkerStyleRef = useRef({
     shape: railMarkerShapeId,
     colorId: railMarkerColorId
@@ -8623,6 +8626,13 @@ function PoolRoyaleGame({
     setAiShotPreviewActive(false);
     setAiShotCueViewActive(false);
   }, [setAiShotPreviewActive, setAiShotCueViewActive]);
+  useEffect(() => {
+    if (!isTraining || !trainingSoloOpponent) return;
+    if (hud.turn !== 1) return;
+    cancelAiShotPreview();
+    stopAiThinkingRef.current?.();
+    setHud((s) => ({ ...s, turn: 0 }));
+  }, [cancelAiShotPreview, hud.turn, isTraining, trainingSoloOpponent]);
   const clearEarlyAiShot = useCallback(() => {
     const intent = aiEarlyShotIntentRef.current;
     if (intent?.timeout) {
@@ -9124,7 +9134,7 @@ function PoolRoyaleGame({
     }
   }, [frameState?.balls, handleTrainingOutcome, isTraining, trainingPopup]);
   useEffect(() => {
-    if (!isTraining) return;
+    if (!isTraining || !trainingTasksEnabled) return;
     if (trainingShotsRemaining == null) return;
     if (trainingShotsRemaining > 0) return;
     if (shotActive || hud.over || trainingPopup) return;
@@ -9139,7 +9149,16 @@ function PoolRoyaleGame({
       trainingShotLimitLockedRef.current = true;
       handleTrainingOutcome(false, 'You ran out of shots before clearing the layout.');
     }
-  }, [frameState?.balls, handleTrainingOutcome, hud.over, isTraining, shotActive, trainingPopup, trainingShotsRemaining]);
+  }, [
+    frameState?.balls,
+    handleTrainingOutcome,
+    hud.over,
+    isTraining,
+    shotActive,
+    trainingPopup,
+    trainingShotsRemaining,
+    trainingTasksEnabled
+  ]);
   useEffect(() => {
     let wakeLock;
     const request = async () => {
@@ -9213,7 +9232,7 @@ function PoolRoyaleGame({
   }, [updateHudPanels]);
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || trainingRulesRelaxed) return;
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
@@ -9234,9 +9253,13 @@ function PoolRoyaleGame({
         if (next === 0) {
           clearInterval(timerRef.current);
           if (playerTurn === 0) {
-            setHud((s) => ({ ...s, turn: 1 - s.turn }));
+            setHud((s) => ({ ...s, turn: trainingSoloOpponent ? 0 : 1 - s.turn }));
           } else {
-            aiShoot.current();
+            if (!trainingSoloOpponent) {
+              aiShoot.current();
+            } else {
+              setHud((s) => ({ ...s, turn: 0 }));
+            }
           }
           return 0;
         }
@@ -9244,13 +9267,26 @@ function PoolRoyaleGame({
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock]);
+  }, [hud.turn, hud.over, playTurnKnock, trainingRulesRelaxed, trainingSoloOpponent]);
+
+  useEffect(() => {
+    if (!trainingRulesRelaxed) return;
+    clearInterval(timerRef.current);
+    setTimer((prev) => (typeof prev === 'number' ? prev : 60));
+  }, [trainingRulesRelaxed]);
 
   useEffect(() => {
     if (hud.over) {
       stopAiThinkingRef.current?.();
       setAiPlanning(null);
       aiPlanRef.current = null;
+      return;
+    }
+    if (trainingSoloOpponent && hud.turn === 1) {
+      stopAiThinkingRef.current?.();
+      setAiPlanning(null);
+      aiPlanRef.current = null;
+      setHud((s) => ({ ...s, turn: 0 }));
       return;
     }
     if (hud.turn === 1) {
@@ -9281,10 +9317,10 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     if (hud.over) return;
-    if (hud.turn === 1) {
+    if (hud.turn === 1 && !trainingSoloOpponent) {
       startAiThinkingRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, trainingSoloOpponent]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -15960,7 +15996,7 @@ function PoolRoyaleGame({
       </div>
 
       <AnimatePresence>
-        {isTraining && trainingTaskDetails && trainingGuideVisible && (
+        {isTraining && trainingTasksEnabled && trainingTaskDetails && trainingGuideVisible && (
           <motion.div
             className="pointer-events-none absolute left-3 right-3 top-3 z-40 flex justify-center"
             initial={{ opacity: 0, y: -12 }}
@@ -16108,6 +16144,79 @@ function PoolRoyaleGame({
           Init error: {String(err)}
         </div>
       )}
+      {isTraining && (
+        <div className="absolute right-4 top-4 z-40 flex flex-col items-end gap-2 text-white">
+          <button
+            type="button"
+            onClick={() => setTrainingMenuOpen((open) => !open)}
+            className="flex items-center gap-2 rounded-full bg-emerald-500/80 px-4 py-2 text-sm font-semibold shadow-lg transition hover:bg-emerald-400/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200"
+          >
+            <span className="text-lg">🎯</span>
+            <span className="tracking-[0.2em] uppercase">Training</span>
+          </button>
+          {trainingMenuOpen && (
+            <div className="w-72 rounded-2xl border border-white/20 bg-black/80 p-4 shadow-2xl backdrop-blur">
+              <div className="space-y-3">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-100">Opponent</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                    {[
+                      { id: 'solo', label: 'Play alone' },
+                      { id: 'ai', label: 'Versus AI' }
+                    ].map((opt) => {
+                      const active = trainingSettings.opponent === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setTrainingSettings((prev) => ({ ...prev, opponent: opt.id }))}
+                          className={`rounded-xl px-3 py-2 font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'bg-emerald-400 text-black shadow-[0_0_14px_rgba(16,185,129,0.55)]'
+                              : 'bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                          aria-pressed={active}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-100">Rules</p>
+                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                    {[
+                      { id: 'withRules', label: 'With rules' },
+                      { id: 'noRules', label: 'No rules' }
+                    ].map((opt) => {
+                      const active = trainingSettings.rules === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setTrainingSettings((prev) => ({ ...prev, rules: opt.id }))}
+                          className={`rounded-xl px-3 py-2 font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'bg-emerald-400 text-black shadow-[0_0_14px_rgba(16,185,129,0.55)]'
+                              : 'bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                          aria-pressed={active}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-xs text-white/70">
+                    Swap modes anytime during practice. The table layout stays put while you change opponents or relax the rules.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {hud?.inHand && (
         <div className="absolute left-1/2 top-4 z-40 flex -translate-x-1/2 flex-col items-center gap-2 px-3 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
           <button
@@ -16126,7 +16235,7 @@ function PoolRoyaleGame({
       {/* Power Slider */}
       {showPowerSlider && (
         <div
-          className="absolute right-3 top-1/2 -translate-y-1/2"
+          className="absolute right-3 top-[55%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
@@ -16177,7 +16286,7 @@ function PoolRoyaleGame({
         </div>
       )}
 
-      {trainingPopup && (
+      {trainingTasksEnabled && trainingPopup && (
         <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/80 px-4 text-white">
           <div className="w-full max-w-md rounded-2xl border border-emerald-300/60 bg-gray-900 p-6 text-center shadow-2xl">
             <p className="text-xs uppercase tracking-[0.28em] text-emerald-200">
