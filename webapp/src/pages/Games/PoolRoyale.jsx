@@ -4765,7 +4765,8 @@ function calcTarget(cue, dir, balls) {
   if (!cue) {
     return {
       impact: new THREE.Vector2(),
-      afterDir: null,
+      targetDir: null,
+      cueDir: null,
       targetBall: null,
       railNormal: null,
       tHit: 0
@@ -4775,7 +4776,8 @@ function calcTarget(cue, dir, balls) {
   if (!dir || dir.lengthSq() < 1e-8) {
     return {
       impact: cuePos.clone(),
-      afterDir: null,
+      targetDir: null,
+      cueDir: null,
       targetBall: null,
       railNormal: null,
       tHit: 0
@@ -4829,17 +4831,22 @@ function calcTarget(cue, dir, balls) {
     travel = fallbackDistance;
   }
   const impact = cuePos.clone().add(dirNorm.clone().multiplyScalar(travel));
-  let afterDir = null;
+  let targetDir = null;
+  let cueDir = null;
   if (targetBall) {
-    afterDir = targetBall.pos.clone().sub(impact).normalize();
+    targetDir = targetBall.pos.clone().sub(impact).normalize();
+    const projected = dirNorm.dot(targetDir);
+    cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
+    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
+    else cueDir = null;
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
-    afterDir = dirNorm
+    cueDir = dirNorm
       .clone()
       .sub(n.clone().multiplyScalar(2 * dirNorm.dot(n)))
       .normalize();
   }
-  return { impact, afterDir, targetBall, railNormal, tHit: travel };
+  return { impact, targetDir, cueDir, targetBall, railNormal, tHit: travel };
 }
 
 function Guret(parent, id, color, x, y, options = {}) {
@@ -12271,7 +12278,7 @@ function PoolRoyaleGame({
       target.visible = false;
       table.add(target);
       const impactRing = new THREE.Mesh(
-        new THREE.RingGeometry(BALL_R * 0.9, BALL_R * 1.2, 32),
+        new THREE.RingGeometry(BALL_R * 0.7, BALL_R * 1.02, 48),
         new THREE.MeshBasicMaterial({
           color: 0xffffff,
           transparent: true,
@@ -13225,7 +13232,7 @@ function PoolRoyaleGame({
           const isLongShot = predictedTravel > LONG_SHOT_DISTANCE;
           shotPrediction = {
             ballId: prediction.targetBall?.id ?? null,
-            dir: prediction.afterDir ? prediction.afterDir.clone() : null,
+            dir: prediction.targetDir ? prediction.targetDir.clone() : null,
             impact: prediction.impact
               ? new THREE.Vector2(prediction.impact.x, prediction.impact.y)
               : null,
@@ -14439,7 +14446,7 @@ function PoolRoyaleGame({
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
-          const { impact, afterDir, targetBall, railNormal } = calcTarget(
+          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
             balls
@@ -14505,10 +14512,9 @@ function PoolRoyaleGame({
             end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
-          const cueFollowDir =
-            railNormal && afterDir && !targetBall
-              ? new THREE.Vector3(afterDir.x, 0, afterDir.y).normalize()
-              : dir.clone();
+          const cueFollowDir = cueDir
+            ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
+            : dir.clone();
           const cueFollowLength = BALL_R * (12 + powerStrength * 18);
           const followEnd = end
             .clone()
@@ -14519,8 +14525,7 @@ function PoolRoyaleGame({
           cueAfter.computeLineDistances();
           impactRing.visible = true;
           impactRing.position.set(end.x, tableSurfaceY + 0.004, end.z);
-          const impactScale = 1 + powerStrength * 0.35;
-          impactRing.scale.set(impactScale, impactScale, impactScale);
+          impactRing.scale.set(1, 1, 1);
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
@@ -14661,17 +14666,15 @@ function PoolRoyaleGame({
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          if (afterDir) {
+          if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 20);
-            const tDir = new THREE.Vector3(afterDir.x, 0, afterDir.y).normalize();
+            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y).normalize();
             const tEnd = end
               .clone()
               .add(tDir.clone().multiplyScalar(travelScale));
             targetGeom.setFromPoints([end, tEnd]);
-            target.material.color.setHex(targetBall ? 0xffd166 : 0x7ce7ff);
-            target.material.opacity = targetBall
-              ? 0.65 + 0.25 * powerStrength
-              : 0.45 + 0.25 * powerStrength;
+            target.material.color.setHex(0xffd166);
+            target.material.opacity = 0.65 + 0.25 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
           } else {
