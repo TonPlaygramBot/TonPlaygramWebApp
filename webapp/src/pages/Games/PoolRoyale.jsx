@@ -411,7 +411,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.030612244897959183; // match fascia depth to rail diamond thickness (0.06 / 1.96)
+const CHROME_PLATE_THICKNESS_SCALE = 0.034; // thicken fascia depth so the chrome plates read as chunky as the rail diamonds
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1; // keep side fascias the same depth as the diamonds
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
@@ -653,6 +653,8 @@ const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
+const ENABLE_CUE_GALLERY = false;
+const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
@@ -745,7 +747,8 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.9; // pull the middle pockets and cloth cuts slightly closer to centre for tighter entrances
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.15; // pull the middle pockets and cloth cuts slightly closer to centre for tighter entrances
+const SIDE_POCKET_FIELD_PULL = BALL_R * 1.1; // move the middle pocket centres and cloth cuts further onto the playing field
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -1901,7 +1904,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
     label: 'Tour Green',
-    color: 0x54d48a,
+    color: 0x6bdd9d,
     textureKey: 'freshGreen',
     detail: {
       bumpMultiplier: 1,
@@ -1924,7 +1927,7 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x3e98d8,
+    color: 0x65b6ea,
     textureKey: 'arcticBlue',
     detail: {
       sheen: 0.72,
@@ -5350,7 +5353,11 @@ function Table3D(
     SIDE_POCKET_EXTRA_SHIFT,
     Math.max(0, maxSidePocketShift - baseSidePocketShift)
   );
-  sidePocketShift = baseSidePocketShift + extraSidePocketShift;
+  const fieldPull = Math.min(
+    SIDE_POCKET_FIELD_PULL,
+    baseSidePocketShift + extraSidePocketShift
+  );
+  sidePocketShift = Math.max(0, baseSidePocketShift + extraSidePocketShift - fieldPull);
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
   const sideRadiusScale = POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
@@ -8708,6 +8715,18 @@ function PoolRoyaleGame({
     }
   }, []);
 
+  const selectCueStyleFromMenu = useCallback(
+    async (index) => {
+      const charged = await ensureCueFeePaid();
+      if (!charged) return;
+      const paletteLength = CUE_RACK_PALETTE.length || 1;
+      const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
+      applySelectedCueStyle(normalized);
+      setCueStyleIndex(normalized);
+    },
+    [applySelectedCueStyle, ensureCueFeePaid]
+  );
+
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
@@ -9587,7 +9606,7 @@ function PoolRoyaleGame({
       };
       const legHeight = LEG_ROOM_HEIGHT;
       const floorY = FLOOR_Y;
-      const roomDepth = TABLE.H * 3.6;
+      const roomDepth = TABLE.H * 3.05;
       const sideClearance = roomDepth / 2 - TABLE.H / 2;
       const roomWidth = TABLE.W + sideClearance * 2;
       const wallThickness = 1.2;
@@ -9663,66 +9682,68 @@ function PoolRoyaleGame({
       cueOptionGroupsRef.current = [];
       cueRackMetaRef.current = new Map();
 
-      const registerCueRack = (rack, dispose, dims) => {
-        if (!rack) return;
-        const rackId = `rack-${cueRackGroupsRef.current.length}`;
-        rack.userData = rack.userData || {};
-        rack.userData.rackId = rackId;
-        cueRackGroupsRef.current.push(rack);
-        cueRackMetaRef.current.set(rackId, {
-          id: rackId,
-          group: rack,
-          dimensions: dims,
-          dispose
-        });
-        rack.traverse((child) => {
-          if (!child) return;
-          child.userData = child.userData || {};
-          child.userData.cueRackId = rackId;
-          if (child.userData.isCueOption) {
-            cueOptionGroupsRef.current.push(child);
+      if (ENABLE_CUE_GALLERY) {
+        const registerCueRack = (rack, dispose, dims) => {
+          if (!rack) return;
+          const rackId = `rack-${cueRackGroupsRef.current.length}`;
+          rack.userData = rack.userData || {};
+          rack.userData.rackId = rackId;
+          cueRackGroupsRef.current.push(rack);
+          cueRackMetaRef.current.set(rackId, {
+            id: rackId,
+            group: rack,
+            dimensions: dims,
+            dispose
+          });
+          rack.traverse((child) => {
+            if (!child) return;
+            child.userData = child.userData || {};
+            child.userData.cueRackId = rackId;
+            if (child.userData.isCueOption) {
+              cueOptionGroupsRef.current.push(child);
+            }
+          });
+        };
+
+        const createRackEntry = () =>
+          createCueRackDisplay({
+            THREE,
+            ballRadius: BALL_R,
+            cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
+            cueTipRadius: CUE_TIP_RADIUS
+          });
+
+        const baseRackEntry = createRackEntry();
+        const cueRackDimensions = baseRackEntry.dimensions;
+        const cueRackHalfWidth = cueRackDimensions.width / 2;
+        const availableHalfDepth =
+          roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
+        const desiredOffset = cueRackHalfWidth + BALL_R * 8;
+        const cueRackOffset = Math.max(
+          cueRackHalfWidth,
+          Math.min(availableHalfDepth, desiredOffset)
+        );
+        const cueRackGap = BALL_R * 3.2;
+        const cueRackY = floorY + cueRackGap + cueRackDimensions.height / 2;
+        const cueRackPlacements = [
+          { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
+          { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
+        ];
+
+        cueRackPlacements.forEach((placement, index) => {
+          const entry = index === 0 ? baseRackEntry : createRackEntry();
+          const rack = entry.group;
+          if (!rack) return;
+          rack.position.set(placement.x, cueRackY, placement.z);
+          rack.rotation.y = placement.rotationY;
+          world.add(rack);
+          registerCueRack(rack, entry.dispose, entry.dimensions);
+          if (typeof entry.dispose === 'function') {
+            cueRackDisposers.push(entry.dispose);
           }
         });
-      };
-
-      const createRackEntry = () =>
-        createCueRackDisplay({
-          THREE,
-          ballRadius: BALL_R,
-          cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
-          cueTipRadius: CUE_TIP_RADIUS
-        });
-
-      const baseRackEntry = createRackEntry();
-      const cueRackDimensions = baseRackEntry.dimensions;
-      const cueRackHalfWidth = cueRackDimensions.width / 2;
-      const availableHalfDepth =
-        roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
-      const desiredOffset = cueRackHalfWidth + BALL_R * 8;
-      const cueRackOffset = Math.max(
-        cueRackHalfWidth,
-        Math.min(availableHalfDepth, desiredOffset)
-      );
-      const cueRackGap = BALL_R * 3.2;
-      const cueRackY = floorY + cueRackGap + cueRackDimensions.height / 2;
-      const cueRackPlacements = [
-        { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
-        { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
-      ];
-
-      cueRackPlacements.forEach((placement, index) => {
-        const entry = index === 0 ? baseRackEntry : createRackEntry();
-        const rack = entry.group;
-        if (!rack) return;
-        rack.position.set(placement.x, cueRackY, placement.z);
-        rack.rotation.y = placement.rotationY;
-        world.add(rack);
-        registerCueRack(rack, entry.dispose, entry.dimensions);
-        if (typeof entry.dispose === 'function') {
-          cueRackDisposers.push(entry.dispose);
-        }
-      });
-      updateCueRackHighlights();
+        updateCueRackHighlights();
+      }
 
       const resolveBroadcastDistance = () => {
         const verticalFov = THREE.MathUtils.degToRad(STANDING_VIEW_FOV);
@@ -9750,40 +9771,42 @@ function PoolRoyaleGame({
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
-      const tripodHeightBoost = 1.04;
-      const tripodScale =
-        ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
-      const tripodTilt = THREE.MathUtils.degToRad(-12);
-      const tripodProximityPull = BALL_R * 2.5;
-      const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
-      const tripodDesiredZ =
-        Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
-        tripodExtra;
-      const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
-      const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
-      const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-      const tripodPositions = [
-        { x: 0, z: tripodZOffset },
-        { x: 0, z: -tripodZOffset }
-      ];
-      tripodPositions.forEach(({ x, z }) => {
-        const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
-        tripodGroup.scale.setScalar(tripodScale);
-        tripodGroup.position.set(x, floorY, z);
-        const toTarget = new THREE.Vector3()
-          .subVectors(tripodTarget, tripodGroup.position)
-          .setY(0);
-        if (toTarget.lengthSq() > 1e-6) {
-          const yaw = Math.atan2(toTarget.z, toTarget.x);
-          tripodGroup.rotation.y = yaw;
-        }
-        world.add(tripodGroup);
-        tripodGroup.updateWorldMatrix(true, false);
-        headPivot.up.set(0, 1, 0);
-        headPivot.lookAt(tripodTarget);
-        headPivot.rotateY(Math.PI);
-        headPivot.rotateX(tripodTilt);
-      });
+      if (ENABLE_TRIPOD_CAMERAS) {
+        const tripodHeightBoost = 1.04;
+        const tripodScale =
+          ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
+        const tripodTilt = THREE.MathUtils.degToRad(-12);
+        const tripodProximityPull = BALL_R * 2.5;
+        const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
+        const tripodDesiredZ =
+          Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
+          tripodExtra;
+        const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
+        const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
+        const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
+        const tripodPositions = [
+          { x: 0, z: tripodZOffset },
+          { x: 0, z: -tripodZOffset }
+        ];
+        tripodPositions.forEach(({ x, z }) => {
+          const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
+          tripodGroup.scale.setScalar(tripodScale);
+          tripodGroup.position.set(x, floorY, z);
+          const toTarget = new THREE.Vector3()
+            .subVectors(tripodTarget, tripodGroup.position)
+            .setY(0);
+          if (toTarget.lengthSq() > 1e-6) {
+            const yaw = Math.atan2(toTarget.z, toTarget.x);
+            tripodGroup.rotation.y = yaw;
+          }
+          world.add(tripodGroup);
+          tripodGroup.updateWorldMatrix(true, false);
+          headPivot.up.set(0, 1, 0);
+          headPivot.lookAt(tripodTarget);
+          headPivot.rotateY(Math.PI);
+          headPivot.rotateX(tripodTilt);
+        });
+      }
 
       const hospitalityMats = {
         wood: new THREE.MeshStandardMaterial({
@@ -11724,7 +11747,7 @@ function PoolRoyaleGame({
             galleryDrag.identifier = touch?.identifier ?? null;
             return;
           }
-          if (attemptCueGalleryPress(e)) return;
+          if (ENABLE_CUE_GALLERY && attemptCueGalleryPress(e)) return;
           if (attemptChalkPress(e)) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
@@ -12414,6 +12437,7 @@ function PoolRoyaleGame({
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
       const closeCueGallery = () => {
+        if (!ENABLE_CUE_GALLERY) return;
         const state = cueGalleryStateRef.current;
         if (!state?.active) return;
         const prev = state.prev;
@@ -12447,6 +12471,7 @@ function PoolRoyaleGame({
       };
 
       const openCueGallery = (rackId) => {
+        if (!ENABLE_CUE_GALLERY) return;
         if (!rackId) return;
         const meta = cueRackMetaRef.current.get(rackId);
         if (!meta?.group) return;
@@ -12518,6 +12543,7 @@ function PoolRoyaleGame({
       };
 
       const attemptCueGalleryPress = (ev) => {
+        if (!ENABLE_CUE_GALLERY) return false;
         if (cueGalleryStateRef.current.active) return false;
         const currentHud = hudRef.current;
         if (currentHud?.inHand || shooting) return false;
@@ -12555,6 +12581,7 @@ function PoolRoyaleGame({
       };
 
       const attemptCueSelection = async (ev) => {
+        if (!ENABLE_CUE_GALLERY) return false;
         const state = cueGalleryStateRef.current;
         if (!state?.active) return false;
         const rect = dom.getBoundingClientRect();
@@ -12690,6 +12717,9 @@ function PoolRoyaleGame({
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
+      const isAmericanVariant = () =>
+        (activeVariantRef.current?.id ?? variantKey) === 'american';
+
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
         const clearance = BALL_R * clearanceMultiplier;
@@ -12706,18 +12736,25 @@ function PoolRoyaleGame({
         const clamped = point.clone();
         const limitX = PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
-        const maxForward = baulkZ + BALL_R * 0.1;
-        if (clamped.y > maxForward) clamped.y = maxForward;
-        const deltaY = clamped.y - baulkZ;
-        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
-        const insideSq = clamped.x * clamped.x + deltaY * deltaY;
-        if (insideSq > maxRadius * maxRadius) {
-          const angle = Math.atan2(deltaY, clamped.x);
-          clamped.x = Math.cos(angle) * maxRadius;
-          clamped.y = baulkZ + Math.sin(angle) * maxRadius;
+        if (isAmericanVariant()) {
+          const limitZ = PLAY_H / 2 - BALL_R;
+          clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
+        } else {
+          const maxForward = baulkZ + BALL_R * 0.1;
+          if (clamped.y > maxForward) clamped.y = maxForward;
+          const deltaY = clamped.y - baulkZ;
+          const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+          const insideSq = clamped.x * clamped.x + deltaY * deltaY;
+          if (insideSq > maxRadius * maxRadius) {
+            const angle = Math.atan2(deltaY, clamped.x);
+            clamped.x = Math.cos(angle) * maxRadius;
+            clamped.y = baulkZ + Math.sin(angle) * maxRadius;
+          }
         }
         return clamped;
       };
+      const defaultInHandPosition = () =>
+        clampInHandPosition(new THREE.Vector2(0, isAmericanVariant() ? 0 : baulkZ));
       const inHandDrag = {
         active: false,
         pointerId: null,
@@ -12745,8 +12782,10 @@ function PoolRoyaleGame({
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
-          hudRef.current = { ...currentHud, inHand: false };
-          setHud((s) => ({ ...s, inHand: false }));
+          if (!isAmericanVariant()) {
+            hudRef.current = { ...currentHud, inHand: false };
+            setHud((s) => ({ ...s, inHand: false }));
+          }
         }
         return true;
       };
@@ -12756,6 +12795,11 @@ function PoolRoyaleGame({
         const baseCandidates = [];
         baseCandidates.push(new THREE.Vector2(0, baulkZ));
         baseCandidates.push(new THREE.Vector2(0, forwardBias));
+        if (isAmericanVariant()) {
+          baseCandidates.push(new THREE.Vector2(0, 0));
+          baseCandidates.push(new THREE.Vector2(0, PLAY_H / 4));
+          baseCandidates.push(new THREE.Vector2(0, -PLAY_H / 4));
+        }
         const angles = [0, Math.PI / 8, -Math.PI / 8, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
         for (const angle of angles) {
           const candidate = new THREE.Vector2(
@@ -12787,9 +12831,11 @@ function PoolRoyaleGame({
         }
         const gridCandidates = [];
         const gridCols = Math.max(8, Math.round((limitX * 2) / (BALL_R * 1.25)));
-        const gridRows = 5;
+        const gridRows = isAmericanVariant() ? 8 : 5;
+        const gridStart = isAmericanVariant() ? -PLAY_H / 2 + BALL_R : forwardBias;
+        const gridEnd = isAmericanVariant() ? PLAY_H / 2 - BALL_R : baulkZ;
         for (let row = 0; row <= gridRows; row++) {
-          const z = THREE.MathUtils.lerp(forwardBias, baulkZ, row / gridRows);
+          const z = THREE.MathUtils.lerp(gridStart, gridEnd, row / gridRows);
           for (let col = 0; col <= gridCols; col++) {
             const x = THREE.MathUtils.lerp(-limitX, limitX, col / gridCols);
             gridCandidates.push(new THREE.Vector2(x, z));
@@ -12890,11 +12936,13 @@ function PoolRoyaleGame({
             return best;
           }
         }
-        const fallback = clampInHandPosition(new THREE.Vector2(0, forwardBias));
+        const fallback = isAmericanVariant()
+          ? defaultInHandPosition()
+          : clampInHandPosition(new THREE.Vector2(0, forwardBias));
         if (fallback && isSpotFree(fallback, 2.0)) {
           return fallback;
         }
-        const baulkCenter = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+        const baulkCenter = defaultInHandPosition();
         if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
           return baulkCenter;
         }
@@ -12972,10 +13020,26 @@ function PoolRoyaleGame({
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+        const startPos = defaultInHandPosition();
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
+        }
+        if (isAmericanVariant()) {
+          const focusStore = ensureOrbitFocus();
+          focusStore.target.set(0, BALL_CENTER_Y, 0);
+          focusStore.ballId = null;
+          const standingBounds = cameraBoundsRef.current?.standing;
+          if (standingBounds) {
+            sph.radius = clampOrbitRadius(standingBounds.radius);
+            sph.phi = THREE.MathUtils.clamp(
+              standingBounds.phi,
+              CAMERA.minPhi,
+              CAMERA.maxPhi
+            );
+            syncBlendToSpherical();
+            updateCamera();
+          }
         }
       }
 
@@ -13030,13 +13094,19 @@ function PoolRoyaleGame({
       // Fire (slider e thërret në release)
       const fire = () => {
         const currentHud = hudRef.current;
+        const americanHandPlacement =
+          isAmericanVariant() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
         if (
           !cue?.active ||
-          currentHud?.inHand ||
+          (currentHud?.inHand && !americanHandPlacement) ||
           !allStopped(balls) ||
           currentHud?.over
         )
           return;
+        if (currentHud?.inHand && americanHandPlacement) {
+          hudRef.current = { ...currentHud, inHand: false };
+          setHud((prev) => ({ ...prev, inHand: false }));
+        }
         const forcedCueView = aiShotCueViewRef.current;
         setAiShotCueViewActive(false);
         setAiShotPreviewActive(false);
@@ -14162,13 +14232,13 @@ function PoolRoyaleGame({
                 };
               }
             }
-            if (cueBallPotted) {
-              cue.active = false;
-              pocketDropRef.current.delete(cue.id);
-              const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
-              if (fallback) {
-                updateCuePlacement(fallback);
-              } else {
+              if (cueBallPotted) {
+                cue.active = false;
+                pocketDropRef.current.delete(cue.id);
+              const fallback = defaultInHandPosition();
+                if (fallback) {
+                  updateCuePlacement(fallback);
+                } else {
                 cue.mesh.visible = true;
               }
               cue.vel.set(0, 0);
@@ -15427,7 +15497,7 @@ function PoolRoyaleGame({
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {cueGalleryActive && (
+      {ENABLE_CUE_GALLERY && cueGalleryActive && (
         <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
           Scroll and click to change the cue
         </div>
@@ -15515,6 +15585,31 @@ function PoolRoyaleGame({
                         }`}
                       >
                         {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Cue Styles
+                </h3>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {WOOD_FINISH_PRESETS.map((preset, index) => {
+                    const active = cueStyleIndex === index;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => selectCueStyleFromMenu(index)}
+                        aria-pressed={active}
+                        className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {preset.label}
                       </button>
                     );
                   })}
