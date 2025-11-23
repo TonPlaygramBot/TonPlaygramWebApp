@@ -695,6 +695,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // nudge middle pocket jaws away from the table centre so they sit tighter to the fascia
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -6752,6 +6753,7 @@ function Table3D(
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * sidePocketCenterX, 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
+      center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
