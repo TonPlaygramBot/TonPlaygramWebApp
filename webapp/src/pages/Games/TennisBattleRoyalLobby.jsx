@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
+import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
@@ -10,6 +11,10 @@ import {
 } from '../../utils/telegram.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+
+const AI_FLAG_STORAGE_KEY = 'tennisBattleRoyalAiFlag';
+const PLAYER_FLAG_STORAGE_KEY = 'tennisBattleRoyalPlayerFlag';
 
 export default function TennisBattleRoyalLobby() {
   useTelegramBackButton();
@@ -17,6 +22,13 @@ export default function TennisBattleRoyalLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [avatar, setAvatar] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
+  const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
+  const [aiFlagIndex, setAiFlagIndex] = useState(null);
+
+  const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
+  const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
 
   useEffect(() => {
     try {
@@ -25,6 +37,22 @@ export default function TennisBattleRoyalLobby() {
     } catch {
       setAvatar('');
     }
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(PLAYER_FLAG_STORAGE_KEY);
+      const idx = FLAG_EMOJIS.indexOf(stored);
+      if (idx >= 0) setPlayerFlagIndex(idx);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(AI_FLAG_STORAGE_KEY);
+      const idx = FLAG_EMOJIS.indexOf(stored);
+      if (idx >= 0) setAiFlagIndex(idx);
+    } catch {}
   }, []);
 
   const startGame = async () => {
@@ -55,6 +83,8 @@ export default function TennisBattleRoyalLobby() {
       if (tgId) params.set('tgId', tgId);
       params.set('accountId', accountId);
       if (avatar) params.set('avatar', avatar);
+      if (selectedFlag) params.set('flag', selectedFlag);
+      if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
 
       navigate(`/games/tennisbattleroyal?${params.toString()}`);
     } catch (err) {
@@ -72,6 +102,8 @@ export default function TennisBattleRoyalLobby() {
     const tgId = getTelegramId();
     if (tgId) params.set('tgId', tgId);
     if (avatar) params.set('avatar', avatar);
+    if (selectedFlag) params.set('flag', selectedFlag);
+    if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     navigate(`/games/tennisbattleroyal?${params.toString()}`);
   };
 
@@ -92,6 +124,52 @@ export default function TennisBattleRoyalLobby() {
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
       </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Your Flag & Avatar</h3>
+        <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-2 shadow">
+          <button
+            type="button"
+            onClick={() => setShowFlagPicker(true)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+          >
+            <div className="text-[11px] uppercase tracking-wide text-subtext">Flag</div>
+            <div className="flex items-center gap-2 text-base font-semibold">
+              <span className="text-lg">{selectedFlag || '🌐'}</span>
+              <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
+            </div>
+          </button>
+          {avatar && (
+            <div className="flex items-center gap-3">
+              <img
+                src={avatar}
+                alt="Your avatar"
+                className="h-12 w-12 rounded-full border border-border object-cover"
+              />
+              <div className="text-sm text-subtext">Avatar-i dhe flamuri shfaqen në intro të ndeshjes.</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">AI Avatar Flags</h3>
+        <p className="text-sm text-subtext">
+          Zgjidh flamurin e kundërshtarit AI – identik me përvojën Chess Battle Royal.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowAiFlagPicker(true)}
+          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+        >
+          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flag</div>
+          <div className="flex items-center gap-2 text-base font-semibold">
+            <span className="text-lg">{selectedAiFlag || '🌐'}</span>
+            <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick for opponent'}</span>
+          </div>
+        </button>
+      </div>
+
       <button
         onClick={startGame}
         disabled={loading}
@@ -111,6 +189,38 @@ export default function TennisBattleRoyalLobby() {
           Start Training pa stake
         </button>
       </div>
+
+      <FlagPickerModal
+        open={showFlagPicker}
+        count={1}
+        selected={playerFlagIndex != null ? [playerFlagIndex] : []}
+        onSave={(indices) => {
+          const idx = indices?.[0] ?? null;
+          setPlayerFlagIndex(idx);
+          try {
+            if (idx != null) {
+              window.localStorage?.setItem(PLAYER_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
+            }
+          } catch {}
+        }}
+        onClose={() => setShowFlagPicker(false)}
+      />
+
+      <FlagPickerModal
+        open={showAiFlagPicker}
+        count={1}
+        selected={aiFlagIndex != null ? [aiFlagIndex] : []}
+        onSave={(indices) => {
+          const idx = indices?.[0] ?? null;
+          setAiFlagIndex(idx);
+          try {
+            if (idx != null) {
+              window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
+            }
+          } catch {}
+        }}
+        onClose={() => setShowAiFlagPicker(false)}
+      />
     </div>
   );
 }
