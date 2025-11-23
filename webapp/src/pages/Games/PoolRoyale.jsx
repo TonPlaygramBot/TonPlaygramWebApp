@@ -747,8 +747,8 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.9; // push the middle pockets slightly farther into the rails so the centres sit off the table axis
-const SIDE_POCKET_FIELD_PULL = BALL_R * 0.5; // ease the centre pull so the shifted side pockets remain tucked against the wooden apron
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.2; // push the middle pockets slightly farther into the rails so the centres sit off the table axis
+const SIDE_POCKET_FIELD_PULL = BALL_R * 0.35; // ease the centre pull so the shifted side pockets remain tucked against the wooden apron
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -2050,18 +2050,10 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'balanced60',
-    label: '60 Hz Smooth',
+    label: 'Snooker Match (60 Hz)',
     fps: 60,
-    resolution: '1600×900',
-    description: 'Balanced frame pacing tuned for modern mobile displays.'
-  },
-  {
-    id: 'performance50',
-    label: '50 FPS Broadcast',
-    fps: 50,
-    resolution: '2560×1440',
-    description:
-      'Studio lighting, volumetric shadows, and cloth shading tuned for European 50 Hz displays.'
+    resolution: 'Snooker renderer scaling',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
@@ -5275,8 +5267,8 @@ function Table3D(
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.side = THREE.DoubleSide;
-  clothEdgeMat.envMapIntensity = clothMat.envMapIntensity * 0.65;
-  clothEdgeMat.emissiveIntensity = clothMat.emissiveIntensity * 0.9;
+  clothEdgeMat.envMapIntensity = clothMat.envMapIntensity;
+  clothEdgeMat.emissiveIntensity = clothMat.emissiveIntensity;
   if (clothMat.map) {
     const clonedMap = clothMat.map.clone();
     clonedMap.image = clothMat.map.image;
@@ -9309,7 +9301,7 @@ function PoolRoyaleGame({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.35 : 1.9;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
@@ -12046,7 +12038,7 @@ function PoolRoyaleGame({
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          12.7449,
+          12.289725,
           0,
           Math.PI * 0.36,
           0.42,
@@ -12068,8 +12060,8 @@ function PoolRoyaleGame({
 
         const ambient = new THREE.AmbientLight(
           0xffffff,
-          0.0799
-        ); // return trimmed spot energy through ambient fill
+          0.0223125
+        ); // match the snooker ambient fill for identical arena lighting
         ambient.position.set(
           0,
           tableSurfaceY +
