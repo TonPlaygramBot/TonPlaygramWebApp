@@ -420,7 +420,7 @@ const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief 
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.978; // open the middle rail arches slightly more so the rounded cut breathes around the side pockets
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.006; // nudge the wooden middle-pocket relief outward so the rounded cut drifts subtly away from table centre
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.0115; // push the wooden middle-pocket arches further outward while keeping the chrome fascia fixed
 
 function buildChromePlateGeometry({
   width,
