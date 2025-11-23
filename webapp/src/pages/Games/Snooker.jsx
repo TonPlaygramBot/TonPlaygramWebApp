@@ -447,31 +447,33 @@ function addPocketCuts(parent, clothPlane) {
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions enlarged for a roomier snooker table but globally reduced by 30%
+// Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
+const TABLE_SIZE_SHRINK = 0.78;
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
 const SIZE_REDUCTION = 0.7;
-const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION; // apply uniform 30% shrink from previous tuning
-// shrink the entire 3D world to ~70% of its previous footprint while preserving
-// the HUD scale and gameplay math that rely on worldScaleFactor conversions
-const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7;
+const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
+const TABLE_DISPLAY_SCALE = 0.88;
+const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_SCALE = 2.85; // ~18% larger than the prior layout so the snooker table grows uniformly within the requested 15–20% window
+const TABLE_BASE_SCALE = 1.17;
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.78; // raise the rails slightly so their top edge meets the green cushions cleanly
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so chrome, cloth, and cushions align
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
-const WIDTH_REF = 3569;
-const HEIGHT_REF = 1778;
+const WIDTH_REF = 2540;
+const HEIGHT_REF = 1270;
 const BALL_D_REF = 57.15;
 const BALL_SIZE_SCALE = 0.94248;
-const BAULK_FROM_BAULK_REF = 737;
+const BAULK_FROM_BAULK_REF = 558.8;
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 324;
+const BLACK_FROM_TOP_REF = 558.8;
 const CORNER_MOUTH_REF = 114.3;
 const SIDE_MOUTH_REF = 127;
 const CORNER_POCKET_SCALE_BOOST = 0.985;
@@ -494,7 +496,7 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
 console.assert(
   Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-  'Snooker table inner ratio must match 3569:1778 after scaling.'
+  'Snooker table inner ratio must match the Pool Royale 2:1 footprint.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
@@ -809,6 +811,11 @@ const WOOD_PRESETS_BY_ID = Object.freeze(
 );
 const DEFAULT_WOOD_PRESET_ID = 'walnut';
 const SNOOKER_WOOD_PRESET_FOR_FINISH = Object.freeze({
+  rusticSplit: 'walnut',
+  charredTimber: 'wenge',
+  plankStudio: 'oak',
+  weatheredGrey: 'smokedOak',
+  jetBlackCarbon: 'ebony',
   classicWood: 'walnut',
   goldenMaple: 'maple',
   nordicBirch: 'birch',
@@ -827,7 +834,7 @@ const SNOOKER_WOOD_SURFACE_PROPS = Object.freeze({
   roughnessVariance: 0.22
 });
 
-const DEFAULT_TABLE_FINISH_ID = 'matteGraphite';
+const DEFAULT_TABLE_FINISH_ID = 'rusticSplit';
 
 const applySnookerWoodPreset = (materials, finishId) => {
   const presetId = SNOOKER_WOOD_PRESET_FOR_FINISH[finishId];
@@ -851,7 +858,332 @@ const applySnookerWoodPreset = (materials, finishId) => {
   });
 };
 
+const createPocketMaterials = () => ({
+  pocketJaw: new THREE.MeshPhysicalMaterial({
+    color: 0x6d7177,
+    metalness: 0.18,
+    roughness: 0.42,
+    clearcoat: 0.12,
+    clearcoatRoughness: 0.22,
+    envMapIntensity: 0.64
+  }),
+  pocketInner: new THREE.MeshPhysicalMaterial({
+    color: 0x3c4148,
+    metalness: 0.18,
+    roughness: 0.52,
+    clearcoat: 0.1,
+    clearcoatRoughness: 0.22,
+    envMapIntensity: 0.44
+  }),
+  pocketRing: new THREE.MeshPhysicalMaterial({
+    color: 0x2b2f36,
+    metalness: 0.22,
+    roughness: 0.38,
+    clearcoat: 0.42,
+    clearcoatRoughness: 0.22,
+    sheen: 0.12,
+    sheenRoughness: 0.44,
+    envMapIntensity: 0.82
+  }),
+  pocketNet: new THREE.MeshStandardMaterial({
+    color: 0x9d8f7e,
+    emissive: 0x000000,
+    emissiveIntensity: 0.18,
+    metalness: 0.12,
+    roughness: 0.78,
+    envMapIntensity: 0.42
+  })
+});
+
 const TABLE_FINISHES = Object.freeze({
+  rusticSplit: {
+    id: 'rusticSplit',
+    label: 'Pearl Cream',
+    colors: makeColorPalette({
+      cloth: 0x2d7f4b,
+      rail: 0xf2eadf,
+      base: 0xefe5d6
+    }),
+    woodTextureId: 'frameRusticSplit',
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#efe5d6');
+      const railColor = new THREE.Color('#f2eadf');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.28,
+        roughness: 0.26,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.18,
+        sheen: 0.18,
+        sheenRoughness: 0.46,
+        reflectivity: 0.56,
+        envMapIntensity: 0.94
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.3,
+        roughness: 0.28,
+        clearcoat: 0.5,
+        clearcoatRoughness: 0.16,
+        sheen: 0.2,
+        sheenRoughness: 0.44,
+        reflectivity: 0.6,
+        envMapIntensity: 1.02
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xf7f4ea,
+        metalness: 0.72,
+        roughness: 0.28,
+        clearcoat: 0.52,
+        clearcoatRoughness: 0.18,
+        envMapIntensity: 1.08
+      });
+      const materials = {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent: null
+      };
+      applySnookerWoodPreset(materials, 'rusticSplit');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  charredTimber: {
+    id: 'charredTimber',
+    label: 'Charred Timber',
+    colors: makeColorPalette({
+      cloth: 0x2d7f4b,
+      rail: 0x3c2c22,
+      base: 0x302118
+    }),
+    woodTextureId: 'frameCharred',
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#302118');
+      const railColor = new THREE.Color('#3c2c22');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.22,
+        roughness: 0.38,
+        clearcoat: 0.3,
+        clearcoatRoughness: 0.22,
+        sheen: 0.12,
+        sheenRoughness: 0.52,
+        reflectivity: 0.4,
+        envMapIntensity: 0.74
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.26,
+        roughness: 0.36,
+        clearcoat: 0.34,
+        clearcoatRoughness: 0.2,
+        sheen: 0.16,
+        sheenRoughness: 0.48,
+        reflectivity: 0.46,
+        envMapIntensity: 0.8
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0.01, 0.06, 0.1),
+        metalness: 0.24,
+        roughness: 0.46,
+        clearcoat: 0.26,
+        clearcoatRoughness: 0.3
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xb88f5f,
+        metalness: 0.62,
+        roughness: 0.36,
+        clearcoat: 0.38,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 0.9
+      });
+      const materials = {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: null
+      };
+      applySnookerWoodPreset(materials, 'charredTimber');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  plankStudio: {
+    id: 'plankStudio',
+    label: 'Plank Studio',
+    colors: makeColorPalette({
+      cloth: 0x2d7f4b,
+      rail: 0xb88452,
+      base: 0xae7a46
+    }),
+    woodTextureId: 'framePlank',
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#ae7a46');
+      const railColor = new THREE.Color('#b88452');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.18,
+        roughness: 0.3,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.18,
+        sheen: 0.16,
+        sheenRoughness: 0.46,
+        reflectivity: 0.48,
+        envMapIntensity: 0.86
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.22,
+        roughness: 0.32,
+        clearcoat: 0.38,
+        clearcoatRoughness: 0.2,
+        sheen: 0.18,
+        sheenRoughness: 0.48,
+        reflectivity: 0.5,
+        envMapIntensity: 0.92
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xe5c185,
+        metalness: 0.7,
+        roughness: 0.32,
+        clearcoat: 0.46,
+        clearcoatRoughness: 0.22,
+        envMapIntensity: 1
+      });
+      const materials = {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent: null
+      };
+      applySnookerWoodPreset(materials, 'plankStudio');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  weatheredGrey: {
+    id: 'weatheredGrey',
+    label: 'Weathered Grey',
+    colors: makeColorPalette({
+      cloth: 0x2d7f4b,
+      rail: 0x5f5750,
+      base: 0x4e463f
+    }),
+    woodTextureId: 'frameWeathered',
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#4e463f');
+      const railColor = new THREE.Color('#5f5750');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.18,
+        roughness: 0.44,
+        clearcoat: 0.24,
+        clearcoatRoughness: 0.28,
+        sheen: 0.12,
+        sheenRoughness: 0.56,
+        reflectivity: 0.38,
+        envMapIntensity: 0.72
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.22,
+        roughness: 0.4,
+        clearcoat: 0.26,
+        clearcoatRoughness: 0.26,
+        sheen: 0.14,
+        sheenRoughness: 0.54,
+        reflectivity: 0.42,
+        envMapIntensity: 0.78
+      });
+      const leg = new THREE.MeshPhysicalMaterial({
+        color: frameColor.clone().offsetHSL(0.01, 0.02, 0.06),
+        metalness: 0.2,
+        roughness: 0.5,
+        clearcoat: 0.2,
+        clearcoatRoughness: 0.32
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0xc0b8aa,
+        metalness: 0.64,
+        roughness: 0.34,
+        clearcoat: 0.36,
+        clearcoatRoughness: 0.24,
+        envMapIntensity: 0.92
+      });
+      const materials = {
+        frame,
+        rail,
+        leg,
+        trim,
+        accent: null
+      };
+      applySnookerWoodPreset(materials, 'weatheredGrey');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
+  jetBlackCarbon: {
+    id: 'jetBlackCarbon',
+    label: 'Jet Black Matte Carbon Fibre',
+    colors: makeColorPalette({
+      cloth: 0x1a1a1c,
+      rail: 0x16181c,
+      base: 0x0d0f12
+    }),
+    woodTextureId: null,
+    createMaterials: () => {
+      const frameColor = new THREE.Color('#0d0f12');
+      const railColor = new THREE.Color('#16181c');
+      const fiberSheen = new THREE.Color('#2d323a');
+      const frame = new THREE.MeshPhysicalMaterial({
+        color: frameColor,
+        metalness: 0.36,
+        roughness: 0.68,
+        clearcoat: 0.08,
+        clearcoatRoughness: 0.42,
+        sheen: 0.3,
+        sheenColor: fiberSheen,
+        sheenRoughness: 0.65,
+        envMapIntensity: 0.62
+      });
+      const rail = new THREE.MeshPhysicalMaterial({
+        color: railColor,
+        metalness: 0.32,
+        roughness: 0.6,
+        clearcoat: 0.12,
+        clearcoatRoughness: 0.4,
+        sheen: 0.34,
+        sheenColor: fiberSheen,
+        sheenRoughness: 0.62,
+        envMapIntensity: 0.7
+      });
+      const trim = new THREE.MeshPhysicalMaterial({
+        color: 0x2e3138,
+        metalness: 0.72,
+        roughness: 0.32,
+        clearcoat: 0.28,
+        clearcoatRoughness: 0.36,
+        envMapIntensity: 0.9
+      });
+      const accent = new THREE.MeshPhysicalMaterial({
+        color: 0x111319,
+        metalness: 0.28,
+        roughness: 0.54,
+        clearcoat: 0.18,
+        clearcoatRoughness: 0.46,
+        envMapIntensity: 0.58
+      });
+      const materials = {
+        frame,
+        rail,
+        leg: frame,
+        trim,
+        accent
+      };
+      applySnookerWoodPreset(materials, 'jetBlackCarbon');
+      return { ...materials, ...createPocketMaterials() };
+    }
+  },
   royalWalnut: {
     id: 'royalWalnut',
     label: 'Royal Walnut',
@@ -1321,7 +1653,11 @@ const TABLE_FINISHES = Object.freeze({
 });
 
 const TABLE_FINISH_OPTIONS = Object.freeze([
-  TABLE_FINISHES.matteGraphite
+  TABLE_FINISHES.rusticSplit,
+  TABLE_FINISHES.charredTimber,
+  TABLE_FINISHES.plankStudio,
+  TABLE_FINISHES.weatheredGrey,
+  TABLE_FINISHES.jetBlackCarbon
 ].filter(Boolean));
 
 const DEFAULT_CHROME_COLOR_ID = 'chrome';
@@ -1349,12 +1685,45 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
-  { id: 'freshGreen', label: 'Fresh Green', color: 0x3fba73 },
-  { id: 'brightMint', label: 'Bright Mint', color: 0x45b974 },
+  {
+    id: 'freshGreen',
+    label: 'Tour Green',
+    color: 0x6bdd9d,
+    textureKey: 'freshGreen',
+    detail: {
+      bumpMultiplier: 1,
+      sheen: 0.58,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.52
+    }
+  },
+  {
+    id: 'graphite',
+    label: 'Arcadia Graphite',
+    color: 0x4a5566,
+    textureKey: 'graphite',
+    detail: {
+      bumpMultiplier: 0.92,
+      roughness: 0.72,
+      envMapIntensity: 0.16
+    }
+  },
+  {
+    id: 'arcticBlue',
+    label: 'Arctic Blue',
+    color: 0x7ac6f5,
+    textureKey: 'arcticBlue',
+    detail: {
+      sheen: 0.72,
+      sheenRoughness: 0.4,
+      envMapIntensity: 0.22
+    }
+  },
   {
     id: 'emeraldClassic',
     label: 'Green Cloth',
     color: 0x19a34a,
+    textureKey: 'freshGreen',
     detail: {
       bumpMultiplier: 1.22,
       roughness: 0.78,

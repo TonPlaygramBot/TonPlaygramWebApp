@@ -1888,10 +1888,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x1f506c,
-      base: 0x2f7fb1,
-      accent: 0x6ab5ef,
-      highlight: 0xa0d7ff
+      shadow: 0x2a668a,
+      base: 0x3d9ed8,
+      accent: 0x7dcaf7,
+      highlight: 0xb4e5ff
     },
     sparkle: 1.05,
     stray: 1.12
@@ -1927,12 +1927,26 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x65b6ea,
+    color: 0x7ac6f5,
     textureKey: 'arcticBlue',
     detail: {
       sheen: 0.72,
       sheenRoughness: 0.4,
       envMapIntensity: 0.22
+    }
+  },
+  {
+    id: 'emeraldClassic',
+    label: 'Green Cloth',
+    color: 0x19a34a,
+    textureKey: 'freshGreen',
+    detail: {
+      bumpMultiplier: 1.22,
+      roughness: 0.78,
+      sheenRoughness: 0.52,
+      clearcoat: 0.05,
+      clearcoatRoughness: 0.32,
+      emissiveIntensity: 0.52
     }
   }
 ]);
