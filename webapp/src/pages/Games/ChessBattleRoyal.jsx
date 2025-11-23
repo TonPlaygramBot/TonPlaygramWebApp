@@ -2124,6 +2124,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       };
     }
 
+    const chairDistance =
+      (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
+
     const chairs = [];
     const chairA = makeChair();
     chairA.group.position.set(0, 0, -chairDistance - PLAYER_CHAIR_EXTRA_CLEARANCE);
@@ -2251,8 +2254,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     studioCamB.position.set(cameraRigOffsetX, 0, cameraRigOffsetZ);
     arena.add(studioCamB);
 
-    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
-    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
+      const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
     const boardGroup = new THREE.Group();
     boardGroup.position.set(0, tableSurfaceY + 0.004, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
@@ -2765,8 +2767,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       } catch {}
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
-      controls?.removeEventListener?.('change', clampCameraHeight);
-      controlsRef.current = null;
+        controlsRef.current = null;
       controls?.dispose();
       controls = null;
       const arenaState = arenaRef.current;
