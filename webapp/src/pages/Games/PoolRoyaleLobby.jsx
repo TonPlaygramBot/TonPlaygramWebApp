@@ -13,12 +13,6 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
-import {
-  getNextIncompleteLevel,
-  loadTrainingProgress,
-  resolvePlayableTrainingLevel
-} from '../../utils/poolRoyaleTrainingProgress.js';
-import { getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -39,16 +33,9 @@ export default function PoolRoyaleLobby() {
   const [variant, setVariant] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
-  const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
-  const [trainingTask, setTrainingTask] = useState(() => {
-    const next =
-      getNextIncompleteLevel(trainingProgress.completed) ?? trainingProgress.lastLevel ?? 1;
-    return resolvePlayableTrainingLevel(next, trainingProgress);
-  });
-  const nextIncompleteTrainingLevel = useMemo(
-    () => getNextIncompleteLevel(trainingProgress.completed),
-    [trainingProgress]
-  );
+  const [trainingVariant, setTrainingVariant] = useState('uk');
+  const [trainingMode, setTrainingMode] = useState('solo');
+  const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
   const [onlinePlayers, setOnlinePlayers] = useState([]);
   const [matching, setMatching] = useState(false);
@@ -61,10 +48,6 @@ export default function PoolRoyaleLobby() {
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const stakeChargedRef = useRef(false);
-  const trainingScenario = useMemo(
-    () => getTrainingScenario(trainingTask),
-    [trainingTask]
-  );
 
   useEffect(() => {
     try {
@@ -75,16 +58,8 @@ export default function PoolRoyaleLobby() {
 
   useEffect(() => {
     if (playType !== 'training') return;
-    const progress = loadTrainingProgress();
-    setTrainingProgress(progress);
-    const next = getNextIncompleteLevel(progress.completed) ?? progress.lastLevel ?? 1;
-    setTrainingTask(resolvePlayableTrainingLevel(next, progress));
-  }, [playType]);
-
-  useEffect(() => {
-    if (playType !== 'training') return;
-    setTrainingTask((current) => resolvePlayableTrainingLevel(current, trainingProgress));
-  }, [playType, trainingProgress]);
+    setTrainingVariant((current) => current || variant);
+  }, [playType, variant]);
 
   const startGame = async () => {
     let tgId;
@@ -161,19 +136,19 @@ export default function PoolRoyaleLobby() {
     }
 
     const params = new URLSearchParams();
-    const resolvedVariant = playType === 'training'
-      ? trainingScenario?.variant || ['uk', 'american', '9ball'][Math.floor(Math.random() * 3)]
-      : variant;
+    const resolvedVariant = playType === 'training' ? trainingVariant : variant;
     params.set('variant', resolvedVariant);
     params.set('tableSize', tableSize);
     params.set('type', playType);
+    params.set('mode', playType === 'training' ? trainingMode : mode);
+    if (playType === 'training') {
+      params.set('rules', trainingRulesEnabled ? 'on' : 'off');
+    }
     if (playType !== 'training') {
-      params.set('mode', mode);
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
       if (playType === 'tournament') params.set('players', players);
     }
-    if (playType === 'training') params.set('task', trainingTask);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -391,22 +366,60 @@ export default function PoolRoyaleLobby() {
         </div>
       )}
       {playType === 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Training Tasks</h3>
-          <div className="lobby-tile flex flex-col gap-2">
-            <div>
-              <p className="text-sm font-semibold">Task {trainingTask} of 50</p>
-              <p className="text-xs text-subtext">Progressive drills with rewards every completion.</p>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h3 className="font-semibold">Training options</h3>
+            <div className="lobby-tile flex flex-col gap-4">
+              <div>
+                <p className="text-sm font-semibold">Opponent</p>
+                <p className="text-xs text-subtext">Practice alone or invite the AI to take alternate turns.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[{ id: 'solo', label: 'Solo practice' }, { id: 'ai', label: 'Vs AI' }].map(
+                    ({ id, label }) => (
+                      <button
+                        key={id}
+                        onClick={() => setTrainingMode(id)}
+                        className={`lobby-tile ${trainingMode === id ? 'lobby-selected' : ''}`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Rules</p>
+                <p className="text-xs text-subtext">Play with standard fouls or switch to a free table for experimentation.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[{ id: true, label: 'With rules' }, { id: false, label: 'No rules' }].map(
+                    ({ id, label }) => (
+                      <button
+                        key={String(id)}
+                        onClick={() => setTrainingRulesEnabled(Boolean(id))}
+                        className={`lobby-tile ${trainingRulesEnabled === Boolean(id) ? 'lobby-selected' : ''}`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                {nextIncompleteTrainingLevel === null
-                  ? 'All tasks cleared'
-                  : `Next available: Task ${nextIncompleteTrainingLevel}`}
-              </span>
-              <span className="rounded-full bg-surface px-3 py-1 text-xs text-subtext">
-                Completed tasks are locked to keep you moving forward automatically.
-              </span>
+          </div>
+          <div className="space-y-2">
+            <h3 className="font-semibold">Variant</h3>
+            <div className="flex gap-2">
+              {[{ id: 'uk', label: '8 Pool UK' }, { id: 'american', label: 'American' }, { id: '9ball', label: '9-Ball' }].map(
+                ({ id, label }) => (
+                  <button
+                    key={id}
+                    onClick={() => setTrainingVariant(id)}
+                    className={`lobby-tile ${trainingVariant === id ? 'lobby-selected' : ''}`}
+                  >
+                    {label}
+                  </button>
+                )
+              )}
             </div>
           </div>
         </div>
@@ -428,22 +441,6 @@ export default function PoolRoyaleLobby() {
                 {label}
               </button>
             ))}
-          </div>
-        </div>
-      )}
-      {playType === 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Training variant</h3>
-          <div className="lobby-tile flex flex-col gap-2">
-            <p className="text-sm font-semibold">Variant assigned automatically</p>
-            <p className="text-xs text-subtext">
-              Tasks now rotate variants to match each drill, so the three manual options stay hidden.
-              Current pick: {trainingScenario?.variant === 'uk'
-                ? '8 Pool UK'
-                : trainingScenario?.variant === '9ball'
-                  ? '9-Ball'
-                  : 'American'}
-            </p>
           </div>
         </div>
       )}
