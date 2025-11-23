@@ -621,12 +621,18 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     billboards[2].rotation.y = Math.PI / 2;
     billboards.forEach((b) => scene.add(b));
 
-    const grandstand = buildRoyalGrandstand();
-    grandstand.position.set(0, 0, -8);
-    scene.add(grandstand);
+    const standOffsetZ = halfL + apron + 2.2;
+    const northGrandstand = buildRoyalGrandstand();
+    northGrandstand.position.set(0, 0, -standOffsetZ);
+    scene.add(northGrandstand);
+
+    const southGrandstand = buildRoyalGrandstand();
+    southGrandstand.rotation.y = Math.PI;
+    southGrandstand.position.set(0, 0, standOffsetZ);
+    scene.add(southGrandstand);
     const stairs = buildGrandEntranceStairs();
     stairs.rotation.y = Math.PI;
-    stairs.position.set(-0.4, 0, halfL + 1.2);
+    stairs.position.set(-0.4, 0, standOffsetZ - 2.4);
     scene.add(stairs);
     const broadcastRig = buildBroadcastCameraRig(1.25);
     broadcastRig.position.set(halfW + 1.8, 0, 0);
