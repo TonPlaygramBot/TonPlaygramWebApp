@@ -414,12 +414,13 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // pull the middle chrome cut farther inward so the rounded cut sits closer to table centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012; // nudge the middle chrome cut toward the rails so the rounded cut clears away from table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.978; // open the middle rail arches slightly more so the rounded cut breathes around the side pockets
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.008; // push the wooden middle-pocket relief outward so the rounded cut sits farther from table centre
 
 function buildChromePlateGeometry({
   width,
@@ -6213,11 +6214,19 @@ function Table3D(
       scaleChromeCornerPocketCut(mp),
       WOOD_RAIL_POCKET_RELIEF_SCALE * WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE
     );
-  const scaleWoodRailSidePocketCut = (mp) =>
-    scalePocketCutMP(
+  const scaleWoodRailSidePocketCut = (mp, sx = 1) => {
+    const scaled = scalePocketCutMP(
       scaleChromeSidePocketCut(mp),
       WOOD_RAIL_POCKET_RELIEF_SCALE * WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE
     );
+    const sideSign = Math.sign(sx) || 1;
+    return translatePocketCutMP(
+      scaled,
+      sideSign,
+      0,
+      TABLE.THICK * WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE
+    );
+  };
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
@@ -6772,8 +6781,8 @@ function Table3D(
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...scaleWoodRailSidePocketCut(sideNotchMP(-1)),
-    ...scaleWoodRailSidePocketCut(sideNotchMP(1))
+    ...scaleWoodRailSidePocketCut(sideNotchMP(-1), -1),
+    ...scaleWoodRailSidePocketCut(sideNotchMP(1), 1)
   );
   openingMP = polygonClipping.union(
     openingMP,
