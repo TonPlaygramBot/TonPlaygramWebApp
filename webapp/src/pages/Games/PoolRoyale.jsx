@@ -422,12 +422,12 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.028; // keep the chrome cut centred on the jaw opening without over-pulling toward table centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.016; // push the middle chrome cut slightly outward so the arch sits farther from the table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.006; // trim the middle rail arches slightly more so the wood relief shrinks with the tightened middle pocket cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.988; // pull the middle rail arches outward so the relief hugs the rail edge instead of the playfield
 
 function buildChromePlateGeometry({
   width,
@@ -698,7 +698,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.93; // further ease the middle jaw shoulders so the fascia trims down without moving centres
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9; // push the middle jaw shoulders outward so the arches sit farther from the table centre
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
@@ -1846,17 +1846,26 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const DEFAULT_CHROME_COLOR_ID = 'polishedChrome';
+const DEFAULT_CHROME_COLOR_ID = 'chrome';
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
-    id: 'polishedChrome',
-    label: 'Polished Chrome',
-    color: 0xd2d8e2,
-    metalness: 0.9,
-    roughness: 0.22,
-    clearcoat: 0.62,
-    clearcoatRoughness: 0.18,
-    envMapIntensity: 1.04
+    id: 'chrome',
+    label: 'Chrome',
+    color: 0xc0c9d5,
+    metalness: 0.76,
+    roughness: 0.42,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.3,
+    envMapIntensity: 0.58
+  },
+  {
+    id: 'gold',
+    label: 'Gold',
+    color: 0xd4af37,
+    metalness: 0.88,
+    roughness: 0.35,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.2
   }
 ]);
 
@@ -1873,6 +1882,17 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
     },
     sparkle: 1,
     stray: 1
+  }),
+  snookerGreen: Object.freeze({
+    id: 'snookerGreen',
+    palette: {
+      shadow: 0x1c5b35,
+      base: 0x2d7f4b,
+      accent: 0x3f9b60,
+      highlight: 0x59c57f
+    },
+    sparkle: 0.9,
+    stray: 0.96
   }),
   graphite: Object.freeze({
     id: 'graphite',
@@ -1911,6 +1931,18 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       sheen: 0.58,
       sheenRoughness: 0.42,
       emissiveIntensity: 0.52
+    }
+  },
+  {
+    id: 'snookerGreen',
+    label: 'Snooker Cloth',
+    color: 0x2d7f4b,
+    textureKey: 'snookerGreen',
+    detail: {
+      bumpMultiplier: 0.96,
+      sheen: 0.62,
+      sheenRoughness: 0.4,
+      emissiveIntensity: 0.5
     }
   },
   {
@@ -2734,6 +2766,9 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     if (!mesh?.material) return;
     replaceMaterialTexture(mesh.material, 'map', textures.map, fallbackRepeat);
     replaceMaterialTexture(mesh.material, 'bumpMap', textures.bump, fallbackRepeat);
+    if (mesh.material.color && finishInfo.clothMat?.color) {
+      mesh.material.color.copy(finishInfo.clothMat.color);
+    }
   });
   finishInfo.clothTextureKey = textureKey;
 }
