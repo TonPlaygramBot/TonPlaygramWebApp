@@ -411,17 +411,17 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.54; // trim the field-side reach so the
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.58; // widen the middle fascia along the wooden rails so both edges stretch toward the end pockets
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.04; // pull the side fascias toward the wooden rail so the field edge stops at the rail line and the exterior face grows
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.065; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // stop offsetting the middle chrome cut so it stays aligned with the jaw centreline
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.018; // push the middle chrome cut outward so the fascia arch sits farther from table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.06; // open the middle rail arches noticeably more so the rounded cut reaches the chrome hook cleanly
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.035; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.06; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
 
 function buildChromePlateGeometry({
   width,
@@ -696,7 +696,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.075; // push the middle pocket jaws a touch farther from table centre so they sit flush with the widened chrome cut
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.092; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -742,7 +742,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.62; // push the middle pockets farther into the rails so the centres sit tight to the chrome hook
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.86; // push the middle pockets farther into the rails so the centres sit tight to the chrome hook
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // keep the centres tucked while letting the shift reach the fascia without leaving a gap
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
