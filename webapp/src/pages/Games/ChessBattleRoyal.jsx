@@ -35,6 +35,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
+import AvatarTimer from '../../components/AvatarTimer.jsx';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -247,7 +248,7 @@ const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.05;
+const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
@@ -256,6 +257,10 @@ const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
 const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
 const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const ARM_THICKNESS = 0.125 * MODEL_SCALE * STOOL_SCALE;
+const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
+const ARM_DEPTH = SEAT_DEPTH * 0.75;
+const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -273,6 +278,11 @@ const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
+const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
+const FALLBACK_SEAT_POSITIONS = [
+  { left: '50%', top: '84%' },
+  { left: '50%', top: '16%' }
+];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 
 const SNOOKER_TABLE_SCALE = 1.3;
@@ -431,6 +441,59 @@ function createChessChairMaterials(chairOption) {
   legMaterial.userData = { chairId: chairOption?.id ?? 'default' };
 
   return { fabricMaterial, legMaterial };
+}
+
+function createStraightArmrest(side, material) {
+  const sideSign = side === 'right' ? 1 : -1;
+  const group = new THREE.Group();
+
+  const baseHeight = SEAT_THICKNESS / 2;
+  const supportHeight = ARM_HEIGHT + SEAT_THICKNESS * 0.65;
+  const topLength = ARM_DEPTH * 1.1;
+  const topThickness = ARM_THICKNESS * 0.65;
+
+  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
+  top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
+  top.castShadow = true;
+  top.receiveShadow = true;
+  group.add(top);
+
+  const createSupport = (zOffset) => {
+    const support = new THREE.Mesh(
+      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
+      material
+    );
+    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
+    support.castShadow = true;
+    support.receiveShadow = true;
+    return support;
+  };
+
+  const frontSupport = createSupport(ARM_DEPTH * 0.4);
+  const rearSupport = createSupport(-ARM_DEPTH * 0.4);
+  group.add(frontSupport, rearSupport);
+
+  const sidePanel = new THREE.Mesh(
+    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
+    material
+  );
+  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
+  sidePanel.castShadow = true;
+  sidePanel.receiveShadow = true;
+  group.add(sidePanel);
+
+  const handRest = new THREE.Mesh(
+    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
+    material
+  );
+  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
+  handRest.castShadow = true;
+  handRest.receiveShadow = true;
+  group.add(handRest);
+
+  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
+
+  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
 }
 
 function disposeChessChairMaterials(materials) {
@@ -1354,6 +1417,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
   const seatLabelsRef = useRef(null);
+  const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
     if (initialFlag && FLAG_EMOJIS.includes(initialFlag)) {
       return initialFlag;
@@ -1393,6 +1457,46 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
+  const [seatAnchors, setSeatAnchors] = useState([]);
+
+  const seatAnchorMap = useMemo(() => {
+    const map = new Map();
+    seatAnchors.forEach((anchor) => {
+      if (anchor && typeof anchor.index === 'number') {
+        map.set(anchor.index, anchor);
+      }
+    });
+    return map;
+  }, [seatAnchors]);
+
+  const players = useMemo(() => {
+    const accentColor = paletteRef.current?.accent ?? '#4ce0c3';
+    const effectivePlayerFlag =
+      playerFlag || resolvedInitialFlag || (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
+    const playerName =
+      avatarToName(effectivePlayerFlag) || username || avatarToName(avatar) || 'Player';
+    const playerPhoto = avatar || effectivePlayerFlag || '🙂';
+
+    const effectiveAiFlag = aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
+    const aiName = avatarToName(effectiveAiFlag) || 'AI Rival';
+
+    return [
+      {
+        index: 0,
+        photoUrl: playerPhoto,
+        name: playerName,
+        color: accentColor,
+        isTurn: ui.turnWhite
+      },
+      {
+        index: 1,
+        photoUrl: effectiveAiFlag || '🏁',
+        name: aiName,
+        color: accentColor,
+        isTurn: !ui.turnWhite
+      }
+    ];
+  }, [aiFlag, appearance, avatar, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
 
   const [ui, setUi] = useState({
     turnWhite: true,
@@ -1784,6 +1888,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let renderer = null;
     let controls = null;
     let ray = null;
+    const seatWorld = new THREE.Vector3();
+    const seatNdc = new THREE.Vector3();
     const capturedByWhite = [];
     const capturedByBlack = [];
 
@@ -1972,47 +2078,52 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       disposeChessChairMaterials(chairMaterials);
     });
 
-    function makeChair() {
+    function makeChair(index) {
       const g = new THREE.Group();
       const seat = new THREE.Mesh(
         new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
         chairMaterials.fabricMaterial
       );
-      seat.position.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
+      seat.position.y = SEAT_THICKNESS / 2;
       seat.castShadow = true;
       seat.receiveShadow = true;
       g.add(seat);
+
       const back = new THREE.Mesh(
         new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS),
         chairMaterials.fabricMaterial
       );
-      back.position.set(
-        0,
-        CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
-        -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
-      );
+      back.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
       back.castShadow = true;
       back.receiveShadow = true;
       g.add(back);
-      const legG = new THREE.CylinderGeometry(0.11, 0.11, CHAIR_BASE_HEIGHT, 12);
-      const legMeshes = [];
-      const legOffsetX = SEAT_WIDTH * 0.35;
-      const legOffsetZ = SEAT_DEPTH * 0.35;
-      [
-        [-legOffsetX, CHAIR_BASE_HEIGHT / 2, -legOffsetZ],
-        [legOffsetX, CHAIR_BASE_HEIGHT / 2, -legOffsetZ],
-        [-legOffsetX, CHAIR_BASE_HEIGHT / 2, legOffsetZ],
-        [legOffsetX, CHAIR_BASE_HEIGHT / 2, legOffsetZ]
-      ].forEach(([x, y, z]) => {
-        const leg = new THREE.Mesh(legG, chairMaterials.legMaterial);
-        leg.position.set(x, y, z);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        g.add(leg);
-        legMeshes.push(leg);
-      });
+
+      const armLeft = createStraightArmrest('left', chairMaterials.fabricMaterial);
+      g.add(armLeft.group);
+      const armRight = createStraightArmrest('right', chairMaterials.fabricMaterial);
+      g.add(armRight.group);
+
+      const legBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
+        chairMaterials.legMaterial
+      );
+      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
+      legBase.castShadow = true;
+      legBase.receiveShadow = true;
+      g.add(legBase);
+
+      const avatarAnchor = new THREE.Object3D();
+      avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
+      avatarAnchor.userData = { index };
+      g.add(avatarAnchor);
+
       g.scale.setScalar(CHAIR_SCALE);
-      return { group: g, seatMeshes: [seat, back], legMeshes };
+      return {
+        group: g,
+        seatMeshes: [seat, back, ...armLeft.meshes, ...armRight.meshes],
+        legMeshes: [legBase],
+        anchor: avatarAnchor
+      };
     }
 
     function createSeatLabelSprite(flagValue, labelValue, accentColor) {
@@ -2128,12 +2239,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
 
     const chairs = [];
-    const chairA = makeChair();
-    chairA.group.position.set(0, 0, -chairDistance - PLAYER_CHAIR_EXTRA_CLEARANCE);
+    const chairA = makeChair(0);
+    chairA.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance - PLAYER_CHAIR_EXTRA_CLEARANCE);
     arena.add(chairA.group);
     chairs.push(chairA);
-    const chairB = makeChair();
-    chairB.group.position.set(0, 0, chairDistance);
+    const chairB = makeChair(1);
+    chairB.group.position.set(0, CHAIR_BASE_HEIGHT, chairDistance);
     chairB.group.rotation.y = Math.PI;
     arena.add(chairB.group);
     chairs.push(chairB);
@@ -2483,6 +2594,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       boardLookTarget,
       chairMaterials,
       chairs,
+      seatAnchors: chairs.map((chair) => chair.anchor),
       seatLabels,
       spotLight: spot,
       spotTarget,
@@ -2736,6 +2848,41 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     // Loop
     const step = () => {
+      const arenaState = arenaRef.current;
+      if (arenaState?.seatAnchors?.length && camera) {
+        const positions = arenaState.seatAnchors.map((anchor, index) => {
+          anchor.getWorldPosition(seatWorld);
+          seatNdc.copy(seatWorld).project(camera);
+          const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
+          const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
+          const depth = camera.position.distanceTo(seatWorld);
+          return { index, x, y, depth };
+        });
+        let changed = positions.length !== seatPositionsRef.current.length;
+        if (!changed) {
+          for (let i = 0; i < positions.length; i += 1) {
+            const prev = seatPositionsRef.current[i];
+            const curr = positions[i];
+            if (
+              !prev ||
+              Math.abs(prev.x - curr.x) > 0.2 ||
+              Math.abs(prev.y - curr.y) > 0.2 ||
+              Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
+            ) {
+              changed = true;
+              break;
+            }
+          }
+        }
+        if (changed) {
+          seatPositionsRef.current = positions;
+          setSeatAnchors(positions);
+        }
+      } else if (seatPositionsRef.current.length) {
+        seatPositionsRef.current = [];
+        setSeatAnchors([]);
+      }
+
       controls?.update();
       renderer.render(scene, camera);
       rafRef.current = requestAnimationFrame(step);
@@ -2767,7 +2914,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       } catch {}
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
-        controlsRef.current = null;
+      controlsRef.current = null;
       controls?.dispose();
       controls = null;
       const arenaState = arenaRef.current;
@@ -2776,6 +2923,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         arenaState.tableInfo?.dispose?.();
       }
       arenaRef.current = null;
+      seatPositionsRef.current = [];
+      setSeatAnchors([]);
       bombSoundRef.current?.pause();
     };
   }, []);
@@ -2897,6 +3046,50 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               </div>
             </div>
           )}
+        </div>
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          {players.map((player) => {
+            const anchor = seatAnchorMap.get(player.index);
+            const fallback =
+              FALLBACK_SEAT_POSITIONS[player.index] ||
+              FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
+            const positionStyle = anchor
+              ? {
+                  position: 'absolute',
+                  left: `${anchor.x}%`,
+                  top: `${anchor.y}%`,
+                  transform: 'translate(-50%, -50%)'
+                }
+              : {
+                  position: 'absolute',
+                  left: fallback.left,
+                  top: fallback.top,
+                  transform: 'translate(-50%, -50%)'
+                };
+            const depth = anchor?.depth ?? 3;
+            const avatarSize = anchor ? clamp(1.32 - (depth - 2.6) * 0.22, 0.86, 1.2) : 1;
+            return (
+              <div
+                key={`chess-seat-${player.index}`}
+                className="absolute pointer-events-auto flex flex-col items-center"
+                style={positionStyle}
+              >
+                <AvatarTimer
+                  index={player.index}
+                  photoUrl={player.photoUrl}
+                  active={player.isTurn}
+                  isTurn={player.isTurn}
+                  timerPct={1}
+                  name={player.name}
+                  color={player.color}
+                  size={avatarSize}
+                />
+                <span className="mt-1 text-[0.65rem] font-semibold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">
+                  {player.name}
+                </span>
+              </div>
+            );
+          })}
         </div>
         <div className="absolute top-3 right-3 flex items-center space-x-3 pointer-events-auto">
           <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1 text-xs">
