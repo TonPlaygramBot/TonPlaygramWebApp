@@ -1246,6 +1246,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function placeCamera() {
+      const sideSign = player.position.z >= 0 ? 1 : -1;
+      const toLocalZ = (z) => z * sideSign;
+      const fromLocalZ = (z) => z * sideSign;
+      const playerLocalZ = toLocalZ(player.position.z);
+      const cpuLocalZ = toLocalZ(cpu.position.z);
+      const ballLocalZ = toLocalZ(ball.position.z);
+
       const playerServingDiag = !state.live && state.serveBy === 'player';
       const cpuServingDiag = !state.live && state.serveBy === 'cpu';
       if (playerServingDiag) {
@@ -1253,10 +1260,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         const diagTarget = new THREE.Vector3(
           THREE.MathUtils.clamp(player.position.x + sideOffset, -cameraSideLimit, cameraSideLimit),
           camHeight + 0.2,
-          THREE.MathUtils.clamp(player.position.z + camBack + 0.8, cameraMinZ, cameraMaxZ)
+          fromLocalZ(THREE.MathUtils.clamp(playerLocalZ + camBack + 0.8, cameraMinZ, cameraMaxZ))
         );
         camera.position.lerp(diagTarget, 0.25);
-        camera.lookAt(new THREE.Vector3(0, 1.12, -halfL + 0.65));
+        camera.lookAt(new THREE.Vector3(0, 1.12, fromLocalZ(-halfL + 0.65)));
         return;
       }
       if (cpuServingDiag) {
@@ -1264,18 +1271,19 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         const diagTarget = new THREE.Vector3(
           THREE.MathUtils.clamp(cpu.position.x + sideOffset, -cameraSideLimit, cameraSideLimit),
           camHeight + 0.2,
-          THREE.MathUtils.clamp(cpu.position.z - camBack - 0.8, -cameraMaxZ, -cameraMinZ)
+          fromLocalZ(THREE.MathUtils.clamp(cpuLocalZ - camBack - 0.8, -cameraMaxZ, -cameraMinZ))
         );
         camera.position.lerp(diagTarget, 0.25);
-        camera.lookAt(new THREE.Vector3(0, 1.12, halfL - 0.65));
+        camera.lookAt(new THREE.Vector3(0, 1.12, fromLocalZ(halfL - 0.65)));
         return;
       }
-      const camFollowZ = ball.position.z + (ball.position.z >= player.position.z - 0.5 ? 2.6 : 3.4);
-      const baseZ = player.position.z + camBack;
-      const desiredZ = THREE.MathUtils.clamp(
-        Math.max(camFollowZ, baseZ, player.position.z + 0.75),
+
+      const camFollowLocal = ballLocalZ + (ballLocalZ >= playerLocalZ - 0.5 ? 2.6 : 3.4);
+      const baseLocalZ = playerLocalZ + camBack;
+      const desiredLocalZ = THREE.MathUtils.clamp(
+        Math.max(camFollowLocal, baseLocalZ, playerLocalZ + 0.75),
         cameraMinZ,
-        Math.min(cameraMaxZ, baseZ)
+        Math.min(cameraMaxZ, baseLocalZ)
       );
       const followX = THREE.MathUtils.clamp(
         THREE.MathUtils.lerp(player.position.x, ball.position.x, 0.85),
@@ -1283,12 +1291,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         cameraSideLimit
       );
       const followY = Math.max(camHeight * 0.88, ball.position.y + 0.9);
-      const target = new THREE.Vector3(followX, followY, desiredZ);
+      const target = new THREE.Vector3(followX, followY, fromLocalZ(desiredLocalZ));
       camera.position.lerp(target, 0.2);
       const look = new THREE.Vector3(
         THREE.MathUtils.clamp(THREE.MathUtils.lerp(player.position.x * 0.12, ball.position.x, 0.95), -cameraSideLimit, cameraSideLimit),
         Math.max(1.12, ball.position.y + 0.22),
-        Math.max(cameraMinZ, Math.max(player.position.z - 1.6, ball.position.z - 2.2))
+        fromLocalZ(Math.max(cameraMinZ, Math.max(playerLocalZ - 1.6, ballLocalZ - 2.2)))
       );
       camera.lookAt(look);
     }
