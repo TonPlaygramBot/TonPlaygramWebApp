@@ -20,7 +20,7 @@ import {
 } from '../../utils/telegram.js';
 import { bombSound } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
-import { ARENA_CAMERA_DEFAULTS, buildArenaCameraConfig } from '../../utils/arenaCameraConfig.js';
+import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
@@ -239,36 +239,40 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
   }
 ]);
 
+const MODEL_SCALE = 0.75;
+const STOOL_SCALE = 1.5 * 1.3;
+const CARD_SCALE = 0.95;
+
 const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_DISPLAY_SIZE = 3.4;
-const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
+const BOARD_SCALE = 0.05;
+const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 
-const TABLE_RADIUS = 3.315; // 30% wider footprint to better fill the arena
-const TABLE_HEIGHT = 2.05; // Raised so the surface aligns with the oversized chairs
-const CAMERA_TABLE_SPAN_FACTOR = 1.85; // Pull the framing closer so the orbit camera starts tighter
+const TABLE_RADIUS = 3.4 * MODEL_SCALE;
+const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
+const SEAT_THICKNESS = 0.09 * MODEL_SCALE * STOOL_SCALE;
+const BACK_HEIGHT = 0.68 * MODEL_SCALE * STOOL_SCALE;
+const BACK_THICKNESS = 0.08 * MODEL_SCALE * STOOL_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
+const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
+const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
+const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
+const CAMERA_TABLE_SPAN_FACTOR = 2.6;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
-const CHAIR_SCALE = 4; // Chairs are 4x larger
-const CHAIR_CLEARANCE = 0.52;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 1.18; // Pull the player chair further back to clear the camera path
-const CAMERA_PHI_OFFSET = -0.14; // Lower the base angle so pulling down gives a more top-down view
-const CAMERA_TOPDOWN_EXTRA = 0.28; // Allow a steeper overhead angle before the camera hits its floor
-const CAMERA_INITIAL_PHI_EXTRA = 0.18; // Bias the starting camera angle upward a touch
-const SEAT_LABEL_HEIGHT = 0.74; // Drop the floating seat label closer to the chair back
+const CHAIR_SCALE = 1;
+const CHAIR_CLEARANCE = AI_CHAIR_GAP;
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
+const CAMERA_PHI_OFFSET = 0;
+const CAMERA_TOPDOWN_EXTRA = 0;
+const CAMERA_INITIAL_PHI_EXTRA = 0;
+const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
-const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor - 0.12;
-const CAMERA_INITIAL_PHI_LERP = clamp01(
-  ARENA_CAMERA_DEFAULTS.initialPhiLerp + CAMERA_INITIAL_PHI_EXTRA,
-  ARENA_CAMERA_DEFAULTS.initialPhiLerp
-);
-const CAMERA_PLAYER_EYE_HEIGHT = TABLE_HEIGHT + 1.1;
-const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
-const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
-const CAMERA_LEAN_DISTANCE = 0.65; // How much the camera slides toward the board at the steepest look-down
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 
 const SNOOKER_TABLE_SCALE = 1.3;
@@ -286,10 +290,10 @@ const CHESS_ARENA = Object.freeze({
   depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
 });
 
-const CAM_RANGE = buildArenaCameraConfig(BOARD_DISPLAY_SIZE);
+const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_DISPLAY_SIZE / 2);
 const cameraPhiMin = clamp(
   ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET - CAMERA_TOPDOWN_EXTRA,
-  0.4,
+  ARENA_CAMERA_DEFAULTS.phiMin,
   Math.PI - 0.2
 );
 const cameraPhiMax = clamp(
@@ -299,11 +303,11 @@ const cameraPhiMax = clamp(
 );
 const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
 const CAM = {
-  fov: CAM_RANGE.fov,
-  near: CAM_RANGE.near,
-  far: CAM_RANGE.far,
-  minR: CAM_RANGE.minRadius,
-  maxR: CAM_RANGE.maxRadius,
+  fov: ARENA_CAMERA_DEFAULTS.fov,
+  near: ARENA_CAMERA_DEFAULTS.near,
+  far: ARENA_CAMERA_DEFAULTS.far,
+  minR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.minRadiusFactor,
+  maxR: CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.maxRadiusFactor,
   phiMin: cameraPhiMin,
   phiMax: cameraPhiHardMax
 };
@@ -1324,7 +1328,7 @@ const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
 // ======================= Main Component =======================
-function Chess3D({ avatar, username, initialFlag }) {
+function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const timerRef = useRef(null);
@@ -1368,6 +1372,15 @@ function Chess3D({ avatar, username, initialFlag }) {
   }, [initialFlag]);
   const [playerFlag, setPlayerFlag] = useState(resolvedInitialFlag);
   const [aiFlag, setAiFlag] = useState(() => {
+    const preferred =
+      initialAiFlag && FLAG_EMOJIS.includes(initialAiFlag) ? initialAiFlag : null;
+    if (preferred) return preferred;
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage?.getItem('chessBattleRoyalAiFlag');
+        if (stored && FLAG_EMOJIS.includes(stored)) return stored;
+      } catch {}
+    }
     const fallbackChoice =
       FLAG_EMOJIS.length > 0
         ? FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]
@@ -1391,6 +1404,14 @@ function Chess3D({ avatar, username, initialFlag }) {
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
+
+  useEffect(() => {
+    if (aiFlag && FLAG_EMOJIS.includes(aiFlag)) {
+      try {
+        window.localStorage?.setItem('chessBattleRoyalAiFlag', aiFlag);
+      } catch {}
+    }
+  }, [aiFlag]);
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
@@ -1648,7 +1669,7 @@ function Chess3D({ avatar, username, initialFlag }) {
         });
         applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
         if (boardGroup) {
-          boardGroup.position.set(0, nextTable.surfaceY + 0.01, 0);
+          boardGroup.position.set(0, nextTable.surfaceY + 0.004, 0);
           nextTable.group.add(boardGroup);
         }
         arena.tableInfo?.dispose?.();
@@ -1954,28 +1975,34 @@ function Chess3D({ avatar, username, initialFlag }) {
     function makeChair() {
       const g = new THREE.Group();
       const seat = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.06, 0.5),
+        new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
         chairMaterials.fabricMaterial
       );
-      seat.position.y = 0.48;
+      seat.position.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
       seat.castShadow = true;
       seat.receiveShadow = true;
       g.add(seat);
       const back = new THREE.Mesh(
-        new THREE.BoxGeometry(0.5, 0.5, 0.06),
+        new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS),
         chairMaterials.fabricMaterial
       );
-      back.position.set(0, 0.78, -0.22);
+      back.position.set(
+        0,
+        CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2 + BACK_HEIGHT / 2,
+        -SEAT_DEPTH / 2 + BACK_THICKNESS / 2
+      );
       back.castShadow = true;
       back.receiveShadow = true;
       g.add(back);
-      const legG = new THREE.CylinderGeometry(0.03, 0.03, 0.46, 12);
+      const legG = new THREE.CylinderGeometry(0.11, 0.11, CHAIR_BASE_HEIGHT, 12);
       const legMeshes = [];
+      const legOffsetX = SEAT_WIDTH * 0.35;
+      const legOffsetZ = SEAT_DEPTH * 0.35;
       [
-        [-0.2, 0.23, -0.2],
-        [0.2, 0.23, -0.2],
-        [-0.2, 0.23, 0.2],
-        [0.2, 0.23, 0.2]
+        [-legOffsetX, CHAIR_BASE_HEIGHT / 2, -legOffsetZ],
+        [legOffsetX, CHAIR_BASE_HEIGHT / 2, -legOffsetZ],
+        [-legOffsetX, CHAIR_BASE_HEIGHT / 2, legOffsetZ],
+        [legOffsetX, CHAIR_BASE_HEIGHT / 2, legOffsetZ]
       ].forEach(([x, y, z]) => {
         const leg = new THREE.Mesh(legG, chairMaterials.legMaterial);
         leg.position.set(x, y, z);
@@ -2099,8 +2126,6 @@ function Chess3D({ avatar, username, initialFlag }) {
 
     const chairs = [];
     const chairA = makeChair();
-    const seatHalfDepth = 0.25 * CHAIR_SCALE;
-    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + seatHalfDepth + CHAIR_CLEARANCE;
     chairA.group.position.set(0, 0, -chairDistance - PLAYER_CHAIR_EXTRA_CLEARANCE);
     arena.add(chairA.group);
     chairs.push(chairA);
@@ -2227,8 +2252,9 @@ function Chess3D({ avatar, username, initialFlag }) {
     arena.add(studioCamB);
 
     const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
+    const chairDistance = (tableInfo?.radius ?? TABLE_RADIUS) + SEAT_DEPTH / 2 + CHAIR_CLEARANCE;
     const boardGroup = new THREE.Group();
-    boardGroup.position.set(0, tableSurfaceY + 0.01, 0);
+    boardGroup.position.set(0, tableSurfaceY + 0.004, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
     tableInfo.group.add(boardGroup);
     const boardLookTarget = new THREE.Vector3(
@@ -2243,18 +2269,17 @@ function Chess3D({ avatar, username, initialFlag }) {
 
     // Camera orbit via OrbitControls
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    const initialRadius = Math.max(
-      BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
-      (tableInfo?.radius ?? TABLE_RADIUS) * 1.25,
-      CAM.minR + 0.6
+    const isPortrait = host.clientHeight > host.clientWidth;
+    const cameraSeatAngle = Math.PI / 2;
+    const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+    const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
+    const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+    const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
+    camera.position.set(
+      Math.cos(cameraSeatAngle) * cameraRadius,
+      tableSurfaceY + cameraHeightOffset,
+      Math.sin(cameraSeatAngle) * cameraRadius
     );
-    const initialPhi = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP);
-    const initialTheta = Math.PI; // Align with the player chair side
-    const initialOffset = new THREE.Vector3().setFromSpherical(
-      new THREE.Spherical(initialRadius, initialPhi, initialTheta)
-    );
-    camera.position.copy(boardLookTarget).add(initialOffset);
-    camera.position.y = Math.max(camera.position.y, CAMERA_PLAYER_EYE_HEIGHT);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -2267,24 +2292,8 @@ function Chess3D({ avatar, username, initialFlag }) {
     controls.minPolarAngle = CAM.phiMin;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
+    controls.update();
     controlsRef.current = controls;
-
-    const clampCameraHeight = () => {
-      const minHeight = Math.max(CAMERA_PLAYER_EYE_HEIGHT * 0.72, tableSurfaceY + 0.6);
-      if (camera.position.y < minHeight) {
-        camera.position.y = minHeight;
-      }
-      const currentRadius = camera.position.distanceTo(controls.target);
-      const polarAngle = controls.getPolarAngle?.() ?? CAM.phiMax;
-      const leanFactor = clamp01((CAM.phiMax - polarAngle) / (CAM.phiMax - CAM.phiMin || 1));
-      const easedLean = 1 - (1 - leanFactor) ** 2;
-      const leanOffset = easedLean * CAMERA_LEAN_DISTANCE;
-      const clampedRadius = clamp(currentRadius - leanOffset, CAM.minR * 0.9, CAM.maxR);
-      const dir = camera.position.clone().sub(controls.target).normalize();
-      camera.position.copy(controls.target).addScaledVector(dir, clampedRadius);
-    };
-    controls.addEventListener('change', clampCameraHeight);
-    clampCameraHeight();
 
     const fit = () => {
       const w = host.clientWidth;
@@ -2300,10 +2309,6 @@ function Chess3D({ avatar, username, initialFlag }) {
       const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
-      camera.position.y = Math.max(
-        camera.position.y,
-        Math.max(CAMERA_PLAYER_EYE_HEIGHT * 0.72, tableSurfaceY + 0.6)
-      );
       controls.update();
     };
     fitRef.current = fit;
@@ -2945,5 +2950,15 @@ export default function ChessBattleRoyal() {
   const flagParam = params.get('flag') || params.get('playerFlag');
   const initialFlag =
     flagParam && FLAG_EMOJIS.includes(flagParam) ? flagParam : '';
-  return <Chess3D avatar={avatar} username={username} initialFlag={initialFlag} />;
+  const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
+  const initialAiFlag =
+    aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
+  return (
+    <Chess3D
+      avatar={avatar}
+      username={username}
+      initialFlag={initialFlag}
+      initialAiFlag={initialAiFlag}
+    />
+  );
 }

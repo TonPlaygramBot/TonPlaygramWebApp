@@ -22,6 +22,7 @@ import {
   getTelegramId
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -72,6 +73,12 @@ export default function Lobby() {
     setAiType(t);
     if (t === 'flags') setShowFlagPicker(true);
     if (t !== 'flags') setFlags([]);
+  };
+
+  const openAiFlagPicker = () => {
+    if (!aiCount) setAiCount(1);
+    selectAiType('flags');
+    setShowFlagPicker(true);
   };
 
   useEffect(() => {
@@ -301,6 +308,10 @@ export default function Lobby() {
       params.set('table', table.id);
       if (table.capacity) params.set('capacity', String(table.capacity));
     }
+    const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
+    if (aiFlagSelection.length && !(game === 'snake' && table?.id === 'single')) {
+      params.set('aiFlags', aiFlagSelection.join(','));
+    }
     startedRef.current = true;
     navigate(`/games/${game}?${params.toString()}`);
   };
@@ -312,6 +323,8 @@ export default function Lobby() {
       table?.id === 'single' &&
       aiType === 'flags' &&
       flags.length !== aiCount);
+
+  const flagPickerCount = game === 'snake' && table?.id === 'single' ? aiCount : Math.max(aiCount || 1, 1);
 
   const readyIds = new Set(readyList.map((id) => String(id)));
 
@@ -333,6 +346,26 @@ export default function Lobby() {
         <p className="text-center text-subtext text-sm">
           Staking is handled via the on-chain contract.
         </p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">AI Avatar Flags</h3>
+        <p className="text-sm text-subtext text-center">
+          Match the Snake &amp; Ladder lobby by picking worldwide flags for AI opponents.
+        </p>
+        <button
+          type="button"
+          onClick={openAiFlagPicker}
+          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+        >
+          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flags</div>
+          <div className="flex items-center gap-2 text-base font-semibold">
+            <span className="text-lg">
+              {flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}
+            </span>
+            <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+          </div>
+        </button>
       </div>
       {game === 'snake' && table?.id === 'single' && (
         <div className="space-y-2">
@@ -422,7 +455,7 @@ export default function Lobby() {
       </button>
       <FlagPickerModal
         open={showFlagPicker}
-        count={aiCount}
+        count={flagPickerCount}
         selected={flags}
         onSave={setFlags}
         onClose={() => setShowFlagPicker(false)}
