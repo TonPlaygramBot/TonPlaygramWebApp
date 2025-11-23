@@ -248,18 +248,18 @@ const BOARD_SCALE = BOARD_DISPLAY_SIZE / RAW_BOARD_SIZE;
 
 const TABLE_RADIUS = 3.315; // 30% wider footprint to better fill the arena
 const TABLE_HEIGHT = 2.05; // Raised so the surface aligns with the oversized chairs
-const CAMERA_TABLE_SPAN_FACTOR = 2.05; // Slightly tighter framing so the orbit camera starts closer
+const CAMERA_TABLE_SPAN_FACTOR = 1.85; // Pull the framing closer so the orbit camera starts tighter
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
-const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.86; // Pull the player chair further back to clear the camera path
-const CAMERA_PHI_OFFSET = -0.08; // Lower the base angle so pulling down gives a more top-down view
+const PLAYER_CHAIR_EXTRA_CLEARANCE = 1.18; // Pull the player chair further back to clear the camera path
+const CAMERA_PHI_OFFSET = -0.14; // Lower the base angle so pulling down gives a more top-down view
 const CAMERA_INITIAL_PHI_EXTRA = 0.18; // Bias the starting camera angle upward a touch
 const SEAT_LABEL_HEIGHT = 0.74; // Drop the floating seat label closer to the chair back
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
-const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor;
+const CAMERA_INITIAL_RADIUS_FACTOR = ARENA_CAMERA_DEFAULTS.initialRadiusFactor - 0.12;
 const CAMERA_INITIAL_PHI_LERP = clamp01(
   ARENA_CAMERA_DEFAULTS.initialPhiLerp + CAMERA_INITIAL_PHI_EXTRA,
   ARENA_CAMERA_DEFAULTS.initialPhiLerp
