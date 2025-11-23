@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
+import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
   getTelegramId,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { getAccountBalance, addTransaction } from '../../utils/api.js';
+import { getAccountBalance, addTransaction, getOnlineCount } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
@@ -20,6 +22,12 @@ export default function ChessBattleRoyalLobby() {
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [avatar, setAvatar] = useState('');
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
+  const [onlineCount, setOnlineCount] = useState(null);
+  const [accountId, setAccountId] = useState('');
+
+  const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
 
   useEffect(() => {
     try {
@@ -28,12 +36,52 @@ export default function ChessBattleRoyalLobby() {
     } catch {}
   }, []);
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem('chessBattleRoyalPlayerFlag');
+      const idx = FLAG_EMOJIS.indexOf(stored);
+      if (idx >= 0) setPlayerFlagIndex(idx);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    ensureAccountId()
+      .then((id) => {
+        if (cancelled) return;
+        setAccountId(id || '');
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    const fetchOnline = () => {
+      getOnlineCount()
+        .then((d) => {
+          if (!active) return;
+          setOnlineCount(d?.count ?? 0);
+        })
+        .catch(() => {});
+    };
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 20000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, []);
+
   const startGame = async () => {
     let tgId;
-    let accountId;
+    let trackedAccountId;
     try {
-      accountId = await ensureAccountId();
-      const balRes = await getAccountBalance(accountId);
+      trackedAccountId = await ensureAccountId();
+      if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
+      const balRes = await getAccountBalance(trackedAccountId);
       if ((balRes.balance || 0) < stake.amount) {
         alert('Insufficient balance');
         return;
@@ -42,7 +90,7 @@ export default function ChessBattleRoyalLobby() {
       await addTransaction(tgId, -stake.amount, 'stake', {
         game: 'chessbattle',
         players: 2,
-        accountId,
+        accountId: trackedAccountId,
       });
     } catch {}
 
@@ -52,7 +100,8 @@ export default function ChessBattleRoyalLobby() {
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
-    if (accountId) params.set('accountId', accountId);
+    if (trackedAccountId || accountId) params.set('accountId', trackedAccountId || accountId);
+    if (selectedFlag) params.set('flag', selectedFlag);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
@@ -63,6 +112,38 @@ export default function ChessBattleRoyalLobby() {
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center">Chess Battle Royal Lobby</h2>
+      <div className="rounded-xl border border-border bg-surface/60 p-3 space-y-2 shadow">
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">Online duel ready</div>
+          <div className="text-xs text-subtext">
+            {onlineCount != null ? `${onlineCount} players online` : 'Syncing players…'}
+          </div>
+        </div>
+        <p className="text-xs text-subtext leading-snug">
+          Stakes use your TPC account
+          {accountId ? ` #${accountId}` : ''} as the tracker and escrow for every online round.
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowFlagPicker(true)}
+            className="flex-1 px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+          >
+            <div className="text-[11px] uppercase tracking-wide text-subtext">Your flag</div>
+            <div className="flex items-center gap-2 text-base font-semibold">
+              <span className="text-lg">{selectedFlag || '🌐'}</span>
+              <span>{selectedFlag ? 'Custom flag' : 'Auto-detect & save'}</span>
+            </div>
+          </button>
+          {avatar && (
+            <img
+              src={avatar}
+              alt="Your avatar"
+              className="h-12 w-12 rounded-full border border-border object-cover"
+            />
+          )}
+        </div>
+      </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Stake</h3>
         <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
@@ -71,8 +152,15 @@ export default function ChessBattleRoyalLobby() {
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
       >
-        START
+        START ONLINE MATCH
       </button>
+      <FlagPickerModal
+        open={showFlagPicker}
+        count={1}
+        selected={playerFlagIndex != null ? [playerFlagIndex] : []}
+        onSave={(indices) => setPlayerFlagIndex(indices?.[0] ?? null)}
+        onClose={() => setShowFlagPicker(false)}
+      />
     </div>
   );
 }
