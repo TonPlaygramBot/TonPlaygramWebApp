@@ -256,6 +256,7 @@ const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 1.18; // Pull the player chair further back to clear the camera path
 const CAMERA_PHI_OFFSET = -0.14; // Lower the base angle so pulling down gives a more top-down view
+const CAMERA_TOPDOWN_EXTRA = 0.28; // Allow a steeper overhead angle before the camera hits its floor
 const CAMERA_INITIAL_PHI_EXTRA = 0.18; // Bias the starting camera angle upward a touch
 const SEAT_LABEL_HEIGHT = 0.74; // Drop the floating seat label closer to the chair back
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
@@ -267,6 +268,7 @@ const CAMERA_INITIAL_PHI_LERP = clamp01(
 const CAMERA_PLAYER_EYE_HEIGHT = TABLE_HEIGHT + 1.1;
 const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
 const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
+const CAMERA_LEAN_DISTANCE = 0.65; // How much the camera slides toward the board at the steepest look-down
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 
 const SNOOKER_TABLE_SCALE = 1.3;
@@ -286,8 +288,8 @@ const CHESS_ARENA = Object.freeze({
 
 const CAM_RANGE = buildArenaCameraConfig(BOARD_DISPLAY_SIZE);
 const cameraPhiMin = clamp(
-  ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET,
-  0,
+  ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET - CAMERA_TOPDOWN_EXTRA,
+  0.4,
   Math.PI - 0.2
 );
 const cameraPhiMax = clamp(
@@ -2273,7 +2275,11 @@ function Chess3D({ avatar, username, initialFlag }) {
         camera.position.y = minHeight;
       }
       const currentRadius = camera.position.distanceTo(controls.target);
-      const clampedRadius = clamp(currentRadius, CAM.minR, CAM.maxR);
+      const polarAngle = controls.getPolarAngle?.() ?? CAM.phiMax;
+      const leanFactor = clamp01((CAM.phiMax - polarAngle) / (CAM.phiMax - CAM.phiMin || 1));
+      const easedLean = 1 - (1 - leanFactor) ** 2;
+      const leanOffset = easedLean * CAMERA_LEAN_DISTANCE;
+      const clampedRadius = clamp(currentRadius - leanOffset, CAM.minR * 0.9, CAM.maxR);
       const dir = camera.position.clone().sub(controls.target).normalize();
       camera.position.copy(controls.target).addScaledVector(dir, clampedRadius);
     };
