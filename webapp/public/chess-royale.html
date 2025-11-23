@@ -14,18 +14,67 @@
   html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
   body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
   .ui{position:fixed;inset:0;}
-  .scoreboard{position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-  .score{background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;}
+  .scoreboard{position:absolute;top:10px;left:0;right:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+  .score{background:rgba(11,18,32,0.85);backdrop-filter:blur(8px);border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 12px 32px rgba(0,0,0,0.35);}
   .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;display:flex;align-items:center;gap:4px;}
   .p1{background:var(--p1);}
   .p2{background:var(--p2);}
   .avatar{width:20px;height:20px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:16px;}
   .badge.active{outline:2px solid #fff;}
-  .boardWrap{position:absolute;top:40px;bottom:0;left:0;right:0;display:flex;align-items:center;justify-content:center;}
+  .boardWrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
   #board{touch-action:none;}
+  .controls{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(11,18,32,0.9);border:1px solid #233050;border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,0.38);}
+  .controls button{background:#121d33;color:#fff;border:1px solid #233050;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:16px;cursor:pointer;}
+  .controls button:active{transform:translateY(1px);}
+  .controls label{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:700;}
+  .controls input[type=range]{width:140px;accent-color:#22c55e;}
+  .lobby{position:fixed;inset:0;background:rgba(5,8,18,0.92);display:flex;align-items:center;justify-content:center;z-index:5;}
+  .card{background:#0b1220;border:1px solid #233050;border-radius:16px;padding:20px;max-width:420px;width:calc(100% - 32px);color:#e5e7eb;box-shadow:0 18px 38px rgba(0,0,0,0.45);}
+  .card h1{margin:0 0 6px;font-size:28px;letter-spacing:0.5px;}
+  .card p{margin:0 0 14px;font-size:14px;color:#cbd5e1;}
+  .mode-toggle{display:flex;gap:10px;margin-bottom:12px;}
+  .mode-btn{flex:1;padding:10px;border-radius:12px;border:1px solid #233050;background:#121d33;color:#fff;font-weight:700;cursor:pointer;}
+  .mode-btn.active{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.35);}
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
+  .field label{font-size:13px;color:#cbd5e1;}
+  .field input,.field select{padding:10px;border-radius:10px;border:1px solid #233050;background:#0f1628;color:#fff;font-family:inherit;font-size:15px;}
+  .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px;}
+  .primary{background:#22c55e;color:#041204;border:none;padding:10px 16px;border-radius:12px;font-weight:800;cursor:pointer;}
+  .muted{background:#121d33;color:#fff;border:1px solid #233050;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer;}
+  .hidden{display:none;}
 </style>
 </head>
 <body>
+<div class="lobby" id="lobby">
+  <div class="card" role="dialog" aria-modal="true">
+    <h1>Chess Battle Royale</h1>
+    <p>Choose how you want to play and make sure your banner is ready for battle.</p>
+    <div class="mode-toggle" role="group" aria-label="Game mode">
+      <button class="mode-btn active" data-mode="online" id="onlineBtn">Play Online</button>
+      <button class="mode-btn" data-mode="ai" id="aiBtn">Play vs AI</button>
+    </div>
+    <div class="field">
+      <label for="playerName">Your name</label>
+      <input id="playerName" maxlength="18" />
+    </div>
+    <div class="field" id="opponentField">
+      <label for="opponentName">Opponent name</label>
+      <input id="opponentName" maxlength="18" />
+    </div>
+    <div class="field hidden" id="flagField">
+      <label for="playerFlag">Choose your flag</label>
+      <select id="playerFlag"></select>
+    </div>
+    <div class="field hidden" id="aiFlagField">
+      <label for="aiFlag">AI banner</label>
+      <select id="aiFlag"></select>
+    </div>
+    <div class="actions">
+      <button class="muted" id="cancelLobby" type="button">Close</button>
+      <button class="primary" id="startBtn" type="button">Start Match</button>
+    </div>
+  </div>
+</div>
 <div class="ui">
   <div class="scoreboard">
     <div class="score" aria-live="polite">
@@ -37,7 +86,13 @@
   <div class="boardWrap">
     <div id="board"></div>
   </div>
+  <div class="controls" aria-label="Zoom controls">
+    <button id="zoomOut" aria-label="Zoom out">−</button>
+    <label>Zoom <input type="range" id="zoom" min="70" max="140" step="1" value="100"></label>
+    <button id="zoomIn" aria-label="Zoom in">+</button>
+  </div>
 </div>
+<script src="/flag-emojis.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js" integrity="sha512-XQKnNVuMcZV8K4D4ew3Efr2E1VlzDq+W8sELpAo0P5NdQ4KJIp4jOSAmhpN6wX6Z1GDZCBoBPXaGNsq4CPGKiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard-1.0.0.min.js" integrity="sha512-Q4G/n2xbYlR5c+EMF4iAfDdc0AGJi/7luWGINuD/7++UZ5EKeosFVJeFt3uTJS3BM4tiTn84qOD/4hE2lE8pzw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
@@ -48,24 +103,27 @@
   const p2AvatarEl = document.getElementById('p2Avatar');
   const p1Badge = document.getElementById('p1');
   const p2Badge = document.getElementById('p2');
-  const p1Name = params.get('name') || 'Player 1';
-  const p2Name = params.get('p2Name') || 'Player 2';
-  const avatarParam = params.get('avatar') || '😀';
-  const oppParam = params.get('p2Avatar') || '🤖';
-  p1NameEl.textContent = p1Name;
-  p2NameEl.textContent = p2Name;
-  function setAvatar(el,param){
-    if(param.startsWith('http') || param.startsWith('/')){
-      el.style.backgroundImage = `url(${param})`;
-      el.textContent='';
-    }else{
-      el.textContent=param;
-    }
-  }
-  setAvatar(p1AvatarEl, avatarParam);
-  setAvatar(p2AvatarEl, oppParam);
+  const lobby = document.getElementById('lobby');
+  const onlineBtn = document.getElementById('onlineBtn');
+  const aiBtn = document.getElementById('aiBtn');
+  const playerNameInput = document.getElementById('playerName');
+  const opponentNameInput = document.getElementById('opponentName');
+  const playerFlagSelect = document.getElementById('playerFlag');
+  const aiFlagSelect = document.getElementById('aiFlag');
+  const flagField = document.getElementById('flagField');
+  const aiFlagField = document.getElementById('aiFlagField');
+  const opponentField = document.getElementById('opponentField');
+  const startBtn = document.getElementById('startBtn');
+  const cancelLobby = document.getElementById('cancelLobby');
+  const zoomInput = document.getElementById('zoom');
+  const zoomOutBtn = document.getElementById('zoomOut');
+  const zoomInBtn = document.getElementById('zoomIn');
+  const boardEl = document.getElementById('board');
 
   const game = new Chess();
+  let aiMode = false;
+  let zoomLevel = 1;
+
   const board = Chessboard('board', {
     position: 'start',
     draggable: true,
@@ -78,8 +136,22 @@
       if (move === null) return 'snapback';
       board.position(game.fen());
       updateTurn();
+      if(aiMode && game.turn()==='b' && !game.game_over()){
+        setTimeout(makeAiMove, 260);
+      }
     }
   });
+
+  function setAvatar(el,param){
+    if(typeof param === 'string' && (param.startsWith('http') || param.startsWith('/'))){
+      el.style.backgroundImage = `url(${param})`;
+      el.textContent='';
+    }else{
+      el.style.backgroundImage = '';
+      el.textContent=param || '';
+    }
+  }
+
   function updateTurn(){
     if(game.turn()==='w'){
       p1Badge.classList.add('active');
@@ -92,14 +164,93 @@
       setTimeout(()=>alert('Game over'),10);
     }
   }
-  function resize(){
-    const size = Math.min(window.innerWidth, window.innerHeight - 40);
-    const boardEl = document.getElementById('board');
+
+  function makeAiMove(){
+    if(!aiMode || game.game_over() || game.turn()!=='b') return;
+    const moves = game.moves({ verbose:true });
+    if(!moves.length) return updateTurn();
+    const captures = moves.filter(m => m.flags && m.flags.includes('c'));
+    const move = (captures.length ? captures : moves)[Math.floor(Math.random()* (captures.length ? captures.length : moves.length))];
+    game.move(move);
+    board.position(game.fen());
+    updateTurn();
+  }
+
+  function applyBoardSize(){
+    const base = Math.min(window.innerWidth, window.innerHeight);
+    const size = Math.max(220, Math.round(base * zoomLevel));
     boardEl.style.width = boardEl.style.height = size + 'px';
     board.resize();
   }
-  window.addEventListener('resize', resize);
-  resize();
+
+  function clampZoom(val){
+    zoomLevel = Math.min(1.4, Math.max(0.7, val));
+    zoomInput.value = Math.round(zoomLevel*100);
+    applyBoardSize();
+  }
+
+  zoomInput.addEventListener('input', (e)=>{
+    clampZoom(Number(e.target.value)/100);
+  });
+  zoomOutBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 - 8)/100));
+  zoomInBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 + 8)/100));
+  window.addEventListener('resize', applyBoardSize);
+
+  function populateFlags(){
+    const flags = (window.FLAG_EMOJIS || ['😀','🤖']).slice();
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Pick a flag';
+    [playerFlagSelect, aiFlagSelect].forEach(sel => {
+      sel.innerHTML='';
+      sel.appendChild(defaultOption.cloneNode(true));
+      flags.forEach(f=>{
+        const o=document.createElement('option');
+        o.value=o.textContent=f;
+        sel.appendChild(o);
+      });
+    });
+  }
+
+  function setMode(mode){
+    aiMode = mode==='ai';
+    onlineBtn.classList.toggle('active', !aiMode);
+    aiBtn.classList.toggle('active', aiMode);
+    flagField.classList.toggle('hidden', !aiMode);
+    aiFlagField.classList.toggle('hidden', !aiMode);
+    opponentField.classList.toggle('hidden', aiMode);
+  }
+
+  function startMatch(){
+    const name = playerNameInput.value.trim() || 'Player 1';
+    const opponentName = aiMode ? 'Grandmaster AI' : (opponentNameInput.value.trim() || 'Online Rival');
+    const playerFlag = aiMode ? (playerFlagSelect.value || '😀') : (params.get('avatar') || '😀');
+    const opponentFlag = aiMode ? (aiFlagSelect.value || '🤖') : (opponentNameInput.value.trim() ? '🛡️' : (params.get('p2Avatar') || '🤖'));
+    p1NameEl.textContent = name;
+    p2NameEl.textContent = opponentName;
+    setAvatar(p1AvatarEl, playerFlag);
+    setAvatar(p2AvatarEl, opponentFlag);
+    lobby.classList.add('hidden');
+    game.reset();
+    board.start();
+    updateTurn();
+    applyBoardSize();
+  }
+
+  function hydrateDefaults(){
+    playerNameInput.value = params.get('name') || 'Player 1';
+    opponentNameInput.value = params.get('p2Name') || 'Player 2';
+    populateFlags();
+  }
+
+  onlineBtn.addEventListener('click', ()=> setMode('online'));
+  aiBtn.addEventListener('click', ()=> setMode('ai'));
+  startBtn.addEventListener('click', startMatch);
+  cancelLobby.addEventListener('click', ()=> lobby.classList.add('hidden'));
+
+  hydrateDefaults();
+  setMode('online');
+  applyBoardSize();
   updateTurn();
 </script>
 </body>
