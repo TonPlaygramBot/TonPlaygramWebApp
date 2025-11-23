@@ -177,7 +177,14 @@ function adjustSideNotchDepth(mp) {
             ? ring.map((pt) => {
                 if (!Array.isArray(pt) || pt.length < 2) return pt;
                 const [x, z] = pt;
-                return [x, z * CHROME_SIDE_NOTCH_DEPTH_SCALE];
+                const scaledZ = z * CHROME_SIDE_NOTCH_DEPTH_SCALE;
+                const pullBase = Math.abs(z) * CHROME_SIDE_FIELD_PULL_SCALE;
+                const maxPull = Math.min(Math.abs(scaledZ), pullBase);
+                if (maxPull <= 0) {
+                  return [x, scaledZ];
+                }
+                const dir = scaledZ === 0 ? 0 : scaledZ > 0 ? 1 : -1;
+                return [x, scaledZ - dir * maxPull];
               })
             : ring
         )
@@ -211,10 +218,29 @@ const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1;
 const CHROME_CORNER_WIDTH_SCALE = 0.982;
 const CHROME_CORNER_HEIGHT_SCALE = 0.962;
+const CHROME_CORNER_FIELD_FILLET_SCALE = 0;
+const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
+const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia proportions aligned with Pool Royale plates
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008;
+const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
+const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
 const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.028; // reuse Pool Royale side pocket arch width
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
+const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
+const CHROME_SIDE_FIELD_PULL_SCALE = 0;
+const CHROME_PLATE_THICKNESS_SCALE = 0.034;
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1;
+const CHROME_PLATE_RENDER_ORDER = 3.5;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
+const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.006;
 const WOOD_CORNER_CUT_SCALE = 0.988; // mirror Pool Royale wood relief inset for corner cuts
 const WOOD_SIDE_CUT_SCALE = 1.012; // align side rail apertures with Pool Royale chrome reveal
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
@@ -688,7 +714,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 18;
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 12; // pull broadcast cams closer so the snooker table fills the frame
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -2453,7 +2479,8 @@ function createBroadcastCameras({
   const maxDepth = typeof arenaHalfDepth === 'number'
     ? Math.max(shortRailZ + BALL_R * 8, arenaHalfDepth)
     : fallbackDepth;
-  const cameraCenterZOffset = Math.min(maxDepth, fallbackDepth + BALL_R * 8);
+  const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
+  const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
 
   const createShortRailUnit = (zSign) => {
@@ -2876,7 +2903,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0365; // pull the player camera tighter to match the reduced table footprint
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.028; // pull the player camera much tighter to mirror Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.06;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.29;
@@ -4468,7 +4495,8 @@ function Table3D(
   );
   const cornerShift = (vertSeg - trimmedVertSeg) * 0.5;
 
-  const chromePlateThickness = railH * 0.12; // thicken chrome plates by ~50% for deeper detailing
+  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror Pool Royale fascia depth
+  const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // match middle pocket fascia depth
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -4495,6 +4523,8 @@ function Table3D(
     0,
     (chromePlateInnerLimitZ - chromeCornerMeetZ) * CHROME_CORNER_SIDE_EXPANSION_SCALE
   );
+  const chromeCornerEdgeTrim = TABLE.THICK * CHROME_CORNER_EDGE_TRIM_SCALE;
+  const chromeOuterFlushTrim = TABLE.THICK * CHROME_OUTER_FLUSH_TRIM_SCALE;
   const chromePlateBaseWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX + chromePlateExpansionX -
@@ -4507,29 +4537,45 @@ function Table3D(
   );
   const chromePlateWidth = Math.max(
     MICRO_EPS,
-    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE
+    chromePlateBaseWidth * CHROME_CORNER_WIDTH_SCALE * CHROME_CORNER_DIMENSION_SCALE -
+      chromeCornerEdgeTrim -
+      chromeOuterFlushTrim * 2
   );
+  const chromeCornerFieldExtension =
+    POCKET_VIS_R * CHROME_CORNER_FIELD_EXTENSION_SCALE * POCKET_VISUAL_EXPANSION;
   const chromePlateHeight = Math.max(
     MICRO_EPS,
-    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE
+    chromePlateBaseHeight * CHROME_CORNER_HEIGHT_SCALE * CHROME_CORNER_DIMENSION_SCALE -
+      chromeCornerEdgeTrim +
+      chromeCornerFieldExtension -
+      chromeOuterFlushTrim * 2
   );
   const chromePlateRadius = Math.min(
     outerCornerRadius * 0.95,
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
-  const chromePlateY =
-    railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const chromePlateY = railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const sideChromePlateY = railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
+  const chromeCornerCenterOutset =
+    TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
+  const chromeCornerShortRailShift =
+    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE;
+  const chromeCornerShortRailCenterPull =
+    TABLE.THICK * CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE;
 
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
-  const sidePlatePocketWidth = sidePocketRadius * 2 * 1.4;
+  const sidePlatePocketWidth = sidePocketRadius * 2 * CHROME_SIDE_PLATE_POCKET_SPAN_SCALE;
   const sidePlateMaxWidth = Math.max(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
-    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) - TABLE.THICK * 0.06
+    Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
+      TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
+      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE -
+      chromeOuterFlushTrim * 2
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
@@ -4540,12 +4586,15 @@ function Table3D(
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
   const sideChromePlateHeight = Math.min(
-    chromePlateHeight * 0.94,
+    Math.max(
+      MICRO_EPS,
+      chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2
+    ),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
   const sideChromePlateRadius = Math.min(
     chromePlateRadius * 0.3,
-    Math.min(sideChromePlateWidth, sideChromePlateHeight) * 0.04
+    Math.min(sideChromePlateWidth, sideChromePlateHeight) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
   );
 
   const innerHalfW = halfWext;
@@ -4636,6 +4685,49 @@ function Table3D(
   };
   const ringArea = (ring) => signedRingArea(ring);
 
+  const cornerFieldFilletPoly = (cx, cz, sx, sz, radius, segments = 64) => {
+    if (radius <= MICRO_EPS) {
+      return null;
+    }
+    const axisXAngle = sx > 0 ? 0 : Math.PI;
+    const axisZAngle = sz > 0 ? Math.PI / 2 : -Math.PI / 2;
+    let startAngle = axisXAngle;
+    let endAngle = axisZAngle;
+    let sweep = endAngle - startAngle;
+    if (sweep <= 0) {
+      endAngle += Math.PI * 2;
+      sweep = endAngle - startAngle;
+    }
+    if (sweep > Math.PI) {
+      startAngle = axisZAngle;
+      endAngle = axisXAngle;
+      sweep = endAngle - startAngle;
+      if (sweep <= 0) {
+        endAngle += Math.PI * 2;
+        sweep = endAngle - startAngle;
+      }
+    }
+    if (sweep <= MICRO_EPS) {
+      return null;
+    }
+    const pts = [];
+    const steps = Math.max(3, Math.ceil((segments * sweep) / (Math.PI * 2)));
+    for (let i = 0; i <= steps; i++) {
+      const t = startAngle + (sweep * i) / steps;
+      const x = cx + radius * Math.cos(t);
+      const z = cz + radius * Math.sin(t);
+      pts.push([x, z]);
+    }
+    if (pts.length) {
+      const first = pts[0];
+      const last = pts[pts.length - 1];
+      if (first[0] !== last[0] || first[1] !== last[1]) {
+        pts.push([first[0], first[1]]);
+      }
+    }
+    return [[pts]];
+  };
+
   const cornerNotchMP = (sx, sz) => {
     const cx = sx * (innerHalfW - cornerInset);
     const cz = sz * (innerHalfH - cornerInset);
@@ -4659,14 +4751,21 @@ function Table3D(
     const fieldClipDepth = cornerChamfer * CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE;
     const unionParts = [notchCircle, boxX, boxZ];
     if (fieldClipWidth > MICRO_EPS && fieldClipDepth > MICRO_EPS) {
-      unionParts.push([
-        [
-          [cx, cz],
-          [cx + sx * fieldClipWidth, cz],
-          [cx, cz + sz * fieldClipDepth],
-          [cx, cz]
-        ]
-      ]);
+      const filletRadius =
+        Math.min(fieldClipWidth, fieldClipDepth) * CHROME_CORNER_FIELD_FILLET_SCALE;
+      const fillet = cornerFieldFilletPoly(cx, cz, sx, sz, filletRadius);
+      if (fillet) {
+        unionParts.push(fillet);
+      } else {
+        unionParts.push([
+          [
+            [cx, cz],
+            [cx + sx * fieldClipWidth, cz],
+            [cx, cz + sz * fieldClipDepth],
+            [cx, cz]
+          ]
+        ]);
+      }
     }
     if (wedgeDepth > MICRO_EPS) {
       unionParts.push([
@@ -4699,7 +4798,7 @@ function Table3D(
     );
     const throatRadius = Math.max(
       MICRO_EPS,
-      Math.min(throatHeight / 2, radius * 0.6)
+      Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
     const circle = circlePoly(cx, 0, radius, 256);
@@ -4724,8 +4823,12 @@ function Table3D(
     { corner: 'bottomRight', sx: 1, sz: 1 },
     { corner: 'bottomLeft', sx: -1, sz: 1 }
   ].forEach(({ corner, sx, sz }) => {
-    const centerX = sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset);
-    const centerZ = sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset);
+    const centerX =
+      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterOutset) -
+      sx * chromeCornerShortRailCenterPull;
+    const centerZ =
+      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
+      sz * chromeCornerShortRailShift;
     const notchLocalMP = cornerNotchMP(sx, sz).map((poly) =>
       poly.map((ring) =>
         ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
@@ -4743,9 +4846,10 @@ function Table3D(
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
@@ -4756,24 +4860,30 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
-    const notchLocalMP = sideNotchMP(sx).map((poly) =>
-      poly.map((ring) => ring.map(([x, z]) => [x - centerX, -(z - centerZ)]))
+    const notchMP = sideNotchMP(sx);
+    const sidePocketCutCenterPull =
+      TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
+    const notchLocalMP = notchMP.map((poly) =>
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
+      )
     );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
         width: sideChromePlateWidth,
         height: sideChromePlateHeight,
         radius: sideChromePlateRadius,
-        thickness: chromePlateThickness,
+        thickness: sideChromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
         shapeSegments: chromePlateShapeSegments
       }),
       trimMat
     );
-    plate.position.set(centerX, chromePlateY, centerZ);
+    plate.position.set(centerX, sideChromePlateY + sideChromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
     chromePlates.add(plate);
     finishParts.trimMeshes.push(plate);
   });
