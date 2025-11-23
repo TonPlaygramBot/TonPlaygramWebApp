@@ -264,6 +264,7 @@ const CAMERA_INITIAL_PHI_LERP = clamp01(
   ARENA_CAMERA_DEFAULTS.initialPhiLerp + CAMERA_INITIAL_PHI_EXTRA,
   ARENA_CAMERA_DEFAULTS.initialPhiLerp
 );
+const CAMERA_PLAYER_EYE_HEIGHT = TABLE_HEIGHT + 1.1;
 const CAMERA_VERTICAL_SENSITIVITY = ARENA_CAMERA_DEFAULTS.verticalSensitivity;
 const CAMERA_LEAN_STRENGTH = ARENA_CAMERA_DEFAULTS.leanStrength;
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
@@ -294,6 +295,7 @@ const cameraPhiMax = clamp(
   cameraPhiMin + 0.05,
   Math.PI - 0.001
 );
+const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
 const CAM = {
   fov: CAM_RANGE.fov,
   near: CAM_RANGE.near,
@@ -301,7 +303,7 @@ const CAM = {
   minR: CAM_RANGE.minRadius,
   maxR: CAM_RANGE.maxRadius,
   phiMin: cameraPhiMin,
-  phiMax: cameraPhiMax
+  phiMax: cameraPhiHardMax
 };
 
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
@@ -2241,14 +2243,16 @@ function Chess3D({ avatar, username, initialFlag }) {
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const initialRadius = Math.max(
       BOARD_DISPLAY_SIZE * CAMERA_INITIAL_RADIUS_FACTOR,
+      (tableInfo?.radius ?? TABLE_RADIUS) * 1.25,
       CAM.minR + 0.6
     );
     const initialPhi = THREE.MathUtils.lerp(CAM.phiMin, CAM.phiMax, CAMERA_INITIAL_PHI_LERP);
-    const initialTheta = Math.PI * 0.25;
+    const initialTheta = Math.PI; // Align with the player chair side
     const initialOffset = new THREE.Vector3().setFromSpherical(
       new THREE.Spherical(initialRadius, initialPhi, initialTheta)
     );
     camera.position.copy(boardLookTarget).add(initialOffset);
+    camera.position.y = Math.max(camera.position.y, CAMERA_PLAYER_EYE_HEIGHT);
     camera.lookAt(boardLookTarget);
 
     controls = new OrbitControls(camera, renderer.domElement);
@@ -2262,6 +2266,19 @@ function Chess3D({ avatar, username, initialFlag }) {
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
     controlsRef.current = controls;
+
+    const clampCameraHeight = () => {
+      const minHeight = Math.max(CAMERA_PLAYER_EYE_HEIGHT * 0.72, tableSurfaceY + 0.6);
+      if (camera.position.y < minHeight) {
+        camera.position.y = minHeight;
+      }
+      const currentRadius = camera.position.distanceTo(controls.target);
+      const clampedRadius = clamp(currentRadius, CAM.minR, CAM.maxR);
+      const dir = camera.position.clone().sub(controls.target).normalize();
+      camera.position.copy(controls.target).addScaledVector(dir, clampedRadius);
+    };
+    controls.addEventListener('change', clampCameraHeight);
+    clampCameraHeight();
 
     const fit = () => {
       const w = host.clientWidth;
@@ -2277,6 +2294,10 @@ function Chess3D({ avatar, username, initialFlag }) {
       const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
+      camera.position.y = Math.max(
+        camera.position.y,
+        Math.max(CAMERA_PLAYER_EYE_HEIGHT * 0.72, tableSurfaceY + 0.6)
+      );
       controls.update();
     };
     fitRef.current = fit;
@@ -2733,6 +2754,7 @@ function Chess3D({ avatar, username, initialFlag }) {
       } catch {}
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
+      controls?.removeEventListener?.('change', clampCameraHeight);
       controlsRef.current = null;
       controls?.dispose();
       controls = null;
