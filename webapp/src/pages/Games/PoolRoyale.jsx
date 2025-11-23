@@ -396,7 +396,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.006; // keep the middle chrome arch slightly relaxed so the rounded cut hugs the slimmer jaws without widening the reveal
+  0.992; // tighten the middle chrome arch so the rounded cut tracks the smaller, fuller jaws without widening the reveal
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -414,7 +414,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.01; // pull the middle chrome cut farther inward so the rounded cut sits closer to table centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.016; // pull the middle chrome cut farther inward so the rounded cut sits closer to table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -658,12 +658,12 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
-  POCKET_JAW_CORNER_OUTER_LIMIT_SCALE * 0.974; // trim the middle jaw clamp further so it stops where the rounded rail cut ends
+  POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 0.9; // shrink the middle pocket fascia further so the jaw matches the tighter rounded side cut
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.98; // keep the middle fascia nearly as thick as the corners so the jaws read as equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
@@ -691,8 +691,8 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.92; // pull the middle jaw shoulders in so they terminate with the rounded side rail cut
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.962; // tighten the outer radius to accompany the shorter fascia length
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.95; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.94; // shrink the side jaw radius further while keeping the fascia thickness intact
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.02; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
