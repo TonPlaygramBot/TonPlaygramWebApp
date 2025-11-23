@@ -414,12 +414,13 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.012; // align the middle chrome arch to the jaw span instead of widening the reveal
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012; // nudge the middle chrome cut outward so the arch sits farther from the table centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.032; // nudge the middle chrome cut outward so the arch sits farther from the table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.978; // open the middle rail arches slightly more so the rounded cut breathes around the side pockets
+const WOOD_SIDE_POCKET_CENTER_PULL = TABLE.THICK * 0.06; // slide the middle rail relief outward so the rounded cut hugs the side rails
 
 function buildChromePlateGeometry({
   width,
@@ -663,7 +664,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly fart
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 0.936; // trim the middle pocket fascia a hair smaller while keeping it centred on the rail
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.9; // pinch the middle pocket fascia so the jaws sit slightly slimmer along the rail
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
@@ -690,8 +691,8 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.952; // push the middle jaw shoulders farther toward the rails so the arches sit away from table centre
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.984; // push the middle jaw shoulders farther toward the rails so the arches sit away from table centre
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.95; // tighten the outer radius to accompany the shorter fascia length
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
@@ -6772,8 +6773,18 @@ function Table3D(
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...scaleWoodRailSidePocketCut(sideNotchMP(-1)),
-    ...scaleWoodRailSidePocketCut(sideNotchMP(1))
+    ...translatePocketCutMP(
+      scaleWoodRailSidePocketCut(sideNotchMP(-1)),
+      -1,
+      0,
+      WOOD_SIDE_POCKET_CENTER_PULL
+    ),
+    ...translatePocketCutMP(
+      scaleWoodRailSidePocketCut(sideNotchMP(1)),
+      1,
+      0,
+      WOOD_SIDE_POCKET_CENTER_PULL
+    )
   );
   openingMP = polygonClipping.union(
     openingMP,
@@ -8386,10 +8397,9 @@ function PoolRoyaleGame({
   }, [isTraining, trainingModeState, trainingRulesOn, setFrameState]);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
-    setInHandPlacementMode(false);
-    if (hud.inHand) {
-      cueBallPlacedFromHandRef.current = false;
-    }
+    const placing = Boolean(hud.inHand);
+    setInHandPlacementMode(placing);
+    cueBallPlacedFromHandRef.current = placing;
   }, [hud.inHand]);
   const toggleInHandPlacement = useCallback(() => {
     setInHandPlacementMode((prev) => {
@@ -12633,8 +12643,10 @@ function PoolRoyaleGame({
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const isAmericanVariant = () =>
-        (activeVariantRef.current?.id ?? variantKey) === 'american';
+        const isAmericanVariant = () => {
+          const activeId = activeVariantRef.current?.id ?? variantKey;
+          return activeId === 'american' || activeId === '9ball';
+        };
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
@@ -12699,11 +12711,6 @@ function PoolRoyaleGame({
           cue.active = true;
           inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
-          if (hudRef.current?.inHand) {
-            const nextHud = { ...hudRef.current, inHand: false };
-            hudRef.current = nextHud;
-            setHud(nextHud);
-          }
         }
         return true;
       };
@@ -12945,7 +12952,7 @@ function PoolRoyaleGame({
       if (hudRef.current?.inHand) {
         const startPos = defaultInHandPosition();
         if (startPos) {
-          cue.active = false;
+          cue.active = true;
           updateCuePlacement(startPos);
           cueBallPlacedFromHandRef.current = true;
         }
@@ -15902,8 +15909,10 @@ function PoolRoyaleGame({
                 ? 'bg-emerald-400 text-black ring-1 ring-emerald-200/80'
                 : 'bg-white/90 text-gray-900 ring-1 ring-white/60 hover:bg-white'
             }`}
-          >
-            {inHandPlacementMode ? 'Ball in hand (placing)' : 'Ball in hand'}
+            >
+              {inHandPlacementMode
+                ? 'Repositioning cue ball'
+                : 'Reposition cue ball'}
           </button>
         </div>
       )}
