@@ -1436,27 +1436,41 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       while (gestureTrail.length > 1 && now - gestureTrail[0].t > 260) gestureTrail.shift();
     }
     function deriveSwingFromGesture(vx, vy, spd, { serve = false } = {}) {
-      const minSwipe = serve ? 320 : 420;
-      const maxSwipe = serve ? 1600 : 1800;
+      const minSwipe = serve ? 260 : 340;
+      const maxSwipe = serve ? 1480 : 1720;
       const swipePower = THREE.MathUtils.clamp(
-        THREE.MathUtils.mapLinear(spd, minSwipe, maxSwipe, 4, 15),
-        4,
-        15
+        THREE.MathUtils.mapLinear(spd, minSwipe, maxSwipe, 6, 17),
+        6,
+        17
       );
-      const normalizedForce = THREE.MathUtils.clamp(swipePower / 15, serve ? 0.35 : 0.26, 1);
+      const normalizedForce = THREE.MathUtils.clamp(swipePower / 17, serve ? 0.42 : 0.32, 1);
       const flat = new THREE.Vector2(vx, -vy);
       if (flat.lengthSq() < 1e-4) flat.set(0, 1);
       flat.normalize();
-      const depthBias = THREE.MathUtils.clamp(THREE.MathUtils.mapLinear(flat.y, 0, 1, 0.55, 1.05), 0.55, 1.05);
+
+      const verticalIntent = THREE.MathUtils.clamp((-vy) / Math.max(1, Math.abs(vx) + Math.abs(vy)), -0.35, 0.9);
+      const depthBias = THREE.MathUtils.clamp(
+        THREE.MathUtils.mapLinear(flat.y, 0, 1, 0.62, 1.1) + verticalIntent * 0.25,
+        0.62,
+        1.2
+      );
       const lateralLean = THREE.MathUtils.clamp(flat.x, -0.9, 0.9);
-      const forwardDir = new THREE.Vector3(lateralLean * 0.52, THREE.MathUtils.lerp(0.2, 0.42, depthBias), -1);
+      const forwardDir = new THREE.Vector3(
+        lateralLean * 0.62,
+        THREE.MathUtils.lerp(0.32, 0.68, depthBias),
+        -1
+      );
       forwardDir.normalize();
-      const swingSpeed = THREE.MathUtils.lerp(6.2, 15.5, normalizedForce) * (serve ? 1.05 : 0.98);
+
+      const swingSpeed = THREE.MathUtils.lerp(7.0, 17.5, normalizedForce) * (serve ? 1.08 : 1.02);
       const spinAxis = new THREE.Vector3(-depthBias * 0.92, THREE.MathUtils.clamp(lateralLean * 0.86, -0.86, 0.86), 0.4);
-      const topSpin = THREE.MathUtils.lerp(10, 24, normalizedForce * depthBias);
-      const sideSpin = THREE.MathUtils.lerp(3, 12, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
+      const topSpin = THREE.MathUtils.lerp(10, 26, normalizedForce * depthBias);
+      const sideSpin = THREE.MathUtils.lerp(3, 12.5, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
       const additionalSpin = spinAxis.normalize().multiplyScalar(topSpin);
       additionalSpin.y += sideSpin;
+
+      const liftBoost = THREE.MathUtils.clamp(THREE.MathUtils.lerp(0.25, 1.2, depthBias) + Math.max(0, verticalIntent) * 1.35, 0.25, 1.45);
+
       return {
         normal: forwardDir,
         speed: swingSpeed,
@@ -1467,7 +1481,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         reach: ballR + 0.7,
         force: normalizedForce,
         power: swipePower,
-        aimDirection: forwardDir.clone()
+        aimDirection: forwardDir.clone(),
+        liftBoost
       };
     }
 
@@ -1506,8 +1521,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         vel.copy(blended.multiplyScalar(currentSpeed));
       }
 
-      const baseLift = state.live ? 2.2 : 3.1;
-      const minUpward = baseLift + (swing.force ?? 0.5) * 1.8;
+      const baseLift = state.live ? 2.6 : 3.4;
+      const minUpward = baseLift + (swing.force ?? 0.5) * 2.2 + (swing.liftBoost ?? 0);
       if (vel.y < minUpward) {
         vel.y = minUpward;
       }
