@@ -23,16 +23,11 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
-import { TRAINING_SCENARIOS, getTrainingScenario } from '../../config/poolRoyaleTraining.js';
+import { getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
-import {
-  getNextIncompleteLevel,
-  loadTrainingProgress,
-  persistTrainingProgress,
-  resolvePlayableTrainingLevel
-} from '../../utils/poolRoyaleTrainingProgress.js';
+import { getNextIncompleteLevel } from '../../utils/poolRoyaleTrainingProgress.js';
 import {
   createCueRackDisplay,
   CUE_RACK_PALETTE
@@ -427,7 +422,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.956; // pull the middle rail arches farther outward so the relief hugs the rail edge instead of the playfield
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.978; // push the middle rail arches a touch wider so the rounded wood cuts grow around the side pockets
 
 function buildChromePlateGeometry({
   width,
@@ -666,12 +661,12 @@ const TABLE = {
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
-  POCKET_JAW_CORNER_OUTER_LIMIT_SCALE * 0.986; // ease the side jaw clamp so it finishes flush with the side rails
+  POCKET_JAW_CORNER_OUTER_LIMIT_SCALE * 0.976; // ease the side jaw clamp so it finishes flush with the side rails
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 0.944; // tighten the middle pocket fascia so it remains centred without shifting position
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.936; // tighten the middle pocket fascia so it remains centred without shifting position
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
@@ -698,7 +693,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.94; // push the middle jaw shoulders outward so the arches sit farther from the table centre
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.962; // push the middle jaw shoulders outward so the arches sit farther from the table centre
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // tighten the outer radius to accompany the shorter fascia length
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.974; // pull the side jaw depth back slightly to keep the vertical stop aligned with the rail
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
@@ -7879,83 +7874,41 @@ function PoolRoyaleGame({
     [clothColorId]
   );
   const isTraining = playType === 'training';
-  const [trainingProgress, setTrainingProgress] = useState(() => loadTrainingProgress());
-  const resolvedTrainingLevel = useMemo(() => {
-    if (!isTraining) return trainingLevel;
-    return resolvePlayableTrainingLevel(trainingLevel, trainingProgress);
-  }, [isTraining, trainingLevel, trainingProgress]);
+  const trainingTasksEnabled = false;
+  const [trainingOpponent, setTrainingOpponent] = useState('ai');
+  const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
+  const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
+  const trainingSolo = isTraining && trainingOpponent === 'solo';
+  const resolvedTrainingLevel = useMemo(() => trainingLevel, [trainingLevel]);
   const trainingScenario = useMemo(
-    () => (isTraining ? getTrainingScenario(resolvedTrainingLevel) : null),
-    [isTraining, resolvedTrainingLevel]
+    () => (isTraining && trainingTasksEnabled ? getTrainingScenario(resolvedTrainingLevel) : null),
+    [isTraining, resolvedTrainingLevel, trainingTasksEnabled]
   );
-  const trainingProgressRef = useRef(trainingProgress);
+  const trainingProgressRef = useRef({ completed: [], lastLevel: trainingLevel });
   const [trainingPopup, setTrainingPopup] = useState(null);
   const trainingRewardedRef = useRef(false);
-  const [trainingGuideVisible, setTrainingGuideVisible] = useState(true);
-  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(() =>
-    isTraining && trainingScenario ? trainingScenario.shotLimit ?? null : null
-  );
+  const [trainingGuideVisible, setTrainingGuideVisible] = useState(false);
+  const [trainingShotsRemaining, setTrainingShotsRemaining] = useState(null);
   const trainingShotsRemainingRef = useRef(trainingShotsRemaining);
   const trainingShotLimitLockedRef = useRef(false);
-  const trainingTaskDetails = useMemo(() => {
-    if (!isTraining || !trainingScenario) return null;
-    const level = resolvedTrainingLevel || trainingLevel || 1;
-    return {
-      level,
-      title: trainingScenario.title,
-      description: trainingScenario.description,
-      objective: trainingScenario.objective,
-      discipline: trainingScenario.discipline,
-      difficulty: trainingScenario.difficultyLabel,
-      tip: trainingScenario.tip,
-      shotsAllowed: trainingScenario.shotLimit
-    };
-  }, [isTraining, resolvedTrainingLevel, trainingLevel, trainingScenario]);
-  useEffect(() => {
-    if (!isTraining) return;
-    trainingProgressRef.current = trainingProgress;
-    persistTrainingProgress(trainingProgress);
-  }, [isTraining, trainingProgress]);
-  useEffect(() => {
-    if (!isTraining || !trainingScenario) return;
-    const limit = Math.max(1, trainingScenario.shotLimit || 5);
-    trainingShotLimitLockedRef.current = false;
-    trainingShotsRemainingRef.current = limit;
-    setTrainingShotsRemaining(limit);
-  }, [isTraining, trainingScenario]);
-  useEffect(() => {
-    if (!isTraining || !trainingTaskDetails) return;
-    setTrainingGuideVisible(true);
-  }, [isTraining, trainingTaskDetails?.level]);
-  useEffect(() => {
-    if (!isTraining || !trainingPopup) return;
-    setTrainingGuideVisible(true);
-  }, [isTraining, trainingPopup]);
-  useEffect(() => {
-    if (!isTraining) return;
-    if (trainingPopup) return;
-    if (resolvedTrainingLevel !== trainingLevel) {
-      goToTrainingLevel(resolvedTrainingLevel, true);
-      return;
-    }
-    const completedSet = new Set(trainingProgressRef.current.completed || []);
-    if (!completedSet.has(resolvedTrainingLevel)) return;
-    const nextLevel = getNextIncompleteLevel(completedSet);
-    if (nextLevel) {
-      goToTrainingLevel(nextLevel, true);
-    } else {
-      goToTrainingLevel(null, true);
-    }
-  }, [goToTrainingLevel, isTraining, resolvedTrainingLevel, trainingLevel, trainingPopup]);
+  const [trainingProgress, setTrainingProgress] = useState({ completed: [], lastLevel: trainingLevel });
+  const trainingTaskDetails = null;
   const handleTrainingOutcome = useCallback(
     async (playerWon, failReason) => {
       const scenario = trainingScenario;
       const level = resolvedTrainingLevel || 1;
-      if (!playerWon) {
-        setTrainingProgress((prev) => ({
-          completed: prev?.completed || [],
-          lastLevel: level
+      if (!trainingTasksEnabled) {
+        setHud((prev) => ({
+          ...prev,
+          over: true,
+          phase: playerWon ? 'Training session' : 'Training interrupted',
+          next: playerWon ? 'Session finished' : 'Reset and try again',
+          turn: 0
         }));
+        setTrainingPopup(null);
+        return;
+      }
+      if (!playerWon) {
         setHud((prev) => ({
           ...prev,
           over: true,
@@ -9064,7 +9017,7 @@ function PoolRoyaleGame({
         localId = 'B';
       }
       const activeId = frameState.activePlayer === 'B' ? 'B' : 'A';
-      const isPlayerTurn = activeId === localId;
+      const isPlayerTurn = trainingSolo ? true : activeId === localId;
       return {
         ...prev,
         A: scoreA,
@@ -9111,6 +9064,7 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     if (!isTraining || trainingPopup) return;
+    if (!trainingTasksEnabled) return;
     if (gameOverHandledRef.current) return;
     const balls = Array.isArray(frameState?.balls) ? frameState.balls : [];
     const remaining = balls.filter((ball) => {
@@ -9125,6 +9079,7 @@ function PoolRoyaleGame({
   }, [frameState?.balls, handleTrainingOutcome, isTraining, trainingPopup]);
   useEffect(() => {
     if (!isTraining) return;
+    if (!trainingTasksEnabled) return;
     if (trainingShotsRemaining == null) return;
     if (trainingShotsRemaining > 0) return;
     if (shotActive || hud.over || trainingPopup) return;
@@ -9214,6 +9169,7 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     if (hud.over) return;
+    if (isTraining && !trainingRulesEnabled) return;
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
@@ -9234,7 +9190,9 @@ function PoolRoyaleGame({
         if (next === 0) {
           clearInterval(timerRef.current);
           if (playerTurn === 0) {
-            setHud((s) => ({ ...s, turn: 1 - s.turn }));
+            if (!trainingSolo) {
+              setHud((s) => ({ ...s, turn: 1 - s.turn }));
+            }
           } else {
             aiShoot.current();
           }
@@ -9248,6 +9206,12 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     if (hud.over) {
+      stopAiThinkingRef.current?.();
+      setAiPlanning(null);
+      aiPlanRef.current = null;
+      return;
+    }
+    if (trainingSolo) {
       stopAiThinkingRef.current?.();
       setAiPlanning(null);
       aiPlanRef.current = null;
@@ -9281,6 +9245,7 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     if (hud.over) return;
+    if (trainingSolo) return;
     if (hud.turn === 1) {
       startAiThinkingRef.current?.();
     }
@@ -13261,7 +13226,7 @@ function PoolRoyaleGame({
             placedFromHand = Boolean(meta.state.mustPlayFromBaulk);
           }
         }
-        if (isTraining && hudRef.current?.turn === 0) {
+        if (isTraining && trainingTasksEnabled && hudRef.current?.turn === 0) {
           const available =
             trainingShotsRemainingRef.current ??
             trainingShotsRemaining ??
@@ -14286,11 +14251,15 @@ function PoolRoyaleGame({
         let safeState = currentState;
         let shotResolved = false;
         try {
-          const resolved = rules.applyShot(currentState, shotEvents, shotContext);
-          if (resolved && typeof resolved === 'object') {
-            safeState = resolved;
+          if (isTraining && !trainingRulesEnabled) {
+            shotResolved = true;
+          } else {
+            const resolved = rules.applyShot(currentState, shotEvents, shotContext);
+            if (resolved && typeof resolved === 'object') {
+              safeState = resolved;
+            }
+            shotResolved = true;
           }
-          shotResolved = true;
         } catch (err) {
           console.error('Pool Royale shot resolution failed:', err);
         }
@@ -15960,7 +15929,7 @@ function PoolRoyaleGame({
       </div>
 
       <AnimatePresence>
-        {isTraining && trainingTaskDetails && trainingGuideVisible && (
+        {isTraining && trainingTasksEnabled && trainingTaskDetails && trainingGuideVisible && (
           <motion.div
             className="pointer-events-none absolute left-3 right-3 top-3 z-40 flex justify-center"
             initial={{ opacity: 0, y: -12 }}
@@ -16123,10 +16092,69 @@ function PoolRoyaleGame({
           </button>
         </div>
       )}
+      {isTraining && (
+        <div
+          className="absolute right-3 top-3 z-40 flex flex-col items-end gap-2"
+          style={{ transform: `scale(${uiScale})`, transformOrigin: 'top right' }}
+        >
+          <button
+            type="button"
+            onClick={() => setTrainingMenuOpen((open) => !open)}
+            className="flex items-center gap-2 rounded-full bg-white/90 px-3 py-2 text-sm font-semibold text-gray-900 shadow-lg hover:bg-white"
+          >
+            <span>Training</span>
+            <span className="text-lg">🎯</span>
+          </button>
+          {trainingMenuOpen && (
+            <div className="w-64 rounded-2xl border border-white/15 bg-black/80 p-3 text-white shadow-2xl">
+              <p className="text-xs uppercase tracking-[0.24em] text-white/60">Mode</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTrainingOpponent('solo')}
+                  className={`${
+                    trainingOpponent === 'solo'
+                      ? 'bg-emerald-400 text-black'
+                      : 'bg-white/10 text-white'
+                  } rounded-xl px-3 py-2 text-sm font-semibold transition hover:bg-white/20`}
+                >
+                  Play alone
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTrainingOpponent('ai')}
+                  className={`${
+                    trainingOpponent === 'ai'
+                      ? 'bg-emerald-400 text-black'
+                      : 'bg-white/10 text-white'
+                  } rounded-xl px-3 py-2 text-sm font-semibold transition hover:bg-white/20`}
+                >
+                  Vs AI
+                </button>
+              </div>
+              <p className="mt-3 text-xs uppercase tracking-[0.24em] text-white/60">Rules</p>
+              <div className="mt-2 flex items-center justify-between rounded-xl bg-white/10 px-3 py-2 text-sm">
+                <span className="font-semibold">{trainingRulesEnabled ? 'Rules on' : 'Rules off'}</span>
+                <button
+                  type="button"
+                  onClick={() => setTrainingRulesEnabled((v) => !v)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                    trainingRulesEnabled
+                      ? 'bg-emerald-400 text-black'
+                      : 'bg-white/30 text-white'
+                  }`}
+                >
+                  {trainingRulesEnabled ? 'Disable' : 'Enable'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
       {/* Power Slider */}
       {showPowerSlider && (
         <div
-          className="absolute right-3 top-1/2 -translate-y-1/2"
+          className="absolute right-3 top-[54%] -translate-y-1/2"
           data-ai-taking-shot={aiTakingShot ? 'true' : 'false'}
           data-player-turn={isPlayerTurn ? 'true' : 'false'}
         >
@@ -16177,7 +16205,7 @@ function PoolRoyaleGame({
         </div>
       )}
 
-      {trainingPopup && (
+      {isTraining && trainingTasksEnabled && trainingPopup && (
         <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/80 px-4 text-white">
           <div className="w-full max-w-md rounded-2xl border border-emerald-300/60 bg-gray-900 p-6 text-center shadow-2xl">
             <p className="text-xs uppercase tracking-[0.28em] text-emerald-200">
