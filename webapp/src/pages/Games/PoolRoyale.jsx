@@ -396,7 +396,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE *
-  0.992; // tighten the middle chrome arch so the rounded cut tracks the smaller, fuller jaws without widening the reveal
+  1.012; // broaden the middle chrome arch so the cut follows the enlarged jaws and hugs the wooden rail relief
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
@@ -419,8 +419,8 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.978; // open the middle rail arches slightly more so the rounded cut breathes around the side pockets
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.02; // align the wooden middle-pocket arches with the chrome pull so both arcs sit flush together
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.06; // open the middle rail arches noticeably more so the rounded cut reaches the chrome hook cleanly
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.035; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
 
 function buildChromePlateGeometry({
   width,
@@ -691,8 +691,8 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 1; // reuse the Snooker-style lateral spread so the side jaws follow the outward rail and chrome arcs in lockstep
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.9; // shrink the side jaw radius further while keeping the fascia thickness intact
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.06; // extend the middle jaw span so the fascia tracks the widened chrome and wood arcs
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.05; // enlarge the side jaw radius so its arc matches the corner mass without leaving gaps
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 1; // disable the side-specific edge trim so the jaw follows the corner roll-off
@@ -740,8 +740,8 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.46; // push the middle pockets farther into the rails so the centres sit off the table axis
-const SIDE_POCKET_FIELD_PULL = BALL_R * 0.16; // ease the centre pull so the shifted side pockets remain tucked against the wooden apron
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.62; // push the middle pockets farther into the rails so the centres sit tight to the chrome hook
+const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // keep the centres tucked while letting the shift reach the fascia without leaving a gap
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
