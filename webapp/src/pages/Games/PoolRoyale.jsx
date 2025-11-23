@@ -12833,6 +12833,11 @@ function PoolRoyaleGame({
           cue.active = true;
           inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
+          if (hudRef.current?.inHand) {
+            const nextHud = { ...hudRef.current, inHand: false };
+            hudRef.current = nextHud;
+            setHud(nextHud);
+          }
         }
         return true;
       };
