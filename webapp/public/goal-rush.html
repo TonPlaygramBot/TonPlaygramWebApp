@@ -21,16 +21,19 @@
     html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
     body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
     .ui{position:fixed;inset:0;}
-    .scoreboard{position:absolute;top:0;left:0;right:0;height:40px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+    .scoreboard{position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:center;pointer-events:none;}
     .score{font-variant-numeric:tabular-nums;background:#0b1220;border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
     .score span{-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;color:#fff}
-    .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000}
+    .score-player{display:flex;align-items:center;gap:6px;min-width:0;}
+    .score-avatar{width:32px;height:32px;border-radius:999px;background:#111;border:1px solid #233050;display:grid;place-items:center;font-size:18px;overflow:hidden;color:#fff;flex-shrink:0;}
+    .score-avatar.img{background-size:cover;background-position:center;text-indent:-9999px;}
+    .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;-webkit-text-stroke:0.3px #000;text-shadow:0 0 4px #000;white-space:nowrap;}
     .p1{background:var(--p1)}
     .p2{background:var(--p2)}
 
     .canvasWrap{
       position:absolute;
-      top:40px;
+      top:48px;
       bottom:0;
       left:0;
       right:0;
@@ -77,9 +80,17 @@
   <div class="ui">
     <div class="scoreboard">
       <div class="score" aria-live="polite">
-        <span id="p1Name" class="badge p1">P1</span><span id="s1">0</span>
+        <div class="score-player">
+          <span id="p1AvatarTop" class="score-avatar" aria-hidden="true"></span>
+          <span id="p1Name" class="badge p1">P1</span>
+        </div>
+        <span id="s1">0</span>
         <span>—</span>
-        <span id="s2">0</span><span id="p2Name" class="badge p2">P2</span>
+        <span id="s2">0</span>
+        <div class="score-player">
+          <span id="p2Name" class="badge p2">P2</span>
+          <span id="p2AvatarTop" class="score-avatar" aria-hidden="true"></span>
+        </div>
       </div>
     </div>
     <button id="muteBtn" class="mute-btn" aria-label="Toggle sound">🔊</button>
@@ -103,6 +114,8 @@
   const s2El = document.getElementById('s2');
   const p1NameEl = document.getElementById('p1Name');
   const p2NameEl = document.getElementById('p2Name');
+  const p1AvatarTop = document.getElementById('p1AvatarTop');
+  const p2AvatarTop = document.getElementById('p2AvatarTop');
   const startHint = document.getElementById('startHint');
   const landscapeBlock = document.querySelector('.landscape-block');
   const muteBtn = document.getElementById('muteBtn');
@@ -152,6 +165,8 @@
   const target = Number(params.get('target')) || 3;
   const avatarParam = params.get('avatar') || '';
   const oppParam = params.get('p2Avatar') || '';
+  const playerFlagParam = params.get('flag') || '';
+  const aiFlagParam = params.get('aiFlag') || '';
   let p1Name = params.get('name') || 'P1';
   let p2Name = params.get('p2Name') || 'P2';
     let fieldScaleX = 1,
@@ -208,6 +223,9 @@
     if(avatarParam.startsWith('http') || avatarParam.startsWith('/')){ p1AvatarImg = new Image(); p1AvatarImg.src = avatarParam; }
     else { p1AvatarEmoji = avatarParam; }
   }
+  if(!p1AvatarImg && !p1AvatarEmoji && playerFlagParam){
+    p1AvatarEmoji = playerFlagParam;
+  }
   let p2AvatarImg=null, p2AvatarEmoji='🤖';
   if(oppParam){
     if(oppParam.startsWith('http') || oppParam.startsWith('/')){ p2AvatarImg = new Image(); p2AvatarImg.src = oppParam; p2AvatarEmoji=null; }
@@ -222,13 +240,38 @@
   }
 
   if(mode==='ai'){
-    const ai = FLAG_DATA[Math.floor(Math.random()*FLAG_DATA.length)] || { emoji: '🤖', name: 'CPU' };
+    const chosenAi = aiFlagParam
+      ? { emoji: aiFlagParam, name: flagToName(aiFlagParam) }
+      : FLAG_DATA[Math.floor(Math.random()*FLAG_DATA.length)] || { emoji: '🤖', name: 'CPU' };
     p2AvatarImg = null;
-    p2AvatarEmoji = ai.emoji;
-    p2Name = ai.name;
+    p2AvatarEmoji = chosenAi.emoji;
+    p2Name = chosenAi.name;
   }
-    p1NameEl.textContent = p1Name;
-    p2NameEl.textContent = p2Name;
+  p1NameEl.textContent = p1Name;
+  p2NameEl.textContent = p2Name;
+  function renderTopAvatar(el,img,emoji,colorVar){
+    if(!el) return;
+    el.classList.remove('img');
+    el.style.backgroundImage='';
+    el.textContent='';
+    const bg = colorVar ? getCSS(colorVar) || '#111' : '#111';
+    el.style.backgroundColor = bg;
+    if(img && img.complete && img.naturalWidth>0){
+      el.classList.add('img');
+      el.style.backgroundImage=`url(${img.src})`;
+      return;
+    }
+    if(emoji){
+      el.textContent = emoji;
+    }
+  }
+  function updateTopAvatars(){
+    renderTopAvatar(p1AvatarTop, p1AvatarImg, p1AvatarEmoji, '--p1');
+    renderTopAvatar(p2AvatarTop, p2AvatarImg, p2AvatarEmoji, '--p2');
+  }
+  if(p1AvatarImg){ p1AvatarImg.onload = updateTopAvatars; }
+  if(p2AvatarImg){ p2AvatarImg.onload = updateTopAvatars; }
+  updateTopAvatars();
 
   async function awardTpc(accountId, amount){
     try{
