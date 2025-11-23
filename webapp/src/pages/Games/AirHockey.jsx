@@ -10,11 +10,17 @@ export default function AirHockey() {
   const params = new URLSearchParams(search);
   const target = Number(params.get('target')) || 3;
   const playType = params.get('type') || 'regular';
+  const playerFlagParam = params.get('flag');
+  const aiFlagParam = params.get('aiFlag');
+  const aiFlag = aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
   const player = {
     name: params.get('name') || 'You',
-    avatar: params.get('avatar') || '/assets/icons/profile.svg'
+    avatar: params.get('avatar') ||
+      (playerFlagParam && FLAG_EMOJIS.includes(playerFlagParam) ? playerFlagParam : '') ||
+      '/assets/icons/profile.svg'
   };
-  const flag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
-  const ai = { name: avatarToName(flag) || 'AI', avatar: flag };
+  const randomAiFlag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+  const chosenAiFlag = aiFlag || randomAiFlag;
+  const ai = { name: avatarToName(chosenAiFlag) || 'AI', avatar: chosenAiFlag };
   return <AirHockey3D player={player} ai={ai} target={target} playType={playType} />;
 }
