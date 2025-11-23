@@ -1415,17 +1415,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let ly = 0;
     let st = 0;
     const gestureTrail = [];
-    const gestureSurface = { width: 1, height: 1, diag: 1 };
     function onDown(e) {
       if (usingTouch && e.pointerType === 'touch') return;
       touching = true;
       sx = lx = e.clientX;
       sy = ly = e.clientY;
       st = performance.now();
-      const bounds = container.getBoundingClientRect();
-      gestureSurface.width = Math.max(1, bounds.width);
-      gestureSurface.height = Math.max(1, bounds.height);
-      gestureSurface.diag = Math.hypot(gestureSurface.width, gestureSurface.height);
       gestureTrail.length = 0;
       gestureTrail.push({ x: sx, y: sy, t: st });
       player.userData.swing = -0.55;
@@ -1445,46 +1440,43 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const first = gestureTrail[0];
       const last = gestureTrail[gestureTrail.length - 1];
       const duration = Math.max(12, last.t - first.t);
-      let path = 0;
-      for (let i = 1; i < gestureTrail.length; i += 1) {
-        const a = gestureTrail[i - 1];
-        const b = gestureTrail[i];
-        path += Math.hypot(b.x - a.x, b.y - a.y);
-      }
       const dx = last.x - first.x;
       const dy = last.y - first.y;
-      const speed = (path / duration) * 1000;
+      const dist = Math.hypot(dx, dy);
+      const speed = (dist / duration) * 1000;
       const dir = new THREE.Vector2(-dx || 1e-6, -dy || 1e-6).normalize();
-      const normalizedDistance = gestureSurface.diag > 0 ? path / gestureSurface.diag : 0;
-      return { duration, dist: path, speed, dir, raw: { dx, dy, totalDistance: path, normalizedDistance } };
+      return { duration, dist, speed, dir, raw: { dx, dy } };
     }
 
     function deriveSwingFromGesture({ dir, speed, raw }, { serve = false } = {}) {
-      const distFactor = THREE.MathUtils.clamp(raw.normalizedDistance || raw.totalDistance * 0.002, 0, 1.35);
-      const speedFactor = THREE.MathUtils.clamp(speed / (serve ? 1900 : 2100), 0, 1.35);
-      const blendedForce = THREE.MathUtils.lerp(distFactor, speedFactor, 0.45);
-      const normalizedForce = THREE.MathUtils.clamp(Math.max(distFactor, blendedForce), serve ? 0.48 : 0.4, 1);
-      const swipePower = THREE.MathUtils.clamp(THREE.MathUtils.mapLinear(normalizedForce, 0.35, 1, 7.5, 20), 7.5, 20);
+      const minSwipe = serve ? 220 : 240;
+      const maxSwipe = serve ? 1550 : 1750;
+      const swipePower = THREE.MathUtils.clamp(
+        THREE.MathUtils.mapLinear(speed, minSwipe, maxSwipe, 6, 17),
+        6,
+        17
+      );
+      const normalizedForce = THREE.MathUtils.clamp(swipePower / 17, serve ? 0.5 : 0.42, 1);
 
       const lateralLean = THREE.MathUtils.clamp(dir.x, -0.95, 0.95);
       const verticalIntent = THREE.MathUtils.clamp(raw.dy === 0 ? 0 : -raw.dy / (Math.abs(raw.dx) + Math.abs(raw.dy)), -0.65, 0.95);
-      const depthBias = THREE.MathUtils.clamp(0.72 + Math.abs(verticalIntent) * 0.42, 0.72, 1.35);
+      const depthBias = THREE.MathUtils.clamp(0.7 + Math.abs(verticalIntent) * 0.4, 0.7, 1.3);
 
       const forwardDir = new THREE.Vector3(
-        lateralLean * 0.78,
-        THREE.MathUtils.lerp(0.45, 0.95, depthBias) + Math.max(0, verticalIntent) * 0.58,
-        -1.12
+        lateralLean * 0.82,
+        THREE.MathUtils.lerp(0.4, 0.88, depthBias) + Math.max(0, verticalIntent) * 0.54,
+        -1.16
       ).normalize();
 
-      const swingSpeed = THREE.MathUtils.lerp(13.5, 26.5, normalizedForce) * (serve ? 1.12 : 1.06);
-      const topSpin = THREE.MathUtils.lerp(12, 38, normalizedForce * depthBias);
-      const sideSpin = THREE.MathUtils.lerp(4, 18, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
-      const spinAxis = new THREE.Vector3(-depthBias * 0.92, THREE.MathUtils.clamp(lateralLean * 0.95, -0.95, 0.95), 0.46)
+      const swingSpeed = THREE.MathUtils.lerp(12.5, 26, normalizedForce) * (serve ? 1.12 : 1.08);
+      const topSpin = THREE.MathUtils.lerp(14, 36, normalizedForce * depthBias);
+      const sideSpin = THREE.MathUtils.lerp(5, 16, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
+      const spinAxis = new THREE.Vector3(-depthBias * 0.9, THREE.MathUtils.clamp(lateralLean * 0.9, -0.9, 0.9), 0.45)
         .normalize()
         .multiplyScalar(topSpin);
       spinAxis.y += sideSpin;
 
-      const liftBoost = THREE.MathUtils.clamp(0.68 + normalizedForce * 1.25 + Math.max(0, verticalIntent) * 1.25, 0.68, 2.05);
+      const liftBoost = THREE.MathUtils.clamp(0.65 + normalizedForce * 1.15 + Math.max(0, verticalIntent) * 1.2, 0.65, 1.95);
 
       return {
         normal: forwardDir,
@@ -1496,7 +1488,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         reach: ballR + 0.8,
         force: normalizedForce,
         power: swipePower,
-        aimDirection: new THREE.Vector3(lateralLean * 0.9, 0.32, -1).normalize(),
+        aimDirection: new THREE.Vector3(lateralLean * 0.9, 0.3, -1).normalize(),
         liftBoost
       };
     }
@@ -1607,20 +1599,17 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     window.addEventListener('pointerup', onUp);
 
     function onTouchStart(e) {
-      e.preventDefault();
       usingTouch = true;
       const t = e.touches[0];
       if (!t) return;
       onDown({ clientX: t.clientX, clientY: t.clientY });
     }
     function onTouchMove(e) {
-      e.preventDefault();
       const t = e.touches[0];
       if (!t) return;
       onMove({ clientX: t.clientX, clientY: t.clientY });
     }
     function onTouchEnd(e) {
-      e.preventDefault();
       const t = e.changedTouches[0];
       if (!t) {
         usingTouch = false;
@@ -1630,10 +1619,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       usingTouch = false;
     }
 
-    el.addEventListener('touchstart', onTouchStart, { passive: false });
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    el.addEventListener('touchend', onTouchEnd, { passive: false });
-    el.addEventListener('touchcancel', onTouchEnd, { passive: false });
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
     let cpuWind = 0;
     let cpuPlan = null;
@@ -1775,21 +1764,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const speed = vel.length();
       accVec.set(0, physics.gravity, 0);
       if (speed > 1e-4) {
-        const drag = physics.airDrag * speed;
-        accVec.addScaledVector(vel, -drag);
+        accVec.addScaledVector(vel, -physics.airDrag * speed);
         spinSurfaceVel.crossVectors(spin, vel);
         accVec.addScaledVector(spinSurfaceVel, physics.lift);
       }
 
       vel.addScaledVector(accVec, dt);
-      const dragDamping = Math.exp(-physics.airDrag * Math.max(0.25, speed) * dt * 0.35);
-      vel.multiplyScalar(dragDamping);
       pos.addScaledVector(vel, dt);
       spin.multiplyScalar(Math.exp(-dt * 1.8));
-      if (pos.y <= ballR + 0.001 && Math.abs(vel.y) < 0.02) {
-        vel.x *= 0.985;
-        vel.z *= 0.985;
-      }
 
       if (pos.y <= ballR) {
         pos.y = ballR;
