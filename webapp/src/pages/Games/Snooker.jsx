@@ -249,7 +249,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
-const POCKET_JAW_DEPTH_SCALE = 0.52;
+const POCKET_JAW_DEPTH_SCALE = 0.56;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
@@ -492,7 +492,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so chrome, cloth, and cushions align
+const RAIL_HEIGHT = TABLE.THICK * 2.06; // raise wooden rails slightly to strengthen the Pool Royale profile
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
@@ -559,6 +559,8 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
+  POCKET_VIS_R * 0.22; // pull middle pockets toward the side rails to open the center a touch
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -3335,8 +3337,8 @@ const pocketCenters = () => [
     PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
     PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
   ),
-  new THREE.Vector2(-PLAY_W / 2, 0),
-  new THREE.Vector2(PLAY_W / 2, 0)
+  new THREE.Vector2(-PLAY_W / 2, -MIDDLE_POCKET_LONGITUDINAL_OFFSET),
+  new THREE.Vector2(PLAY_W / 2, MIDDLE_POCKET_LONGITUDINAL_OFFSET)
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
