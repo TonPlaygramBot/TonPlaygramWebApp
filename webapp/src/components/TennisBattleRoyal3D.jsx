@@ -492,6 +492,10 @@ function makeRacket() {
 
 export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMode = false }) {
   const mountRef = useRef(null);
+  const modeLabel = trainingMode ? "Training Mode" : "Fundraising AI";
+  const modeSummary = trainingMode
+    ? "Practice swipes and timing without staking."
+    : "Stake contributes to the rally community pot.";
 
   useEffect(() => {
     const container = mountRef.current;
@@ -795,6 +799,37 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       style={{ position: "relative", width: "100%", height: "100vh", overflow: "hidden", touchAction: "none" }}
       aria-label="3D Tennis Battle Royal"
     >
+      <div
+        style={{
+          position: "absolute",
+          top: 10,
+          left: 10,
+          padding: "10px 12px",
+          background: "rgba(8,11,24,0.7)",
+          borderRadius: 12,
+          color: "#e5e7eb",
+          fontFamily: "'Inter', 'Segoe UI', sans-serif",
+          maxWidth: 260,
+          border: "1px solid rgba(255,255,255,0.06)",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.35)",
+          backdropFilter: "blur(6px)",
+          pointerEvents: "none",
+          zIndex: 12
+        }}
+      >
+        <div style={{ fontSize: 11, letterSpacing: 0.7, textTransform: "uppercase", color: "#9ca3af" }}>
+          Tennis Battle Royal
+        </div>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>{modeLabel}</div>
+        <div style={{ fontSize: 12, marginTop: 4, color: "#cbd5e1" }}>
+          {stakeLabel ? `Stake: ${stakeLabel}` : "No stake applied"}
+        </div>
+        {playerName ? (
+          <div style={{ fontSize: 12, marginTop: 2, color: "#cbd5e1" }}>Player: {playerName}</div>
+        ) : null}
+        <div style={{ fontSize: 11, marginTop: 6, color: "#94a3b8" }}>{modeSummary}</div>
+        <div style={{ fontSize: 11, marginTop: 4, color: "#a5b4fc" }}>Opponent: Rally AI</div>
+      </div>
       <div
         style={{
           position: "absolute",
