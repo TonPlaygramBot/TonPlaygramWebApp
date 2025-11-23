@@ -894,16 +894,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const s = ballR / 0.26;
     ball.scale.setScalar(s);
     scene.add(ball);
-    const ballPhysics = {
-      mass: 0.057,
-      airDensity: 1.18,
-      dragCoeff: 0.53,
-      magnusCoeff: 0.16,
-      spinDecay: 2.25
+    const physics = {
+      gravity: -9.81,
+      airDrag: 0.32,
+      lift: 0.24,
+      bounceRestitution: 0.82,
+      courtFriction: 0.18,
+      spinDamping: 0.9,
+      spinSlip: 0.6
     };
-    const ballArea = Math.PI * ballR * ballR;
-    const dragFactor = (0.5 * ballPhysics.airDensity * ballPhysics.dragCoeff * ballArea) / ballPhysics.mass;
-    const magnusFactor = ballPhysics.magnusCoeff / ballPhysics.mass;
 
     const sC = document.createElement('canvas');
     sC.width = sC.height = 96;
@@ -984,24 +983,18 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let playerSwing = null;
     let cpuSwing = null;
     function respondToCourtImpact(impactSpeed) {
-      const forwardSpin = THREE.MathUtils.clamp(spin.x / 60, -1, 1);
-      const sideSpin = THREE.MathUtils.clamp(spin.y / 55, -1, 1);
-      const bounceScale = THREE.MathUtils.clamp(state.cor + impactSpeed / 58, state.cor * 0.95, 0.9);
-      const spinDampen = 1 - 0.12 * Math.abs(forwardSpin);
-      const skidInfluence = THREE.MathUtils.clamp(impactSpeed / 22, 0.42, 1);
-      vel.y = impactSpeed * bounceScale * spinDampen;
+      const incoming = Math.max(0, impactSpeed);
+      const restitution = THREE.MathUtils.clamp(physics.bounceRestitution - incoming * 0.01, 0.72, 0.9);
+      vel.y = incoming * restitution;
+
       tangentVel.set(vel.x, 0, vel.z);
       spinSurfaceVel.set(-spin.z * ballR, 0, spin.x * ballR);
-      const bite = THREE.MathUtils.lerp(0.2, 0.58, skidInfluence);
-      tangentVel.addScaledVector(spinSurfaceVel, bite * 0.82);
-      tangentVel.x += sideSpin * 0.32;
-      tangentVel.multiplyScalar(1 - state.fric * skidInfluence);
+      tangentVel.addScaledVector(spinSurfaceVel, physics.spinSlip * 0.8);
+      tangentVel.multiplyScalar(1 - physics.courtFriction);
       vel.x = tangentVel.x;
       vel.z = tangentVel.z;
-      const spinDecay = THREE.MathUtils.lerp(0.48, 0.66, skidInfluence);
-      spin.x *= spinDecay;
-      spin.y *= 0.52;
-      spin.z *= Math.max(0.46, 0.68 - Math.abs(forwardSpin) * 0.1);
+
+      spin.multiplyScalar(physics.spinDamping);
     }
     let lastHitter = 'player';
     ball.position.copy(pos);
@@ -1724,90 +1717,83 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     makeBillboard(endLenX, bbH, 0.07, new THREE.Vector3(0, bbH / 2, -outerZ - offset), 0);
     makeBillboard(sideLenZ, bbH, 0.055, new THREE.Vector3(outerX + offset, bbH / 2, 0), -Math.PI / 2);
 
-    const MAX_SUBSTEP = 1 / 360;
-    const MIN_SUBSTEP = 1 / 960;
-    const MAX_SUBSTEP_ITER = 8;
-    const GROUND_GLIDE = 0.095;
+    const MAX_SUBSTEP = 1 / 300;
+    const MIN_SUBSTEP = 1 / 900;
+    const MAX_SUBSTEP_ITER = 10;
     function advanceBallState(dt) {
       const prevZ = pos.z;
       const prevY = pos.y;
-      const vLen = vel.length();
-      accVec.set(0, state.gravity, 0);
-      if (vLen > 1e-3) {
-        accVec.addScaledVector(vel, -dragFactor * vLen);
-        tmpVec.crossVectors(spin, vel);
-        accVec.addScaledVector(tmpVec, magnusFactor);
-      }
-      vel.addScaledVector(accVec, dt);
-      const decay = Math.max(0, 1 - ballPhysics.spinDecay * dt);
-      spin.multiplyScalar(decay);
-      pos.addScaledVector(vel, dt);
 
-      const aboveCourt = pos.y - ballR;
-      if (aboveCourt < GROUND_GLIDE && vel.y < 1.5 && aboveCourt > -GROUND_GLIDE) {
-        const proximity = THREE.MathUtils.clamp(1 - aboveCourt / GROUND_GLIDE, 0, 1);
-        const groundFriction = THREE.MathUtils.clamp(proximity * dt * 14, 0, 0.85);
-        vel.x *= 1 - groundFriction;
-        vel.z *= 1 - groundFriction;
+      const speed = vel.length();
+      accVec.set(0, physics.gravity, 0);
+      if (speed > 1e-4) {
+        accVec.addScaledVector(vel, -physics.airDrag * speed);
+        spinSurfaceVel.crossVectors(spin, vel);
+        accVec.addScaledVector(spinSurfaceVel, physics.lift);
       }
+
+      vel.addScaledVector(accVec, dt);
+      pos.addScaledVector(vel, dt);
+      spin.multiplyScalar(Math.exp(-dt * 1.8));
 
       if (pos.y <= ballR) {
         pos.y = ballR;
-        if (vel.y < 0) {
-          respondToCourtImpact(Math.abs(vel.y));
-        }
+        if (vel.y < 0) respondToCourtImpact(Math.abs(vel.y));
         hitTTL = 1.0;
         hitRing.position.set(pos.x, 0.002, pos.z);
         const side = pos.z >= 0 ? 'player' : 'cpu';
-          if (state.awaitingServeBounce) {
-            if (side !== opponentOf(state.serveBy)) {
-              registerFault(state.serveBy, 'Fault · Side');
-              return false;
-            }
-            const box = serviceBoxFor(state.serveBy);
-            if (!inBox(pos.x, pos.z, box)) {
-              registerFault(state.serveBy, 'Fault · Box');
-              return false;
-            }
-            state.awaitingServeBounce = false;
-            state.rallyStarted = true;
-            state.bounceSide = side;
-            markTrainingStep('landServe');
-          } else {
-            if (state.rallyStarted && lastHitter === side) {
-              finishPoint(opponentOf(side), 'Net');
+        if (state.awaitingServeBounce) {
+          if (side !== opponentOf(state.serveBy)) {
+            registerFault(state.serveBy, 'Fault · Side');
             return false;
           }
+          const box = serviceBoxFor(state.serveBy);
+          if (!inBox(pos.x, pos.z, box)) {
+            registerFault(state.serveBy, 'Fault · Box');
+            return false;
+          }
+          state.awaitingServeBounce = false;
+          state.rallyStarted = true;
+          state.bounceSide = side;
+          markTrainingStep('landServe');
+        } else {
           if (state.bounceSide === side) {
             finishPoint(opponentOf(side), 'Double Bounce');
             return false;
           }
+          state.rallyStarted = true;
           state.bounceSide = side;
         }
+
         if (!inSinglesX(pos.x) || Math.abs(pos.z) > halfL + 0.05) {
           finishPoint(opponentOf(side), 'Out');
           return false;
         }
       }
-      const denom = pos.z - prevZ || 1e-6;
-      const tCross = (0 - prevZ) / denom;
-      const yCross = THREE.MathUtils.lerp(prevY, pos.y, THREE.MathUtils.clamp(tCross, 0, 1));
-      if (((prevZ > 0 && pos.z <= 0) || (prevZ < 0 && pos.z >= 0)) && yCross < netH + ballR * 0.55) {
-        if (state.awaitingServeBounce && lastHitter === state.serveBy) {
-          registerFault(state.serveBy, 'Fault · Net');
-        } else {
-          finishPoint(lastHitter === 'player' ? 'cpu' : 'player', 'Net');
+
+      const crossedNet = (prevZ > 0 && pos.z <= 0) || (prevZ < 0 && pos.z >= 0);
+      if (crossedNet) {
+        const tCross = (0 - prevZ) / ((pos.z - prevZ) || 1e-6);
+        const yCross = THREE.MathUtils.lerp(prevY, pos.y, THREE.MathUtils.clamp(tCross, 0, 1));
+        if (yCross < netH + ballR * 0.45) {
+          if (state.awaitingServeBounce && lastHitter === state.serveBy) {
+            registerFault(state.serveBy, 'Fault · Net');
+          } else {
+            finishPoint(opponentOf(lastHitter), 'Net');
+          }
+          return false;
         }
-        return false;
       }
+
       if (!inSinglesX(pos.x) || pos.z > halfL + 0.6 || pos.z < -halfL - 0.6) {
         if (state.awaitingServeBounce && lastHitter === state.serveBy) {
           registerFault(state.serveBy, 'Fault · Out');
         } else {
-          finishPoint(lastHitter === 'player' ? 'cpu' : 'player', 'Out');
+          finishPoint(opponentOf(lastHitter), 'Out');
         }
         return false;
       }
+
       return true;
     }
 
@@ -1815,8 +1801,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       let remaining = dt;
       let iter = 0;
       while (remaining > 1e-5 && iter < MAX_SUBSTEP_ITER) {
-        const speedRatio = THREE.MathUtils.clamp(vel.length() / 32, 0, 1);
-        const adaptive = THREE.MathUtils.lerp(MAX_SUBSTEP, MIN_SUBSTEP, speedRatio);
+        const adaptive = THREE.MathUtils.lerp(MAX_SUBSTEP, MIN_SUBSTEP, THREE.MathUtils.clamp(vel.length() / 28, 0, 1));
         const subDt = Math.min(remaining, adaptive);
         if (!advanceBallState(subDt)) {
           return false;
@@ -1837,12 +1822,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const serveHomeX = state.serveSide === 'deuce' ? halfW - 0.45 : -halfW + 0.45;
       if (state.live && vel.z > 0) {
         const strikeZ = playerZ - 0.8;
-      const t = Math.max(0.05, (strikeZ - pos.z) / (vel.z || 1e-6));
-      const predX = pos.x + vel.x * t;
-      player.position.x += (THREE.MathUtils.clamp(predX, -halfW, halfW) - player.position.x) * 0.22;
-    } else {
-      const targetX = servingPlayer ? serveHomeX : 0;
-      player.position.x += (targetX - player.position.x) * (servingPlayer ? 0.18 : 0.08);
+        const t = Math.max(0.05, (strikeZ - pos.z) / (vel.z || 1e-6));
+        const predX = pos.x + vel.x * t;
+        player.position.x += (THREE.MathUtils.clamp(predX, -halfW, halfW) - player.position.x) * 0.22;
+      } else {
+        const targetX = servingPlayer ? serveHomeX : 0;
+        player.position.x += (targetX - player.position.x) * (servingPlayer ? 0.18 : 0.08);
       }
       const homeZ = servingPlayer ? serveHomeZ : playerZ - 0.3;
       player.position.z += (homeZ - player.position.z) * (servingPlayer ? 0.18 : 0.08);
