@@ -1556,7 +1556,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const turnIndicatorRef = useRef(null);
   const stateRef = useRef(null);
   const uiRef = useRef(null);
-  const cameraFocusRef = useRef(null);
   const moveSoundRef = useRef(null);
   const captureSoundRef = useRef(null);
   const cheerSoundRef = useRef(null);
@@ -2730,8 +2729,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const animLook = new THREE.Vector3();
     const seatWorld = new THREE.Vector3();
     const seatNdc = new THREE.Vector3();
-    const focusTarget = new THREE.Vector3();
-    const fallbackTarget = new THREE.Vector3();
 
     const step = () => {
       const now = performance.now();
@@ -2811,42 +2808,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       }
 
       const arenaState = arenaRef.current;
-      if (arenaState?.boardLookTarget) {
-        const focusState = cameraFocusRef.current;
-        let appliedFocus = false;
-        if (focusState) {
-          let focusPos = null;
-          if (focusState.object?.position) {
-            focusPos = focusState.object.position;
-          } else if (focusState.target) {
-            focusPos = focusState.target;
-          }
-          if (focusPos) {
-            focusTarget.copy(focusPos);
-            focusTarget.y += focusState.offset ?? CAMERA_TARGET_LIFT;
-            const lerpFactor = focusState.follow ? 0.3 : 0.18;
-            arenaState.boardLookTarget.lerp(focusTarget, lerpFactor);
-            appliedFocus = true;
-          }
-          if (!focusState.follow) {
-            focusState.ttl -= delta;
-            if (focusState.ttl <= 0) {
-              cameraFocusRef.current = null;
-            }
-          } else if (!focusPos) {
-            cameraFocusRef.current = null;
-          }
-        }
-        if (!appliedFocus) {
-          if (arenaState.defaultLookTarget) {
-            arenaState.boardLookTarget.lerp(arenaState.defaultLookTarget, 0.08);
-          } else {
-            fallbackTarget.set(0, CAMERA_TARGET_LIFT, 0);
-            arenaState.boardLookTarget.lerp(fallbackTarget, 0.08);
-          }
-        }
-        controls?.target.copy(arenaState.boardLookTarget);
-      }
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
           anchor.getWorldPosition(seatWorld);
@@ -2925,7 +2886,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         arena.tableInfo?.dispose?.();
       }
       arenaRef.current = null;
-      cameraFocusRef.current = null;
       renderer.dispose();
       if (renderer.domElement.parentElement === host) {
         host.removeChild(renderer.domElement);
@@ -2965,39 +2925,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     }
   };
 
-  const setCameraFocus = useCallback((focus) => {
-    if (!focus) {
-      cameraFocusRef.current = null;
-      return;
-    }
-    const current = cameraFocusRef.current;
-    const shouldForce = focus.force === true;
-    const offset = typeof focus.offset === 'number' ? focus.offset : CAMERA_TARGET_LIFT;
-    let targetVec = null;
-    if (focus.target) {
-      if (typeof focus.target.clone === 'function') {
-        targetVec = focus.target.clone();
-      } else if (
-        typeof focus.target.x === 'number' &&
-        typeof focus.target.y === 'number' &&
-        typeof focus.target.z === 'number'
-      ) {
-        targetVec = new THREE.Vector3(focus.target.x, focus.target.y, focus.target.z);
-      }
-    }
-    const next = {
-      object: focus.object ?? null,
-      target: targetVec,
-      follow: Boolean(focus.follow),
-      ttl: typeof focus.ttl === 'number' ? focus.ttl : 0,
-      priority: typeof focus.priority === 'number' ? focus.priority : 0,
-      offset
-    };
-    if (!shouldForce && current && current.priority > next.priority) {
-      return;
-    }
-    cameraFocusRef.current = next;
-  }, []);
+  const setCameraFocus = useCallback(() => {}, []);
 
   const getWorldForProgress = (player, progress, tokenIndex) => {
     const state = stateRef.current;
