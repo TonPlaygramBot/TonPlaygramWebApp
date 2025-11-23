@@ -255,7 +255,7 @@ const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
 const CHAIR_SCALE = 4; // Chairs are 4x larger
 const CHAIR_CLEARANCE = 0.52;
 const PLAYER_CHAIR_EXTRA_CLEARANCE = 0.86; // Pull the player chair further back to clear the camera path
-const CAMERA_PHI_OFFSET = 0.12; // Raise the allowable camera angle for a slightly higher view
+const CAMERA_PHI_OFFSET = -0.08; // Lower the base angle so pulling down gives a more top-down view
 const CAMERA_INITIAL_PHI_EXTRA = 0.18; // Bias the starting camera angle upward a touch
 const SEAT_LABEL_HEIGHT = 0.74; // Drop the floating seat label closer to the chair back
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
@@ -2681,6 +2681,16 @@ function Chess3D({ avatar, username, initialFlag }) {
       }
       if (!obj) return;
       const ud = obj.userData;
+      const targetPiece = board[ud.r]?.[ud.c] || null;
+      if (
+        sel &&
+        ud.type === 'piece' &&
+        targetPiece &&
+        targetPiece.w !== board[sel.r][sel.c]?.w
+      ) {
+        moveSelTo(ud.r, ud.c);
+        return;
+      }
       if (ud.type === 'piece') selectAt(ud.r, ud.c);
       else if (ud.type === 'tile' && sel) {
         moveSelTo(ud.r, ud.c);
