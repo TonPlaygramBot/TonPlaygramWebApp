@@ -747,8 +747,8 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.15; // pull the middle pockets and cloth cuts slightly closer to centre for tighter entrances
-const SIDE_POCKET_FIELD_PULL = BALL_R * 1.1; // move the middle pocket centres and cloth cuts further onto the playing field
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 0.82; // trim the middle pocket shift so the jaws finish at the wood rail edge instead of protruding onto the cloth
+const SIDE_POCKET_FIELD_PULL = BALL_R * 0.72; // pull the middle pocket centres back toward the rails so the wooden apron stops before the playing field
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -836,9 +836,9 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // thicken the plywood deck beneath the cloth to sell the wooden sub-structure
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
-const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.024; // sink the plywood panel slightly further so it never overlaps the cloth
+const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // sink the plywood panel further to prevent z-fighting around the middle pocket cuts
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint so the board follows the playable field
-const CLOTH_UNDERLAY_HOLE_SCALE = 1; // keep underlay apertures flush with the cloth openings for perfect alignment
+const CLOTH_UNDERLAY_HOLE_SCALE = 0.988; // slightly tighten the underlay apertures to stop the side pocket cloth from glitching
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
@@ -8480,6 +8480,12 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const cueBallPlacedFromHandRef = useRef(false);
+  useEffect(() => {
+    if (hud.inHand) {
+      cueBallPlacedFromHandRef.current = false;
+    }
+  }, [hud.inHand]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -12782,10 +12788,7 @@ function PoolRoyaleGame({
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
-          if (!isAmericanVariant()) {
-            hudRef.current = { ...currentHud, inHand: false };
-            setHud((s) => ({ ...s, inHand: false }));
-          }
+          cueBallPlacedFromHandRef.current = true;
         }
         return true;
       };
@@ -12960,6 +12963,7 @@ function PoolRoyaleGame({
         updateCuePlacement(pos);
         cue.active = true;
         cue.mesh.visible = true;
+        cueBallPlacedFromHandRef.current = true;
         hudRef.current = { ...currentHud, inHand: false };
         setHud((prev) => ({ ...prev, inHand: false }));
         return true;
@@ -12970,6 +12974,11 @@ function PoolRoyaleGame({
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
+        if (!p) return;
+        if (cueBallPlacedFromHandRef.current) {
+          const dist = p.distanceTo(cue?.pos ?? new THREE.Vector2());
+          if (!Number.isFinite(dist) || dist > BALL_R * 1.2) return;
+        }
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
@@ -13024,6 +13033,7 @@ function PoolRoyaleGame({
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
+          cueBallPlacedFromHandRef.current = true;
         }
         if (isAmericanVariant()) {
           const focusStore = ensureOrbitFocus();
@@ -13096,14 +13106,17 @@ function PoolRoyaleGame({
         const currentHud = hudRef.current;
         const americanHandPlacement =
           isAmericanVariant() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
+        const inHandPlacementActive = Boolean(
+          currentHud?.inHand && !americanHandPlacement
+        );
         if (
           !cue?.active ||
-          (currentHud?.inHand && !americanHandPlacement) ||
+          (inHandPlacementActive && !cueBallPlacedFromHandRef.current) ||
           !allStopped(balls) ||
           currentHud?.over
         )
           return;
-        if (currentHud?.inHand && americanHandPlacement) {
+        if (currentHud?.inHand && (americanHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
         }
@@ -14371,7 +14384,10 @@ function PoolRoyaleGame({
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
         const canShowCue =
-          allStopped(balls) && cue?.active && !(currentHud?.over) && !(currentHud?.inHand);
+          allStopped(balls) &&
+          cue?.active &&
+          !(currentHud?.over) &&
+          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
@@ -15892,6 +15908,12 @@ function PoolRoyaleGame({
       {err && (
         <div className="absolute inset-0 bg-black/80 text-white text-xs flex items-center justify-center p-4 z-50">
           Init error: {String(err)}
+        </div>
+      )}
+      {hud?.inHand && (
+        <div className="absolute bottom-24 left-1/2 z-40 -translate-x-1/2 text-center text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)]">
+          <p className="text-sm font-semibold">Ball in hand</p>
+          <p className="text-xs text-white/80">Tap, hold, and release the cue ball to move it.</p>
         </div>
       )}
       {/* Power Slider */}
