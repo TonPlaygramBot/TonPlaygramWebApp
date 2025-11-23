@@ -450,13 +450,14 @@ function addPocketCuts(parent, clothPlane) {
 // Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
 const TABLE_SIZE_SHRINK = 0.78;
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
+const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION;
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -467,8 +468,8 @@ const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so chr
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
-const WIDTH_REF = 2540;
-const HEIGHT_REF = 1270;
+const WIDTH_REF = 3569;
+const HEIGHT_REF = 1778;
 const BALL_D_REF = 57.15;
 const BALL_SIZE_SCALE = 0.94248;
 const BAULK_FROM_BAULK_REF = 558.8;
@@ -496,7 +497,7 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
 console.assert(
   Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-  'Snooker table inner ratio must match the Pool Royale 2:1 footprint.'
+  'Snooker table inner ratio must match the official 3569:1778 footprint.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
@@ -4428,21 +4429,7 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
-  const baseRailFallback = {
-    repeat: CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE),
-    rotation: 0,
-    textureSize: resolvedWoodOption?.rail?.textureSize
-  };
-  const woodRailSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.rail,
-    resolvedWoodOption?.frame ?? baseRailFallback
-  );
-  applyWoodTextureToMaterial(railMat, {
-    repeat: new THREE.Vector2(woodRailSurface.repeat.x, woodRailSurface.repeat.y),
-    rotation: woodRailSurface.rotation,
-    textureSize: woodRailSurface.textureSize
-  });
-  finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodRailSurface);
+  finishParts.woodSurfaces.rail = null;
   const CUSHION_RAIL_FLUSH = 0; // let cushions sit directly against the rail edge without a visible seam
   const CUSHION_CENTER_NUDGE = 0; // keep cushions flush with the rails so no extra lip appears behind them
   const SHORT_CUSHION_HEIGHT_SCALE = 1.085; // raise short rail cushions to match the remaining four rails
@@ -5562,36 +5549,7 @@ function Table3D(
     [frameOuterX - legInset, frameOuterZ - legInset]
   ];
   const legY = legTopLocal + LEG_TOP_OVERLAP - legH / 2;
-  const baseFrameFallback = {
-    repeat: CUE_WOOD_REPEAT.clone().multiplyScalar(TABLE_WOOD_TEXTURE_SCALE),
-    rotation: Math.PI / 2,
-    textureSize: resolvedWoodOption?.frame?.textureSize ?? woodRailSurface.textureSize
-  };
-  const woodFrameSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.frame,
-    resolvedWoodOption?.rail ?? baseFrameFallback
-  );
-  applyWoodTextureToMaterial(frameMat, {
-    repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
-    rotation: woodFrameSurface.rotation,
-    textureSize: woodFrameSurface.textureSize
-  });
-  if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, {
-      repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
-      rotation: woodFrameSurface.rotation,
-      textureSize: woodFrameSurface.textureSize
-    });
-  }
-  finishParts.woodSurfaces.frame = cloneWoodSurfaceConfig(woodFrameSurface);
-  if (!resolvedWoodOption?.rail) {
-    finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(woodFrameSurface);
-    applyWoodTextureToMaterial(railMat, {
-      repeat: new THREE.Vector2(woodFrameSurface.repeat.x, woodFrameSurface.repeat.y),
-      rotation: woodFrameSurface.rotation,
-      textureSize: woodFrameSurface.textureSize
-    });
-  }
+  finishParts.woodSurfaces.frame = null;
   legPositions.forEach(([lx, lz]) => {
     const leg = new THREE.Mesh(legGeo, legMat);
     leg.position.set(lx, legY, lz);
@@ -5709,56 +5667,23 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
   finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
 
-  const woodSurfaces = finishInfo.parts.woodSurfaces ?? {
-    frame: null,
-    rail: null
-  };
-  finishInfo.parts.woodSurfaces = woodSurfaces;
-  const defaultWoodOption =
-    WOOD_GRAIN_OPTIONS_BY_ID[DEFAULT_WOOD_GRAIN_ID] ?? WOOD_GRAIN_OPTIONS[0];
-  const resolvedWoodOption =
-    resolvedFinish?.woodTexture ||
-    (resolvedFinish?.woodTextureId &&
-      WOOD_GRAIN_OPTIONS_BY_ID[resolvedFinish.woodTextureId]) ||
-    (finishInfo.woodTextureId &&
-      WOOD_GRAIN_OPTIONS_BY_ID[finishInfo.woodTextureId]) ||
-    defaultWoodOption;
-  const nextFrameSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.frame,
-    woodSurfaces.frame ?? woodSurfaces.rail ?? resolvedWoodOption?.rail ?? {
-      repeat: { x: 1, y: 1 },
-      rotation: 0
-    }
-  );
-  const nextRailSurface = resolveWoodSurfaceConfig(
-    resolvedWoodOption?.rail,
-    resolvedWoodOption?.frame ?? woodSurfaces.rail ?? woodSurfaces.frame ?? nextFrameSurface
-  );
-  applyWoodTextureToMaterial(railMat, {
-    repeat: new THREE.Vector2(nextRailSurface.repeat.x, nextRailSurface.repeat.y),
-    rotation: nextRailSurface.rotation,
-    textureSize: nextRailSurface.textureSize
-  });
-  applyWoodTextureToMaterial(frameMat, {
-    repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
-    rotation: nextFrameSurface.rotation,
-    textureSize: nextFrameSurface.textureSize
-  });
-  if (legMat !== frameMat) {
-    applyWoodTextureToMaterial(legMat, {
-      repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
-      rotation: nextFrameSurface.rotation,
-      textureSize: nextFrameSurface.textureSize
+  const stripWoodTexture = (material) => {
+    if (!material) return;
+    ['map', 'normalMap', 'roughnessMap', 'bumpMap', 'metalnessMap'].forEach((prop) => {
+      if (material[prop]) {
+        material[prop] = null;
+      }
     });
+    material.needsUpdate = true;
+  };
+  stripWoodTexture(frameMat);
+  stripWoodTexture(railMat);
+  if (legMat !== frameMat) {
+    stripWoodTexture(legMat);
   }
-  if (!resolvedWoodOption?.rail) {
-    woodSurfaces.rail = cloneWoodSurfaceConfig(nextFrameSurface);
-  } else {
-    woodSurfaces.rail = cloneWoodSurfaceConfig(nextRailSurface);
-  }
-  woodSurfaces.frame = cloneWoodSurfaceConfig(nextFrameSurface);
-  finishInfo.woodTextureId = resolvedWoodOption?.id ?? DEFAULT_WOOD_GRAIN_ID;
-  finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
+  finishInfo.parts.woodSurfaces = { frame: null, rail: null };
+  finishInfo.woodTextureId = null;
+  finishInfo.parts.woodTextureId = null;
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
   if (accentMesh) {
@@ -5837,7 +5762,7 @@ function SnookerGame() {
     }
     return DEFAULT_TABLE_FINISH_ID;
   });
-  const [woodTextureId, setWoodTextureId] = useState(() => {
+  const [woodTextureId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('snookerWoodTexture');
       if (stored && WOOD_GRAIN_OPTIONS_BY_ID[stored]) {
@@ -12170,31 +12095,6 @@ function SnookerGame() {
                         onClick={() => setTableFinishId(option.id)}
                         aria-pressed={active}
                         className={`flex-1 min-w-[9rem] rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Wood Grain
-                </h3>
-                <div className="mt-2 grid max-h-48 gap-2 overflow-y-auto pr-1">
-                  {WOOD_GRAIN_OPTIONS.map((option) => {
-                    const active = option.id === woodTextureId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setWoodTextureId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-full px-4 py-1.5 text-[11px] font-semibold uppercase tracking-[0.24em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
                             ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.65)]'
                             : 'bg-white/10 text-white/80 hover:bg-white/20'

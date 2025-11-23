@@ -30,7 +30,7 @@ export default function SnookerLobby() {
   useTelegramBackButton();
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
-  const [playType, setPlayType] = useState('regular');
+  const playType = 'regular';
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [tableFinish, setTableFinish] = useState(() => {
@@ -70,27 +70,20 @@ export default function SnookerLobby() {
   const startGame = async () => {
     let tgId;
     let accountId;
-    if (playType !== 'training') {
-      try {
-        accountId = await ensureAccountId();
-        const balanceResponse = await getAccountBalance(accountId);
-        if ((balanceResponse.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'snooker',
-          players: 2,
-          accountId
-        });
-      } catch {}
-    } else {
-      try {
-        tgId = getTelegramId();
-        accountId = await ensureAccountId();
-      } catch {}
-    }
+    try {
+      accountId = await ensureAccountId();
+      const balanceResponse = await getAccountBalance(accountId);
+      if ((balanceResponse.balance || 0) < stake.amount) {
+        alert('Insufficient balance');
+        return;
+      }
+      tgId = getTelegramId();
+      await addTransaction(tgId, -stake.amount, 'stake', {
+        game: 'snooker',
+        players: 2,
+        accountId
+      });
+    } catch {}
 
     if (typeof window !== 'undefined') {
       try {
@@ -101,11 +94,9 @@ export default function SnookerLobby() {
     const params = new URLSearchParams();
     params.set('type', playType);
     params.set('finish', tableFinish);
-    if (playType !== 'training') {
-      params.set('mode', mode);
-      if (stake.token) params.set('token', stake.token);
-      if (stake.amount) params.set('amount', stake.amount);
-    }
+    params.set('mode', mode);
+    if (stake.token) params.set('token', stake.token);
+    if (stake.amount) params.set('amount', stake.amount);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -138,50 +129,31 @@ export default function SnookerLobby() {
         Challenge the AI in the brand-new Royal tables inspired by Pool Royale.
       </p>
       <div className="space-y-2">
-        <h3 className="font-semibold">Type</h3>
+        <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
           {[
-            { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setPlayType(id)}
-              className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
+            { id: 'ai', label: 'Vs AI' },
+            { id: 'online', label: '1v1 Online', disabled: true }
+          ].map(({ id, label, disabled }) => (
+            <div key={id} className="relative">
+              <button
+                onClick={() => !disabled && setMode(id)}
+                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                  disabled ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={disabled}
+              >
+                {label}
+              </button>
+              {disabled && (
+                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                  Under development
+                </span>
+              )}
+            </div>
           ))}
         </div>
       </div>
-      {playType !== 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Mode</h3>
-          <div className="flex gap-2">
-            {[
-              { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online', disabled: true }
-            ].map(({ id, label, disabled }) => (
-              <div key={id} className="relative">
-                <button
-                  onClick={() => !disabled && setMode(id)}
-                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                    disabled ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={disabled}
-                >
-                  {label}
-                </button>
-                {disabled && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                    Under development
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Table</h3>
         <div className="space-y-2">
@@ -199,12 +171,10 @@ export default function SnookerLobby() {
           ))}
         </div>
       </div>
-      {playType !== 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Stake</h3>
-          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-        </div>
-      )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Stake</h3>
+        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+      </div>
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
