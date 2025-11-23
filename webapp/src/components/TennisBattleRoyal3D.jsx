@@ -120,6 +120,47 @@ function buildRoyalGrandstand() {
   return group;
 }
 
+function buildSidelineChair() {
+  const chair = new THREE.Group();
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.52, metalness: 0.32 });
+  const seatMat = new THREE.MeshPhysicalMaterial({
+    color: 0x1e40af,
+    roughness: 0.36,
+    metalness: 0.22,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.3
+  });
+
+  const ladderWidth = 0.72;
+  const stepDepth = 0.18;
+  const stepHeight = 0.22;
+  for (let i = 0; i < 6; i += 1) {
+    const step = new THREE.Mesh(new THREE.BoxGeometry(ladderWidth, stepHeight * 0.36, stepDepth), frameMat);
+    step.position.set(0, (i + 0.35) * stepHeight, -0.45 - i * stepDepth * 0.75);
+    chair.add(step);
+  }
+
+  const railsGeo = new THREE.CylinderGeometry(0.04, 0.04, 2.8, 10);
+  const railL = new THREE.Mesh(railsGeo, frameMat);
+  railL.position.set(-ladderWidth / 2, 1.4, -1.2);
+  const railR = railL.clone();
+  railR.position.x = ladderWidth / 2;
+  chair.add(railL, railR);
+
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.08, 0.78), seatMat);
+  seat.position.set(0, 1.82, -1.8);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.62, 0.08), seatMat);
+  back.position.set(0, 2.13, -2.18);
+  chair.add(seat, back);
+
+  const canopy = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.4), seatMat);
+  canopy.rotation.x = -Math.PI / 2.4;
+  canopy.position.set(0, 2.65, -1.8);
+  chair.add(canopy);
+
+  return chair;
+}
+
 function makeCourtSurfaceTexture(w = 2048, h = 4096) {
   const c = document.createElement("canvas");
   c.width = w;
@@ -638,6 +679,16 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     broadcastRig.position.set(halfW + 1.8, 0, 0);
     scene.add(broadcastRig);
 
+    const chairOffsetX = halfW + apron - 0.2;
+    const leftChair = buildSidelineChair();
+    leftChair.position.set(-chairOffsetX, 0, 0.6);
+    leftChair.rotation.y = Math.PI / 2;
+    scene.add(leftChair);
+    const rightChair = buildSidelineChair();
+    rightChair.position.set(chairOffsetX, 0, -0.6);
+    rightChair.rotation.y = -Math.PI / 2;
+    scene.add(rightChair);
+
     // Rackets and ball
     const ballR = 0.076 * 1.25;
     const ball = buildBallURT();
@@ -645,11 +696,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     scene.add(ball);
 
     const player = makeRacket();
-    player.position.set(0, 0, playerZ);
+    player.position.set(0, 0.65, playerZ);
     player.rotation.y = Math.PI / 2;
     scene.add(player);
     const enemy = makeRacket();
-    enemy.position.set(0, 0, cpuZ);
+    enemy.position.set(0, 0.65, cpuZ);
     enemy.rotation.y = -Math.PI / 2;
     scene.add(enemy);
 
@@ -680,13 +731,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
       if (distY > 40) {
         started = true;
-        const power = Math.min((distY / time) * 0.001, 0.48);
-        velocity.x = THREE.MathUtils.clamp(distX * 0.0009, -0.22, 0.22);
-        velocity.y = 0.16 + power * 0.26;
-        velocity.z = -0.16 - power * 0.48;
+        const power = Math.min((distY / time) * 0.0008, 0.38);
+        velocity.x = THREE.MathUtils.clamp(distX * 0.00075, -0.18, 0.18);
+        velocity.y = 0.12 + power * 0.18;
+        velocity.z = -0.12 - power * 0.36;
 
         player.position.x = screenToCourt(startX);
-        ball.position.set(player.position.x, player.position.y + 1, player.position.z - 0.4);
+        ball.position.set(player.position.x, player.position.y + 0.45, player.position.z - 0.42);
       }
     };
 
@@ -710,7 +761,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     // Helpers
     function updateRacketHeight() {
-      const targetY = Math.max(1, Math.min(ball.position.y, 4));
+      const targetY = Math.max(0.65, Math.min(ball.position.y, 3));
       player.position.y += (targetY - player.position.y) * 0.2;
       enemy.position.y += (targetY - enemy.position.y) * 0.2;
     }
@@ -727,9 +778,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function updateCamera() {
-      const camTarget = new THREE.Vector3(ball.position.x, 6, ball.position.z + 10);
+      const camTarget = new THREE.Vector3(player.position.x, 5.6, player.position.z + 9.8);
       camera.position.lerp(camTarget, 0.08);
-      camera.lookAt(ball.position);
+      const lookTarget = new THREE.Vector3(player.position.x, player.position.y + 0.6, player.position.z - 1.2);
+      camera.lookAt(lookTarget);
     }
 
     function physics() {
