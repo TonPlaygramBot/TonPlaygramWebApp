@@ -1449,7 +1449,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function deriveSwingFromGesture({ dir, speed, raw }, { serve = false } = {}) {
-      const minSwipe = serve ? 360 : 420;
+      const minSwipe = serve ? 300 : 320;
       const maxSwipe = serve ? 1650 : 1900;
       const swipePower = THREE.MathUtils.clamp(
         THREE.MathUtils.mapLinear(speed, minSwipe, maxSwipe, 6, 17),
@@ -1464,11 +1464,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
       const forwardDir = new THREE.Vector3(
         lateralLean * 0.75,
-        THREE.MathUtils.lerp(0.36, 0.82, depthBias) + Math.max(0, verticalIntent) * 0.5,
-        -1
+        THREE.MathUtils.lerp(0.36, 0.82, depthBias) + Math.max(0, verticalIntent) * 0.48,
+        -1.1
       ).normalize();
 
-      const swingSpeed = THREE.MathUtils.lerp(8.5, 19.5, normalizedForce) * (serve ? 1.1 : 1.04);
+      const swingSpeed = THREE.MathUtils.lerp(10.5, 22.5, normalizedForce) * (serve ? 1.1 : 1.04);
       const topSpin = THREE.MathUtils.lerp(12, 32, normalizedForce * depthBias);
       const sideSpin = THREE.MathUtils.lerp(4, 14, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
       const spinAxis = new THREE.Vector3(-depthBias * 0.9, THREE.MathUtils.clamp(lateralLean * 0.9, -0.9, 0.9), 0.45)
