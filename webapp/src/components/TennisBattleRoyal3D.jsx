@@ -952,7 +952,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.rotation.y = -Math.PI / 2;
     scene.add(cpu);
 
-    const HIT_FORCE_MULTIPLIER = 5;
+    const HIT_FORCE_MULTIPLIER = 0.5;
     const OUTGOING_SPEED_CAP = 16.4 * HIT_FORCE_MULTIPLIER;
 
     const state = {
@@ -1245,8 +1245,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function placeCamera() {
-      const servingDiag = !state.live && state.serveBy === 'player';
-      if (servingDiag) {
+      const playerServingDiag = !state.live && state.serveBy === 'player';
+      const cpuServingDiag = !state.live && state.serveBy === 'cpu';
+      if (playerServingDiag) {
         const sideOffset = state.serveSide === 'deuce' ? 1.35 : -1.35;
         const diagTarget = new THREE.Vector3(
           player.position.x + sideOffset,
@@ -1255,6 +1256,17 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         );
         camera.position.lerp(diagTarget, 0.25);
         camera.lookAt(new THREE.Vector3(0, 1.15, -halfL + 0.65));
+        return;
+      }
+      if (cpuServingDiag) {
+        const sideOffset = state.serveSide === 'deuce' ? -1.35 : 1.35;
+        const diagTarget = new THREE.Vector3(
+          cpu.position.x + sideOffset,
+          camHeight + 0.2,
+          THREE.MathUtils.clamp(cpu.position.z - camBack - 0.8, -cameraMaxZ, -cameraMinZ)
+        );
+        camera.position.lerp(diagTarget, 0.25);
+        camera.lookAt(new THREE.Vector3(0, 1.15, halfL - 0.65));
         return;
       }
       const camFollowZ = ball.position.z + (ball.position.z >= player.position.z - 0.5 ? 2.8 : 3.6);
@@ -1535,6 +1547,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         vx = ((last.x - first.x) / gdt) * 1000;
         vy = ((last.y - first.y) / gdt) * 1000;
       }
+      vx *= -1;
       const spd = Math.hypot(vx, vy);
       if (!state.live) {
         if (state.serveBy === 'player') {
@@ -1595,6 +1608,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let cpuPlan = null;
     function cpuTryHit(dt) {
       if (!state.live) {
+        if (state.serveBy === 'cpu' && !cpuSwing && !cpuSrvTO && !state.matchOver) {
+          prepareServe('cpu');
+        }
         cpuWind = Math.max(0, cpuWind - dt);
         cpu.position.x = THREE.MathUtils.damp(cpu.position.x, 0, 4.2, dt);
         cpu.position.z = THREE.MathUtils.damp(cpu.position.z, cpuZ, 3.5, dt);
