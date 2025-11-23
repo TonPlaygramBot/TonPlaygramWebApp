@@ -404,7 +404,7 @@ const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
 const DEFENDER_WALL_Z = 1.2; // legacy spot where the ball used to start
-const SHOOT_POWER_SCALE = 2.25; // additional top-end power for faster, punchier strikes
+const SHOOT_POWER_SCALE = 2.1; // slightly softened top-end power for smoother, more realistic strikes
 const SHOOT_VERTICAL_POWER_MIN = 0.38;
 const SHOOT_VERTICAL_POWER_MAX = 0.58;
 const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.68;
@@ -433,8 +433,8 @@ const TARGET_PADDING_X = 0.35;
 const TARGET_PADDING_Y = 0.28;
 const TARGET_SEPARATION = 0.32;
 const FIXED_TIME_STEP = 1 / 60;
-const MAX_FRAME_DELTA = 0.08;
-const MAX_ACCUMULATED_TIME = 0.24;
+const MAX_FRAME_DELTA = 1 / 45;
+const MAX_ACCUMULATED_TIME = 0.18;
 const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 1.82, START_Z + 4.1);
 const CAMERA_IDLE_FOCUS = new THREE.Vector3(0, 1.48, GOAL_CONFIG.z);
 const CAMERA_ACTIVE_MIN_DISTANCE = 3.4;
@@ -1757,7 +1757,7 @@ export default function FreeKick3DGame({ config }) {
 
     const wallGroup = new THREE.Group();
     wallGroup.position.set(0, 0, DEFENDER_WALL_Z);
-    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0x20232a, roughness: 0.6 });
+    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0xfacc15, roughness: 0.6 });
     const defenders = [];
     const defenderOffsets = [];
     const defenderAnchors = [];
@@ -1778,7 +1778,7 @@ export default function FreeKick3DGame({ config }) {
     }
     scene.add(wallGroup);
 
-    const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0x1c2432, roughness: 0.45 });
+    const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0xfacc15, roughness: 0.45 });
     const keeperAnchor = new THREE.Group();
     const keeperMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.2, 6, 12), keeperMaterial);
     keeperMesh.castShadow = true;
@@ -1879,8 +1879,8 @@ export default function FreeKick3DGame({ config }) {
           anchor.add(character);
         };
 
-        defenderAnchors.forEach((anchor) => attachCharacter(anchor, DEFENDER_MODEL_HEIGHT, 0x1d4ed8));
-        attachCharacter(keeperAnchor, KEEPER_MODEL_HEIGHT, 0x16a34a);
+        defenderAnchors.forEach((anchor) => attachCharacter(anchor, DEFENDER_MODEL_HEIGHT, 0xfacc15));
+        attachCharacter(keeperAnchor, KEEPER_MODEL_HEIGHT, 0xfacc15);
       },
       undefined,
       (error) => {
