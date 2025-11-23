@@ -121,16 +121,21 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     scene.add(ball);
 
     const velocity = new THREE.Vector3();
-    const GRAVITY = -0.01;
-    const BOUNCE = 0.82;
-    const AIR = 0.996;
-    let started = false;
+    const clock = new THREE.Clock();
+    const BASE_STEP = 1 / 60;
+    const GRAVITY = mode === 'tabletennis' ? -36 : -22;
+    const AIR_DECAY = 0.985;
+    const TABLE_RESTITUTION = 0.9;
+    const WALL_REBOUND = 0.65;
+    const FLOOR_FRICTION = 0.92;
 
+    let started = false;
     let startX = 0;
     let startY = 0;
     let lastX = 0;
     let lastY = 0;
     let startT = 0;
+    let queuedSwing = null;
 
     function clampX(x) {
       return THREE.MathUtils.clamp(x, -halfW + config.ballRadius * 2, halfW - config.ballRadius * 2);
@@ -140,6 +145,40 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const rect = renderer.domElement.getBoundingClientRect();
       const normX = (clientX - rect.left) / rect.width;
       return clampX((normX - 0.5) * config.courtW);
+    }
+
+    function resetBall(showToast = true) {
+      started = false;
+      velocity.set(0, 0, 0);
+      queuedSwing = null;
+      const zOffset = halfL - config.playerZOffset - 0.3;
+      ball.position.set(0, config.ballRadius + 0.7, zOffset);
+      camera.position.set(0, config.cameraHeight, ball.position.z + config.cameraOffset);
+      camera.lookAt(ball.position);
+      if (showToast) {
+        setToast(trainingMode ? 'Modaliteti Trajnim · Swipe për shërbim' : 'Swipe UP për shërbim');
+      }
+    }
+
+    function blend(alphaPerStep, dt) {
+      return 1 - Math.pow(1 - alphaPerStep, dt / BASE_STEP);
+    }
+
+    function applyShotImpulse(distX, distY, swipeTime) {
+      const lateralScale = config.courtW / BASE_CONFIG.courtW;
+      const forwardScale = config.courtL / BASE_CONFIG.courtL;
+
+      const lateral = THREE.MathUtils.clamp((distX / Math.max(swipeTime, 0.12)) * 0.0022 * lateralScale, -2.2 * lateralScale, 2.2 * lateralScale);
+      const forward = THREE.MathUtils.clamp((distY / Math.max(swipeTime, 0.12)) * 0.003 * forwardScale, 3 * forwardScale, 9.5 * forwardScale);
+      const vertical = THREE.MathUtils.clamp((distY / Math.max(swipeTime, 0.12)) * 0.0018, 2.2, 8.5);
+
+      const direction = ball.position.z >= 0 ? -1 : 1;
+      const hitOffset = Math.max(0.32, config.ballRadius * 6);
+
+      velocity.set(lateral, vertical, direction * forward);
+      ball.position.set(clampX(player.position.x), Math.max(config.ballRadius + 0.05, player.position.y + 0.55), player.position.z + direction * hitOffset);
+      started = true;
+      setToast('Rally në progres');
     }
 
     function onPointerDown(e) {
@@ -155,21 +194,20 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     function launchFromSwipe(endX, endY) {
       const distX = endX - startX;
       const distY = startY - endY;
-      const time = Math.max((Date.now() - startT) / 1000, 0.15);
-      if (distY < 40) return;
+      const time = Math.max((Date.now() - startT) / 1000, 0.12);
+      if (distY < 32) return;
 
-      started = true;
+      if (started) {
+        const lateralScale = config.courtW / BASE_CONFIG.courtW;
+        queuedSwing = {
+          lateral: THREE.MathUtils.clamp((distX / Math.max(time, 0.12)) * 0.0015 * lateralScale, -1.6 * lateralScale, 1.6 * lateralScale),
+          lift: THREE.MathUtils.clamp((distY / Math.max(time, 0.12)) * 0.0012, 0, 2.5),
+        };
+        setToast('Swing i gati · prit topin');
+        return;
+      }
 
-      const power = Math.min((distY / time) * 0.001, 0.6);
-      const lateralScale = config.courtW / BASE_CONFIG.courtW;
-      const forwardScale = config.courtL / BASE_CONFIG.courtL;
-
-      velocity.x = THREE.MathUtils.clamp(distX * 0.001 * lateralScale, -0.25 * lateralScale, 0.25 * lateralScale);
-      velocity.y = 0.18 + power * 0.3;
-      velocity.z = (-0.2 - power * 0.6) * forwardScale;
-
-      ball.position.set(clampX(player.position.x), player.position.y + 1, player.position.z - Math.max(0.5, config.ballRadius * 2));
-      setToast('Rally në progres');
+      applyShotImpulse(distX, distY, time);
     }
 
     function onPointerUp(e) {
@@ -181,6 +219,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const t = e.touches ? e.touches[0] : e;
       lastX = t.clientX;
       lastY = t.clientY;
+      const targetX = screenToCourt(t.clientX);
+      player.position.x += (targetX - player.position.x) * 0.28;
     }
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
@@ -219,70 +259,117 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     document.addEventListener('touchstart', onDocumentTouchStart, { passive: true });
     document.addEventListener('touchend', onDocumentTouchEnd, { passive: true });
 
-    function updateRacketHeight() {
-      const targetY = Math.max(config.ballRadius + 0.7, Math.min(ball.position.y, config.ballRadius + 3.5));
-      player.position.y += (targetY - player.position.y) * 0.2;
-      enemy.position.y += (targetY - enemy.position.y) * 0.2;
+    function updateRacketHeight(dt) {
+      const targetY = Math.max(config.ballRadius + 0.6, Math.min(ball.position.y, config.ballRadius + 3));
+      const alpha = blend(0.22, dt);
+      player.position.y += (targetY - player.position.y) * alpha;
+      enemy.position.y += (targetY - enemy.position.y) * alpha;
     }
 
-    function enemyAI() {
+    function enemyAI(dt) {
       if (!started) return;
-      const travel = Math.abs((enemy.position.z - ball.position.z) / (velocity.z || 0.001));
-      const targetX = clampX(ball.position.x + velocity.x * travel);
-      enemy.position.x += (targetX - enemy.position.x) * 0.08;
 
-      const hitDistance = Math.max(halfW * 0.08, config.ballRadius * 6);
-      if (ball.position.distanceTo(enemy.position) < hitDistance && velocity.z < 0) {
-        velocity.z = Math.abs(velocity.z) + 0.2 * (config.courtL / BASE_CONFIG.courtL);
-        velocity.y = 0.2 + Math.random() * 0.1;
+      const travel = Math.abs((enemy.position.z - ball.position.z) / Math.max(Math.abs(velocity.z), 0.001));
+      const predictedX = clampX(ball.position.x + velocity.x * travel * 0.85);
+      enemy.position.x += (predictedX - enemy.position.x) * blend(0.16, dt);
+
+      const hitWindow = Math.max(halfW * 0.08, config.ballRadius * 8);
+      const approachingEnemy = velocity.z < 0 && ball.position.z < enemy.position.z + hitWindow;
+      if (approachingEnemy && ball.position.distanceTo(enemy.position) < hitWindow) {
+        const aimForward = THREE.MathUtils.clamp(Math.abs(velocity.z) + 2.8, 3.4, 9.2) * (config.courtL / BASE_CONFIG.courtL);
+        const aimLateral = THREE.MathUtils.clamp((ball.position.x - enemy.position.x) * 1.4, -2.2, 2.2);
+        velocity.set(aimLateral, 3 + Math.random() * 1.2, Math.abs(aimForward));
       }
     }
 
-    function updateCamera() {
+    function attemptPlayerReturn(dt) {
+      const hitWindow = Math.max(halfW * 0.08, config.ballRadius * 8);
+      const approachingPlayer = velocity.z > 0 && ball.position.z > player.position.z - hitWindow;
+      if (!approachingPlayer || ball.position.distanceTo(player.position) >= hitWindow) return;
+
+      const rebound = THREE.MathUtils.clamp(Math.abs(velocity.z) + 2.2, 3.2, 9) * (config.courtL / BASE_CONFIG.courtL);
+      const correction = THREE.MathUtils.clamp((ball.position.x - player.position.x) * 1.3, -1.8, 1.8);
+      const queuedLateral = queuedSwing?.lateral ?? 0;
+      const queuedLift = queuedSwing?.lift ?? 0;
+      velocity.set(correction + queuedLateral, 3.4 + queuedLift + Math.random() * 0.8, -Math.abs(rebound));
+      queuedSwing = null;
+      setToast('Kthim perfekt!');
+      started = true;
+    }
+
+    function updateCamera(dt) {
       const camTarget = new THREE.Vector3(
         THREE.MathUtils.clamp(ball.position.x, -halfW, halfW),
         config.cameraHeight,
         ball.position.z + config.cameraOffset
       );
-      camera.position.lerp(camTarget, 0.08);
+      camera.position.lerp(camTarget, blend(0.08, dt));
       camera.lookAt(ball.position);
     }
 
-    function physics() {
-      if (!started) return;
-      velocity.y += GRAVITY;
-      ball.position.add(velocity);
+    function handleTableBounds(dt) {
+      const floorY = config.ballRadius;
+      const damping = Math.pow(AIR_DECAY, dt / BASE_STEP);
+      velocity.multiplyScalar(damping);
+      velocity.y += GRAVITY * dt;
+      ball.position.addScaledVector(velocity, dt);
 
       const inCourt = Math.abs(ball.position.x) <= halfW && Math.abs(ball.position.z) <= halfL;
-      const floorY = config.ballRadius;
-      const hitDistance = Math.max(halfW * 0.08, config.ballRadius * 6);
 
-      if (ball.position.y < floorY) {
+      // Net collision
+      if (Math.abs(ball.position.z) < 0.06 && ball.position.y <= config.netHeight + config.ballRadius) {
+        ball.position.z = ball.position.z >= 0 ? 0.07 : -0.07;
+        velocity.z *= -WALL_REBOUND;
+        velocity.y = Math.abs(velocity.y) * 0.5;
+      }
+
+      // Side rails to keep training rallies playable
+      if (Math.abs(ball.position.x) > halfW - config.ballRadius * 1.2) {
+        ball.position.x = clampX(ball.position.x);
+        velocity.x *= -WALL_REBOUND;
+      }
+
+      if (ball.position.y <= floorY) {
         if (inCourt) {
           ball.position.y = floorY;
-          velocity.y *= -BOUNCE;
-          velocity.x *= AIR;
-          velocity.z *= AIR;
+          velocity.y = Math.abs(velocity.y) * TABLE_RESTITUTION;
+          velocity.x *= FLOOR_FRICTION;
+          velocity.z *= FLOOR_FRICTION;
         } else {
           velocity.set(0, 0, 0);
           started = false;
           setToast('Jashtë fushës · Swipe për të rifilluar');
+          resetBall(false);
         }
       }
 
-      if (ball.position.distanceTo(player.position) < hitDistance && velocity.z > 0) {
-        velocity.z = -Math.abs(velocity.z) - 0.15 * (config.courtL / BASE_CONFIG.courtL);
-        velocity.y = 0.2;
+      const clippedOut = Math.abs(ball.position.z) > halfL + 0.4 || ball.position.y < -1;
+      if (clippedOut) {
+        velocity.set(0, 0, 0);
+        started = false;
+        setToast('Rally përfundoi · Swipe për të rifilluar');
+        resetBall(false);
       }
-
-      enemyAI();
-      updateRacketHeight();
-      updateCamera();
     }
+
+    function physics(dt) {
+      if (started) {
+        handleTableBounds(dt);
+        if (started) {
+          attemptPlayerReturn(dt);
+          enemyAI(dt);
+        }
+      }
+      updateRacketHeight(dt);
+      updateCamera(dt);
+    }
+
+    resetBall();
 
     let raf = 0;
     function animate() {
-      physics();
+      const dt = Math.min(clock.getDelta(), 0.05);
+      physics(dt);
       renderer.render(scene, camera);
       raf = requestAnimationFrame(animate);
     }
