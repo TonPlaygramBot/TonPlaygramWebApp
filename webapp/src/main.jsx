@@ -14,19 +14,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );
 
-// Register a service worker to always fetch the latest files
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/service-worker.js')
-      .then(() => {
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-          // When a new service worker takes control, reload to fetch fresh assets
-          window.location.reload();
-        });
-      })
-      .catch((error) => {
-        console.error('Service worker registration failed:', error);
-      });
-  });
-}
+// Service workers are disabled to avoid unexpected reloads that could interrupt gameplay

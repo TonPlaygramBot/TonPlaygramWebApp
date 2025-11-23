@@ -26,19 +26,18 @@
     <title>TonPlaygram</title>
   </head>
   <body>
+    <div id="root"></div>
     <script>
       // Clean up any stray DOM before mounting React
-      document.addEventListener('DOMContentLoaded', () => {
+      (function cleanupRoot() {
         const root = document.getElementById('root');
-        if (root) {
-          while (root.previousSibling) {
-            root.previousSibling.remove();
-          }
-          root.innerHTML = '';
+        if (!root) return;
+        while (root.previousSibling) {
+          root.previousSibling.remove();
         }
-      });
+        root.innerHTML = '';
+      })();
     </script>
-    <div id="root"></div>
     <script type="module" src="./src/main.jsx"></script>
   </body>
 </html>
