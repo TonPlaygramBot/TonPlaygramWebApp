@@ -952,7 +952,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.rotation.y = -Math.PI / 2;
     scene.add(cpu);
 
-    const OUTGOING_SPEED_CAP = 16.4;
+    const HIT_FORCE_MULTIPLIER = 5;
+    const OUTGOING_SPEED_CAP = 16.4 * HIT_FORCE_MULTIPLIER;
 
     const state = {
       gravity: -9.81,
@@ -1463,9 +1464,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       if (!closing) return false;
 
       const vn = relVel.dot(normal);
-      const impulse = -(1 + swing.restitution) * vn;
+      const impulse = -(1 + swing.restitution) * vn * HIT_FORCE_MULTIPLIER;
       vel.addScaledVector(normal, impulse);
-      vel.addScaledVector(swingVel, 0.32);
+      vel.addScaledVector(swingVel, 0.32 * HIT_FORCE_MULTIPLIER);
 
       const tangent = relVel.sub(normal.clone().multiplyScalar(vn));
       if (tangent.lengthSq() > 1e-5) {
