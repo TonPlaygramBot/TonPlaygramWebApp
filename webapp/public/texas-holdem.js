@@ -24,7 +24,8 @@ const state = {
   raiseAmount: 0,
   selectedChips: [],
   tpcTotal: 0,
-  seated: true
+  seated: true,
+  roundBets: []
 };
 
 const DEFAULT_SETTINGS = {
@@ -444,6 +445,7 @@ function init() {
   renderSeats();
   collectAntes();
   updatePotDisplay();
+  startBettingRound();
   dealInitialCards();
   setStatus('', '');
 }
@@ -597,6 +599,16 @@ function collectAntes() {
     }
   });
   updateBalancePreview();
+}
+
+function startBettingRound() {
+  state.currentBet = 0;
+  state.roundBets = state.players.map(() => 0);
+  state.raiseAmount = 0;
+  state.selectedChips = [];
+  updateRaiseAmount();
+  updateSliderRange();
+  updateActionButtons();
 }
 
 function buildChipPiles(amount) {
@@ -766,11 +778,40 @@ function setPlayerTurnIndicator(idx) {
   document
     .querySelectorAll('.avatar')
     .forEach((a) => a.classList.remove('turn'));
+  const token = document.getElementById('turnToken');
+  if (token) token.classList.remove('active');
   if (idx === null || idx === undefined || idx < 0) return;
+  const player = state.players[idx];
+  if (!player || player.vacant || !player.active) return;
   const cards = document.getElementById('cards-' + idx);
   if (cards) cards.classList.add('turn');
   const avatar = document.getElementById('avatar-' + idx);
   if (avatar) avatar.classList.add('turn');
+  if (token) {
+    const stage = document.querySelector('.stage');
+    const seat = document.querySelectorAll('#seats .seat')[idx];
+    if (stage && seat) {
+      const stageRect = stage.getBoundingClientRect();
+      const seatRect = seat.getBoundingClientRect();
+      token.style.left = seatRect.left - stageRect.left + seatRect.width / 2 + 'px';
+      token.style.top = seatRect.top - stageRect.top - 8 + 'px';
+      token.classList.add('active');
+    }
+  }
+}
+
+function updateActionButtons() {
+  const outstanding = Math.max(0, state.currentBet - (state.roundBets[0] || 0));
+  const callBtn = document.getElementById('call');
+  const checkBtn = document.getElementById('check');
+  if (callBtn) {
+    callBtn.innerHTML =
+      outstanding > 0 ? `call ${formatAmount(outstanding)}` : 'call';
+    callBtn.disabled = outstanding <= 0;
+  }
+  if (checkBtn) {
+    checkBtn.disabled = outstanding > 0;
+  }
 }
 
 function showControls() {
@@ -792,6 +833,8 @@ function showControls() {
     checkBtn.addEventListener('click', playerCheck);
     controls.append(foldBtn, callBtn, checkBtn);
   }
+
+  updateActionButtons();
 
   const stage = document.querySelector('.stage');
 
@@ -939,7 +982,8 @@ function showControls() {
 
   const checkBtn = document.getElementById('check');
   if (checkBtn) {
-    const hide = state.currentBet > 0;
+    const outstanding = Math.max(0, state.currentBet - (state.roundBets[0] || 0));
+    const hide = outstanding > 0;
     checkBtn.disabled = hide;
     checkBtn.style.display = hide ? 'none' : '';
   }
@@ -1004,6 +1048,7 @@ function updateSliderRange() {
   const preview =
     state.raiseAmount > 0 ? state.raiseAmount : parseInt(slider.value, 10);
   updateBalancePreview(preview);
+  updateActionButtons();
 }
 
 function hideControls() {
@@ -1029,10 +1074,10 @@ function hideControls() {
 
 function startPlayerTurn() {
   state.turn = 0;
-  state.currentBet = 0;
   setPlayerTurnIndicator(0);
   playKnockSound();
   showControls();
+  updateActionButtons();
   startTurnTimer(() => {
     if (state.currentBet > 0) playerFold();
     else playerCheck();
@@ -1082,40 +1127,52 @@ function playerFold() {
 }
 
 function playerCheck() {
+  const outstanding = Math.max(0, state.currentBet - (state.roundBets[0] || 0));
   // disallow checking when there is an outstanding bet
-  if (state.currentBet > 0) return;
+  if (outstanding > 0) return;
   setActionText(0, 'check');
   setStatus('check', 'You check');
+  state.roundBets[0] = Math.max(state.roundBets[0] || 0, state.currentBet);
   proceedStage();
 }
 
 function playerCall() {
-  state.pot += state.currentBet;
-  animateChipsFromPlayer(0, state.currentBet);
+  const outstanding = Math.max(0, state.currentBet - (state.roundBets[0] || 0));
+  if (outstanding <= 0) {
+    playerCheck();
+    return;
+  }
+  state.roundBets[0] = (state.roundBets[0] || 0) + outstanding;
+  state.pot += outstanding;
+  animateChipsFromPlayer(0, outstanding);
   setActionText(0, 'call');
-  setStatus('call', `You call ${formatAmount(state.currentBet)}`);
+  setStatus('call', `You call ${formatAmount(outstanding)}`);
   if (state.pot >= state.maxPot) playAllInSound();
   else playCallRaiseSound();
-  state.tpcTotal = Math.max(0, state.tpcTotal - state.currentBet);
+  state.tpcTotal = Math.max(0, state.tpcTotal - outstanding);
   updateBalancePreview();
   updateSliderRange();
+  updateActionButtons();
   proceedStage();
 }
 
 function playerRaise(amount = state.raiseAmount) {
+  const outstanding = Math.max(0, state.currentBet - (state.roundBets[0] || 0));
   const maxAllowed = Math.min(state.stake, state.maxPot - state.pot);
-  amount = Math.min(amount, maxAllowed);
-  if (amount <= 0) return;
-  state.pot += amount;
-  state.currentBet += amount;
-  animateChipsFromPlayer(0, amount);
+  const total = Math.min(outstanding + amount, maxAllowed);
+  if (total <= outstanding) return;
+  state.pot += total;
+  state.roundBets[0] = (state.roundBets[0] || 0) + total;
+  state.currentBet = Math.max(state.currentBet, state.roundBets[0]);
+  animateChipsFromPlayer(0, total);
   setActionText(0, 'raise');
-  setStatus('raise', `You raise ${formatAmount(amount)}`);
+  setStatus('raise', `You raise ${formatAmount(total)}`);
   if (state.pot >= state.maxPot) playAllInSound();
   else playCallRaiseSound();
-  state.tpcTotal = Math.max(0, state.tpcTotal - amount);
+  state.tpcTotal = Math.max(0, state.tpcTotal - total);
   updateBalancePreview();
   updateSliderRange();
+  updateActionButtons();
   proceedStage();
 }
 
@@ -1129,42 +1186,64 @@ async function proceedStage() {
     setPlayerTurnIndicator(i);
     setStatus('', `${p.name}...`);
     await new Promise((r) => setTimeout(r, 2500));
+    const toCall = Math.max(0, state.currentBet - (state.roundBets[i] || 0));
     let action = aiChooseAction(
       p.hand,
       state.community.slice(0, stageCommunityCount()),
       state.currentBet
     );
-    if (state.currentBet > 0 && action === 'check') action = 'call';
+    if (toCall <= 0 && action === 'call') action = 'check';
+    if (toCall > 0 && action === 'check') action = 'call';
     if (action === 'raise') {
       const raiseBy = ANTE;
-      const total = state.currentBet + raiseBy;
-      state.currentBet = total;
-      state.pot += total;
-      p.balance = Math.max(0, (p.balance || 0) - total);
-      animateChipsFromPlayer(i, total);
-      setStatus('raise', `${p.name} raises to ${formatAmount(total)}`);
-      if (state.pot >= state.maxPot) playAllInSound();
-      else playCallRaiseSound();
-      updateBalances();
-    } else if (action === 'call') {
-      state.pot += state.currentBet;
-      p.balance = Math.max(0, (p.balance || 0) - state.currentBet);
-      animateChipsFromPlayer(i, state.currentBet);
-      setStatus('call', `${p.name} calls ${formatAmount(state.currentBet)}`);
-      if (state.pot >= state.maxPot) playAllInSound();
-      else playCallRaiseSound();
-      updateBalances();
-    } else if (action === 'fold') {
+      const total = Math.min(toCall + raiseBy, state.maxPot - state.pot);
+      if (total <= toCall) {
+        action = toCall > 0 ? 'call' : 'check';
+      } else {
+        state.roundBets[i] = (state.roundBets[i] || 0) + total;
+        state.currentBet = Math.max(state.currentBet, state.roundBets[i]);
+        state.pot += total;
+        p.balance = Math.max(0, (p.balance || 0) - total);
+        animateChipsFromPlayer(i, total);
+        setStatus('raise', `${p.name} raises to ${formatAmount(state.currentBet)}`);
+        if (state.pot >= state.maxPot) playAllInSound();
+        else playCallRaiseSound();
+        updateBalances();
+      }
+    }
+    if (action === 'call') {
+      if (toCall <= 0) {
+        action = 'check';
+      } else {
+        state.roundBets[i] = (state.roundBets[i] || 0) + toCall;
+        state.pot += toCall;
+        p.balance = Math.max(0, (p.balance || 0) - toCall);
+        animateChipsFromPlayer(i, toCall);
+        setStatus('call', `${p.name} calls ${formatAmount(toCall)}`);
+        if (state.pot >= state.maxPot) playAllInSound();
+        else playCallRaiseSound();
+        updateBalances();
+      }
+    }
+    if (action === 'fold') {
       p.active = false;
       setStatus('fold', `${p.name} folds`);
       moveCardsToFolded(i);
-    } else {
+    } else if (action === 'check') {
+      state.roundBets[i] = Math.max(state.roundBets[i] || 0, state.currentBet);
       setStatus('check', `${p.name} checks`);
     }
     setActionText(i, action);
   }
   setPlayerTurnIndicator(null);
+  const activePlayers = state.players.filter((p) => !p.vacant && p.active);
+  const unsettled = activePlayers.some((p, idx) => state.roundBets[idx] < state.currentBet);
+  if (unsettled && state.players[0]?.active) {
+    startPlayerTurn();
+    return;
+  }
   state.stage++;
+  startBettingRound();
   if (state.stage === 1) revealFlop();
   else if (state.stage === 2) revealTurn();
   else if (state.stage === 3) revealRiver();
