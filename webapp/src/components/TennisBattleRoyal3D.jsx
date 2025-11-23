@@ -895,13 +895,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     ball.scale.setScalar(s);
     scene.add(ball);
     const physics = {
-      gravity: -9.81,
-      airDrag: 0.32,
-      lift: 0.24,
-      bounceRestitution: 0.82,
-      courtFriction: 0.18,
-      spinDamping: 0.9,
-      spinSlip: 0.6
+      gravity: -8.6,
+      airDrag: 0.22,
+      lift: 0.2,
+      bounceRestitution: 0.84,
+      courtFriction: 0.16,
+      spinDamping: 0.92,
+      spinSlip: 0.68
     };
 
     const sC = document.createElement('canvas');
@@ -952,14 +952,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.rotation.y = -Math.PI / 2;
     scene.add(cpu);
 
-    const HIT_FORCE_MULTIPLIER = 2.5;
-    const OUTGOING_SPEED_CAP = 16.4 * HIT_FORCE_MULTIPLIER;
+    const HIT_FORCE_MULTIPLIER = 2.7;
+    const OUTGOING_SPEED_CAP = 17.5 * HIT_FORCE_MULTIPLIER;
 
     const state = {
-      gravity: -9.81,
-      drag: 0.48,
-      cor: 0.74,
-      fric: 0.24,
+      gravity: -8.6,
+      drag: 0.3,
+      cor: 0.8,
+      fric: 0.2,
       live: false,
       serveBy: 'player',
       serveSide: 'deuce',
@@ -1449,34 +1449,34 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function deriveSwingFromGesture({ dir, speed, raw }, { serve = false } = {}) {
-      const minSwipe = serve ? 300 : 320;
-      const maxSwipe = serve ? 1650 : 1900;
+      const minSwipe = serve ? 220 : 240;
+      const maxSwipe = serve ? 1550 : 1750;
       const swipePower = THREE.MathUtils.clamp(
         THREE.MathUtils.mapLinear(speed, minSwipe, maxSwipe, 6, 17),
         6,
         17
       );
-      const normalizedForce = THREE.MathUtils.clamp(swipePower / 17, serve ? 0.46 : 0.36, 1);
+      const normalizedForce = THREE.MathUtils.clamp(swipePower / 17, serve ? 0.5 : 0.42, 1);
 
       const lateralLean = THREE.MathUtils.clamp(dir.x, -0.95, 0.95);
       const verticalIntent = THREE.MathUtils.clamp(raw.dy === 0 ? 0 : -raw.dy / (Math.abs(raw.dx) + Math.abs(raw.dy)), -0.65, 0.95);
       const depthBias = THREE.MathUtils.clamp(0.7 + Math.abs(verticalIntent) * 0.4, 0.7, 1.3);
 
       const forwardDir = new THREE.Vector3(
-        lateralLean * 0.75,
-        THREE.MathUtils.lerp(0.36, 0.82, depthBias) + Math.max(0, verticalIntent) * 0.48,
-        -1.1
+        lateralLean * 0.82,
+        THREE.MathUtils.lerp(0.4, 0.88, depthBias) + Math.max(0, verticalIntent) * 0.54,
+        -1.16
       ).normalize();
 
-      const swingSpeed = THREE.MathUtils.lerp(10.5, 22.5, normalizedForce) * (serve ? 1.1 : 1.04);
-      const topSpin = THREE.MathUtils.lerp(12, 32, normalizedForce * depthBias);
-      const sideSpin = THREE.MathUtils.lerp(4, 14, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
+      const swingSpeed = THREE.MathUtils.lerp(12.5, 26, normalizedForce) * (serve ? 1.12 : 1.08);
+      const topSpin = THREE.MathUtils.lerp(14, 36, normalizedForce * depthBias);
+      const sideSpin = THREE.MathUtils.lerp(5, 16, Math.abs(lateralLean)) * Math.sign(lateralLean || 1);
       const spinAxis = new THREE.Vector3(-depthBias * 0.9, THREE.MathUtils.clamp(lateralLean * 0.9, -0.9, 0.9), 0.45)
         .normalize()
         .multiplyScalar(topSpin);
       spinAxis.y += sideSpin;
 
-      const liftBoost = THREE.MathUtils.clamp(0.55 + normalizedForce * 1.05 + Math.max(0, verticalIntent) * 1.1, 0.55, 1.8);
+      const liftBoost = THREE.MathUtils.clamp(0.65 + normalizedForce * 1.15 + Math.max(0, verticalIntent) * 1.2, 0.65, 1.95);
 
       return {
         normal: forwardDir,
