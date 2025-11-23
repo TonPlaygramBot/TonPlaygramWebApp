@@ -206,10 +206,9 @@ function createDefaultPocketJawMaterial() {
   });
 }
 
-const POCKET_VISUAL_EXPANSION = 1.018;
-const CORNER_POCKET_INWARD_SCALE = 1.015; // mirror Pool Royale rounded pocket insets
+const POCKET_VISUAL_EXPANSION = 1.012;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // mirror Pool Royale relief depth
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -227,33 +226,30 @@ const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE =
-  CORNER_POCKET_INWARD_SCALE *
-  CHROME_CORNER_POCKET_RADIUS_SCALE *
-  0.992; // reuse Pool Royale side pocket arch width
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.028; // reuse Pool Royale side pocket arch width
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.052;
+const CHROME_PLATE_THICKNESS_SCALE = 0.034;
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1;
 const CHROME_PLATE_RENDER_ORDER = 3.5;
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.68;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.004;
 const WOOD_CORNER_CUT_SCALE = 1; // keep wood cuts identical to chrome plate reliefs
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
-const POCKET_JAW_DEPTH_SCALE = 0.52;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
+const POCKET_JAW_DEPTH_SCALE = 0.56;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
@@ -264,12 +260,12 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.426;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982;
+const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.86;
+const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.04;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.9;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
-const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 1;
-const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 1;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 120;
 
@@ -509,8 +505,8 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 558.8;
 const CORNER_MOUTH_REF = 114.3;
 const SIDE_MOUTH_REF = 127;
-const CORNER_POCKET_SCALE_BOOST = 0.994;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002;
+const CORNER_POCKET_SCALE_BOOST = 0.985;
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996;
 const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -560,12 +556,11 @@ const POCKET_SIDE_MOUTH =
   SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
-const POCKET_INTERIOR_TOP_SCALE = 0.94;
+const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
-const MIDDLE_POCKET_LONGITUDINAL_OFFSET = 0; // align middle pocket centers to Pool Royale axis
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.2; // push the middle pockets farther into the rails
-const SIDE_POCKET_FIELD_PULL = BALL_R * 0.35; // keep the side-pocket centreline tucked toward the apron
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
+  POCKET_VIS_R * 0.22; // pull middle pockets toward the side rails to open the center a touch
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -3325,30 +3320,26 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   return limits;
 }
 
-  let sidePocketShift = 0;
-  const pocketCenters = () => {
-    const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
-    return [
-      new THREE.Vector2(
-        -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
-        -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
-      ),
-      new THREE.Vector2(
-        PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
-        -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
-      ),
-      new THREE.Vector2(
-        -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
-        PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
-      ),
-      new THREE.Vector2(
-        PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
-        PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
-      ),
-      new THREE.Vector2(-sidePocketCenterX, 0),
-      new THREE.Vector2(sidePocketCenterX, 0)
-    ];
-  };
+const pocketCenters = () => [
+  new THREE.Vector2(
+    -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
+    -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
+    -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
+    PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
+    PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(-PLAY_W / 2, -MIDDLE_POCKET_LONGITUDINAL_OFFSET),
+  new THREE.Vector2(PLAY_W / 2, MIDDLE_POCKET_LONGITUDINAL_OFFSET)
+];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
@@ -4227,27 +4218,14 @@ function Table3D(
   };
 
   const clothExtendBase = Math.max(
-    SIDE_RAIL_INNER_THICKNESS * 0.38,
-    Math.min(PLAY_W, PLAY_H) * 0.0105
+    SIDE_RAIL_INNER_THICKNESS * 0.34,
+    Math.min(PLAY_W, PLAY_H) * 0.009
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0042; // mirror Pool Royale cloth reach to rail inner edges
+    Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
-  const desiredSidePocketShift = Math.max(0, halfWext - sideInset - halfW);
-  const maxSidePocketShift = Math.max(0, halfWext - MICRO_EPS - halfW);
-  const baseSidePocketShift = Math.min(desiredSidePocketShift, maxSidePocketShift);
-  const extraSidePocketShift = Math.min(
-    SIDE_POCKET_EXTRA_SHIFT,
-    Math.max(0, maxSidePocketShift - baseSidePocketShift)
-  );
-  const fieldPull = Math.min(
-    SIDE_POCKET_FIELD_PULL,
-    baseSidePocketShift + extraSidePocketShift
-  );
-  sidePocketShift = Math.max(0, baseSidePocketShift + extraSidePocketShift - fieldPull);
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
