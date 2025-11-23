@@ -123,8 +123,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     const velocity = new THREE.Vector3();
     const clock = new THREE.Clock();
     const BASE_STEP = 1 / 60;
-    const GRAVITY = mode === 'tabletennis' ? -36 : -22;
-    const AIR_DECAY = 0.985;
+    const GRAVITY = mode === 'tabletennis' ? -30 : -16;
+    const AIR_DECAY = 0.993;
     const TABLE_RESTITUTION = 0.9;
     const WALL_REBOUND = 0.65;
     const FLOOR_FRICTION = 0.92;
@@ -160,17 +160,31 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       }
     }
 
-    function mapPowerFromSpeed(speed) {
-      const normalized = THREE.MathUtils.clamp((speed - MIN_SWIPE_SPEED) / (MAX_SWIPE_SPEED - MIN_SWIPE_SPEED), 0, 1);
-      return 8 + normalized * 12;
-    }
+    function swipeToShot(distX, distY, swipeTime, towardsEnemy = true) {
+      const lateralScale = config.courtW / BASE_CONFIG.courtW;
+      const forwardScale = config.courtL / BASE_CONFIG.courtL;
 
-    function swipePower(distX, distY, swipeTime) {
-      const distance = Math.hypot(distX, distY);
-      const speed = distance / Math.max(swipeTime, 0.05);
-      const power = mapPowerFromSpeed(speed);
-      const aimBias = THREE.MathUtils.clamp(distY / Math.max(distance, 1), 0, 1);
-      return { distance, speed, power, aimBias };
+      const swipeT = Math.max(swipeTime, 0.08);
+      const speed = Math.hypot(distX, distY) / swipeT;
+      const clampedSpeed = THREE.MathUtils.clamp(speed, MIN_SWIPE_SPEED * 0.6, MAX_SWIPE_SPEED * 1.05);
+      const normalized = THREE.MathUtils.clamp(
+        (clampedSpeed - MIN_SWIPE_SPEED * 0.6) / ((MAX_SWIPE_SPEED * 1.05) - MIN_SWIPE_SPEED * 0.6),
+        0,
+        1
+      );
+
+      const forward = THREE.MathUtils.lerp(4.8, 15.5, normalized) * forwardScale;
+      const lift = THREE.MathUtils.lerp(3.2, 10.8, normalized);
+      const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 80), -1.8, 1.8);
+      const lateral = THREE.MathUtils.clamp(lateralInfluence * forward * 0.22, -3.4 * lateralScale, 3.4 * lateralScale);
+
+      const direction = towardsEnemy ? -1 : 1;
+      return {
+        forward: direction * forward,
+        lift,
+        lateral,
+        normalized,
+      };
     }
 
     function nextServer() {
@@ -229,33 +243,18 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     }
 
     function applyShotImpulse(distX, distY, swipeTime) {
-      const lateralScale = config.courtW / BASE_CONFIG.courtW;
-      const forwardScale = config.courtL / BASE_CONFIG.courtL;
+      const towardsEnemy = ball.position.z >= 0;
+      const shot = swipeToShot(distX, distY, swipeTime, towardsEnemy);
 
-      const swipeT = Math.max(swipeTime, 0.12);
-      const { power, aimBias } = swipePower(distX, distY, swipeT);
-      const powerScale = power / BASE_POWER;
+      const hitDir = Math.sign(shot.forward) || -1;
+      const hitOffset = Math.max(0.42, config.ballRadius * 6.2);
 
-      const lateral = THREE.MathUtils.clamp(
-        (distX / swipeT) * 0.002 * lateralScale * powerScale,
-        -2.4 * lateralScale,
-        2.4 * lateralScale
+      velocity.set(shot.lateral, shot.lift, shot.forward);
+      ball.position.set(
+        clampX(player.position.x),
+        Math.max(config.ballRadius + 0.08, player.position.y + 0.62),
+        player.position.z + hitDir * hitOffset
       );
-
-      const forwardBase = THREE.MathUtils.clamp(
-        (distY / swipeT) * 0.0032 * forwardScale * powerScale,
-        3.2 * forwardScale,
-        11.2 * forwardScale
-      );
-      const forward = THREE.MathUtils.lerp(3.2 * forwardScale, forwardBase, Math.max(aimBias, 0.28));
-
-      const vertical = THREE.MathUtils.clamp(2.2 + aimBias * powerScale * 6.2, 2.2, 9.8);
-
-      const direction = ball.position.z >= 0 ? -1 : 1;
-      const hitOffset = Math.max(0.32, config.ballRadius * 6);
-
-      velocity.set(lateral, vertical, direction * forward);
-      ball.position.set(clampX(player.position.x), Math.max(config.ballRadius + 0.05, player.position.y + 0.55), player.position.z + direction * hitOffset);
       started = true;
       setToast('Rally në progres');
     }
@@ -277,13 +276,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       if (distY < 32) return;
 
       if (started) {
-        const lateralScale = config.courtW / BASE_CONFIG.courtW;
-        const { power } = swipePower(distX, distY, time);
-        queuedSwing = {
-          lateral: THREE.MathUtils.clamp((distX / Math.max(time, 0.12)) * 0.0015 * lateralScale, -1.6 * lateralScale, 1.6 * lateralScale),
-          lift: THREE.MathUtils.clamp((distY / Math.max(time, 0.12)) * 0.0012, 0, 2.5),
-          power,
-        };
+        queuedSwing = swipeToShot(distX, distY, time, ball.position.z >= 0);
         setToast('Swing i gati · prit topin');
         return;
       }
@@ -372,19 +365,14 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const approachingPlayer = velocity.z > 0 && ball.position.z > player.position.z - hitWindow;
       if (!approachingPlayer || ball.position.distanceTo(player.position) >= hitWindow) return;
 
-      const queuedLateral = queuedSwing?.lateral ?? 0;
-      const queuedLift = queuedSwing?.lift ?? 0;
-      const swingPower = queuedSwing?.power ?? mapPowerFromSpeed(Math.abs(velocity.z) * 1200);
-      const powerScale = swingPower / BASE_POWER;
+      const swing = queuedSwing || swipeToShot(lastX - startX, startY - lastY, Math.max((Date.now() - startT) / 1000, 0.12), true);
+      const correction = THREE.MathUtils.clamp((ball.position.x - player.position.x) * 0.8, -2.6, 2.6);
 
-      const rebound = THREE.MathUtils.clamp(
-        (Math.abs(velocity.z) + 2.2) * (0.85 + powerScale * 0.18),
-        3.2,
-        11
-      ) * (config.courtL / BASE_CONFIG.courtL);
-      const correction = THREE.MathUtils.clamp((ball.position.x - player.position.x) * 1.3 * powerScale, -2.2, 2.2);
-
-      velocity.set(correction + queuedLateral, 3.4 + queuedLift * powerScale + Math.random() * 0.8, -Math.abs(rebound));
+      velocity.set(
+        swing.lateral + correction,
+        swing.lift + Math.max(0, Math.abs(velocity.z) * 0.02),
+        swing.forward
+      );
       queuedSwing = null;
       setToast('Kthim perfekt!');
       started = true;
