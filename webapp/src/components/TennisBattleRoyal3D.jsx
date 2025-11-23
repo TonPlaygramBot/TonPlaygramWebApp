@@ -1439,11 +1439,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const minSwipe = serve ? 320 : 420;
       const maxSwipe = serve ? 1600 : 1800;
       const swipePower = THREE.MathUtils.clamp(
-        THREE.MathUtils.mapLinear(spd, minSwipe, maxSwipe, 1, 10),
-        1,
-        10
+        THREE.MathUtils.mapLinear(spd, minSwipe, maxSwipe, 4, 15),
+        4,
+        15
       );
-      const normalizedForce = THREE.MathUtils.clamp(swipePower / 10, serve ? 0.35 : 0.26, 1);
+      const normalizedForce = THREE.MathUtils.clamp(swipePower / 15, serve ? 0.35 : 0.26, 1);
       const flat = new THREE.Vector2(vx, -vy);
       if (flat.lengthSq() < 1e-4) flat.set(0, 1);
       flat.normalize();
