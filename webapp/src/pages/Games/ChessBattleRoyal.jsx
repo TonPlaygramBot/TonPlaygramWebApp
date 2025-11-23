@@ -1458,6 +1458,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
   const [seatAnchors, setSeatAnchors] = useState([]);
+  const [ui, setUi] = useState({
+    turnWhite: true,
+    status: 'White to move',
+    promoting: null,
+    winner: null
+  });
+  const uiRef = useRef(ui);
+  useEffect(() => {
+    uiRef.current = ui;
+  }, [ui]);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -1497,17 +1507,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     ];
   }, [aiFlag, appearance, avatar, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
-
-  const [ui, setUi] = useState({
-    turnWhite: true,
-    status: 'White to move',
-    promoting: null,
-    winner: null
-  });
-  const uiRef = useRef(ui);
-  useEffect(() => {
-    uiRef.current = ui;
-  }, [ui]);
 
   useEffect(() => {
     if (aiFlag && FLAG_EMOJIS.includes(aiFlag)) {
