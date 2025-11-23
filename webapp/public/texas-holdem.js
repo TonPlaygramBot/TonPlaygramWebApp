@@ -781,8 +781,10 @@ function setPlayerTurnIndicator(idx) {
   const token = document.getElementById('turnToken');
   if (token) token.classList.remove('active');
   if (idx === null || idx === undefined || idx < 0) return;
+  const nextIdx = findNextActivePlayer(idx);
+  if (nextIdx === null) return;
+  idx = nextIdx;
   const player = state.players[idx];
-  if (!player || player.vacant || !player.active) return;
   const cards = document.getElementById('cards-' + idx);
   if (cards) cards.classList.add('turn');
   const avatar = document.getElementById('avatar-' + idx);
@@ -798,6 +800,16 @@ function setPlayerTurnIndicator(idx) {
       token.classList.add('active');
     }
   }
+}
+
+function findNextActivePlayer(startIdx = 0) {
+  const total = state.players.length;
+  for (let offset = 0; offset < total; offset++) {
+    const idx = (startIdx + offset) % total;
+    const player = state.players[idx];
+    if (player && !player.vacant && player.active) return idx;
+  }
+  return null;
 }
 
 function updateActionButtons() {
@@ -1236,8 +1248,9 @@ async function proceedStage() {
     setActionText(i, action);
   }
   setPlayerTurnIndicator(null);
-  const activePlayers = state.players.filter((p) => !p.vacant && p.active);
-  const unsettled = activePlayers.some((p, idx) => state.roundBets[idx] < state.currentBet);
+  const unsettled = state.players.some(
+    (p, idx) => !p.vacant && p.active && (state.roundBets[idx] || 0) < state.currentBet
+  );
   if (unsettled && state.players[0]?.active) {
     startPlayerTurn();
     return;
