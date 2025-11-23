@@ -241,8 +241,8 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.006;
-const WOOD_CORNER_CUT_SCALE = 0.988; // mirror Pool Royale wood relief inset for corner cuts
-const WOOD_SIDE_CUT_SCALE = 1.012; // align side rail apertures with Pool Royale chrome reveal
+const WOOD_CORNER_CUT_SCALE = 1; // keep wood cuts identical to chrome plate reliefs
+const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -481,6 +481,8 @@ const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
+const TABLE_GROWTH_MULTIPLIER = 1.5;
+const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
@@ -5233,11 +5235,12 @@ function Table3D(
     }
   }
 
-  const woodSidePocketRadius = sidePocketRadius * WOOD_SIDE_CUT_SCALE;
+  const woodSideNotches = [-1, 1]
+    .map((sx) => scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE))
+    .filter((mp) => Array.isArray(mp) && mp.length);
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
-    ...circlePoly(-(innerHalfW - sideInset), 0, woodSidePocketRadius),
-    ...circlePoly(innerHalfW - sideInset, 0, woodSidePocketRadius)
+    ...woodSideNotches.flat()
   );
   openingMP = polygonClipping.union(
     openingMP,
@@ -6863,11 +6866,29 @@ function SnookerGame() {
       const world = new THREE.Group();
       scene.add(world);
       let worldScaleFactor = 1;
+      const applyWorldScale = (scale) => {
+        worldScaleFactor = scale;
+        baseSurfaceWorldY = tableSurfaceY * scale;
+        world.scale.setScalar(scale);
+        if (broadcastCamerasRef.current) {
+          const rig = broadcastCamerasRef.current;
+          const focusWorld = rig.defaultFocus
+            ? rig.defaultFocus.clone().multiplyScalar(scale)
+            : new THREE.Vector3();
+          rig.defaultFocusWorld = focusWorld;
+          if (rig.cameras) {
+            Object.values(rig.cameras).forEach((cam) => {
+              cam?.head?.lookAt(focusWorld);
+            });
+          }
+        }
+        world.updateMatrixWorld(true);
+      };
       let cue;
       let clothMat;
       let cushionMat;
       const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
-      const baseSurfaceWorldY = tableSurfaceY * WORLD_SCALE;
+      let baseSurfaceWorldY = tableSurfaceY * WORLD_SCALE;
       let shooting = false; // track when a shot is in progress
       const setShootingState = (value) => {
         if (shooting === value) return;
@@ -8719,6 +8740,26 @@ function SnookerGame() {
           };
           requestAnimationFrame(step);
         };
+
+        const animateWorldScale = (
+          fromScale,
+          toScale,
+          duration = TABLE_GROWTH_DURATION_MS
+        ) => {
+          const startTime = performance.now();
+          const easedStep = (now) => {
+            const t = Math.min(1, (now - startTime) / Math.max(1, duration));
+            const eased = t * t * (3 - 2 * t);
+            const nextScale = THREE.MathUtils.lerp(fromScale, toScale, eased);
+            applyWorldScale(nextScale);
+            updateCamera();
+            if (t < 1) {
+              requestAnimationFrame(easedStep);
+            }
+          };
+          applyWorldScale(fromScale);
+          requestAnimationFrame(easedStep);
+        };
         const restoreOrbitCamera = (view, immediate = false) => {
           if (!view) return;
           const sph = sphRef.current;
@@ -9493,21 +9534,9 @@ function SnookerGame() {
       }
       // ensure the camera respects the configured zoom limits
       sph.radius = clampOrbitRadius(sph.radius);
-      worldScaleFactor = WORLD_SCALE;
-      world.scale.setScalar(worldScaleFactor);
-      if (broadcastCamerasRef.current) {
-        const rig = broadcastCamerasRef.current;
-        const focusWorld = rig.defaultFocus
-          ? rig.defaultFocus.clone().multiplyScalar(worldScaleFactor)
-          : new THREE.Vector3();
-        rig.defaultFocusWorld = focusWorld;
-        if (rig.cameras) {
-          Object.values(rig.cameras).forEach((cam) => {
-            cam?.head?.lookAt(focusWorld);
-          });
-        }
-      }
-      world.updateMatrixWorld(true);
+      const growthStartScale = WORLD_SCALE;
+      const growthTargetScale = WORLD_SCALE * TABLE_GROWTH_MULTIPLIER;
+      applyWorldScale(growthStartScale);
       updateCamera();
       fit(
         topViewRef.current
@@ -9516,6 +9545,7 @@ function SnookerGame() {
             ? 1.6
             : 1.4
       );
+      animateWorldScale(growthStartScale, growthTargetScale);
 
       // Balls (ONLY Guret)
       const finishPalette = finishForScene?.colors ?? TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].colors;
