@@ -18,6 +18,7 @@ import {
   loadTrainingProgress,
   resolvePlayableTrainingLevel
 } from '../../utils/poolRoyaleTrainingProgress.js';
+import { getTrainingScenario } from '../../config/poolRoyaleTraining.js';
 
 export default function PoolRoyaleLobby() {
   const navigate = useNavigate();
@@ -60,6 +61,10 @@ export default function PoolRoyaleLobby() {
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const stakeChargedRef = useRef(false);
+  const trainingScenario = useMemo(
+    () => getTrainingScenario(trainingTask),
+    [trainingTask]
+  );
 
   useEffect(() => {
     try {
@@ -156,7 +161,10 @@ export default function PoolRoyaleLobby() {
     }
 
     const params = new URLSearchParams();
-    params.set('variant', variant);
+    const resolvedVariant = playType === 'training'
+      ? trainingScenario?.variant || ['uk', 'american', '9ball'][Math.floor(Math.random() * 3)]
+      : variant;
+    params.set('variant', resolvedVariant);
     params.set('tableSize', tableSize);
     params.set('type', playType);
     if (playType !== 'training') {
@@ -403,24 +411,42 @@ export default function PoolRoyaleLobby() {
           </div>
         </div>
       )}
-      <div className="space-y-2">
-        <h3 className="font-semibold">Variant</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'uk', label: '8 Pool UK' },
-            { id: 'american', label: 'American' },
-            { id: '9ball', label: '9-Ball' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setVariant(id)}
-              className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Variant</h3>
+          <div className="flex gap-2">
+            {[
+              { id: 'uk', label: '8 Pool UK' },
+              { id: 'american', label: 'American' },
+              { id: '9ball', label: '9-Ball' }
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setVariant(id)}
+                className={`lobby-tile ${variant === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+      {playType === 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Training variant</h3>
+          <div className="lobby-tile flex flex-col gap-2">
+            <p className="text-sm font-semibold">Variant assigned automatically</p>
+            <p className="text-xs text-subtext">
+              Tasks now rotate variants to match each drill, so the three manual options stay hidden.
+              Current pick: {trainingScenario?.variant === 'uk'
+                ? '8 Pool UK'
+                : trainingScenario?.variant === '9ball'
+                  ? '9-Ball'
+                  : 'American'}
+            </p>
+          </div>
+        </div>
+      )}
       {playType === 'tournament' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Players</h3>

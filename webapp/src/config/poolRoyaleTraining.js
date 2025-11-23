@@ -101,6 +101,18 @@ const TRAINING_TEMPLATES = [
 
 const clamp = (value) => Math.max(-0.94, Math.min(0.94, value));
 
+const DISCIPLINE_TO_VARIANT = {
+  'UK 8-Ball': 'uk',
+  '9-Ball': '9ball',
+  'American Billiards': 'american'
+};
+
+function resolveShotLimit(template, tier) {
+  const base = 3 + (template?.balls?.length || 1);
+  const tierBonus = Math.max(0, tier - 1);
+  return Math.min(10, base + tierBonus);
+}
+
 export const TRAINING_SCENARIOS = (() => {
   const scenarios = [];
   for (let i = 0; i < 50; i++) {
@@ -132,6 +144,8 @@ export const TRAINING_SCENARIOS = (() => {
       z: clamp((template.cue?.z ?? -0.2) - drift * 0.35)
     };
 
+    const shotLimit = resolveShotLimit(template, tier);
+    const variant = DISCIPLINE_TO_VARIANT[template.discipline] || 'american';
     scenarios.push({
       level,
       title: `${template.title} (${template.discipline})`,
@@ -142,6 +156,8 @@ export const TRAINING_SCENARIOS = (() => {
       balls,
       tip: template.tip,
       difficultyLabel: DIFFICULTY_LABELS[tier],
+      shotLimit,
+      variant,
       reward: 60 + level * 12,
       nft: level % 10 === 0
     });
