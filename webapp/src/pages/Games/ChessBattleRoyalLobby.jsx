@@ -15,6 +15,7 @@ import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
+const AI_FLAG_STORAGE_KEY = 'chessBattleRoyalAiFlag';
 
 export default function ChessBattleRoyalLobby() {
   const navigate = useNavigate();
@@ -23,11 +24,14 @@ export default function ChessBattleRoyalLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [avatar, setAvatar] = useState('');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
+  const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [onlineCount, setOnlineCount] = useState(null);
   const [accountId, setAccountId] = useState('');
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
+  const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
 
   useEffect(() => {
     try {
@@ -41,6 +45,14 @@ export default function ChessBattleRoyalLobby() {
       const stored = window.localStorage?.getItem('chessBattleRoyalPlayerFlag');
       const idx = FLAG_EMOJIS.indexOf(stored);
       if (idx >= 0) setPlayerFlagIndex(idx);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(AI_FLAG_STORAGE_KEY);
+      const idx = FLAG_EMOJIS.indexOf(stored);
+      if (idx >= 0) setAiFlagIndex(idx);
     } catch {}
   }, []);
 
@@ -102,6 +114,7 @@ export default function ChessBattleRoyalLobby() {
     if (tgId) params.set('tgId', tgId);
     if (trackedAccountId || accountId) params.set('accountId', trackedAccountId || accountId);
     if (selectedFlag) params.set('flag', selectedFlag);
+    if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
@@ -151,6 +164,24 @@ export default function ChessBattleRoyalLobby() {
         </div>
       </div>
 
+      <div className="space-y-2">
+        <h3 className="font-semibold">AI Avatar Flags</h3>
+        <p className="text-sm text-subtext">
+          Pick the country flag for the AI rival so it matches the Snake &amp; Ladder experience.
+        </p>
+        <button
+          type="button"
+          onClick={() => setShowAiFlagPicker(true)}
+          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+        >
+          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flag</div>
+          <div className="flex items-center gap-2 text-base font-semibold">
+            <span className="text-lg">{selectedAiFlag || '🌐'}</span>
+            <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick for opponent'}</span>
+          </div>
+        </button>
+      </div>
+
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
@@ -164,6 +195,22 @@ export default function ChessBattleRoyalLobby() {
         selected={playerFlagIndex != null ? [playerFlagIndex] : []}
         onSave={(indices) => setPlayerFlagIndex(indices?.[0] ?? null)}
         onClose={() => setShowFlagPicker(false)}
+      />
+
+      <FlagPickerModal
+        open={showAiFlagPicker}
+        count={1}
+        selected={aiFlagIndex != null ? [aiFlagIndex] : []}
+        onSave={(indices) => {
+          const idx = indices?.[0] ?? null;
+          setAiFlagIndex(idx);
+          try {
+            if (idx != null) {
+              window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, FLAG_EMOJIS[idx]);
+            }
+          } catch {}
+        }}
+        onClose={() => setShowAiFlagPicker(false)}
       />
     </div>
   );
