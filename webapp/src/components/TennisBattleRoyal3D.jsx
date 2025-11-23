@@ -952,7 +952,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.rotation.y = -Math.PI / 2;
     scene.add(cpu);
 
-    const HIT_FORCE_MULTIPLIER = 0.05;
+    const HIT_FORCE_MULTIPLIER = 2.5;
     const OUTGOING_SPEED_CAP = 16.4 * HIT_FORCE_MULTIPLIER;
 
     const state = {
