@@ -691,12 +691,12 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 1.06; // extend the middle jaw span so the fascia tracks the widened chrome and wood arcs
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1.05; // enlarge the side jaw radius so its arc matches the corner mass without leaving gaps
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.98; // trim the middle jaw span so it clears the cushions while still tracking the chrome and wood arcs
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.88; // taper the outer jaw radius near the ends to keep a small gap before the cushions
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
