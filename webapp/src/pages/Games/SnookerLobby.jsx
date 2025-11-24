@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
+import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
@@ -10,6 +11,7 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 
 const TABLE_CHOICES = Object.freeze([
   {
@@ -29,6 +31,9 @@ const TABLE_CHOICES = Object.freeze([
   }
 ]);
 
+const PLAYER_FLAG_STORAGE_KEY = 'snookerPlayerFlag';
+const AI_FLAG_STORAGE_KEY = 'snookerAiFlag';
+
 export default function SnookerLobby() {
   const navigate = useNavigate();
   const { search } = useLocation();
@@ -38,13 +43,20 @@ export default function SnookerLobby() {
   const initialPlayType = (() => {
     const params = new URLSearchParams(search);
     const requested = params.get('type');
-    return requested === 'training' ? 'training' : 'regular';
+    return requested === 'training' || requested === 'tournament'
+      ? requested
+      : 'regular';
   })();
   const [playType, setPlayType] = useState(initialPlayType);
   const [mode, setMode] = useState('ai');
   const [trainingMode, setTrainingMode] = useState('solo');
   const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
   const [avatar, setAvatar] = useState('');
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
+  const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
+  const [aiFlagIndex, setAiFlagIndex] = useState(null);
+  const [players] = useState(8);
   const [tableFinish, setTableFinish] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -72,7 +84,23 @@ export default function SnookerLobby() {
   }, []);
 
   useEffect(() => {
-    if (playType === 'training') {
+    try {
+      const stored = window.localStorage?.getItem(PLAYER_FLAG_STORAGE_KEY);
+      const idx = FLAG_EMOJIS.indexOf(stored);
+      if (idx >= 0) setPlayerFlagIndex(idx);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(AI_FLAG_STORAGE_KEY);
+      const idx = FLAG_EMOJIS.indexOf(stored);
+      if (idx >= 0) setAiFlagIndex(idx);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (playType !== 'regular') {
       setMode('ai');
     }
   }, [playType]);
@@ -99,7 +127,7 @@ export default function SnookerLobby() {
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'snooker',
-          players: 2,
+          players: playType === 'tournament' ? players : 2,
           accountId
         });
       } else {
@@ -124,11 +152,27 @@ export default function SnookerLobby() {
     if (playType !== 'training') {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
+      if (playType === 'tournament') params.set('players', players);
     }
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
+    const selectedFlag =
+      playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : undefined;
+    const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : undefined;
+    if (selectedFlag) {
+      params.set('flag', selectedFlag);
+      try {
+        window.localStorage?.setItem(PLAYER_FLAG_STORAGE_KEY, selectedFlag);
+      } catch {}
+    }
+    if (selectedAiFlag) {
+      params.set('aiFlag', selectedAiFlag);
+      try {
+        window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, selectedAiFlag);
+      } catch {}
+    }
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
     const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
@@ -161,7 +205,8 @@ export default function SnookerLobby() {
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' }
+            { id: 'training', label: 'Training' },
+            { id: 'tournament', label: 'Tournament' }
           ].map(({ id, label }) => (
             <button
               key={id}
@@ -173,14 +218,11 @@ export default function SnookerLobby() {
           ))}
         </div>
       </div>
-      {playType !== 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Mode</h3>
-          <div className="flex gap-2">
-            {[
-              { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online', disabled: true }
-            ].map(({ id, label, disabled }) => (
+      <div className="space-y-2">
+        <h3 className="font-semibold">Mode</h3>
+        <div className="flex gap-2">
+          {[{ id: 'ai', label: 'Vs AI' }, { id: 'online', label: '1v1 Online', disabled: playType !== 'regular' }].map(
+            ({ id, label, disabled }) => (
               <div key={id} className="relative">
                 <button
                   onClick={() => !disabled && setMode(id)}
@@ -191,16 +233,11 @@ export default function SnookerLobby() {
                 >
                   {label}
                 </button>
-                {disabled && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                    Under development
-                  </span>
-                )}
               </div>
-            ))}
-          </div>
+            )
+          )}
         </div>
-      )}
+      </div>
       {playType === 'training' && (
         <div className="space-y-4">
           <div className="space-y-2">
@@ -261,7 +298,7 @@ export default function SnookerLobby() {
           ))}
         </div>
       </div>
-      {playType === 'regular' ? (
+      {playType !== 'training' ? (
         <div className="space-y-2">
           <h3 className="font-semibold">Stake</h3>
           <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
@@ -271,12 +308,65 @@ export default function SnookerLobby() {
           Training mode skips staking and lets you rehearse on the Pool Royale-spec snooker cloth.
         </div>
       )}
+      <div className="space-y-2">
+        <h3 className="font-semibold">Your Flag &amp; Avatar</h3>
+        <div className="lobby-tile flex items-center gap-3">
+          <img
+            src={avatar || '/assets/icons/profile.svg'}
+            alt="avatar"
+            className="h-12 w-12 rounded-full border border-white/20 object-cover"
+          />
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => setShowFlagPicker(true)}
+              className="rounded-full border border-white/20 px-3 py-1 text-left text-sm hover:border-emerald-300 hover:text-white"
+            >
+              <span className="mr-2">Flag</span>
+              <span className="text-lg align-middle">
+                {playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '🌐'}
+              </span>
+            </button>
+            <span className="text-xs text-subtext">Auto-detect &amp; save</span>
+          </div>
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">AI Avatar Flags</h3>
+        <div className="lobby-tile flex items-center justify-between gap-3">
+          <div className="flex flex-col">
+            <span className="text-sm font-semibold">Pick the country flag for the AI rival</span>
+            <span className="text-xs text-subtext">AI Flag</span>
+          </div>
+          <button
+            onClick={() => setShowAiFlagPicker(true)}
+            className="rounded-full border border-white/20 px-3 py-1 text-sm hover:border-emerald-300 hover:text-white"
+          >
+            {aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '🌐'}
+          </button>
+        </div>
+      </div>
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
       >
         START
       </button>
+      <FlagPickerModal
+        open={showFlagPicker}
+        onClose={() => setShowFlagPicker(false)}
+        onSave={(indices) => {
+          setPlayerFlagIndex(indices?.[0] ?? null);
+        }}
+        selected={playerFlagIndex != null ? [playerFlagIndex] : []}
+      />
+      <FlagPickerModal
+        open={showAiFlagPicker}
+        onClose={() => setShowAiFlagPicker(false)}
+        onSave={(indices) => {
+          setAiFlagIndex(indices?.[0] ?? null);
+        }}
+        selected={aiFlagIndex != null ? [aiFlagIndex] : []}
+      />
     </div>
   );
 }
