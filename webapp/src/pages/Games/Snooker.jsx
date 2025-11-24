@@ -473,90 +473,41 @@ function addPocketCuts(parent, clothPlane) {
 // Config
 // --------------------------------------------------
 // separate scales for table and balls
-// Dimensions matched directly to the Pool Royale build so all rails, pockets, and chrome align 1:1
-const TABLE_SIZE_SHRINK = 0.78; // deepen the shrink so the full table silhouette comes in ~16% tighter
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the new shrink
+// Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
+const TABLE_SIZE_SHRINK = 0.78;
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
+const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
+const OFFICIAL_SIZE_REDUCTION = 0.78; // trim the official footprint to stay slightly larger than the Pool Royale table
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer for the Royale arena framing
+const TABLE_DISPLAY_SCALE = 0.88;
 const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
-const TOUCH_UI_SCALE = SIZE_REDUCTION;
-const POINTER_UI_SCALE = 1;
 const TABLE_GROWTH_MULTIPLIER = 1.5;
 const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const ENABLE_CUE_GALLERY = false;
-const ENABLE_CUE_RACKS = false;
-const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint
+const TABLE_SCALE =
+  TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE * OFFICIAL_SIZE_REDUCTION;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 1.96; // match Pool Royale rail height
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
-const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 1;
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01;
-const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION;
-const POCKET_JAW_DEPTH_SCALE = 0.52;
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085;
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05;
-const POCKET_JAW_EDGE_FLUSH_START = 0.22;
-const POCKET_JAW_EDGE_FLUSH_END = 1;
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.46;
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.6;
-const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD;
-const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE;
-const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER;
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42;
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66;
-const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
-const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
-const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
-const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
-const POCKET_JAW_SEGMENT_MIN = 144;
-const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42;
-const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR;
-const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97;
-const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR;
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION * 1;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012;
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236;
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72;
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82;
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4;
-const CORNER_JAW_ARC_DEG = 120;
-const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG;
-const POCKET_RIM_DEPTH_RATIO = 0;
-const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO;
-const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02;
-const POCKET_RIM_SURFACE_ABSOLUTE_LIFT = TABLE.THICK * 0.052;
-const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE;
-const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT;
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so geometry stays consistent
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPA specifications (playing surface 100" × 50")
-const WIDTH_REF = 2540;
-const HEIGHT_REF = 1270;
+// reuse Pool Royale rail inset so cushion noses share the same spacing
+const WIDTH_REF = 3569;
+const HEIGHT_REF = 1778;
 const BALL_D_REF = 57.15;
 const BALL_SIZE_SCALE = 0.94248;
-const BAULK_FROM_BAULK_REF = 558.8; // WPA head string distance from the head cushion (22")
+const BAULK_FROM_BAULK_REF = 558.8;
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
-const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
-const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
-const CORNER_POCKET_SCALE_BOOST = 0.994;
+const BLACK_FROM_TOP_REF = 558.8;
+const CORNER_MOUTH_REF = 114.3;
+const SIDE_MOUTH_REF = 127;
+const CORNER_POCKET_SCALE_BOOST = 0.985;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996;
 const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
@@ -576,7 +527,7 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
 console.assert(
   Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-  'Pool table inner ratio must match 2:1 after scaling.'
+  'Snooker table inner ratio must match the official 3569:1778 footprint.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
@@ -7473,37 +7424,35 @@ function SnookerGame() {
           cueTipRadius: CUE_TIP_RADIUS
         });
 
-      if (ENABLE_CUE_RACKS) {
-        const baseRackEntry = createRackEntry();
-        const cueRackDimensions = baseRackEntry.dimensions;
-        const cueRackHalfWidth = cueRackDimensions.width / 2;
-        const availableHalfDepth =
-          roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
-        const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
-        const cueRackOffset = Math.max(
-          cueRackHalfWidth,
-          Math.min(availableHalfDepth, desiredOffset)
-        );
-        const cueRackY = signageY;
-        const cueRackPlacements = [
-          { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
-          { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
-        ];
+      const baseRackEntry = createRackEntry();
+      const cueRackDimensions = baseRackEntry.dimensions;
+      const cueRackHalfWidth = cueRackDimensions.width / 2;
+      const availableHalfDepth =
+        roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
+      const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
+      const cueRackOffset = Math.max(
+        cueRackHalfWidth,
+        Math.min(availableHalfDepth, desiredOffset)
+      );
+      const cueRackY = signageY;
+      const cueRackPlacements = [
+        { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
+        { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
+      ];
 
-        cueRackPlacements.forEach((placement, index) => {
-          const entry = index === 0 ? baseRackEntry : createRackEntry();
-          const rack = entry.group;
-          if (!rack) return;
-          rack.position.set(placement.x, cueRackY, placement.z);
-          rack.rotation.y = placement.rotationY;
-          world.add(rack);
-          registerCueRack(rack, entry.dispose, entry.dimensions);
-          if (typeof entry.dispose === 'function') {
-            cueRackDisposers.push(entry.dispose);
-          }
-        });
-        updateCueRackHighlights();
-      }
+      cueRackPlacements.forEach((placement, index) => {
+        const entry = index === 0 ? baseRackEntry : createRackEntry();
+        const rack = entry.group;
+        if (!rack) return;
+        rack.position.set(placement.x, cueRackY, placement.z);
+        rack.rotation.y = placement.rotationY;
+        world.add(rack);
+        registerCueRack(rack, entry.dispose, entry.dimensions);
+        if (typeof entry.dispose === 'function') {
+          cueRackDisposers.push(entry.dispose);
+        }
+      });
+      updateCueRackHighlights();
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
@@ -7522,49 +7471,47 @@ function SnookerGame() {
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
-      if (ENABLE_TRIPOD_CAMERAS) {
-        const tripodHeightBoost = 1.04;
-        const tripodScale =
-          ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
-        const tripodTilt = THREE.MathUtils.degToRad(-12);
-        const tripodProximityPull = BALL_R * 2.5;
-        const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
-        const tripodDesiredZ =
-          Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
-          tripodExtra;
-        const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
-        const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
-        const tripodSideTuck = BALL_R * 1.5;
-        const tripodDesiredX =
-          TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
-        const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
-        const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
-        const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-        const tripodPositions = [
-          { x: tripodXOffset, z: tripodZOffset },
-          { x: -tripodXOffset, z: tripodZOffset },
-          { x: tripodXOffset, z: -tripodZOffset },
-          { x: -tripodXOffset, z: -tripodZOffset }
-        ];
-        tripodPositions.forEach(({ x, z }) => {
-          const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
-          tripodGroup.scale.setScalar(tripodScale);
-          tripodGroup.position.set(x, floorY, z);
-          const toTarget = new THREE.Vector3()
-            .subVectors(tripodTarget, tripodGroup.position)
-            .setY(0);
-          if (toTarget.lengthSq() > 1e-6) {
-            const yaw = Math.atan2(toTarget.z, toTarget.x);
-            tripodGroup.rotation.y = yaw;
-          }
-          world.add(tripodGroup);
-          tripodGroup.updateWorldMatrix(true, false);
-          headPivot.up.set(0, 1, 0);
-          headPivot.lookAt(tripodTarget);
-          headPivot.rotateY(Math.PI);
-          headPivot.rotateX(tripodTilt);
-        });
-      }
+      const tripodHeightBoost = 1.04;
+      const tripodScale =
+        ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
+      const tripodTilt = THREE.MathUtils.degToRad(-12);
+      const tripodProximityPull = BALL_R * 2.5;
+      const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
+      const tripodDesiredZ =
+        Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
+        tripodExtra;
+      const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
+      const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
+      const tripodSideTuck = BALL_R * 1.5;
+      const tripodDesiredX =
+        TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
+      const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
+      const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
+      const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
+      const tripodPositions = [
+        { x: tripodXOffset, z: tripodZOffset },
+        { x: -tripodXOffset, z: tripodZOffset },
+        { x: tripodXOffset, z: -tripodZOffset },
+        { x: -tripodXOffset, z: -tripodZOffset }
+      ];
+      tripodPositions.forEach(({ x, z }) => {
+        const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
+        tripodGroup.scale.setScalar(tripodScale);
+        tripodGroup.position.set(x, floorY, z);
+        const toTarget = new THREE.Vector3()
+          .subVectors(tripodTarget, tripodGroup.position)
+          .setY(0);
+        if (toTarget.lengthSq() > 1e-6) {
+          const yaw = Math.atan2(toTarget.z, toTarget.x);
+          tripodGroup.rotation.y = yaw;
+        }
+        world.add(tripodGroup);
+        tripodGroup.updateWorldMatrix(true, false);
+        headPivot.up.set(0, 1, 0);
+        headPivot.lookAt(tripodTarget);
+        headPivot.rotateY(Math.PI);
+        headPivot.rotateX(tripodTilt);
+      });
 
       const hospitalityMats = {
         wood: new THREE.MeshStandardMaterial({
@@ -9934,7 +9881,6 @@ function SnookerGame() {
       };
 
       const openCueGallery = (rackId) => {
-        if (!ENABLE_CUE_GALLERY || !ENABLE_CUE_RACKS) return;
         if (!rackId) return;
         const meta = cueRackMetaRef.current.get(rackId);
         if (!meta?.group) return;
@@ -12238,7 +12184,7 @@ function SnookerGame() {
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
-      {ENABLE_CUE_GALLERY && cueGalleryActive && (
+      {cueGalleryActive && (
         <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
           Scroll and click to change the cue
         </div>
@@ -12389,38 +12335,6 @@ function SnookerGame() {
                             aria-hidden="true"
                           />
                           {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Cue
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {CUE_RACK_PALETTE.map((color, index) => {
-                    const active = index === cueStyleIndex;
-                    return (
-                      <button
-                        key={`cue-${index}`}
-                        type="button"
-                        onClick={() => setCueStyleIndex(index)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[7.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(color) }}
-                            aria-hidden="true"
-                          />
-                          {`Cue ${index + 1}`}
                         </span>
                       </button>
                     );
