@@ -849,6 +849,9 @@ const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening sli
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
+const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
+const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.032; // soften light spill on the sleeve walls
+const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.38; // reduce emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
@@ -5290,6 +5293,7 @@ function Table3D(
   const clothHighlight = new THREE.Color(0xf6fff9);
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
+  const clothEdgeColor = clothPrimary.clone().lerp(clothHighlight, CLOTH_EDGE_TINT);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
@@ -5345,9 +5349,11 @@ function Table3D(
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
+  clothEdgeMat.color.copy(clothEdgeColor);
+  clothEdgeMat.emissive.copy(clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER));
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
-  clothEdgeMat.emissiveIntensity = clothMat.emissiveIntensity;
+  clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
   clothEdgeMat.metalness = 0;
   clothEdgeMat.roughness = Math.min(0.96, clothMat.roughness + 0.18);
   clothEdgeMat.clearcoat = 0;
@@ -7818,11 +7824,14 @@ function applyTableFinishToTable(table, finish) {
   }
 
   const clothColor = new THREE.Color(resolvedFinish.colors.cloth);
+  const clothHighlight = new THREE.Color(0xf6fff9);
   const cushionColor = new THREE.Color(
     resolvedFinish.colors.cushion ?? resolvedFinish.colors.cloth
   );
   const emissiveColor = clothColor.clone().multiplyScalar(0.06);
   const cushionEmissive = cushionColor.clone().multiplyScalar(0.06);
+  const clothEdgeColor = clothColor.clone().lerp(clothHighlight, CLOTH_EDGE_TINT);
+  const clothEdgeEmissive = clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER);
   if (finishInfo.clothMat) {
     finishInfo.clothMat.color.copy(clothColor);
     finishInfo.clothMat.emissive.copy(emissiveColor);
@@ -7834,8 +7843,9 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
-    finishInfo.clothEdgeMat.color.copy(clothColor);
-    finishInfo.clothEdgeMat.emissive.copy(emissiveColor);
+    finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
+    finishInfo.clothEdgeMat.emissive.copy(clothEdgeEmissive);
+    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
     finishInfo.clothEdgeMat.needsUpdate = true;
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
