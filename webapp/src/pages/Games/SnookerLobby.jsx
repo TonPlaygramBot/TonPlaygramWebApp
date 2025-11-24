@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import RoomSelector from '../../components/RoomSelector.jsx';
+import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
@@ -10,6 +10,11 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+
+const PLAYER_FLAG_STORAGE_KEY = 'snookerPlayerFlag';
+const AI_FLAG_STORAGE_KEY = 'snookerAiFlag';
+const STAKE_OPTIONS = [100, 500, 1000, 5000, 10000];
 
 const TABLE_CHOICES = Object.freeze([
   {
@@ -35,16 +40,23 @@ export default function SnookerLobby() {
   useTelegramBackButton();
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
-  const initialPlayType = (() => {
-    const params = new URLSearchParams(search);
-    const requested = params.get('type');
-    return requested === 'training' ? 'training' : 'regular';
-  })();
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
+  const initialPlayType = useMemo(() => {
+    const requested = searchParams.get('type');
+    return requested === 'training' || requested === 'tournament'
+      ? requested
+      : 'regular';
+  }, [searchParams]);
   const [playType, setPlayType] = useState(initialPlayType);
   const [mode, setMode] = useState('ai');
+  const [players, setPlayers] = useState(8);
   const [trainingMode, setTrainingMode] = useState('solo');
   const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
   const [avatar, setAvatar] = useState('');
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
+  const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
+  const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [tableFinish, setTableFinish] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -85,6 +97,22 @@ export default function SnookerLobby() {
     }
   }, [tableFinish]);
 
+  useEffect(() => {
+    try {
+      const stored = window.localStorage?.getItem(PLAYER_FLAG_STORAGE_KEY);
+      const idx = FLAG_EMOJIS.indexOf(stored);
+      if (idx >= 0) setPlayerFlagIndex(idx);
+    } catch {}
+    try {
+      const storedAi = window.localStorage?.getItem(AI_FLAG_STORAGE_KEY);
+      const idx = FLAG_EMOJIS.indexOf(storedAi);
+      if (idx >= 0) setAiFlagIndex(idx);
+    } catch {}
+  }, []);
+
+  const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
+  const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
+
   const startGame = async () => {
     let tgId;
     let accountId;
@@ -99,7 +127,7 @@ export default function SnookerLobby() {
         tgId = getTelegramId();
         await addTransaction(tgId, -stake.amount, 'stake', {
           game: 'snooker',
-          players: 2,
+          players: playType === 'tournament' ? players : 2,
           accountId
         });
       } else {
@@ -124,6 +152,7 @@ export default function SnookerLobby() {
     if (playType !== 'training') {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
+      if (playType === 'tournament') params.set('players', players);
     }
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
@@ -131,6 +160,8 @@ export default function SnookerLobby() {
     if (accountId) params.set('accountId', accountId);
     const name = getTelegramFirstName();
     if (name) params.set('name', name);
+    if (selectedFlag) params.set('flag', selectedFlag);
+    if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     const devAcc = import.meta.env.VITE_DEV_ACCOUNT_ID;
     const devAcc1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
     const devAcc2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
@@ -142,7 +173,6 @@ export default function SnookerLobby() {
     navigate(`/games/snooker?${params.toString()}`);
   };
 
-  const searchParams = new URLSearchParams(search);
   const winnerParam = searchParams.get('winner');
 
   return (
@@ -158,125 +188,189 @@ export default function SnookerLobby() {
       </p>
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
-        <div className="flex gap-2">
-          {[
-            { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' }
-          ].map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setPlayType(id)}
-              className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
-            >
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2">
+          {[{ id: 'regular', label: 'Regular' }, { id: 'training', label: 'Training' }, { id: 'tournament', label: 'Tournament' }].map(
+            ({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setPlayType(id)}
+                className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
+            )
+          )}
         </div>
       </div>
+
       {playType !== 'training' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Mode</h3>
           <div className="flex gap-2">
-            {[
-              { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online', disabled: true }
-            ].map(({ id, label, disabled }) => (
-              <div key={id} className="relative">
+            {[{ id: 'ai', label: 'Vs AI' }, { id: 'online', label: '1v1 Online', disabled: true }].map(
+              ({ id, label, disabled }) => (
+                <div key={id} className="relative">
+                  <button
+                    onClick={() => !disabled && setMode(id)}
+                    className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                      disabled ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    disabled={disabled}
+                  >
+                    {label}
+                  </button>
+                  {disabled && (
+                    <span className="absolute inset-0 flex items-center justify-center text-xs bg-black/60 text-background">
+                      Under development
+                    </span>
+                  )}
+                </div>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
+      {playType === 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Training Mode</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {[{ id: 'solo', label: 'Solo' }, { id: 'gauntlet', label: 'Gauntlet' }].map(
+              ({ id, label }) => (
                 <button
-                  onClick={() => !disabled && setMode(id)}
-                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                    disabled ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={disabled}
+                  key={id}
+                  onClick={() => setTrainingMode(id)}
+                  className={`lobby-tile ${trainingMode === id ? 'lobby-selected' : ''}`}
                 >
                   {label}
                 </button>
-                {disabled && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                    Under development
-                  </span>
-                )}
-              </div>
+              )
+            )}
+            <button
+              onClick={() => setTrainingRulesEnabled((v) => !v)}
+              className={`lobby-tile col-span-2 ${trainingRulesEnabled ? 'lobby-selected' : ''}`}
+            >
+              Rules {trainingRulesEnabled ? 'On' : 'Off'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {playType === 'tournament' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Players</h3>
+          <div className="flex gap-2">
+            {[4, 8, 16].map((count) => (
+              <button
+                key={count}
+                onClick={() => setPlayers(count)}
+                className={`lobby-tile ${players === count ? 'lobby-selected' : ''}`}
+              >
+                {count}-player bracket
+              </button>
             ))}
           </div>
         </div>
       )}
-      {playType === 'training' && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <h3 className="font-semibold">Training options</h3>
-            <div className="lobby-tile flex flex-col gap-4">
-              <div>
-                <p className="text-sm font-semibold">Opponent</p>
-                <p className="text-xs text-subtext">Practice alone or alternate turns with the AI.</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {[{ id: 'solo', label: 'Solo practice' }, { id: 'ai', label: 'Vs AI' }].map(
-                    ({ id, label }) => (
-                      <button
-                        key={id}
-                        onClick={() => setTrainingMode(id)}
-                        className={`lobby-tile ${trainingMode === id ? 'lobby-selected' : ''}`}
-                      >
-                        {label}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold">Rules</p>
-                <p className="text-xs text-subtext">Play official fouls or switch to a free table.</p>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {[{ id: true, label: 'With rules' }, { id: false, label: 'No rules' }].map(
-                    ({ id, label }) => (
-                      <button
-                        key={String(id)}
-                        onClick={() => setTrainingRulesEnabled(Boolean(id))}
-                        className={`lobby-tile ${trainingRulesEnabled === Boolean(id) ? 'lobby-selected' : ''}`}
-                      >
-                        {label}
-                      </button>
-                    )
-                  )}
-                </div>
-              </div>
-            </div>
+
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Stake</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+            {STAKE_OPTIONS.map((amount) => (
+              <button
+                key={amount}
+                onClick={() => setStake({ token: 'TPC', amount })}
+                className={`lobby-tile ${stake.amount === amount ? 'lobby-selected' : ''}`}
+              >
+                TPC {amount.toLocaleString()}
+              </button>
+            ))}
           </div>
         </div>
       )}
+
       <div className="space-y-2">
-        <h3 className="font-semibold">Table</h3>
-        <div className="space-y-2">
-          {TABLE_CHOICES.map(({ id, label, description }) => (
+        <h3 className="font-semibold">Table Finish</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+          {TABLE_CHOICES.map((choice) => (
             <button
-              key={id}
-              onClick={() => setTableFinish(id)}
-              className={`w-full text-left lobby-tile ${
-                tableFinish === id ? 'lobby-selected' : ''
-              }`}
+              key={choice.id}
+              onClick={() => setTableFinish(choice.id)}
+              className={`lobby-tile ${tableFinish === choice.id ? 'lobby-selected' : ''} text-left`}
             >
-              <div className="font-semibold">{label}</div>
-              <div className="text-xs text-subtext leading-snug">{description}</div>
+              <div className="font-semibold">{choice.label}</div>
+              <div className="text-xs text-subtext">{choice.description}</div>
             </button>
           ))}
         </div>
       </div>
-      {playType === 'regular' ? (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Stake</h3>
-          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">Your Flag &amp; Avatar</h3>
+        <div className="flex items-center gap-3">
+          <button
+            className="lobby-tile flex items-center gap-2"
+            onClick={() => setShowFlagPicker(true)}
+          >
+            <span className="text-xl">{selectedFlag || '🌐'}</span>
+            <span className="text-sm text-subtext">Auto-detect &amp; save</span>
+          </button>
+          {avatar ? (
+            <img
+              src={avatar}
+              alt="avatar"
+              className="w-14 h-14 rounded-full object-cover border border-border"
+            />
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-border" />
+          )}
         </div>
-      ) : (
-        <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-subtext">
-          Training mode skips staking and lets you rehearse on the Pool Royale-spec snooker cloth.
-        </div>
-      )}
+        <p className="text-xs text-subtext">Your avatar will appear in the match intro.</p>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="font-semibold">AI Avatar Flags</h3>
+        <button
+          className="lobby-tile flex items-center gap-2"
+          onClick={() => setShowAiFlagPicker(true)}
+        >
+          <span className="text-xl">{selectedAiFlag || '🌐'}</span>
+          <span className="text-sm text-subtext">Pick the country flag for the AI rival</span>
+        </button>
+      </div>
+
       <button
         onClick={startGame}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
+        className="btn btn-primary w-full py-3 text-lg font-semibold"
       >
-        START
+        Start Match
       </button>
+
+      <FlagPickerModal
+        open={showFlagPicker}
+        onClose={() => setShowFlagPicker(false)}
+        onSelect={(emoji) => {
+          const idx = FLAG_EMOJIS.indexOf(emoji);
+          if (idx >= 0) {
+            setPlayerFlagIndex(idx);
+            window.localStorage?.setItem(PLAYER_FLAG_STORAGE_KEY, emoji);
+          }
+          setShowFlagPicker(false);
+        }}
+      />
+      <FlagPickerModal
+        open={showAiFlagPicker}
+        onClose={() => setShowAiFlagPicker(false)}
+        onSelect={(emoji) => {
+          const idx = FLAG_EMOJIS.indexOf(emoji);
+          if (idx >= 0) {
+            setAiFlagIndex(idx);
+            window.localStorage?.setItem(AI_FLAG_STORAGE_KEY, emoji);
+          }
+          setShowAiFlagPicker(false);
+        }}
+      />
     </div>
   );
 }
