@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
+import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
@@ -18,7 +20,16 @@ export default function TexasHoldemLobby() {
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
   const [opponents, setOpponents] = useState(5);
+  const [showFlagPicker, setShowFlagPicker] = useState(false);
+  const [flags, setFlags] = useState([]);
   const startBet = stake.amount / 100;
+
+  const totalPlayers = Math.min(Math.max(2, opponents + 1), 6);
+  const flagPickerCount = mode === 'local' ? totalPlayers : 1;
+
+  const openAiFlagPicker = () => {
+    setShowFlagPicker(true);
+  };
 
   useEffect(() => {
     try {
@@ -27,7 +38,7 @@ export default function TexasHoldemLobby() {
     } catch {}
   }, []);
 
-  const startGame = async () => {
+  const startGame = async (flagOverride = flags) => {
     let tgId;
     let accountId;
     try {
@@ -48,12 +59,15 @@ export default function TexasHoldemLobby() {
     params.set('mode', mode);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
-    const totalPlayers = Math.min(Math.max(2, opponents + 1), 6);
     params.set('players', totalPlayers);
     if (avatar) params.set('avatar', avatar);
     const username = getTelegramUsername();
     if (username) params.set('username', username);
-    if (mode === 'local') params.set('avatars', 'flags');
+    const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
+    if (mode === 'local') {
+      params.set('avatars', 'flags');
+      if (aiFlagSelection.length) params.set('flags', aiFlagSelection.join(','));
+    }
     if (tgId) params.set('tgId', tgId);
     if (accountId) params.set('accountId', accountId);
     const initData = window.Telegram?.WebApp?.initData;
@@ -121,12 +135,39 @@ export default function TexasHoldemLobby() {
           ))}
         </div>
       </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">AI Avatar Flags</h3>
+        <p className="text-sm text-subtext text-center">
+          Match the Snake &amp; Ladder lobby by picking worldwide flags for AI opponents and your seat.
+        </p>
+        <button
+          type="button"
+          onClick={openAiFlagPicker}
+          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+        >
+          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flags</div>
+          <div className="flex items-center gap-2 text-base font-semibold">
+            <span className="text-lg">{flags.length ? flags.map((f) => FLAG_EMOJIS[f] || '').join(' ') : '🌐'}</span>
+            <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
+          </div>
+        </button>
+      </div>
       <button
         onClick={startGame}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
+        disabled={mode === 'local' && flags.length !== flagPickerCount}
+        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-50"
       >
         START
       </button>
+
+      <FlagPickerModal
+        open={showFlagPicker}
+        count={flagPickerCount}
+        selected={flags}
+        onSave={setFlags}
+        onClose={() => setShowFlagPicker(false)}
+        onComplete={(sel) => startGame(sel)}
+      />
     </div>
   );
 }

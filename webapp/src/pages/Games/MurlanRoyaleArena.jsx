@@ -1956,7 +1956,15 @@ function buildPlayers(search) {
   const params = new URLSearchParams(search);
   const username = params.get('username') || 'Ti';
   const avatar = params.get('avatar') || '';
-  const seedFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
+  const providedFlags = (params.get('flags') || '')
+    .split(',')
+    .map((value) => Number.parseInt(value, 10))
+    .filter(Number.isFinite)
+    .map((index) => FLAG_EMOJIS[index])
+    .filter(Boolean);
+  const seedFlags = providedFlags.length
+    ? [...providedFlags]
+    : [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
   return [
     { name: username, avatar, isHuman: true },
     seedFlags[0] ? { name: flagName(seedFlags[0]), avatar: seedFlags[0] } : { name: 'Aria', avatar: '🦊' },
