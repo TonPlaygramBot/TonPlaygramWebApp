@@ -398,64 +398,10 @@ function buildGrandEntranceStairs({
   return stairs;
 }
 
-function buildBroadcastCameraRig(scale = 1) {
-  const group = new THREE.Group();
-  const legMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.62, metalness: 0.3 });
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, roughness: 0.42, metalness: 0.28 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: 0x60a5fa, roughness: 0.25, metalness: 0.12 });
-  const gripMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.58, metalness: 0.2 });
-
-  const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.24, 0.12, 14), legMat);
-  hub.position.y = 0.08;
-  group.add(hub);
-
-  const legGeo = new THREE.CylinderGeometry(0.04, 0.02, 0.92, 10);
-  const footGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.04, 14);
-  const spread = 0.82;
-  const tilt = THREE.MathUtils.degToRad(18);
-  for (let i = 0; i < 3; i += 1) {
-    const ang = (i / 3) * Math.PI * 2;
-    const leg = new THREE.Mesh(legGeo, legMat);
-    leg.position.set(Math.cos(ang) * spread * 0.45, 0.58, Math.sin(ang) * spread * 0.45);
-    leg.quaternion.setFromAxisAngle(new THREE.Vector3(-Math.sin(ang), 0, Math.cos(ang)).normalize(), tilt);
-    group.add(leg);
-
-    const foot = new THREE.Mesh(footGeo, gripMat);
-    foot.position.set(Math.cos(ang) * spread, 0.02, Math.sin(ang) * spread);
-    group.add(foot);
-  }
-
-  const headPivot = new THREE.Group();
-  headPivot.position.y = 0.96;
-  group.add(headPivot);
-
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.28, 0.3), bodyMat);
-  body.position.set(0, 0.08, -0.06);
-  headPivot.add(body);
-
-  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.32, 20), accentMat);
-  lens.rotation.x = Math.PI / 2;
-  lens.position.set(0, 0.04, 0.28);
-  headPivot.add(lens);
-
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.32), gripMat);
-  visor.position.set(0, 0.22, 0.04);
-  headPivot.add(visor);
-
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.48, 12), gripMat);
-  handle.rotation.z = Math.PI / 2.2;
-  handle.position.set(0.32, -0.08, 0.02);
-  headPivot.add(handle);
-
-  group.scale.setScalar(scale);
-  return { group, headPivot };
-}
-
 export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMode = false }) {
   const containerRef = useRef(null);
   const playerLabel = playerName || 'You';
   const cpuLabel = 'CPU';
-  const rigRefsRef = useRef([]);
   const [configMenuOpen, setConfigMenuOpen] = useState(false);
   const [broadcastId, setBroadcastId] = useState(BROADCAST_TECHNIQUES[0].id);
   const [physicsId, setPhysicsId] = useState(PHYSICS_PROFILES[0].id);
@@ -575,19 +521,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   useEffect(() => {
     const profile = BROADCAST_TECHNIQUES.find((p) => p.id === broadcastId) || BROADCAST_TECHNIQUES[0];
     broadcastProfileRef.current = profile;
-    if (rigRefsRef.current.length) {
-      rigRefsRef.current.forEach((rig) => {
-        const active = rig.id === profile.id;
-        const scale = rig.baseScale * (active ? 1.12 : 1);
-        rig.group.scale.setScalar(scale);
-        rig.group.position.y = rig.baseY + (active ? 0.18 : 0);
-        rig.group.traverse?.((obj) => {
-          if (obj.material?.emissive) {
-            obj.material.emissiveIntensity = active ? 0.35 : 0.12;
-          }
-        });
-      });
-    }
   }, [broadcastId]);
 
   useEffect(() => {
@@ -958,21 +891,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     stairsWest.position.set(-(halfW + apron + 0.4), 0, 0);
     scene.add(stairsEast, stairsWest);
 
-    const cameraFocus = new THREE.Vector3(0, 1.18, 0);
-    const cameraRigs = [
-      { position: new THREE.Vector3(-halfW - 1.6, 0, halfL + 2.4) },
-      { position: new THREE.Vector3(halfW + 1.6, 0, -halfL - 2.6) },
-      { position: new THREE.Vector3(0, 0, -halfL - 2.9) }
-    ];
-    cameraRigs.forEach(({ position }) => {
-      const rig = buildBroadcastCameraRig(0.58);
-      rig.group.position.copy(position);
-      rig.group.rotation.y = Math.atan2(cameraFocus.x - position.x, cameraFocus.z - position.z);
-      rig.headPivot.up.set(0, 1, 0);
-      rig.headPivot.lookAt(cameraFocus);
-      scene.add(rig.group);
-    });
-
     const ump = new THREE.Group();
     const legH = 1.45;
     const legR = 0.035;
@@ -1249,26 +1167,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.position.set(0, 0, cpuZ);
     cpu.rotation.y = 0;
     scene.add(cpu);
-
-    const broadcastRigs = [];
-    BROADCAST_TECHNIQUES.forEach((tech) => {
-      const { group, headPivot } = buildBroadcastCameraRig(tech.rig?.scale ?? 1);
-      const rigPos = (tech.rig?.position ?? new THREE.Vector3()).clone();
-      group.position.copy(rigPos);
-      group.rotation.y = tech.rig?.yaw ?? 0;
-      headPivot.lookAt(new THREE.Vector3(0, 1.2, 0));
-      scene.add(group);
-      broadcastRigs.push({ id: tech.id, group, baseScale: tech.rig?.scale ?? 1, baseY: group.position.y });
-    });
-    rigRefsRef.current = broadcastRigs;
-    if (broadcastRigs.length) {
-      const profile = broadcastProfileRef.current;
-      broadcastRigs.forEach((rig) => {
-        const active = rig.id === profile.id;
-        rig.group.scale.setScalar(rig.baseScale * (active ? 1.12 : 1));
-        rig.group.position.y = rig.baseY + (active ? 0.18 : 0);
-      });
-    }
 
     let hitForceMultiplier = BASE_HIT_FORCE;
     let outgoingSpeedCap = BASE_SPEED_CAP;
