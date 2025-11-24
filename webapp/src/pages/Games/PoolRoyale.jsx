@@ -5632,12 +5632,27 @@ function Table3D(
   underlayMat.opacity = clothMat.opacity;
   underlayMat.depthWrite = true;
   underlayMat.colorWrite = true;
-  underlayMat.map = null;
-  underlayMat.bumpMap = null;
-  underlayMat.roughness = Math.min(0.94, clothMat.roughness + 0.15);
   underlayMat.metalness = 0;
-  underlayMat.clearcoat = 0;
-  underlayMat.clearcoatRoughness = 0.9;
+  underlayMat.clearcoat = clothMat.clearcoat;
+  underlayMat.clearcoatRoughness = clothMat.clearcoatRoughness;
+  underlayMat.roughness = clothMat.roughness;
+  underlayMat.emissive.copy(clothMat.emissive);
+  underlayMat.emissiveIntensity = clothMat.emissiveIntensity;
+  if (underlayMat.map && clothMat.map) {
+    underlayMat.map.repeat.copy(clothMat.map.repeat);
+    underlayMat.map.center.copy(clothMat.map.center ?? underlayMat.map.center);
+    underlayMat.map.rotation = clothMat.map.rotation ?? underlayMat.map.rotation ?? 0;
+    underlayMat.map.needsUpdate = true;
+  }
+  if (underlayMat.bumpMap && clothMat.bumpMap) {
+    underlayMat.bumpMap.repeat.copy(clothMat.bumpMap.repeat);
+    underlayMat.bumpScale = clothMat.bumpScale;
+    underlayMat.bumpMap.center.copy(clothMat.bumpMap.center ?? underlayMat.bumpMap.center);
+    underlayMat.bumpMap.rotation = clothMat.bumpMap.rotation ?? underlayMat.bumpMap.rotation ?? 0;
+    underlayMat.bumpMap.needsUpdate = true;
+  } else {
+    underlayMat.bumpScale = clothMat.bumpScale;
+  }
   const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
   clothUnderlay.rotation.x = -Math.PI / 2;
   clothUnderlay.position.y =
