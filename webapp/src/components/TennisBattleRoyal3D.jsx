@@ -523,12 +523,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
     const isNarrow = Math.min(W, H) < 860;
-    const camera = new THREE.PerspectiveCamera(60, W / H, 0.05, 800);
+    const camera = new THREE.PerspectiveCamera(isNarrow ? 64 : 60, W / H, 0.05, 800);
     const smoothCameraPos = new THREE.Vector3();
     const smoothCameraLook = new THREE.Vector3(0, 1.1, 0);
     smoothCameraPos.copy(camera.position);
     let orbitYaw = 0;
-    let orbitPitch = 0.12;
+    let orbitPitch = 0.18;
 
     const courtL = 23.77;
     const courtW = 9.2;
@@ -541,13 +541,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const playerZ = halfL - 1.35;
     const cpuZ = -halfL + 1.35;
 
-    let camBack = halfL + apron * 1.05 + 0.6;
-    let camHeight = isNarrow ? 5.35 : 5.0;
-    const camBackRange = { min: halfL + apron * 0.95, max: halfL + apron * 1.25 };
-    const camHeightRange = { min: 4.6, max: 6.3 };
-    const cameraMinZ = halfL + apron * 0.42;
-    const cameraMaxZ = halfL + apron * 1.32;
-    const cameraSideLimit = halfW * 0.98;
+    let camBack = halfL + apron * 1.32 + 1.1;
+    let camHeight = isNarrow ? 6.15 : 5.65;
+    const camBackRange = { min: halfL + apron * 1.05, max: halfL + apron * 1.55 };
+    const camHeightRange = { min: 5.1, max: 7.2 };
+    const cameraMinZ = halfL + apron * 0.58;
+    const cameraMaxZ = halfL + apron * 1.48;
+    const cameraSideLimit = halfW * 0.94;
 
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 0.9);
     hemi.position.set(0, 60, 0);
