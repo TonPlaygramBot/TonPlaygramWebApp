@@ -699,8 +699,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const ringOffset = TABLE.h * 0.33;
     ring(ringRadius, ringTube, -ringOffset);
     ring(ringRadius, ringTube, ringOffset);
-    const avatarLift = ringTube * 3.5;
-    const avatarSize = ringRadius * 1.35;
+    const avatarLift = ringTube * 2;
+    const avatarSize = ringRadius * 0.9;
     fieldAnchorsRef.current = {
       ai: { x: 0, y: avatarLift, z: -ringOffset },
       player: { x: 0, y: avatarLift, z: ringOffset },
@@ -1128,14 +1128,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           map: texture,
           transparent: true,
           depthWrite: false,
-          depthTest: false
+          depthTest: true
         });
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(anchors.size, anchors.size, 1);
         const target = anchors[key];
         sprite.position.set(target.x, target.y, target.z);
         sprite.center.set(0.5, 0.5);
-        sprite.renderOrder = 10;
+        sprite.renderOrder = 1;
         tableGroup.add(sprite);
         avatarSpritesRef.current[key] = sprite;
       });
