@@ -4156,6 +4156,7 @@ function Table3D(
     emissive: clothColor.clone().multiplyScalar(0.08),
     emissiveIntensity: 0.58
   });
+  clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
@@ -4457,36 +4458,6 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
-
-  const underlayShape = buildSurfaceShape(
-    POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE,
-    CLOTH_UNDERLAY_EDGE_INSET
-  );
-  const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
-    depth: CLOTH_UNDERLAY_THICKNESS,
-    bevelEnabled: false,
-    curveSegments: 48,
-    steps: 1
-  });
-  underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
-  const underlayMat = new THREE.MeshStandardMaterial({
-    color: 0x8b6f4a,
-    roughness: 0.68,
-    metalness: 0.05,
-    side: THREE.DoubleSide
-  });
-  underlayMat.transparent = true;
-  underlayMat.opacity = 0;
-  underlayMat.depthWrite = true;
-  underlayMat.colorWrite = false; // remain invisible while still blocking light for full table shadows
-  const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
-  clothUnderlay.rotation.x = -Math.PI / 2;
-  clothUnderlay.position.y =
-    cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
-  clothUnderlay.castShadow = true;
-  clothUnderlay.receiveShadow = true;
-  clothUnderlay.renderOrder = cloth.renderOrder - 1;
-  table.add(clothUnderlay);
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
