@@ -8,7 +8,7 @@ export default function AirHockey() {
   useTelegramBackButton();
   const { search } = useLocation();
   const params = new URLSearchParams(search);
-  const target = Number(params.get('target')) || 3;
+  const target = Number(params.get('target')) || 11;
   const playType = params.get('type') || 'regular';
   const playerFlagParam = params.get('flag');
   const aiFlagParam = params.get('aiFlag');

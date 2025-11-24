@@ -127,8 +127,8 @@ const POOL_ENVIRONMENT = (() => {
  * • Scoreboard with avatars
  */
 
-export default function AirHockey3D({ player, ai, target = 3, playType = 'regular' }) {
-  const targetValue = Number(target) || 3;
+export default function AirHockey3D({ player, ai, target = 11, playType = 'regular' }) {
+  const targetValue = Number(target) || 11;
   const hostRef = useRef(null);
   const raf = useRef(0);
   const [ui, setUi] = useState({ left: 0, right: 0 });
@@ -698,9 +698,9 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     ring(ringRadius, ringTube, -TABLE.h * 0.33);
     ring(ringRadius, ringTube, TABLE.h * 0.33);
     fieldAnchorsRef.current = {
-      ai: { x: 0, y: lineThickness * 0.6, z: -TABLE.h * 0.33 },
-      player: { x: 0, y: lineThickness * 0.6, z: TABLE.h * 0.33 },
-      size: 0.42 * SCALE_WIDTH
+      ai: { x: 0, y: railHeight * 1.05, z: -TABLE.h * 0.33 },
+      player: { x: 0, y: railHeight * 1.05, z: TABLE.h * 0.33 },
+      size: 0.48 * SCALE_WIDTH
     };
 
     const goalGeometry = new THREE.BoxGeometry(
@@ -1066,12 +1066,14 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
         const material = new THREE.SpriteMaterial({
           map: texture,
           transparent: true,
-          depthWrite: false
+          depthWrite: false,
+          depthTest: false
         });
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(anchors.size, anchors.size, 1);
         const target = anchors[key];
         sprite.position.set(target.x, target.y, target.z);
+        sprite.renderOrder = 10;
         tableGroup.add(sprite);
         avatarSpritesRef.current[key] = sprite;
       });
@@ -1198,16 +1200,19 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
           onClick={() => setShowCustomizer((v) => !v)}
           className="rounded px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 backdrop-blur"
         >
-          {showCustomizer ? 'Mbyll personalizimin' : 'Personalizo lojën'}
+          <span className="inline-flex items-center gap-1">
+            <span aria-hidden>⚙️</span>
+            {showCustomizer ? 'Close customizer' : 'Customize table'}
+          </span>
         </button>
         {showCustomizer && (
           <div className="w-72 max-h-[70vh] overflow-y-auto bg-black/70 border border-white/15 rounded-lg p-3 space-y-3 backdrop-blur">
-            {renderOptionRow('Fusha', 'field')}
-            {renderOptionRow('Tavolina', 'table')}
-            {renderOptionRow('Tapat', 'puck')}
-            {renderOptionRow('Dorezat', 'mallet')}
-            {renderOptionRow('Anësoret', 'rails')}
-            {renderOptionRow('Portat', 'goals')}
+            {renderOptionRow('Field', 'field')}
+            {renderOptionRow('Table', 'table')}
+            {renderOptionRow('Puck', 'puck')}
+            {renderOptionRow('Mallets', 'mallet')}
+            {renderOptionRow('Rails', 'rails')}
+            {renderOptionRow('Goals', 'goals')}
           </div>
         )}
       </div>
