@@ -5640,15 +5640,20 @@ function Table3D(
   underlayMat.metalness = 0;
   underlayMat.clearcoat = 0;
   underlayMat.clearcoatRoughness = 1;
-  underlayMat.roughness = 1;
-  underlayMat.sheen = 0;
-  underlayMat.sheenRoughness = 1;
-  underlayMat.envMapIntensity = 0;
-  underlayMat.emissive.set(clothMat.color);
-  underlayMat.emissiveIntensity = 0;
+  underlayMat.roughness = clothMat.roughness;
+  underlayMat.sheen = clothMat.sheen;
+  underlayMat.sheenRoughness = clothMat.sheenRoughness;
+  underlayMat.envMapIntensity = clothMat.envMapIntensity;
+  underlayMat.emissive.copy(clothMat.emissive);
+  underlayMat.emissiveIntensity = clothMat.emissiveIntensity;
   underlayMat.color.copy(clothMat.color);
-  underlayMat.map = null;
-  underlayMat.bumpMap = null;
+  if (underlayMat.map) {
+    underlayMat.map.needsUpdate = true;
+  }
+  if (underlayMat.bumpMap) {
+    underlayMat.bumpMap.needsUpdate = true;
+  }
+  underlayMat.userData = { ...(clothMat.userData || {}) };
   underlayMat.needsUpdate = true;
   const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
   clothUnderlay.rotation.x = -Math.PI / 2;
