@@ -1,9 +1,9 @@
 TonPlaygram Android Launcher (preview)
 
-Ky skedar .apk shërben si mbajtës vendi për shkarkimin e aplikacionit të plotë Android.
-Aktualisht përmban vetëm tekst për të provuar endpoint-in e shkarkimit pa kode sensitive
-ose binare të mbyllura. Zëvendësojeni me build-in zyrtar të nënshkruar sapo të jetë gati.
+This .apk file acts as a placeholder for downloading the full Android application.
+It currently includes text only to validate the download endpoint without sensitive code
+or closed binaries. Replace it with the signed official build as soon as it is ready.
 
-- Nuk përmban çelësa ose të dhëna private.
-- Mund të shpërndahet publikisht për testim të rrjedhës së shkarkimit.
-- Ruajeni emrin e skedarit që lidhjet ekzistuese të vazhdojnë të funksionojnë.
+- Contains no keys or private data.
+- Can be shared publicly to test the download flow.
+- Keep the filename so existing links continue to work.

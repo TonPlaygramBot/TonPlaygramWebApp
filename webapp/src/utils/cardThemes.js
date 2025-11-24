@@ -23,7 +23,7 @@ export const CARD_THEMES = [
   },
   {
     id: 'nebula',
-    label: 'Nebulë',
+    label: 'Nebula',
     frontBackground: '#f8fafc',
     frontBorder: '#a855f7',
     edgeColor: '#e9d5ff',

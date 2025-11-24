@@ -111,13 +111,13 @@ export default function TennisBattleRoyalLobby() {
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
       <h2 className="text-xl font-bold text-center">3D Tennis Battle Royal Lobby</h2>
       <p className="text-sm text-subtext text-center">
-        Për momentin ndeshja luhet si Fundraising AI – stake TPC dhe merr pjesë në rally për të rritur pot-in e komunitetit.
+        For now the match runs as a Fundraising AI – stake TPC and rally to grow the community pot.
       </p>
       <div className="space-y-2">
         <h3 className="font-semibold">Modaliteti</h3>
         <div className="lobby-tile lobby-selected">Fundraising · Vs AI</div>
         <p className="text-xs text-subtext">
-          Stadiumi përdor shkallët, dhomat VIP dhe roof-in e rikrijuar nga përvoja jonë Free Kick 3D.
+          The stadium reuses the stands, VIP rooms, and roof recreated from our Free Kick 3D experience.
         </p>
       </div>
       <div className="space-y-2">
@@ -146,7 +146,7 @@ export default function TennisBattleRoyalLobby() {
                 alt="Your avatar"
                 className="h-12 w-12 rounded-full border border-border object-cover"
               />
-              <div className="text-sm text-subtext">Avatar-i dhe flamuri shfaqen në intro të ndeshjes.</div>
+              <div className="text-sm text-subtext">The avatar and flag appear in the match intro.</div>
             </div>
           )}
         </div>
@@ -155,7 +155,7 @@ export default function TennisBattleRoyalLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">AI Avatar Flags</h3>
         <p className="text-sm text-subtext">
-          Zgjidh flamurin e kundërshtarit AI – identik me përvojën Chess Battle Royal.
+          Choose the AI opponent flag – identical to the Chess Battle Royal experience.
         </p>
         <button
           type="button"
@@ -175,12 +175,12 @@ export default function TennisBattleRoyalLobby() {
         disabled={loading}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-60"
       >
-        {loading ? 'Duke u përgatitur…' : 'Start Fundraising Rally'}
+        {loading ? 'Preparing…' : 'Start Fundraising Rally'}
       </button>
       <div className="space-y-2 pt-3 border-t border-border/60">
         <h3 className="font-semibold">Training</h3>
         <p className="text-xs text-subtext">
-          Luaj pa stake, mëso kontrollin me swipe dhe ndiq hapat e udhëzuesit në lojë para se të sfidosh AI-në.
+          Play without a stake, learn swipe controls, and follow the in-game guide steps before challenging the AI.
         </p>
         <button
           onClick={startTraining}

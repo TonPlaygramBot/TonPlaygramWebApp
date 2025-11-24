@@ -55,35 +55,35 @@ export async function startTirana2040(){
     {
       id: 'tree_small_02',
       name: 'Tree Small 02 – Dense Canopy (Hedge / Wall)',
-      role: 'Shumë e dendur, e mirë për rresht si mur bimësh',
+      role: 'Very dense, great in a row as a hedge wall',
       image: 'https://cdn.polyhaven.com/asset_img/primary/tree_small_02.png?height=760&quality=95',
       url: 'https://polyhaven.com/a/tree_small_02'
     },
     {
       id: 'island_tree_01',
       name: 'Island Tree 01 – Wide Crown',
-      role: 'Kur e vendos disa herë rresht, bën kurorë shumë të plotë',
+      role: 'When placed in a row, it forms a very full crown',
       image: 'https://cdn.polyhaven.com/asset_img/primary/island_tree_01.png?height=760&quality=95',
       url: 'https://polyhaven.com/a/island_tree_01'
     },
     {
       id: 'fir_sapling_medium',
       name: 'Fir Sapling Medium – Pine Wall',
-      role: 'Vendose në rresht për mur pishash shumë të dendur',
+      role: 'Place in a row for a very dense pine wall',
       image: 'https://cdn.polyhaven.com/asset_img/thumbs/fir_sapling_medium.png?format=png',
       url: 'https://polyhaven.com/a/fir_sapling_medium'
     },
     {
       id: 'quiver_tree_01',
       name: 'Quiver Tree 01 – Desert Tree',
-      role: 'Pemë me trung të bardhë, stil më ekzotik',
+      role: 'Tree with a white trunk, more exotic style',
       image: 'https://cdn.polyhaven.com/asset_img/thumbs/quiver_tree_01.png?format=png',
       url: 'https://polyhaven.com/a/quiver_tree_01'
     },
     {
       id: 'quiver_tree_02',
       name: 'Quiver Tree 02 – Compact Succulent Tree',
-      role: 'Trung i trashë + kurorë shumë kompakte me gjethe aloe',
+      role: 'Thick trunk with a very compact aloe-style crown',
       image: 'https://cdn.polyhaven.com/asset_img/thumbs/quiver_tree_02.png?format=png',
       url: 'https://polyhaven.com/a/quiver_tree_02'
     }
@@ -192,7 +192,7 @@ export async function startTirana2040(){
       return new THREE.WebGLRenderer(makeRendererOpts('high'));
     } catch(err){
       console.warn('Primary renderer failed, retrying with safer mobile defaults', err);
-      updateStatus('Po ulem cilësinë për pajisjen mobile…');
+      updateStatus('Lowering quality for the mobile device…');
       try {
         return new THREE.WebGLRenderer(makeRendererOpts('safe'));
       } catch(inner){
@@ -456,9 +456,9 @@ export async function startTirana2040(){
   window.bots=bots;
   const mapRoads=[]; const mapBuildings=[]; const mapParks=[]; const mapLandmarks=[];
   const BLOCKS_X=6, BLOCKS_Z=6; const CELL=120; const ROAD=28; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
-  const northSouthStreets=['Rr. Kombinatit','Rr. Kavajës','Rr. Dëshmorët','Rr. Myslym Shyri','Rr. Ismail Qemali','Rr. Abdyl Frashëri','Rr. Bajram Curri'];
-  const eastWestStreets=['Blvd. Nënë Tereza','Rr. Skënderbej','Rr. Ismail Ndroqi','Rr. Ali Demi','Rr. Petro Nini','Rr. Teuta','Rr. Don Bosko'];
-  const ringRoadName='Unaza Tirana 2040';
+  const northSouthStreets=['Kombinat Street','Kavaja Street','Martyrs Street','Myslym Shyri Street','Ismail Qemali Street','Abdyl Frasheri Street','Bajram Curri Street'];
+  const eastWestStreets=['Mother Teresa Blvd','Skanderbeg Street','Ismail Ndroqi Street','Ali Demi Street','Petro Nini Street','Teuta Street','Don Bosko Street'];
+  const ringRoadName='Tirana 2040 Ring Road';
 
   const groundGeo = new THREE.PlaneGeometry((CELL)*BLOCKS_X + ROAD*2, (CELL)*BLOCKS_Z + ROAD*2);
   const groundMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.95, metalness:0.08, side:THREE.DoubleSide });
@@ -648,9 +648,9 @@ export async function startTirana2040(){
   buildPerimeterWalls();
   addBusStop(-cityHalfX*0.6, cityHalfZ+ROAD*0.8, 0);
   addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
-  addBikeCorridor(-cityHalfX, startZ + CELL*2.5, cityHalfX, startZ + CELL*2.5, {label:'Korsi kryesore lindje-perendim'});
-  addBikeCorridor(startX + CELL*1.5, -cityHalfZ, startX + CELL*1.5, cityHalfZ, {label:'Boshti veri-jug i biçikletave'});
-  addBikeCorridor(startX + CELL*4.5, -cityHalfZ, startX + CELL*4.5, cityHalfZ, {label:'Greenway periferik'});
+  addBikeCorridor(-cityHalfX, startZ + CELL*2.5, cityHalfX, startZ + CELL*2.5, {label:'Main east-west bike lane'});
+  addBikeCorridor(startX + CELL*1.5, -cityHalfZ, startX + CELL*1.5, cityHalfZ, {label:'North-south bicycle spine'});
+  addBikeCorridor(startX + CELL*4.5, -cityHalfZ, startX + CELL*4.5, cityHalfZ, {label:'Perimeter greenway'});
 
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
   const windowMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.12, depthWrite:false });

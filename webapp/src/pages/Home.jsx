@@ -44,17 +44,17 @@ export default function Home() {
   const gamePreloads = [
     {
       name: 'Pool Royale preload',
-      description: 'Paketa tekstuale e kodit për animacionet dhe HUD-in e Pool Royale.',
+      description: 'Text bundle of code for Pool Royale animations and HUD.',
       href: `${baseUrl}game-preloads/pool-royale-preload.txt`
     },
     {
       name: '3D Snooker preload',
-      description: 'Snippet-et kryesore për fizikën e bilardos dhe kontrollat mobile +Y.',
+      description: 'Key snippets for billiards physics and +Y mobile controls.',
       href: `${baseUrl}game-preloads/3d-snooker-preload.txt`
     },
     {
       name: 'Tirana 2040 preload',
-      description: 'Paketa narrative + asset placeholders për mini-lojën Tirana 2040.',
+      description: 'Narrative bundle plus asset placeholders for the Tirana 2040 mini-game.',
       href: `${baseUrl}game-preloads/tirana-2040-preload.txt`
     }
   ];
@@ -248,7 +248,7 @@ export default function Home() {
         <div className="text-center space-y-1">
           <h3 className="text-lg font-semibold text-white">Preload game code (tekst)</h3>
           <p className="text-sm text-subtext">
-            Shkarkoni paketa tekstuale për lojërat kryesore që Tirana Hallway t’i cache-ojë më shpejt.
+            Download text bundles for the main games so Tirana Hallway can cache them faster.
           </p>
         </div>
         <div className="space-y-2">
@@ -263,7 +263,7 @@ export default function Home() {
                 download
                 className="mt-2 sm:mt-0 inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold bg-primary text-surface rounded-full shadow-primary/40 hover:shadow-primary/60 shadow"
               >
-                Shkarko paketën
+                Download bundle
               </a>
             </div>
           ))}

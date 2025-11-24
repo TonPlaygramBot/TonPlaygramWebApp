@@ -11,7 +11,7 @@ import {
 
 const DEFAULT_TABLE_BASE_OPTION = Object.freeze({
   id: 'obsidian',
-  label: 'Bazë Obsidian',
+  label: 'Obsidian Base',
   baseColor: '#141414',
   columnColor: '#0b0d10',
   trimColor: '#1f232a',
@@ -28,7 +28,7 @@ const DEFAULT_TABLE_WOOD_OPTION = Object.freeze({
 
 export const DEFAULT_TABLE_CLOTH_OPTION = Object.freeze({
   id: 'emerald',
-  label: 'Rrobë Smerald',
+  label: 'Emerald Cloth',
   feltTop: '#0f6a2f',
   feltBottom: '#054d24',
   emissive: '#021a0b'

@@ -229,7 +229,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   if (playerName) suffixParts.push(`${playerName} vs AI`);
   if (stakeLabel) suffixParts.push(`Stake ${stakeLabel}`);
   const matchTag = suffixParts.join(' · ');
-  const introMessage = trainingMode ? 'Training · Swipe për shërbim' : 'Swipe & Hit';
+  const introMessage = trainingMode ? 'Training · Swipe to serve' : 'Swipe & Hit';
   const [msg, setMsg] = useState(introMessage);
   const [hudInfo, setHudInfo] = useState(() => ({
     points: '0 - 0',
@@ -248,23 +248,23 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   const trainingSteps = [
     {
       id: 'swipeServe',
-      title: 'Shërbe me swipe',
-      detail: 'Fërko gishtin nga poshtë-lart për të nisur topin.'
+      title: 'Serve with a swipe',
+      detail: 'Swipe upward to launch the ball.'
     },
     {
       id: 'landServe',
-      title: 'Topi në kutinë e shërbimit',
-      detail: 'Sigurohu që kërcimi i parë të bjerë në anën e kundërshtarit.'
+      title: 'Ball in the service box',
+      detail: 'Make sure the first bounce lands on the opponent’s side.'
     },
     {
       id: 'rallyHit',
-      title: 'Godit një rally',
-      detail: 'Prit rikthimin e CPU dhe godit topin përsëri.'
+      title: 'Play a rally',
+      detail: 'Wait for the CPU return and hit the ball again.'
     },
     {
       id: 'winPoint',
-      title: 'Fito një pikë',
-      detail: 'Mbaje rally deri sa CPU të gabojë.'
+      title: 'Win a point',
+      detail: 'Keep the rally going until the CPU faults.'
     }
   ];
   const [trainingStatus, setTrainingStatus] = useState(() =>
@@ -339,10 +339,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const stepId = nextTrainingStep?.id || (trainingCompleted ? 'done' : null);
     if (!stepId || stepId === lastTaskToastId.current) return undefined;
     lastTaskToastId.current = stepId;
-    const toastTitle = nextTrainingStep ? `Detyra: ${nextTrainingStep.title}` : 'Trajnimi u përfundua';
+    const toastTitle = nextTrainingStep ? `Task: ${nextTrainingStep.title}` : 'Training complete';
     const toastDetail = nextTrainingStep
       ? nextTrainingStep.detail
-      : 'Tasket u realizuan, vazhdo lojën!';
+      : 'Tasks complete, keep playing!';
     setTaskToast({ id: stepId, title: toastTitle, detail: toastDetail });
     const timer = setTimeout(() => setTaskToast(null), 4200);
     return () => clearTimeout(timer);
@@ -2148,10 +2148,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
                 alignItems: 'center'
               }}
             >
-              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Lojtarët</div>
-              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Sete</div>
-              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Lojë</div>
-              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Pikë</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Players</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Sets</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Games</div>
+              <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.4, opacity: 0.75 }}>Points</div>
               {scoreboardRows.map((row) => (
                 <React.Fragment key={row.label}>
                   <div style={{ fontSize: 15, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2218,7 +2218,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <span style={{ fontWeight: 700 }}>Training Tasks</span>
-              <span style={{ fontSize: 11, opacity: 0.75 }}>{trainingCompleted ? 'Përfunduar' : 'Në progres'}</span>
+              <span style={{ fontSize: 11, opacity: 0.75 }}>{trainingCompleted ? 'Completed' : 'In progress'}</span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {trainingSteps.map((step) => {

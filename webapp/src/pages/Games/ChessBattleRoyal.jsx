@@ -40,14 +40,14 @@ import AvatarTimer from '../../components/AvatarTimer.jsx';
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
  * -------------------------------------------------------
- * • E njëjta teknikë si projektet e tua: vetëm primitive (Box/Cylinder/Cone/Sphere) + materiale standarde
- * • Fushë 8x8 me koordinata, bordure moderne, ndriçim kinematik
- * • Figura low‑poly procedurale (king/queen/rook/bishop/knight/pawn)
- * • Lojë e plotë bazë: lëvizje të ligjshme, radhë e bardhë → e zezë, kapje, shah, **checkmate/stalemate**, promovim në queen
- * • UI minimale: status bar (rendi, check, mate), reset
- * • Kontroll: klik për të zgjedhur figuren, klik te një nga synimet e theksuara për ta lëvizur
+ * • Same technique as your projects: only primitives (Box/Cylinder/Cone/Sphere) + standard materials
+ * • 8x8 board with coordinates, modern border, cinematic lighting
+ * • Procedural low-poly pieces (king/queen/rook/bishop/knight/pawn)
+ * • Full basic game: legal moves, white → black turns, captures, check, **checkmate/stalemate**, promotion to queen
+ * • Minimal UI: status bar (turn, check, mate), reset
+ * • Control: click to select a piece, click one of the highlighted targets to move it
  *
- * Shënim: për thjeshtësi, ky version nuk përfshin en‑passant dhe rokadë. Mund t’i shtojmë lehtë.
+ * Note: for simplicity, this version omits en passant and castling. We can add them easily.
  */
 
 // ========================= Config =========================
@@ -339,7 +339,7 @@ const DEFAULT_APPEARANCE = {
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
     id: 'crimsonVelvet',
-    label: 'Kadife e Kuqe',
+    label: 'Crimson Velvet',
     primary: '#8b1538',
     accent: '#5c0f26',
     highlight: '#d35a7a',
@@ -347,7 +347,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'midnightNavy',
-    label: 'Blu Mesnate',
+    label: 'Midnight Blue',
     primary: '#153a8b',
     accent: '#0c214f',
     highlight: '#4d74d8',
@@ -355,7 +355,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'emeraldWave',
-    label: 'Valë Smerald',
+    label: 'Emerald Wave',
     primary: '#0f6a2f',
     accent: '#063d1b',
     highlight: '#48b26a',
@@ -363,7 +363,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'onyxShadow',
-    label: 'Hije Oniks',
+    label: 'Onyx Shadow',
     primary: '#202020',
     accent: '#101010',
     highlight: '#6f6f6f',
@@ -371,7 +371,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'royalPlum',
-    label: 'Gështenjë Mbretërore',
+    label: 'Royal Chestnut',
     primary: '#3f1f5b',
     accent: '#2c1340',
     highlight: '#7c4ae0',
@@ -383,13 +383,13 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
-  { key: 'boardPalette', label: 'Ngjyrat e Fushës', options: BOARD_COLOR_OPTIONS },
-  { key: 'pieceStyle', label: 'Stili i Figurave', options: PIECE_STYLE_OPTIONS },
-  { key: 'chairColor', label: 'Ngjyra e Karrigeve', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Forma e Tavolinës', options: TABLE_SHAPE_MENU_OPTIONS }
+  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
+  { key: 'boardPalette', label: 'Board Colors', options: BOARD_COLOR_OPTIONS },
+  { key: 'pieceStyle', label: 'Piece Style', options: PIECE_STYLE_OPTIONS },
+  { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
+  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
 ];
 
 function normalizeAppearance(value = {}) {
@@ -3201,7 +3201,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                 d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
               />
             </svg>
-            <span className="sr-only">Hap personalizimin e tavolinës</span>
+            <span className="sr-only">Open table customization</span>
           </button>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
@@ -3211,7 +3211,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   type="button"
                   onClick={() => setConfigOpen(false)}
                   className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  aria-label="Mbyll personalizimin"
+                  aria-label="Close customization"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
@@ -3250,7 +3250,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               </div>
               <div className="mt-4 space-y-3">
                 <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Efekte zanore</span>
+                  <span>Sound effects</span>
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
@@ -3259,7 +3259,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   />
                 </label>
                 <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Shfaq lëvizjet e lejueshme</span>
+                  <span>Show legal moves</span>
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
@@ -3275,14 +3275,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   }}
                   className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
                 >
-                  Centro kamerën
+                  Center camera
                 </button>
                 <button
                   type="button"
                   onClick={() => window.location.reload()}
                   className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
                 >
-                  Rifillo ndeshjen
+                  Restart match
                 </button>
               </div>
             </div>

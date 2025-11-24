@@ -101,7 +101,7 @@ const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
     id: 'crimsonVelvet',
-    label: 'Kadife e Kuqe',
+    label: 'Crimson Velvet',
     primary: '#8b1538',
     accent: '#5c0f26',
     highlight: '#d35a7a',
@@ -109,7 +109,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'midnightNavy',
-    label: 'Blu Mesnate',
+    label: 'Midnight Blue',
     primary: '#153a8b',
     accent: '#0c214f',
     highlight: '#4d74d8',
@@ -117,7 +117,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'emeraldWave',
-    label: 'Valë Smerald',
+    label: 'Emerald Wave',
     primary: '#0f6a2f',
     accent: '#063d1b',
     highlight: '#48b26a',
@@ -125,7 +125,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'onyxShadow',
-    label: 'Hije Oniks',
+    label: 'Onyx Shadow',
     primary: '#202020',
     accent: '#101010',
     highlight: '#6f6f6f',
@@ -133,7 +133,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   },
   {
     id: 'goldenHour',
-    label: 'Ar Pasdite',
+    label: 'Golden Hour',
     primary: '#8b5a1a',
     accent: '#4a2f0b',
     highlight: '#d8a85f',
@@ -209,11 +209,11 @@ const DEFAULT_APPEARANCE = {
 };
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
-  { key: 'chairColor', label: 'Ngjyra e Karrigeve', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableShape', label: 'Forma e Tavolinës', options: TABLE_SHAPE_OPTIONS },
-  { key: 'cards', label: 'Letrat', options: CARD_THEMES }
+  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
+  { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
+  { key: 'cards', label: 'Cards', options: CARD_THEMES }
 ];
 
 const NON_DIAMOND_SHAPE_INDEX = (() => {
@@ -2123,7 +2123,7 @@ function BlackJackArena({ search }) {
               d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
             />
           </svg>
-          <span className="sr-only">Hap personalizimin e tavolinës</span>
+          <span className="sr-only">Open table customization</span>
         </button>
         {configOpen && (
           <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
