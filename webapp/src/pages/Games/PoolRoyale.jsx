@@ -415,13 +415,13 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.094; // pull the side fascias fa
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012; // push the middle chrome cut farther from centre so the reveal lines up with the widened side arches
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // push the middle chrome arch farther from table centre so the reveal sits wider around the jaws
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.072; // open the middle rail arches a hair more so the rounded cut reaches the chrome hook cleanly
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.148; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.21; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
 
 function buildChromePlateGeometry({
   width,
@@ -696,7 +696,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.156; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.196; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -2041,38 +2041,61 @@ const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
-    id: 'studio-rail',
-    label: 'Studio Rail',
-    description: 'Dual-rail TV rig used by top tour productions.',
-    railPush: BALL_R * 5.2,
-    lateralDolly: BALL_R * 1.4,
-    focusLift: BALL_R * 1.1,
-    focusPan: BALL_R * 0.2,
-    trackingBias: 0.32,
-    smoothing: 0.18
+    id: 'pro-tour-rail',
+    label: 'Pro Tour Rail',
+    description: 'WPA finals rail cam with crisp shoulder pans.',
+    railPush: BALL_R * 5.6,
+    lateralDolly: BALL_R * 1.6,
+    focusLift: BALL_R * 1.2,
+    focusPan: BALL_R * 0.24,
+    trackingBias: 0.36,
+    smoothing: 0.16
   },
   {
-    id: 'skybox-orbit',
-    label: 'Skybox Orbit',
-    description: 'Elevated crane orbit with slow parallax sweeps.',
-    railPush: BALL_R * 8,
-    lateralDolly: BALL_R * 2.4,
-    focusLift: BALL_R * 4.2,
+    id: 'stadium-dolly',
+    label: 'Stadium Dolly',
+    description: 'Prime arena track with slow crane parallax.',
+    railPush: BALL_R * 7.6,
+    lateralDolly: BALL_R * 2.2,
+    focusLift: BALL_R * 3.8,
     focusDepthBias: BALL_R * 1.4,
-    trackingBias: 0.58,
+    trackingBias: 0.54,
     smoothing: 0.14
   },
   {
-    id: 'immersive-track',
-    label: 'Immersive Track',
-    description: 'Low esports follow-cam that hugs the rails.',
-    railPush: BALL_R * 3.4,
-    lateralDolly: BALL_R * 0.9,
-    focusLift: BALL_R * 0.6,
-    focusDepthBias: BALL_R * 0.65,
-    focusPan: BALL_R * 0.35,
-    trackingBias: 0.72,
-    smoothing: 0.24
+    id: 'immersive-gimbal',
+    label: 'Immersive Gimbal',
+    description: 'Low esports follow-cam that hugs the cushions.',
+    railPush: BALL_R * 3.2,
+    lateralDolly: BALL_R * 1.05,
+    focusLift: BALL_R * 0.74,
+    focusDepthBias: BALL_R * 0.74,
+    focusPan: BALL_R * 0.42,
+    trackingBias: 0.7,
+    smoothing: 0.22
+  },
+  {
+    id: 'drone-orbit',
+    label: 'Drone Orbit',
+    description: 'High halo glide with cinematic sweeping arcs.',
+    railPush: BALL_R * 9.2,
+    lateralDolly: BALL_R * 2.9,
+    focusLift: BALL_R * 5.2,
+    focusDepthBias: BALL_R * 1.9,
+    trackingBias: 0.6,
+    smoothing: 0.18
+  },
+  {
+    id: 'wire-fly',
+    label: 'Wire Fly',
+    description: 'Four-point fly-cam inspired by arena wire rigs.',
+    railPush: BALL_R * 6.5,
+    lateralDolly: BALL_R * 1.9,
+    focusLift: BALL_R * 2.6,
+    focusDepthBias: BALL_R * 1.1,
+    focusPan: BALL_R * 0.18,
+    trackingBias: 0.44,
+    smoothing: 0.15
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = BROADCAST_SYSTEM_OPTIONS[0].id;
