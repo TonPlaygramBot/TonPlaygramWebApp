@@ -23,7 +23,7 @@ export default function AirHockeyLobby() {
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
-  const [goal, setGoal] = useState(3);
+  const [goal, setGoal] = useState(11);
   const [playType, setPlayType] = useState('regular');
   const [players, setPlayers] = useState(8);
   const [avatar, setAvatar] = useState('');
@@ -162,7 +162,7 @@ export default function AirHockeyLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Goals</h3>
         <div className="flex gap-2">
-          {[3, 5, 10].map((g) => (
+          {[11, 21, 31].map((g) => (
             <button
               key={g}
               onClick={() => setGoal(g)}
