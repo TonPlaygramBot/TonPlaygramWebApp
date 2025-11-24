@@ -2668,7 +2668,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
               display: 'flex',
               flexDirection: 'column',
               gap: 12,
-              pointerEvents: 'auto'
+              pointerEvents: 'auto',
+              maxHeight: '72vh',
+              overflowY: 'auto',
+              overscrollBehavior: 'contain',
+              scrollbarWidth: 'thin'
             }}
           >
             {[{ title: 'Broadcast Techniques', data: BROADCAST_TECHNIQUES, active: broadcastId, setter: setBroadcastId }, { title: 'Ball Logic & Physics', data: PHYSICS_PROFILES, active: physicsId, setter: setPhysicsId }, { title: 'Touch Control Modes', data: TOUCH_TECHNIQUES, active: touchId, setter: setTouchId }].map((section) => (
