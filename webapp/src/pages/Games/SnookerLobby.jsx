@@ -20,17 +20,32 @@ const TABLE_CHOICES = Object.freeze([
   {
     id: 'rusticSplit',
     label: 'Pearl Cream Arena',
-    description: 'Pool Royale pearl-cream rails with satin brass trim and emerald tour cloth.'
+    description: 'Pool Royale pearl-cream rails with satin brass trim and emerald tour cloth.',
+    swatch: ['#f2eadf', '#efe5d6', '#2d7f4b']
   },
   {
     id: 'charredTimber',
     label: 'Charred Timber Elite',
-    description: 'Dark roasted planks with bronze trim and the full Pool Royale chrome accents.'
+    description: 'Dark roasted planks with bronze trim and the full Pool Royale chrome accents.',
+    swatch: ['#3c2c22', '#302118', '#2d7f4b']
+  },
+  {
+    id: 'plankStudio',
+    label: 'Plank Studio',
+    description: 'Honeyed plank rails with brushed brass trims on the Pool Royale chassis.',
+    swatch: ['#b88452', '#ae7a46', '#2d7f4b']
+  },
+  {
+    id: 'weatheredGrey',
+    label: 'Weathered Grey Loft',
+    description: 'Smoked grey boards with nickel trim and the Royale emerald cloth.',
+    swatch: ['#5f5750', '#4e463f', '#2d7f4b']
   },
   {
     id: 'jetBlackCarbon',
     label: 'Carbon Midnight',
-    description: 'Matte carbon fibre shell with smoked chrome plates and neon underglow accents.'
+    description: 'Matte carbon fibre shell with smoked chrome plates and neon underglow accents.',
+    swatch: ['#16181c', '#0d0f12', '#1a1a1c']
   }
 ]);
 
@@ -301,6 +316,17 @@ export default function SnookerLobby() {
             >
               <div className="font-semibold">{choice.label}</div>
               <div className="text-xs text-subtext">{choice.description}</div>
+              {choice.swatch && (
+                <div className="flex items-center gap-1 mt-1">
+                  {choice.swatch.map((color) => (
+                    <span
+                      key={color}
+                      className="w-6 h-3 rounded-full border border-border/60"
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              )}
             </button>
           ))}
         </div>
