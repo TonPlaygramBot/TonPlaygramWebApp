@@ -184,6 +184,7 @@ function buildRoyalGrandstand() {
     for (let r = 0; r < rows; r += 1) {
       for (let c = 0; c < seatsPerRow; c += 1) {
         if (Math.abs(c - seatsPerRow / 2) <= 0.5) continue;
+        if (c < 2 || c > seatsPerRow - 3) continue;
         const x = offsetX + (c - seatsPerRow / 2) * 1.7;
         const y = baseY + r * 0.78;
         const z = depthOffset - r * 1.8;
@@ -269,6 +270,57 @@ function buildRoyalGrandstand() {
 
   group.scale.setScalar(0.35);
   group.position.y = 0.1;
+  return group;
+}
+
+function buildCornerSlice() {
+  const group = new THREE.Group();
+  const seatMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x15306d,
+    roughness: 0.3,
+    metalness: 0.18,
+    clearcoat: 0.45,
+    clearcoatRoughness: 0.25
+  });
+  const frameMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0x2b303a,
+    roughness: 0.55,
+    metalness: 0.35
+  });
+  const concreteMaterial = new THREE.MeshStandardMaterial({
+    color: 0x7b7b7b,
+    roughness: 0.84,
+    metalness: 0.05
+  });
+  const seatGeo = new THREE.BoxGeometry(0.95, 0.14, 0.88);
+  const backGeo = new THREE.BoxGeometry(0.95, 0.72, 0.1);
+  const legGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.68, 8);
+  const rows = 5;
+  const seatsBase = 7;
+  for (let r = 0; r < rows; r += 1) {
+    const seats = seatsBase - r;
+    for (let c = 0; c < seats; c += 1) {
+      const x = (c - (seats - 1) / 2) * 1.1 + r * 0.22;
+      const y = r * 0.66;
+      const z = r * 1.18;
+      const seat = new THREE.Mesh(seatGeo, seatMaterial);
+      seat.position.set(x, y, z);
+      const back = new THREE.Mesh(backGeo, seatMaterial);
+      back.position.set(x, y + 0.42, z - 0.42);
+      const legL = new THREE.Mesh(legGeo, frameMaterial);
+      legL.position.set(x - 0.42, y - 0.32, z + 0.24);
+      const legR = legL.clone();
+      legR.position.x = x + 0.42;
+      group.add(seat, back, legL, legR);
+    }
+    const tread = new THREE.Mesh(new THREE.BoxGeometry(14 - r * 1.6, 0.3, 1.24), concreteMaterial);
+    tread.position.set(r * 0.12, r * 0.66 - 0.3, r * 1.18 - 0.62);
+    group.add(tread);
+  }
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(10, 12, 0.4, 3), concreteMaterial);
+  plate.rotation.y = Math.PI / 2;
+  plate.position.set(0, -0.2, -1.6);
+  group.add(plate);
   return group;
 }
 
@@ -796,6 +848,19 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     westRear.rotation.y = Math.PI / 2;
     westRear.position.x = -(halfW + sideGap + 7.8);
     scene.add(north, south, east, west, eastRear, westRear);
+
+    const cornerNE = buildCornerSlice();
+    cornerNE.position.set(halfW + sideGap - 0.6, 0, -(halfL + baseGap - 0.6));
+    cornerNE.rotation.y = -Math.PI / 2;
+    const cornerNW = buildCornerSlice();
+    cornerNW.position.set(-(halfW + sideGap - 0.6), 0, -(halfL + baseGap - 0.6));
+    cornerNW.rotation.y = Math.PI;
+    const cornerSE = buildCornerSlice();
+    cornerSE.position.set(halfW + sideGap - 0.6, 0, halfL + baseGap - 0.6);
+    const cornerSW = buildCornerSlice();
+    cornerSW.position.set(-(halfW + sideGap - 0.6), 0, halfL + baseGap - 0.6);
+    cornerSW.rotation.y = Math.PI / 2;
+    scene.add(cornerNE, cornerNW, cornerSE, cornerSW);
 
     const stairsEast = buildGrandEntranceStairs({ width: courtL + apron * 1.2 });
     stairsEast.position.set(halfW + apron + 0.4, 0, 0);
@@ -1789,13 +1854,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     function tryApplySwing(hitter, swing, racketPos) {
       if (!swing) return false;
+      const reach = (swing.reach ?? ballR + 0.8) + 0.22;
       const toBall = tmpVec.subVectors(pos, racketPos);
-      if (toBall.lengthSq() > swing.reach * swing.reach) return false;
+      if (toBall.lengthSq() > reach * reach) return false;
 
       const normal = swing.normal.clone().normalize();
       const swingVel = normal.clone().multiplyScalar(swing.speed);
       const relVel = vel.clone().sub(swingVel);
-      const closing = relVel.dot(normal) < -0.08 || !state.live;
+      const closing = relVel.dot(normal) < 0.12 || !state.live;
       if (!closing) return false;
 
       const vn = relVel.dot(normal);
@@ -2244,15 +2310,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const playerDamp = playerHasInput ? 12 : state.live ? 8 : 5;
       player.position.x = THREE.MathUtils.damp(player.position.x, desiredX, playerDamp, dt);
       player.position.z = THREE.MathUtils.damp(player.position.z, desiredZ, playerDamp, dt);
-      const targetY = THREE.MathUtils.clamp(pos.y, ballR * 0.9, 2.4);
-      player.position.y = THREE.MathUtils.damp(player.position.y, targetY, 6, dt);
-      cpu.position.y = THREE.MathUtils.damp(cpu.position.y, targetY, 6, dt);
+      const groundedY = 0;
+      player.position.y = THREE.MathUtils.damp(player.position.y, groundedY, 10, dt);
+      cpu.position.y = THREE.MathUtils.damp(cpu.position.y, groundedY, 10, dt);
 
       if (playerSwing) {
         const racketPos = new THREE.Vector3(
-          player.position.x,
+          THREE.MathUtils.lerp(player.position.x, pos.x, 0.35),
           THREE.MathUtils.clamp(pos.y, ballR * 1.05, 2.0),
-          player.position.z - 0.72
+          player.position.z - 0.62
         );
         if (tryApplySwing('player', playerSwing, racketPos)) {
           playerSwing.ttl = 0;
@@ -2262,9 +2328,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       }
       if (cpuSwing) {
         const racketPos = new THREE.Vector3(
-          cpu.position.x,
+          THREE.MathUtils.lerp(cpu.position.x, pos.x, 0.35),
           THREE.MathUtils.clamp(pos.y, ballR * 1.05, 2.0),
-          cpu.position.z + 0.72
+          cpu.position.z + 0.62
         );
         if (tryApplySwing('cpu', cpuSwing, racketPos)) {
           cpuSwing.ttl = 0;
