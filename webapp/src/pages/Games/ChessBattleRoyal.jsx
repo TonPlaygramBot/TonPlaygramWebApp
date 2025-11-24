@@ -18,7 +18,7 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { bombSound } from '../../assets/soundData.js';
+import { bombSound, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
@@ -285,7 +285,7 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
-const SAND_TIMER_SURFACE_OFFSET = 0.14;
+const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const SNOOKER_TABLE_SCALE = 1.3;
@@ -648,7 +648,7 @@ function createSandTimer(accentColor = '#f4b400') {
   const timeFace = new THREE.Mesh(new THREE.CircleGeometry(0.26, 64), timeMaterial);
   timeFace.rotation.x = -Math.PI / 2;
   timeFace.position.set(0, 0.42, 0);
-  const timeBezel = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.016, 16, 64), accentMat);
+  const timeBezel = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.026, 16, 64), accentMat);
   timeBezel.rotation.x = -Math.PI / 2;
   timeBezel.position.set(0, 0.422, 0);
   body.add(timeFace, timeBezel);
@@ -670,14 +670,14 @@ function createSandTimer(accentColor = '#f4b400') {
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#ffd166';
-    ctx.lineWidth = 18;
+    ctx.lineWidth = 26;
     ctx.beginPath();
     ctx.arc(cx, cy, radius - 12, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = '#f5f8ff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 118px "JetBrains Mono", "Roboto Mono", monospace';
+    ctx.font = '900 132px "JetBrains Mono", "Roboto Mono", monospace';
     ctx.fillText(timeString, cx, cy + 8);
     ctx.restore();
     timeTexture.needsUpdate = true;
@@ -1701,6 +1701,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const rafRef = useRef(0);
   const timerRef = useRef(null);
   const bombSoundRef = useRef(null);
+  const timerSoundRef = useRef(null);
+  const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
   const fitRef = useRef(() => {});
@@ -1801,9 +1803,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!arena?.sandTimer) return;
       const surfaceY = arena.tableInfo?.surfaceY ?? TABLE_HEIGHT;
       const radius = (arena.tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
-      const targetZ = radius;
+      const targetZ = (_turnWhiteValue ? 1 : -1) * radius;
+      const targetRot = _turnWhiteValue ? Math.PI : 0;
       arena.sandTimer.group.position.set(0, surfaceY + SAND_TIMER_SURFACE_OFFSET, targetZ);
-      arena.sandTimer.group.rotation.y = Math.PI;
+      arena.sandTimer.group.rotation.y = targetRot;
     },
     []
   );
@@ -2014,6 +2017,15 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         } catch {}
       }
     }
+    if (timerSoundRef.current) {
+      timerSoundRef.current.volume = soundEnabled ? volume : 0;
+      if (!soundEnabled) {
+        try {
+          timerSoundRef.current.pause();
+          timerSoundRef.current.currentTime = 0;
+        } catch {}
+      }
+    }
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -2021,6 +2033,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const volume = getGameVolume();
       if (bombSoundRef.current) {
         bombSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+      }
+      if (timerSoundRef.current) {
+        timerSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
@@ -2192,6 +2207,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
     bombSoundRef.current = new Audio(bombSound);
     bombSoundRef.current.volume = baseVolume;
+    timerSoundRef.current = new Audio(timerBeep);
+    timerSoundRef.current.volume = baseVolume;
 
     const normalizedAppearance = normalizeAppearance(appearanceRef.current);
     const palette = createChessPalette(normalizedAppearance);
@@ -2803,32 +2820,41 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     function startTimer(isWhite) {
       clearInterval(timerRef.current);
+      try {
+        timerSoundRef.current?.pause();
+      } catch {}
       if (isWhite) {
         initialWhiteTimeRef.current = 60;
         whiteTimeRef.current = 60;
         setWhiteTime(60);
+        lastBeepRef.current.white = null;
         timerRef.current = setInterval(() => {
           setWhiteTime((t) => {
+            const next = Math.max(0, t - 1);
             if (t <= 1) {
               clearInterval(timerRef.current);
               setUi((s) => ({ ...s, status: 'White ran out of time', winner: 'Black' }));
               return 0;
             }
-            return t - 1;
+            maybePlayCountdownSound(next, true);
+            return next;
           });
         }, 1000);
       } else {
         initialBlackTimeRef.current = 5;
         blackTimeRef.current = 5;
         setBlackTime(5);
+        lastBeepRef.current.black = null;
         timerRef.current = setInterval(() => {
           setBlackTime((t) => {
+            const next = Math.max(0, t - 1);
             if (t <= 1) {
               clearInterval(timerRef.current);
               setUi((s) => ({ ...s, status: 'Black ran out of time', winner: 'White' }));
               return 0;
             }
-            return t - 1;
+            maybePlayCountdownSound(next, false);
+            return next;
           });
         }, 1000);
       }
@@ -2843,6 +2869,39 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       startTimer(nextWhite);
       if (!nextWhite) setTimeout(aiMove, 200);
     }
+
+    const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
+      const activeTurn = uiRef.current?.turnWhite;
+      if (activeTurn !== isWhiteTurn) {
+        return;
+      }
+      const key = isWhiteTurn ? 'white' : 'black';
+      const last = lastBeepRef.current[key];
+      if (
+        timerSoundRef.current &&
+        settingsRef.current.soundEnabled &&
+        seconds > 0 &&
+        seconds <= 15 &&
+        seconds !== last
+      ) {
+        lastBeepRef.current[key] = seconds;
+        try {
+          timerSoundRef.current.currentTime = 0;
+          timerSoundRef.current.play().catch(() => {});
+        } catch {}
+      }
+      if (seconds > 15 && last != null) {
+        lastBeepRef.current[key] = null;
+        try {
+          timerSoundRef.current.pause();
+        } catch {}
+      }
+      if (seconds <= 0 && timerSoundRef.current) {
+        try {
+          timerSoundRef.current.pause();
+        } catch {}
+      }
+    };
 
     function highlightMoves(list, color) {
       if (!settingsRef.current.showHighlights) return;
@@ -3107,6 +3166,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       seatPositionsRef.current = [];
       setSeatAnchors([]);
       bombSoundRef.current?.pause();
+      timerSoundRef.current?.pause();
     };
   }, []);
 
