@@ -3,6 +3,51 @@ import * as THREE from 'three';
 import { getGameVolume } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
 
+const CUSTOMIZATION = {
+  field: [
+    { name: 'Aurora Ice', surface: '#3b83c3', lines: '#ffffff', rings: '#d8f3ff' },
+    { name: 'Neon Night', surface: '#152238', lines: '#4de1ff', rings: '#9bf1ff' },
+    { name: 'Sunset Clash', surface: '#c93f4b', lines: '#ffe8d0', rings: '#ffd1a1' },
+    { name: 'Midnight Steel', surface: '#0f172a', lines: '#a1a1aa', rings: '#d4d4d8' },
+    { name: 'Mint Rush', surface: '#0f766e', lines: '#d1fae5', rings: '#34d399' }
+  ],
+  table: [
+    { name: 'Walnut', wood: '#5d3725', trim: '#2c1a11' },
+    { name: 'Ash Grey', wood: '#6b7280', trim: '#111827' },
+    { name: 'Ivory Edge', wood: '#f8fafc', trim: '#cbd5e1' },
+    { name: 'Obsidian', wood: '#0b0f1a', trim: '#1f2937' },
+    { name: 'Sapphire', wood: '#1d4ed8', trim: '#0f172a' }
+  ],
+  puck: [
+    { name: 'Carbon', color: '#111111', emissive: '#1f2937' },
+    { name: 'Volt', color: '#eab308', emissive: '#854d0e' },
+    { name: 'Magenta', color: '#be185d', emissive: '#9f1239' },
+    { name: 'Frost', color: '#e0f2fe', emissive: '#0ea5e9' },
+    { name: 'Jade', color: '#064e3b', emissive: '#10b981' }
+  ],
+  mallet: [
+    { name: 'Crimson', color: '#ff5577', knob: '#1f2937' },
+    { name: 'Cyan', color: '#22d3ee', knob: '#0f172a' },
+    { name: 'Amber', color: '#f59e0b', knob: '#451a03' },
+    { name: 'Violet', color: '#a855f7', knob: '#312e81' },
+    { name: 'Lime', color: '#84cc16', knob: '#1a2e05' }
+  ],
+  rails: [
+    { name: 'Glass', color: '#dbe9ff', opacity: 0.32 },
+    { name: 'Shadow', color: '#0b1224', opacity: 0.6 },
+    { name: 'Coral', color: '#f97316', opacity: 0.4 },
+    { name: 'Mint', color: '#10b981', opacity: 0.35 },
+    { name: 'Frosted', color: '#e5e7eb', opacity: 0.28 }
+  ],
+  goals: [
+    { name: 'Mint Net', color: '#99ffd6', emissive: '#1aaf80' },
+    { name: 'Crimson Net', color: '#ef4444', emissive: '#7f1d1d' },
+    { name: 'Cobalt Net', color: '#60a5fa', emissive: '#1d4ed8' },
+    { name: 'Amber Net', color: '#f59e0b', emissive: '#92400e' },
+    { name: 'Ghost Net', color: '#e5e7eb', emissive: '#6b7280' }
+  ]
+};
+
 const POOL_ENVIRONMENT = (() => {
   const TABLE_SCALE = 1.17;
   const TABLE_FIELD_EXPANSION = 1.2;
@@ -92,6 +137,15 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
   const [goalPopup, setGoalPopup] = useState(null);
   const [postPopup, setPostPopup] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [selections, setSelections] = useState({
+    field: 0,
+    table: 0,
+    puck: 0,
+    mallet: 0,
+    rails: 0,
+    goals: 0
+  });
+  const [showCustomizer, setShowCustomizer] = useState(false);
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
   const audioRef = useRef({
@@ -107,6 +161,23 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
   const postTimeoutRef = useRef(null);
   const restartTimeoutRef = useRef(null);
   const redirectTimeoutRef = useRef(null);
+  const materialsRef = useRef({
+    tableSurface: null,
+    wood: null,
+    darkWood: null,
+    rail: null,
+    line: null,
+    rings: [],
+    goal: null,
+    playerMallet: null,
+    aiMallet: null,
+    playerKnob: null,
+    aiKnob: null,
+    puck: null
+  });
+  const tableGroupRef = useRef(null);
+  const avatarSpritesRef = useRef({ player: null, ai: null });
+  const fieldAnchorsRef = useRef(null);
 
   useEffect(() => {
     if (!gameOver) return undefined;
@@ -272,6 +343,9 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     });
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.setSize(host.clientWidth, host.clientHeight);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.85;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
 
     const createPuckTexture = () => {
@@ -371,6 +445,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     tableGroup.position.z = -TABLE.topExtension / 2;
     const tableCenterZ = tableGroup.position.z;
     world.add(tableGroup);
+    tableGroupRef.current = tableGroup;
 
     const carpet = new THREE.Mesh(
       new THREE.BoxGeometry(
@@ -444,6 +519,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     );
     tableSurface.position.y = -TABLE.thickness / 2;
     tableGroup.add(tableSurface);
+    materialsRef.current.tableSurface = tableSurface.material;
 
     const floorLocalY = POOL_ENVIRONMENT.floorY - elevatedTableSurfaceY;
     const woodMaterial = new THREE.MeshStandardMaterial({
@@ -456,6 +532,8 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       roughness: 0.7,
       metalness: 0.12
     });
+    materialsRef.current.wood = woodMaterial;
+    materialsRef.current.darkWood = darkWoodMaterial;
 
     const SKIRT_OVERHANG = Math.max(TABLE.w, TABLE.h) * 0.08;
     const SKIRT_TOP_GAP = TABLE.thickness * 0.05;
@@ -571,6 +649,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       roughness: 0.18,
       metalness: 0.1
     });
+    materialsRef.current.rail = railMat;
     const railHeight = 0.25 * SCALE_WIDTH;
     const railThickness = 0.04 * SCALE_WIDTH;
     const buildRail = (w, h, d) =>
@@ -593,6 +672,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       color: 0xffffff,
       roughness: 0.6
     });
+    materialsRef.current.line = lineMat;
     const lineThickness = 0.02 * SCALE_WIDTH;
     const midLine = new THREE.Mesh(
       new THREE.BoxGeometry(TABLE.w, lineThickness * 0.5, lineThickness),
@@ -603,10 +683,12 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
 
     const ring = (radius, tubeRadius, z) => {
       const torus = new THREE.TorusGeometry(radius, tubeRadius, 16, 60);
-      const mesh = new THREE.Mesh(
-        torus,
-        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 })
-      );
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        roughness: 0.5
+      });
+      materialsRef.current.rings.push(material);
+      const mesh = new THREE.Mesh(torus, material);
       mesh.rotation.x = Math.PI / 2;
       mesh.position.set(0, lineThickness * 0.5, z);
       tableGroup.add(mesh);
@@ -615,6 +697,11 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     const ringTube = 0.008 * SCALE_WIDTH;
     ring(ringRadius, ringTube, -TABLE.h * 0.33);
     ring(ringRadius, ringTube, TABLE.h * 0.33);
+    fieldAnchorsRef.current = {
+      ai: { x: 0, y: lineThickness * 0.6, z: -TABLE.h * 0.33 },
+      player: { x: 0, y: lineThickness * 0.6, z: TABLE.h * 0.33 },
+      size: 0.42 * SCALE_WIDTH
+    };
 
     const goalGeometry = new THREE.BoxGeometry(
       TABLE.goalW,
@@ -626,6 +713,7 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
       emissive: 0x003322,
       emissiveIntensity: 0.6
     });
+    materialsRef.current.goal = goalMaterial;
     const northGoal = new THREE.Mesh(goalGeometry, goalMaterial);
     northGoal.position.set(0, 0.055 * SCALE_WIDTH, -TABLE.h / 2 - railThickness * 0.7);
     tableGroup.add(northGoal);
@@ -635,15 +723,17 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
 
     const makeMallet = (color) => {
       const mallet = new THREE.Group();
+      const baseMaterial = new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.4,
+        metalness: 0.2
+      });
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(MALLET_RADIUS, MALLET_RADIUS, MALLET_HEIGHT, 32),
-        new THREE.MeshStandardMaterial({
-          color,
-          roughness: 0.4,
-          metalness: 0.2
-        })
+        baseMaterial
       );
       base.position.y = MALLET_HEIGHT / 2;
+      const knobMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
       const knob = new THREE.Mesh(
         new THREE.CylinderGeometry(
           MALLET_KNOB_RADIUS,
@@ -651,20 +741,26 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
           MALLET_KNOB_HEIGHT,
           32
         ),
-        new THREE.MeshStandardMaterial({ color: 0x222222 })
+        knobMaterial
       );
       knob.position.y = MALLET_HEIGHT + MALLET_KNOB_HEIGHT / 2;
       mallet.add(base, knob);
-      return mallet;
+      return { mallet, baseMaterial, knobMaterial };
     };
 
-    const you = makeMallet(0xff5577);
+    const youData = makeMallet(0xff5577);
+    const you = youData.mallet;
     you.position.set(0, 0, TABLE.h * 0.42);
     tableGroup.add(you);
+    materialsRef.current.playerMallet = youData.baseMaterial;
+    materialsRef.current.playerKnob = youData.knobMaterial;
 
-    const aiMallet = makeMallet(0x66ddff);
+    const aiData = makeMallet(0x66ddff);
+    const aiMallet = aiData.mallet;
     aiMallet.position.set(0, 0, -TABLE.h * 0.36);
     tableGroup.add(aiMallet);
+    materialsRef.current.aiMallet = aiData.baseMaterial;
+    materialsRef.current.aiKnob = aiData.knobMaterial;
 
     const puckTexture = createPuckTexture();
     const puck = new THREE.Mesh(
@@ -678,39 +774,26 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     );
     puck.position.y = PUCK_HEIGHT / 2;
     tableGroup.add(puck);
+    materialsRef.current.puck = puck.material;
 
-    const hemisphereKey = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
     const lightLift = TABLE.h * 0.32;
-    hemisphereKey.position.set(0, elevatedTableSurfaceY + lightLift, -TABLE.h * 0.18);
-    scene.add(hemisphereKey);
+    const keyLight = new THREE.DirectionalLight(0xffffff, 1.15);
+    keyLight.position.set(-TABLE.w * 0.25, elevatedTableSurfaceY + lightLift, TABLE.h * 0.2);
+    keyLight.target.position.set(0, elevatedTableSurfaceY, 0);
+    scene.add(keyLight);
+    scene.add(keyLight.target);
 
-    const hemisphereFill = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
-    hemisphereFill.position.set(0, elevatedTableSurfaceY + lightLift, 0);
-    scene.add(hemisphereFill);
+    const fillLight = new THREE.DirectionalLight(0xcdd9ff, 0.58);
+    fillLight.position.set(TABLE.w * 0.36, elevatedTableSurfaceY + lightLift * 1.1, -TABLE.h * 0.12);
+    fillLight.target.position.set(0, elevatedTableSurfaceY, 0);
+    scene.add(fillLight);
+    scene.add(fillLight.target);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
-    dirLight.position.set(-TABLE.w * 0.28, elevatedTableSurfaceY + lightLift, TABLE.h * 0.18);
-    dirLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.1, 0);
-    scene.add(dirLight);
-    scene.add(dirLight.target);
-
-    const spotLight = new THREE.SpotLight(
-      0xffffff,
-      12.7449,
-      0,
-      Math.PI * 0.36,
-      0.42,
-      1
-    );
-    spotLight.position.set(
-      TABLE.w * 0.32,
-      elevatedTableSurfaceY + lightLift * 1.3,
-      TABLE.h * 0.26
-    );
-    spotLight.target.position.set(0, elevatedTableSurfaceY + TABLE.thickness * 0.4, 0);
-    spotLight.decay = 1.0;
-    scene.add(spotLight);
-    scene.add(spotLight.target);
+    const rimLight = new THREE.DirectionalLight(0xaadfff, 0.9);
+    rimLight.position.set(0, elevatedTableSurfaceY + lightLift * 1.2, -TABLE.h * 0.48);
+    rimLight.target.position.set(0, elevatedTableSurfaceY, TABLE.h * 0.1);
+    scene.add(rimLight);
+    scene.add(rimLight.target);
 
     const playerRailZ = TABLE.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
@@ -963,6 +1046,123 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
     };
   }, []);
 
+  useEffect(() => {
+    const tableGroup = tableGroupRef.current;
+    const anchors = fieldAnchorsRef.current;
+    if (!tableGroup || !anchors) return undefined;
+
+    const loader = new THREE.TextureLoader();
+
+    const setAvatar = (key, avatar) => {
+      const existing = avatarSpritesRef.current[key];
+      if (existing) {
+        tableGroup.remove(existing);
+        existing.material.map?.dispose();
+        existing.material.dispose();
+      }
+      const url = getAvatarUrl(avatar);
+      loader.load(url, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        const material = new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          depthWrite: false
+        });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(anchors.size, anchors.size, 1);
+        const target = anchors[key];
+        sprite.position.set(target.x, target.y, target.z);
+        tableGroup.add(sprite);
+        avatarSpritesRef.current[key] = sprite;
+      });
+    };
+
+    setAvatar('player', player.avatar);
+    setAvatar('ai', ai.avatar);
+
+    return () => {
+      ['player', 'ai'].forEach((key) => {
+        const sprite = avatarSpritesRef.current[key];
+        if (sprite) {
+          tableGroup.remove(sprite);
+          sprite.material.map?.dispose();
+          sprite.material.dispose();
+          avatarSpritesRef.current[key] = null;
+        }
+      });
+    };
+  }, [player.avatar, ai.avatar]);
+
+  useEffect(() => {
+    const mats = materialsRef.current;
+    if (!mats.tableSurface) return;
+
+    const fieldTheme = CUSTOMIZATION.field[selections.field] || CUSTOMIZATION.field[0];
+    const tableTheme = CUSTOMIZATION.table[selections.table] || CUSTOMIZATION.table[0];
+    const puckTheme = CUSTOMIZATION.puck[selections.puck] || CUSTOMIZATION.puck[0];
+    const malletTheme = CUSTOMIZATION.mallet[selections.mallet] || CUSTOMIZATION.mallet[0];
+    const railTheme = CUSTOMIZATION.rails[selections.rails] || CUSTOMIZATION.rails[0];
+    const goalTheme = CUSTOMIZATION.goals[selections.goals] || CUSTOMIZATION.goals[0];
+
+    mats.tableSurface.color.set(fieldTheme.surface);
+    if (mats.line) mats.line.color.set(fieldTheme.lines);
+    mats.rings.forEach((material) => material.color.set(fieldTheme.rings || fieldTheme.lines));
+    if (mats.wood) mats.wood.color.set(tableTheme.wood);
+    if (mats.darkWood) mats.darkWood.color.set(tableTheme.trim);
+    if (mats.rail) {
+      mats.rail.color.set(railTheme.color);
+      mats.rail.opacity = railTheme.opacity;
+    }
+    if (mats.puck) {
+      mats.puck.color.set(puckTheme.color);
+      mats.puck.emissive.set(puckTheme.emissive);
+      mats.puck.needsUpdate = true;
+    }
+    if (mats.playerMallet) mats.playerMallet.color.set(malletTheme.color);
+    if (mats.aiMallet) mats.aiMallet.color.set(malletTheme.color);
+    if (mats.playerKnob) mats.playerKnob.color.set(malletTheme.knob);
+    if (mats.aiKnob) mats.aiKnob.color.set(malletTheme.knob);
+    if (mats.goal) {
+      mats.goal.color.set(goalTheme.color);
+      mats.goal.emissive.set(goalTheme.emissive);
+    }
+  }, [selections]);
+
+  const renderOptionRow = (label, key) => {
+    const options = CUSTOMIZATION[key];
+    return (
+      <div className="space-y-1">
+        <div className="text-[11px] uppercase tracking-wide text-white/70">{label}</div>
+        <div className="grid grid-cols-2 gap-2">
+          {options.map((option, idx) => {
+            const swatch = option.surface || option.wood || option.color;
+            const active = selections[key] === idx;
+            return (
+              <button
+                key={`${key}-${option.name}`}
+                onClick={() =>
+                  setSelections((prev) => ({
+                    ...prev,
+                    [key]: idx
+                  }))
+                }
+                className={`flex items-center justify-between rounded px-2 py-1 text-left text-[11px] font-semibold transition ${
+                  active ? 'bg-white/20 text-white' : 'bg-white/5 text-white/80 hover:bg-white/10'
+                }`}
+              >
+                <span className="truncate">{option.name}</span>
+                <span
+                  className="ml-2 w-5 h-5 rounded-full border border-white/30"
+                  style={{ background: swatch }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       ref={hostRef}
@@ -992,6 +1192,24 @@ export default function AirHockey3D({ player, ai, target = 3, playType = 'regula
           alt=""
           className="w-5 h-5 rounded-full object-cover"
         />
+      </div>
+      <div className="absolute bottom-2 right-2 flex flex-col items-end space-y-2 z-20">
+        <button
+          onClick={() => setShowCustomizer((v) => !v)}
+          className="rounded px-3 py-2 text-xs font-semibold text-white bg-white/10 hover:bg-white/20 backdrop-blur"
+        >
+          {showCustomizer ? 'Mbyll personalizimin' : 'Personalizo lojën'}
+        </button>
+        {showCustomizer && (
+          <div className="w-72 max-h-[70vh] overflow-y-auto bg-black/70 border border-white/15 rounded-lg p-3 space-y-3 backdrop-blur">
+            {renderOptionRow('Fusha', 'field')}
+            {renderOptionRow('Tavolina', 'table')}
+            {renderOptionRow('Tapat', 'puck')}
+            {renderOptionRow('Dorezat', 'mallet')}
+            {renderOptionRow('Anësoret', 'rails')}
+            {renderOptionRow('Portat', 'goals')}
+          </div>
+        )}
       </div>
       {goalPopup && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
