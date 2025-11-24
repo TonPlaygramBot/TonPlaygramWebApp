@@ -369,6 +369,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     scene.background = new THREE.Color(0x87ceeb);
     const isNarrow = Math.min(W, H) < 860;
     const camera = new THREE.PerspectiveCamera(60, W / H, 0.05, 800);
+    smoothCameraPos.copy(camera.position);
 
     const courtL = 23.77;
     const courtW = 9.2;
@@ -383,9 +384,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     let camBack = isNarrow ? halfL + apron * 0.82 : halfL + apron * 0.76;
     let camHeight = isNarrow ? 5.05 : 4.72;
+    const camBackRange = { min: halfL + apron * 0.6, max: halfL + apron * 1.05 };
+    const camHeightRange = { min: 4.2, max: 6.0 };
     const cameraMinZ = 1.35;
     const cameraMaxZ = halfL + apron * 0.92;
     const cameraSideLimit = halfW * 1.1;
+    const smoothCameraPos = new THREE.Vector3();
+    const smoothCameraLook = new THREE.Vector3(0, 1.1, 0);
 
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 1.05);
     hemi.position.set(0, 60, 0);
@@ -992,7 +997,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       tangentVel.set(vel.x, 0, vel.z);
       spinSurfaceVel.set(-spin.z * ballR, 0, spin.x * ballR);
       tangentVel.addScaledVector(spinSurfaceVel, physics.spinSlip * 0.8);
-      tangentVel.multiplyScalar(1 - physics.courtFriction);
+      const skid = THREE.MathUtils.clamp(1 - Math.abs(spin.y) * 0.02, 0.74, 1);
+      tangentVel.multiplyScalar((1 - physics.courtFriction) * skid);
+      if (tangentVel.lengthSq() < 0.01) tangentVel.set(0, 0, 0);
       vel.x = tangentVel.x;
       vel.z = tangentVel.z;
 
@@ -1245,13 +1252,20 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       return v;
     }
 
-    function placeCamera() {
+    function placeCamera(dt = 0) {
       const sideSign = player.position.z >= 0 ? 1 : -1;
       const toLocalZ = (z) => z * sideSign;
       const fromLocalZ = (z) => z * sideSign;
       const playerLocalZ = toLocalZ(player.position.z);
       const cpuLocalZ = toLocalZ(cpu.position.z);
       const ballLocalZ = toLocalZ(ball.position.z);
+      const leadT = 0.36;
+      const predictedBall = new THREE.Vector3(
+        ball.position.x + vel.x * leadT,
+        Math.max(ballR, ball.position.y + vel.y * leadT + 0.5 * physics.gravity * leadT * leadT),
+        ball.position.z + vel.z * leadT
+      );
+      const followBall = new THREE.Vector3().lerpVectors(ball.position, predictedBall, 0.6);
 
       const playerServingDiag = !state.live && state.serveBy === 'player';
       const cpuServingDiag = !state.live && state.serveBy === 'cpu';
@@ -1278,7 +1292,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         return;
       }
 
-      const camFollowLocal = ballLocalZ + (ballLocalZ >= playerLocalZ - 0.5 ? 2.6 : 3.4);
+      const camFollowLocal = toLocalZ(followBall.z) + (ballLocalZ >= playerLocalZ - 0.5 ? 2.6 : 3.4);
       const baseLocalZ = playerLocalZ + camBack;
       const desiredLocalZ = THREE.MathUtils.clamp(
         Math.max(camFollowLocal, baseLocalZ, playerLocalZ + 0.75),
@@ -1286,19 +1300,26 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         Math.min(cameraMaxZ, baseLocalZ)
       );
       const followX = THREE.MathUtils.clamp(
-        THREE.MathUtils.lerp(player.position.x, ball.position.x, 0.85),
+        THREE.MathUtils.lerp(player.position.x, followBall.x, 0.82),
         -cameraSideLimit,
         cameraSideLimit
       );
-      const followY = Math.max(camHeight * 0.88, ball.position.y + 0.9);
+      const followY = Math.max(camHeight * 0.86, followBall.y + 0.9);
       const target = new THREE.Vector3(followX, followY, fromLocalZ(desiredLocalZ));
-      camera.position.lerp(target, 0.2);
+      const lerpAmt = 1 - Math.exp(-dt * 5.2);
+      smoothCameraPos.lerp(target, lerpAmt);
+      camera.position.copy(smoothCameraPos);
       const look = new THREE.Vector3(
-        THREE.MathUtils.clamp(THREE.MathUtils.lerp(player.position.x * 0.12, ball.position.x, 0.95), -cameraSideLimit, cameraSideLimit),
-        Math.max(1.12, ball.position.y + 0.22),
-        fromLocalZ(Math.max(cameraMinZ, Math.max(playerLocalZ - 1.6, ballLocalZ - 2.2)))
+        THREE.MathUtils.clamp(
+          THREE.MathUtils.lerp(player.position.x * 0.12, followBall.x, 0.9),
+          -cameraSideLimit,
+          cameraSideLimit
+        ),
+        Math.max(1.12, followBall.y + 0.3),
+        fromLocalZ(Math.max(cameraMinZ, Math.max(playerLocalZ - 1.4, toLocalZ(followBall.z) - 2.0)))
       );
-      camera.lookAt(look);
+      smoothCameraLook.lerp(look, lerpAmt * 0.82);
+      camera.lookAt(smoothCameraLook);
     }
 
     function inSinglesX(x) {
@@ -1426,6 +1447,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     el.style.touchAction = 'none';
     let usingTouch = false;
     let touching = false;
+    let pinchActive = false;
+    let pinchStartDist = 0;
+    let pinchStartBack = camBack;
+    let pinchStartHeight = camHeight;
     let sx = 0;
     let sy = 0;
     let lx = 0;
@@ -1629,11 +1654,33 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     function onTouchStart(e) {
       usingTouch = true;
+      if (e.touches.length === 2) {
+        pinchActive = true;
+        pinchStartDist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        pinchStartBack = camBack;
+        pinchStartHeight = camHeight;
+        touching = false;
+        return;
+      }
+      pinchActive = false;
       const t = e.touches[0];
       if (!t) return;
       onDown({ clientX: t.clientX, clientY: t.clientY });
     }
     function onTouchMove(e) {
+      if (pinchActive && e.touches.length === 2) {
+        const dist = Math.hypot(
+          e.touches[0].clientX - e.touches[1].clientX,
+          e.touches[0].clientY - e.touches[1].clientY
+        );
+        const scale = THREE.MathUtils.clamp(dist / Math.max(1, pinchStartDist), 0.6, 1.6);
+        camBack = THREE.MathUtils.clamp(pinchStartBack / scale, camBackRange.min, camBackRange.max);
+        camHeight = THREE.MathUtils.clamp(pinchStartHeight / scale, camHeightRange.min, camHeightRange.max);
+        return;
+      }
       const t = e.touches[0];
       if (!t) return;
       onMove({ clientX: t.clientX, clientY: t.clientY });
@@ -1642,6 +1689,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const t = e.changedTouches[0];
       if (!t) {
         usingTouch = false;
+        return;
+      }
+      if (pinchActive && e.touches.length < 2) {
+        pinchActive = false;
+        usingTouch = e.touches.length > 0;
+        touching = false;
         return;
       }
       onUp({ clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }, { fromTouch: true });
@@ -1805,6 +1858,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       if (pos.y <= ballR) {
         pos.y = ballR;
         if (vel.y < 0) respondToCourtImpact(Math.abs(vel.y));
+        if (Math.abs(vel.y) < 0.32) vel.y = 0;
         hitTTL = 1.0;
         hitRing.position.set(pos.x, 0.002, pos.z);
         const side = pos.z >= 0 ? 'player' : 'cpu';
@@ -1956,7 +2010,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         hitRing.material.opacity = Math.max(0, hitTTL) * 0.9;
       }
       cpuTryHit(dt);
-      placeCamera();
+      placeCamera(dt);
     }
 
     function animate() {
