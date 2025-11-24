@@ -87,7 +87,7 @@ const PHYSICS_PROFILES = [
     id: 'tour-standard',
     label: 'Tour Standard',
     detail: 'Balanced ATP-style pace with neutral bounces.',
-    gravity: -13.6,
+    gravity: -9.81,
     airDrag: 0.12,
     lift: 0.08,
     bounceRestitution: 0.78,
@@ -102,7 +102,7 @@ const PHYSICS_PROFILES = [
     id: 'clay-grind',
     label: 'Clay Grind',
     detail: 'Higher bounce, slower through-court flight for rallies.',
-    gravity: -13.2,
+    gravity: -9.45,
     airDrag: 0.15,
     lift: 0.1,
     bounceRestitution: 0.84,
@@ -117,7 +117,7 @@ const PHYSICS_PROFILES = [
     id: 'indoor-pace',
     label: 'Indoor Pace',
     detail: 'Low-drag, flat bounces that keep rallies fast.',
-    gravity: -13.8,
+    gravity: -10.2,
     airDrag: 0.08,
     lift: 0.06,
     bounceRestitution: 0.72,
@@ -132,7 +132,7 @@ const PHYSICS_PROFILES = [
     id: 'grass-zip',
     label: 'Grass Zip',
     detail: 'Skidding grass physics with reduced topspin grab.',
-    gravity: -13.4,
+    gravity: -9.65,
     airDrag: 0.1,
     lift: 0.07,
     bounceRestitution: 0.76,
@@ -147,7 +147,7 @@ const PHYSICS_PROFILES = [
     id: 'power-arena',
     label: 'Power Arena',
     detail: 'Arcade power with heavy lift for highlight shots.',
-    gravity: -14.1,
+    gravity: -10.5,
     airDrag: 0.09,
     lift: 0.12,
     bounceRestitution: 0.8,
@@ -624,7 +624,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
     else renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.55;
+    renderer.toneMappingExposure = 1.85;
     renderer.shadowMap.enabled = false;
     renderer.setClearColor(0x87ceeb, 1);
     container.appendChild(renderer.domElement);
@@ -636,6 +636,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const smoothCameraPos = new THREE.Vector3();
     const smoothCameraLook = new THREE.Vector3(0, 1.1, 0);
     smoothCameraPos.copy(camera.position);
+    let orbitYaw = 0;
+    let orbitPitch = 0.12;
 
     const courtL = 23.77;
     const courtW = 9.2;
@@ -656,16 +658,19 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const cameraMaxZ = halfL + apron * 0.92;
     const cameraSideLimit = halfW * 1.1;
 
-    const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 1.05);
+    const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 0.9);
     hemi.position.set(0, 60, 0);
     scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xfff6cf, 1.35);
+    const sun = new THREE.DirectionalLight(0xfff6cf, 1.45);
     sun.position.set(-28, 52, 24);
     scene.add(sun);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.35);
-    fill.position.set(18, 32, -16);
+    const fill = new THREE.DirectionalLight(0xcfd8ff, 0.55);
+    fill.position.set(18, 22, -14);
     scene.add(fill);
-    const bounce = new THREE.AmbientLight(0xe5f1ff, 0.18);
+    const rim = new THREE.DirectionalLight(0xb5e7ff, 0.48);
+    rim.position.set(-16, 18, -28);
+    scene.add(rim);
+    const bounce = new THREE.AmbientLight(0xe5f1ff, 0.2);
     scene.add(bounce);
 
     const maxAniso = renderer.capabilities.getMaxAnisotropy?.() || 8;
@@ -1159,7 +1164,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       return root;
     }
 
-    const ballR = 0.076 * 1.6;
+    const ballR = 0.076 * 2.0;
     const ball = buildBallURT();
     const s = ballR / 0.26;
     ball.scale.setScalar(s);
@@ -1197,8 +1202,27 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const trailGeom = new THREE.BufferGeometry();
     const trailPos = new Float32Array(trailN * 3);
     trailGeom.setAttribute('position', new THREE.BufferAttribute(trailPos, 3));
-    const trail = new THREE.Line(trailGeom, new THREE.LineBasicMaterial({ transparent: true, opacity: 0.22 }));
+    const trail = new THREE.Line(
+      trailGeom,
+      new THREE.LineBasicMaterial({ transparent: true, opacity: 0.44, color: 0xfff45a, linewidth: 2 })
+    );
     scene.add(trail);
+    const haloCanvas = document.createElement('canvas');
+    haloCanvas.width = haloCanvas.height = 256;
+    const hctx = haloCanvas.getContext('2d');
+    const hGrad = hctx.createRadialGradient(128, 128, 16, 128, 128, 128);
+    hGrad.addColorStop(0, 'rgba(255, 255, 140, 0.95)');
+    hGrad.addColorStop(0.35, 'rgba(255, 227, 92, 0.55)');
+    hGrad.addColorStop(1, 'rgba(255, 227, 92, 0.0)');
+    hctx.fillStyle = hGrad;
+    hctx.fillRect(0, 0, 256, 256);
+    const haloTex = new THREE.CanvasTexture(haloCanvas);
+    const halo = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: haloTex, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false })
+    );
+    halo.renderOrder = 2;
+    halo.scale.setScalar(ballR * 8.5);
+    ball.add(halo);
     function updateTrail() {
       for (let i = trailN - 1; i > 0; i -= 1) {
         trailPos[i * 3 + 0] = trailPos[(i - 1) * 3 + 0];
@@ -1621,7 +1645,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const followY = Math.max(activeCamHeight, followBall.y + 0.6 + (broadcastProfile.horizonLift ?? 0));
       const target = new THREE.Vector3(followX, followY, fromLocalZ(desiredLocalZ));
       const lerpAmt = 1 - Math.exp(-dt * posLerpRate);
-      smoothCameraPos.lerp(target, lerpAmt);
+      const pivot = new THREE.Vector3(0, 1.05, 0);
+      const orbitNormal = new THREE.Vector3(0, 1, 0);
+      const targetFromPivot = target.clone().sub(pivot);
+      targetFromPivot.applyAxisAngle(orbitNormal, orbitYaw);
+      targetFromPivot.y = THREE.MathUtils.clamp(targetFromPivot.y + orbitPitch * 1.25, 1.0, 9);
+      const targetWithOrbit = pivot.clone().add(targetFromPivot);
+      smoothCameraPos.lerp(targetWithOrbit, lerpAmt);
       camera.position.copy(smoothCameraPos);
       const look = new THREE.Vector3(
         THREE.MathUtils.clamp(
@@ -1638,7 +1668,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           )
         )
       );
-      smoothCameraLook.lerp(look, lerpAmt * lookLerpRate);
+      const lookFromPivot = look.clone().sub(pivot);
+      lookFromPivot.applyAxisAngle(orbitNormal, orbitYaw * 0.95);
+      lookFromPivot.y = THREE.MathUtils.clamp(lookFromPivot.y + orbitPitch, 0.8, 6.4);
+      const lookWithOrbit = pivot.clone().add(lookFromPivot);
+      smoothCameraLook.lerp(lookWithOrbit, lerpAmt * lookLerpRate);
       camera.lookAt(smoothCameraLook);
     }
 
@@ -1771,6 +1805,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let pinchStartDist = 0;
     let pinchStartBack = camBack;
     let pinchStartHeight = camHeight;
+    let pinchStartMid = { x: 0, y: 0 };
+    let orbitStartYaw = 0;
+    let orbitStartPitch = 0;
     let sx = 0;
     let sy = 0;
     let lx = 0;
@@ -2017,8 +2054,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
+        pinchStartMid = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) * 0.5,
+          y: (e.touches[0].clientY + e.touches[1].clientY) * 0.5
+        };
         pinchStartBack = camBack;
         pinchStartHeight = camHeight;
+        orbitStartYaw = orbitYaw;
+        orbitStartPitch = orbitPitch;
         touching = false;
         return;
       }
@@ -2033,9 +2076,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           e.touches[0].clientX - e.touches[1].clientX,
           e.touches[0].clientY - e.touches[1].clientY
         );
+        const midX = (e.touches[0].clientX + e.touches[1].clientX) * 0.5;
+        const midY = (e.touches[0].clientY + e.touches[1].clientY) * 0.5;
         const scale = THREE.MathUtils.clamp(dist / Math.max(1, pinchStartDist), 0.6, 1.6);
         camBack = THREE.MathUtils.clamp(pinchStartBack / scale, camBackRange.min, camBackRange.max);
         camHeight = THREE.MathUtils.clamp(pinchStartHeight / scale, camHeightRange.min, camHeightRange.max);
+        const dx = (midX - pinchStartMid.x) / Math.max(240, W);
+        const dy = (midY - pinchStartMid.y) / Math.max(240, H);
+        orbitYaw = THREE.MathUtils.clamp(orbitStartYaw + dx * Math.PI * 0.55, -Math.PI / 3, Math.PI / 3);
+        orbitPitch = THREE.MathUtils.clamp(orbitStartPitch - dy * 1.4, -0.4, 0.55);
         return;
       }
       const t = e.touches[0];
