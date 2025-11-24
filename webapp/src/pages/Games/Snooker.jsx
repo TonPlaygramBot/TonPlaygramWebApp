@@ -207,7 +207,7 @@ function createDefaultPocketJawMaterial() {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.012;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
@@ -564,7 +564,10 @@ const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.22; // pull middle pockets toward the side rails to open the center a touch
+  POCKET_VIS_R * 0.32; // pull middle pockets toward the side rails to open the center a touch
+const SIDE_POCKET_CUT_LONGITUDINAL_OFFSET =
+  MIDDLE_POCKET_LONGITUDINAL_OFFSET * 1.18;
+const CORNER_CUT_INSET_BONUS = POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -2915,29 +2918,29 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.86; // lift the default orbit a touch higher for a better overview
+const STANDING_VIEW_PHI = 0.94; // lift the default orbit a touch higher for a better overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0024;
+const STANDING_VIEW_MARGIN = 0.0016;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.028; // pull the player camera much tighter to mirror Pool Royale framing
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.026; // pull the player camera much tighter to mirror Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.06;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.29;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.25;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.003;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
-  nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
-  portrait: Object.freeze({ cue: 0.92, broadcast: 0.95, margin: 0.98 }),
-  ultraPortrait: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.97 })
+  default: Object.freeze({ cue: 0.94, broadcast: 0.965, margin: 0.985 }),
+  nearLandscape: Object.freeze({ cue: 0.92, broadcast: 0.95, margin: 0.985 }),
+  portrait: Object.freeze({ cue: 0.9, broadcast: 0.93, margin: 0.98 }),
+  ultraPortrait: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.97 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -4619,10 +4622,11 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = CORNER_POCKET_CENTER_INSET;
+  const cornerInset = CORNER_POCKET_CENTER_INSET + CORNER_CUT_INSET_BONUS;
   const sideInset = SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION;
+  const sidePocketCutOffset = SIDE_POCKET_CUT_LONGITUDINAL_OFFSET;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4805,7 +4809,8 @@ function Table3D(
     return scaleMultiPolygon(adjusted, CHROME_CORNER_NOTCH_EXPANSION_SCALE);
   };
 
-  const sideNotchMP = (sx) => {
+  const sideNotchMP = (sx, centerZ = 0) => {
+    const cz = (sx < 0 ? -1 : 1) * Math.abs(centerZ);
     const cx = sx * (innerHalfW - sideInset);
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
@@ -4821,10 +4826,10 @@ function Table3D(
       Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
-    const circle = circlePoly(cx, 0, radius, 256);
+    const circle = circlePoly(cx, cz, radius, 256);
     const throat = roundedRectPoly(
       cx + (sx * throatLength) / 2,
-      0,
+      cz,
       Math.abs(throatLength),
       throatHeight,
       throatRadius,
@@ -4880,7 +4885,7 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
-    const notchMP = sideNotchMP(sx);
+    const notchMP = sideNotchMP(sx, sidePocketCutOffset);
     const sidePocketCutCenterPull =
       TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
     const notchLocalMP = notchMP.map((poly) =>
@@ -5225,8 +5230,11 @@ function Table3D(
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
-      const baseMP = sideNotchMP(sx);
-      const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
+      const baseMP = sideNotchMP(sx, sidePocketCutOffset);
+      const fallbackCenter = new THREE.Vector2(
+        sx * (innerHalfW - sideInset),
+        (sx < 0 ? -1 : 1) * sidePocketCutOffset
+      );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
@@ -5254,7 +5262,12 @@ function Table3D(
   }
 
   const woodSideNotches = [-1, 1]
-    .map((sx) => scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE))
+    .map((sx) =>
+      scaleMultiPolygonBy(
+        sideNotchMP(sx, sidePocketCutOffset),
+        WOOD_SIDE_CUT_SCALE
+      )
+    )
     .filter((mp) => Array.isArray(mp) && mp.length);
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
