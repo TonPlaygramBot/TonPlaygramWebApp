@@ -207,9 +207,9 @@ function createDefaultPocketJawMaterial() {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.018;
-const CORNER_POCKET_INWARD_SCALE = 1.015;
+const CORNER_POCKET_INWARD_SCALE = 1.032;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // pull corner reliefs further into the rail
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.052; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -222,7 +222,7 @@ const CHROME_CORNER_HEIGHT_SCALE = 0.962;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0;
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia proportions aligned with Pool Royale plates
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008;
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.015;
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
@@ -242,7 +242,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.034;
 const WOOD_CORNER_CUT_SCALE = 1; // keep wood cuts identical to chrome plate reliefs
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
@@ -251,6 +251,10 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 1;
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42;
+const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR;
+const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97;
+const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR;
 const POCKET_JAW_DEPTH_SCALE = 0.52;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
@@ -267,6 +271,7 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992;
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.97;
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 120;
@@ -565,7 +570,7 @@ const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.32; // pull middle pockets toward the side rails to open the center a touch
+  POCKET_VIS_R * 0.42; // push middle pockets outward to mirror the Pool Royale jaw spread
 const SIDE_POCKET_CUT_LONGITUDINAL_OFFSET =
   MIDDLE_POCKET_LONGITUDINAL_OFFSET * 1.18;
 const CORNER_CUT_INSET_BONUS = POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION;
@@ -5183,6 +5188,11 @@ function Table3D(
     const baseOuterScale = wide
       ? POCKET_JAW_SIDE_OUTER_SCALE
       : POCKET_JAW_CORNER_OUTER_SCALE;
+    const jawCenter = center.clone();
+    if (isMiddle) {
+      const sx = Math.sign(jawCenter.x || 1);
+      jawCenter.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
+    }
     let effectiveBaseRadius = baseRadius;
     let localClampOuter = clampOuter;
     let localJawAngle = jawAngle;
@@ -5207,15 +5217,17 @@ function Table3D(
       );
     }
 
-    let sideThinFactor = wide ? 0.3 : 0.36;
-    let middleThinFactor = wide ? 0.82 : 0.92;
+    let sideThinFactor = wide ? POCKET_JAW_SIDE_EDGE_FACTOR : POCKET_JAW_CORNER_EDGE_FACTOR;
+    let middleThinFactor = wide
+      ? POCKET_JAW_SIDE_MIDDLE_FACTOR
+      : POCKET_JAW_CORNER_MIDDLE_FACTOR;
     if (isMiddle && wide) {
       sideThinFactor *= SIDE_POCKET_JAW_SIDE_TRIM_SCALE;
       middleThinFactor *= SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE;
     }
 
     const jawShape = buildPocketJawShape({
-      center,
+      center: jawCenter,
       baseRadius: effectiveBaseRadius,
       jawAngle: localJawAngle,
       orientationAngle,
