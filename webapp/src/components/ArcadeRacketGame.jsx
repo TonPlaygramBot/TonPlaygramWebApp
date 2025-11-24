@@ -105,17 +105,19 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     scene.add(net);
 
     const racketGeo = new THREE.BoxGeometry(1, 0.15, 0.4);
+    const playerBaseZ = halfL - config.playerZOffset;
+    const enemyBaseZ = -halfL + config.playerZOffset;
     const player = new THREE.Mesh(racketGeo, new THREE.MeshStandardMaterial({ color: config.playerColor }));
-    player.position.set(0, 1, halfL - config.playerZOffset);
+    player.position.set(0, 1, playerBaseZ);
     scene.add(player);
 
     const enemy = new THREE.Mesh(racketGeo, new THREE.MeshStandardMaterial({ color: config.enemyColor }));
-    enemy.position.set(0, 1, -halfL + config.playerZOffset);
+    enemy.position.set(0, 1, enemyBaseZ);
     scene.add(enemy);
 
     const ball = new THREE.Mesh(
       new THREE.SphereGeometry(config.ballRadius, 32, 32),
-      new THREE.MeshStandardMaterial({ color: config.ballColor })
+      new THREE.MeshStandardMaterial({ color: config.ballColor, emissive: new THREE.Color(config.ballColor).multiplyScalar(0.35) })
     );
     ball.position.set(0, config.ballRadius + 0.8, halfL - config.playerZOffset - 0.4);
     scene.add(ball);
@@ -129,6 +131,10 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     const WALL_REBOUND = 0.65;
     const FLOOR_FRICTION = 0.92;
 
+    const MIN_SWIPE_SPEED = mode === 'tabletennis' ? 140 : 220;
+    const MAX_SWIPE_SPEED = mode === 'tabletennis' ? 1100 : 1400;
+    const BASE_POWER = mode === 'tabletennis' ? 10.5 : 12;
+
     let started = false;
     let startX = 0;
     let startY = 0;
@@ -138,10 +144,10 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     let queuedSwing = null;
     let server = 'player';
     let enemyServeTimer = null;
-
-    const MIN_SWIPE_SPEED = 220;
-    const MAX_SWIPE_SPEED = 1400;
-    const BASE_POWER = 12;
+    let playerSwing = 0;
+    let enemySwing = 0;
+    const cameraLook = new THREE.Vector3();
+    const cameraTarget = new THREE.Vector3();
 
     function clampX(x) {
       return THREE.MathUtils.clamp(x, -halfW + config.ballRadius * 2, halfW - config.ballRadius * 2);
@@ -173,10 +179,10 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         1
       );
 
-      const forward = THREE.MathUtils.lerp(4.8, 15.5, normalized) * forwardScale;
-      const lift = THREE.MathUtils.lerp(3.2, 10.8, normalized);
-      const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 80), -1.8, 1.8);
-      const lateral = THREE.MathUtils.clamp(lateralInfluence * forward * 0.22, -3.4 * lateralScale, 3.4 * lateralScale);
+      const forward = THREE.MathUtils.lerp(4.8, 14.2, normalized) * forwardScale;
+      const lift = THREE.MathUtils.lerp(3.2, 9.4, normalized);
+      const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 80), -1.6, 1.6);
+      const lateral = THREE.MathUtils.clamp(lateralInfluence * forward * 0.22, -3.1 * lateralScale, 3.1 * lateralScale);
 
       const direction = towardsEnemy ? -1 : 1;
       return {
@@ -257,6 +263,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       );
       started = true;
       setToast('Rally in progress');
+      playerSwing = 1.1;
     }
 
     function onPointerDown(e) {
@@ -336,8 +343,15 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     function updateRacketHeight(dt) {
       const targetY = Math.max(config.ballRadius + 0.6, Math.min(ball.position.y, config.ballRadius + 3));
       const alpha = blend(0.22, dt);
+      const swingDamping = Math.exp(-dt * 8);
+      playerSwing *= swingDamping;
+      enemySwing *= swingDamping;
       player.position.y += (targetY - player.position.y) * alpha;
       enemy.position.y += (targetY - enemy.position.y) * alpha;
+      player.position.z = playerBaseZ - playerSwing * 0.18;
+      enemy.position.z = enemyBaseZ + enemySwing * 0.16;
+      player.rotation.x = -playerSwing * 0.65;
+      enemy.rotation.x = -enemySwing * 0.6;
     }
 
     function enemyAI(dt) {
@@ -357,6 +371,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         const aimLateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 0.95, -2.4, 2.4);
         const lift = THREE.MathUtils.clamp(3.2 + powerScale * 1.2 + Math.random() * 0.9, 3, 9);
         velocity.set(aimLateral, lift, Math.abs(aimForward));
+        enemySwing = 1.05;
       }
     }
 
@@ -376,16 +391,20 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       queuedSwing = null;
       setToast('Kthim perfekt!');
       started = true;
+      playerSwing = 1.2;
     }
 
     function updateCamera(dt) {
-      const camTarget = new THREE.Vector3(
-        THREE.MathUtils.clamp(ball.position.x, -halfW, halfW),
-        config.cameraHeight,
-        ball.position.z + config.cameraOffset
+      const followStrength = mode === 'tabletennis' ? 0.16 : 0.08;
+      const yLift = THREE.MathUtils.lerp(config.cameraHeight, config.cameraHeight * 0.65, Math.min(ball.position.y * 0.4, 1));
+      cameraTarget.set(
+        THREE.MathUtils.clamp(ball.position.x * 0.85, -halfW, halfW),
+        yLift,
+        ball.position.z + config.cameraOffset * (mode === 'tabletennis' ? 0.78 : 1)
       );
-      camera.position.lerp(camTarget, blend(0.08, dt));
-      camera.lookAt(ball.position);
+      camera.position.lerp(cameraTarget, blend(followStrength, dt));
+      cameraLook.set(ball.position.x, Math.max(config.ballRadius * 1.5, ball.position.y), ball.position.z);
+      camera.lookAt(cameraLook);
     }
 
     function handleTableBounds(dt) {
@@ -436,15 +455,19 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     }
 
     function physics(dt) {
-      if (started) {
-        handleTableBounds(dt);
+      const steps = Math.min(5, Math.max(1, Math.ceil(dt / BASE_STEP)));
+      const stepDt = dt / steps;
+      for (let i = 0; i < steps; i += 1) {
         if (started) {
-          attemptPlayerReturn(dt);
-          enemyAI(dt);
+          handleTableBounds(stepDt);
+          if (started) {
+            attemptPlayerReturn(stepDt);
+            enemyAI(stepDt);
+          }
         }
+        updateRacketHeight(stepDt);
+        updateCamera(stepDt);
       }
-      updateRacketHeight(dt);
-      updateCamera(dt);
     }
 
     resetBall();
