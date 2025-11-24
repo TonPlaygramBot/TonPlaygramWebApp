@@ -413,7 +413,6 @@ const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.034; // match snooker fascia depth for consistent chrome heft at the pockets
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08; // give the middle fascias a subtle lift for extra depth like the snooker table
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const ENABLE_CHROME_PLATES = false;
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // align fascia reach with snooker so the arch covers the relieved cut without overhang
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
@@ -973,11 +972,9 @@ const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable, then trim a further 15% to dial
-// back shot force.
+// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -5636,16 +5633,16 @@ function Table3D(
   underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
   const underlayMat = clothMat.clone();
   underlayMat.side = THREE.DoubleSide;
-  underlayMat.transparent = true;
-  underlayMat.opacity = 0;
-  underlayMat.depthWrite = false;
-  underlayMat.colorWrite = false;
+  underlayMat.transparent = clothMat.transparent;
+  underlayMat.opacity = clothMat.opacity;
+  underlayMat.depthWrite = true;
+  underlayMat.colorWrite = true;
   underlayMat.metalness = 0;
-  underlayMat.clearcoat = 0;
-  underlayMat.clearcoatRoughness = 1;
-  underlayMat.roughness = 1;
-  underlayMat.emissive.setScalar(0);
-  underlayMat.emissiveIntensity = 0;
+  underlayMat.clearcoat = clothMat.clearcoat;
+  underlayMat.clearcoatRoughness = clothMat.clearcoatRoughness;
+  underlayMat.roughness = clothMat.roughness;
+  underlayMat.emissive.copy(clothMat.emissive);
+  underlayMat.emissiveIntensity = clothMat.emissiveIntensity;
   if (underlayMat.map && clothMat.map) {
     underlayMat.map.repeat.copy(clothMat.map.repeat);
     underlayMat.map.center.copy(clothMat.map.center ?? underlayMat.map.center);
@@ -5665,8 +5662,8 @@ function Table3D(
   clothUnderlay.rotation.x = -Math.PI / 2;
   clothUnderlay.position.y =
     cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP - CLOTH_UNDERLAY_EXTRA_DROP;
-  clothUnderlay.castShadow = false;
-  clothUnderlay.receiveShadow = false;
+  clothUnderlay.castShadow = true;
+  clothUnderlay.receiveShadow = true;
   clothUnderlay.renderOrder = cloth.renderOrder - 2; // ensure the cloth always renders cleanly above the thicker wood deck
   clothUnderlay.userData = {
     ...(clothUnderlay.userData || {}),
@@ -5818,16 +5815,14 @@ function Table3D(
   );
   const pocketMat = new THREE.MeshStandardMaterial({
     color: 0x000000,
-    metalness: 0,
-    roughness: 0.95,
-    envMapIntensity: 0,
+    metalness: 0.45,
+    roughness: 0.6,
     side: THREE.BackSide
   });
   const pocketBaseMat = new THREE.MeshStandardMaterial({
     color: 0x020202,
-    metalness: 0,
-    roughness: 0.98,
-    envMapIntensity: 0
+    metalness: 0.16,
+    roughness: 0.68
   });
   const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 64);
   pocketBaseGeo.rotateX(-Math.PI / 2);
@@ -6325,96 +6320,94 @@ function Table3D(
     );
   };
 
-  if (ENABLE_CHROME_PLATES) {
-    const chromePlates = new THREE.Group();
-    const chromePlateShapeSegments = 128;
-    // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
-    [
-      { corner: 'topLeft', sx: -1, sz: -1 },
-      { corner: 'topRight', sx: 1, sz: -1 },
-      { corner: 'bottomRight', sx: 1, sz: 1 },
-      { corner: 'bottomLeft', sx: -1, sz: 1 }
-    ].forEach(({ corner, sx, sz }) => {
-      const centerX =
-        sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterOutset) -
-        sx * chromeCornerShortRailCenterPull;
-      const centerZ =
-        sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
-        sz * chromeCornerShortRailShift;
-      // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
-      const notchMP = translatePocketCutMP(
-        scaleChromeCornerPocketCut(cornerNotchMP(sx, sz)),
-        sx,
-        sz,
-        CORNER_RAIL_NOTCH_INSET
-      );
-      const notchLocalMP = notchMP.map((poly) =>
-        poly.map((ring) =>
-          ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
-        )
-      );
-      const plate = new THREE.Mesh(
-        buildChromePlateGeometry({
-          width: chromePlateWidth,
-          height: chromePlateHeight,
-          radius: chromePlateRadius,
-          thickness: chromePlateThickness,
-          corner,
-          notchMP: notchLocalMP,
-          shapeSegments: chromePlateShapeSegments,
-          flat: true
-        }),
-        trimMat
-      );
-      plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
-      plate.castShadow = false;
-      plate.receiveShadow = false;
-      plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
-      chromePlates.add(plate);
-      finishParts.trimMeshes.push(plate);
-    });
+  const chromePlates = new THREE.Group();
+  const chromePlateShapeSegments = 128;
+  // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
+  [
+    { corner: 'topLeft', sx: -1, sz: -1 },
+    { corner: 'topRight', sx: 1, sz: -1 },
+    { corner: 'bottomRight', sx: 1, sz: 1 },
+    { corner: 'bottomLeft', sx: -1, sz: 1 }
+  ].forEach(({ corner, sx, sz }) => {
+    const centerX =
+      sx * (outerHalfW - chromePlateWidth / 2 - chromePlateInset + chromeCornerCenterOutset) -
+      sx * chromeCornerShortRailCenterPull;
+    const centerZ =
+      sz * (outerHalfH - chromePlateHeight / 2 - chromePlateInset + chromeCornerCenterOutset) +
+      sz * chromeCornerShortRailShift;
+    // Chrome plates use their own rounded cuts as-is; nothing references the wooden rail arches.
+    const notchMP = translatePocketCutMP(
+      scaleChromeCornerPocketCut(cornerNotchMP(sx, sz)),
+      sx,
+      sz,
+      CORNER_RAIL_NOTCH_INSET
+    );
+    const notchLocalMP = notchMP.map((poly) =>
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX, -(z - centerZ)])
+      )
+    );
+    const plate = new THREE.Mesh(
+      buildChromePlateGeometry({
+        width: chromePlateWidth,
+        height: chromePlateHeight,
+        radius: chromePlateRadius,
+        thickness: chromePlateThickness,
+        corner,
+        notchMP: notchLocalMP,
+        shapeSegments: chromePlateShapeSegments,
+        flat: true
+      }),
+      trimMat
+    );
+    plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
+    plate.castShadow = false;
+    plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
+    chromePlates.add(plate);
+    finishParts.trimMeshes.push(plate);
+  });
 
-    const sideChromePlateOutwardShift =
-      TABLE.THICK * CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE;
+  const sideChromePlateOutwardShift =
+    TABLE.THICK * CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE;
 
-    [
-      { id: 'sideLeft', sx: -1 },
-      { id: 'sideRight', sx: 1 }
-    ].forEach(({ id, sx }) => {
-      const centerX =
-        sx *
-        (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift);
-      const centerZ = 0;
-      const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
-      const sidePocketCutCenterPull =
-        TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
-      const notchLocalMP = notchMP.map((poly) =>
-        poly.map((ring) =>
-          ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
-        )
-      );
-      const plate = new THREE.Mesh(
-        buildChromePlateGeometry({
-          width: sideChromePlateWidth,
-          height: sideChromePlateHeight,
-          radius: sideChromePlateRadius,
-          thickness: sideChromePlateThickness,
-          corner: id,
-          notchMP: notchLocalMP,
-          shapeSegments: chromePlateShapeSegments,
-          flat: true
-        }),
-        trimMat
-      );
-      plate.position.set(centerX, sideChromePlateY + sideChromePlateThickness, centerZ);
-      plate.castShadow = false;
-      plate.receiveShadow = false;
-      plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
-      chromePlates.add(plate);
-      finishParts.trimMeshes.push(plate);
-    });
-    railsGroup.add(chromePlates);
-  }
+  [
+    { id: 'sideLeft', sx: -1 },
+    { id: 'sideRight', sx: 1 }
+  ].forEach(({ id, sx }) => {
+    const centerX =
+      sx *
+      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift);
+    const centerZ = 0;
+    const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
+    const sidePocketCutCenterPull =
+      TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
+    const notchLocalMP = notchMP.map((poly) =>
+      poly.map((ring) =>
+        ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
+      )
+    );
+    const plate = new THREE.Mesh(
+      buildChromePlateGeometry({
+        width: sideChromePlateWidth,
+        height: sideChromePlateHeight,
+        radius: sideChromePlateRadius,
+        thickness: sideChromePlateThickness,
+        corner: id,
+        notchMP: notchLocalMP,
+        shapeSegments: chromePlateShapeSegments,
+        flat: true
+      }),
+      trimMat
+    );
+    plate.position.set(centerX, sideChromePlateY + sideChromePlateThickness, centerZ);
+    plate.castShadow = false;
+    plate.receiveShadow = false;
+    plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
+    chromePlates.add(plate);
+    finishParts.trimMeshes.push(plate);
+  });
+  railsGroup.add(chromePlates);
 
   const pocketJawGroup = new THREE.Group();
 
