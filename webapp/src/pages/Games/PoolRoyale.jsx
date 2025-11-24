@@ -5608,6 +5608,17 @@ function Table3D(
   };
 
   const clothShape = buildSurfaceShape(POCKET_HOLE_R);
+  const clothUnderlayShape = (() => {
+    const insetHalfW = Math.max(MICRO_EPS, halfWext - CLOTH_UNDERLAY_GAP * 0.5);
+    const insetHalfH = Math.max(MICRO_EPS, halfHext - CLOTH_UNDERLAY_GAP * 0.5);
+    const shape = new THREE.Shape();
+    shape.moveTo(-insetHalfW, -insetHalfH);
+    shape.lineTo(insetHalfW, -insetHalfH);
+    shape.lineTo(insetHalfW, insetHalfH);
+    shape.lineTo(-insetHalfW, insetHalfH);
+    shape.lineTo(-insetHalfW, -insetHalfH);
+    return shape;
+  })();
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
@@ -5621,6 +5632,29 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  const clothUnderlayDepth = Math.max(MICRO_EPS, CLOTH_UNDERLAY_THICKNESS);
+  const clothUnderlayGeo = new THREE.ExtrudeGeometry(clothUnderlayShape, {
+    depth: clothUnderlayDepth,
+    bevelEnabled: false,
+    curveSegments: 64,
+    steps: 1
+  });
+  clothUnderlayGeo.translate(0, 0, -clothUnderlayDepth);
+  const clothUnderlayMat = clothMat.clone();
+  clothUnderlayMat.color.copy(clothMat.color);
+  clothUnderlayMat.emissive.copy(clothMat.emissive);
+  clothUnderlayMat.side = THREE.DoubleSide;
+  clothUnderlayMat.polygonOffset = true;
+  clothUnderlayMat.polygonOffsetFactor = 0.5;
+  clothUnderlayMat.polygonOffsetUnits = 0.5;
+  clothUnderlayMat.needsUpdate = true;
+  const clothUnderlay = new THREE.Mesh(clothUnderlayGeo, clothUnderlayMat);
+  clothUnderlay.rotation.x = -Math.PI / 2;
+  clothUnderlay.position.y = cloth.position.y - CLOTH_UNDERLAY_GAP;
+  clothUnderlay.renderOrder = cloth.renderOrder - 1;
+  clothUnderlay.receiveShadow = true;
+  clothUnderlay.castShadow = false;
+  table.add(clothUnderlay);
   const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_SHADOW_BOARD_THICKNESS,
     bevelEnabled: false,
