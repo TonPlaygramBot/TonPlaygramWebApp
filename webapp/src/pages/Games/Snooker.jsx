@@ -477,7 +477,7 @@ function addPocketCuts(parent, clothPlane) {
 const TABLE_SIZE_SHRINK = 0.78;
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
 const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
-const OFFICIAL_SIZE_REDUCTION = 0.82; // scale the official footprint down so it stays just larger than Pool Royale
+const OFFICIAL_SIZE_REDUCTION = 0.78; // trim the official footprint to stay slightly larger than the Pool Royale table
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88;
