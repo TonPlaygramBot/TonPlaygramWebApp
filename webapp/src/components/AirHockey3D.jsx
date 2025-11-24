@@ -744,8 +744,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     midLine.position.y = lineThickness * 0.25;
     tableGroup.add(midLine);
 
-    const anchorLift = lineThickness * 3.5;
-    const avatarSize = TABLE.w * 0.18;
+    const anchorLift = lineThickness * 1.4 + TABLE.thickness * 0.015;
+    const avatarSize = TABLE.w * 0.36;
     const ringOffset = TABLE.h * 0.33;
     fieldAnchorsRef.current = {
       ai: { x: 0, y: anchorLift, z: -ringOffset },
@@ -1183,7 +1183,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         const material = new THREE.MeshBasicMaterial({
           map: texture,
           transparent: true,
-          depthWrite: false,
+          depthWrite: true,
           depthTest: true,
           side: THREE.DoubleSide
         });
@@ -1192,7 +1192,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         const target = anchors[key];
         badge.position.set(target.x, target.y, target.z);
         badge.rotation.x = -Math.PI / 2;
-        badge.renderOrder = 1;
+        badge.renderOrder = -5;
         tableGroup.add(badge);
         avatarSpritesRef.current[key] = badge;
       });
