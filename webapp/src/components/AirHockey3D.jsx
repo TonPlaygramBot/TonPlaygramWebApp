@@ -698,9 +698,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     ring(ringRadius, ringTube, -TABLE.h * 0.33);
     ring(ringRadius, ringTube, TABLE.h * 0.33);
     fieldAnchorsRef.current = {
-      ai: { x: 0, y: railHeight * 1.05, z: -TABLE.h * 0.33 },
-      player: { x: 0, y: railHeight * 1.05, z: TABLE.h * 0.33 },
-      size: 0.48 * SCALE_WIDTH
+      ai: { x: 0, y: lineThickness * 0.6, z: -TABLE.h * 0.33 },
+      player: { x: 0, y: lineThickness * 0.6, z: TABLE.h * 0.33 },
+      size: ringRadius * 2 * 0.96
     };
 
     const goalGeometry = new THREE.BoxGeometry(
@@ -1052,6 +1052,32 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     if (!tableGroup || !anchors) return undefined;
 
     const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+
+    const createCircleTexture = (image) => {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, size, size);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.fillStyle = '#ffffff';
+      ctx.fill();
+      ctx.clip();
+      const cropSize = Math.min(image.width, image.height);
+      const sx = (image.width - cropSize) / 2;
+      const sy = (image.height - cropSize) / 2;
+      ctx.drawImage(image, sx, sy, cropSize, cropSize, 0, 0, size, size);
+      ctx.restore();
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.needsUpdate = true;
+      return texture;
+    };
 
     const setAvatar = (key, avatar) => {
       const existing = avatarSpritesRef.current[key];
@@ -1061,8 +1087,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         existing.material.dispose();
       }
       const url = getAvatarUrl(avatar);
-      loader.load(url, (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
+      loader.load(url, (imageTexture) => {
+        const texture = createCircleTexture(imageTexture.image);
         const material = new THREE.SpriteMaterial({
           map: texture,
           transparent: true,
