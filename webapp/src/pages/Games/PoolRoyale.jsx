@@ -415,12 +415,12 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.065; // pull the side fascias fa
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.018; // push the middle chrome cut outward so the fascia arch sits farther from table centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // push the middle chrome cut a touch farther outward so the fascia arch sits farther from table centre
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.06; // open the middle rail arches noticeably more so the rounded cut reaches the chrome hook cleanly
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.072; // open the middle rail arches a hair more so the rounded cut reaches the chrome hook cleanly
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.06; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
 
 function buildChromePlateGeometry({
