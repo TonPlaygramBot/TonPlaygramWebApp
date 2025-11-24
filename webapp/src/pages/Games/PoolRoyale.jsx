@@ -5176,7 +5176,6 @@ function Table3D(
     trimMeshes: [],
     pocketJawMeshes: [],
     pocketRimMeshes: [],
-    pocketShroudMeshes: [],
     pocketBaseMeshes: [],
     underlayMeshes: [],
     clothEdgeMeshes: [],
@@ -5820,18 +5819,6 @@ function Table3D(
     roughness: 0.6,
     side: THREE.BackSide
   });
-  const pocketShroudMat = new THREE.MeshStandardMaterial({
-    color: 0x050505,
-    metalness: 0.28,
-    roughness: 0.62,
-    side: THREE.DoubleSide
-  });
-  const pocketShroudGeo = new THREE.RingGeometry(
-    POCKET_TOP_R * 0.9,
-    POCKET_TOP_R * 1.14,
-    96
-  );
-  pocketShroudGeo.rotateX(-Math.PI / 2);
   const pocketBaseMat = new THREE.MeshStandardMaterial({
     color: 0x020202,
     metalness: 0.16,
@@ -5849,12 +5836,6 @@ function Table3D(
     pocket.receiveShadow = true;
     table.add(pocket);
     pocketMeshes.push(pocket);
-    const shroud = new THREE.Mesh(pocketShroudGeo, pocketShroudMat);
-    shroud.position.set(p.x, pocketTopY - MICRO_EPS * 16, p.y);
-    shroud.receiveShadow = false;
-    shroud.castShadow = false;
-    table.add(shroud);
-    finishParts.pocketShroudMeshes.push(shroud);
     const base = new THREE.Mesh(pocketBaseGeo, pocketBaseMat);
     base.position.set(p.x, pocketTopY - TABLE.THICK + TABLE.THICK * 0.12, p.y);
     base.receiveShadow = false;
