@@ -870,30 +870,30 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.85 +
-  POCKET_VIS_R * 4.7 +
-  BALL_R * 4.1;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
+  POCKET_VIS_R * 4 +
+  BALL_R * 3.2;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
-  POCKET_VIS_R * 5.2 +
-  BALL_R * 3.7;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.8 +
+  POCKET_VIS_R * 4.2 +
+  BALL_R * 2.9;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 9.5,
-  dotThreshold: 0.3,
+  triggerDist: CAPTURE_R * 10.5,
+  dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 12.6,
+  heightOffset: BALL_R * 11.4,
   heightOffsetShortMultiplier: 1.05,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
-  heightDrop: BALL_R * 1.6,
-  distanceScale: 1.22,
+  heightDrop: BALL_R * 1.2,
+  distanceScale: 1.1,
   heightScale: 1.34,
-  focusBlend: 0.32,
-  lateralFocusShift: POCKET_VIS_R * 0.5,
-  railFocusLong: BALL_R * 9,
-  railFocusShort: BALL_R * 6
+  focusBlend: 0.38,
+  lateralFocusShift: POCKET_VIS_R * 0.4,
+  railFocusLong: BALL_R * 8,
+  railFocusShort: BALL_R * 5.4
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -2826,19 +2826,18 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     }
   }
   if (finishInfo.clothEdgeMat) {
-    replaceMaterialTexture(finishInfo.clothEdgeMat, 'map', textures.map, fallbackRepeat);
-    replaceMaterialTexture(finishInfo.clothEdgeMat, 'bumpMap', textures.bump, fallbackRepeat);
-    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
-      finishInfo.clothEdgeMat.bumpScale = finishInfo.clothBase.baseBumpScale;
-    }
+    finishInfo.clothEdgeMat.map = null;
+    finishInfo.clothEdgeMat.bumpMap = null;
+    finishInfo.clothEdgeMat.needsUpdate = true;
   }
   finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
     if (!mesh?.material) return;
-    replaceMaterialTexture(mesh.material, 'map', textures.map, fallbackRepeat);
-    replaceMaterialTexture(mesh.material, 'bumpMap', textures.bump, fallbackRepeat);
+    mesh.material.map = null;
+    mesh.material.bumpMap = null;
     if (mesh.material.color && finishInfo.clothMat?.color) {
       mesh.material.color.copy(finishInfo.clothMat.color);
     }
+    mesh.material.needsUpdate = true;
   });
   finishInfo.clothTextureKey = textureKey;
 }
@@ -3903,10 +3902,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.038; // pull the orbit slightly closer so the tighter table still fills the frame
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.034; // pull the orbit noticeably closer so the tighter table still fills the frame
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.32;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.26;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
@@ -3976,7 +3975,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.052;
+const CUE_VIEW_PHI_LIFT = 0.085;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -3990,7 +3989,7 @@ const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
-const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.12; // pull the orbit back while the cue ball is in-hand for a wider placement view
+const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -5347,20 +5346,15 @@ function Table3D(
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
   clothEdgeMat.side = THREE.DoubleSide;
-  clothEdgeMat.envMapIntensity = clothMat.envMapIntensity;
+  clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.emissiveIntensity = clothMat.emissiveIntensity;
-  if (clothMat.map) {
-    const clonedMap = clothMat.map.clone();
-    clonedMap.image = clothMat.map.image;
-    clonedMap.needsUpdate = true;
-    clothEdgeMat.map = clonedMap;
-  }
-  if (clothMat.bumpMap) {
-    const clonedBump = clothMat.bumpMap.clone();
-    clonedBump.image = clothMat.bumpMap.image;
-    clonedBump.needsUpdate = true;
-    clothEdgeMat.bumpMap = clonedBump;
-  }
+  clothEdgeMat.metalness = 0;
+  clothEdgeMat.roughness = Math.min(0.96, clothMat.roughness + 0.18);
+  clothEdgeMat.clearcoat = 0;
+  clothEdgeMat.clearcoatRoughness = 1;
+  clothEdgeMat.sheen = 0;
+  clothEdgeMat.map = null;
+  clothEdgeMat.bumpMap = null;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -5640,16 +5634,12 @@ function Table3D(
   underlayMat.opacity = clothMat.opacity;
   underlayMat.depthWrite = true;
   underlayMat.colorWrite = true;
-  if (underlayMat.map) {
-    const clonedMap = underlayMat.map.clone();
-    clonedMap.image = underlayMat.map.image;
-    underlayMat.map = clonedMap;
-  }
-  if (underlayMat.bumpMap) {
-    const clonedBump = underlayMat.bumpMap.clone();
-    clonedBump.image = underlayMat.bumpMap.image;
-    underlayMat.bumpMap = clonedBump;
-  }
+  underlayMat.map = null;
+  underlayMat.bumpMap = null;
+  underlayMat.roughness = Math.min(0.94, clothMat.roughness + 0.15);
+  underlayMat.metalness = 0;
+  underlayMat.clearcoat = 0;
+  underlayMat.clearcoatRoughness = 0.9;
   const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
   clothUnderlay.rotation.x = -Math.PI / 2;
   clothUnderlay.position.y =
@@ -10981,11 +10971,16 @@ function PoolRoyaleGame({
             const cueBounds = cameraBounds?.cueShot ?? null;
             const standingBounds = cameraBounds?.standing ?? null;
             const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.25;
-            const focusTarget = new THREE.Vector3(
-              0,
-              focusHeightLocal,
-              0
-            ).multiplyScalar(worldScaleFactor);
+            const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
+            const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
+            if (cueBallForPocket && focusBall?.active) {
+              focusTarget.set(
+                (cueBallForPocket.pos.x + focusBall.pos.x) * 0.5,
+                focusHeightLocal,
+                (cueBallForPocket.pos.y + focusBall.pos.y) * 0.5
+              );
+            }
+            focusTarget.multiplyScalar(worldScaleFactor);
             if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
               const focusBlend = THREE.MathUtils.clamp(
                 POCKET_CAM.focusBlend,
@@ -11893,8 +11888,8 @@ function PoolRoyaleGame({
               1
             );
             const basePrecisionScale = THREE.MathUtils.lerp(
-              CUE_VIEW_AIM_SLOW_FACTOR,
-              1,
+              CUE_VIEW_AIM_SLOW_FACTOR * 0.78,
+              0.9,
               blend
             );
             const slowScale =
@@ -11902,9 +11897,9 @@ function PoolRoyaleGame({
                 ? CHALK_PRECISION_SLOW_MULTIPLIER
                 : 1;
             const precisionScale = basePrecisionScale * slowScale;
-            sph.theta -= dx * 0.0035 * precisionScale;
+            sph.theta -= dx * 0.0026 * precisionScale;
             const phiRange = CAMERA.maxPhi - CAMERA.minPhi;
-            const phiDelta = dy * 0.0025 * precisionScale;
+            const phiDelta = dy * 0.0019 * precisionScale;
             const blendDelta =
               phiRange > 1e-5 ? phiDelta / phiRange : 0;
             applyCameraBlend(cameraBlendRef.current - blendDelta);
@@ -14554,11 +14549,12 @@ function PoolRoyaleGame({
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (appliedSpin.x || 0) * 0.35 * (0.6 + 0.4 * powerStrength);
-          const spinVerticalInfluence = (appliedSpin.y || 0) * 0.55 * (0.5 + 0.5 * powerStrength);
+          const spinSideInfluence = (appliedSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence = (appliedSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
-            .add(perp.clone().multiplyScalar(spinSideInfluence));
+            .add(perp.clone().multiplyScalar(spinSideInfluence))
+            .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
@@ -14714,20 +14710,22 @@ function PoolRoyaleGame({
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
           if (targetDir && targetBall) {
-            const travelScale = BALL_R * (14 + powerStrength * 20);
-            const targetSpinInfluence = (appliedSpin.x || 0) * 0.28 * (0.5 + 0.5 * powerStrength);
+            const travelScale = BALL_R * (14 + powerStrength * 22);
+            const targetSpinInfluence = (appliedSpin.x || 0) * (0.42 + 0.35 * powerStrength);
+            const forwardTilt = (appliedSpin.y || 0) * 0.22 * (0.4 + 0.6 * powerStrength);
             const spinThrow = perp.clone().multiplyScalar(-targetSpinInfluence);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y)
               .normalize()
-              .add(spinThrow);
+              .add(spinThrow)
+              .add(dir.clone().multiplyScalar(forwardTilt));
             if (tDir.lengthSq() > 1e-8) {
               tDir.normalize();
             }
-            const distanceScale = travelScale * (1 + Math.abs(appliedSpin.y || 0) * 0.2);
+            const distanceScale = travelScale * (1 + Math.abs(appliedSpin.y || 0) * 0.35);
             const tEnd = end.clone().add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([end, tEnd]);
             target.material.color.setHex(0xffd166);
-            target.material.opacity = 0.65 + 0.25 * powerStrength;
+            target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
           } else {
