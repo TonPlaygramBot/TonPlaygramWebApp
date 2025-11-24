@@ -880,21 +880,21 @@ export default function TableTennis3D({ player, ai }){
     const Sx = {
       v: new THREE.Vector3(0, 0, 0),
       w: new THREE.Vector3(0, 0, 0),
-      mass: 0.0027, // regulation ping pong ball mass in kg
-      paddleMass: 0.16, // effective racket mass for impulses
+      mass: 0.0027,
+      paddleMass: 0.16,
       magnusCoeff: 0.35,
       spinDecay: 0.92,
-      gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -9.81, 0),
-      drag: Math.max(0.18, (physicsSettings.drag ?? 0.48) * 0.78),
-      tableRest: physicsSettings.tableRest ?? 0.82,
-      tableFriction: physicsSettings.tableFriction ?? 0.18,
-      paddleRest: physicsSettings.paddleRest ?? 0.96,
-      paddleAim: physicsSettings.paddleAim ?? 0.6,
-      paddleLift: physicsSettings.paddleLift ?? 0.18,
-      netRest: physicsSettings.netRest ?? 0.42,
-      forceScale: THREE.MathUtils.clamp((physicsSettings.forceScale ?? 0.82) * 1.18, 0.72, 1.32),
-      state: 'serve', // serve | rally | dead
-      lastTouch: null, // 'P' or 'O'
+      gravity: new THREE.Vector3(0, -8.6, 0),
+      drag: 0.3,
+      tableRest: 0.84,
+      tableFriction: 0.2,
+      paddleRest: 1.08,
+      paddleAim: 0.62,
+      paddleLift: 0.2,
+      netRest: 0.35,
+      forceScale: 0.88,
+      state: 'serve',
+      lastTouch: null,
       bounces: { P: 0, O: 0 },
       serveProgress: 'awaitServeHit',
       serveTimer: serveTimers.player,
@@ -904,6 +904,7 @@ export default function TableTennis3D({ player, ai }){
       tmpV0: new THREE.Vector3(),
       tmpV1: new THREE.Vector3(),
     };
+    let playerSwing = null;
 
     function resetServe(){
       Sx.v.set(0,0,0);
@@ -939,53 +940,141 @@ export default function TableTennis3D({ player, ai }){
       }));
     }
 
-    // ---------- Input: Drag to move (player) ----------
-    const ndc = new THREE.Vector2(); const ray = new THREE.Raycaster();
-    const plane = new THREE.Plane(new THREE.Vector3(0,1,0), 0); const hit = new THREE.Vector3();
+    // ---------- Input: Swipe-to-hit (Battle Royal style) ----------
     const bounds = {
       x: T.W/2 - 0.06,
       zNear: playerBaseZ + 0.08,
       zFar: 0.06,
     };
+    const el = renderer.domElement;
+    el.style.touchAction = 'none';
+    let usingTouch = false;
+    let touching = false;
+    let sx = 0;
+    let sy = 0;
+    let lx = 0;
+    let ly = 0;
+    let st = 0;
 
-    // Touch surface remains slightly larger than the paddle so it feels forgiving,
-    // but we nudge it closer toward the net and give the mapping a stronger forward
-    // offset so a comfortable higher touch still lines up with the paddle head.
-    const TOUCH_SURFACE_MULT = 2.25;
-    const TOUCH_DEPTH_MULT = 1.85;
-    const TOUCH_BACK_SHIFT = -0.1;
-    const TOUCH_FORWARD_OFFSET = 0.032;
-    const pointerXMin = -bounds.x * TOUCH_SURFACE_MULT;
-    const pointerXMax = bounds.x * TOUCH_SURFACE_MULT;
-    const pointerZSpan = (bounds.zNear - bounds.zFar) * TOUCH_DEPTH_MULT;
-    const pointerZCenter = (bounds.zNear + bounds.zFar) / 2 + TOUCH_BACK_SHIFT;
-    const pointerZMin = pointerZCenter - pointerZSpan / 2;
-    const pointerZMax = pointerZCenter + pointerZSpan / 2;
-
-    const screenToXZ = (cx, cy) => { const r=renderer.domElement.getBoundingClientRect(); ndc.x=((cx-r.left)/r.width)*2-1; ndc.y=-(((cy-r.top)/r.height)*2-1); ray.setFromCamera(ndc, camera); ray.ray.intersectPlane(plane, hit); return new THREE.Vector2(hit.x/S, hit.z/S); };
-
-    let dragging=false;
-    const onDown = (e)=>{ const t=e.touches?e.touches[0]:e; const p=screenToXZ(t.clientX,t.clientY); dragging = (p.y > -0.42); if (dragging){ if (e.cancelable) e.preventDefault(); movePlayerTo(p.x,p.y); } };
-    const onMove = (e)=>{ if(!dragging) return; const t=e.touches?e.touches[0]:e; if (e.cancelable) e.preventDefault(); const p=screenToXZ(t.clientX,t.clientY); movePlayerTo(p.x,p.y); };
-    const onUp = ()=>{ dragging=false; };
-
-    function movePlayerTo(x,z){
-      const clampedX = THREE.MathUtils.clamp(x, pointerXMin, pointerXMax);
-      const clampedZ = THREE.MathUtils.clamp(z, pointerZMin, pointerZMax);
-      const normX = (clampedX - pointerXMin) / (pointerXMax - pointerXMin);
-      const normZ = (clampedZ - pointerZMin) / (pointerZMax - pointerZMin);
-      playerTarget.x = THREE.MathUtils.lerp(-bounds.x, bounds.x, normX);
-      const desiredZ = THREE.MathUtils.lerp(bounds.zFar, bounds.zNear, normZ) - TOUCH_FORWARD_OFFSET;
-      playerTarget.z = THREE.MathUtils.clamp(desiredZ, bounds.zFar, bounds.zNear);
-      playerTarget.y = player.position.y;
+    function clampX(x) { return THREE.MathUtils.clamp(x, -bounds.x, bounds.x); }
+    function clampZ(z) { return THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear); }
+    function screenToTable(clientX, clientY) {
+      const rect = el.getBoundingClientRect();
+      const nx = (clientX - rect.left) / rect.width;
+      const nz = 1 - (clientY - rect.top) / rect.height;
+      const x = clampX((nx - 0.5) * (bounds.x * 2));
+      const z = clampZ(bounds.zFar + nz * (bounds.zNear - bounds.zFar));
+      return { x, z, rect };
     }
 
-    renderer.domElement.addEventListener('touchstart', onDown, { passive:false });
-    renderer.domElement.addEventListener('touchmove',  onMove,  { passive:false });
-    renderer.domElement.addEventListener('touchend',   onUp,    { passive:true });
-    renderer.domElement.addEventListener('mousedown',  onDown);
-    renderer.domElement.addEventListener('mousemove',  onMove);
-    window.addEventListener('mouseup', onUp);
+    const MIN_SWIPE_SPEED = 220;
+    const MAX_SWIPE_SPEED = 1600;
+
+    function swipeToShot(distX, distY, swipeTime, towardsEnemy = true, rect) {
+      const swipeT = Math.max(swipeTime, 0.08);
+      const swipeLength = Math.hypot(distX, distY);
+      const speed = swipeLength / swipeT;
+      const clampedSpeed = THREE.MathUtils.clamp(speed, MIN_SWIPE_SPEED, MAX_SWIPE_SPEED);
+      const normalized = (clampedSpeed - MIN_SWIPE_SPEED) / (MAX_SWIPE_SPEED - MIN_SWIPE_SPEED);
+      const forward = towardsEnemy ? -1 : 1;
+      const lateral = THREE.MathUtils.clamp(distX / (rect?.width || 1), -1.6, 1.6) * forward;
+      const lift = THREE.MathUtils.mapLinear(normalized, 0, 1, 0.35, 0.95);
+      const forwardPower = THREE.MathUtils.mapLinear(normalized, 0, 1, 0.9, 1.42) * forward;
+      return { lateral, lift, forward: forwardPower, normalized, curve: THREE.MathUtils.clamp(distX / 32, -8, 8), swipeSpeed: clampedSpeed };
+    }
+
+    function shotToSwing(shot) {
+      const dir = new THREE.Vector3(shot.lateral, shot.lift, shot.forward);
+      const speed = dir.length();
+      const normal = dir.normalize();
+      const sideCurve = shot.curve ?? 0;
+      const topspin = THREE.MathUtils.lerp(10, 32, shot.normalized);
+      const curveAim = normal.clone();
+      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01, -0.28, 0.28);
+      return {
+        normal,
+        speed,
+        ttl: 0.34,
+        extraSpin: new THREE.Vector3(sideCurve * 0.25, sideCurve * 0.7, topspin * Math.sign(shot.forward || -1)),
+        friction: 0.2,
+        restitution: 1.08,
+        reach: BALL_R + 0.34,
+        force: Math.min(1.15, shot.normalized * (1 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 6))),
+        power: shot.normalized,
+        aimDirection: curveAim.normalize(),
+        liftBoost: 0
+      };
+    }
+
+    function onDown(e) {
+      if (usingTouch && e.pointerType === 'touch') return;
+      touching = true;
+      const target = screenToTable(e.clientX, e.clientY);
+      playerTarget.x = target.x;
+      playerTarget.z = target.z;
+      sx = lx = e.clientX;
+      sy = ly = e.clientY;
+      st = performance.now();
+      player.userData.swing = -0.35;
+      player.userData.swingLR = 0;
+    }
+    function onMove(e) {
+      if (!touching) return;
+      if (usingTouch && e.pointerType === 'touch') return;
+      lx = e.clientX;
+      ly = e.clientY;
+      const target = screenToTable(e.clientX, e.clientY);
+      playerTarget.x += (target.x - playerTarget.x) * 0.5;
+      playerTarget.z += (target.z - playerTarget.z) * 0.4;
+    }
+    function onUp(evt, { fromTouch = false } = {}) {
+      if (!touching) return;
+      if (!fromTouch && usingTouch && evt?.pointerType === 'touch') return;
+      touching = false;
+      const endX = evt?.clientX ?? lx;
+      const endY = evt?.clientY ?? ly;
+      const distX = endX - sx;
+      const distY = sy - endY;
+      if (distY < 24) return;
+      const duration = Math.max((performance.now() - st) / 1000, 0.12);
+      const onPlayerSide = ball.position.z > 0 && Math.abs(ball.position.z - (playerBaseZ - 0.2)) < 1.6;
+      if (onPlayerSide && ball.position.y <= 2.2) {
+        const shot = swipeToShot(distX, distY, duration, true, screenToTable(endX, endY).rect);
+        playerSwing = shotToSwing(shot);
+        player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
+        player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
+      }
+    }
+
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onUp);
+
+    function onTouchStart(e) {
+      usingTouch = true;
+      const t = e.touches[0];
+      if (!t) return;
+      onDown({ clientX: t.clientX, clientY: t.clientY });
+    }
+    function onTouchMove(e) {
+      const t = e.touches[0];
+      if (!t) return;
+      onMove({ clientX: t.clientX, clientY: t.clientY });
+    }
+    function onTouchEnd(e) {
+      const t = e.changedTouches[0];
+      if (!t) {
+        usingTouch = false;
+        return;
+      }
+      onUp({ clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }, { fromTouch: true });
+      usingTouch = false;
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
     const camPos = new THREE.Vector3();
     const camFollow = new THREE.Vector3(player.position.x, 0, player.position.z);
@@ -1322,6 +1411,19 @@ export default function TableTennis3D({ player, ai }){
         Sx.v.y = Math.max(Sx.v.y, Sx.paddleLift + Math.abs(closing) * 1.1);
         const forward = Math.max(0.9, Math.abs(Sx.v.z));
         Sx.v.z = attackSign * THREE.MathUtils.clamp(forward, 0.9, 4.8);
+
+        if (who === 'P' && playerSwing){
+          const swing = playerSwing;
+          const aim = swing.aimDirection?.clone() || swing.normal.clone();
+          const power = THREE.MathUtils.clamp(swing.power ?? swing.force ?? 0.6, 0.15, 1.2);
+          const speed = THREE.MathUtils.lerp(3.2, 6.6, power) * Sx.forceScale;
+          Sx.v.copy(aim.multiplyScalar(speed));
+          Sx.v.y = Math.max(Sx.v.y, 1.35 + (swing.liftBoost || 0));
+          if (swing.extraSpin){
+            Sx.w.addScaledVector(swing.extraSpin, 0.08);
+          }
+          playerSwing = null;
+        }
         ensureNetClear(contact, Sx.v, Sx.gravity.y, NET_TOP, BALL_R * 0.9);
 
         if (Sx.state === 'serve' && who === Srv.side && Sx.serveProgress === 'awaitServeHit'){
@@ -1372,7 +1474,7 @@ export default function TableTennis3D({ player, ai }){
       const nextServing = shouldSwap ? (currentServer === 'P' ? 'O' : 'P') : currentServer;
       const gameOver = (newP >= 11 || newO >= 11) && Math.abs(newP - newO) >= 2;
       const leader = newP === newO ? null : (newP > newO ? 'P' : 'O');
-      let statusMsg = 'Drag to move';
+      let statusMsg = 'Swipe up to serve and hit';
       if (gameOver){
         const winnerLabel = winner === 'P' ? playerLabel : aiLabel;
         statusMsg = `${winnerLabel} wins — Tap Reset`;
@@ -1537,6 +1639,11 @@ export default function TableTennis3D({ player, ai }){
         adjustPaddleYaw(player, playerVel);
         adjustPaddleYaw(opp, oppVel);
 
+        if (playerSwing){
+          playerSwing.ttl -= frameDt;
+          if (playerSwing.ttl <= 0) playerSwing = null;
+        }
+
         if (Sx.state !== 'dead'){
           if (Sx.state === 'serve'){
             const server = Srv.side === 'P' ? player : opp;
@@ -1602,12 +1709,13 @@ export default function TableTennis3D({ player, ai }){
     return ()=>{
       cancelAnimationFrame(raf.current);
       window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('touchstart', onDown);
-      renderer.domElement.removeEventListener('touchmove', onMove);
-      renderer.domElement.removeEventListener('touchend', onUp);
-      renderer.domElement.removeEventListener('mousedown', onDown);
-      renderer.domElement.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
+      el.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
       timers.forEach(clearTimeout);
       document.documentElement.style.overscrollBehavior = prevOver;
       try{ host.removeChild(renderer.domElement); }catch{}
