@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { getGameVolume, isGameMuted } from "../utils/sound.js";
 
@@ -8,12 +8,6 @@ const SOUND_SOURCES = {
   score: encodeURI("/assets/sounds/football-crowd-3-69245.mp3"),
   out: encodeURI("/assets/sounds/crowd-shocked-reaction-352766.mp3")
 };
-
-const COURT_L = 23.77;
-const COURT_W = 9.2;
-const HALF_L = COURT_L / 2;
-const HALF_W = COURT_W / 2;
-const APRON = 2.6;
 
 function buildRoyalGrandstand() {
   const group = new THREE.Group();
@@ -289,291 +283,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   );
   const lastTaskToastId = useRef(null);
   const [scoreboardOpen, setScoreboardOpen] = useState(false);
-  const broadcastPresets = useMemo(
-    () => [
-      {
-        id: 'stadium-tv',
-        label: 'Stadium TV',
-        camBack: HALF_L + APRON * 0.76,
-        camHeight: 4.72,
-        followLerp: 5.4,
-        focusHeight: 1.2,
-        lookAhead: 0.62,
-        sideBias: 0,
-        heightLead: 0.62,
-        zoomDamp: 3.1,
-        backRange: { min: HALF_L + APRON * 0.6, max: HALF_L + APRON * 1.05 },
-        heightRange: { min: 4.2, max: 6.0 }
-      },
-      {
-        id: 'baseline-chase',
-        label: 'Baseline Chase',
-        camBack: HALF_L + APRON * 0.64,
-        camHeight: 4.1,
-        followLerp: 6.6,
-        focusHeight: 1.08,
-        lookAhead: 0.7,
-        sideBias: 0.28,
-        heightLead: 0.54,
-        zoomDamp: 3.6,
-        backRange: { min: HALF_L + APRON * 0.55, max: HALF_L + APRON * 0.95 },
-        heightRange: { min: 3.6, max: 5.6 }
-      },
-      {
-        id: 'sideline-dolly',
-        label: 'Sideline Dolly',
-        camBack: HALF_L + APRON * 0.7,
-        camHeight: 4.28,
-        followLerp: 5.8,
-        focusHeight: 1.15,
-        lookAhead: 0.55,
-        sideBias: HALF_W * 0.22,
-        heightLead: 0.7,
-        zoomDamp: 2.8,
-        backRange: { min: HALF_L + APRON * 0.62, max: HALF_L + APRON * 1.0 },
-        heightRange: { min: 3.9, max: 5.9 }
-      },
-      {
-        id: 'drone-orbit',
-        label: 'Drone Orbit',
-        camBack: HALF_L + APRON * 0.9,
-        camHeight: 5.6,
-        followLerp: 4.6,
-        focusHeight: 1.32,
-        lookAhead: 0.68,
-        sideBias: -0.16,
-        heightLead: 0.95,
-        zoomDamp: 2.4,
-        backRange: { min: HALF_L + APRON * 0.7, max: HALF_L + APRON * 1.18 },
-        heightRange: { min: 4.6, max: 6.8 }
-      },
-      {
-        id: 'umpire-box',
-        label: 'Umpire Box',
-        camBack: HALF_L + APRON * 0.8,
-        camHeight: 4.9,
-        followLerp: 5.0,
-        focusHeight: 1.0,
-        lookAhead: 0.5,
-        sideBias: HALF_W * 0.12,
-        heightLead: 0.52,
-        zoomDamp: 3.0,
-        backRange: { min: HALF_L + APRON * 0.65, max: HALF_L + APRON * 1.06 },
-        heightRange: { min: 4.1, max: 6.2 }
-      }
-    ],
-    []
-  );
-  const ballProfiles = useMemo(
-    () => [
-      {
-        id: 'tour-pace',
-        label: 'Tour Pace',
-        gravity: -14.2,
-        airDrag: 0.1,
-        lift: 0.09,
-        bounceRestitution: 0.82,
-        courtFriction: 0.18,
-        spinDamping: 0.86,
-        spinSlip: 0.52,
-        stateDrag: 0.22,
-        cor: 0.82,
-        fric: 0.18,
-        hitForce: 4.9,
-        speedCap: 24.5
-      },
-      {
-        id: 'clay-heavy',
-        label: 'Clay Heavy',
-        gravity: -13.6,
-        airDrag: 0.12,
-        lift: 0.08,
-        bounceRestitution: 0.78,
-        courtFriction: 0.24,
-        spinDamping: 0.9,
-        spinSlip: 0.58,
-        stateDrag: 0.24,
-        cor: 0.8,
-        fric: 0.2,
-        hitForce: 4.6,
-        speedCap: 22.5
-      },
-      {
-        id: 'indoor-zip',
-        label: 'Indoor Zip',
-        gravity: -14.6,
-        airDrag: 0.08,
-        lift: 0.07,
-        bounceRestitution: 0.84,
-        courtFriction: 0.16,
-        spinDamping: 0.84,
-        spinSlip: 0.46,
-        stateDrag: 0.2,
-        cor: 0.84,
-        fric: 0.16,
-        hitForce: 5.0,
-        speedCap: 25.0
-      },
-      {
-        id: 'aero-spin',
-        label: 'Aero Spin',
-        gravity: -13.0,
-        airDrag: 0.14,
-        lift: 0.11,
-        bounceRestitution: 0.8,
-        courtFriction: 0.2,
-        spinDamping: 0.9,
-        spinSlip: 0.64,
-        stateDrag: 0.23,
-        cor: 0.81,
-        fric: 0.19,
-        hitForce: 4.7,
-        speedCap: 23.0
-      },
-      {
-        id: 'arcade-blitz',
-        label: 'Arcade Blitz',
-        gravity: -12.6,
-        airDrag: 0.09,
-        lift: 0.12,
-        bounceRestitution: 0.88,
-        courtFriction: 0.16,
-        spinDamping: 0.82,
-        spinSlip: 0.5,
-        stateDrag: 0.2,
-        cor: 0.85,
-        fric: 0.16,
-        hitForce: 5.2,
-        speedCap: 26.0
-      }
-    ],
-    []
-  );
-  const touchSchemes = useMemo(
-    () => [
-      {
-        id: 'precision-pro',
-        label: 'Precision Pro',
-        speedScale: 1,
-        powerCurve: 1,
-        lateralScale: 1,
-        forwardScale: 1,
-        curveBias: 1,
-        liftBias: 0,
-        aimAssist: 0.22,
-        minSwipe: 32,
-        maxSwipeSpeed: 1600,
-        minSwipeSpeed: 220,
-        moveDampActive: 12,
-        moveDampLive: 8,
-        moveDampIdle: 5,
-        swingLean: 1,
-        topspinBias: 0,
-        sideBias: 0
-      },
-      {
-        id: 'topspin-launch',
-        label: 'Topspin Launch',
-        speedScale: 1.04,
-        powerCurve: 1.08,
-        lateralScale: 0.94,
-        forwardScale: 1,
-        curveBias: 1.05,
-        liftBias: 0.32,
-        aimAssist: 0.26,
-        minSwipe: 28,
-        maxSwipeSpeed: 1650,
-        minSwipeSpeed: 210,
-        moveDampActive: 12,
-        moveDampLive: 8,
-        moveDampIdle: 5,
-        swingLean: 1.08,
-        topspinBias: 0.28,
-        sideBias: 0
-      },
-      {
-        id: 'flat-drive',
-        label: 'Flat Drive',
-        speedScale: 1.12,
-        powerCurve: 0.94,
-        lateralScale: 1,
-        forwardScale: 1.12,
-        curveBias: 0.72,
-        liftBias: -0.24,
-        aimAssist: 0.16,
-        minSwipe: 26,
-        maxSwipeSpeed: 1700,
-        minSwipeSpeed: 230,
-        moveDampActive: 13,
-        moveDampLive: 8,
-        moveDampIdle: 5,
-        swingLean: 0.94,
-        topspinBias: -0.18,
-        sideBias: 0.06
-      },
-      {
-        id: 'slice-feather',
-        label: 'Slice Feather',
-        speedScale: 0.94,
-        powerCurve: 1,
-        lateralScale: 1.08,
-        forwardScale: 0.92,
-        curveBias: 1.32,
-        liftBias: -0.36,
-        aimAssist: 0.3,
-        minSwipe: 24,
-        maxSwipeSpeed: 1500,
-        minSwipeSpeed: 200,
-        moveDampActive: 11,
-        moveDampLive: 8,
-        moveDampIdle: 5,
-        swingLean: 0.92,
-        topspinBias: -0.36,
-        sideBias: 0.18
-      },
-      {
-        id: 'arcade-flick',
-        label: 'Arcade Flick',
-        speedScale: 1.2,
-        powerCurve: 0.9,
-        lateralScale: 1,
-        forwardScale: 1.18,
-        curveBias: 1.12,
-        liftBias: 0.18,
-        aimAssist: 0.32,
-        minSwipe: 18,
-        maxSwipeSpeed: 1800,
-        minSwipeSpeed: 180,
-        moveDampActive: 14,
-        moveDampLive: 9,
-        moveDampIdle: 6,
-        swingLean: 1.12,
-        topspinBias: 0.14,
-        sideBias: 0.12
-      }
-    ],
-    []
-  );
-  const [broadcastMode, setBroadcastMode] = useState(broadcastPresets[0].id);
-  const [ballProfile, setBallProfile] = useState(ballProfiles[0].id);
-  const [touchMode, setTouchMode] = useState(touchSchemes[0].id);
-  const broadcastRef = useRef(broadcastPresets[0]);
-  const physicsRef = useRef(ballProfiles[0]);
-  const touchRef = useRef(touchSchemes[0]);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [selectionConfirmed, setSelectionConfirmed] = useState(false);
-  useEffect(() => {
-    const preset = broadcastPresets.find((p) => p.id === broadcastMode);
-    broadcastRef.current = preset || broadcastPresets[0];
-  }, [broadcastMode, broadcastPresets]);
-  useEffect(() => {
-    const preset = ballProfiles.find((p) => p.id === ballProfile);
-    physicsRef.current = preset || ballProfiles[0];
-  }, [ballProfile, ballProfiles]);
-  useEffect(() => {
-    const preset = touchSchemes.find((p) => p.id === touchMode);
-    touchRef.current = preset || touchSchemes[0];
-  }, [touchMode, touchSchemes]);
 
   const audioRef = useRef({ net: null, kick: null, score: null, out: null });
 
@@ -664,23 +373,21 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const smoothCameraLook = new THREE.Vector3(0, 1.1, 0);
     smoothCameraPos.copy(camera.position);
 
-    const courtL = COURT_L;
-    const courtW = COURT_W;
-    const halfW = HALF_W;
-    const halfL = HALF_L;
+    const courtL = 23.77;
+    const courtW = 9.2;
+    const halfW = courtW / 2;
+    const halfL = courtL / 2;
     const SERVICE_LINE_Z = 6.4;
     const SERVICE_BOX_INNER = 0.2;
-    const apron = APRON;
+    const apron = 2.6;
 
     const playerZ = halfL - 1.35;
     const cpuZ = -halfL + 1.35;
 
-    let camBack = broadcastRef.current.camBack;
-    let camHeight = broadcastRef.current.camHeight;
-    let camBackRange = broadcastRef.current.backRange || { min: halfL + apron * 0.6, max: halfL + apron * 1.05 };
-    let camHeightRange = broadcastRef.current.heightRange || { min: 4.2, max: 6.0 };
-    let targetCamBack = camBack;
-    let targetCamHeight = camHeight;
+    let camBack = isNarrow ? halfL + apron * 0.82 : halfL + apron * 0.76;
+    let camHeight = isNarrow ? 5.05 : 4.72;
+    const camBackRange = { min: halfL + apron * 0.6, max: halfL + apron * 1.05 };
+    const camHeightRange = { min: 4.2, max: 6.0 };
     const cameraMinZ = 1.35;
     const cameraMaxZ = halfL + apron * 0.92;
     const cameraSideLimit = halfW * 1.1;
@@ -982,7 +689,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     stairsWest.position.set(-(halfW + apron + 0.4), 0, 0);
     scene.add(stairsEast, stairsWest);
 
-    const cameraFocus = new THREE.Vector3(0, broadcastRef.current.focusHeight ?? 1.18, 0);
+    const cameraFocus = new THREE.Vector3(0, 1.18, 0);
     const cameraRigs = [
       { position: new THREE.Vector3(-halfW - 1.6, 0, halfL + 2.4) },
       { position: new THREE.Vector3(halfW + 1.6, 0, -halfL - 2.6) },
@@ -1193,12 +900,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const s = ballR / 0.26;
     ball.scale.setScalar(s);
     scene.add(ball);
-    let physics = { ...physicsRef.current };
-    let hitForceMultiplier = physicsRef.current.hitForce;
-    let outgoingSpeedCap = (physicsRef.current.speedCap || 22.5) * hitForceMultiplier;
-    let stateDrag = physicsRef.current.stateDrag;
-    let stateCor = physicsRef.current.cor;
-    let stateFric = physicsRef.current.fric;
+    const physics = {
+      gravity: -13.6,
+      airDrag: 0.12,
+      lift: 0.08,
+      bounceRestitution: 0.78,
+      courtFriction: 0.2,
+      spinDamping: 0.88,
+      spinSlip: 0.56
+    };
 
     const sC = document.createElement('canvas');
     sC.width = sC.height = 96;
@@ -1248,11 +958,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.rotation.y = 0;
     scene.add(cpu);
 
+    const HIT_FORCE_MULTIPLIER = 4.6;
+    const OUTGOING_SPEED_CAP = 22.5 * HIT_FORCE_MULTIPLIER;
+
     const state = {
       gravity: physics.gravity,
-      drag: stateDrag,
-      cor: stateCor,
-      fric: stateFric,
+      drag: 0.24,
+      cor: 0.8,
+      fric: 0.18,
       live: false,
       serveBy: 'player',
       serveSide: 'deuce',
@@ -1267,26 +980,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         sets: { player: 0, cpu: 0 }
       }
     };
-    const syncPhysicsPreset = () => {
-      const preset = physicsRef.current;
-      physics.gravity = preset.gravity;
-      physics.airDrag = preset.airDrag;
-      physics.lift = preset.lift;
-      physics.bounceRestitution = preset.bounceRestitution;
-      physics.courtFriction = preset.courtFriction;
-      physics.spinDamping = preset.spinDamping;
-      physics.spinSlip = preset.spinSlip;
-      hitForceMultiplier = preset.hitForce;
-      outgoingSpeedCap = (preset.speedCap || 22.5) * hitForceMultiplier;
-      stateDrag = preset.stateDrag;
-      stateCor = preset.cor;
-      stateFric = preset.fric;
-      state.gravity = physics.gravity;
-      state.drag = stateDrag;
-      state.cor = stateCor;
-      state.fric = stateFric;
-    };
-    syncPhysicsPreset();
     const pos = new THREE.Vector3(0, ballR + 0.01, playerZ - 1.0);
     const vel = new THREE.Vector3();
     const spin = new THREE.Vector3();
@@ -1560,27 +1253,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function placeCamera(dt = 0) {
-      const preset = broadcastRef.current;
-      targetCamBack = preset.camBack;
-      targetCamHeight = preset.camHeight;
-      camBackRange = preset.backRange || camBackRange;
-      camHeightRange = preset.heightRange || camHeightRange;
-      camBack = THREE.MathUtils.clamp(
-        THREE.MathUtils.damp(camBack, targetCamBack, preset.zoomDamp ?? 3, dt),
-        camBackRange.min,
-        camBackRange.max
-      );
-      camHeight = THREE.MathUtils.clamp(
-        THREE.MathUtils.damp(camHeight, targetCamHeight, preset.zoomDamp ?? 3, dt),
-        camHeightRange.min,
-        camHeightRange.max
-      );
-      cameraFocus.y = preset.focusHeight ?? 1.18;
-      const lookAhead = preset.lookAhead ?? 0.6;
-      const heightLead = preset.heightLead ?? 0.6;
-      const sideBias = preset.sideBias ?? 0;
-      const focusY = cameraFocus.y;
-      const lerpRate = preset.followLerp ?? 5.2;
       const toLocalZ = (z) => Math.abs(z);
       const fromLocalZ = (z) => z;
       const playerLocalZ = toLocalZ(player.position.z);
@@ -1592,30 +1264,30 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         Math.max(ballR, ball.position.y + vel.y * leadT + 0.5 * physics.gravity * leadT * leadT),
         ball.position.z + vel.z * leadT
       );
-      const followBall = new THREE.Vector3().lerpVectors(ball.position, predictedBall, lookAhead);
+      const followBall = new THREE.Vector3().lerpVectors(ball.position, predictedBall, 0.6);
 
       const playerServingDiag = !state.live && state.serveBy === 'player';
       const cpuServingDiag = !state.live && state.serveBy === 'cpu';
       if (playerServingDiag) {
         const sideOffset = state.serveSide === 'deuce' ? 0.55 : -0.55;
         const diagTarget = new THREE.Vector3(
-          THREE.MathUtils.clamp(player.position.x + sideOffset + sideBias * 0.4, -cameraSideLimit, cameraSideLimit),
-          camHeight + 0.2 + heightLead * 0.2,
+          THREE.MathUtils.clamp(player.position.x + sideOffset, -cameraSideLimit, cameraSideLimit),
+          camHeight + 0.2,
           fromLocalZ(THREE.MathUtils.clamp(playerLocalZ + camBack + 0.8, cameraMinZ, cameraMaxZ))
         );
         camera.position.lerp(diagTarget, 0.25);
-        camera.lookAt(new THREE.Vector3(0, focusY, fromLocalZ(-halfL + 0.65)));
+        camera.lookAt(new THREE.Vector3(0, 1.12, fromLocalZ(-halfL + 0.65)));
         return;
       }
       if (cpuServingDiag) {
         const sideOffset = state.serveSide === 'deuce' ? -0.55 : 0.55;
         const diagTarget = new THREE.Vector3(
-          THREE.MathUtils.clamp(cpu.position.x + sideOffset + sideBias * 0.4, -cameraSideLimit, cameraSideLimit),
-          camHeight + 0.2 + heightLead * 0.2,
+          THREE.MathUtils.clamp(cpu.position.x + sideOffset, -cameraSideLimit, cameraSideLimit),
+          camHeight + 0.2,
           fromLocalZ(THREE.MathUtils.clamp(cpuLocalZ - camBack - 0.8, -cameraMaxZ, -cameraMinZ))
         );
         camera.position.lerp(diagTarget, 0.25);
-        camera.lookAt(new THREE.Vector3(0, focusY, fromLocalZ(halfL - 0.65)));
+        camera.lookAt(new THREE.Vector3(0, 1.12, fromLocalZ(halfL - 0.65)));
         return;
       }
 
@@ -1623,22 +1295,22 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const pursuitLocalZ = Math.max(playerLocalZ + 0.9, Math.min(playerCourtMaxZ, toLocalZ(followBall.z) + 2.0));
       const desiredLocalZ = THREE.MathUtils.clamp(Math.max(baseLocalZ, pursuitLocalZ), cameraMinZ, cameraMaxZ);
       const followX = THREE.MathUtils.clamp(
-        THREE.MathUtils.lerp(player.position.x + sideBias * 0.4, followBall.x + sideBias, 0.35),
+        THREE.MathUtils.lerp(player.position.x, followBall.x, 0.35),
         -cameraSideLimit,
         cameraSideLimit
       );
-      const followY = Math.max(camHeight, followBall.y + heightLead);
+      const followY = Math.max(camHeight, followBall.y + 0.6);
       const target = new THREE.Vector3(followX, followY, fromLocalZ(desiredLocalZ));
-      const lerpAmt = 1 - Math.exp(-dt * lerpRate);
+      const lerpAmt = 1 - Math.exp(-dt * 5.2);
       smoothCameraPos.lerp(target, lerpAmt);
       camera.position.copy(smoothCameraPos);
       const look = new THREE.Vector3(
         THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(player.position.x * 0.55 + sideBias * 0.35, followBall.x + sideBias * 0.5, preset.lookAhead ?? 0.45),
+          THREE.MathUtils.lerp(player.position.x * 0.55, followBall.x, 0.45),
           -cameraSideLimit,
           cameraSideLimit
         ),
-        Math.max(focusY, followBall.y + 0.24),
+        Math.max(1.18, followBall.y + 0.24),
         fromLocalZ(
           THREE.MathUtils.clamp(
             Math.max(cameraMinZ, Math.max(playerLocalZ - 0.9, toLocalZ(followBall.z) - 0.6)),
@@ -1765,7 +1437,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           };
           pos.y = Math.max(pos.y, 1.32);
           setMsg(formatMsg(`Serve · ${playerLabel}`));
-          player.userData.swing = 0.65 * (touchRef.current.swingLean ?? 1);
+          player.userData.swing = 0.65;
           player.userData.swingLR = THREE.MathUtils.clamp((tx - player.position.x) / halfW, -1, 1);
           lastHitter = 'player';
         }, 1100);
@@ -1813,32 +1485,26 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       return clampZ(targetLocalZ, playerCourtMinZ, playerCourtMaxZ);
     }
 
-    const BASE_MIN_SWIPE_SPEED = 220;
-    const BASE_MAX_SWIPE_SPEED = 1600;
+    const MIN_SWIPE_SPEED = 220;
+    const MAX_SWIPE_SPEED = 1600;
 
     function swipeToShot(distX, distY, swipeTime, towardsEnemy = true) {
-      const touch = touchRef.current;
-      const minSpeed = (touch.minSwipeSpeed ?? BASE_MIN_SWIPE_SPEED) * (touch.speedScale ?? 1);
-      const maxSpeed = (touch.maxSwipeSpeed ?? BASE_MAX_SWIPE_SPEED) * (touch.speedScale ?? 1);
       const swipeT = Math.max(swipeTime, 0.08);
-      const adjustedX = distX * (touch.lateralScale ?? 1);
-      const adjustedY = distY * (touch.forwardScale ?? 1);
-      const swipeLength = Math.hypot(adjustedX, adjustedY);
+      const swipeLength = Math.hypot(distX, distY);
       const speed = swipeLength / swipeT;
-      const clampedSpeed = THREE.MathUtils.clamp(speed, minSpeed * 0.5, maxSpeed * 1.1);
-      const normalizedBase = THREE.MathUtils.clamp(
-        (clampedSpeed - minSpeed * 0.5) / ((maxSpeed * 1.1) - minSpeed * 0.5),
+      const clampedSpeed = THREE.MathUtils.clamp(speed, MIN_SWIPE_SPEED * 0.5, MAX_SWIPE_SPEED * 1.1);
+      const normalized = THREE.MathUtils.clamp(
+        (clampedSpeed - MIN_SWIPE_SPEED * 0.5) / ((MAX_SWIPE_SPEED * 1.1) - MIN_SWIPE_SPEED * 0.5),
         0,
         1
       );
-      const normalized = Math.pow(normalizedBase, touch.powerCurve ?? 1);
 
-      const forward = THREE.MathUtils.lerp(7.2, 21.6, normalized) * (touch.forwardScale ?? 1);
-      const lift = THREE.MathUtils.lerp(1.4, 6.6, normalized) + (touch.liftBias ?? 0);
-      const lateralInfluence = THREE.MathUtils.clamp(adjustedX / Math.max(Math.abs(adjustedY), 90), -1.6, 1.6) + (touch.sideBias ?? 0);
+      const forward = THREE.MathUtils.lerp(7.2, 21.6, normalized);
+      const lift = THREE.MathUtils.lerp(1.4, 6.6, normalized);
+      const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 90), -1.6, 1.6);
       const lateral = THREE.MathUtils.clamp(lateralInfluence * forward * 0.2, -3.3, 3.3);
-      const curveIntent = THREE.MathUtils.clamp(adjustedX / Math.max(swipeLength, 160), -1, 1) * (touch.curveBias ?? 1);
-      const curveSpin = THREE.MathUtils.lerp(3, 11, normalized) * curveIntent + (touch.topspinBias ?? 0) * 6;
+      const curveIntent = THREE.MathUtils.clamp(distX / Math.max(swipeLength, 160), -1, 1);
+      const curveSpin = THREE.MathUtils.lerp(3, 11, normalized) * curveIntent;
 
       const direction = towardsEnemy ? -1 : 1;
       return {
@@ -1852,15 +1518,13 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function shotToSwing(shot) {
-      const touch = touchRef.current;
-      const maxSwipe = (touch.maxSwipeSpeed ?? BASE_MAX_SWIPE_SPEED) * (touch.speedScale ?? 1);
       const dir = new THREE.Vector3(shot.lateral, shot.lift, shot.forward);
       const speed = dir.length();
       const normal = dir.normalize();
       const sideCurve = shot.curve ?? 0;
-      const topspin = THREE.MathUtils.lerp(6, 20, shot.normalized) + (touch.topspinBias ?? 0) * 8;
+      const topspin = THREE.MathUtils.lerp(6, 20, shot.normalized);
       const curveAim = normal.clone();
-      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01, -0.28, 0.28) + (touch.sideBias ?? 0) * 0.12;
+      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01, -0.28, 0.28);
       return {
         normal,
         speed,
@@ -1869,10 +1533,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         friction: 0.2,
         restitution: 1.08,
         reach: ballR + 0.8,
-        force: Math.min(1.45 * (touch.swingLean ?? 1), shot.normalized * (1.05 + (shot.swipeSpeed || 0) / (maxSwipe * 4.8)))),
+        force: Math.min(1.45, shot.normalized * (1.05 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 4.8))),
         power: shot.normalized,
-        aimDirection: curveAim.normalize().lerp(normal, touch.aimAssist ?? 0),
-        liftBoost: -0.08 + (touch.liftBias ?? 0) * 0.08
+        aimDirection: curveAim.normalize(),
+        liftBoost: -0.08
       };
     }
 
@@ -1887,7 +1551,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       sx = lx = e.clientX;
       sy = ly = e.clientY;
       st = performance.now();
-      player.userData.swing = -0.55 * (touchRef.current.swingLean ?? 1);
+      player.userData.swing = -0.55;
       player.userData.swingLR = 0;
     }
     function onMove(e) {
@@ -1914,9 +1578,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       if (!closing) return false;
 
       const vn = relVel.dot(normal);
-      const impulse = -(1 + swing.restitution) * vn * hitForceMultiplier;
+      const impulse = -(1 + swing.restitution) * vn * HIT_FORCE_MULTIPLIER;
       vel.addScaledVector(normal, impulse);
-      vel.addScaledVector(swingVel, 0.32 * hitForceMultiplier);
+      vel.addScaledVector(swingVel, 0.32 * HIT_FORCE_MULTIPLIER);
 
       const tangent = relVel.sub(normal.clone().multiplyScalar(vn));
       if (tangent.lengthSq() > 1e-5) {
@@ -1943,7 +1607,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         vel.y = minUpward;
       }
 
-      const capped = THREE.MathUtils.clamp(vel.length(), 0, outgoingSpeedCap);
+      const capped = THREE.MathUtils.clamp(vel.length(), 0, OUTGOING_SPEED_CAP);
       if (vel.length() > capped) {
         vel.setLength(capped);
       }
@@ -1979,8 +1643,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const endY = evt?.clientY ?? ly;
       const distX = endX - sx;
       const distY = sy - endY;
-      const minSwipe = touchRef.current.minSwipe ?? 32;
-      if (distY < minSwipe) return;
+      if (distY < 32) return;
       const duration = Math.max((performance.now() - st) / 1000, 0.12);
       if (!state.live) {
         if (state.serveBy === 'player') {
@@ -1988,7 +1651,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           playerSwing = shotToSwing(shot);
           markTrainingStep('swipeServe');
           setMsg(formatMsg(`Serve · ${playerLabel}`));
-          player.userData.swing = (0.65 + 0.95 * (playerSwing.force || 0.5)) * (touchRef.current.swingLean ?? 1);
+          player.userData.swing = 0.65 + 0.95 * (playerSwing.force || 0.5);
           player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
           lastHitter = 'player';
           if (playerSrvTO) {
@@ -2003,7 +1666,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         if (near && pos.y <= 2.6) {
           const shot = swipeToShot(distX, distY, duration, true);
           playerSwing = shotToSwing(shot);
-          player.userData.swing = (0.62 + 0.9 * (playerSwing.force || 0.5)) * (touchRef.current.swingLean ?? 1);
+          player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
           player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
           lastHitter = 'player';
         }
@@ -2309,7 +1972,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let last = performance.now();
     let raf = 0;
     function step(dt) {
-      syncPhysicsPreset();
       const servingPlayer = !state.live && state.serveBy === 'player';
       const serveHomeZ = halfL - 0.92;
       const serveHomeX = state.serveSide === 'deuce' ? halfW - 0.45 : -halfW + 0.45;
@@ -2331,12 +1993,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         desiredZ = servingPlayer ? serveHomeZ : playerZ - 0.3;
       }
       desiredZ = clampZ(desiredZ, playerCourtMinZ, playerCourtMaxZ);
-      const scheme = touchRef.current;
-      const playerDamp = playerHasInput
-        ? scheme.moveDampActive
-        : state.live
-        ? scheme.moveDampLive
-        : scheme.moveDampIdle;
+      const playerDamp = playerHasInput ? 12 : state.live ? 8 : 5;
       player.position.x = THREE.MathUtils.damp(player.position.x, desiredX, playerDamp, dt);
       player.position.z = THREE.MathUtils.damp(player.position.z, desiredZ, playerDamp, dt);
       const targetY = THREE.MathUtils.clamp(pos.y, ballR * 0.9, 2.4);
@@ -2490,9 +2147,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
   ];
   const activeTrainingStepId = trainingMode ? nextTrainingStep?.id : null;
-  const activeBroadcast = broadcastPresets.find((p) => p.id === broadcastMode) || broadcastPresets[0];
-  const activeBallProfile = ballProfiles.find((p) => p.id === ballProfile) || ballProfiles[0];
-  const activeTouchScheme = touchSchemes.find((p) => p.id === touchMode) || touchSchemes[0];
 
   return (
     <div
@@ -2594,167 +2248,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
             {msg} · {serveAttemptLabel} · Court {hudInfo.side === 'deuce' ? 'D' : 'Ad'}
           </div>
         </div>
-        <div
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 18,
-            display: 'flex',
-            gap: 10,
-            alignItems: 'center',
-            pointerEvents: 'auto'
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => {
-              setSettingsOpen((prev) => !prev);
-              setSelectionConfirmed(false);
-            }}
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 12,
-              border: 'none',
-              background: selectionConfirmed ? 'linear-gradient(135deg, #22c55e, #16a34a)' : 'linear-gradient(135deg, #1d4ed8, #1e3a8a)',
-              color: '#f8fafc',
-              fontWeight: 800,
-              fontSize: 18,
-              boxShadow: '0 14px 28px rgba(30, 64, 175, 0.35)',
-              cursor: 'pointer'
-            }}
-            aria-label="Open loadout menu"
-          >
-            ✓
-          </button>
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.72)',
-              color: '#e0f2fe',
-              padding: '10px 14px',
-              borderRadius: 12,
-              fontSize: 12,
-              minWidth: 180,
-              boxShadow: '0 14px 28px rgba(15, 23, 42, 0.35)'
-            }}
-          >
-            <div style={{ fontWeight: 700, marginBottom: 4 }}>Loadout</div>
-            <div style={{ opacity: 0.82 }}>
-              {activeBroadcast.label} · {activeBallProfile.label} · {activeTouchScheme.label}
-            </div>
-          </div>
-        </div>
-        {settingsOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              top: 70,
-              left: 16,
-              width: 320,
-              background: 'rgba(255,255,255,0.98)',
-              borderRadius: 16,
-              padding: 16,
-              boxShadow: '0 22px 44px rgba(15, 23, 42, 0.25)',
-              color: '#0f172a',
-              fontFamily: 'ui-sans-serif, system-ui',
-              pointerEvents: 'auto'
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <div style={{ fontWeight: 800, fontSize: 14 }}>Broadcast & Control</div>
-              <button
-                type="button"
-                onClick={() => setSettingsOpen(false)}
-                style={{ background: 'transparent', border: 'none', fontSize: 16, cursor: 'pointer', color: '#334155' }}
-                aria-label="Close loadout menu"
-              >
-                ×
-              </button>
-            </div>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, marginBottom: 10 }}>
-              <span style={{ fontWeight: 700, color: '#1d4ed8' }}>Broadcast technique</span>
-              <select
-                value={broadcastMode}
-                onChange={(e) => setBroadcastMode(e.target.value)}
-                style={{
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  border: '1px solid #cbd5e1',
-                  fontWeight: 600,
-                  color: '#0f172a'
-                }}
-              >
-                {broadcastPresets.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, marginBottom: 10 }}>
-              <span style={{ fontWeight: 700, color: '#1d4ed8' }}>Ball physics</span>
-              <select
-                value={ballProfile}
-                onChange={(e) => setBallProfile(e.target.value)}
-                style={{
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  border: '1px solid #cbd5e1',
-                  fontWeight: 600,
-                  color: '#0f172a'
-                }}
-              >
-                {ballProfiles.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, marginBottom: 12 }}>
-              <span style={{ fontWeight: 700, color: '#1d4ed8' }}>Touch control</span>
-              <select
-                value={touchMode}
-                onChange={(e) => setTouchMode(e.target.value)}
-                style={{
-                  padding: '8px 10px',
-                  borderRadius: 10,
-                  border: '1px solid #cbd5e1',
-                  fontWeight: 600,
-                  color: '#0f172a'
-                }}
-              >
-                {touchSchemes.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <button
-              type="button"
-              onClick={() => {
-                setSelectionConfirmed(true);
-                setSettingsOpen(false);
-                setTimeout(() => setSelectionConfirmed(false), 1500);
-              }}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                color: '#f8fafc',
-                border: 'none',
-                borderRadius: 12,
-                padding: '10px 12px',
-                fontWeight: 800,
-                fontSize: 13,
-                cursor: 'pointer',
-                boxShadow: '0 18px 32px rgba(22, 163, 74, 0.36)'
-              }}
-            >
-              Confirm ✓
-            </button>
-          </div>
-        )}
       </div>
       {trainingMode && (
         <div style={{ position: 'absolute', bottom: 24, left: 24, pointerEvents: 'auto', maxWidth: 320 }}>
