@@ -380,9 +380,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const playerZ = halfL - 1.35;
     const cpuZ = -halfL + 1.35;
 
-    let camBack = isNarrow ? 12.4 : 11.2;
-    let camHeight = isNarrow ? 5.2 : 4.85;
-    const cameraMinZ = 0.85;
+    let camBack = isNarrow ? 13.4 : 12.6;
+    let camHeight = isNarrow ? 5.35 : 5.05;
+    const cameraMinZ = 1.35;
     const cameraMaxZ = halfL * 1.1;
     const cameraSideLimit = halfW * 1.1;
 
@@ -953,7 +953,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     cpu.rotation.y = -Math.PI / 2;
     scene.add(cpu);
 
-    const HIT_FORCE_MULTIPLIER = 2.7;
+    const HIT_FORCE_MULTIPLIER = 3.0;
     const OUTGOING_SPEED_CAP = 17.5 * HIT_FORCE_MULTIPLIER;
 
     const state = {
@@ -1401,14 +1401,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
             speed: v0.length(),
             ttl: 0.35,
             extraSpin: new THREE.Vector3(
-              THREE.MathUtils.randFloat(26, 42) * Math.sign(v0.z || -1),
-              THREE.MathUtils.randFloatSpread(8),
-              THREE.MathUtils.randFloatSpread(4)
+              THREE.MathUtils.randFloat(18, 30) * Math.sign(v0.z || -1),
+              THREE.MathUtils.randFloatSpread(6),
+              THREE.MathUtils.randFloatSpread(3.2)
             ),
             friction: 0.26,
             restitution: 1.1,
             reach: ballR + 0.34,
-            force: 0.75
+            force: 0.82
           };
           pos.y = Math.max(pos.y, 1.32);
           setMsg(formatMsg(`Serve · ${playerLabel}`));
@@ -1453,12 +1453,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         1
       );
 
-      const forward = THREE.MathUtils.lerp(4.8, 16.2, normalized);
-      const lift = THREE.MathUtils.lerp(3.2, 11.2, normalized);
+      const forward = THREE.MathUtils.lerp(5.6, 17.6, normalized);
+      const lift = THREE.MathUtils.lerp(2.8, 9.6, normalized);
       const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 70), -2.1, 2.1);
       const lateral = THREE.MathUtils.clamp(lateralInfluence * forward * 0.24, -3.8, 3.8);
       const curveIntent = THREE.MathUtils.clamp(distX / Math.max(swipeLength, 140), -1, 1);
-      const curveSpin = THREE.MathUtils.lerp(8, 26, normalized) * curveIntent;
+      const curveSpin = THREE.MathUtils.lerp(6, 18, normalized) * curveIntent;
 
       const direction = towardsEnemy ? -1 : 1;
       return {
@@ -1476,14 +1476,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const speed = dir.length();
       const normal = dir.normalize();
       const sideCurve = shot.curve ?? 0;
-      const topspin = THREE.MathUtils.lerp(14, 44, shot.normalized);
+      const topspin = THREE.MathUtils.lerp(10, 32, shot.normalized);
       const curveAim = normal.clone();
-      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.012, -0.35, 0.35);
+      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01, -0.28, 0.28);
       return {
         normal,
         speed,
         ttl: 0.34,
-        extraSpin: new THREE.Vector3(sideCurve * 0.35, sideCurve, topspin * Math.sign(shot.forward || -1)),
+        extraSpin: new THREE.Vector3(sideCurve * 0.25, sideCurve * 0.7, topspin * Math.sign(shot.forward || -1)),
         friction: 0.2,
         restitution: 1.08,
         reach: ballR + 0.8,
@@ -1549,8 +1549,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         vel.copy(blended.multiplyScalar(currentSpeed));
       }
 
-      const baseLift = state.live ? 2.6 : 3.4;
-      const minUpward = baseLift + (swing.force ?? 0.5) * 2.2 + (swing.liftBoost ?? 0);
+      const baseLift = state.live ? 2.3 : 3.0;
+      const minUpward = baseLift + (swing.force ?? 0.5) * 1.7 + (swing.liftBoost ?? 0);
       if (vel.y < minUpward) {
         vel.y = minUpward;
       }
@@ -1577,10 +1577,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     function craftCpuSpin(directionZ, aggression = 0.55, sideBias = 0) {
       const bias = THREE.MathUtils.clamp(sideBias, -1, 1);
       const forwardSign = Math.sign(directionZ === 0 ? -1 : directionZ);
-      const top = THREE.MathUtils.lerp(18, 58, aggression);
-      const side = THREE.MathUtils.lerp(4, 18, aggression);
-      const randSide = THREE.MathUtils.randFloatSpread(side * 0.35);
-      const randTwist = THREE.MathUtils.randFloatSpread(6);
+      const top = THREE.MathUtils.lerp(14, 42, aggression);
+      const side = THREE.MathUtils.lerp(3, 12, aggression);
+      const randSide = THREE.MathUtils.randFloatSpread(side * 0.32);
+      const randTwist = THREE.MathUtils.randFloatSpread(4.5);
       return new THREE.Vector3(forwardSign * top, bias * side + randSide, randTwist);
     }
     function onUp(evt, { fromTouch = false } = {}) {
