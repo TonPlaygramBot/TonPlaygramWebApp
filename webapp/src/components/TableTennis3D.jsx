@@ -276,6 +276,130 @@ const GAME_VARIANTS = [
   },
 ];
 
+const BROADCAST_PRESETS = [
+  {
+    id: "center-line",
+    name: "Center Line Classic",
+    badge: "Host Angle",
+    description: "Balanced orbit with gentle follow for broadcast neutral shots.",
+    camera: { yawRange: 0.36, pitch: 0.34, height: 2.04, dist: 3.46, forwardBias: 0.06 },
+    tracking: { followLerp: 0.2, rallyBlend: 0.55, yawDamping: 0.18, distDamping: 0.1 },
+  },
+  {
+    id: "sideline-slide",
+    name: "Sideline Slide",
+    badge: "Low Track",
+    description: "Lower sideline dolly with wider yaw for dynamic highlight cuts.",
+    camera: { yawBase: -0.16, yawRange: 0.56, pitch: 0.28, height: 1.86, dist: 3.32, forwardBias: 0.04 },
+    tracking: { followLerp: 0.24, rallyBlend: 0.48, yawDamping: 0.14, distDamping: 0.12 },
+  },
+  {
+    id: "skybox-hawk",
+    name: "Skybox Hawk",
+    badge: "Aerial View",
+    description: "High tactical top cam for coaching-friendly replays.",
+    camera: { yawBase: 0, yawRange: 0.22, pitch: 0.46, height: 2.82, dist: 3.22, forwardBias: 0 },
+    tracking: { followLerp: 0.16, rallyBlend: 0.68, yawDamping: 0.2, distDamping: 0.14 },
+  },
+  {
+    id: "impact-reel",
+    name: "Impact Reel",
+    badge: "Punch-In",
+    description: "Tighter framing with aggressive yaw swing for power rallies.",
+    camera: { yawBase: 0.08, yawRange: 0.72, pitch: 0.32, height: 1.94, dist: 3.04, forwardBias: 0.02 },
+    tracking: { followLerp: 0.26, rallyBlend: 0.6, yawDamping: 0.22, distDamping: 0.12 },
+  },
+  {
+    id: "analytic-top",
+    name: "Analytic Deck",
+    badge: "Coach Cam",
+    description: "Stable tripod feel with slow yaw and steady follow for analysis.",
+    camera: { yawBase: 0, yawRange: 0.28, pitch: 0.4, height: 2.46, dist: 3.58, forwardBias: 0.05 },
+    tracking: { followLerp: 0.14, rallyBlend: 0.42, yawDamping: 0.12, distDamping: 0.08 },
+  },
+];
+
+const BALL_TECHNIQUES = [
+  {
+    id: "olympic-pace",
+    name: "Olympic Pace",
+    badge: "Fast Control",
+    description: "Quick rallies with stable arcs and assertive paddle rebound.",
+    physics: { drag: 0.44, magnusCoeff: 0.46, spinDecay: 0.9, forceScale: 0.92, tableRest: 0.86, paddleRest: 1.08, paddleAim: 0.64 },
+  },
+  {
+    id: "spin-lab",
+    name: "Spin Lab",
+    badge: "Heavy Spin",
+    description: "Amplified Magnus and softer damping for dramatic curves.",
+    physics: { drag: 0.48, magnusCoeff: 0.62, spinDecay: 0.93, forceScale: 0.82, tableFriction: 0.24, paddleLift: 0.22 },
+  },
+  {
+    id: "defense-wall",
+    name: "Defense Wall",
+    badge: "Chop Play",
+    description: "Lower bounce, extra friction for controlled defensive chops.",
+    physics: { drag: 0.52, magnusCoeff: 0.38, spinDecay: 0.88, forceScale: 0.76, tableRest: 0.82, tableFriction: 0.28, netRest: 0.34 },
+  },
+  {
+    id: "arcade-rush",
+    name: "Arcade Rush",
+    badge: "Turbo",
+    description: "High-energy arcade tempo with bouncy paddle reactions.",
+    physics: { drag: 0.42, magnusCoeff: 0.5, spinDecay: 0.96, forceScale: 0.98, paddleRest: 1.12, paddleLift: 0.2 },
+  },
+  {
+    id: "studio-soft",
+    name: "Studio Soft",
+    badge: "Warmup",
+    description: "Gentle speed for practice with friendlier bounce envelope.",
+    physics: { drag: 0.54, magnusCoeff: 0.36, spinDecay: 0.94, forceScale: 0.7, tableRest: 0.8, paddleRest: 0.96, paddleAim: 0.56 },
+  },
+];
+
+const TOUCH_PRESETS = [
+  {
+    id: "precision-swipe",
+    name: "Precision Swipe",
+    badge: "Linear",
+    description: "Direct mapping for tournament players with minimal assist.",
+    swipe: { minSpeed: 200, maxSpeed: 1650, liftRange: [0.3, 1.08], forwardRange: [0.92, 1.54], lateralScale: 1.4, curveScale: 0.9, chopScale: 1 },
+    tracking: { targetLerp: { x: 0.52, z: 0.46 }, cameraBias: 0 },
+  },
+  {
+    id: "assist-glide",
+    name: "Assist Glide",
+    badge: "Assisted",
+    description: "Heavier smoothing with spin guard for consistent rallying.",
+    swipe: { minSpeed: 160, maxSpeed: 1500, liftRange: [0.34, 1.02], forwardRange: [0.86, 1.4], lateralScale: 1.2, curveScale: 0.7, chopScale: 0.72 },
+    tracking: { targetLerp: { x: 0.62, z: 0.58 }, cameraBias: 0.06 },
+  },
+  {
+    id: "arcade-flick",
+    name: "Arcade Flick",
+    badge: "Aggro",
+    description: "Quicker moves and exaggerated lift for mobile arcade feel.",
+    swipe: { minSpeed: 140, maxSpeed: 1900, liftRange: [0.4, 1.2], forwardRange: [0.98, 1.68], lateralScale: 1.8, curveScale: 1.1, chopScale: 1.1 },
+    tracking: { targetLerp: { x: 0.48, z: 0.38 }, cameraBias: -0.04 },
+  },
+  {
+    id: "aerial-touch",
+    name: "Aerial Touch",
+    badge: "Loft",
+    description: "Higher arc bias with softer lateral damping for lobs.",
+    swipe: { minSpeed: 180, maxSpeed: 1600, liftRange: [0.44, 1.16], forwardRange: [0.84, 1.32], lateralScale: 1.15, curveScale: 0.85, chopScale: 1.2 },
+    tracking: { targetLerp: { x: 0.58, z: 0.52 }, cameraBias: 0.02 },
+  },
+  {
+    id: "coach-stable",
+    name: "Coach Stable",
+    badge: "Stable",
+    description: "Extra stability and damped curves for analysis and drills.",
+    swipe: { minSpeed: 190, maxSpeed: 1550, liftRange: [0.32, 1], forwardRange: [0.78, 1.28], lateralScale: 1, curveScale: 0.6, chopScale: 0.65 },
+    tracking: { targetLerp: { x: 0.66, z: 0.62 }, cameraBias: 0.08 },
+  },
+];
+
 /**
  * TABLE TENNIS 3D — Mobile Portrait (1:1)
  * --------------------------------------
@@ -292,8 +416,14 @@ export default function TableTennis3D({ player, ai }){
   const raf = useRef(0);
   const menuRef = useRef(null);
   const [variantIndex, setVariantIndex] = useState(0);
+  const [broadcastIndex, setBroadcastIndex] = useState(0);
+  const [ballIndex, setBallIndex] = useState(0);
+  const [controlIndex, setControlIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const variant = GAME_VARIANTS[variantIndex] || GAME_VARIANTS[0];
+  const broadcastProfile = BROADCAST_PRESETS[broadcastIndex] || BROADCAST_PRESETS[0];
+  const ballProfile = BALL_TECHNIQUES[ballIndex] || BALL_TECHNIQUES[0];
+  const touchProfile = TOUCH_PRESETS[controlIndex] || TOUCH_PRESETS[0];
 
   const playerLabel = player?.name || 'You';
   const aiLabel = ai?.name || 'AI';
@@ -312,13 +442,22 @@ export default function TableTennis3D({ player, ai }){
   const uiRef = useRef(ui);
   useEffect(() => { uiRef.current = ui; }, [ui]);
 
-  const handleVariantSelect = (index) => {
-    setVariantIndex(index);
-    setMenuOpen(false);
+  const applyConfiguration = ({ nextVariant = variantIndex, nextBroadcast = broadcastIndex, nextBall = ballIndex, nextControl = controlIndex, closeMenu = true } = {}) => {
+    setVariantIndex(nextVariant);
+    setBroadcastIndex(nextBroadcast);
+    setBallIndex(nextBall);
+    setControlIndex(nextControl);
+    if (closeMenu) setMenuOpen(false);
     const nextServer = Math.random() < 0.5 ? 'P' : 'O';
     setUi(createUiState(nextServer));
     setResetKey(k => k + 1);
   };
+
+  const handleVariantSelect = (index) => applyConfiguration({ nextVariant: index, closeMenu: false });
+  const handleBroadcastSelect = (index) => applyConfiguration({ nextBroadcast: index, closeMenu: false });
+  const handleBallSelect = (index) => applyConfiguration({ nextBall: index, closeMenu: false });
+  const handleControlSelect = (index) => applyConfiguration({ nextControl: index, closeMenu: false });
+  const confirmMenuSelection = () => applyConfiguration({ closeMenu: true });
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -356,6 +495,8 @@ export default function TableTennis3D({ player, ai }){
     const rendererSettings = variant.renderer ?? {};
     const sceneSettings = variant.scene ?? {};
     const lightingSettings = variant.lighting ?? {};
+    const broadcastSettings = broadcastProfile ?? {};
+    const trackingSettings = broadcastSettings.tracking ?? {};
     const hemiSettings = lightingSettings.hemisphere ?? {};
     const sunSettings = lightingSettings.sun ?? {};
     const rimSettings = lightingSettings.rim ?? {};
@@ -378,8 +519,8 @@ export default function TableTennis3D({ player, ai }){
     const wallSettings = variant.walls ?? {};
     const ballSettings = variant.ball ?? {};
     const trailSettings = variant.trail ?? {};
-    const cameraSettings = variant.camera ?? {};
-    const physicsSettings = variant.physics ?? {};
+    const cameraSettings = { ...(variant.camera ?? {}), ...(broadcastSettings.camera ?? {}) };
+    const physicsSettings = { ...(variant.physics ?? {}), ...(ballProfile.physics ?? {}) };
     const aiSettings = variant.ai ?? {};
     const serveTimers = physicsSettings.serveTimers ?? { player: 0.45, opponent: 0.6 };
     const TRAIL_COUNT = trailSettings.count ?? 18;
@@ -452,7 +593,7 @@ export default function TableTennis3D({ player, ai }){
       height: cameraSettings.height ?? 2.04,
       minHeight: cameraSettings.minHeight ?? 1.82,
       pitch: cameraSettings.pitch ?? 0.34,
-      forwardBias: cameraSettings.forwardBias ?? 0.06,
+      forwardBias: (cameraSettings.forwardBias ?? 0.06) + (trackingSettings.cameraBias ?? 0),
       yawBase: cameraSettings.yawBase ?? 0,
       yawRange: cameraSettings.yawRange ?? 0.38,
       curYaw: cameraSettings.yawBase ?? 0,
@@ -460,6 +601,10 @@ export default function TableTennis3D({ player, ai }){
       curHeight: cameraSettings.height ?? 2.04,
       yawUser: 0,
       pitchUser: 0,
+      followLerp: trackingSettings.followLerp ?? 0.2,
+      rallyBlend: trackingSettings.rallyBlend ?? 0.55,
+      yawDamping: trackingSettings.yawDamping ?? 0.18,
+      distDamping: trackingSettings.distDamping ?? 0.1,
     };
     const applyCam = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
@@ -884,8 +1029,8 @@ export default function TableTennis3D({ player, ai }){
       w: new THREE.Vector3(0, 0, 0),
       mass: 0.0027,
       paddleMass: 0.16,
-      magnusCoeff: 0.4,
-      spinDecay: 0.91,
+      magnusCoeff: physicsSettings.magnusCoeff ?? 0.4,
+      spinDecay: physicsSettings.spinDecay ?? 0.91,
       gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -9.81, 0),
       drag: physicsSettings.drag ?? 0.48,
       tableRest: physicsSettings.tableRest ?? 0.84,
@@ -949,6 +1094,10 @@ export default function TableTennis3D({ player, ai }){
       zNear: playerBaseZ + 0.08,
       zFar: 0.06,
     };
+    const swipeProfile = touchProfile.swipe ?? {};
+    const trackingProfile = touchProfile.tracking ?? {};
+    const targetLerpX = trackingProfile.targetLerp?.x ?? 0.5;
+    const targetLerpZ = trackingProfile.targetLerp?.z ?? 0.4;
     const el = renderer.domElement;
     el.style.touchAction = 'none';
     let usingTouch = false;
@@ -980,8 +1129,8 @@ export default function TableTennis3D({ player, ai }){
       return { x, z, rect };
     }
 
-    const MIN_SWIPE_SPEED = 180;
-    const MAX_SWIPE_SPEED = 1700;
+    const MIN_SWIPE_SPEED = swipeProfile.minSpeed ?? 180;
+    const MAX_SWIPE_SPEED = swipeProfile.maxSpeed ?? 1700;
 
     function swipeToShot(distX, distY, swipeTime, towardsEnemy = true, rect) {
       const swipeT = Math.max(swipeTime, 0.06);
@@ -990,11 +1139,16 @@ export default function TableTennis3D({ player, ai }){
       const clampedSpeed = THREE.MathUtils.clamp(speed, MIN_SWIPE_SPEED, MAX_SWIPE_SPEED);
       const normalized = (clampedSpeed - MIN_SWIPE_SPEED) / (MAX_SWIPE_SPEED - MIN_SWIPE_SPEED);
       const forward = towardsEnemy ? -1 : 1;
-      const lateral = THREE.MathUtils.clamp(distX / (rect?.width || 1), -1.65, 1.65) * forward;
-      const lift = THREE.MathUtils.mapLinear(normalized, 0, 1, 0.32, 1.08);
-      const forwardPower = THREE.MathUtils.mapLinear(normalized, 0, 1, 0.88, 1.52) * forward;
-      const curve = THREE.MathUtils.clamp(distX / 28, -9, 9);
-      const chop = THREE.MathUtils.clamp((distY - Math.abs(distX) * 0.35) / 240, -0.6, 0.9);
+      const lateralScale = swipeProfile.lateralScale ?? 1.65;
+      const liftRange = swipeProfile.liftRange ?? [0.32, 1.08];
+      const forwardRange = swipeProfile.forwardRange ?? [0.88, 1.52];
+      const curveScale = swipeProfile.curveScale ?? 1;
+      const chopScale = swipeProfile.chopScale ?? 1;
+      const lateral = THREE.MathUtils.clamp(distX / (rect?.width || 1), -lateralScale, lateralScale) * forward;
+      const lift = THREE.MathUtils.mapLinear(normalized, 0, 1, liftRange[0], liftRange[1]);
+      const forwardPower = THREE.MathUtils.mapLinear(normalized, 0, 1, forwardRange[0], forwardRange[1]) * forward;
+      const curve = THREE.MathUtils.clamp((distX / 28) * curveScale, -9, 9);
+      const chop = THREE.MathUtils.clamp(((distY - Math.abs(distX) * 0.35) / 240) * chopScale, -0.6, 0.9);
       const topspin = THREE.MathUtils.lerp(12, 34, normalized + chop * 0.25);
       return {
         lateral,
@@ -1049,8 +1203,8 @@ export default function TableTennis3D({ player, ai }){
       lx = e.clientX;
       ly = e.clientY;
       const target = screenToTable(e.clientX, e.clientY);
-      playerTarget.x += (target.x - playerTarget.x) * 0.5;
-      playerTarget.z += (target.z - playerTarget.z) * 0.4;
+      playerTarget.x += (target.x - playerTarget.x) * targetLerpX;
+      playerTarget.z += (target.z - playerTarget.z) * targetLerpZ;
     }
     function onUp(evt, { fromTouch = false } = {}) {
       if (!touching) return;
@@ -1163,7 +1317,7 @@ export default function TableTennis3D({ player, ai }){
       } else {
         const lateral = THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x);
         const depth = THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear);
-        const rallyBlend = THREE.MathUtils.clamp(Sx.v.length() * 0.18 + (Sx.state === 'rally' ? 0.35 : 0), 0, 0.78);
+        const rallyBlend = THREE.MathUtils.clamp(camRig.rallyBlend + Sx.v.length() * 0.14 + (Sx.state === 'rally' ? 0.18 : 0), 0, 0.9);
         focusVector.set(
           THREE.MathUtils.clamp(ball.position.x, -bounds.x, bounds.x),
           0,
@@ -1181,7 +1335,7 @@ export default function TableTennis3D({ player, ai }){
         camRig.curDist = camRig.dist;
         camRig.curHeight = camRig.height;
       } else {
-        camFollow.lerp(followTarget, 0.2);
+        camFollow.lerp(followTarget, camRig.followLerp);
       }
 
       const lateralInfluence = THREE.MathUtils.clamp(camFollow.x / (bounds.x * 1.12), -1, 1);
@@ -1189,7 +1343,7 @@ export default function TableTennis3D({ player, ai }){
       if (immediate){
         camRig.curYaw = yawTarget;
       } else {
-        camRig.curYaw += (yawTarget - camRig.curYaw) * 0.18;
+        camRig.curYaw += (yawTarget - camRig.curYaw) * camRig.yawDamping;
       }
 
       const heightBoost = Math.max(0, (ball.position.y - TABLE_TOP) * 0.22);
@@ -1207,8 +1361,8 @@ export default function TableTennis3D({ player, ai }){
         camRig.curDist = distTarget;
         camRig.curHeight = heightTarget;
       } else {
-        camRig.curDist += (distTarget - camRig.curDist) * 0.1;
-        camRig.curHeight += (heightTarget - camRig.curHeight) * 0.1;
+        camRig.curDist += (distTarget - camRig.curDist) * camRig.distDamping;
+        camRig.curHeight += (heightTarget - camRig.curHeight) * camRig.distDamping;
       }
 
       lookTarget.set(
@@ -1826,7 +1980,7 @@ export default function TableTennis3D({ player, ai }){
       renderer.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey, variantIndex]);
+  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey, variantIndex, broadcastIndex, ballIndex, controlIndex]);
 
   const resetAll = ()=>{
     const next = Math.random() < 0.5 ? 'P' : 'O';
@@ -1845,6 +1999,11 @@ export default function TableTennis3D({ player, ai }){
         </div>
         <div className="text-[10px] sm:text-[11px] opacity-80">{ui.msg}</div>
         <div className="text-[9px] sm:text-[10px] opacity-70 leading-tight max-w-[240px]">{variant.tagline}</div>
+        <div className="flex flex-wrap items-center justify-center gap-1 pt-1">
+          <span className="px-2 py-[2px] rounded-full bg-white/10 text-[9px] uppercase tracking-[0.2em] text-white/80">{broadcastProfile.badge}</span>
+          <span className="px-2 py-[2px] rounded-full bg-white/10 text-[9px] uppercase tracking-[0.2em] text-white/80">{ballProfile.badge}</span>
+          <span className="px-2 py-[2px] rounded-full bg-white/10 text-[9px] uppercase tracking-[0.2em] text-white/80">{touchProfile.badge}</span>
+        </div>
       </div>
       <div ref={menuRef} className="absolute top-2 right-2 z-20 flex flex-col items-end gap-2">
         <div className="flex items-center gap-2">
@@ -1875,27 +2034,105 @@ export default function TableTennis3D({ player, ai }){
           </button>
         </div>
         {menuOpen && (
-          <div className="w-72 max-w-[80vw] bg-black/80 text-white rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl px-3 py-3 flex flex-col gap-2">
-            {GAME_VARIANTS.map((option, idx) => {
-              const active = idx === variantIndex;
-              return (
-                <button
-                  key={option.id}
-                  type="button"
-                  onClick={() => handleVariantSelect(idx)}
-                  className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-sm font-semibold">{option.name}</span>
-                    {active && (
-                      <span className="text-[10px] uppercase tracking-[0.26em] text-white/80">Active</span>
-                    )}
-                  </div>
-                  <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.tagline}</div>
-                  <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
-                </button>
-              );
-            })}
+          <div className="w-80 max-w-[82vw] bg-black/80 text-white rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl px-3 py-3 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[11px] uppercase tracking-[0.26em] text-white/70">Game Loadout</div>
+              <button
+                type="button"
+                onClick={confirmMenuSelection}
+                className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/80 hover:bg-emerald-500 text-white text-[11px] shadow-lg"
+                aria-label="Confirm presets"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                Confirm
+              </button>
+            </div>
+            <div className="space-y-2">
+              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Broadcast techniques</div>
+              {BROADCAST_PRESETS.map((option, idx) => {
+                const active = idx === broadcastIndex;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleBroadcastSelect(idx)}
+                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{option.name}</span>
+                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
+                    </div>
+                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.description}</div>
+                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="space-y-2">
+              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Ball logic labs</div>
+              {BALL_TECHNIQUES.map((option, idx) => {
+                const active = idx === ballIndex;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleBallSelect(idx)}
+                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{option.name}</span>
+                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
+                    </div>
+                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.description}</div>
+                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="space-y-2">
+              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Touch control studio</div>
+              {TOUCH_PRESETS.map((option, idx) => {
+                const active = idx === controlIndex;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleControlSelect(idx)}
+                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{option.name}</span>
+                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
+                    </div>
+                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.description}</div>
+                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="space-y-1">
+              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Visual style</div>
+              {GAME_VARIANTS.map((option, idx) => {
+                const active = idx === variantIndex;
+                return (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => handleVariantSelect(idx)}
+                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{option.name}</span>
+                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
+                    </div>
+                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.tagline}</div>
+                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
