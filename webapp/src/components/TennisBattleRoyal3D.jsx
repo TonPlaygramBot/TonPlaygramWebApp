@@ -369,6 +369,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     scene.background = new THREE.Color(0x87ceeb);
     const isNarrow = Math.min(W, H) < 860;
     const camera = new THREE.PerspectiveCamera(60, W / H, 0.05, 800);
+    const smoothCameraPos = new THREE.Vector3();
+    const smoothCameraLook = new THREE.Vector3(0, 1.1, 0);
     smoothCameraPos.copy(camera.position);
 
     const courtL = 23.77;
@@ -389,8 +391,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const cameraMinZ = 1.35;
     const cameraMaxZ = halfL + apron * 0.92;
     const cameraSideLimit = halfW * 1.1;
-    const smoothCameraPos = new THREE.Vector3();
-    const smoothCameraLook = new THREE.Vector3(0, 1.1, 0);
 
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 1.05);
     hemi.position.set(0, 60, 0);
