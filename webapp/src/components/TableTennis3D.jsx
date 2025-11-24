@@ -2034,7 +2034,7 @@ export default function TableTennis3D({ player, ai }){
           </button>
         </div>
         {menuOpen && (
-          <div className="w-80 max-w-[82vw] bg-black/80 text-white rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl px-3 py-3 flex flex-col gap-3">
+          <div className="w-80 max-w-[82vw] max-h-[78vh] overflow-y-auto bg-black/80 text-white rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl px-3 py-3 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <div className="text-[11px] uppercase tracking-[0.26em] text-white/70">Game Loadout</div>
               <button
