@@ -488,6 +488,8 @@ const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE =
   TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE * OFFICIAL_SIZE_REDUCTION;
+const ENABLE_CUE_RACK_DISPLAY = false;
+const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -7394,65 +7396,67 @@ function SnookerGame() {
       cueOptionGroupsRef.current = [];
       cueRackMetaRef.current = new Map();
 
-      const registerCueRack = (rack, dispose, dims) => {
-        if (!rack) return;
-        const rackId = `rack-${cueRackGroupsRef.current.length}`;
-        rack.userData = rack.userData || {};
-        rack.userData.rackId = rackId;
-        cueRackGroupsRef.current.push(rack);
-        cueRackMetaRef.current.set(rackId, {
-          id: rackId,
-          group: rack,
-          dimensions: dims,
-          dispose
-        });
-        rack.traverse((child) => {
-          if (!child) return;
-          child.userData = child.userData || {};
-          child.userData.cueRackId = rackId;
-          if (child.userData.isCueOption) {
-            cueOptionGroupsRef.current.push(child);
+      if (ENABLE_CUE_RACK_DISPLAY) {
+        const registerCueRack = (rack, dispose, dims) => {
+          if (!rack) return;
+          const rackId = `rack-${cueRackGroupsRef.current.length}`;
+          rack.userData = rack.userData || {};
+          rack.userData.rackId = rackId;
+          cueRackGroupsRef.current.push(rack);
+          cueRackMetaRef.current.set(rackId, {
+            id: rackId,
+            group: rack,
+            dimensions: dims,
+            dispose
+          });
+          rack.traverse((child) => {
+            if (!child) return;
+            child.userData = child.userData || {};
+            child.userData.cueRackId = rackId;
+            if (child.userData.isCueOption) {
+              cueOptionGroupsRef.current.push(child);
+            }
+          });
+        };
+
+        const createRackEntry = () =>
+          createCueRackDisplay({
+            THREE,
+            ballRadius: BALL_R,
+            cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
+            cueTipRadius: CUE_TIP_RADIUS
+          });
+
+        const baseRackEntry = createRackEntry();
+        const cueRackDimensions = baseRackEntry.dimensions;
+        const cueRackHalfWidth = cueRackDimensions.width / 2;
+        const availableHalfDepth =
+          roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
+        const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
+        const cueRackOffset = Math.max(
+          cueRackHalfWidth,
+          Math.min(availableHalfDepth, desiredOffset)
+        );
+        const cueRackY = signageY;
+        const cueRackPlacements = [
+          { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
+          { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
+        ];
+
+        cueRackPlacements.forEach((placement, index) => {
+          const entry = index === 0 ? baseRackEntry : createRackEntry();
+          const rack = entry.group;
+          if (!rack) return;
+          rack.position.set(placement.x, cueRackY, placement.z);
+          rack.rotation.y = placement.rotationY;
+          world.add(rack);
+          registerCueRack(rack, entry.dispose, entry.dimensions);
+          if (typeof entry.dispose === 'function') {
+            cueRackDisposers.push(entry.dispose);
           }
         });
-      };
-
-      const createRackEntry = () =>
-        createCueRackDisplay({
-          THREE,
-          ballRadius: BALL_R,
-          cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
-          cueTipRadius: CUE_TIP_RADIUS
-        });
-
-      const baseRackEntry = createRackEntry();
-      const cueRackDimensions = baseRackEntry.dimensions;
-      const cueRackHalfWidth = cueRackDimensions.width / 2;
-      const availableHalfDepth =
-        roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
-      const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
-      const cueRackOffset = Math.max(
-        cueRackHalfWidth,
-        Math.min(availableHalfDepth, desiredOffset)
-      );
-      const cueRackY = signageY;
-      const cueRackPlacements = [
-        { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
-        { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
-      ];
-
-      cueRackPlacements.forEach((placement, index) => {
-        const entry = index === 0 ? baseRackEntry : createRackEntry();
-        const rack = entry.group;
-        if (!rack) return;
-        rack.position.set(placement.x, cueRackY, placement.z);
-        rack.rotation.y = placement.rotationY;
-        world.add(rack);
-        registerCueRack(rack, entry.dispose, entry.dimensions);
-        if (typeof entry.dispose === 'function') {
-          cueRackDisposers.push(entry.dispose);
-        }
-      });
-      updateCueRackHighlights();
+        updateCueRackHighlights();
+      }
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
@@ -7471,47 +7475,49 @@ function SnookerGame() {
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
-      const tripodHeightBoost = 1.04;
-      const tripodScale =
-        ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
-      const tripodTilt = THREE.MathUtils.degToRad(-12);
-      const tripodProximityPull = BALL_R * 2.5;
-      const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
-      const tripodDesiredZ =
-        Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
-        tripodExtra;
-      const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
-      const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
-      const tripodSideTuck = BALL_R * 1.5;
-      const tripodDesiredX =
-        TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
-      const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
-      const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
-      const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-      const tripodPositions = [
-        { x: tripodXOffset, z: tripodZOffset },
-        { x: -tripodXOffset, z: tripodZOffset },
-        { x: tripodXOffset, z: -tripodZOffset },
-        { x: -tripodXOffset, z: -tripodZOffset }
-      ];
-      tripodPositions.forEach(({ x, z }) => {
-        const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
-        tripodGroup.scale.setScalar(tripodScale);
-        tripodGroup.position.set(x, floorY, z);
-        const toTarget = new THREE.Vector3()
-          .subVectors(tripodTarget, tripodGroup.position)
-          .setY(0);
-        if (toTarget.lengthSq() > 1e-6) {
-          const yaw = Math.atan2(toTarget.z, toTarget.x);
-          tripodGroup.rotation.y = yaw;
-        }
-        world.add(tripodGroup);
-        tripodGroup.updateWorldMatrix(true, false);
-        headPivot.up.set(0, 1, 0);
-        headPivot.lookAt(tripodTarget);
-        headPivot.rotateY(Math.PI);
-        headPivot.rotateX(tripodTilt);
-      });
+      if (ENABLE_TRIPOD_CAMERAS) {
+        const tripodHeightBoost = 1.04;
+        const tripodScale =
+          ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
+        const tripodTilt = THREE.MathUtils.degToRad(-12);
+        const tripodProximityPull = BALL_R * 2.5;
+        const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
+        const tripodDesiredZ =
+          Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
+          tripodExtra;
+        const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
+        const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
+        const tripodSideTuck = BALL_R * 1.5;
+        const tripodDesiredX =
+          TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
+        const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
+        const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
+        const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
+        const tripodPositions = [
+          { x: tripodXOffset, z: tripodZOffset },
+          { x: -tripodXOffset, z: tripodZOffset },
+          { x: tripodXOffset, z: -tripodZOffset },
+          { x: -tripodXOffset, z: -tripodZOffset }
+        ];
+        tripodPositions.forEach(({ x, z }) => {
+          const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
+          tripodGroup.scale.setScalar(tripodScale);
+          tripodGroup.position.set(x, floorY, z);
+          const toTarget = new THREE.Vector3()
+            .subVectors(tripodTarget, tripodGroup.position)
+            .setY(0);
+          if (toTarget.lengthSq() > 1e-6) {
+            const yaw = Math.atan2(toTarget.z, toTarget.x);
+            tripodGroup.rotation.y = yaw;
+          }
+          world.add(tripodGroup);
+          tripodGroup.updateWorldMatrix(true, false);
+          headPivot.up.set(0, 1, 0);
+          headPivot.lookAt(tripodTarget);
+          headPivot.rotateY(Math.PI);
+          headPivot.rotateX(tripodTilt);
+        });
+      }
 
       const hospitalityMats = {
         wood: new THREE.MeshStandardMaterial({
