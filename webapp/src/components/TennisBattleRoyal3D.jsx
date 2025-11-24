@@ -498,10 +498,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     let camBack = halfL + apron * 1.32 + 1.1;
     let camHeight = isNarrow ? 6.15 : 5.65;
-    const camBackRange = { min: halfL + apron * 1.05, max: halfL + apron * 1.55 };
+    const camBackRange = { min: halfL + apron * 1.05, max: halfL + apron * 1.75 };
     const camHeightRange = { min: 5.1, max: 7.2 };
-    const cameraMinZ = halfL + apron * 0.58;
-    const cameraMaxZ = halfL + apron * 1.48;
+    const cameraMinZ = halfL + apron * 0.62;
+    const cameraMaxZ = halfL + apron * 2.05;
     const cameraSideLimit = halfW * 0.94;
 
     const hemi = new THREE.HemisphereLight(0xf2f6ff, 0xb7d4a8, 0.9);
@@ -985,9 +985,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     function makeRacket() {
       const root = new THREE.Group();
       const headPivot = new THREE.Group();
+      headPivot.position.set(0, 0.1, -0.18);
+      headPivot.rotation.x = -0.28;
       root.add(headPivot);
       const urt = buildRacketURT();
-      urt.rotation.x = 0;
+      urt.rotation.x = Math.PI / 2;
       urt.position.y = 1.0;
       headPivot.add(urt);
       root.userData = { headPivot, swing: 0, swingLR: 0 };
@@ -1424,24 +1426,34 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const cpuServingDiag = !state.live && state.serveBy === 'cpu';
       if (playerServingDiag) {
         const sideOffset = state.serveSide === 'deuce' ? 0.55 : -0.55;
+        const serveBack = THREE.MathUtils.clamp(
+          playerLocalZ + activeCamBack + apron * 0.8 + 0.6,
+          cameraMinZ,
+          cameraMaxZ
+        );
         const diagTarget = new THREE.Vector3(
           THREE.MathUtils.clamp(player.position.x + sideOffset, -cameraSideLimit, cameraSideLimit),
-          activeCamHeight + 0.2,
-          fromLocalZ(THREE.MathUtils.clamp(playerLocalZ + activeCamBack + 0.8, cameraMinZ, cameraMaxZ))
+          activeCamHeight + 0.55,
+          fromLocalZ(serveBack)
         );
-        camera.position.lerp(diagTarget, 0.25);
-        camera.lookAt(new THREE.Vector3(0, 1.12, fromLocalZ(-halfL + 0.65)));
+        camera.position.lerp(diagTarget, 0.3);
+        camera.lookAt(new THREE.Vector3(player.position.x * 0.35, 1.35, fromLocalZ(playerLocalZ - 1.2)));
         return;
       }
       if (cpuServingDiag) {
         const sideOffset = state.serveSide === 'deuce' ? -0.55 : 0.55;
+        const serveBack = THREE.MathUtils.clamp(
+          cpuLocalZ - activeCamBack - apron * 0.8 - 0.6,
+          -cameraMaxZ,
+          -cameraMinZ
+        );
         const diagTarget = new THREE.Vector3(
           THREE.MathUtils.clamp(cpu.position.x + sideOffset, -cameraSideLimit, cameraSideLimit),
-          activeCamHeight + 0.2,
-          fromLocalZ(THREE.MathUtils.clamp(cpuLocalZ - activeCamBack - 0.8, -cameraMaxZ, -cameraMinZ))
+          activeCamHeight + 0.55,
+          fromLocalZ(serveBack)
         );
-        camera.position.lerp(diagTarget, 0.25);
-        camera.lookAt(new THREE.Vector3(0, 1.12, fromLocalZ(halfL - 0.65)));
+        camera.position.lerp(diagTarget, 0.3);
+        camera.lookAt(new THREE.Vector3(cpu.position.x * 0.35, 1.35, fromLocalZ(cpuLocalZ + 1.2)));
         return;
       }
 
@@ -1756,6 +1768,25 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       player.position.z += (targetZ - player.position.z) * follow;
     }
 
+    function ensureCrossCourtTrajectory(hitter) {
+      const g = state.gravity;
+      const a = 0.5 * g;
+      const b = vel.y;
+      const c = pos.y - ballR;
+      const disc = b * b - 4 * a * c;
+      if (disc < 0) return;
+      const landT = Math.max(0.06, (-b - Math.sqrt(disc)) / (2 * a));
+      const landingZ = pos.z + vel.z * landT;
+      const aimingOpponent = hitter === 'player' ? landingZ < -0.2 : landingZ > 0.2;
+      if (aimingOpponent) return;
+      const pushDir = hitter === 'player' ? -1 : 1;
+      const extraForward = Math.max(3.6, Math.abs(landingZ) * 0.18 + 2.8);
+      vel.z += pushDir * extraForward;
+      vel.y = Math.max(vel.y, 3.0 + extraForward * 0.14);
+      ensureNetClear(pos.clone(), vel, g, netH, ballR * 0.95);
+      clampNetSpan(pos.clone(), vel);
+    }
+
     function tryApplySwing(hitter, swing, racketPos) {
       if (!swing) return false;
       const toBall = tmpVec.subVectors(pos, racketPos);
@@ -1790,6 +1821,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           .normalize();
         vel.copy(blended.multiplyScalar(currentSpeed));
       }
+
+      ensureCrossCourtTrajectory(hitter);
 
       const baseLift = state.live ? 1.9 : 2.5;
       const minUpward = baseLift + (swing.force ?? 0.5) * 1.45 + (swing.liftBoost ?? 0);
@@ -2174,6 +2207,17 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let acc = 0;
     let last = performance.now();
     let raf = 0;
+    function applyRacketPose(racket, swingAmt = 0, lateral = 0, leanDir = 1) {
+      if (!racket?.userData?.headPivot) return;
+      const pivot = racket.userData.headPivot;
+      const swing = swingAmt || 0;
+      const lr = THREE.MathUtils.clamp(lateral || 0, -1, 1);
+      pivot.rotation.x = -0.28 - 0.52 * swing;
+      pivot.rotation.y = 0.12 * lr * leanDir;
+      pivot.rotation.z = -0.3 * lr * swing;
+      pivot.position.set(0, 0.1 + 0.06 * swing, -0.18 - 0.08 * swing * leanDir);
+    }
+
     function step(dt) {
       syncPhysicsProfile();
       const servingPlayer = !state.live && state.serveBy === 'player';
@@ -2229,27 +2273,25 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         if (cpuSwing.ttl <= 0) cpuSwing = null;
       }
 
+      let ps = player.userData.swing || 0;
+      let plrLR = THREE.MathUtils.clamp(player.userData.swingLR || 0, -1, 1);
+      let cs = cpu.userData.swing || 0;
+      let cpuLR = THREE.MathUtils.clamp(cpu.userData.swingLR || 0, -1, 1);
+
       if (state.live) {
         if (!simulateBallMotion(dt)) {
           return;
         }
         player.userData.swing *= Math.exp(-5.0 * dt);
         cpu.userData.swing *= Math.exp(-5.0 * dt);
-        const ps = player.userData.swing || 0;
-        const plrLR = THREE.MathUtils.clamp(player.userData.swingLR || 0, -1, 1);
-        const cs = cpu.userData.swing || 0;
-        const cpuLR = THREE.MathUtils.clamp(cpu.userData.swingLR || 0, -1, 1);
-        if (player.userData.headPivot) {
-          player.userData.headPivot.rotation.x = -0.45 * ps;
-          player.userData.headPivot.rotation.z = -0.28 * plrLR * ps;
-          player.userData.headPivot.position.z = -0.06 * ps;
-        }
-        if (cpu.userData.headPivot) {
-          cpu.userData.headPivot.rotation.x = -0.55 * cs;
-          cpu.userData.headPivot.rotation.z = -0.30 * cpuLR * cs;
-          cpu.userData.headPivot.position.z = -0.07 * cs;
-        }
+        ps = player.userData.swing || 0;
+        plrLR = THREE.MathUtils.clamp(player.userData.swingLR || 0, -1, 1);
+        cs = cpu.userData.swing || 0;
+        cpuLR = THREE.MathUtils.clamp(cpu.userData.swingLR || 0, -1, 1);
       }
+
+      applyRacketPose(player, ps, plrLR, 1);
+      applyRacketPose(cpu, cs, cpuLR, -1);
 
       ball.position.copy(pos);
       shadow.position.set(pos.x, 0.01, pos.z);
