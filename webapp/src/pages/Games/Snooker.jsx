@@ -477,6 +477,7 @@ function addPocketCuts(parent, clothPlane) {
 const TABLE_SIZE_SHRINK = 0.78;
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
 const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
+const OFFICIAL_SIZE_REDUCTION = 0.82; // scale the official footprint down so it stays just larger than Pool Royale
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88;
@@ -485,14 +486,15 @@ const TABLE_GROWTH_MULTIPLIER = 1.5;
 const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
+const TABLE_SCALE =
+  TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE * OFFICIAL_SIZE_REDUCTION;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 2.06; // raise wooden rails slightly to strengthen the Pool Royale profile
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so geometry stays consistent
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
@@ -1765,6 +1767,18 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   }
 ]);
+
+const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    resolution: 'Snooker renderer scaling',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
 
 const toHexColor = (value) => {
   if (typeof value === 'number') {
@@ -5904,6 +5918,15 @@ function SnookerGame() {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -6022,6 +6045,12 @@ function SnookerGame() {
     }
     applySelectedCueStyle(cueStyleIndex);
   }, [cueStyleIndex, applySelectedCueStyle]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    }
+  }, [frameRateId]);
 
   const highlightChalks = useCallback(
     (activeIndex, suggestedIndex = visibleChalkIndexRef.current) => {
@@ -12307,6 +12336,43 @@ function SnookerGame() {
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Graphics
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-xs font-semibold tracking-wide">
+                            {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
