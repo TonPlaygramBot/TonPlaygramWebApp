@@ -60,21 +60,21 @@ const SUIT_COLORS = {
 };
 
 const OUTFIT_THEMES = [
-  { id: 'midnight', label: 'Blu Mbretëror', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
-  { id: 'ember', label: 'E Kuqe Neon', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
-  { id: 'glacier', label: 'Akull', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
-  { id: 'forest', label: 'Pyje', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
-  { id: 'royal', label: 'Vjollcë', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
-  { id: 'onyx', label: 'Oniks', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
+  { id: 'midnight', label: 'Royal Blue', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
+  { id: 'ember', label: 'Neon Red', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
+  { id: 'glacier', label: 'Ice', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
+  { id: 'forest', label: 'Forest', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
+  { id: 'royal', label: 'Violet', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
+  { id: 'onyx', label: 'Onyx', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
 ];
 
 const STOOL_THEMES = [
-  { id: 'ruby', label: 'Rubi', seatColor: '#8b0000', legColor: '#1f1f1f' },
-  { id: 'slate', label: 'Guri', seatColor: '#374151', legColor: '#0f172a' },
-  { id: 'teal', label: 'Bruz', seatColor: '#0f766e', legColor: '#082f2a' },
-  { id: 'amber', label: 'Qelibari', seatColor: '#b45309', legColor: '#2f2410' },
-  { id: 'violet', label: 'Vjollcë', seatColor: '#7c3aed', legColor: '#2b1059' },
-  { id: 'frost', label: 'Akull', seatColor: '#1f2937', legColor: '#0f172a' }
+  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f' },
+  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a' },
+  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a' },
+  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
+  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
+  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' }
 ];
 
 const DEFAULT_APPEARANCE = {
@@ -84,11 +84,11 @@ const DEFAULT_APPEARANCE = {
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
-  { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
-  { key: 'cards', label: 'Letrat', options: CARD_THEMES },
-  { key: 'stools', label: 'Stola', options: STOOL_THEMES }
+  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
+  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
+  { key: 'cards', label: 'Cards', options: CARD_THEMES },
+  { key: 'stools', label: 'Stools', options: STOOL_THEMES }
 ];
 
 function createRegularPolygonShape(sides = 8, radius = 1) {
@@ -1518,23 +1518,23 @@ export default function MurlanRoyaleArena({ search }) {
     if (!active || !active.isHuman) return;
     const selectedCards = extractSelectedCards(active.hand, selectedRef.current);
     if (!selectedCards.length) {
-      setActionError('Zgjidh të paktën një letër.');
+      setActionError('Select at least one card.');
       return;
     }
     const combo = detectCombo(selectedCards, GAME_CONFIG);
     if (!combo) {
-      setActionError('Kombinimi nuk është i vlefshëm.');
+      setActionError('The combination is not valid.');
       return;
     }
     const includesStart = selectedCards.some(
       (card) => card.rank === START_CARD.rank && card.suit === START_CARD.suit
     );
     if (state.firstMove && !includesStart) {
-      setActionError('Lëvizja e parë duhet të përfshijë 3♠.');
+      setActionError('The first move must include the 3♠.');
       return;
     }
     if (!canBeat(combo, state.tableCombo, GAME_CONFIG)) {
-      setActionError('Ky kombin nuk e mund atë në tavolinë.');
+      setActionError('This combo does not beat the one on the table.');
       return;
     }
     setActionError('');
@@ -1548,7 +1548,7 @@ export default function MurlanRoyaleArena({ search }) {
     const active = state.players[state.activePlayer];
     if (!active || !active.isHuman) return;
     if (!state.tableCombo) {
-      setActionError('Nuk mund të pasosh pa një kombin në tavolinë.');
+      setActionError('You cannot pass without a combo on the table.');
       return;
     }
     setActionError('');
@@ -1567,13 +1567,13 @@ export default function MurlanRoyaleArena({ search }) {
       <div className="absolute inset-0 pointer-events-none flex h-full flex-col">
         {uiState.scoreboard?.length ? (
           <div className="sr-only" aria-live="polite">
-            <p>Rezultati aktual:</p>
+            <p>Current score:</p>
             <ul>
               {uiState.scoreboard.map((entry) => (
                 <li key={entry.id}>
                   {entry.name}
-                  {entry.isActive ? ' (radha)' : ''}
-                  {entry.finished ? ' - e përfundoi lojën' : ` - ${entry.cardsLeft} letra`}
+                  {entry.isActive ? ' (turn)' : ''}
+                  {entry.finished ? ' - finished the game' : ` - ${entry.cardsLeft} cards`}
                 </li>
               ))}
             </ul>
@@ -1605,7 +1605,7 @@ export default function MurlanRoyaleArena({ search }) {
                   d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
                 />
               </svg>
-              <span className="sr-only">Hap personalizimin e tavolinës</span>
+              <span className="sr-only">Open table customization</span>
             </button>
             {configOpen && (
               <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
@@ -1890,19 +1890,19 @@ function computeUiState(state) {
 
   if (state.status === 'ENDED') {
     const winners = scoreboard.filter((entry) => entry.finished).map((entry) => entry.name);
-    message = winners.length === 1 ? `${winners[0]} doli fitues!` : `Fitues: ${winners.join(', ')}`;
+    message = winners.length === 1 ? `${winners[0]} emerged victorious!` : `Winners: ${winners.join(', ')}`;
   } else {
     const active = state.players[state.activePlayer];
     if (active) {
       humanTurn = !!active.isHuman;
       if (humanTurn) {
         message = state.firstMove
-          ? 'Zgjidh kartat (përfshi 3♠) dhe shtyp "Luaj".'
+          ? 'Choose the cards (include 3♠) and press "Play".'
           : state.tableCombo
-            ? 'Gjej një kombin që e mund tavolinën ose shtyp "Paso".'
-            : 'Zgjidh kartat dhe shtyp "Luaj" për të nisur hedhjen.';
+            ? 'Find a combo that beats the table or press "Pass".'
+            : 'Pick your cards and press "Play" to start the trick.';
       } else {
-        message = `Duke pritur ${active.name}...`;
+        message = `Waiting for ${active.name}...`;
       }
     }
   }
@@ -1925,17 +1925,17 @@ function describeCombo(combo, cards) {
   }
   switch (combo.type) {
     case ComboType.SINGLE:
-      return `një ${cardLabel(cards[0])}`;
+      return `a ${cardLabel(cards[0])}`;
     case ComboType.PAIR:
-      return `çift ${combo.keyRank}`;
+      return `pair ${combo.keyRank}`;
     case ComboType.TRIPS:
-      return `treshe ${combo.keyRank}`;
+      return `trips ${combo.keyRank}`;
     case ComboType.BOMB_4K:
-      return `bombë ${combo.keyRank}`;
+      return `bomb ${combo.keyRank}`;
     case ComboType.STRAIGHT:
-      return `shteg ${cardLabel(cards[0])} - ${cardLabel(cards[cards.length - 1])}`;
+      return `straight ${cardLabel(cards[0])} - ${cardLabel(cards[cards.length - 1])}`;
     case ComboType.FLUSH:
-      return `flush me ${cards.length} letra`;
+      return `flush with ${cards.length} cards`;
     case ComboType.FULL_HOUSE:
       return 'full house';
     case ComboType.STRAIGHT_FLUSH:

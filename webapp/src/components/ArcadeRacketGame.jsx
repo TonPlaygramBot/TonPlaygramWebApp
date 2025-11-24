@@ -48,7 +48,7 @@ const BASE_CONFIG = GAME_CONFIGS.tennis;
 
 export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, trainingMode = false }) {
   const mountRef = useRef(null);
-  const [toast, setToast] = useGoalRushToast(trainingMode ? 'Modaliteti Trajnim · Swipe për shërbim' : 'Swipe UP për gjuajtje');
+  const [toast, setToast] = useGoalRushToast(trainingMode ? 'Training Mode · Swipe to serve' : 'Swipe UP to shoot');
 
   useEffect(() => {
     const config = GAME_CONFIGS[mode] || GAME_CONFIGS.tennis;
@@ -209,7 +209,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         const lift = THREE.MathUtils.clamp(3 + powerScale * 1.1, 3, 7.6);
         velocity.set(lateral, lift, forward);
         started = true;
-        setToast('AI shërben · mbrohu!');
+        setToast('AI serving · defend!');
       }, 900);
     }
 
@@ -227,9 +227,9 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
       if (showToast) {
         if (!serverIsPlayer) {
-          setToast('AI do të shërbejë · gati për kthim');
+          setToast('AI will serve · get ready to return');
         } else {
-          setToast(trainingMode ? 'Modaliteti Trajnim · Swipe për shërbim' : 'Swipe UP për shërbim');
+          setToast(trainingMode ? 'Training Mode · Swipe to serve' : 'Swipe UP to serve');
         }
       }
 
@@ -256,7 +256,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         player.position.z + hitDir * hitOffset
       );
       started = true;
-      setToast('Rally në progres');
+      setToast('Rally in progress');
     }
 
     function onPointerDown(e) {
@@ -419,7 +419,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         } else {
           velocity.set(0, 0, 0);
           started = false;
-          setToast('Jashtë fushës · Swipe për të rifilluar');
+          setToast('Out of bounds · Swipe to restart');
           nextServer();
           resetBall(false);
         }
@@ -429,7 +429,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       if (clippedOut) {
         velocity.set(0, 0, 0);
         started = false;
-        setToast('Rally përfundoi · Swipe për të rifilluar');
+        setToast('Rally finished · Swipe to restart');
         nextServer();
         resetBall(false);
       }

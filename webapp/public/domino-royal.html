@@ -478,7 +478,7 @@ const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 4;
 const DEFAULT_CHAIR_THEME = Object.freeze({
   id: "ruby",
-  label: "Rubi",
+  label: "Ruby",
   seatColor: "#8b0000",
   legColor: "#1f1f1f",
   highlight: "#d46a6a"
@@ -486,11 +486,11 @@ const DEFAULT_CHAIR_THEME = Object.freeze({
 
 const CHAIR_THEME_OPTIONS = Object.freeze([
   DEFAULT_CHAIR_THEME,
-  { id: "slate", label: "Guri", seatColor: "#374151", legColor: "#0f172a", highlight: "#9ca3af" },
-  { id: "teal", label: "Bruz", seatColor: "#0f766e", legColor: "#082f2a", highlight: "#34d399" },
-  { id: "amber", label: "Qelibari", seatColor: "#b45309", legColor: "#2f2410", highlight: "#fbbf24" },
-  { id: "violet", label: "Vjollcë", seatColor: "#7c3aed", legColor: "#2b1059", highlight: "#d8b4fe" },
-  { id: "frost", label: "Akull", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#94a3b8" }
+  { id: "slate", label: "Slate", seatColor: "#374151", legColor: "#0f172a", highlight: "#9ca3af" },
+  { id: "teal", label: "Teal", seatColor: "#0f766e", legColor: "#082f2a", highlight: "#34d399" },
+  { id: "amber", label: "Amber", seatColor: "#b45309", legColor: "#2f2410", highlight: "#fbbf24" },
+  { id: "violet", label: "Violet", seatColor: "#7c3aed", legColor: "#2b1059", highlight: "#d8b4fe" },
+  { id: "frost", label: "Frost", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#94a3b8" }
 ]);
 
 const clamp01f = (value) => Math.min(1, Math.max(0, value));
@@ -514,13 +514,13 @@ const shiftLightness = (light, delta) => clamp01f(light + delta);
 const shiftSaturation = (sat, delta) => clamp01f(sat + delta);
 
 const WOOD_FINISH_PRESETS = Object.freeze([
-  Object.freeze({ id: 'birch', label: 'Vidhi', hue: 38, sat: 0.25, light: 0.84, contrast: 0.42 }),
-  Object.freeze({ id: 'maple', label: 'Panjo', hue: 35, sat: 0.22, light: 0.78, contrast: 0.44 }),
-  Object.freeze({ id: 'oak', label: 'Lis', hue: 32, sat: 0.34, light: 0.7, contrast: 0.52 }),
-  Object.freeze({ id: 'cherry', label: 'Qershi', hue: 14, sat: 0.42, light: 0.6, contrast: 0.58 }),
-  Object.freeze({ id: 'teak', label: 'Tik', hue: 28, sat: 0.4, light: 0.52, contrast: 0.6 }),
-  Object.freeze({ id: 'walnut', label: 'Arre', hue: 22, sat: 0.4, light: 0.44, contrast: 0.64 }),
-  Object.freeze({ id: 'smokedOak', label: 'Lis i Tymosur', hue: 28, sat: 0.35, light: 0.28, contrast: 0.75 }),
+  Object.freeze({ id: 'birch', label: 'Birch', hue: 38, sat: 0.25, light: 0.84, contrast: 0.42 }),
+  Object.freeze({ id: 'maple', label: 'Maple', hue: 35, sat: 0.22, light: 0.78, contrast: 0.44 }),
+  Object.freeze({ id: 'oak', label: 'Oak', hue: 32, sat: 0.34, light: 0.7, contrast: 0.52 }),
+  Object.freeze({ id: 'cherry', label: 'Cherry', hue: 14, sat: 0.42, light: 0.6, contrast: 0.58 }),
+  Object.freeze({ id: 'teak', label: 'Teak', hue: 28, sat: 0.4, light: 0.52, contrast: 0.6 }),
+  Object.freeze({ id: 'walnut', label: 'Walnut', hue: 22, sat: 0.4, light: 0.44, contrast: 0.64 }),
+  Object.freeze({ id: 'smokedOak', label: 'Smoked Oak', hue: 28, sat: 0.35, light: 0.28, contrast: 0.75 }),
   Object.freeze({ id: 'wenge', label: 'Wenge', hue: 24, sat: 0.38, light: 0.22, contrast: 0.8 }),
   Object.freeze({ id: 'ebony', label: 'Eben', hue: 25, sat: 0.35, light: 0.18, contrast: 0.85 })
 ]);
@@ -847,21 +847,21 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
-  { id: "crimson", label: "Rrobë e Kuqe", feltTop: "#b0122d", feltBottom: "#650a1b", border: "#2b050c", emissive: "#6c101f", emissiveIntensity: 0.5 },
-  { id: "emerald", label: "Rrobë Smerald", feltTop: "#1fa44d", feltBottom: "#0b7030", border: "#043018", emissive: "#0f6a2f", emissiveIntensity: 0.72 },
-  { id: "arctic", label: "Rrobë Akull", feltTop: "#3b82f6", feltBottom: "#1d4ed8", border: "#0a1c4d", emissive: "#2563eb", emissiveIntensity: 0.62 },
-  { id: "sunset", label: "Rrobë Perëndim", feltTop: "#f97316", feltBottom: "#c2410c", border: "#3b1203", emissive: "#e2580f", emissiveIntensity: 0.58 },
-  { id: "violet", label: "Rrobë Vjollcë", feltTop: "#8b5cf6", feltBottom: "#5b21b6", border: "#241055", emissive: "#6d28d9", emissiveIntensity: 0.58 },
-  { id: "amber", label: "Rrobë Qelibari", feltTop: "#f59e0b", feltBottom: "#b45309", border: "#3b1a02", emissive: "#d97706", emissiveIntensity: 0.54 }
+  { id: "crimson", label: "Crimson Cloth", feltTop: "#b0122d", feltBottom: "#650a1b", border: "#2b050c", emissive: "#6c101f", emissiveIntensity: 0.5 },
+  { id: "emerald", label: "Emerald Cloth", feltTop: "#1fa44d", feltBottom: "#0b7030", border: "#043018", emissive: "#0f6a2f", emissiveIntensity: 0.72 },
+  { id: "arctic", label: "Arctic Cloth", feltTop: "#3b82f6", feltBottom: "#1d4ed8", border: "#0a1c4d", emissive: "#2563eb", emissiveIntensity: 0.62 },
+  { id: "sunset", label: "Sunset Cloth", feltTop: "#f97316", feltBottom: "#c2410c", border: "#3b1203", emissive: "#e2580f", emissiveIntensity: 0.58 },
+  { id: "violet", label: "Violet Cloth", feltTop: "#8b5cf6", feltBottom: "#5b21b6", border: "#241055", emissive: "#6d28d9", emissiveIntensity: 0.58 },
+  { id: "amber", label: "Amber Cloth", feltTop: "#f59e0b", feltBottom: "#b45309", border: "#3b1a02", emissive: "#d97706", emissiveIntensity: 0.54 }
 ]);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
-  { id: "obsidian", label: "Bazë Obsidian", base: "#141414", column: "#0b0d10", trim: "#1f232a" },
-  { id: "forestBronze", label: "Bazë Pylli", base: "#101714", column: "#0a0f0c", trim: "#1f2d24" },
-  { id: "midnightChrome", label: "Bazë Mesnate", base: "#0f172a", column: "#0a1020", trim: "#1e2f4a" },
-  { id: "emberCopper", label: "Bazë Bakri", base: "#231312", column: "#140707", trim: "#5c2d1b" },
-  { id: "violetShadow", label: "Bazë Hije Vjollcë", base: "#1f1130", column: "#130622", trim: "#3f1b5b" },
-  { id: "desertGold", label: "Bazë Shkretëtirë", base: "#1c1a12", column: "#0f0d06", trim: "#5a4524" }
+  { id: "obsidian", label: "Obsidian Base", base: "#141414", column: "#0b0d10", trim: "#1f232a" },
+  { id: "forestBronze", label: "Forest Base", base: "#101714", column: "#0a0f0c", trim: "#1f2d24" },
+  { id: "midnightChrome", label: "Midnight Base", base: "#0f172a", column: "#0a1020", trim: "#1e2f4a" },
+  { id: "emberCopper", label: "Copper Base", base: "#231312", column: "#140707", trim: "#5c2d1b" },
+  { id: "violetShadow", label: "Violet Shadow Base", base: "#1f1130", column: "#130622", trim: "#3f1b5b" },
+  { id: "desertGold", label: "Desert Base", base: "#1c1a12", column: "#0f0d06", trim: "#5a4524" }
 ]);
 
 const DOMINO_STYLE_OPTIONS = Object.freeze([
@@ -1043,8 +1043,8 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_SETUP_SECTIONS = [
-  { key: "tableWood", label: "Dru i Tavolinës", options: TABLE_WOOD_OPTIONS },
-  { key: "tableCloth", label: "Rroba e Tavolinës", options: TABLE_CLOTH_OPTIONS },
+  { key: "tableWood", label: "Table Wood", options: TABLE_WOOD_OPTIONS },
+  { key: "tableCloth", label: "Table Cloth", options: TABLE_CLOTH_OPTIONS },
   { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
   { key: "dominoStyle", label: "Domino", options: DOMINO_STYLE_OPTIONS },
   { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
@@ -2776,7 +2776,7 @@ function canonTile(t){
   if(!isValidTile(t)) return null; let {a,b}=t; if(a>b){ const k=a; a=b; b=k; } return {a,b};
 }
 
-/* ---------- Domino EXACT per kërkesën tënde ---------- */
+/* ---------- Domino EXACT for your request ---------- */
 function pipPositions(){
   return [
     [-0.3, 0.6], [0, 0.6], [0.3, 0.6],
@@ -2845,14 +2845,14 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
 
   const group = new THREE.Group();
 
-  // Trupi SAKTËSISHT si në kodin tënd
+  // Body EXACTLY as in your code
   const bodyGeo = new RoundedBoxGeometry(1, 2, 0.22, 4, 0.06);
   const bodyMaterial = porcelainMat.clone();
   bodyMaterial.envMapIntensity = porcelainMat.envMapIntensity;
   const body = new THREE.Mesh(bodyGeo, bodyMaterial);
   body.castShadow = true; body.receiveShadow = true;
 
-  // Vijë mesi — accent
+  // Center line — accent
   const midW = 1 - 0.08;         // sipas kodit
   const midH = 0.03;
   const midR = 0.06;
@@ -2865,10 +2865,10 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   midLine.renderOrder = 5;
   body.add(midLine);
 
-  // Kornizë luksoze rrethuese — accent
+  // Luxurious surrounding frame — accent
   addAccentPerimeter(body);
 
-  // Pikat sipas kodit — faqe sipër & poshtë (në koordinata të trupit)
+  // Dots per your code — top & bottom faces (in body coordinates)
   if(faceUp){
     addPips(body, a, -0.8);
     addPips(body, b,  0.2);
@@ -2886,10 +2886,10 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   collider.receiveShadow = false;
   group.add(collider);
 
-  // Integrim me sistemin ekzistues: në fushë duhen "flat" (faqe lart)
+  // Integration with the existing system: on the board they must be flat (face up)
   if(flat){ group.rotation.x = -Math.PI/2; }
 
-  // Ruaj shkallën ekzistuese të botës (ashtu si para ndryshimit)
+  // Keep the existing world scale (same as before the change)
   const sx = 0.10 / 1.0, sy = (flat? 0.016/0.22 : 0.20/2.0), sz = (flat? 0.20/2.0 : 0.016/0.22);
   group.scale.set(DOMINO_WORLD_SCALE * sx, DOMINO_WORLD_SCALE * sy, DOMINO_WORLD_SCALE * sz);
 
@@ -2909,7 +2909,7 @@ let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0; let human = 0;
 let markers = {L:null, R:null}; let selectedTile = null;
-let flipDir = false; // alterno drejtimin e zinxhirit pas çdo loje
+let flipDir = false; // alternate chain direction after each game
 const usedTileKeys = new Set();
 let gameFinished = false;
 let winnerIndex = null;
@@ -3051,7 +3051,7 @@ function renderChain(){
         child.renderOrder = 5;
       }
     });
-    // Siguro që çdo domino në fushë të jetë krejtësisht e sheshtë (pa tilt)
+    // Ensure every domino on the field is completely flat (no tilt)
     orientDominoFlat(domino, c.rot ?? 0);
     c.mesh = domino;
     piecesG.add(domino);
@@ -3659,7 +3659,7 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
   if(ev.pointerType==='touch' && activePointers.size>1){
     return;
   }
-  // FIX: përdor madhësinë e saktë të canvas-it (rect) për koordinatat NDC
+  // FIX: use the exact canvas size (rect) for the NDC coordinates
   const rect = renderer.domElement.getBoundingClientRect();
   const x = ((ev.clientX - rect.left)/rect.width)*2 - 1;
   const y = -(((ev.clientY - rect.top)/rect.height)*2 - 1);

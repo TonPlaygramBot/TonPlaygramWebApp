@@ -2510,7 +2510,7 @@ export default function SnakeAndLadder() {
         <div className="relative">
           <button
             type="button"
-            aria-label={showConfig ? 'Mbyll konfigurimet e lojës' : 'Hap konfigurimet e lojës'}
+            aria-label={showConfig ? 'Close game settings' : 'Open game settings'}
             onClick={() => setShowConfig((prev) => !prev)}
             className="rounded-full bg-black/70 p-2 text-lg text-gray-100 shadow-lg backdrop-blur transition hover:bg-black/60"
           >
@@ -2578,7 +2578,7 @@ export default function SnakeAndLadder() {
                   />
                 </label>
                 <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Shfaq gjurmën e lëvizjes</span>
+                  <span>Show movement trail</span>
                   <input
                     type="checkbox"
                     className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
@@ -2636,7 +2636,7 @@ export default function SnakeAndLadder() {
                   onClick={() => window.location.reload()}
                   className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
                 >
-                  Rifillo lojën
+                  Restart game
                 </button>
               </div>
             </div>

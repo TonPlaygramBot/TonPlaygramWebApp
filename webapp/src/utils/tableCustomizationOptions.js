@@ -16,18 +16,18 @@ export const TABLE_WOOD_OPTIONS = [
 ];
 
 export const TABLE_CLOTH_OPTIONS = [
-  { id: 'crimson', label: 'Rrobë e Kuqe', feltTop: '#960019', feltBottom: '#4a0012', emissive: '#210308' },
-  { id: 'emerald', label: 'Rrobë Smerald', feltTop: '#0f6a2f', feltBottom: '#054d24', emissive: '#021a0b' },
-  { id: 'arctic', label: 'Rrobë Akull', feltTop: '#2563eb', feltBottom: '#1d4ed8', emissive: '#071a42' },
-  { id: 'sunset', label: 'Rrobë Perëndim', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
-  { id: 'violet', label: 'Rrobë Vjollcë', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
-  { id: 'amber', label: 'Rrobë Qelibari', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' }
+  { id: 'crimson', label: 'Crimson Cloth', feltTop: '#960019', feltBottom: '#4a0012', emissive: '#210308' },
+  { id: 'emerald', label: 'Emerald Cloth', feltTop: '#0f6a2f', feltBottom: '#054d24', emissive: '#021a0b' },
+  { id: 'arctic', label: 'Arctic Cloth', feltTop: '#2563eb', feltBottom: '#1d4ed8', emissive: '#071a42' },
+  { id: 'sunset', label: 'Sunset Cloth', feltTop: '#ea580c', feltBottom: '#c2410c', emissive: '#320e03' },
+  { id: 'violet', label: 'Violet Cloth', feltTop: '#7c3aed', feltBottom: '#5b21b6', emissive: '#1f0a47' },
+  { id: 'amber', label: 'Amber Cloth', feltTop: '#b7791f', feltBottom: '#92571a', emissive: '#2b1402' }
 ];
 
 export const TABLE_BASE_OPTIONS = [
   {
     id: 'obsidian',
-    label: 'Bazë Obsidian',
+    label: 'Obsidian Base',
     baseColor: '#141414',
     columnColor: '#0b0d10',
     trimColor: '#1f232a',
@@ -36,7 +36,7 @@ export const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'forestBronze',
-    label: 'Bazë Pylli',
+    label: 'Forest Base',
     baseColor: '#101714',
     columnColor: '#0a0f0c',
     trimColor: '#1f2d24',
@@ -45,7 +45,7 @@ export const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'midnightChrome',
-    label: 'Bazë Mesnate',
+    label: 'Midnight Base',
     baseColor: '#0f172a',
     columnColor: '#0a1020',
     trimColor: '#1e2f4a',
@@ -54,7 +54,7 @@ export const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'emberCopper',
-    label: 'Bazë Bakri',
+    label: 'Copper Base',
     baseColor: '#231312',
     columnColor: '#140707',
     trimColor: '#5c2d1b',
@@ -63,7 +63,7 @@ export const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'violetShadow',
-    label: 'Bazë Hije Vjollcë',
+    label: 'Violet Shadow Base',
     baseColor: '#1f1130',
     columnColor: '#130622',
     trimColor: '#3f1b5b',
@@ -72,7 +72,7 @@ export const TABLE_BASE_OPTIONS = [
   },
   {
     id: 'desertGold',
-    label: 'Bazë Shkretëtirë',
+    label: 'Desert Base',
     baseColor: '#1c1a12',
     columnColor: '#0f0d06',
     trimColor: '#5a4524',

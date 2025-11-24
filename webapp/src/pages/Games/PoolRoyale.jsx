@@ -625,11 +625,11 @@ function addPocketCuts(parent, clothPlane) {
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
- * Per kërkesën tënde:
- *  • Kamera rotullohet si një person te tavolina (orbit e butë), me kënd pak të ulët, pa rënë në nivelin e cloth.
- *  • 6 gropa të prera realisht në cloth (Shape.holes + Extrude) + kapje (capture radius) → guret bien brenda.
- *  • Power slider i RI: i madh, djathtas ekranit, me gjest **PULL** (tërhiq POSHTË sa fort do → fuqi), dhe **gjuan në release**.
- *  • Playable: aiming line + tick, përplasje, kapje në xhepa, logjikë bazë snooker (reds→colour, pastaj colours in order, fouls, in‑hand).
+ * As requested:
+ *  • Camera orbits like a person at the table (smooth orbit) with a slightly low angle, without dropping to cloth level.
+ *  • Six holes cut realistically into the cloth (Shape.holes + Extrude) with capture radius so the balls fall inside.
+ *  • NEW power slider: large on the right side of the screen with a **PULL** gesture (drag DOWN as hard as you want for power) and fires on release.
+ *  • Playable: aiming line + tick, collisions, pocket captures, basic snooker logic (reds→colour, then colours in order, fouls, in-hand).
  */
 
 // --------------------------------------------------
@@ -907,42 +907,42 @@ const ACTION_CAM = Object.freeze({
   followHoldMs: 900
 });
 /**
- * Regji Kamera Pool
+ * Pool Camera Direction
  *
  * 0–2s (Opening Pan)
- * • Kamera nis nga lart, kënd diagonal mbi tavolinë (rreth 60°).
- * • Pan i ngadaltë djathtas → majtas që tregon gjithë tavolinën.
+ * • Camera starts high with a diagonal angle over the table (~60°).
+ * • Slow pan right → left showing the whole table.
  *
  * 2–4s (Focus on Cue Ball)
- * • Kamera afrohet tek topi i bardhë dhe shkopi.
- * • Këndi ulet në 20–25° mbi tavolinë, direkt pas shkopit.
- * • Zoom i lehtë / shtrëngim i kornizës.
+ * • Camera moves toward the cue ball and cue stick.
+ * • Angle drops to 20–25° above the table directly behind the cue.
+ * • Light zoom / tighter framing.
  *
  * 4–6s (Strike Tracking)
- * • Në momentin e goditjes kamera dridhet lehtë për impakt.
- * • Pastaj ndjek topin e bardhë përgjatë tavolinës duke e mbajtur në qendër.
+ * • At impact the camera shakes lightly.
+ * • Then it follows the cue ball across the table, keeping it centered.
  *
  * 6–9s (Impact & Spread)
- * • Kur topat përplasen, kamera ngrihet gradualisht (top-down).
- * • Hapet FOV që të futen të gjithë topat në kornizë.
- * • Bën lëvizje orbitale të shpejtë rreth tavolinës (rreth 30° rrotullim).
+ * • When the balls collide, the camera rises gradually (toward top-down).
+ * • The FOV widens to frame all balls.
+ * • Executes a quick orbital move around the table (~30° rotation).
  *
  * 9–12s (Potting Shot)
- * • Kamera bën një dolly-in tek xhepi ku bie topi.
- * • Ndjek topin brenda xhepit për ~1 sekondë.
- * • Pastaj fade-out ose rikthim tek pamja e plotë.
+ * • Camera performs a dolly-in to the pocket where the ball drops.
+ * • Follows the ball inside the pocket for ~1 second.
+ * • Then fades out or returns to the full view.
  *
  * 12s+ (Reset)
- * • Kamera kthehet në overview fillestar (45° mbi tavolinë).
- * • Mban pan shumë të ngadaltë si looping idle derisa të ndodhë goditja tjetër.
+ * • Camera returns to the initial overview (45° above the table).
+ * • Holds a very slow pan as an idle loop until the next shot.
  *
  * 🎮 Triggers
- * • Fillim loje → Opening Pan.
- * • Kur lojtari përgatitet → Focus on Cue Ball.
- * • Moment goditjeje → Strike Tracking.
- * • Kur topat përplasen → Impact & Spread.
- * • Kur një top bie në xhep → Potting Shot.
- * • Pas çdo raundi → Reset.
+ * • Start of game → Opening Pan.
+ * • When the player prepares → Focus on Cue Ball.
+ * • Moment of the hit → Strike Tracking.
+ * • When the balls collide → Impact & Spread.
+ * • When a ball drops into a pocket → Potting Shot.
+ * • After each round → Reset.
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 22; // keep at least half the field visible from the short rails
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
@@ -3840,7 +3840,7 @@ function applySnookerScaling({
   return { mmToUnits };
 }
 
-// Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
+// Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
 const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
@@ -13134,7 +13134,7 @@ function PoolRoyaleGame({
         );
       };
 
-      // Fire (slider e thërret në release)
+      // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
         const fullTableHandPlacement =
@@ -15106,7 +15106,7 @@ function PoolRoyaleGame({
             activeShotView = bestPocketView;
           }
         }
-        // Kapje në xhepa
+        // Pocket capture
         balls.forEach((b) => {
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
