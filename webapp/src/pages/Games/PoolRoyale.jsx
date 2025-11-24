@@ -836,11 +836,11 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // thicken the plywood deck beneath the cloth to sell the wooden sub-structure
-const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // keep a slim separation between the cloth and the plywood underlay
-const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // sink the plywood panel further to prevent z-fighting around the middle pocket cuts
-const CLOTH_UNDERLAY_EDGE_INSET = 0; // align with the cloth footprint so the board follows the playable field
-const CLOTH_UNDERLAY_HOLE_SCALE = 0.988; // slightly tighten the underlay apertures to stop the side pocket cloth from glitching
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // legacy wood board thickness removed but depth reserved for cloth wrap
+const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // legacy gap kept so the cloth preserves the same vertical span
+const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // legacy drop retained to keep pocket sleeves occupying the same space
+const CLOTH_EXTENDED_DEPTH =
+  CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
@@ -5607,71 +5607,21 @@ function Table3D(
 
   const clothShape = buildSurfaceShape(POCKET_HOLE_R);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
-    depth: CLOTH_THICKNESS,
+    depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
     curveSegments: 96,
     steps: 1
   });
-  clothGeo.translate(0, 0, -CLOTH_THICKNESS);
+  clothGeo.translate(0, 0, -CLOTH_EXTENDED_DEPTH);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
-
-  const underlayShape = buildSurfaceShape(
-    POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE,
-    CLOTH_UNDERLAY_EDGE_INSET
-  );
-  const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
-    depth: CLOTH_UNDERLAY_THICKNESS,
-    bevelEnabled: false,
-    curveSegments: 72,
-    steps: 1
-  });
-  underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
-  const underlayMat = clothMat.clone();
-  underlayMat.side = THREE.DoubleSide;
-  underlayMat.transparent = clothMat.transparent;
-  underlayMat.opacity = clothMat.opacity;
-  underlayMat.depthWrite = true;
-  underlayMat.colorWrite = true;
-  underlayMat.metalness = 0;
-  underlayMat.clearcoat = 0;
-  underlayMat.clearcoatRoughness = 1;
-  underlayMat.roughness = clothMat.roughness;
-  underlayMat.sheen = clothMat.sheen;
-  underlayMat.sheenRoughness = clothMat.sheenRoughness;
-  underlayMat.envMapIntensity = clothMat.envMapIntensity;
-  underlayMat.emissive.copy(clothMat.emissive);
-  underlayMat.emissiveIntensity = clothMat.emissiveIntensity;
-  underlayMat.color.copy(clothMat.color);
-  if (underlayMat.map) {
-    underlayMat.map.needsUpdate = true;
-  }
-  if (underlayMat.bumpMap) {
-    underlayMat.bumpMap.needsUpdate = true;
-  }
-  underlayMat.userData = { ...(clothMat.userData || {}) };
-  underlayMat.needsUpdate = true;
-  const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
-  clothUnderlay.rotation.x = -Math.PI / 2;
-  clothUnderlay.position.y =
-    cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP - CLOTH_UNDERLAY_EXTRA_DROP;
-  clothUnderlay.castShadow = true;
-  clothUnderlay.receiveShadow = true;
-  clothUnderlay.renderOrder = cloth.renderOrder - 2; // ensure the cloth always renders cleanly above the thicker wood deck
-  clothUnderlay.userData = {
-    ...(clothUnderlay.userData || {}),
-    skipWoodTexture: true
-  };
-  table.add(clothUnderlay);
-  finishParts.underlayMeshes.push(clothUnderlay);
-
-  const boardBottomY = clothUnderlay.position.y - CLOTH_UNDERLAY_THICKNESS;
+  const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
-  const clothEdgeBottomY = boardBottomY - MICRO_EPS;
+  const clothEdgeBottomY = clothBottomY - MICRO_EPS;
   const clothEdgeHeight = clothEdgeTopY - clothEdgeBottomY;
   if (clothEdgeHeight > MICRO_EPS) {
     const planeWidth = Math.max(MICRO_EPS, halfWext * 2);
@@ -5727,11 +5677,10 @@ function Table3D(
   shadowCoverMat.needsUpdate = true;
   const clothShadowCover = new THREE.Mesh(shadowCoverGeo, shadowCoverMat);
   clothShadowCover.rotation.x = -Math.PI / 2;
-  clothShadowCover.position.y =
-    clothUnderlay.position.y - CLOTH_UNDERLAY_THICKNESS - CLOTH_SHADOW_COVER_GAP;
+  clothShadowCover.position.y = clothBottomY - CLOTH_SHADOW_COVER_GAP;
   clothShadowCover.castShadow = true;
   clothShadowCover.receiveShadow = true;
-  clothShadowCover.renderOrder = clothUnderlay.renderOrder - 1;
+  clothShadowCover.renderOrder = cloth.renderOrder - 3;
   table.add(clothShadowCover);
 
   const markingsGroup = new THREE.Group();
@@ -5800,8 +5749,8 @@ function Table3D(
   const POCKET_TOP_R =
     POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-  const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the underlay without z-fighting
-  const pocketTopY = boardBottomY - POCKET_BOARD_TOUCH_OFFSET;
+  const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the cloth wrap without z-fighting
+  const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -5827,8 +5776,7 @@ function Table3D(
   pocketCenters().forEach((p) => {
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2, p.y);
-    pocket.renderOrder =
-      (clothUnderlay?.renderOrder ?? cloth.renderOrder) - 0.5; // render beneath the cloth to avoid z-fighting
+    pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
     pocket.castShadow = false;
     pocket.receiveShadow = true;
     table.add(pocket);
