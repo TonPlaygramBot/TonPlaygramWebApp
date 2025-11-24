@@ -841,7 +841,7 @@ const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // legacy gap kept so the cloth p
 const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // legacy drop retained to keep pocket sleeves occupying the same space
 const CLOTH_EXTENDED_DEPTH =
   CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
-const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.06; // ultra-thin black wooden board to help catch shadows beneath the felt
+const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.12; // thicker cloth-wrapped support to catch shadows beneath the felt
 const CLOTH_SHADOW_BOARD_GAP = TABLE.THICK * 0.01; // small offset so the board sits just under the cloth without z-fighting
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
@@ -5628,10 +5628,14 @@ function Table3D(
     steps: 1
   });
   shadowBoardGeo.translate(0, 0, -CLOTH_SHADOW_BOARD_THICKNESS);
-  const shadowBoardMat = railMat.clone();
-  shadowBoardMat.color = new THREE.Color(0x080808);
-  shadowBoardMat.roughness = Math.min(1, (shadowBoardMat.roughness ?? 0.68) * 1.12);
-  shadowBoardMat.metalness = Math.max(0, (shadowBoardMat.metalness ?? 0.08) * 0.42);
+  const shadowBoardMat = clothMat.clone();
+  shadowBoardMat.color = clothMat.color.clone();
+  shadowBoardMat.roughness = 1;
+  shadowBoardMat.metalness = 0;
+  shadowBoardMat.clearcoat = 0;
+  shadowBoardMat.sheen = 0;
+  shadowBoardMat.envMapIntensity = 0;
+  shadowBoardMat.side = THREE.DoubleSide;
   shadowBoardMat.needsUpdate = true;
   const shadowBoard = new THREE.Mesh(shadowBoardGeo, shadowBoardMat);
   shadowBoard.rotation.x = -Math.PI / 2;
