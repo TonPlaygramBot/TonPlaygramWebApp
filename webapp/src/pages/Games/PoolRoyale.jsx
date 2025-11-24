@@ -1999,7 +1999,7 @@ const resolveRailMarkerColorOption = (id) =>
   RAIL_MARKER_COLOR_OPTIONS.find((opt) => opt.id === DEFAULT_RAIL_MARKER_COLOR_ID) ??
   RAIL_MARKER_COLOR_OPTIONS[0];
 
-const DEFAULT_LIGHTING_ID = 'studio-soft';
+const DEFAULT_LIGHTING_ID = 'arena-prime';
 const LIGHTING_STORAGE_KEY = 'poolLightingPreset';
 const LIGHTING_OPTIONS = Object.freeze([
   {
@@ -2093,17 +2093,6 @@ const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
-    id: 'arena-railcam',
-    label: 'Arena RailCam',
-    description: 'Championship rail ride with shoulder-led pans.',
-    railPush: BALL_R * 6.8,
-    lateralDolly: BALL_R * 1.8,
-    focusLift: BALL_R * 1.4,
-    focusPan: BALL_R * 0.28,
-    trackingBias: 0.38,
-    smoothing: 0.14
-  },
-  {
     id: 'skybox-truss',
     label: 'Skybox TrussCam',
     description: 'High truss glide with wide parallax sweeps.',
@@ -2113,43 +2102,9 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     focusDepthBias: BALL_R * 2.4,
     trackingBias: 0.58,
     smoothing: 0.16
-  },
-  {
-    id: 'cine-dolly',
-    label: 'Cine Dolly Track',
-    description: 'Broadcast dolly track with filmic slide offsets.',
-    railPush: BALL_R * 7.4,
-    lateralDolly: BALL_R * 2.6,
-    focusLift: BALL_R * 2.8,
-    focusDepthBias: BALL_R * 1.6,
-    focusPan: BALL_R * 0.36,
-    trackingBias: 0.52,
-    smoothing: 0.18
-  },
-  {
-    id: 'immersive-rail',
-    label: 'Immersive Rail Follow',
-    description: 'Low esports follow that hugs the cushions closely.',
-    railPush: BALL_R * 3.8,
-    lateralDolly: BALL_R * 1.2,
-    focusLift: BALL_R * 0.9,
-    focusPan: BALL_R * 0.46,
-    trackingBias: 0.72,
-    smoothing: 0.22
-  },
-  {
-    id: 'analyst-overhead',
-    label: 'Analyst Overhead',
-    description: 'Coach-box overhead track with measured drift.',
-    railPush: BALL_R * 5.8,
-    lateralDolly: BALL_R * 1.5,
-    focusLift: BALL_R * 4.6,
-    focusDepthBias: BALL_R * 1.1,
-    trackingBias: 0.48,
-    smoothing: 0.12
   }
 ]);
-const DEFAULT_BROADCAST_SYSTEM_ID = BROADCAST_SYSTEM_OPTIONS[0].id;
+const DEFAULT_BROADCAST_SYSTEM_ID = 'skybox-truss';
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -7947,15 +7902,7 @@ function PoolRoyaleGame({
     }
     return DEFAULT_RAIL_MARKER_COLOR_ID;
   });
-  const [lightingId, setLightingId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(LIGHTING_STORAGE_KEY);
-      if (stored && LIGHTING_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_LIGHTING_ID;
-  });
+  const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolChromeColor');
@@ -7978,15 +7925,7 @@ function PoolRoyaleGame({
     }
     return DEFAULT_FRAME_RATE_ID;
   });
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(BROADCAST_SYSTEM_STORAGE_KEY);
-      if (stored && BROADCAST_SYSTEM_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_BROADCAST_SYSTEM_ID;
-  });
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
   const activeFrameRateOption = useMemo(
     () =>
       FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
@@ -15905,70 +15844,6 @@ function PoolRoyaleGame({
                           />
                           {option.label}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Lighting
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {LIGHTING_OPTIONS.map((option) => {
-                    const active = option.id === lightingId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setLightingId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                          {option.label}
-                        </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Broadcast System
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
-                    const active = option.id === broadcastSystemId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setBroadcastSystemId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                          {option.label}
-                        </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
                       </button>
                     );
                   })}
