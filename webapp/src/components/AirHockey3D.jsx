@@ -137,6 +137,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [goalPopup, setGoalPopup] = useState(null);
   const [postPopup, setPostPopup] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const [anchorsReady, setAnchorsReady] = useState(0);
   const [selections, setSelections] = useState({
     field: 0,
     table: 0,
@@ -695,13 +696,17 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
     const ringRadius = 0.18 * SCALE_WIDTH;
     const ringTube = 0.008 * SCALE_WIDTH;
-    ring(ringRadius, ringTube, -TABLE.h * 0.33);
-    ring(ringRadius, ringTube, TABLE.h * 0.33);
+    const ringOffset = TABLE.h * 0.33;
+    ring(ringRadius, ringTube, -ringOffset);
+    ring(ringRadius, ringTube, ringOffset);
+    const avatarLift = ringTube * 3.5;
+    const avatarSize = ringRadius * 1.35;
     fieldAnchorsRef.current = {
-      ai: { x: 0, y: lineThickness * 0.6, z: -TABLE.h * 0.33 },
-      player: { x: 0, y: lineThickness * 0.6, z: TABLE.h * 0.33 },
-      size: ringRadius * 2 * 0.96
+      ai: { x: 0, y: avatarLift, z: -ringOffset },
+      player: { x: 0, y: avatarLift, z: ringOffset },
+      size: avatarSize
     };
+    setAnchorsReady((v) => v + 1);
 
     const goalGeometry = new THREE.BoxGeometry(
       TABLE.goalW,
@@ -1051,10 +1056,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const anchors = fieldAnchorsRef.current;
     if (!tableGroup || !anchors) return undefined;
 
-    const loader = new THREE.TextureLoader();
-    loader.setCrossOrigin('anonymous');
-
-    const createCircleTexture = (image) => {
+    const createCircleTexture = (image, fallbackLabel = '?') => {
       const size = 512;
       const canvas = document.createElement('canvas');
       canvas.width = size;
@@ -1065,18 +1067,51 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
       ctx.closePath();
-      ctx.fillStyle = '#ffffff';
+      const gradient = ctx.createLinearGradient(0, 0, 0, size);
+      gradient.addColorStop(0, '#0b1224');
+      gradient.addColorStop(1, '#111827');
+      ctx.fillStyle = gradient;
       ctx.fill();
       ctx.clip();
-      const cropSize = Math.min(image.width, image.height);
-      const sx = (image.width - cropSize) / 2;
-      const sy = (image.height - cropSize) / 2;
-      ctx.drawImage(image, sx, sy, cropSize, cropSize, 0, 0, size, size);
+      if (image && image.width && image.height) {
+        const cropSize = Math.min(image.width, image.height);
+        const sx = (image.width - cropSize) / 2;
+        const sy = (image.height - cropSize) / 2;
+        ctx.drawImage(image, sx, sy, cropSize, cropSize, 0, 0, size, size);
+      } else {
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = '#e5e7eb';
+        ctx.font = 'bold 220px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(fallbackLabel, size / 2, size / 2 + 20);
+      }
       ctx.restore();
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2 - 18, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+      ctx.lineWidth = 14;
+      ctx.stroke();
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.needsUpdate = true;
       return texture;
+    };
+
+    const loadAvatarImage = (key, avatar, onReady) => {
+      const url = getAvatarUrl(avatar) || '/assets/icons/profile.svg';
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => onReady(img, url);
+      img.onerror = () => {
+        if (url !== '/assets/icons/profile.svg') {
+          loadAvatarImage(key, '/assets/icons/profile.svg', onReady);
+          return;
+        }
+        onReady(null, url);
+      };
+      img.src = url;
     };
 
     const setAvatar = (key, avatar) => {
@@ -1086,9 +1121,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         existing.material.map?.dispose();
         existing.material.dispose();
       }
-      const url = getAvatarUrl(avatar);
-      loader.load(url, (imageTexture) => {
-        const texture = createCircleTexture(imageTexture.image);
+      loadAvatarImage(key, avatar, (image, url) => {
+        const label = typeof avatar === 'string' ? avatar.slice(0, 2) : '?';
+        const texture = createCircleTexture(image, label);
         const material = new THREE.SpriteMaterial({
           map: texture,
           transparent: true,
@@ -1099,6 +1134,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         sprite.scale.set(anchors.size, anchors.size, 1);
         const target = anchors[key];
         sprite.position.set(target.x, target.y, target.z);
+        sprite.center.set(0.5, 0.5);
         sprite.renderOrder = 10;
         tableGroup.add(sprite);
         avatarSpritesRef.current[key] = sprite;
@@ -1119,7 +1155,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         }
       });
     };
-  }, [player.avatar, ai.avatar]);
+  }, [player.avatar, ai.avatar, anchorsReady]);
 
   useEffect(() => {
     const mats = materialsRef.current;
