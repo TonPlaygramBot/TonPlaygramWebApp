@@ -16163,12 +16163,10 @@ function PoolRoyaleGame({
             ></div>
           </div>
         </div>
-      )}
-
-      )}
-    </div>
-  );
-}
+        )}
+      </div>
+    );
+  }
 
 export default function PoolRoyale() {
   const navigate = useNavigate();
