@@ -207,8 +207,8 @@ function createDefaultPocketJawMaterial() {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.012;
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // align rounded chrome cuts with Pool Royale corners
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -240,8 +240,8 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024;
-const WOOD_CORNER_CUT_SCALE = 1.093; // push wooden corner cuts inward so the chrome sits flush
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.004;
+const WOOD_CORNER_CUT_SCALE = 1; // keep wood cuts identical to chrome plate reliefs
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
@@ -534,8 +534,6 @@ const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 2.02;
-const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08;
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -564,9 +562,10 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
-const MIDDLE_POCKET_LONGITUDINAL_OFFSET = 0; // mirror Pool Royale middle-pocket placement
-const SIDE_POCKET_CUT_LONGITUDINAL_OFFSET = MIDDLE_POCKET_LONGITUDINAL_OFFSET * 1.18;
-let sidePocketShift = 0;
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
+  POCKET_VIS_R * 0.32; // pull middle pockets toward the side rails to open the center a touch
+const SIDE_POCKET_CUT_LONGITUDINAL_OFFSET =
+  MIDDLE_POCKET_LONGITUDINAL_OFFSET * 1.18;
 const CORNER_CUT_INSET_BONUS = POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
@@ -3387,22 +3386,26 @@ function computeSpinLimits(cueBall, aimDir, balls = [], axesInput = null) {
   return limits;
 }
 
-const cornerPocketCenter = (sx, sz) =>
+const pocketCenters = () => [
   new THREE.Vector2(
-    sx * (PLAY_W / 2 - CORNER_POCKET_CENTER_INSET),
-    sz * (PLAY_H / 2 - CORNER_POCKET_CENTER_INSET)
-  );
-const pocketCenters = () => {
-  const sidePocketCenterX = PLAY_W / 2 + sidePocketShift;
-  return [
-    cornerPocketCenter(-1, -1),
-    cornerPocketCenter(1, -1),
-    cornerPocketCenter(-1, 1),
-    cornerPocketCenter(1, 1),
-    new THREE.Vector2(-sidePocketCenterX, 0),
-    new THREE.Vector2(sidePocketCenterX, 0)
-  ];
-};
+    -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
+    -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
+    -PLAY_H / 2 + CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    -PLAY_W / 2 + CORNER_POCKET_CENTER_INSET,
+    PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
+    PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
+  ),
+  new THREE.Vector2(-PLAY_W / 2, -MIDDLE_POCKET_LONGITUDINAL_OFFSET),
+  new THREE.Vector2(PLAY_W / 2, MIDDLE_POCKET_LONGITUDINAL_OFFSET)
+];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
@@ -4290,19 +4293,6 @@ function Table3D(
     Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
-  const sideInsetForShift = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
-  const desiredSidePocketShift = Math.max(0, halfWext - sideInsetForShift - halfW);
-  const maxSidePocketShift = Math.max(0, halfWext - MICRO_EPS - halfW);
-  const baseSidePocketShift = Math.min(desiredSidePocketShift, maxSidePocketShift);
-  const extraSidePocketShift = Math.min(
-    SIDE_POCKET_EXTRA_SHIFT,
-    Math.max(0, maxSidePocketShift - baseSidePocketShift)
-  );
-  const fieldPull = Math.min(
-    SIDE_POCKET_FIELD_PULL,
-    baseSidePocketShift + extraSidePocketShift
-  );
-  sidePocketShift = Math.max(0, baseSidePocketShift + extraSidePocketShift - fieldPull);
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
@@ -4683,7 +4673,7 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = CORNER_POCKET_CENTER_INSET + CORNER_CUT_INSET_BONUS;
-  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const sideInset = SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION;
   const sidePocketCutOffset = SIDE_POCKET_CUT_LONGITUDINAL_OFFSET;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
@@ -4869,7 +4859,7 @@ function Table3D(
 
   const sideNotchMP = (sx, centerZ = 0) => {
     const cz = (sx < 0 ? -1 : 1) * Math.abs(centerZ);
-    const cx = sx * (innerHalfW - sideInset + sidePocketShift);
+    const cx = sx * (innerHalfW - sideInset);
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
       MICRO_EPS,
@@ -5290,7 +5280,7 @@ function Table3D(
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx, sidePocketCutOffset);
       const fallbackCenter = new THREE.Vector2(
-        sx * (innerHalfW - sideInset + sidePocketShift),
+        sx * (innerHalfW - sideInset),
         (sx < 0 ? -1 : 1) * sidePocketCutOffset
       );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
