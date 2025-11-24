@@ -284,6 +284,9 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '16%' }
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
+const SAND_TIMER_RADIUS_FACTOR = 0.62;
+const SAND_TIMER_SURFACE_OFFSET = 0.24;
+const SAND_TIMER_SCALE = 0.72;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -376,6 +379,9 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
+const DIAMOND_SHAPE_ID = 'diamondEdge';
+const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
+
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Dru i Tavolinës', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Rroba e Tavolinës', options: TABLE_CLOTH_OPTIONS },
@@ -383,14 +389,8 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'pieceStyle', label: 'Stili i Figurave', options: PIECE_STYLE_OPTIONS },
   { key: 'chairColor', label: 'Ngjyra e Karrigeve', options: CHAIR_COLOR_OPTIONS },
   { key: 'tableBase', label: 'Baza e Tavolinës', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Forma e Tavolinës', options: TABLE_SHAPE_OPTIONS }
+  { key: 'tableShape', label: 'Forma e Tavolinës', options: TABLE_SHAPE_MENU_OPTIONS }
 ];
-
-const DIAMOND_SHAPE_ID = 'diamondEdge';
-const NON_DIAMOND_SHAPE_INDEX = (() => {
-  const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
-  return index >= 0 ? index : 0;
-})();
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -399,7 +399,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length],
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
     ['boardPalette', BOARD_COLOR_OPTIONS.length],
     ['pieceStyle', PIECE_STYLE_OPTIONS.length]
   ];
@@ -414,10 +414,9 @@ function normalizeAppearance(value = {}) {
 }
 
 function getEffectiveShapeConfig(shapeIndex) {
-  const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
-  const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
-  const rotationY = requested?.id === DIAMOND_SHAPE_ID ? Math.PI / 4 : 0;
-  return { option: requested ?? fallback, rotationY, forced: false };
+  const fallback = TABLE_SHAPE_MENU_OPTIONS[0] ?? TABLE_SHAPE_OPTIONS[0];
+  const requested = TABLE_SHAPE_MENU_OPTIONS[shapeIndex] ?? fallback;
+  return { option: requested ?? fallback, rotationY: 0, forced: false };
 }
 
 const DEFAULT_CHAIR_THEME = Object.freeze({ legColor: '#1f1f1f' });
@@ -506,81 +505,137 @@ function createSandTimer(accentColor = '#f4b400') {
   const group = new THREE.Group();
   const frameMat = new THREE.MeshStandardMaterial({
     color: 0x1e293b,
-    metalness: 0.45,
-    roughness: 0.32
+    metalness: 0.52,
+    roughness: 0.28
   });
   const accentMat = new THREE.MeshStandardMaterial({
     color: new THREE.Color(accentColor),
-    emissive: new THREE.Color(accentColor).multiplyScalar(0.25),
-    metalness: 0.2,
-    roughness: 0.42
+    emissive: new THREE.Color(accentColor).multiplyScalar(0.35),
+    metalness: 0.26,
+    roughness: 0.4
+  });
+  const goldSand = new THREE.MeshStandardMaterial({
+    color: 0xd4af37,
+    emissive: 0x8a6f1f,
+    emissiveIntensity: 0.42,
+    metalness: 0.72,
+    roughness: 0.32
+  });
+  const silverSand = new THREE.MeshStandardMaterial({
+    color: 0xc0c0c0,
+    emissive: 0x5a5a5a,
+    emissiveIntensity: 0.34,
+    metalness: 0.7,
+    roughness: 0.28
   });
   const glassMat = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
-    transmission: 0.8,
-    opacity: 0.45,
+    transmission: 0.9,
+    opacity: 0.38,
     transparent: true,
     roughness: 0.08,
-    metalness: 0.05,
-    thickness: 0.08,
-    envMapIntensity: 0.4
+    metalness: 0.08,
+    thickness: 0.12,
+    envMapIntensity: 0.65
   });
 
-  const capGeo = new THREE.CylinderGeometry(0.24, 0.24, 0.06, 24);
+  const capGeo = new THREE.CylinderGeometry(0.3, 0.3, 0.08, 32);
   const topCap = new THREE.Mesh(capGeo, frameMat);
-  topCap.position.y = 0.32;
+  topCap.position.y = 0.38;
   const bottomCap = new THREE.Mesh(capGeo, frameMat);
-  bottomCap.position.y = -0.32;
+  bottomCap.position.y = -0.38;
   group.add(topCap, bottomCap);
 
-  const pillarGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 10);
+  const pillarGeo = new THREE.CylinderGeometry(0.038, 0.038, 0.72, 12);
   const pillarA = new THREE.Mesh(pillarGeo, frameMat);
-  pillarA.position.set(0.18, 0, 0.18);
+  pillarA.position.set(0.22, 0, 0.22);
   const pillarB = pillarA.clone();
-  pillarB.position.set(-0.18, 0, 0.18);
+  pillarB.position.set(-0.22, 0, 0.22);
   const pillarC = pillarA.clone();
-  pillarC.position.set(0.18, 0, -0.18);
+  pillarC.position.set(0.22, 0, -0.22);
   const pillarD = pillarA.clone();
-  pillarD.position.set(-0.18, 0, -0.18);
+  pillarD.position.set(-0.22, 0, -0.22);
   group.add(pillarA, pillarB, pillarC, pillarD);
 
-  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.08, 16), frameMat);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 16), frameMat);
   group.add(neck);
 
-  const glassTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.34, 24), glassMat);
-  glassTop.position.y = 0.12;
+  const glassTop = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
+  glassTop.position.y = 0.16;
   glassTop.rotation.x = Math.PI;
-  const glassBottom = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.34, 24), glassMat);
-  glassBottom.position.y = -0.12;
+  const glassBottom = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
+  glassBottom.position.y = -0.16;
   group.add(glassTop, glassBottom);
 
-  const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.22, 20), accentMat);
-  sandTop.position.y = 0.08;
+  const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 22), goldSand);
+  sandTop.position.y = 0.11;
   sandTop.rotation.x = Math.PI;
-  const sandBottom = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.24, 20), accentMat);
-  sandBottom.position.y = -0.14;
+  const sandBottom = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 22), silverSand);
+  sandBottom.position.y = -0.16;
   group.add(sandTop, sandBottom);
 
   const shimmer = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.02, 0.02, 0.18, 12),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.6 })
+    new THREE.CylinderGeometry(0.022, 0.022, 0.22, 14),
+    new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.62,
+      transparent: true,
+      opacity: 0.9
+    })
   );
   shimmer.position.y = -0.02;
   group.add(shimmer);
 
-  group.scale.setScalar(0.55);
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const timeTexture = new THREE.CanvasTexture(canvas);
+  timeTexture.colorSpace = THREE.SRGBColorSpace;
+  const timeMaterial = new THREE.SpriteMaterial({ map: timeTexture, transparent: true });
+  const timeSprite = new THREE.Sprite(timeMaterial);
+  timeSprite.scale.set(0.72, 0.34, 1);
+  timeSprite.position.set(0, 0.62, 0);
+  group.add(timeSprite);
+
+  const drawTime = (seconds) => {
+    const timeString = formatTime(Math.max(0, Math.round(seconds)));
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(7, 10, 18, 0.85)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#d9e4ff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold 62px "JetBrains Mono", "Roboto Mono", monospace';
+    ctx.fillText(timeString, canvas.width / 2, canvas.height / 2 + 6);
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    timeTexture.needsUpdate = true;
+  };
+
+  group.scale.setScalar(SAND_TIMER_SCALE);
+
+  let lastDisplay = null;
 
   return {
     group,
     parts: { sandTop, sandBottom },
     updateAccent: (color) => {
       accentMat.color.set(color);
-      accentMat.emissive.set(color).multiplyScalar(0.25);
+      accentMat.emissive.set(color).multiplyScalar(0.35);
+      frameMat.emissive = accentMat.emissive.clone();
     },
     setFill: (value) => {
       const pct = clamp01(value, 1);
-      sandTop.scale.y = Math.max(0.12, pct);
-      sandBottom.scale.y = Math.max(0.18, 1.1 - pct * 0.9);
+      sandTop.scale.y = Math.max(0.22, pct);
+      sandBottom.scale.y = Math.max(0.26, 1.18 - pct * 0.9);
+    },
+    setTime: (seconds) => {
+      if (seconds === lastDisplay) return;
+      lastDisplay = seconds;
+      drawTime(seconds);
     },
     dispose: () => {
       capGeo.dispose();
@@ -593,7 +648,11 @@ function createSandTimer(accentColor = '#f4b400') {
       frameMat.dispose();
       accentMat.dispose();
       glassMat.dispose();
+      goldSand.dispose();
+      silverSand.dispose();
       shimmer.material.dispose();
+      timeMaterial.dispose();
+      timeTexture.dispose();
     }
   };
 }
@@ -1587,14 +1646,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, [seatAnchors]);
 
   const updateSandTimerPlacement = useCallback(
-    (turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
+    (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
       const arena = arenaRef.current;
       if (!arena?.sandTimer) return;
       const surfaceY = arena.tableInfo?.surfaceY ?? TABLE_HEIGHT;
-      const radius = (arena.tableInfo?.radius ?? TABLE_RADIUS) * 0.42;
-      const targetZ = turnWhiteValue ? -radius : radius;
-      arena.sandTimer.group.position.set(0, surfaceY + 0.2, targetZ);
-      arena.sandTimer.group.rotation.y = turnWhiteValue ? Math.PI : 0;
+      const radius = (arena.tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
+      const targetZ = radius;
+      arena.sandTimer.group.position.set(0, surfaceY + SAND_TIMER_SURFACE_OFFSET, targetZ);
+      arena.sandTimer.group.rotation.y = Math.PI;
     },
     []
   );
@@ -2218,22 +2277,21 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     const chairs = [];
     const chairA = makeChair(0);
-    chairA.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance - PLAYER_CHAIR_EXTRA_CLEARANCE);
+    chairA.group.position.set(0, CHAIR_BASE_HEIGHT, chairDistance + PLAYER_CHAIR_EXTRA_CLEARANCE);
+    chairA.group.rotation.y = Math.PI;
     arena.add(chairA.group);
     chairs.push(chairA);
     const chairB = makeChair(1);
-    chairB.group.position.set(0, CHAIR_BASE_HEIGHT, chairDistance);
-    chairB.group.rotation.y = Math.PI;
+    chairB.group.position.set(0, CHAIR_BASE_HEIGHT, -chairDistance);
     arena.add(chairB.group);
     chairs.push(chairB);
 
     const sandTimer = createSandTimer(palette.accent ?? '#4ce0c3');
-    const sandTimerRadius = (tableInfo?.radius ?? TABLE_RADIUS) * 0.42;
-    const sandTimerSurfaceY = (tableInfo?.surfaceY ?? TABLE_HEIGHT) + 0.2;
-    const initialTurn = uiRef.current?.turnWhite ?? ui.turnWhite;
+    const sandTimerRadius = (tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
+    const sandTimerSurfaceY = (tableInfo?.surfaceY ?? TABLE_HEIGHT) + SAND_TIMER_SURFACE_OFFSET;
     sandTimer.setFill?.(1);
-    sandTimer.group.position.set(0, sandTimerSurfaceY, initialTurn ? -sandTimerRadius : sandTimerRadius);
-    sandTimer.group.rotation.y = initialTurn ? Math.PI : 0;
+    sandTimer.group.position.set(0, sandTimerSurfaceY, sandTimerRadius);
+    sandTimer.group.rotation.y = Math.PI;
     arena.add(sandTimer.group);
     disposers.push(() => {
       try {
@@ -2842,6 +2900,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const activeLeft = uiRef.current.turnWhite ? whiteTimeRef.current : blackTimeRef.current;
         const pct = clamp01(activeLeft / Math.max(1, activeTotal));
         arenaState.sandTimer.setFill?.(pct);
+        arenaState.sandTimer.setTime?.(activeLeft);
         arenaState.sandTimer.group.rotation.z = Math.sin(performance.now() * 0.002) * 0.06;
       }
 
