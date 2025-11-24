@@ -357,7 +357,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let H = Math.max(1, container.clientHeight || window.innerHeight || 640);
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    if ('outputColorSpace' in renderer) renderer.outputColorSpace = THREE.SRGBColorSpace;
+    else renderer.outputEncoding = THREE.sRGBEncoding;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.55;
     renderer.shadowMap.enabled = false;
@@ -480,7 +481,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         const tex = new THREE.CanvasTexture(base);
         tex.anisotropy = Math.min(16, maxAniso);
         tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-        tex.colorSpace = THREE.SRGBColorSpace;
+        if ('colorSpace' in tex) tex.colorSpace = THREE.SRGBColorSpace;
+        else tex.encoding = THREE.sRGBEncoding;
         tex.repeat.set(8, 18);
         onReady(tex);
       };
@@ -565,7 +567,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const t = new THREE.CanvasTexture(c);
       t.anisotropy = Math.min(16, maxAniso);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.colorSpace = THREE.SRGBColorSpace;
+      if ('colorSpace' in t) t.colorSpace = THREE.SRGBColorSpace;
+      else t.encoding = THREE.sRGBEncoding;
       t.repeat.set(1, 1);
       return t;
     }
