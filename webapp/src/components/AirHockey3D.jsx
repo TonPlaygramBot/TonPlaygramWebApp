@@ -700,7 +700,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     ring(ringRadius, ringTube, -ringOffset);
     ring(ringRadius, ringTube, ringOffset);
     const avatarLift = ringTube * 2;
-    const avatarSize = ringRadius * 0.9;
+    const avatarSize = (ringRadius + ringTube) * 2;
     fieldAnchorsRef.current = {
       ai: { x: 0, y: avatarLift, z: -ringOffset },
       player: { x: 0, y: avatarLift, z: ringOffset },
@@ -1120,24 +1120,26 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         tableGroup.remove(existing);
         existing.material.map?.dispose();
         existing.material.dispose();
+        existing.geometry?.dispose();
       }
       loadAvatarImage(key, avatar, (image, url) => {
         const label = typeof avatar === 'string' ? avatar.slice(0, 2) : '?';
         const texture = createCircleTexture(image, label);
-        const material = new THREE.SpriteMaterial({
+        const material = new THREE.MeshBasicMaterial({
           map: texture,
           transparent: true,
           depthWrite: false,
-          depthTest: true
+          depthTest: true,
+          side: THREE.DoubleSide
         });
-        const sprite = new THREE.Sprite(material);
-        sprite.scale.set(anchors.size, anchors.size, 1);
+        const geometry = new THREE.PlaneGeometry(anchors.size, anchors.size);
+        const badge = new THREE.Mesh(geometry, material);
         const target = anchors[key];
-        sprite.position.set(target.x, target.y, target.z);
-        sprite.center.set(0.5, 0.5);
-        sprite.renderOrder = 1;
-        tableGroup.add(sprite);
-        avatarSpritesRef.current[key] = sprite;
+        badge.position.set(target.x, target.y, target.z);
+        badge.rotation.x = -Math.PI / 2;
+        badge.renderOrder = 1;
+        tableGroup.add(badge);
+        avatarSpritesRef.current[key] = badge;
       });
     };
 
@@ -1151,6 +1153,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           tableGroup.remove(sprite);
           sprite.material.map?.dispose();
           sprite.material.dispose();
+          sprite.geometry?.dispose();
           avatarSpritesRef.current[key] = null;
         }
       });
