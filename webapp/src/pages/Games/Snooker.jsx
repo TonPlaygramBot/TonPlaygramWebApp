@@ -622,6 +622,8 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
+const CLOTH_EDGE_CURVE = CLOTH_THICKNESS * 0.75; // bend the cloth down into the pocket cut
+const CLOTH_EDGE_UNDERWRAP = CLOTH_THICKNESS * 0.58; // tuck the cloth under the plywood for a wrapped lip
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // hidden plywood deck to catch shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // leave a thin air gap between the cloth and plywood
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // match the playable field footprint while remaining hidden via colorWrite=false
@@ -4295,6 +4297,60 @@ function Table3D(
     Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
+  const makeClothUVGenerator = () => {
+    const topSpanX = Math.max(MICRO_EPS, halfWext * 2);
+    const topSpanY = Math.max(MICRO_EPS, halfHext * 2);
+    const bottomZ = -CLOTH_THICKNESS - CLOTH_EDGE_CURVE;
+    const topZ = CLOTH_EDGE_CURVE * 0.2;
+    const clampV = (z) => {
+      const v = (z - bottomZ) / (topZ - bottomZ);
+      return THREE.MathUtils.clamp(v, 0, 1);
+    };
+    const angleToU = (x, y) => (Math.atan2(y, x) + Math.PI) / (Math.PI * 2);
+    const planarUV = (x, y) =>
+      new THREE.Vector2((x + halfWext) / topSpanX, (y + halfHext) / topSpanY);
+    return {
+      generateTopUV: (geometry, vertices, a, b, c) => {
+        const ax = vertices[a * 3];
+        const ay = vertices[a * 3 + 1];
+        const bx = vertices[b * 3];
+        const by = vertices[b * 3 + 1];
+        const cx = vertices[c * 3];
+        const cy = vertices[c * 3 + 1];
+        return [planarUV(ax, ay), planarUV(bx, by), planarUV(cx, cy)];
+      },
+      generateSideUV: (geometry, vertices, a, b, c, d) => {
+        const ax = vertices[a * 3];
+        const ay = vertices[a * 3 + 1];
+        const az = vertices[a * 3 + 2];
+        const bx = vertices[b * 3];
+        const by = vertices[b * 3 + 1];
+        const bz = vertices[b * 3 + 2];
+        const cx = vertices[c * 3];
+        const cy = vertices[c * 3 + 1];
+        const cz = vertices[c * 3 + 2];
+        const dx = vertices[d * 3];
+        const dy = vertices[d * 3 + 1];
+        const dz = vertices[d * 3 + 2];
+        const ua = angleToU(ax, ay);
+        const ub = angleToU(bx, by);
+        const uc = angleToU(cx, cy);
+        const ud = angleToU(dx, dy);
+        const va = clampV(az);
+        const vb = clampV(bz);
+        const vc = clampV(cz);
+        const vd = clampV(dz);
+        return [
+          new THREE.Vector2(ua, va),
+          new THREE.Vector2(ub, vb),
+          new THREE.Vector2(uc, vc),
+          new THREE.Vector2(ud, vd)
+        ];
+      }
+    };
+  };
+
+  const clothUVGenerator = makeClothUVGenerator();
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
@@ -4385,9 +4441,14 @@ function Table3D(
   const clothShape = buildSurfaceShape(POCKET_HOLE_R);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_THICKNESS,
-    bevelEnabled: false,
+    bevelEnabled: true,
+    bevelThickness: CLOTH_EDGE_CURVE,
+    bevelSize: CLOTH_EDGE_CURVE * 0.36,
+    bevelOffset: -CLOTH_EDGE_UNDERWRAP * 0.4,
+    bevelSegments: 5,
     curveSegments: 64,
-    steps: 1
+    steps: 3,
+    UVGenerator: clothUVGenerator
   });
   clothGeo.translate(0, 0, -CLOTH_THICKNESS);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
