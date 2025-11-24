@@ -1185,6 +1185,16 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       'solid',
       'stripe'
     ]
+  },
+  snooker: {
+    id: 'snooker',
+    label: 'Snooker Pro',
+    cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: false,
+    objectColors: new Array(15).fill(0xb31212),
+    objectNumbers: new Array(15).fill(null),
+    objectPatterns: new Array(15).fill('solid')
   }
 });
 
@@ -7867,7 +7877,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({
+export function PoolRoyaleGame({
   variantKey,
   tableSizeKey,
   playType = 'regular',
