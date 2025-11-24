@@ -2831,9 +2831,11 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     }
   }
   if (finishInfo.clothEdgeMat) {
-    finishInfo.clothEdgeMat.map = null;
-    finishInfo.clothEdgeMat.bumpMap = null;
-    finishInfo.clothEdgeMat.needsUpdate = true;
+    replaceMaterialTexture(finishInfo.clothEdgeMat, 'map', textures.map, fallbackRepeat);
+    replaceMaterialTexture(finishInfo.clothEdgeMat, 'bumpMap', textures.bump, fallbackRepeat);
+    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
+      finishInfo.clothEdgeMat.bumpScale = finishInfo.clothBase.baseBumpScale;
+    }
   }
   finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
     if (!mesh?.material) return;
