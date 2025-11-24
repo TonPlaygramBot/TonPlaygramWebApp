@@ -284,9 +284,9 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '16%' }
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
-const SAND_TIMER_RADIUS_FACTOR = 0.62;
-const SAND_TIMER_SURFACE_OFFSET = 0.1;
-const SAND_TIMER_SCALE = 0.288;
+const SAND_TIMER_RADIUS_FACTOR = 0.68;
+const SAND_TIMER_SURFACE_OFFSET = 0.14;
+const SAND_TIMER_SCALE = 0.36;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -502,7 +502,11 @@ function disposeChessChairMaterials(materials) {
 }
 
 function createSandTimer(accentColor = '#f4b400') {
-  const group = new THREE.Group();
+  const root = new THREE.Group();
+  const body = new THREE.Group();
+  root.add(body);
+  body.scale.setScalar(SAND_TIMER_SCALE);
+
   const frameMat = new THREE.MeshStandardMaterial({
     color: 0x1e293b,
     metalness: 0.52,
@@ -544,7 +548,7 @@ function createSandTimer(accentColor = '#f4b400') {
   topCap.position.y = 0.38;
   const bottomCap = new THREE.Mesh(capGeo, frameMat);
   bottomCap.position.y = -0.38;
-  group.add(topCap, bottomCap);
+  body.add(topCap, bottomCap);
 
   const pillarGeo = new THREE.CylinderGeometry(0.038, 0.038, 0.72, 12);
   const pillarA = new THREE.Mesh(pillarGeo, frameMat);
@@ -555,17 +559,17 @@ function createSandTimer(accentColor = '#f4b400') {
   pillarC.position.set(0.22, 0, -0.22);
   const pillarD = pillarA.clone();
   pillarD.position.set(-0.22, 0, -0.22);
-  group.add(pillarA, pillarB, pillarC, pillarD);
+  body.add(pillarA, pillarB, pillarC, pillarD);
 
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 16), frameMat);
-  group.add(neck);
+  body.add(neck);
 
   const glassTop = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
   glassTop.position.y = 0.16;
   glassTop.rotation.x = Math.PI;
   const glassBottom = new THREE.Mesh(new THREE.ConeGeometry(0.21, 0.42, 26), glassMat);
   glassBottom.position.y = -0.16;
-  group.add(glassTop, glassBottom);
+  body.add(glassTop, glassBottom);
 
   const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 26), goldSand);
   sandTop.position.y = 0.11;
@@ -586,7 +590,7 @@ function createSandTimer(accentColor = '#f4b400') {
   );
   sandStream.position.y = -0.02;
   sandStream.visible = false;
-  group.add(sandTop, sandBottom, sandStream);
+  body.add(sandTop, sandBottom, sandStream);
 
   const shimmer = new THREE.Mesh(
     new THREE.CylinderGeometry(0.022, 0.022, 0.22, 14),
@@ -599,7 +603,33 @@ function createSandTimer(accentColor = '#f4b400') {
     })
   );
   shimmer.position.y = -0.02;
-  group.add(shimmer);
+  body.add(shimmer);
+
+  const sandDropsGeo = new THREE.SphereGeometry(0.014, 10, 10);
+  const sandDropsMat = new THREE.MeshStandardMaterial({
+    color: 0xf2d3a1,
+    emissive: 0xf2c38c,
+    emissiveIntensity: 0.38,
+    transparent: true,
+    opacity: 0.86,
+    roughness: 0.34,
+    metalness: 0.08
+  });
+  const dropCount = 32;
+  const sandDrops = new THREE.InstancedMesh(sandDropsGeo, sandDropsMat, dropCount);
+  body.add(sandDrops);
+  const dropStates = Array.from({ length: dropCount }, () => ({
+    x: (Math.random() - 0.5) * 0.04,
+    z: (Math.random() - 0.5) * 0.04,
+    y: Math.random() * 0.12,
+    speed: 0.12 + Math.random() * 0.16
+  }));
+  const resetDrop = (i) => {
+    dropStates[i].x = (Math.random() - 0.5) * 0.05;
+    dropStates[i].z = (Math.random() - 0.5) * 0.05;
+    dropStates[i].y = 0.12 + Math.random() * 0.04;
+    dropStates[i].speed = 0.12 + Math.random() * 0.16;
+  };
 
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -621,7 +651,7 @@ function createSandTimer(accentColor = '#f4b400') {
   const timeBezel = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.016, 16, 64), accentMat);
   timeBezel.rotation.x = -Math.PI / 2;
   timeBezel.position.set(0, 0.422, 0);
-  group.add(timeFace, timeBezel);
+  body.add(timeFace, timeBezel);
 
   const drawTime = (seconds) => {
     const timeString = formatTime(Math.max(0, Math.round(seconds)));
@@ -653,22 +683,24 @@ function createSandTimer(accentColor = '#f4b400') {
     timeTexture.needsUpdate = true;
   };
 
-  group.scale.setScalar(SAND_TIMER_SCALE);
-
   let lastDisplay = null;
   let currentTurnWhite = true;
+  let lastFill = 1;
+  let targetLean = 0;
+  let targetSlide = 0;
+  let wobbleIntensity = 0;
   const indicatorRing = new THREE.Mesh(
-    new THREE.TorusGeometry(0.32, 0.01, 12, 40),
+    new THREE.TorusGeometry(0.34, 0.012, 12, 44),
     new THREE.MeshBasicMaterial({
       color: accentMat.color.clone(),
       transparent: true,
-      opacity: 0.52,
+      opacity: 0.54,
       blending: THREE.AdditiveBlending
     })
   );
   indicatorRing.rotation.x = -Math.PI / 2;
   indicatorRing.position.y = 0.41;
-  group.add(indicatorRing);
+  body.add(indicatorRing);
 
   const applyTurnColor = () => {
     const base = new THREE.Color(currentTurnWhite ? '#ffe4b8' : '#b5c6ff');
@@ -682,8 +714,30 @@ function createSandTimer(accentColor = '#f4b400') {
 
   applyTurnColor();
 
+  const tickSandDrops = (dt) => {
+    const flow = clamp01(1 - lastFill);
+    const matrix = new THREE.Matrix4();
+    for (let i = 0; i < dropCount; i += 1) {
+      const state = dropStates[i];
+      if (flow < 0.04) {
+        state.y = -0.16;
+      } else {
+        state.y -= state.speed * dt * (0.8 + flow * 0.6);
+        if (state.y < -0.16) resetDrop(i);
+      }
+      matrix.compose(
+        new THREE.Vector3(state.x, state.y, state.z),
+        new THREE.Quaternion(),
+        new THREE.Vector3(1, 1, 1)
+      );
+      sandDrops.setMatrixAt(i, matrix);
+    }
+    sandDrops.instanceMatrix.needsUpdate = true;
+    sandDrops.count = flow < 0.02 ? 0 : dropCount;
+  };
+
   return {
-    group,
+    group: root,
     parts: { sandTop, sandBottom, sandStream },
     updateAccent: (color) => {
       accentMat.color.set(color);
@@ -692,6 +746,7 @@ function createSandTimer(accentColor = '#f4b400') {
     setFill: (value) => {
       const pct = clamp01(value, 1);
       const eased = Math.pow(pct, 0.92);
+      lastFill = pct;
       sandTop.scale.set(1, Math.max(0.2, eased), 1);
       sandTop.position.y = 0.11 + (eased - 1) * 0.05;
       const bottomScale = Math.max(0.26, 1.12 - eased * 0.9);
@@ -709,7 +764,20 @@ function createSandTimer(accentColor = '#f4b400') {
     },
     setTurn: (isWhiteTurn) => {
       currentTurnWhite = !!isWhiteTurn;
+      targetLean = currentTurnWhite ? -0.22 : 0.22;
+      targetSlide = currentTurnWhite ? -0.08 : 0.08;
+      wobbleIntensity = 1.2;
       applyTurnColor();
+    },
+    tick: (dt, elapsed) => {
+      body.position.x = THREE.MathUtils.damp(body.position.x, targetSlide, 6, dt);
+      body.position.y = Math.sin(elapsed * 2.4) * 0.02;
+      const lean = THREE.MathUtils.damp(body.rotation.z, targetLean, 7, dt);
+      const wobble = Math.sin(elapsed * 8.2) * wobbleIntensity * 0.08;
+      body.rotation.z = lean + wobble + Math.sin(elapsed * 2.1) * 0.02;
+      body.rotation.x = Math.sin(elapsed * 1.8) * 0.03;
+      wobbleIntensity = Math.max(0, wobbleIntensity - dt * 0.8);
+      tickSandDrops(dt);
     },
     dispose: () => {
       capGeo.dispose();
@@ -719,6 +787,7 @@ function createSandTimer(accentColor = '#f4b400') {
       sandTop.geometry.dispose();
       sandBottom.geometry.dispose();
       sandStream.geometry.dispose();
+      sandDropsGeo.dispose();
       shimmer.geometry.dispose();
       frameMat.dispose();
       accentMat.dispose();
@@ -726,6 +795,7 @@ function createSandTimer(accentColor = '#f4b400') {
       goldSand.dispose();
       silverSand.dispose();
       sandStream.material.dispose();
+      sandDropsMat.dispose();
       shimmer.material.dispose();
       timeFace.geometry.dispose();
       timeBezel.geometry.dispose();
@@ -2943,7 +3013,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     renderer.domElement.addEventListener('touchend', onClick);
 
     // Loop
+    let lastTime = performance.now();
     const step = () => {
+      const now = performance.now();
+      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+      lastTime = now;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
@@ -2987,7 +3061,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const pct = clamp01(activeLeft / Math.max(1, activeTotal));
         arenaState.sandTimer.setFill?.(pct);
         arenaState.sandTimer.setTime?.(activeLeft);
-        arenaState.sandTimer.group.rotation.z = Math.sin(performance.now() * 0.002) * 0.06;
+        arenaState.sandTimer.tick?.(dt, now * 0.001);
       }
 
       controls?.update();
