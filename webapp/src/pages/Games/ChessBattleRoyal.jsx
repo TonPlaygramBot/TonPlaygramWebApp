@@ -285,8 +285,8 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const SAND_TIMER_RADIUS_FACTOR = 0.62;
-const SAND_TIMER_SURFACE_OFFSET = 0.24;
-const SAND_TIMER_SCALE = 0.72;
+const SAND_TIMER_SURFACE_OFFSET = 0.1;
+const SAND_TIMER_SCALE = 0.288;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -567,12 +567,26 @@ function createSandTimer(accentColor = '#f4b400') {
   glassBottom.position.y = -0.16;
   group.add(glassTop, glassBottom);
 
-  const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 22), goldSand);
+  const sandTop = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.26, 26), goldSand);
   sandTop.position.y = 0.11;
   sandTop.rotation.x = Math.PI;
-  const sandBottom = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 22), silverSand);
+  const sandBottom = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 26), silverSand);
   sandBottom.position.y = -0.16;
-  group.add(sandTop, sandBottom);
+  const sandStream = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.012, 0.008, 0.24, 16),
+    new THREE.MeshStandardMaterial({
+      color: 0xf6d6a8,
+      transparent: true,
+      opacity: 0.4,
+      emissive: 0xf0cba2,
+      emissiveIntensity: 0.22,
+      roughness: 0.48,
+      metalness: 0.08
+    })
+  );
+  sandStream.position.y = -0.02;
+  sandStream.visible = false;
+  group.add(sandTop, sandBottom, sandStream);
 
   const shimmer = new THREE.Mesh(
     new THREE.CylinderGeometry(0.022, 0.022, 0.22, 14),
@@ -588,54 +602,114 @@ function createSandTimer(accentColor = '#f4b400') {
   group.add(shimmer);
 
   const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 128;
+  canvas.width = 512;
+  canvas.height = 512;
   const ctx = canvas.getContext('2d');
   const timeTexture = new THREE.CanvasTexture(canvas);
   timeTexture.colorSpace = THREE.SRGBColorSpace;
-  const timeMaterial = new THREE.SpriteMaterial({ map: timeTexture, transparent: true });
-  const timeSprite = new THREE.Sprite(timeMaterial);
-  timeSprite.scale.set(0.72, 0.34, 1);
-  timeSprite.position.set(0, 0.62, 0);
-  group.add(timeSprite);
+  const timeMaterial = new THREE.MeshStandardMaterial({
+    map: timeTexture,
+    transparent: true,
+    metalness: 0.16,
+    roughness: 0.34,
+    emissiveIntensity: 0.08,
+    side: THREE.DoubleSide
+  });
+  const timeFace = new THREE.Mesh(new THREE.CircleGeometry(0.26, 64), timeMaterial);
+  timeFace.rotation.x = -Math.PI / 2;
+  timeFace.position.set(0, 0.42, 0);
+  const timeBezel = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.016, 16, 64), accentMat);
+  timeBezel.rotation.x = -Math.PI / 2;
+  timeBezel.position.set(0, 0.422, 0);
+  group.add(timeFace, timeBezel);
 
   const drawTime = (seconds) => {
     const timeString = formatTime(Math.max(0, Math.round(seconds)));
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(7, 10, 18, 0.85)';
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const radius = canvas.width * 0.44;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+    const gradient = ctx.createRadialGradient(cx, cy, radius * 0.25, cx, cy, radius);
+    gradient.addColorStop(0, 'rgba(12, 16, 26, 0.95)');
+    gradient.addColorStop(0.7, 'rgba(12, 16, 26, 0.92)');
+    gradient.addColorStop(1, 'rgba(8, 12, 20, 0.92)');
+    ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#d9e4ff';
+    ctx.strokeStyle = '#ffd166';
+    ctx.lineWidth = 18;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius - 12, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#f5f8ff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = 'bold 62px "JetBrains Mono", "Roboto Mono", monospace';
-    ctx.fillText(timeString, canvas.width / 2, canvas.height / 2 + 6);
-    ctx.strokeStyle = '#ffd166';
-    ctx.lineWidth = 6;
-    ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+    ctx.font = 'bold 118px "JetBrains Mono", "Roboto Mono", monospace';
+    ctx.fillText(timeString, cx, cy + 8);
+    ctx.restore();
     timeTexture.needsUpdate = true;
   };
 
   group.scale.setScalar(SAND_TIMER_SCALE);
 
   let lastDisplay = null;
+  let currentTurnWhite = true;
+  const indicatorRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.32, 0.01, 12, 40),
+    new THREE.MeshBasicMaterial({
+      color: accentMat.color.clone(),
+      transparent: true,
+      opacity: 0.52,
+      blending: THREE.AdditiveBlending
+    })
+  );
+  indicatorRing.rotation.x = -Math.PI / 2;
+  indicatorRing.position.y = 0.41;
+  group.add(indicatorRing);
+
+  const applyTurnColor = () => {
+    const base = new THREE.Color(currentTurnWhite ? '#ffe4b8' : '#b5c6ff');
+    const combined = base.lerp(accentMat.color, 0.4);
+    indicatorRing.material.color.copy(combined);
+    indicatorRing.material.opacity = currentTurnWhite ? 0.58 : 0.52;
+    frameMat.emissive = combined.clone().multiplyScalar(0.42);
+    accentMat.emissive = combined.clone().multiplyScalar(0.45);
+    timeMaterial.emissive = combined.clone().multiplyScalar(0.26);
+  };
+
+  applyTurnColor();
 
   return {
     group,
-    parts: { sandTop, sandBottom },
+    parts: { sandTop, sandBottom, sandStream },
     updateAccent: (color) => {
       accentMat.color.set(color);
-      accentMat.emissive.set(color).multiplyScalar(0.35);
-      frameMat.emissive = accentMat.emissive.clone();
+      applyTurnColor();
     },
     setFill: (value) => {
       const pct = clamp01(value, 1);
-      sandTop.scale.y = Math.max(0.22, pct);
-      sandBottom.scale.y = Math.max(0.26, 1.18 - pct * 0.9);
+      const eased = Math.pow(pct, 0.92);
+      sandTop.scale.set(1, Math.max(0.2, eased), 1);
+      sandTop.position.y = 0.11 + (eased - 1) * 0.05;
+      const bottomScale = Math.max(0.26, 1.12 - eased * 0.9);
+      sandBottom.scale.set(1 + (1 - eased) * 0.35, bottomScale, 1 + (1 - eased) * 0.35);
+      sandBottom.position.y = -0.16 + (1 - eased) * 0.04;
+      sandStream.visible = eased < 0.995;
+      sandStream.scale.y = clamp01(1 - eased) * 1.1;
+      sandStream.material.opacity = 0.35 + (1 - eased) * 0.38;
+      sandStream.position.y = -0.02 - sandStream.scale.y * 0.08;
     },
     setTime: (seconds) => {
       if (seconds === lastDisplay) return;
       lastDisplay = seconds;
       drawTime(seconds);
+    },
+    setTurn: (isWhiteTurn) => {
+      currentTurnWhite = !!isWhiteTurn;
+      applyTurnColor();
     },
     dispose: () => {
       capGeo.dispose();
@@ -644,13 +718,19 @@ function createSandTimer(accentColor = '#f4b400') {
       glassBottom.geometry.dispose();
       sandTop.geometry.dispose();
       sandBottom.geometry.dispose();
+      sandStream.geometry.dispose();
       shimmer.geometry.dispose();
       frameMat.dispose();
       accentMat.dispose();
       glassMat.dispose();
       goldSand.dispose();
       silverSand.dispose();
+      sandStream.material.dispose();
       shimmer.material.dispose();
+      timeFace.geometry.dispose();
+      timeBezel.geometry.dispose();
+      indicatorRing.geometry.dispose();
+      indicatorRing.material.dispose();
       timeMaterial.dispose();
       timeTexture.dispose();
     }
@@ -1692,6 +1772,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, [ui.turnWhite, updateSandTimerPlacement]);
 
   useEffect(() => {
+    const arena = arenaRef.current;
+    arena?.sandTimer?.setTurn?.(ui.turnWhite);
+  }, [ui.turnWhite]);
+
+  useEffect(() => {
     if (aiFlag && FLAG_EMOJIS.includes(aiFlag)) {
       try {
         window.localStorage?.setItem('chessBattleRoyalAiFlag', aiFlag);
@@ -2290,6 +2375,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const sandTimerRadius = (tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
     const sandTimerSurfaceY = (tableInfo?.surfaceY ?? TABLE_HEIGHT) + SAND_TIMER_SURFACE_OFFSET;
     sandTimer.setFill?.(1);
+    sandTimer.setTurn?.(uiRef.current?.turnWhite ?? true);
     sandTimer.group.position.set(0, sandTimerSurfaceY, sandTimerRadius);
     sandTimer.group.rotation.y = Math.PI;
     arena.add(sandTimer.group);
