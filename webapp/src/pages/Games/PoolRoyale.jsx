@@ -5353,8 +5353,6 @@ function Table3D(
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.sheen = 0;
-  clothEdgeMat.map = null;
-  clothEdgeMat.bumpMap = null;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
