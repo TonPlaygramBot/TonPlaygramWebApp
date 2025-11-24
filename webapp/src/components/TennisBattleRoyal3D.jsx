@@ -1574,6 +1574,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       spin.set(0, 0, 0);
       ball.position.copy(pos);
       shadow.position.set(pos.x, 0.01, pos.z);
+      ball.visible = true;
+      shadow.visible = true;
+      for (let i = 0; i < trailN; i += 1) {
+        trailPos[i * 3 + 0] = pos.x;
+        trailPos[i * 3 + 1] = pos.y;
+        trailPos[i * 3 + 2] = pos.z;
+      }
+      trailGeom.attributes.position.needsUpdate = true;
       const serverLabel = by === 'player' ? playerLabel : cpuLabel;
       const sideLabel = state.serveSide === 'deuce' ? 'D' : 'Ad';
       const base = `Serve ${sideLabel} · ${serverLabel}`;
@@ -1693,7 +1701,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     function screenToCourtZ(clientY) {
       const rect = renderer.domElement.getBoundingClientRect();
       const normY = THREE.MathUtils.clamp((clientY - rect.top) / rect.height, 0, 1);
-      const targetLocalZ = (1 - normY) * (playerCourtMaxZ - playerCourtMinZ) + playerCourtMinZ;
+      const targetLocalZ = normY * (playerCourtMaxZ - playerCourtMinZ) + playerCourtMinZ;
       return clampZ(targetLocalZ, playerCourtMinZ, playerCourtMaxZ);
     }
 
