@@ -47,6 +47,13 @@ function applyTablePhysicsSpec(meta) {
     : DEFAULT_CUSHION_CUT_ANGLE;
   CUSHION_CUT_ANGLE = cushionAngle;
 
+  const sideCushionAngle = Number.isFinite(meta?.sideCushionCutAngleDeg)
+    ? meta.sideCushionCutAngleDeg
+    : Number.isFinite(meta?.cushionCutAngleDeg)
+      ? meta.cushionCutAngleDeg
+      : DEFAULT_SIDE_CUSHION_CUT_ANGLE;
+  SIDE_CUSHION_CUT_ANGLE = sideCushionAngle;
+
   const restitution = Number.isFinite(meta?.cushionRestitution)
     ? meta.cushionRestitution
     : DEFAULT_CUSHION_RESTITUTION;
@@ -1027,9 +1034,12 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
-// angle for cushion cuts guiding balls into pockets (Pool Royale spec now requires 35°)
+// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
 const DEFAULT_CUSHION_CUT_ANGLE = 35;
+// middle pocket cushion cuts must be shallower at 32°
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 32;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
+let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
 const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playable face and cushion nose further inward to match the expanded top surface
 
@@ -4727,16 +4737,16 @@ function makeWoodTexture({
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
-  const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
+  const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
+  const cornerCos = Math.cos(cornerRad);
+  const cornerSin = Math.sin(cornerRad);
   const pocketGuard =
     POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // widen the safe zone so balls don't bounce before reaching the jaw
   const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
   const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
-    TMP_VEC2_B.set(-sx * cos, -sy * sin);
+    TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
     if (distNormal >= BALL_R) continue;
@@ -4772,12 +4782,15 @@ function reflectRails(ball) {
 
   const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
   const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
+  const sideCos = Math.cos(sideRad);
+  const sideSin = Math.sin(sideRad);
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
     TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
-    TMP_VEC2_B.set(-sx * cos, -sy * sin);
+    TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
     const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
     if (distNormal >= BALL_R) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
