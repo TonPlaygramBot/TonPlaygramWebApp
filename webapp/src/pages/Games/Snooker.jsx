@@ -476,20 +476,19 @@ function addPocketCuts(parent, clothPlane) {
 // --------------------------------------------------
 // separate scales for table and balls
 // Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
-const POOL_ROYALE_BASE_SCALE = 1.17; // reuse Pool Royale rail/cushion proportions
-const POOL_ROYALE_RAIL_REDUCTION = 0.84;
-const OFFICIAL_TABLE_MM = Object.freeze({ width: 3569, height: 1778 });
-const POOL_ROYALE_REF_MM_WIDTH = 2540; // Pool Royale geometry reference
-const OFFICIAL_TO_POOL_SCALE = OFFICIAL_TABLE_MM.width / POOL_ROYALE_REF_MM_WIDTH;
-const MOBILE_TABLE_SHRINK = 0.62; // portrait-friendly shrink while keeping chrome arches aligned
-const GLOBAL_SIZE_FACTOR = MOBILE_TABLE_SHRINK * 0.96;
-const WORLD_SCALE = MOBILE_TABLE_SHRINK * 0.5;
+const TABLE_SIZE_SHRINK = 0.78;
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
+const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
+const SIZE_REDUCTION = 0.7;
+const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
+const TABLE_DISPLAY_SCALE = 0.88;
+const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TABLE_GROWTH_MULTIPLIER = 1.5;
 const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const POOL_TABLE_SCALE =
-  POOL_ROYALE_BASE_SCALE * POOL_ROYALE_RAIL_REDUCTION * MOBILE_TABLE_SHRINK;
-const TABLE_SCALE = POOL_ROYALE_BASE_SCALE * OFFICIAL_TO_POOL_SCALE * MOBILE_TABLE_SHRINK;
+const TABLE_BASE_SCALE = 1.17;
+const POOL_TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION;
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
 const ENABLE_CUE_RACK_DISPLAY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE = {
@@ -502,8 +501,8 @@ const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so geo
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
-const WIDTH_REF = OFFICIAL_TABLE_MM.width;
-const HEIGHT_REF = OFFICIAL_TABLE_MM.height;
+const WIDTH_REF = 3569;
+const HEIGHT_REF = 1778;
 const BALL_D_REF = 57.15;
 const BALL_SIZE_SCALE = 0.94248;
 const BAULK_FROM_BAULK_REF = 558.8;
