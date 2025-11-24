@@ -361,38 +361,100 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       ctx.fillStyle = '#0b0c0f';
       ctx.fillRect(0, 0, size, size);
 
-      const rim = ctx.createRadialGradient(cx, cy, size * 0.08, cx, cy, size * 0.48);
-      rim.addColorStop(0, '#1d1f22');
-      rim.addColorStop(0.6, '#0d0e11');
-      rim.addColorStop(1, '#050505');
-      ctx.fillStyle = rim;
+      const outerRim = ctx.createRadialGradient(cx, cy, size * 0.1, cx, cy, size * 0.48);
+      outerRim.addColorStop(0, '#1b1f23');
+      outerRim.addColorStop(0.55, '#0f1114');
+      outerRim.addColorStop(1, '#040506');
+      ctx.fillStyle = outerRim;
       ctx.beginPath();
       ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = '#1b1d1f';
-      ctx.lineWidth = size * 0.03;
+      const rimCut = ctx.createRadialGradient(cx, cy, size * 0.14, cx, cy, size * 0.42);
+      rimCut.addColorStop(0, 'rgba(255,255,255,0.08)');
+      rimCut.addColorStop(0.42, 'rgba(60,60,60,0.2)');
+      rimCut.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.strokeStyle = rimCut;
+      ctx.lineWidth = size * 0.05;
       ctx.beginPath();
       ctx.arc(cx, cy, size * 0.36, 0, Math.PI * 2);
       ctx.stroke();
 
-      const top = ctx.createRadialGradient(cx, cy * 0.98, size * 0.06, cx, cy, size * 0.35);
-      top.addColorStop(0, 'rgba(255,255,255,0.26)');
-      top.addColorStop(0.6, 'rgba(80,85,90,0.12)');
-      top.addColorStop(1, 'rgba(10,10,10,0.5)');
+      const top = ctx.createRadialGradient(cx, cy * 0.98, size * 0.06, cx, cy, size * 0.33);
+      top.addColorStop(0, 'rgba(240,240,240,0.28)');
+      top.addColorStop(0.6, 'rgba(80,85,90,0.18)');
+      top.addColorStop(1, 'rgba(10,10,10,0.55)');
       ctx.fillStyle = top;
       ctx.beginPath();
-      ctx.arc(cx, cy, size * 0.36, 0, Math.PI * 2);
+      ctx.arc(cx, cy, size * 0.34, 0, Math.PI * 2);
       ctx.fill();
 
-      const sheen = ctx.createLinearGradient(cx - size * 0.18, cy - size * 0.14, cx + size * 0.1, cy + size * 0.22);
-      sheen.addColorStop(0, 'rgba(255,255,255,0.08)');
-      sheen.addColorStop(0.5, 'rgba(255,255,255,0.22)');
-      sheen.addColorStop(1, 'rgba(255,255,255,0.02)');
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(-0.4);
+      const sheen = ctx.createLinearGradient(-size * 0.2, -size * 0.18, size * 0.12, size * 0.26);
+      sheen.addColorStop(0, 'rgba(255,255,255,0.12)');
+      sheen.addColorStop(0.55, 'rgba(255,255,255,0.25)');
+      sheen.addColorStop(1, 'rgba(255,255,255,0.06)');
       ctx.fillStyle = sheen;
       ctx.beginPath();
-      ctx.ellipse(cx, cy + size * 0.02, size * 0.36, size * 0.24, -0.35, 0, Math.PI * 2);
+      ctx.ellipse(0, size * 0.02, size * 0.32, size * 0.21, -0.2, 0, Math.PI * 2);
       ctx.fill();
+      ctx.restore();
+
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      for (let i = 0; i < 8; i += 1) {
+        const angle = (i / 8) * Math.PI * 2;
+        const radius = size * 0.36;
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.01, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalCompositeOperation = 'source-over';
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      texture.needsUpdate = true;
+      return texture;
+    };
+
+    const createMalletTexture = (color) => {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const cx = size / 2;
+      const cy = size / 2;
+
+      const base = ctx.createRadialGradient(cx, cy, size * 0.08, cx, cy, size * 0.5);
+      base.addColorStop(0, '#fafafc');
+      base.addColorStop(0.08, '#ffffff');
+      base.addColorStop(0.26, color);
+      base.addColorStop(1, '#0a0a0c');
+      ctx.fillStyle = base;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+
+      const gloss = ctx.createLinearGradient(cx - size * 0.18, cy - size * 0.25, cx + size * 0.22, cy + size * 0.26);
+      gloss.addColorStop(0, 'rgba(255,255,255,0.18)');
+      gloss.addColorStop(0.55, 'rgba(255,255,255,0.34)');
+      gloss.addColorStop(1, 'rgba(255,255,255,0.08)');
+      ctx.fillStyle = gloss;
+      ctx.beginPath();
+      ctx.ellipse(cx - size * 0.06, cy, size * 0.32, size * 0.18, -0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+      ctx.lineWidth = size * 0.018;
+      ctx.beginPath();
+      ctx.arc(cx, cy, size * 0.34, 0, Math.PI * 2);
+      ctx.stroke();
 
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -418,10 +480,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const SCALE_WIDTH = TABLE.w / 2.2;
     const SCALE_LENGTH = TABLE.h / (4.8 * 1.2);
     const SPEED_SCALE = (SCALE_WIDTH + SCALE_LENGTH) / 2;
-    const MALLET_RADIUS = TABLE.w * 0.06;
+    const MALLET_RADIUS = TABLE.w * 0.072;
     const MALLET_HEIGHT = MALLET_RADIUS * (0.05 / 0.12);
-    const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.06 / 0.12);
-    const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.08 / 0.12);
+    const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.065 / 0.12);
+    const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.1 / 0.12);
     const PUCK_RADIUS = TABLE.w * 0.0295;
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
 
@@ -682,28 +744,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     midLine.position.y = lineThickness * 0.25;
     tableGroup.add(midLine);
 
-    const ring = (radius, tubeRadius, z) => {
-      const torus = new THREE.TorusGeometry(radius, tubeRadius, 16, 60);
-      const material = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        roughness: 0.5
-      });
-      materialsRef.current.rings.push(material);
-      const mesh = new THREE.Mesh(torus, material);
-      mesh.rotation.x = Math.PI / 2;
-      mesh.position.set(0, lineThickness * 0.5, z);
-      tableGroup.add(mesh);
-    };
-    const ringRadius = 0.18 * SCALE_WIDTH;
-    const ringTube = 0.008 * SCALE_WIDTH;
+    const anchorLift = lineThickness * 3.5;
+    const avatarSize = TABLE.w * 0.18;
     const ringOffset = TABLE.h * 0.33;
-    ring(ringRadius, ringTube, -ringOffset);
-    ring(ringRadius, ringTube, ringOffset);
-    const avatarLift = ringTube * 2;
-    const avatarSize = (ringRadius + ringTube) * 2;
     fieldAnchorsRef.current = {
-      ai: { x: 0, y: avatarLift, z: -ringOffset },
-      player: { x: 0, y: avatarLift, z: ringOffset },
+      ai: { x: 0, y: anchorLift, z: -ringOffset },
+      player: { x: 0, y: anchorLift, z: ringOffset },
       size: avatarSize
     };
     setAnchorsReady((v) => v + 1);
@@ -728,17 +774,23 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const makeMallet = (color) => {
       const mallet = new THREE.Group();
+      const baseTexture = createMalletTexture(new THREE.Color(color).getStyle());
       const baseMaterial = new THREE.MeshStandardMaterial({
         color,
-        roughness: 0.4,
-        metalness: 0.2
+        map: baseTexture,
+        roughness: 0.32,
+        metalness: 0.28
       });
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(MALLET_RADIUS, MALLET_RADIUS, MALLET_HEIGHT, 32),
         baseMaterial
       );
       base.position.y = MALLET_HEIGHT / 2;
-      const knobMaterial = new THREE.MeshStandardMaterial({ color: 0x222222 });
+      const knobMaterial = new THREE.MeshStandardMaterial({
+        color: 0x222222,
+        roughness: 0.26,
+        metalness: 0.22
+      });
       const knob = new THREE.Mesh(
         new THREE.CylinderGeometry(
           MALLET_KNOB_RADIUS,
@@ -773,8 +825,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       new THREE.MeshStandardMaterial({
         color: 0x111111,
         map: puckTexture,
-        roughness: 0.42,
-        metalness: 0.36
+        roughness: 0.34,
+        metalness: 0.22,
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.28
       })
     );
     puck.position.y = PUCK_HEIGHT / 2;
@@ -1064,8 +1118,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, size, size);
       ctx.save();
+      const maskRadius = size / 2 - 6;
       ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.arc(size / 2, size / 2, maskRadius, 0, Math.PI * 2);
       ctx.closePath();
       const gradient = ctx.createLinearGradient(0, 0, 0, size);
       gradient.addColorStop(0, '#0b1224');
@@ -1089,9 +1144,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       }
       ctx.restore();
       ctx.beginPath();
-      ctx.arc(size / 2, size / 2, size / 2 - 18, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-      ctx.lineWidth = 14;
+      ctx.arc(size / 2, size / 2, maskRadius - 4, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      ctx.lineWidth = 10;
       ctx.stroke();
       const texture = new THREE.CanvasTexture(canvas);
       texture.colorSpace = THREE.SRGBColorSpace;
