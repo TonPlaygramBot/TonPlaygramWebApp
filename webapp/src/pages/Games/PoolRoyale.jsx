@@ -411,7 +411,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // align fascia reach with snooker 
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46; // mirror snooker fascia width so both edges flow into the rails cleanly
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.094; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.136; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
@@ -421,7 +421,7 @@ const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief 
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.072; // open the middle rail arches a hair more so the rounded cut reaches the chrome hook cleanly
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.21; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.264; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
 
 function buildChromePlateGeometry({
   width,
@@ -696,7 +696,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.196; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -2000,6 +2000,7 @@ const resolveRailMarkerColorOption = (id) =>
   RAIL_MARKER_COLOR_OPTIONS[0];
 
 const DEFAULT_LIGHTING_ID = 'studio-soft';
+const LIGHTING_STORAGE_KEY = 'poolLightingPreset';
 const LIGHTING_OPTIONS = Object.freeze([
   {
     id: 'studio-soft',
@@ -2016,6 +2017,57 @@ const LIGHTING_OPTIONS = Object.freeze([
       spotIntensity: 9.6,
       spotAngle: Math.PI * 0.4,
       ambientIntensity: 0.14
+    }
+  },
+  {
+    id: 'arena-prime',
+    label: 'Arena Prime',
+    description: 'Tour stadium key with crisp specular pickup.',
+    settings: {
+      hemiSky: 0xdfe8ff,
+      hemiGround: 0x0a0f1a,
+      hemiIntensity: 1.08,
+      rimIntensity: 0.76,
+      dirColor: 0xf6f8ff,
+      dirIntensity: 1.42,
+      spotColor: 0xffffff,
+      spotIntensity: 11.4,
+      spotAngle: Math.PI * 0.36,
+      ambientIntensity: 0.16
+    }
+  },
+  {
+    id: 'proscenium-contrast',
+    label: 'Proscenium Contrast',
+    description: 'High-contrast stage look with tight rim control.',
+    settings: {
+      hemiSky: 0xd8e3ff,
+      hemiGround: 0x0b0f1c,
+      hemiIntensity: 0.96,
+      rimIntensity: 0.9,
+      dirColor: 0xf2f5ff,
+      dirIntensity: 1.58,
+      spotColor: 0xf7fbff,
+      spotIntensity: 12.2,
+      spotAngle: Math.PI * 0.34,
+      ambientIntensity: 0.12
+    }
+  },
+  {
+    id: 'noir-telecast',
+    label: 'Noir Telecast',
+    description: 'Cool broadcast grade with soft rim and wider beam.',
+    settings: {
+      hemiSky: 0xcfd9ec,
+      hemiGround: 0x0c111c,
+      hemiIntensity: 1,
+      rimIntensity: 0.82,
+      dirColor: 0xeaf1ff,
+      dirIntensity: 1.28,
+      spotColor: 0xf5f8ff,
+      spotIntensity: 10.2,
+      spotAngle: Math.PI * 0.42,
+      ambientIntensity: 0.18
     }
   }
 ]);
@@ -2041,61 +2093,60 @@ const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
-    id: 'pro-tour-rail',
-    label: 'Pro Tour Rail',
-    description: 'WPA finals rail cam with crisp shoulder pans.',
-    railPush: BALL_R * 5.6,
-    lateralDolly: BALL_R * 1.6,
-    focusLift: BALL_R * 1.2,
-    focusPan: BALL_R * 0.24,
-    trackingBias: 0.36,
-    smoothing: 0.16
-  },
-  {
-    id: 'stadium-dolly',
-    label: 'Stadium Dolly',
-    description: 'Prime arena track with slow crane parallax.',
-    railPush: BALL_R * 7.6,
-    lateralDolly: BALL_R * 2.2,
-    focusLift: BALL_R * 3.8,
-    focusDepthBias: BALL_R * 1.4,
-    trackingBias: 0.54,
+    id: 'arena-railcam',
+    label: 'Arena RailCam',
+    description: 'Championship rail ride with shoulder-led pans.',
+    railPush: BALL_R * 6.8,
+    lateralDolly: BALL_R * 1.8,
+    focusLift: BALL_R * 1.4,
+    focusPan: BALL_R * 0.28,
+    trackingBias: 0.38,
     smoothing: 0.14
   },
   {
-    id: 'immersive-gimbal',
-    label: 'Immersive Gimbal',
-    description: 'Low esports follow-cam that hugs the cushions.',
-    railPush: BALL_R * 3.2,
-    lateralDolly: BALL_R * 1.05,
-    focusLift: BALL_R * 0.74,
-    focusDepthBias: BALL_R * 0.74,
-    focusPan: BALL_R * 0.42,
-    trackingBias: 0.7,
-    smoothing: 0.22
+    id: 'skybox-truss',
+    label: 'Skybox TrussCam',
+    description: 'High truss glide with wide parallax sweeps.',
+    railPush: BALL_R * 10.5,
+    lateralDolly: BALL_R * 3.4,
+    focusLift: BALL_R * 6.2,
+    focusDepthBias: BALL_R * 2.4,
+    trackingBias: 0.58,
+    smoothing: 0.16
   },
   {
-    id: 'drone-orbit',
-    label: 'Drone Orbit',
-    description: 'High halo glide with cinematic sweeping arcs.',
-    railPush: BALL_R * 9.2,
-    lateralDolly: BALL_R * 2.9,
-    focusLift: BALL_R * 5.2,
-    focusDepthBias: BALL_R * 1.9,
-    trackingBias: 0.6,
+    id: 'cine-dolly',
+    label: 'Cine Dolly Track',
+    description: 'Broadcast dolly track with filmic slide offsets.',
+    railPush: BALL_R * 7.4,
+    lateralDolly: BALL_R * 2.6,
+    focusLift: BALL_R * 2.8,
+    focusDepthBias: BALL_R * 1.6,
+    focusPan: BALL_R * 0.36,
+    trackingBias: 0.52,
     smoothing: 0.18
   },
   {
-    id: 'wire-fly',
-    label: 'Wire Fly',
-    description: 'Four-point fly-cam inspired by arena wire rigs.',
-    railPush: BALL_R * 6.5,
-    lateralDolly: BALL_R * 1.9,
-    focusLift: BALL_R * 2.6,
+    id: 'immersive-rail',
+    label: 'Immersive Rail Follow',
+    description: 'Low esports follow that hugs the cushions closely.',
+    railPush: BALL_R * 3.8,
+    lateralDolly: BALL_R * 1.2,
+    focusLift: BALL_R * 0.9,
+    focusPan: BALL_R * 0.46,
+    trackingBias: 0.72,
+    smoothing: 0.22
+  },
+  {
+    id: 'analyst-overhead',
+    label: 'Analyst Overhead',
+    description: 'Coach-box overhead track with measured drift.',
+    railPush: BALL_R * 5.8,
+    lateralDolly: BALL_R * 1.5,
+    focusLift: BALL_R * 4.6,
     focusDepthBias: BALL_R * 1.1,
-    focusPan: BALL_R * 0.18,
-    trackingBias: 0.44,
-    smoothing: 0.15
+    trackingBias: 0.48,
+    smoothing: 0.12
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = BROADCAST_SYSTEM_OPTIONS[0].id;
@@ -7896,7 +7947,15 @@ function PoolRoyaleGame({
     }
     return DEFAULT_RAIL_MARKER_COLOR_ID;
   });
-  const lightingId = DEFAULT_LIGHTING_ID;
+  const [lightingId, setLightingId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(LIGHTING_STORAGE_KEY);
+      if (stored && LIGHTING_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_LIGHTING_ID;
+  });
   const [chromeColorId, setChromeColorId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolChromeColor');
@@ -8298,6 +8357,10 @@ function PoolRoyaleGame({
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('poolRailMarkerColor', railMarkerColorId);
   }, [railMarkerColorId]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(LIGHTING_STORAGE_KEY, lightingId);
+  }, [lightingId]);
   useEffect(() => {
     applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
   }, [railMarkerColorId, railMarkerShapeId]);
@@ -15842,6 +15905,38 @@ function PoolRoyaleGame({
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Lighting
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {LIGHTING_OPTIONS.map((option) => {
+                    const active = option.id === lightingId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setLightingId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                          {option.label}
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
