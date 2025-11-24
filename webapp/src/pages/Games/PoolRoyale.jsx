@@ -870,26 +870,26 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.35 +
-  POCKET_VIS_R * 4 +
-  BALL_R * 3.2;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.98 +
+  POCKET_VIS_R * 3.4 +
+  BALL_R * 2.6;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.8 +
-  POCKET_VIS_R * 4.2 +
-  BALL_R * 2.9;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.32 +
+  POCKET_VIS_R * 3.6 +
+  BALL_R * 2.4;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 11.4,
+  heightOffset: BALL_R * 9.6,
   heightOffsetShortMultiplier: 1.05,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
   heightDrop: BALL_R * 1.2,
-  distanceScale: 1.1,
-  heightScale: 1.34,
+  distanceScale: 0.96,
+  heightScale: 1.2,
   focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
@@ -3902,10 +3902,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.034; // pull the orbit noticeably closer so the tighter table still fills the frame
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.031; // pull the orbit noticeably closer so the tighter table still fills the frame
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.26;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.2;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
