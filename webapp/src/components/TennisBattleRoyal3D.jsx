@@ -11,119 +11,103 @@ const SOUND_SOURCES = {
 
 const BROADCAST_TECHNIQUES = [
   {
-    id: 'sideline-tv',
-    label: 'Sideline TV',
-    detail: 'Stable dolly outside the doubles line for a clean mobile view.',
-    backMultiplier: 1.1,
-    backOffset: 1.2,
-    heightBoost: 0.4,
-    leadTime: 0.36,
-    followBlend: 0.7,
-    cameraLerp: 5.2,
-    lookLerp: 0.86,
-    sideBias: 0.02,
-    rig: { position: new THREE.Vector3(18, 3.3, 0), yaw: Math.PI / 2.2, scale: 1 }
+    id: 'orbit-dolly',
+    label: 'Orbit Dolly',
+    detail: 'Three.js orbit rail that hugs rallies from midcourt.',
+    backMultiplier: 1.08,
+    backOffset: 1.05,
+    heightBoost: 0.48,
+    leadTime: 0.32,
+    followBlend: 0.72,
+    cameraLerp: 5.1,
+    lookLerp: 0.88,
+    sideBias: 0.01,
+    rig: { position: new THREE.Vector3(14, 3.4, 0), yaw: Math.PI / 2.3, scale: 1 }
   },
   {
-    id: 'baseline-tv',
-    label: 'Baseline TV',
-    detail: 'Off-court broadcast box behind the baseline, zero on-court cameras.',
-    backMultiplier: 1.18,
-    backOffset: 1.5,
-    heightBoost: 0.65,
-    leadTime: 0.42,
-    followBlend: 0.74,
-    cameraLerp: 5.6,
+    id: 'skybox-crane',
+    label: 'Skybox Crane',
+    detail: 'High jib shot with gentle easing for wide coverage.',
+    backMultiplier: 1.16,
+    backOffset: 1.45,
+    heightBoost: 0.76,
+    leadTime: 0.44,
+    followBlend: 0.76,
+    cameraLerp: 5.5,
     lookLerp: 0.9,
     sideBias: 0,
-    rig: { position: new THREE.Vector3(0, 3.6, 22), yaw: 0, scale: 1.02 }
+    rig: { position: new THREE.Vector3(0, 4.1, 21.5), yaw: 0, scale: 1.04 }
+  },
+  {
+    id: 'drone-chase',
+    label: 'Drone Chase',
+    detail: 'Free-roam drone that banks slightly to track the ball arc.',
+    backMultiplier: 1.12,
+    backOffset: 1.22,
+    heightBoost: 0.58,
+    leadTime: 0.38,
+    followBlend: 0.78,
+    cameraLerp: 5.8,
+    lookLerp: 0.93,
+    sideBias: 0.04,
+    rig: { position: new THREE.Vector3(-15, 3.1, -2), yaw: -Math.PI / 2.4, scale: 1 }
   }
 ];
 
 const PHYSICS_PROFILES = [
   {
-    id: 'tour-standard',
-    label: 'Tour Standard',
-    detail: 'Balanced ATP-style pace with neutral bounces.',
-    gravity: -9.81,
-    airDrag: 0.12,
-    lift: 0.08,
-    bounceRestitution: 0.78,
-    courtFriction: 0.2,
-    spinDamping: 0.88,
-    spinSlip: 0.56,
-    forceScale: 1,
-    speedCap: 1,
-    spinBias: 1
-  },
-  {
-    id: 'clay-grind',
-    label: 'Clay Grind',
-    detail: 'Higher bounce, slower through-court flight for rallies.',
-    gravity: -9.45,
-    airDrag: 0.15,
-    lift: 0.1,
-    bounceRestitution: 0.84,
-    courtFriction: 0.28,
-    spinDamping: 0.9,
-    spinSlip: 0.6,
-    forceScale: 0.94,
-    speedCap: 0.94,
-    spinBias: 1.08
-  },
-  {
-    id: 'indoor-pace',
-    label: 'Indoor Pace',
-    detail: 'Low-drag, flat bounces that keep rallies fast.',
-    gravity: -10.2,
-    airDrag: 0.08,
-    lift: 0.06,
-    bounceRestitution: 0.72,
-    courtFriction: 0.14,
-    spinDamping: 0.82,
-    spinSlip: 0.48,
-    forceScale: 1.08,
-    speedCap: 1.05,
-    spinBias: 0.94
-  },
-  {
-    id: 'grass-zip',
-    label: 'Grass Zip',
-    detail: 'Skidding grass physics with reduced topspin grab.',
-    gravity: -9.65,
-    airDrag: 0.1,
-    lift: 0.07,
-    bounceRestitution: 0.76,
-    courtFriction: 0.12,
-    spinDamping: 0.86,
-    spinSlip: 0.42,
-    forceScale: 1.02,
-    speedCap: 1.02,
-    spinBias: 0.9
-  },
-  {
-    id: 'power-arena',
-    label: 'Power Arena',
-    detail: 'Arcade power with heavy lift for highlight shots.',
-    gravity: -10.5,
-    airDrag: 0.09,
-    lift: 0.12,
+    id: 'arcade-spin',
+    label: 'Arcade Spin',
+    detail: 'Free-to-use arcade curve tuned for rapid topspin flicks.',
+    gravity: -9.6,
+    airDrag: 0.13,
+    lift: 0.11,
     bounceRestitution: 0.8,
-    courtFriction: 0.18,
-    spinDamping: 0.84,
+    courtFriction: 0.2,
+    spinDamping: 0.86,
     spinSlip: 0.52,
-    forceScale: 1.18,
-    speedCap: 1.12,
-    spinBias: 1.12
+    forceScale: 1.08,
+    speedCap: 1.04,
+    spinBias: 1.04
+  },
+  {
+    id: 'street-tennis',
+    label: 'Street Tennis',
+    detail: 'Community mod with forgiving bounces and slower drives.',
+    gravity: -9.35,
+    airDrag: 0.16,
+    lift: 0.09,
+    bounceRestitution: 0.86,
+    courtFriction: 0.26,
+    spinDamping: 0.91,
+    spinSlip: 0.58,
+    forceScale: 0.95,
+    speedCap: 0.96,
+    spinBias: 1.06
+  },
+  {
+    id: 'indoor-precision',
+    label: 'Indoor Precision',
+    detail: 'Low-drag bounce logic inspired by open-source simulator presets.',
+    gravity: -10.1,
+    airDrag: 0.09,
+    lift: 0.07,
+    bounceRestitution: 0.74,
+    courtFriction: 0.16,
+    spinDamping: 0.84,
+    spinSlip: 0.46,
+    forceScale: 1.06,
+    speedCap: 1.05,
+    spinBias: 0.96
   }
 ];
 
 const TOUCH_TECHNIQUES = [
   {
-    id: 'precision-drag',
-    label: 'Precision Drag',
-    detail: 'Fine drag-follow with balanced swipe power.',
-    moveFollow: 0.4,
+    id: 'swipe-classic',
+    label: 'Swipe Classic',
+    detail: 'Standard drag from open-source mobile presets.',
+    moveFollow: 0.42,
     minSwipeScale: 1,
     maxSwipeScale: 1,
     swipeSensitivity: 1,
@@ -134,61 +118,33 @@ const TOUCH_TECHNIQUES = [
     aimAssist: 1
   },
   {
-    id: 'elastic-flick',
-    label: 'Elastic Flick',
-    detail: 'Flick-friendly ramps with curve bias for angles.',
-    moveFollow: 0.52,
-    minSwipeScale: 0.92,
-    maxSwipeScale: 1.08,
-    swipeSensitivity: 1.1,
-    lateralAssist: 1.18,
-    curveBias: 1.3,
-    liftBias: 1.08,
-    forceAssist: 1.05,
-    aimAssist: 1.15
-  },
-  {
-    id: 'drive-punch',
-    label: 'Drive Punch',
-    detail: 'Low, flat drives with modest curve and high pace.',
-    moveFollow: 0.34,
-    minSwipeScale: 1.08,
-    maxSwipeScale: 0.98,
-    swipeSensitivity: 0.96,
-    lateralAssist: 0.9,
-    curveBias: 0.85,
-    liftBias: 0.82,
-    forceAssist: 1.12,
-    aimAssist: 0.9
-  },
-  {
-    id: 'topspin-brush',
-    label: 'Topspin Brush',
-    detail: 'High-arc forehands with strong topspin grip.',
-    moveFollow: 0.44,
-    minSwipeScale: 0.98,
-    maxSwipeScale: 1.02,
-    swipeSensitivity: 1.05,
-    lateralAssist: 1,
-    curveBias: 1.12,
-    liftBias: 1.24,
-    forceAssist: 0.98,
+    id: 'flick-topspin',
+    label: 'Flick Topspin',
+    detail: 'Fast flick assist with extra lift and curve.',
+    moveFollow: 0.5,
+    minSwipeScale: 0.94,
+    maxSwipeScale: 1.06,
+    swipeSensitivity: 1.08,
+    lateralAssist: 1.12,
+    curveBias: 1.22,
+    liftBias: 1.16,
+    forceAssist: 1.04,
     aimAssist: 1.08,
-    topspinBias: 1.22
+    topspinBias: 1.18
   },
   {
-    id: 'touch-dropper',
-    label: 'Touch Dropper',
-    detail: 'Soft touch with quick positioning and lift suppression.',
-    moveFollow: 0.6,
-    minSwipeScale: 0.86,
-    maxSwipeScale: 0.92,
-    swipeSensitivity: 0.9,
-    lateralAssist: 1.05,
-    curveBias: 0.96,
-    liftBias: 0.74,
-    forceAssist: 0.9,
-    aimAssist: 1.2
+    id: 'defense-block',
+    label: 'Defense Block',
+    detail: 'Controlled blocks with reduced lift and steadier aim.',
+    moveFollow: 0.38,
+    minSwipeScale: 1.04,
+    maxSwipeScale: 0.96,
+    swipeSensitivity: 0.92,
+    lateralAssist: 0.92,
+    curveBias: 0.9,
+    liftBias: 0.8,
+    forceAssist: 1.02,
+    aimAssist: 1.14
   }
 ];
 
@@ -424,7 +380,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       : null
   );
   const lastTaskToastId = useRef(null);
-  const [scoreboardOpen, setScoreboardOpen] = useState(false);
 
   const audioRef = useRef({ net: null, kick: null, score: null, out: null });
 
@@ -2396,10 +2351,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
   ];
   const activeTrainingStepId = trainingMode ? nextTrainingStep?.id : null;
-  const currentBroadcast = broadcastProfileRef.current;
-  const currentPhysics = physicsProfileRef.current;
-  const currentTouch = touchProfileRef.current;
-
   return (
     <div
       style={{
@@ -2503,67 +2454,34 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         <div
           style={{
             position: 'absolute',
-            top: 18,
-            right: 18,
+            top: 14,
+            right: 14,
             display: 'flex',
-            gap: 10,
+            gap: 8,
             alignItems: 'center',
             pointerEvents: 'auto'
           }}
         >
-          <div
-            style={{
-              background: 'rgba(15, 23, 42, 0.8)',
-              color: '#e5e7eb',
-              padding: '10px 12px',
-              borderRadius: 14,
-              boxShadow: '0 14px 28px rgba(15, 23, 42, 0.3)',
-              fontSize: 11,
-              fontWeight: 700,
-              minWidth: 210
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <span>Broadcast · {currentBroadcast.label}</span>
-              <span style={{ fontSize: 10, opacity: 0.75 }}>Physics · {currentPhysics.label}</span>
-            </div>
-            <div style={{ fontSize: 10, marginTop: 6, opacity: 0.72 }}>Touch · {currentTouch.label}</div>
-          </div>
           <button
             type="button"
             onClick={() => setConfigMenuOpen((p) => !p)}
             style={{
-              background: 'linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%)',
-              color: '#f8fafc',
-              border: 'none',
-              padding: '12px 16px',
-              borderRadius: 14,
-              fontWeight: 800,
-              cursor: 'pointer',
-              boxShadow: '0 16px 28px rgba(37, 99, 235, 0.35)'
-            }}
-          >
-            🎛️ Menu
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfigMenuOpen(false)}
-            style={{
-              width: 44,
-              height: 44,
+              width: 40,
+              height: 40,
               borderRadius: 12,
-              border: '2px solid #22c55e',
-              background: 'rgba(34, 197, 94, 0.12)',
-              color: '#16a34a',
+              border: '1px solid rgba(148, 163, 184, 0.5)',
+              background: 'rgba(15, 23, 42, 0.82)',
+              color: '#e2e8f0',
               display: 'grid',
               placeItems: 'center',
-              cursor: 'pointer',
-              boxShadow: '0 12px 22px rgba(34, 197, 94, 0.35)'
+              boxShadow: '0 14px 28px rgba(15, 23, 42, 0.3)',
+              cursor: 'pointer'
             }}
-            aria-label="Confirm selection"
+            aria-label="Open configuration"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M5 13l4 4L19 7" />
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.33 1.82V22a2 2 0 1 1-4 0v-.18A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1-.6 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33H2a2 2 0 1 1 0-4h.18A1.65 1.65 0 0 0 4.6 9.6a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.82-.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.18A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .33-1.82V2a2 2 0 1 1 4 0v.18a1.65 1.65 0 0 0 .6 1 1.65 1.65 0 0 0 1.82.33h.06a2 2 0 1 1 0 4h-.06a1.65 1.65 0 0 0-1.82.33 1.65 1.65 0 0 0-.6 1c0 .39.14.77.4 1.07Z" />
             </svg>
           </button>
         </div>
@@ -2721,116 +2639,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           </div>
         </div>
       )}
-      <div style={{ position: 'absolute', bottom: 24, right: 24, pointerEvents: 'auto' }}>
-        <button
-          type="button"
-          onClick={() => setScoreboardOpen(true)}
-          style={{
-            background: 'linear-gradient(135deg, #1d4ed8 0%, #1e3a8a 100%)',
-            color: '#f8fafc',
-            border: 'none',
-            borderRadius: 999,
-            padding: '12px 22px',
-            fontFamily: 'ui-sans-serif, system-ui',
-            fontWeight: 600,
-            fontSize: 13,
-            boxShadow: '0 14px 28px rgba(30, 64, 175, 0.35)',
-            cursor: 'pointer'
-          }}
-        >
-          Match Info
-        </button>
-      </div>
-      {scoreboardOpen && (
-        <div
-          onClick={() => setScoreboardOpen(false)}
-          role="presentation"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.55)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 24,
-            pointerEvents: 'auto'
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            role="presentation"
-            style={{
-              background: 'rgba(255,255,255,0.98)',
-              color: '#0f172a',
-              borderRadius: 20,
-              padding: '22px 28px',
-              maxWidth: 320,
-              width: '100%',
-              boxShadow: '0 28px 44px rgba(15, 23, 42, 0.22)',
-              fontFamily: 'ui-sans-serif, system-ui'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Match Center</h3>
-              <button
-                type="button"
-                onClick={() => setScoreboardOpen(false)}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#1f2937',
-                  fontSize: 18,
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  lineHeight: 1
-                }}
-                aria-label="Close scoreboard"
-              >
-                ×
-              </button>
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#1d4ed8', marginBottom: matchTag ? 4 : 10 }}>{msg}</div>
-            {matchTag ? (
-              <div
-                style={{
-                  fontSize: 11,
-                  textTransform: 'uppercase',
-                  letterSpacing: 1.2,
-                  opacity: 0.6,
-                  marginBottom: 10
-                }}
-              >
-                {matchTag}
-              </div>
-            ) : null}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, fontSize: 13, fontWeight: 600 }}>
-              <span>{playerLabel}</span>
-              <span>{cpuLabel}</span>
-            </div>
-            <div style={{ fontSize: 13, marginBottom: 4 }}>Sets · {hudInfo.sets}</div>
-            <div style={{ fontSize: 13, marginBottom: 4 }}>Games · {hudInfo.games}</div>
-            <div style={{ fontSize: 13, marginBottom: 8 }}>Points · {hudInfo.points}</div>
-            <div style={{ fontSize: 12, opacity: 0.85, marginBottom: 2 }}>
-              Serve · {hudInfo.server} · Court {hudInfo.side === 'deuce' ? 'D' : 'Ad'}
-            </div>
-            <div style={{ fontSize: 12, opacity: 0.78, marginBottom: 12 }}>{serveAttemptLabel}</div>
-            {stakeLabel ? (
-              <div
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: '#0f172a',
-                  background: 'rgba(30, 64, 175, 0.08)',
-                  borderRadius: 12,
-                  padding: '8px 12px'
-                }}
-              >
-                Stake · {stakeLabel}
-              </div>
-            ) : null}
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
