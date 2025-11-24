@@ -564,21 +564,32 @@ function getEffectiveShapeConfig(shapeIndex, playerCount) {
 function parseSearch(search) {
   const params = new URLSearchParams(search);
   const username = params.get('username') || 'You';
+  const avatar = params.get('avatar') || '';
   const amount = Number.parseInt(params.get('amount') || '500', 10);
   const token = params.get('token') || 'TPC';
   const stake = Number.isFinite(amount) && amount > 0 ? amount : 500;
   const rawPlayers = Number.parseInt(params.get('players') || params.get('playerCount') || '', 10);
   const playerCount = clampPlayerCount(rawPlayers);
-  return { username, stake, token, playerCount };
+  const flags = (params.get('flags') || '')
+    .split(',')
+    .map((value) => Number.parseInt(value, 10))
+    .filter(Number.isFinite)
+    .map((index) => FLAG_EMOJIS[index])
+    .filter(Boolean);
+  return { username, avatar, stake, token, playerCount, flags };
 }
 
 function buildPlayers(searchOrOptions) {
   const options =
     typeof searchOrOptions === 'string' ? parseSearch(searchOrOptions) : { ...searchOrOptions };
-  const { username, stake } = options;
+  const { username, avatar, stake } = options;
   const seatCount = clampPlayerCount(options?.playerCount);
   const baseChips = Math.max(200, Math.round(stake));
-  const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
+  const preferredFlags = Array.isArray(options.flags) ? options.flags.filter(Boolean) : [];
+  const shuffledFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
+  const fallbackFlags = preferredFlags.length ? [...shuffledFlags] : [...shuffledFlags];
+  const flags = preferredFlags.length ? [...preferredFlags] : [...shuffledFlags];
+  const nextFlag = () => flags.shift() || fallbackFlags.shift() || FLAG_EMOJIS[(flags.length + 3) % FLAG_EMOJIS.length];
   const players = [];
   for (let i = 0; i < seatCount; i += 1) {
     if (i === DEALER_INDEX) {
@@ -592,7 +603,7 @@ function buildPlayers(searchOrOptions) {
         avatar: null
       });
     } else if (i === 0) {
-      const flag = flags.shift() || '🇦🇱';
+      const flag = nextFlag() || '🇦🇱';
       players.push({
         id: 'player',
         name: username,
@@ -600,10 +611,10 @@ function buildPlayers(searchOrOptions) {
         isDealer: false,
         isHuman: true,
         chips: baseChips,
-        avatar: null
+        avatar: avatar || null
       });
     } else {
-      const flag = flags.shift() || FLAG_EMOJIS[(i * 11) % FLAG_EMOJIS.length];
+      const flag = nextFlag() || FLAG_EMOJIS[(i * 11) % FLAG_EMOJIS.length];
       players.push({
         id: `ai-${i}`,
         name: flagToName(flag),

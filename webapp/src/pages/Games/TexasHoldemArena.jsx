@@ -357,7 +357,13 @@ function parseSearch(search) {
   const stake = Number.isFinite(amount) && amount > 0 ? amount : 1000;
   const rawPlayers = Number.parseInt(params.get('players') || params.get('playerCount') || '', 10);
   const playerCount = clampPlayerCount(rawPlayers);
-  return { username, avatar, stake, token, playerCount };
+  const flags = (params.get('flags') || '')
+    .split(',')
+    .map((value) => Number.parseInt(value, 10))
+    .filter(Number.isFinite)
+    .map((index) => FLAG_EMOJIS[index])
+    .filter(Boolean);
+  return { username, avatar, stake, token, playerCount, flags };
 }
 
 function buildPlayers(searchOrOptions) {
@@ -366,8 +372,12 @@ function buildPlayers(searchOrOptions) {
   const { username, stake } = options;
   const playerCount = clampPlayerCount(options?.playerCount);
   const baseChips = Math.max(400, Math.round(stake));
-  const flags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
-  const humanFlag = flags.shift() || '🇦🇱';
+  const preferredFlags = Array.isArray(options.flags) ? options.flags.filter(Boolean) : [];
+  const shuffledFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
+  const fallbackFlags = preferredFlags.length ? [...shuffledFlags] : [...shuffledFlags];
+  const flags = preferredFlags.length ? [...preferredFlags] : [...shuffledFlags];
+  const nextFlag = () => flags.shift() || fallbackFlags.shift() || FLAG_EMOJIS[(flags.length + 5) % FLAG_EMOJIS.length];
+  const humanFlag = nextFlag() || '🇦🇱';
   const players = [
     {
       id: 'player-0',
@@ -375,11 +385,11 @@ function buildPlayers(searchOrOptions) {
       flag: humanFlag,
       isHuman: true,
       chips: baseChips,
-      avatar: null
+      avatar: options.avatar || null
     }
   ];
   for (let i = 0; i < Math.max(0, playerCount - 1); i += 1) {
-    const flag = flags[i] || FLAG_EMOJIS[(i * 17) % FLAG_EMOJIS.length];
+    const flag = nextFlag() || FLAG_EMOJIS[(i * 17) % FLAG_EMOJIS.length];
     players.push({
       id: `ai-${i}`,
       name: flagToName(flag),
