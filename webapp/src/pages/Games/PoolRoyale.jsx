@@ -411,17 +411,17 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // align fascia reach with snooker 
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46; // mirror snooker fascia width so both edges flow into the rails cleanly
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.065; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.094; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.004; // align the middle chrome cut with snooker positioning so the reveal stays centered on the jaws
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012; // push the middle chrome cut farther from centre so the reveal lines up with the widened side arches
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.072; // open the middle rail arches a hair more so the rounded cut reaches the chrome hook cleanly
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.112; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.148; // push the wooden middle-pocket arches farther toward the fascia so both arcs sit flush together
 
 function buildChromePlateGeometry({
   width,
@@ -696,7 +696,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.124; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.156; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -2037,6 +2037,49 @@ const FRAME_RATE_OPTIONS = Object.freeze([
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
+
+const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
+const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
+  {
+    id: 'studio-rail',
+    label: 'Studio Rail',
+    description: 'Dual-rail TV rig used by top tour productions.',
+    railPush: BALL_R * 5.2,
+    lateralDolly: BALL_R * 1.4,
+    focusLift: BALL_R * 1.1,
+    focusPan: BALL_R * 0.2,
+    trackingBias: 0.32,
+    smoothing: 0.18
+  },
+  {
+    id: 'skybox-orbit',
+    label: 'Skybox Orbit',
+    description: 'Elevated crane orbit with slow parallax sweeps.',
+    railPush: BALL_R * 8,
+    lateralDolly: BALL_R * 2.4,
+    focusLift: BALL_R * 4.2,
+    focusDepthBias: BALL_R * 1.4,
+    trackingBias: 0.58,
+    smoothing: 0.14
+  },
+  {
+    id: 'immersive-track',
+    label: 'Immersive Track',
+    description: 'Low esports follow-cam that hugs the rails.',
+    railPush: BALL_R * 3.4,
+    lateralDolly: BALL_R * 0.9,
+    focusLift: BALL_R * 0.6,
+    focusDepthBias: BALL_R * 0.65,
+    focusPan: BALL_R * 0.35,
+    trackingBias: 0.72,
+    smoothing: 0.24
+  }
+]);
+const DEFAULT_BROADCAST_SYSTEM_ID = BROADCAST_SYSTEM_OPTIONS[0].id;
+const resolveBroadcastSystem = (id) =>
+  BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
+  BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
+  BROADCAST_SYSTEM_OPTIONS[0];
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
@@ -7853,11 +7896,24 @@ function PoolRoyaleGame({
     }
     return DEFAULT_FRAME_RATE_ID;
   });
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(BROADCAST_SYSTEM_STORAGE_KEY);
+      if (stored && BROADCAST_SYSTEM_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_BROADCAST_SYSTEM_ID;
+  });
   const activeFrameRateOption = useMemo(
     () =>
       FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
+  );
+  const activeBroadcastSystem = useMemo(
+    () => resolveBroadcastSystem(broadcastSystemId),
+    [broadcastSystemId]
   );
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
@@ -7907,6 +7963,10 @@ function PoolRoyaleGame({
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
   }, [resolvedFrameTiming]);
+  const broadcastSystemRef = useRef(activeBroadcastSystem);
+  useEffect(() => {
+    broadcastSystemRef.current = activeBroadcastSystem;
+  }, [activeBroadcastSystem]);
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
@@ -8306,6 +8366,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
     }
   }, [frameRateId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
+    }
+  }, [broadcastSystemId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -10299,24 +10364,56 @@ function PoolRoyaleGame({
         };
 
 
-        const updateBroadcastCameras = ({ railDir = 1 } = {}) => {
+        const updateBroadcastCameras = ({
+          railDir = 1,
+          targetWorld = null,
+          focusWorld = null,
+          lerp = null
+        } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
+          const system =
+            broadcastSystemRef.current ?? activeBroadcastSystem ?? BROADCAST_SYSTEM_OPTIONS[0];
+          const smoothing = THREE.MathUtils.clamp(
+            typeof lerp === 'number' ? lerp : system?.smoothing ?? 0.18,
+            0,
+            1
+          );
+          const baseFocus =
+            focusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
+          const trackingTarget = targetWorld ?? baseFocus;
+          const bias = THREE.MathUtils.clamp(system?.trackingBias ?? 0, 0, 1);
           const focusTarget =
-            rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
-          const snapToDefault = (unit) => {
+            baseFocus && trackingTarget
+              ? baseFocus.clone().lerp(trackingTarget, bias)
+              : baseFocus ?? trackingTarget;
+          rig.userData = rig.userData || {};
+          if (!rig.userData.focus) {
+            rig.userData.focus = focusTarget?.clone() ?? new THREE.Vector3();
+          }
+          if (focusTarget) {
+            rig.userData.focus.lerp(focusTarget, smoothing);
+          }
+          const resolvedFocus = focusTarget ? rig.userData.focus.clone() : null;
+          const applyPreset = (unit, direction) => {
             if (!unit) return;
             if (unit.slider) {
-              unit.slider.position.x = 0;
-              unit.slider.position.z = 0;
+              const lateral = system?.lateralDolly ?? 0;
+              const depth = system?.railPush ?? 0;
+              unit.slider.position.x = lateral * direction;
+              unit.slider.position.z = depth * direction;
             }
-            if (focusTarget && unit.head) {
-              unit.head.lookAt(focusTarget);
+            if (unit.head && resolvedFocus) {
+              const headTarget = resolvedFocus.clone();
+              headTarget.y += system?.focusLift ?? 0;
+              headTarget.x += (system?.focusPan ?? 0) * direction;
+              headTarget.z += (system?.focusDepthBias ?? 0) * direction;
+              unit.head.lookAt(headTarget);
             }
           };
           const useBack = railDir >= 0;
-          snapToDefault(useBack ? rig.cameras.back : rig.cameras.front);
-          snapToDefault(useBack ? rig.cameras.front : rig.cameras.back);
+          applyPreset(useBack ? rig.cameras.back : rig.cameras.front, useBack ? 1 : -1);
+          applyPreset(useBack ? rig.cameras.front : rig.cameras.back, useBack ? -1 : 1);
           rig.activeRail = useBack ? 'back' : 'front';
         };
 
@@ -10329,6 +10426,11 @@ function PoolRoyaleGame({
             focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
             lerp: 0.18
           };
+          const broadcastSystem =
+            broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
+          if (broadcastSystem?.smoothing != null) {
+            broadcastArgs.lerp = broadcastSystem.smoothing;
+          }
           const galleryState = cueGalleryStateRef.current;
           if (galleryState?.active) {
             const basePosition =
@@ -15717,6 +15819,38 @@ function PoolRoyaleGame({
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast System
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
+                    const active = option.id === broadcastSystemId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastSystemId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                          {option.label}
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
