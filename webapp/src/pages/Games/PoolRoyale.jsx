@@ -1183,6 +1183,21 @@ function resolvePoolVariant(variantId) {
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
 }
 
+function deriveInHandFromFrame(frame) {
+  const meta = frame && typeof frame === 'object' ? frame.meta : null;
+  if (!meta || typeof meta !== 'object') return false;
+  if (meta.variant === 'american' && meta.state) {
+    return Boolean(meta.state.ballInHand);
+  }
+  if (meta.variant === '9ball' && meta.state) {
+    return Boolean(meta.state.ballInHand);
+  }
+  if (meta.variant === 'uk' && meta.state) {
+    return Boolean(meta.state.mustPlayFromBaulk);
+  }
+  return false;
+}
+
 function useResponsiveTableSize(option) {
   const [scale, setScale] = useState(() => option?.scale ?? 1);
 
@@ -7198,7 +7213,7 @@ function Table3D(
     mesh.position
       .copy(slot.basePosition)
       .addScaledVector(slot.tangent, slot.defaultOffset ?? 0);
-    mesh.rotation.set(Math.PI, slot.rotationY, 0);
+    mesh.rotation.set(0, slot.rotationY, 0);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     mesh.visible = true;
@@ -8423,12 +8438,14 @@ function PoolRoyaleGame({
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
     effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
-  const [frameState, setFrameState] = useState(() =>
-    rules.getInitialFrame(playerLabel, opponentLabel)
+  const initialFrame = useMemo(
+    () => rules.getInitialFrame(playerLabel, opponentLabel),
+    [rules, playerLabel, opponentLabel]
   );
+  const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
-    setFrameState(rules.getInitialFrame(playerLabel, opponentLabel));
-  }, [rules, playerLabel, opponentLabel]);
+    setFrameState(initialFrame);
+  }, [initialFrame]);
   const frameRef = useRef(frameState);
   useEffect(() => {
     frameRef.current = frameState;
@@ -8454,6 +8471,10 @@ function PoolRoyaleGame({
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
+  const initialHudInHand = useMemo(
+    () => deriveInHandFromFrame(initialFrame),
+    [initialFrame]
+  );
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
@@ -8461,7 +8482,7 @@ function PoolRoyaleGame({
     turn: 0,
     phase: 'reds',
     next: 'red',
-    inHand: true,
+    inHand: initialHudInHand,
     over: false
   });
   useEffect(() => {
@@ -8961,11 +8982,13 @@ function PoolRoyaleGame({
         frameState.meta && typeof frameState.meta === 'object'
           ? frameState.meta.hud
           : null;
+      const metaInHand = deriveInHandFromFrame(frameState);
+      const resolvedInHand = typeof metaInHand === 'boolean' ? metaInHand : prev.inHand;
       const nextLabel = hudMeta?.next
         ? hudMeta.next
         : frameState.ballOn.length > 0
-          ? frameState.ballOn
-              .map((c) => (typeof c === 'string' ? c.toLowerCase() : String(c)))
+            ? frameState.ballOn
+                .map((c) => (typeof c === 'string' ? c.toLowerCase() : String(c)))
               .join(' / ')
           : prev.next;
       const phaseLabel = hudMeta?.phase
@@ -8996,6 +9019,7 @@ function PoolRoyaleGame({
         turn: isPlayerTurn ? 0 : 1,
         phase: phaseLabel,
         next: nextLabel,
+        inHand: resolvedInHand,
         over: isTraining ? false : frameState.frameOver
       };
     });

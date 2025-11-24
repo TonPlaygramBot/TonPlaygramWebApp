@@ -35,12 +35,16 @@ type AmericanSerializedState = {
   currentPlayer: 'A' | 'B';
   scores: { A: number; B: number };
   ballInHand: boolean;
+  foulStreak: { A: number; B: number };
+  frameOver: boolean;
+  winner: 'A' | 'B' | 'TIE' | null;
 };
 
 type NineSerializedState = {
   ballsOnTable: number[];
   currentPlayer: 'A' | 'B';
   ballInHand: boolean;
+  foulStreak: { A: number; B: number };
   gameOver: boolean;
   winner: 'A' | 'B' | null;
 };
@@ -115,7 +119,10 @@ function serializeAmericanState(state: AmericanBilliards['state']): AmericanSeri
     ballsOnTable: Array.from(state.ballsOnTable.values()),
     currentPlayer: state.currentPlayer,
     scores: { ...state.scores },
-    ballInHand: state.ballInHand
+    ballInHand: state.ballInHand,
+    foulStreak: { ...state.foulStreak },
+    frameOver: state.frameOver,
+    winner: state.winner
   };
 }
 
@@ -124,7 +131,10 @@ function applyAmericanState(game: AmericanBilliards, snapshot: AmericanSerialize
     ballsOnTable: new Set(snapshot.ballsOnTable),
     currentPlayer: snapshot.currentPlayer,
     scores: { ...snapshot.scores },
-    ballInHand: snapshot.ballInHand
+    ballInHand: snapshot.ballInHand,
+    foulStreak: { ...snapshot.foulStreak },
+    frameOver: snapshot.frameOver,
+    winner: snapshot.winner
   };
 }
 
@@ -133,6 +143,7 @@ function serializeNineState(state: NineBall['state']): NineSerializedState {
     ballsOnTable: Array.from(state.ballsOnTable.values()),
     currentPlayer: state.currentPlayer,
     ballInHand: state.ballInHand,
+    foulStreak: { ...state.foulStreak },
     gameOver: state.gameOver,
     winner: state.winner
   };
@@ -143,6 +154,7 @@ function applyNineState(game: NineBall, snapshot: NineSerializedState) {
     ballsOnTable: new Set(snapshot.ballsOnTable),
     currentPlayer: snapshot.currentPlayer,
     ballInHand: snapshot.ballInHand,
+    foulStreak: { ...snapshot.foulStreak },
     gameOver: snapshot.gameOver,
     winner: snapshot.winner
   };
@@ -420,19 +432,30 @@ export class PoolRoyaleRules {
       contactOrder,
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
-      placedFromHand: Boolean(context.placedFromHand)
+      placedFromHand: Boolean(context.placedFromHand),
+      noCushionAfterContact: Boolean(context.noCushionAfterContact)
     });
     const snapshot = serializeAmericanState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
     const tableClear = snapshot.ballsOnTable.length === 0;
+    const frameOver = snapshot.frameOver || tableClear;
     const hud: HudInfo = {
-      next: lowest != null ? `ball ${lowest}` : tableClear ? 'frame over' : 'rack clear',
-      phase: tableClear ? 'complete' : 'rotation',
+      next:
+        frameOver && snapshot.winner
+          ? 'frame over'
+          : lowest != null
+            ? `ball ${lowest}`
+            : tableClear
+              ? 'frame over'
+              : 'rack clear',
+      phase: frameOver ? 'complete' : 'rotation',
       scores: { ...snapshot.scores }
     };
     let winner: FrameState['winner'];
-    if (tableClear) {
-      if (snapshot.scores.A > snapshot.scores.B) winner = 'A';
+    if (frameOver) {
+      if (snapshot.winner === 'A' || snapshot.winner === 'B' || snapshot.winner === 'TIE') {
+        winner = snapshot.winner;
+      } else if (snapshot.scores.A > snapshot.scores.B) winner = 'A';
       else if (snapshot.scores.B > snapshot.scores.A) winner = 'B';
       else winner = 'TIE';
     }
@@ -443,8 +466,8 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: snapshot.scores.A },
         B: { ...state.players.B, score: snapshot.scores.B }
       },
-      ballOn: lowest != null ? [`BALL_${lowest}`] : [],
-      frameOver: tableClear,
+      ballOn: lowest != null && !frameOver ? [`BALL_${lowest}`] : [],
+      frameOver,
       winner,
       foul: result.foul
         ? {
@@ -488,13 +511,14 @@ export class PoolRoyaleRules {
       contactOrder,
       potted,
       cueOffTable: Boolean(context.cueBallPotted),
-      placedFromHand: Boolean(context.placedFromHand)
+      placedFromHand: Boolean(context.placedFromHand),
+      noCushionAfterContact: Boolean(context.noCushionAfterContact)
     });
     const snapshot = serializeNineState(game.state);
     const lowest = lowestBall(snapshot.ballsOnTable);
     const hud: HudInfo = {
-      next: lowest != null ? `ball ${lowest}` : 'nine',
-      phase: 'run',
+      next: snapshot.gameOver ? 'frame over' : lowest != null ? `ball ${lowest}` : 'nine',
+      phase: snapshot.gameOver ? 'complete' : 'run',
       scores: { A: 0, B: 0 }
     };
     const nextState: FrameState = {
@@ -504,7 +528,7 @@ export class PoolRoyaleRules {
         A: { ...state.players.A, score: 0 },
         B: { ...state.players.B, score: 0 }
       },
-      ballOn: lowest != null ? [`BALL_${lowest}`] : [],
+      ballOn: lowest != null && !snapshot.gameOver ? [`BALL_${lowest}`] : [],
       frameOver: game.state.gameOver,
       winner: game.state.winner ?? undefined,
       foul: result.foul
