@@ -11,16 +11,21 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
-const FEATURED_TABLES = Object.freeze([
+const TABLE_CHOICES = Object.freeze([
   {
-    id: 'royalWalnut',
-    label: 'Royal Walnut',
-    description: 'Warm walnut rails with brushed brass trim inspired by the Pool Royale flagship table.'
+    id: 'rusticSplit',
+    label: 'Pearl Cream Arena',
+    description: 'Pool Royale pearl-cream rails with satin brass trim and emerald tour cloth.'
   },
   {
-    id: 'royalObsidian',
-    label: 'Royal Obsidian',
-    description: 'Midnight graphite shell with neon edge lighting for a modern arena look.'
+    id: 'charredTimber',
+    label: 'Charred Timber Elite',
+    description: 'Dark roasted planks with bronze trim and the full Pool Royale chrome accents.'
+  },
+  {
+    id: 'jetBlackCarbon',
+    label: 'Carbon Midnight',
+    description: 'Matte carbon fibre shell with smoked chrome plates and neon underglow accents.'
   }
 ]);
 
@@ -37,24 +42,26 @@ export default function SnookerLobby() {
   })();
   const [playType, setPlayType] = useState(initialPlayType);
   const [mode, setMode] = useState('ai');
+  const [trainingMode, setTrainingMode] = useState('solo');
+  const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
   const [avatar, setAvatar] = useState('');
   const [tableFinish, setTableFinish] = useState(() => {
     if (typeof window !== 'undefined') {
       try {
         const params = new URLSearchParams(window.location.search);
         const requested = params.get('finish');
-        if (requested && FEATURED_TABLES.some((option) => option.id === requested)) {
+        if (requested && TABLE_CHOICES.some((option) => option.id === requested)) {
           return requested;
         }
       } catch {}
       try {
         const stored = window.localStorage.getItem('snookerTableFinish');
-        if (stored && FEATURED_TABLES.some((option) => option.id === stored)) {
+        if (stored && TABLE_CHOICES.some((option) => option.id === stored)) {
           return stored;
         }
       } catch {}
     }
-    return FEATURED_TABLES[0].id;
+    return TABLE_CHOICES[0].id;
   });
 
   useEffect(() => {
@@ -63,6 +70,12 @@ export default function SnookerLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (playType === 'training') {
+      setMode('ai');
+    }
+  }, [playType]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -103,7 +116,11 @@ export default function SnookerLobby() {
     const params = new URLSearchParams();
     params.set('type', playType);
     params.set('finish', tableFinish);
-    params.set('mode', mode);
+    const resolvedMode = playType === 'training' ? trainingMode : mode;
+    params.set('mode', resolvedMode);
+    if (playType === 'training') {
+      params.set('rules', trainingRulesEnabled ? 'on' : 'off');
+    }
     if (playType !== 'training') {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
@@ -137,54 +154,100 @@ export default function SnookerLobby() {
       )}
       <h2 className="text-xl font-bold text-center">3D Snooker Lobby</h2>
       <p className="text-center text-sm text-subtext">
-        Challenge the AI in the brand-new Royal tables inspired by Pool Royale.
+        Match the Pool Royale lobby flow with official snooker tables built from Royale parts.
       </p>
       <div className="space-y-2">
-        <h3 className="font-semibold">Play Type</h3>
-        <div className="flex gap-2">
-          {[{ id: 'regular', label: 'Regular' }, { id: 'training', label: 'Training' }].map(
-            ({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setPlayType(id)}
-                className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
-              >
-                {label}
-              </button>
-            )
-          )}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Mode</h3>
+        <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
           {[
-            { id: 'ai', label: 'Vs AI' },
-            { id: 'online', label: '1v1 Online', disabled: true }
-          ].map(({ id, label, disabled }) => (
-            <div key={id} className="relative">
-              <button
-                onClick={() => !disabled && setMode(id)}
-                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-                disabled={disabled}
-              >
-                {label}
-              </button>
-              {disabled && (
-                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  Under development
-                </span>
-              )}
-            </div>
+            { id: 'regular', label: 'Regular' },
+            { id: 'training', label: 'Training' }
+          ].map(({ id, label }) => (
+            <button
+              key={id}
+              onClick={() => setPlayType(id)}
+              className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
+            >
+              {label}
+            </button>
           ))}
         </div>
       </div>
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Mode</h3>
+          <div className="flex gap-2">
+            {[
+              { id: 'ai', label: 'Vs AI' },
+              { id: 'online', label: '1v1 Online', disabled: true }
+            ].map(({ id, label, disabled }) => (
+              <div key={id} className="relative">
+                <button
+                  onClick={() => !disabled && setMode(id)}
+                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                    disabled ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                  disabled={disabled}
+                >
+                  {label}
+                </button>
+                {disabled && (
+                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                    Under development
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {playType === 'training' && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h3 className="font-semibold">Training options</h3>
+            <div className="lobby-tile flex flex-col gap-4">
+              <div>
+                <p className="text-sm font-semibold">Opponent</p>
+                <p className="text-xs text-subtext">Practice alone or alternate turns with the AI.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[{ id: 'solo', label: 'Solo practice' }, { id: 'ai', label: 'Vs AI' }].map(
+                    ({ id, label }) => (
+                      <button
+                        key={id}
+                        onClick={() => setTrainingMode(id)}
+                        className={`lobby-tile ${trainingMode === id ? 'lobby-selected' : ''}`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="text-sm font-semibold">Rules</p>
+                <p className="text-xs text-subtext">Play official fouls or switch to a free table.</p>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {[{ id: true, label: 'With rules' }, { id: false, label: 'No rules' }].map(
+                    ({ id, label }) => (
+                      <button
+                        key={String(id)}
+                        onClick={() => setTrainingRulesEnabled(Boolean(id))}
+                        className={`lobby-tile ${trainingRulesEnabled === Boolean(id) ? 'lobby-selected' : ''}`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Table</h3>
         <div className="space-y-2">
-          {FEATURED_TABLES.map(({ id, label, description }) => (
+          {TABLE_CHOICES.map(({ id, label, description }) => (
             <button
               key={id}
               onClick={() => setTableFinish(id)}
@@ -205,7 +268,7 @@ export default function SnookerLobby() {
         </div>
       ) : (
         <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-subtext">
-          Training mode skips staking and lets you rehearse on the Royal cloth without deductions.
+          Training mode skips staking and lets you rehearse on the Pool Royale-spec snooker cloth.
         </div>
       )}
       <button
