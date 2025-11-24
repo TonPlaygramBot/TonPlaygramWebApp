@@ -3902,7 +3902,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.031; // pull the orbit noticeably closer so the tighter table still fills the frame
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.029; // pull the orbit noticeably closer so the tighter table still fills the frame
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.2;
@@ -11642,10 +11642,10 @@ function PoolRoyaleGame({
             cueShot: { phi: cuePhi, radius: cueRadius },
             standing: { phi: standingPhi, radius: standingRadius }
           };
-          applyCameraBlend();
-          orbitRadiusLimitRef.current = standingRadius;
-          const orbitTargetY =
-            orbitFocusRef.current?.target?.y ?? ORBIT_FOCUS_BASE_Y;
+        applyCameraBlend();
+        orbitRadiusLimitRef.current = standingRadius;
+        const orbitTargetY =
+          orbitFocusRef.current?.target?.y ?? ORBIT_FOCUS_BASE_Y;
           const cueClearance = Math.max(
             0,
             CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
@@ -11708,6 +11708,26 @@ function PoolRoyaleGame({
         dom.style.touchAction = 'none';
         const balls = [];
         let project;
+        const exitTopView = (immediate = false) => {
+          if (!topViewRef.current) return;
+          topViewRef.current = false;
+          const margin = Math.max(
+            STANDING_VIEW.margin,
+            window.innerHeight > window.innerWidth
+              ? STANDING_VIEW_MARGIN_PORTRAIT
+              : STANDING_VIEW_MARGIN_LANDSCAPE
+          );
+          fit(margin);
+          if (immediate) {
+            syncBlendToSpherical();
+            updateCamera();
+          } else {
+            requestAnimationFrame(() => {
+              syncBlendToSpherical();
+              updateCamera();
+            });
+          }
+        };
         const clampSpinToLimits = () => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
           const current = spinRef.current || { x: 0, y: 0 };
@@ -11810,7 +11830,7 @@ function PoolRoyaleGame({
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           if (e.touches?.length === 2) return;
-          if (topViewRef.current) return;
+          if (topViewRef.current) exitTopView(true);
           drag.on = true;
           drag.moved = false;
           drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
@@ -11869,7 +11889,13 @@ function PoolRoyaleGame({
             registerInteraction();
             return;
           }
-          if (topViewRef.current || !drag.on) return;
+          if (topViewRef.current) {
+            exitTopView(true);
+            drag.on = false;
+            drag.moved = false;
+            return;
+          }
+          if (!drag.on) return;
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1) return;
           const x = e.clientX || e.touches?.[0]?.clientX || drag.x;
@@ -11941,7 +11967,10 @@ function PoolRoyaleGame({
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
         const keyRot = (e) => {
-          if (topViewRef.current) return;
+          if (topViewRef.current) {
+            exitTopView(true);
+            return;
+          }
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           const baseStep = e.shiftKey ? 0.08 : 0.035;
