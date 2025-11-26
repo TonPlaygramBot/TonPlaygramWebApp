@@ -5624,7 +5624,9 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
-  const plywoodShape = buildSurfaceShape(POCKET_CLOTH_TOP_RADIUS);
+  // Keep the underlay apertures exactly matched to the cloth cutouts so no
+  // reflective wood peeks through around the middle pockets.
+  const plywoodShape = buildSurfaceShape(POCKET_HOLE_R);
   const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
     depth: CLOTH_UNDERLAY_THICKNESS,
     bevelEnabled: false,
