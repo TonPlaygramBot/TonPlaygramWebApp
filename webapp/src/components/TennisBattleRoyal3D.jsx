@@ -154,64 +154,104 @@ const BASE_HEAD_ROT = { x: Math.PI / 2, y: 0, z: 0 };
 
 const RACKET_ORIENTATIONS = [
   {
-    id: 'neutral-grip',
-    label: 'Neutral Grip',
-    detail: 'Straight handle with centered string bed.',
-    pivotPosition: BASE_PIVOT_POS,
-    pivotRotation: BASE_PIVOT_ROT,
-    headRotation: BASE_HEAD_ROT,
-    depthOffset: 0,
-    rollOffset: 0
+    id: 'lofted-neutral',
+    label: 'Lofted Neutral',
+    detail: 'Gentle lift with balanced roll for all-round timing.',
+    pivotPosition: { x: 0, y: 0.12, z: -0.18 },
+    pivotRotation: { x: -0.26, y: 0.02, z: 0 },
+    headRotation: { x: Math.PI / 1.95, y: 0.02, z: 0 },
+    depthOffset: -0.01,
+    rollOffset: 0.02
   },
   {
-    id: 'tail-left-open',
-    label: 'Tail Left · Open',
-    detail: 'Handle leans left, hoop slightly opened.',
-    pivotPosition: { x: -0.03, y: 0.1, z: -0.15 },
-    pivotRotation: { x: -0.22, y: -0.18, z: -0.12 },
-    headRotation: { x: Math.PI / 2, y: -0.14, z: -0.25 },
-    depthOffset: -0.02,
-    rollOffset: -0.08
+    id: 'spin-halo',
+    label: 'Spin Halo',
+    detail: 'Raised hoop with side tilt to invite heavy topspin.',
+    pivotPosition: { x: -0.018, y: 0.15, z: -0.22 },
+    pivotRotation: { x: -0.19, y: -0.12, z: -0.16 },
+    headRotation: { x: Math.PI / 1.92, y: -0.08, z: -0.22 },
+    depthOffset: -0.06,
+    rollOffset: -0.09
   },
   {
-    id: 'tail-right-open',
-    label: 'Tail Right · Open',
-    detail: 'Tail biased right with an open face for forehands.',
-    pivotPosition: { x: 0.03, y: 0.11, z: -0.16 },
-    pivotRotation: { x: -0.24, y: 0.18, z: 0.12 },
-    headRotation: { x: Math.PI / 2, y: 0.16, z: 0.22 },
-    depthOffset: -0.015,
-    rollOffset: 0.08
+    id: 'continental-cant',
+    label: 'Continental Cant',
+    detail: 'Forward lean with mild closure for skidding drives.',
+    pivotPosition: { x: 0.015, y: 0.1, z: -0.14 },
+    pivotRotation: { x: -0.34, y: 0.08, z: 0.06 },
+    headRotation: { x: Math.PI / 1.8, y: 0.1, z: 0.12 },
+    depthOffset: 0.035,
+    rollOffset: 0.05
   },
   {
-    id: 'closed-face',
-    label: 'Closed Face',
-    detail: 'Hoop rotated forward for flatter drives.',
-    pivotPosition: { x: 0, y: 0.09, z: -0.12 },
-    pivotRotation: { x: -0.36, y: 0.06, z: 0.04 },
-    headRotation: { x: Math.PI / 1.86, y: 0.06, z: 0.08 },
-    depthOffset: 0.04,
-    rollOffset: 0.03
+    id: 'reverse-tail-scoop',
+    label: 'Reverse Tail Scoop',
+    detail: 'Backhand-ready flip with a slight upward spoon.',
+    pivotPosition: { x: -0.028, y: 0.1, z: -0.215 },
+    pivotRotation: { x: -0.31, y: Math.PI, z: -0.04 },
+    headRotation: { x: Math.PI / 1.98, y: Math.PI, z: 0.18 },
+    depthOffset: -0.085,
+    rollOffset: 0.12
   },
   {
-    id: 'lifted-rim',
-    label: 'Lifted Rim',
-    detail: 'Higher offset tail with extra topspin clearance.',
-    pivotPosition: { x: 0.01, y: 0.14, z: -0.2 },
-    pivotRotation: { x: -0.2, y: -0.04, z: -0.06 },
-    headRotation: { x: Math.PI / 2.08, y: -0.02, z: -0.12 },
+    id: 'underhand-cradle',
+    label: 'Underhand Cradle',
+    detail: 'Lowered handle with open face for soft touch pickups.',
+    pivotPosition: { x: -0.02, y: 0.085, z: -0.12 },
+    pivotRotation: { x: -0.18, y: -0.16, z: -0.1 },
+    headRotation: { x: Math.PI / 2.04, y: -0.14, z: -0.18 },
+    depthOffset: 0.02,
+    rollOffset: -0.06
+  },
+  {
+    id: 'aggressive-offset',
+    label: 'Aggressive Offset',
+    detail: 'Deep reach with extra forward cant for flat punch returns.',
+    pivotPosition: { x: 0.04, y: 0.09, z: -0.2 },
+    pivotRotation: { x: -0.4, y: 0.14, z: 0.18 },
+    headRotation: { x: Math.PI / 1.76, y: 0.16, z: 0.24 },
     depthOffset: -0.05,
-    rollOffset: -0.04
+    rollOffset: 0.11
   },
   {
-    id: 'reverse-tail',
-    label: 'Reverse Tail',
-    detail: 'Handle flipped back for backhand-ready stance.',
-    pivotPosition: { x: -0.02, y: 0.095, z: -0.21 },
-    pivotRotation: { x: -0.3, y: Math.PI, z: 0 },
-    headRotation: { x: Math.PI / 2, y: Math.PI, z: 0.12 },
-    depthOffset: -0.08,
-    rollOffset: 0.1
+    id: 'net-rush-flare',
+    label: 'Net Rush Flare',
+    detail: 'High elbow tilt to attack floaters above the tape.',
+    pivotPosition: { x: -0.01, y: 0.18, z: -0.17 },
+    pivotRotation: { x: -0.22, y: 0.04, z: -0.08 },
+    headRotation: { x: Math.PI / 1.88, y: 0.02, z: -0.14 },
+    depthOffset: -0.025,
+    rollOffset: -0.03
+  },
+  {
+    id: 'high-arc-guard',
+    label: 'High Arc Guard',
+    detail: 'Shielded hoop with elevated wrist for lobs and moonballs.',
+    pivotPosition: { x: -0.035, y: 0.2, z: -0.24 },
+    pivotRotation: { x: -0.17, y: -0.06, z: -0.18 },
+    headRotation: { x: Math.PI / 1.86, y: -0.1, z: -0.26 },
+    depthOffset: -0.07,
+    rollOffset: -0.12
+  },
+  {
+    id: 'whip-sidewall',
+    label: 'Whip Sidewall',
+    detail: 'Side-biased whip to carve crosscourt angles.',
+    pivotPosition: { x: 0.055, y: 0.13, z: -0.19 },
+    pivotRotation: { x: -0.24, y: 0.26, z: 0.2 },
+    headRotation: { x: Math.PI / 1.9, y: 0.28, z: 0.26 },
+    depthOffset: -0.03,
+    rollOffset: 0.13
+  },
+  {
+    id: 'steadfast-block',
+    label: 'Steadfast Block',
+    detail: 'Compact hold with extra stability for reaction volleys.',
+    pivotPosition: { x: 0.012, y: 0.11, z: -0.13 },
+    pivotRotation: { x: -0.28, y: 0.0, z: 0.02 },
+    headRotation: { x: Math.PI / 1.93, y: 0.0, z: 0.06 },
+    depthOffset: 0.015,
+    rollOffset: 0.01
   }
 ];
 
@@ -1615,20 +1655,19 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const targetWithOrbit = pivot.clone().add(targetFromPivot);
       smoothCameraPos.lerp(targetWithOrbit, lerpAmt);
       camera.position.copy(smoothCameraPos);
+      const lookZWorld = THREE.MathUtils.clamp(
+        followBall.z,
+        -(halfL + apron * 1.4),
+        halfL + apron * 1.4
+      );
       const look = new THREE.Vector3(
         THREE.MathUtils.clamp(
-          THREE.MathUtils.lerp(player.position.x * 0.55, followBall.x, 0.45) + sideBias,
+          THREE.MathUtils.lerp(player.position.x * 0.55, followBall.x, 0.6) + sideBias,
           -cameraSideLimit,
           cameraSideLimit
         ),
-        Math.max(1.18, followBall.y + 0.24),
-        fromLocalZ(
-          THREE.MathUtils.clamp(
-            Math.max(cameraMinZ, Math.max(playerLocalZ - 0.9, toLocalZ(followBall.z) - 0.6)),
-            cameraMinZ,
-            playerCourtMaxZ
-          )
-        )
+        Math.max(1.35, followBall.y + 0.34),
+        lookZWorld
       );
       const lookFromPivot = look.clone().sub(pivot);
       lookFromPivot.applyAxisAngle(orbitNormal, orbitYaw * 0.95);
