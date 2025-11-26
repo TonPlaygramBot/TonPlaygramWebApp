@@ -51,6 +51,45 @@ const BROADCAST_TECHNIQUES = [
     lookLerp: 0.93,
     sideBias: 0.04,
     rig: { position: new THREE.Vector3(-15, 3.1, -2), yaw: -Math.PI / 2.4, scale: 1 }
+  },
+  {
+    id: 'sideline-truck',
+    label: 'Sideline Truck',
+    detail: 'Low track from photographer pit sliding along the baseline.',
+    backMultiplier: 1.02,
+    backOffset: 0.78,
+    heightBoost: 0.32,
+    leadTime: 0.3,
+    followBlend: 0.7,
+    cameraLerp: 5.2,
+    lookLerp: 0.86,
+    sideBias: 0.16,
+    horizonLift: 0.06,
+    rig: { position: new THREE.Vector3(19, 2.6, -6), yaw: Math.PI / 2.1, scale: 1.02 }
+  },
+  {
+    id: 'dynamic-director',
+    label: 'Dynamic Director',
+    detail: 'Adaptive camera that reacts to rally heat and height.',
+    backMultiplier: 1.1,
+    backOffset: 1.1,
+    heightBoost: 0.52,
+    leadTime: 0.36,
+    followBlend: 0.82,
+    cameraLerp: 5.9,
+    lookLerp: 0.95,
+    sideBias: 0.02,
+    horizonLift: 0.12,
+    dynamicOrbit: {
+      yawScale: 0.4,
+      yawLimit: 0.5,
+      pitchBase: 0.1,
+      pitchRange: 0.28,
+      pitchLimit: 0.52,
+      heightBias: 0.38,
+      smoothing: 3.8
+    },
+    rig: { position: new THREE.Vector3(0, 3.6, 18), yaw: 0, scale: 1.06 }
   }
 ];
 
@@ -154,104 +193,104 @@ const BASE_HEAD_ROT = { x: Math.PI / 2, y: 0, z: 0 };
 
 const RACKET_ORIENTATIONS = [
   {
-    id: 'lofted-neutral',
-    label: 'Lofted Neutral',
-    detail: 'Gentle lift with balanced roll for all-round timing.',
+    id: 'balanced-baseline',
+    label: 'Balanced Baseline',
+    detail: 'Neutral, face-up setup for controlled rally timing.',
     pivotPosition: { x: 0, y: 0.12, z: -0.18 },
-    pivotRotation: { x: -0.26, y: 0.02, z: 0 },
-    headRotation: { x: Math.PI / 1.95, y: 0.02, z: 0 },
+    pivotRotation: { x: -0.27, y: 0.02, z: 0.01 },
+    headRotation: { x: Math.PI / 1.98, y: 0.02, z: 0.01 },
     depthOffset: -0.01,
     rollOffset: 0.02
   },
   {
-    id: 'spin-halo',
-    label: 'Spin Halo',
-    detail: 'Raised hoop with side tilt to invite heavy topspin.',
-    pivotPosition: { x: -0.018, y: 0.15, z: -0.22 },
-    pivotRotation: { x: -0.19, y: -0.12, z: -0.16 },
-    headRotation: { x: Math.PI / 1.92, y: -0.08, z: -0.22 },
-    depthOffset: -0.06,
-    rollOffset: -0.09
-  },
-  {
-    id: 'continental-cant',
-    label: 'Continental Cant',
+    id: 'closed-drive',
+    label: 'Closed Drive',
     detail: 'Forward lean with mild closure for skidding drives.',
-    pivotPosition: { x: 0.015, y: 0.1, z: -0.14 },
-    pivotRotation: { x: -0.34, y: 0.08, z: 0.06 },
-    headRotation: { x: Math.PI / 1.8, y: 0.1, z: 0.12 },
-    depthOffset: 0.035,
-    rollOffset: 0.05
+    pivotPosition: { x: 0.02, y: 0.1, z: -0.16 },
+    pivotRotation: { x: -0.36, y: 0.12, z: 0.06 },
+    headRotation: { x: Math.PI / 1.82, y: 0.12, z: 0.1 },
+    depthOffset: 0.02,
+    rollOffset: 0.07
   },
   {
-    id: 'reverse-tail-scoop',
-    label: 'Reverse Tail Scoop',
-    detail: 'Backhand-ready flip with a slight upward spoon.',
-    pivotPosition: { x: -0.028, y: 0.1, z: -0.215 },
-    pivotRotation: { x: -0.31, y: Math.PI, z: -0.04 },
-    headRotation: { x: Math.PI / 1.98, y: Math.PI, z: 0.18 },
-    depthOffset: -0.085,
+    id: 'lifted-topspin',
+    label: 'Lifted Topspin',
+    detail: 'Raised hoop with side tilt to invite heavy topspin.',
+    pivotPosition: { x: -0.015, y: 0.15, z: -0.21 },
+    pivotRotation: { x: -0.23, y: -0.08, z: -0.14 },
+    headRotation: { x: Math.PI / 1.9, y: -0.06, z: -0.18 },
+    depthOffset: -0.05,
+    rollOffset: -0.08
+  },
+  {
+    id: 'flat-punch',
+    label: 'Flat Punch',
+    detail: 'Deep reach with extra forward cant for flat returns.',
+    pivotPosition: { x: 0.03, y: 0.09, z: -0.14 },
+    pivotRotation: { x: -0.4, y: 0.18, z: 0.16 },
+    headRotation: { x: Math.PI / 1.76, y: 0.2, z: 0.22 },
+    depthOffset: -0.02,
     rollOffset: 0.12
   },
   {
-    id: 'underhand-cradle',
-    label: 'Underhand Cradle',
-    detail: 'Lowered handle with open face for soft touch pickups.',
-    pivotPosition: { x: -0.02, y: 0.085, z: -0.12 },
-    pivotRotation: { x: -0.18, y: -0.16, z: -0.1 },
-    headRotation: { x: Math.PI / 2.04, y: -0.14, z: -0.18 },
-    depthOffset: 0.02,
-    rollOffset: -0.06
+    id: 'backhand-shield',
+    label: 'Backhand Shield',
+    detail: 'Backhand-ready flip with a slight upward spoon.',
+    pivotPosition: { x: -0.03, y: 0.11, z: -0.17 },
+    pivotRotation: { x: -0.31, y: Math.PI - 0.08, z: -0.04 },
+    headRotation: { x: Math.PI / 1.96, y: Math.PI - 0.06, z: 0.14 },
+    depthOffset: -0.08,
+    rollOffset: 0.1
   },
   {
-    id: 'aggressive-offset',
-    label: 'Aggressive Offset',
-    detail: 'Deep reach with extra forward cant for flat punch returns.',
-    pivotPosition: { x: 0.04, y: 0.09, z: -0.2 },
-    pivotRotation: { x: -0.4, y: 0.14, z: 0.18 },
-    headRotation: { x: Math.PI / 1.76, y: 0.16, z: 0.24 },
-    depthOffset: -0.05,
-    rollOffset: 0.11
+    id: 'touch-cradle',
+    label: 'Touch Cradle',
+    detail: 'Lowered handle with open face for soft drop pickups.',
+    pivotPosition: { x: -0.018, y: 0.085, z: -0.12 },
+    pivotRotation: { x: -0.2, y: -0.14, z: -0.12 },
+    headRotation: { x: Math.PI / 2.04, y: -0.1, z: -0.16 },
+    depthOffset: 0.01,
+    rollOffset: -0.05
   },
   {
-    id: 'net-rush-flare',
-    label: 'Net Rush Flare',
+    id: 'net-poach',
+    label: 'Net Poach',
     detail: 'High elbow tilt to attack floaters above the tape.',
-    pivotPosition: { x: -0.01, y: 0.18, z: -0.17 },
-    pivotRotation: { x: -0.22, y: 0.04, z: -0.08 },
-    headRotation: { x: Math.PI / 1.88, y: 0.02, z: -0.14 },
-    depthOffset: -0.025,
-    rollOffset: -0.03
+    pivotPosition: { x: -0.005, y: 0.18, z: -0.19 },
+    pivotRotation: { x: -0.22, y: 0.06, z: -0.1 },
+    headRotation: { x: Math.PI / 1.88, y: 0.04, z: -0.12 },
+    depthOffset: -0.02,
+    rollOffset: -0.02
   },
   {
-    id: 'high-arc-guard',
-    label: 'High Arc Guard',
-    detail: 'Shielded hoop with elevated wrist for lobs and moonballs.',
-    pivotPosition: { x: -0.035, y: 0.2, z: -0.24 },
-    pivotRotation: { x: -0.17, y: -0.06, z: -0.18 },
-    headRotation: { x: Math.PI / 1.86, y: -0.1, z: -0.26 },
-    depthOffset: -0.07,
-    rollOffset: -0.12
+    id: 'lob-guard',
+    label: 'Lob Guard',
+    detail: 'Shielded hoop with elevated wrist for moonballs.',
+    pivotPosition: { x: -0.04, y: 0.21, z: -0.24 },
+    pivotRotation: { x: -0.18, y: -0.04, z: -0.2 },
+    headRotation: { x: Math.PI / 1.86, y: -0.08, z: -0.24 },
+    depthOffset: -0.06,
+    rollOffset: -0.1
   },
   {
-    id: 'whip-sidewall',
-    label: 'Whip Sidewall',
+    id: 'sidecar-angle',
+    label: 'Sidecar Angle',
     detail: 'Side-biased whip to carve crosscourt angles.',
-    pivotPosition: { x: 0.055, y: 0.13, z: -0.19 },
-    pivotRotation: { x: -0.24, y: 0.26, z: 0.2 },
-    headRotation: { x: Math.PI / 1.9, y: 0.28, z: 0.26 },
+    pivotPosition: { x: 0.06, y: 0.13, z: -0.18 },
+    pivotRotation: { x: -0.26, y: 0.24, z: 0.18 },
+    headRotation: { x: Math.PI / 1.9, y: 0.26, z: 0.24 },
     depthOffset: -0.03,
-    rollOffset: 0.13
+    rollOffset: 0.12
   },
   {
-    id: 'steadfast-block',
-    label: 'Steadfast Block',
+    id: 'steady-block',
+    label: 'Steady Block',
     detail: 'Compact hold with extra stability for reaction volleys.',
-    pivotPosition: { x: 0.012, y: 0.11, z: -0.13 },
-    pivotRotation: { x: -0.28, y: 0.0, z: 0.02 },
-    headRotation: { x: Math.PI / 1.93, y: 0.0, z: 0.06 },
-    depthOffset: 0.015,
-    rollOffset: 0.01
+    pivotPosition: { x: 0.01, y: 0.11, z: -0.13 },
+    pivotRotation: { x: -0.29, y: 0.02, z: 0.03 },
+    headRotation: { x: Math.PI / 1.94, y: 0.02, z: 0.08 },
+    depthOffset: 0.01,
+    rollOffset: 0.02
   }
 ];
 
@@ -1584,22 +1623,27 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const posLerpRate = broadcastProfile.cameraLerp ?? 5.2;
       const lookLerpRate = broadcastProfile.lookLerp ?? 0.82;
       const sideBias = broadcastProfile.sideBias ?? 0;
-      const activeCamBack = THREE.MathUtils.clamp(
-        camBack * (broadcastProfile.backMultiplier ?? 1) + (broadcastProfile.backOffset ?? 0),
-        camBackRange.min,
-        camBackRange.max
-      );
-      const activeCamHeight = THREE.MathUtils.clamp(
-        camHeight + (broadcastProfile.heightBoost ?? 0),
-        camHeightRange.min,
-        camHeightRange.max
-      );
       const predictedBall = new THREE.Vector3(
         ball.position.x + vel.x * leadT,
         Math.max(ballR, ball.position.y + vel.y * leadT + 0.5 * physics.gravity * leadT * leadT),
         ball.position.z + vel.z * leadT
       );
       const followBall = new THREE.Vector3().lerpVectors(ball.position, predictedBall, followBlend);
+
+      const dynamicOrbit = broadcastProfile.dynamicOrbit;
+      const rallyHeat = dynamicOrbit
+        ? THREE.MathUtils.clamp(vel.length() / (BASE_SPEED_CAP * 0.38) + Math.abs(ball.position.y - 1) * 0.22, 0, 1)
+        : 0;
+      const activeCamBack = THREE.MathUtils.clamp(
+        camBack * (broadcastProfile.backMultiplier ?? 1) + (broadcastProfile.backOffset ?? 0),
+        camBackRange.min,
+        camBackRange.max
+      );
+      const activeCamHeight = THREE.MathUtils.clamp(
+        camHeight + (broadcastProfile.heightBoost ?? 0) + (dynamicOrbit ? (dynamicOrbit.heightBias ?? 0) * rallyHeat : 0),
+        camHeightRange.min,
+        camHeightRange.max
+      );
 
       const playerServingDiag = !state.live && state.serveBy === 'player';
       const cpuServingDiag = !state.live && state.serveBy === 'cpu';
@@ -1634,6 +1678,22 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         camera.position.lerp(diagTarget, 0.3);
         camera.lookAt(new THREE.Vector3(cpu.position.x * 0.35, 1.35, fromLocalZ(cpuLocalZ + 1.2)));
         return;
+      }
+
+      if (dynamicOrbit) {
+        const yawLimit = dynamicOrbit.yawLimit ?? 0.45;
+        const targetYaw = THREE.MathUtils.clamp(
+          (dynamicOrbit.yawScale ?? 0.32) * THREE.MathUtils.clamp(followBall.x / halfW, -1, 1),
+          -yawLimit,
+          yawLimit
+        );
+        const pitchBase = dynamicOrbit.pitchBase ?? 0.08;
+        const pitchRange = dynamicOrbit.pitchRange ?? 0.18;
+        const pitchLimit = dynamicOrbit.pitchLimit ?? 0.5;
+        const targetPitch = THREE.MathUtils.clamp(pitchBase + pitchRange * rallyHeat, -0.05, pitchLimit);
+        const smoothing = dynamicOrbit.smoothing ?? 3.6;
+        orbitYaw = THREE.MathUtils.damp(orbitYaw, targetYaw, smoothing, dt);
+        orbitPitch = THREE.MathUtils.damp(orbitPitch, targetPitch, smoothing, dt);
       }
 
       const baseLocalZ = playerLocalZ + activeCamBack;
