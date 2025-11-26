@@ -206,10 +206,9 @@ function createDefaultPocketJawMaterial() {
   });
 }
 
-const POCKET_VISUAL_EXPANSION = 1.018;
-const CORNER_POCKET_INWARD_SCALE = 1.015;
+const POCKET_VISUAL_EXPANSION = 1.012;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // pull corner reliefs further into the rail
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -227,31 +226,30 @@ const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE =
-  CORNER_POCKET_INWARD_SCALE * CHROME_CORNER_POCKET_RADIUS_SCALE * 1.016; // reuse Pool Royale side pocket arch width
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.028; // reuse Pool Royale side pocket arch width
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.034;
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08;
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1;
 const CHROME_PLATE_RENDER_ORDER = 3.5;
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.004;
 const WOOD_CORNER_CUT_SCALE = 1; // keep wood cuts identical to chrome plate reliefs
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 1;
-const POCKET_JAW_DEPTH_SCALE = 0.52;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
+const POCKET_JAW_DEPTH_SCALE = 0.56;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
@@ -262,11 +260,11 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.592;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
-const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
-const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.97;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.426;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982;
+const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.86;
+const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 120;
@@ -479,6 +477,7 @@ function addPocketCuts(parent, clothPlane) {
 const TABLE_SIZE_SHRINK = 0.78;
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
 const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
+const OFFICIAL_SIZE_REDUCTION = 0.82; // scale the official footprint down so it stays just larger than Pool Royale
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88;
@@ -487,15 +486,13 @@ const TABLE_GROWTH_MULTIPLIER = 1.5;
 const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
-const POOL_TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
-const ENABLE_CUE_RACK_DISPLAY = false;
-const ENABLE_TRIPOD_CAMERAS = false;
+const TABLE_SCALE =
+  TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE * OFFICIAL_SIZE_REDUCTION;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
-  THICK: 1.8 * POOL_TABLE_SCALE,
-  WALL: 2.6 * POOL_TABLE_SCALE
+  THICK: 1.8 * TABLE_SCALE,
+  WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so geometry stays consistent
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
@@ -510,7 +507,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 558.8;
 const CORNER_MOUTH_REF = 114.3;
 const SIDE_MOUTH_REF = 127;
-const CORNER_POCKET_SCALE_BOOST = 0.994;
+const CORNER_POCKET_SCALE_BOOST = 0.985;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996;
 const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
@@ -565,10 +562,7 @@ const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.32; // pull middle pockets toward the side rails to open the center a touch
-const SIDE_POCKET_CUT_LONGITUDINAL_OFFSET =
-  MIDDLE_POCKET_LONGITUDINAL_OFFSET * 1.18;
-const CORNER_CUT_INSET_BONUS = POCKET_VIS_R * 0.08 * POCKET_VISUAL_EXPANSION;
+  POCKET_VIS_R * 0.22; // pull middle pockets toward the side rails to open the center a touch
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -622,8 +616,6 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const CAPTURE_R = POCKET_R; // pocket capture radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // render a thinner cloth so the playing surface feels lighter
-const CLOTH_EDGE_CURVE = CLOTH_THICKNESS * 0.75; // bend the cloth down into the pocket cut
-const CLOTH_EDGE_UNDERWRAP = CLOTH_THICKNESS * 0.58; // tuck the cloth under the plywood for a wrapped lip
 const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.24; // hidden plywood deck to catch shadows before they reach the carpet
 const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // leave a thin air gap between the cloth and plywood
 const CLOTH_UNDERLAY_EDGE_INSET = 0; // match the playable field footprint while remaining hidden via colorWrite=false
@@ -728,7 +720,7 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 8; // pull broadcast cams closer so the snooker table fills the frame
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 12; // pull broadcast cams closer so the snooker table fills the frame
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -1776,52 +1768,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
-const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
-const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
-  { id: 'diamond', label: 'Diamonds' },
-  { id: 'circle', label: 'Circles' }
-]);
-
-const DEFAULT_RAIL_MARKER_COLOR_ID = 'chrome';
-const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'chrome',
-    label: 'Chrome',
-    color: 0xd2d8e2,
-    metalness: 0.9,
-    roughness: 0.22,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.18
-  },
-  {
-    id: 'pearl',
-    label: 'Pearl',
-    color: 0xf3ede3,
-    metalness: 0.42,
-    roughness: 0.2,
-    clearcoat: 0.64,
-    clearcoatRoughness: 0.12,
-    sheen: 0.28,
-    sheenRoughness: 0.42
-  },
-  {
-    id: 'gold',
-    label: 'Gold',
-    color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.26,
-    clearcoat: 0.58,
-    clearcoatRoughness: 0.18,
-    sheen: 0.32,
-    sheenRoughness: 0.4
-  }
-]);
-
-const resolveRailMarkerColorOption = (id) =>
-  RAIL_MARKER_COLOR_OPTIONS.find((opt) => opt.id === id) ??
-  RAIL_MARKER_COLOR_OPTIONS.find((opt) => opt.id === DEFAULT_RAIL_MARKER_COLOR_ID) ??
-  RAIL_MARKER_COLOR_OPTIONS[0];
-
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
@@ -1832,8 +1778,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
   }
 ]);
-const RAIL_MARKER_SHAPE_STORAGE_KEY = 'snookerRailMarkerShape';
-const RAIL_MARKER_COLOR_STORAGE_KEY = 'snookerRailMarkerColor';
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
 
 const toHexColor = (value) => {
@@ -2969,29 +2913,29 @@ function applySnookerScaling({
 }
 
 // Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
-const STANDING_VIEW_PHI = 0.94; // lift the default orbit a touch higher for a better overview
+const STANDING_VIEW_PHI = 0.86; // lift the default orbit a touch higher for a better overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0016;
+const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.026; // pull the player camera much tighter to mirror Pool Royale framing
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.028; // pull the player camera much tighter to mirror Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.06;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.25;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.29;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.003;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.94, broadcast: 0.965, margin: 0.985 }),
-  nearLandscape: Object.freeze({ cue: 0.92, broadcast: 0.95, margin: 0.985 }),
-  portrait: Object.freeze({ cue: 0.9, broadcast: 0.93, margin: 0.98 }),
-  ultraPortrait: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.97 })
+  default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
+  nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
+  portrait: Object.freeze({ cue: 0.92, broadcast: 0.95, margin: 0.98 }),
+  ultraPortrait: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.97 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -4063,8 +4007,7 @@ function createAccentMesh(accent, dims) {
 
 function Table3D(
   parent,
-  finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID],
-  railMarkerStyle = null
+  finish = TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID]
 ) {
   const table = new THREE.Group();
   table.userData = table.userData || {};
@@ -4156,7 +4099,6 @@ function Table3D(
     emissive: clothColor.clone().multiplyScalar(0.08),
     emissiveIntensity: 0.58
   });
-  clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
@@ -4298,60 +4240,6 @@ function Table3D(
     Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
-  const makeClothUVGenerator = () => {
-    const topSpanX = Math.max(MICRO_EPS, halfWext * 2);
-    const topSpanY = Math.max(MICRO_EPS, halfHext * 2);
-    const bottomZ = -CLOTH_THICKNESS - CLOTH_EDGE_CURVE;
-    const topZ = CLOTH_EDGE_CURVE * 0.2;
-    const clampV = (z) => {
-      const v = (z - bottomZ) / (topZ - bottomZ);
-      return THREE.MathUtils.clamp(v, 0, 1);
-    };
-    const angleToU = (x, y) => (Math.atan2(y, x) + Math.PI) / (Math.PI * 2);
-    const planarUV = (x, y) =>
-      new THREE.Vector2((x + halfWext) / topSpanX, (y + halfHext) / topSpanY);
-    return {
-      generateTopUV: (geometry, vertices, a, b, c) => {
-        const ax = vertices[a * 3];
-        const ay = vertices[a * 3 + 1];
-        const bx = vertices[b * 3];
-        const by = vertices[b * 3 + 1];
-        const cx = vertices[c * 3];
-        const cy = vertices[c * 3 + 1];
-        return [planarUV(ax, ay), planarUV(bx, by), planarUV(cx, cy)];
-      },
-      generateSideUV: (geometry, vertices, a, b, c, d) => {
-        const ax = vertices[a * 3];
-        const ay = vertices[a * 3 + 1];
-        const az = vertices[a * 3 + 2];
-        const bx = vertices[b * 3];
-        const by = vertices[b * 3 + 1];
-        const bz = vertices[b * 3 + 2];
-        const cx = vertices[c * 3];
-        const cy = vertices[c * 3 + 1];
-        const cz = vertices[c * 3 + 2];
-        const dx = vertices[d * 3];
-        const dy = vertices[d * 3 + 1];
-        const dz = vertices[d * 3 + 2];
-        const ua = angleToU(ax, ay);
-        const ub = angleToU(bx, by);
-        const uc = angleToU(cx, cy);
-        const ud = angleToU(dx, dy);
-        const va = clampV(az);
-        const vb = clampV(bz);
-        const vc = clampV(cz);
-        const vd = clampV(dz);
-        return [
-          new THREE.Vector2(ua, va),
-          new THREE.Vector2(ub, vb),
-          new THREE.Vector2(uc, vc),
-          new THREE.Vector2(ud, vd)
-        ];
-      }
-    };
-  };
-
-  const clothUVGenerator = makeClothUVGenerator();
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
@@ -4442,14 +4330,9 @@ function Table3D(
   const clothShape = buildSurfaceShape(POCKET_HOLE_R);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_THICKNESS,
-    bevelEnabled: true,
-    bevelThickness: CLOTH_EDGE_CURVE,
-    bevelSize: CLOTH_EDGE_CURVE * 0.36,
-    bevelOffset: -CLOTH_EDGE_UNDERWRAP * 0.4,
-    bevelSegments: 5,
+    bevelEnabled: false,
     curveSegments: 64,
-    steps: 3,
-    UVGenerator: clothUVGenerator
+    steps: 1
   });
   clothGeo.translate(0, 0, -CLOTH_THICKNESS);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
@@ -4458,6 +4341,36 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+
+  const underlayShape = buildSurfaceShape(
+    POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE,
+    CLOTH_UNDERLAY_EDGE_INSET
+  );
+  const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
+    depth: CLOTH_UNDERLAY_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 48,
+    steps: 1
+  });
+  underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
+  const underlayMat = new THREE.MeshStandardMaterial({
+    color: 0x8b6f4a,
+    roughness: 0.68,
+    metalness: 0.05,
+    side: THREE.DoubleSide
+  });
+  underlayMat.transparent = true;
+  underlayMat.opacity = 0;
+  underlayMat.depthWrite = true;
+  underlayMat.colorWrite = false; // remain invisible while still blocking light for full table shadows
+  const clothUnderlay = new THREE.Mesh(underlayGeo, underlayMat);
+  clothUnderlay.rotation.x = -Math.PI / 2;
+  clothUnderlay.position.y =
+    cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
+  clothUnderlay.castShadow = true;
+  clothUnderlay.receiveShadow = true;
+  clothUnderlay.renderOrder = cloth.renderOrder - 1;
+  table.add(clothUnderlay);
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
@@ -4704,11 +4617,10 @@ function Table3D(
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
-  const cornerPocketRadius = POCKET_VIS_R * POCKET_VISUAL_EXPANSION;
+  const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = CORNER_POCKET_CENTER_INSET + CORNER_CUT_INSET_BONUS;
+  const cornerInset = CORNER_POCKET_CENTER_INSET;
   const sideInset = SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION;
-  const sidePocketCutOffset = SIDE_POCKET_CUT_LONGITUDINAL_OFFSET;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -4891,8 +4803,7 @@ function Table3D(
     return scaleMultiPolygon(adjusted, CHROME_CORNER_NOTCH_EXPANSION_SCALE);
   };
 
-  const sideNotchMP = (sx, centerZ = 0) => {
-    const cz = (sx < 0 ? -1 : 1) * Math.abs(centerZ);
+  const sideNotchMP = (sx) => {
     const cx = sx * (innerHalfW - sideInset);
     const radius = sidePocketRadius * CHROME_SIDE_POCKET_RADIUS_SCALE;
     const throatLength = Math.max(
@@ -4908,10 +4819,10 @@ function Table3D(
       Math.min(throatHeight / 2, radius * CHROME_SIDE_NOTCH_RADIUS_SCALE)
     );
 
-    const circle = circlePoly(cx, cz, radius, 256);
+    const circle = circlePoly(cx, 0, radius, 256);
     const throat = roundedRectPoly(
       cx + (sx * throatLength) / 2,
-      cz,
+      0,
       Math.abs(throatLength),
       throatHeight,
       throatRadius,
@@ -4967,7 +4878,7 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
-    const notchMP = sideNotchMP(sx, sidePocketCutOffset);
+    const notchMP = sideNotchMP(sx);
     const sidePocketCutCenterPull =
       TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
     const notchLocalMP = notchMP.map((poly) =>
@@ -5312,11 +5223,8 @@ function Table3D(
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
     [-1, 1].forEach((sx) => {
-      const baseMP = sideNotchMP(sx, sidePocketCutOffset);
-      const fallbackCenter = new THREE.Vector2(
-        sx * (innerHalfW - sideInset),
-        (sx < 0 ? -1 : 1) * sidePocketCutOffset
-      );
+      const baseMP = sideNotchMP(sx);
+      const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
@@ -5344,12 +5252,7 @@ function Table3D(
   }
 
   const woodSideNotches = [-1, 1]
-    .map((sx) =>
-      scaleMultiPolygonBy(
-        sideNotchMP(sx, sidePocketCutOffset),
-        WOOD_SIDE_CUT_SCALE
-      )
-    )
+    .map((sx) => scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE))
     .filter((mp) => Array.isArray(mp) && mp.length);
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
@@ -5432,138 +5335,6 @@ function Table3D(
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
-
-  let activeRailMarkerStyle =
-    railMarkerStyle && typeof railMarkerStyle === 'object'
-      ? {
-          shape: railMarkerStyle.shape ?? DEFAULT_RAIL_MARKER_SHAPE,
-          colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
-        }
-      : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.7;
-  const railMarkerGroup = new THREE.Group();
-  const railMarkerThickness = TABLE.THICK * 0.06;
-  const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
-  const railMarkerLength = railMarkerWidth * 0.62;
-  const railMarkerShapeGeom = new THREE.Shape();
-  railMarkerShapeGeom.moveTo(0, railMarkerLength / 2);
-  railMarkerShapeGeom.lineTo(railMarkerWidth / 2, 0);
-  railMarkerShapeGeom.lineTo(0, -railMarkerLength / 2);
-  railMarkerShapeGeom.lineTo(-railMarkerWidth / 2, 0);
-  railMarkerShapeGeom.closePath();
-  const diamondGeometry = new THREE.ExtrudeGeometry(railMarkerShapeGeom, {
-    depth: railMarkerThickness,
-    bevelEnabled: true,
-    bevelThickness: railMarkerThickness * 0.35,
-    bevelSize: railMarkerThickness * 0.3,
-    bevelSegments: 2
-  });
-  diamondGeometry.rotateX(-Math.PI / 2);
-  const circleRadius = railMarkerWidth * 0.36;
-  const circleShape = new THREE.Shape();
-  circleShape.absarc(0, 0, circleRadius, 0, Math.PI * 2, false);
-  const circleGeometry = new THREE.ExtrudeGeometry(circleShape, {
-    depth: railMarkerThickness,
-    bevelEnabled: true,
-    bevelThickness: railMarkerThickness * 0.28,
-    bevelSize: railMarkerThickness * 0.24,
-    bevelSegments: 2,
-    curveSegments: 48
-  });
-  circleGeometry.rotateX(-Math.PI / 2);
-  const railMarkerGeometries = Object.freeze({
-    diamond: diamondGeometry,
-    circle: circleGeometry
-  });
-  const railMarkerMat = trimMat.clone();
-  enhanceChromeMaterial(railMarkerMat);
-  railMarkerMat.color.copy(trimMat.color);
-  railMarkerMat.needsUpdate = true;
-  const railMarkerLift = railsTopY + MICRO_EPS * 6;
-  const railMarkerMeshes = [];
-  const registerRailMarkerMesh = (mesh) => {
-    railMarkerMeshes.push(mesh);
-    finishParts.trimMeshes.push(mesh);
-    railMarkerGroup.add(mesh);
-  };
-  const clearRailMarkerMeshes = () => {
-    while (railMarkerMeshes.length) {
-      const mesh = railMarkerMeshes.pop();
-      const idx = finishParts.trimMeshes.indexOf(mesh);
-      if (idx >= 0) {
-        finishParts.trimMeshes.splice(idx, 1);
-      }
-      railMarkerGroup.remove(mesh);
-    }
-  };
-  const applyRailMarkerStyleFn = (style = activeRailMarkerStyle, overrides = {}) => {
-    const shapeId =
-      railMarkerGeometries[style?.shape] && typeof style?.shape === 'string'
-        ? style.shape
-        : DEFAULT_RAIL_MARKER_SHAPE;
-    const geometry =
-      railMarkerGeometries[shapeId] ?? railMarkerGeometries[DEFAULT_RAIL_MARKER_SHAPE];
-    const colorOpt = resolveRailMarkerColorOption(style?.colorId);
-    const baseTrim = overrides.trimMaterial ?? trimMat;
-    railMarkerMat.copy(baseTrim);
-    enhanceChromeMaterial(railMarkerMat);
-    if (colorOpt?.color != null) {
-      railMarkerMat.color.setHex(colorOpt.color);
-    }
-    if (typeof colorOpt?.metalness === 'number') {
-      railMarkerMat.metalness = colorOpt.metalness;
-    }
-    if (typeof colorOpt?.roughness === 'number') {
-      railMarkerMat.roughness = colorOpt.roughness;
-    }
-    if (typeof colorOpt?.clearcoat === 'number') {
-      railMarkerMat.clearcoat = colorOpt.clearcoat;
-    }
-    if (typeof colorOpt?.clearcoatRoughness === 'number') {
-      railMarkerMat.clearcoatRoughness = colorOpt.clearcoatRoughness;
-    }
-    if (typeof colorOpt?.sheen === 'number') {
-      railMarkerMat.sheen = colorOpt.sheen;
-    }
-    if (typeof colorOpt?.sheenRoughness === 'number') {
-      railMarkerMat.sheenRoughness = colorOpt.sheenRoughness;
-    }
-    railMarkerMat.needsUpdate = true;
-    clearRailMarkerMeshes();
-    const longDiamondSpacing = PLAY_H / 8;
-    const shortDiamondSpacing = PLAY_W / 4;
-    const longRailX = halfW + longRailW + railMarkerOutset;
-    const shortRailZ = halfH + endRailW + railMarkerOutset;
-    const addMarker = (x, z, rotation = 0) => {
-      const mesh = new THREE.Mesh(geometry, railMarkerMat);
-      mesh.position.set(x, railMarkerLift, z);
-      mesh.rotation.y = rotation;
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      mesh.renderOrder = CHROME_PLATE_RENDER_ORDER + 0.1;
-      registerRailMarkerMesh(mesh);
-    };
-    [1, 2, 3, 5, 6, 7].forEach((step) => {
-      const z = -PLAY_H / 2 + step * longDiamondSpacing;
-      addMarker(longRailX, z, 0);
-      addMarker(-longRailX, z, 0);
-    });
-    [1, 2, 3].forEach((step) => {
-      const x = -PLAY_W / 2 + step * shortDiamondSpacing;
-      addMarker(x, shortRailZ, Math.PI / 2);
-      addMarker(x, -shortRailZ, Math.PI / 2);
-    });
-    activeRailMarkerStyle = { shape: shapeId, colorId: colorOpt.id };
-  };
-  applyRailMarkerStyleFn(activeRailMarkerStyle);
-  railsGroup.add(railMarkerGroup);
-  finishParts.railMarkerGroup = railMarkerGroup;
-  table.userData.railMarkers = {
-    applyStyle: (style, overrides) => applyRailMarkerStyleFn(style, overrides),
-    updateBaseMaterial: (trimMaterial) =>
-      applyRailMarkerStyleFn(activeRailMarkerStyle, { trimMaterial }),
-    getStyle: () => ({ ...activeRailMarkerStyle })
-  };
 
   table.add(railsGroup);
 
@@ -5959,8 +5730,7 @@ function Table3D(
     baulkZ,
     group: table,
     clothMat,
-    cushionMat,
-    railMarkers: table.userData.railMarkers
+    cushionMat
   };
 }
 
@@ -6025,9 +5795,6 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
   finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
-  if (table.userData?.railMarkers?.updateBaseMaterial) {
-    table.userData.railMarkers.updateBaseMaterial(trimMat);
-  }
 
   const stripWoodTexture = (material) => {
     if (!material) return;
@@ -6160,24 +5927,6 @@ function SnookerGame() {
     }
     return DEFAULT_FRAME_RATE_ID;
   });
-  const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(RAIL_MARKER_SHAPE_STORAGE_KEY);
-      if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_RAIL_MARKER_SHAPE;
-  });
-  const [railMarkerColorId, setRailMarkerColorId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(RAIL_MARKER_COLOR_STORAGE_KEY);
-      if (stored && RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_RAIL_MARKER_COLOR_ID;
-  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -6203,11 +5952,6 @@ function SnookerGame() {
   const chalkAssistEnabledRef = useRef(false);
   const chalkAssistTargetRef = useRef(false);
   const visibleChalkIndexRef = useRef(null);
-  const railMarkerStyleRef = useRef({
-    shape: railMarkerShapeId,
-    colorId: railMarkerColorId
-  });
-  const applyRailMarkerStyleRef = useRef(null);
   const [cueStyleIndex, setCueStyleIndex] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(CUE_STYLE_STORAGE_KEY);
@@ -6307,29 +6051,6 @@ function SnookerGame() {
       window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
     }
   }, [frameRateId]);
-
-  useEffect(() => {
-    railMarkerStyleRef.current = {
-      shape: railMarkerShapeId,
-      colorId: railMarkerColorId
-    };
-  }, [railMarkerColorId, railMarkerShapeId]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(RAIL_MARKER_SHAPE_STORAGE_KEY, railMarkerShapeId);
-    }
-  }, [railMarkerShapeId]);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(RAIL_MARKER_COLOR_STORAGE_KEY, railMarkerColorId);
-    }
-  }, [railMarkerColorId]);
-
-  useEffect(() => {
-    applyRailMarkerStyleRef.current?.(railMarkerStyleRef.current);
-  }, [railMarkerColorId, railMarkerShapeId]);
 
   const highlightChalks = useCallback(
     (activeIndex, suggestedIndex = visibleChalkIndexRef.current) => {
@@ -6695,16 +6416,6 @@ function SnookerGame() {
       activeCrowdSoundRef.current = null;
     }
   }, []);
-
-  const selectCueStyleFromMenu = useCallback(
-    (index) => {
-      const paletteLength = CUE_RACK_PALETTE.length || 1;
-      const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
-      applySelectedCueStyle(normalized);
-      setCueStyleIndex(normalized);
-    },
-    [applySelectedCueStyle]
-  );
 
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
@@ -7683,77 +7394,75 @@ function SnookerGame() {
       cueOptionGroupsRef.current = [];
       cueRackMetaRef.current = new Map();
 
-      if (ENABLE_CUE_RACK_DISPLAY) {
-        const registerCueRack = (rack, dispose, dims) => {
-          if (!rack) return;
-          const rackId = `rack-${cueRackGroupsRef.current.length}`;
-          rack.userData = rack.userData || {};
-          rack.userData.rackId = rackId;
-          cueRackGroupsRef.current.push(rack);
-          cueRackMetaRef.current.set(rackId, {
-            id: rackId,
-            group: rack,
-            dimensions: dims,
-            dispose
-          });
-          rack.traverse((child) => {
-            if (!child) return;
-            child.userData = child.userData || {};
-            child.userData.cueRackId = rackId;
-            if (child.userData.isCueOption) {
-              cueOptionGroupsRef.current.push(child);
-            }
-          });
-        };
-
-        const createRackEntry = () =>
-          createCueRackDisplay({
-            THREE,
-            ballRadius: BALL_R,
-            cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
-            cueTipRadius: CUE_TIP_RADIUS
-          });
-
-        const baseRackEntry = createRackEntry();
-        const cueRackDimensions = baseRackEntry.dimensions;
-        const cueRackHalfWidth = cueRackDimensions.width / 2;
-        const availableHalfDepth =
-          roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
-        const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
-        const cueRackOffset = Math.max(
-          cueRackHalfWidth,
-          Math.min(availableHalfDepth, desiredOffset)
-        );
-        const cueRackY = signageY;
-        const cueRackPlacements = [
-          { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
-          { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
-        ];
-
-        cueRackPlacements.forEach((placement, index) => {
-          const entry = index === 0 ? baseRackEntry : createRackEntry();
-          const rack = entry.group;
-          if (!rack) return;
-          rack.position.set(placement.x, cueRackY, placement.z);
-          rack.rotation.y = placement.rotationY;
-          world.add(rack);
-          registerCueRack(rack, entry.dispose, entry.dimensions);
-          if (typeof entry.dispose === 'function') {
-            cueRackDisposers.push(entry.dispose);
+      const registerCueRack = (rack, dispose, dims) => {
+        if (!rack) return;
+        const rackId = `rack-${cueRackGroupsRef.current.length}`;
+        rack.userData = rack.userData || {};
+        rack.userData.rackId = rackId;
+        cueRackGroupsRef.current.push(rack);
+        cueRackMetaRef.current.set(rackId, {
+          id: rackId,
+          group: rack,
+          dimensions: dims,
+          dispose
+        });
+        rack.traverse((child) => {
+          if (!child) return;
+          child.userData = child.userData || {};
+          child.userData.cueRackId = rackId;
+          if (child.userData.isCueOption) {
+            cueOptionGroupsRef.current.push(child);
           }
         });
-        updateCueRackHighlights();
-      }
+      };
+
+      const createRackEntry = () =>
+        createCueRackDisplay({
+          THREE,
+          ballRadius: BALL_R,
+          cueLengthMultiplier: CUE_LENGTH_MULTIPLIER,
+          cueTipRadius: CUE_TIP_RADIUS
+        });
+
+      const baseRackEntry = createRackEntry();
+      const cueRackDimensions = baseRackEntry.dimensions;
+      const cueRackHalfWidth = cueRackDimensions.width / 2;
+      const availableHalfDepth =
+        roomDepth / 2 - wallThickness - cueRackHalfWidth - BALL_R * 2;
+      const desiredOffset = signageWidth / 2 + cueRackHalfWidth + BALL_R * 4;
+      const cueRackOffset = Math.max(
+        cueRackHalfWidth,
+        Math.min(availableHalfDepth, desiredOffset)
+      );
+      const cueRackY = signageY;
+      const cueRackPlacements = [
+        { x: leftInterior, z: cueRackOffset, rotationY: Math.PI / 2 },
+        { x: rightInterior, z: -cueRackOffset, rotationY: -Math.PI / 2 }
+      ];
+
+      cueRackPlacements.forEach((placement, index) => {
+        const entry = index === 0 ? baseRackEntry : createRackEntry();
+        const rack = entry.group;
+        if (!rack) return;
+        rack.position.set(placement.x, cueRackY, placement.z);
+        rack.rotation.y = placement.rotationY;
+        world.add(rack);
+        registerCueRack(rack, entry.dispose, entry.dimensions);
+        if (typeof entry.dispose === 'function') {
+          cueRackDisposers.push(entry.dispose);
+        }
+      });
+      updateCueRackHighlights();
 
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        PLAY_H / 2 + BALL_R * 6, // keep a modest clearance so the broadcast cameras sit closer to the table
+        PLAY_H / 2 + BALL_R * 8, // keep a modest clearance so the broadcast cameras sit closer to the table
         roomDepth / 2 - wallThickness - broadcastClearance
       );
       const shortRailSlideLimit = CAMERA_LATERAL_CLAMP.short * 0.92;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 11,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfWidth: roomWidth / 2 - wallThickness - BALL_R * 4,
@@ -7762,49 +7471,47 @@ function SnookerGame() {
       world.add(broadcastRig.group);
       broadcastCamerasRef.current = broadcastRig;
 
-      if (ENABLE_TRIPOD_CAMERAS) {
-        const tripodHeightBoost = 1.04;
-        const tripodScale =
-          ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
-        const tripodTilt = THREE.MathUtils.degToRad(-12);
-        const tripodProximityPull = BALL_R * 2.5;
-        const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
-        const tripodDesiredZ =
-          Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
-          tripodExtra;
-        const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
-        const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
-        const tripodSideTuck = BALL_R * 1.5;
-        const tripodDesiredX =
-          TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
-        const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
-        const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
-        const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
-        const tripodPositions = [
-          { x: tripodXOffset, z: tripodZOffset },
-          { x: -tripodXOffset, z: tripodZOffset },
-          { x: tripodXOffset, z: -tripodZOffset },
-          { x: -tripodXOffset, z: -tripodZOffset }
-        ];
-        tripodPositions.forEach(({ x, z }) => {
-          const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
-          tripodGroup.scale.setScalar(tripodScale);
-          tripodGroup.position.set(x, floorY, z);
-          const toTarget = new THREE.Vector3()
-            .subVectors(tripodTarget, tripodGroup.position)
-            .setY(0);
-          if (toTarget.lengthSq() > 1e-6) {
-            const yaw = Math.atan2(toTarget.z, toTarget.x);
-            tripodGroup.rotation.y = yaw;
-          }
-          world.add(tripodGroup);
-          tripodGroup.updateWorldMatrix(true, false);
-          headPivot.up.set(0, 1, 0);
-          headPivot.lookAt(tripodTarget);
-          headPivot.rotateY(Math.PI);
-          headPivot.rotateX(tripodTilt);
-        });
-      }
+      const tripodHeightBoost = 1.04;
+      const tripodScale =
+        ((TABLE_Y + BALL_R * 6 - floorY) / 1.33) * tripodHeightBoost;
+      const tripodTilt = THREE.MathUtils.degToRad(-12);
+      const tripodProximityPull = BALL_R * 2.5;
+      const tripodExtra = Math.max(BALL_R * 2, BALL_R * 6 - tripodProximityPull);
+      const tripodDesiredZ =
+        Math.max(PLAY_H / 2 + BALL_R * 12, shortRailTarget - BALL_R * 6) +
+        tripodExtra;
+      const tripodMaxZ = roomDepth / 2 - wallThickness - BALL_R * 4;
+      const tripodZOffset = Math.min(tripodMaxZ, tripodDesiredZ);
+      const tripodSideTuck = BALL_R * 1.5;
+      const tripodDesiredX =
+        TABLE.W / 2 + BALL_R * 12 + tripodExtra - tripodSideTuck;
+      const tripodMaxX = roomWidth / 2 - wallThickness - 0.6;
+      const tripodXOffset = Math.min(tripodMaxX, tripodDesiredX);
+      const tripodTarget = new THREE.Vector3(0, TABLE_Y + TABLE.THICK * 0.5, 0);
+      const tripodPositions = [
+        { x: tripodXOffset, z: tripodZOffset },
+        { x: -tripodXOffset, z: tripodZOffset },
+        { x: tripodXOffset, z: -tripodZOffset },
+        { x: -tripodXOffset, z: -tripodZOffset }
+      ];
+      tripodPositions.forEach(({ x, z }) => {
+        const { group: tripodGroup, headPivot } = createTripodBroadcastCamera();
+        tripodGroup.scale.setScalar(tripodScale);
+        tripodGroup.position.set(x, floorY, z);
+        const toTarget = new THREE.Vector3()
+          .subVectors(tripodTarget, tripodGroup.position)
+          .setY(0);
+        if (toTarget.lengthSq() > 1e-6) {
+          const yaw = Math.atan2(toTarget.z, toTarget.x);
+          tripodGroup.rotation.y = yaw;
+        }
+        world.add(tripodGroup);
+        tripodGroup.updateWorldMatrix(true, false);
+        headPivot.up.set(0, 1, 0);
+        headPivot.lookAt(tripodTarget);
+        headPivot.rotateY(Math.PI);
+        headPivot.rotateX(tripodTilt);
+      });
 
       const hospitalityMats = {
         wood: new THREE.MeshStandardMaterial({
@@ -9838,9 +9545,8 @@ function SnookerGame() {
         baulkZ,
         group: table,
         clothMat: tableCloth,
-        cushionMat: tableCushion,
-        railMarkers
-      } = Table3D(world, finishForScene, railMarkerStyleRef.current);
+        cushionMat: tableCushion
+      } = Table3D(world, finishForScene);
       clothMat = tableCloth;
       cushionMat = tableCushion;
       chalkMeshesRef.current = Array.isArray(table?.userData?.chalks)
@@ -9853,18 +9559,6 @@ function SnookerGame() {
           applyTableFinishToTable(table, nextFinish);
         }
       };
-      applyRailMarkerStyleRef.current = (style) => {
-        if (table?.userData?.railMarkers?.applyStyle) {
-          table.userData.railMarkers.applyStyle(style, {
-            trimMaterial: table.userData.finish?.materials?.trim
-          });
-        }
-      };
-      if (railMarkers?.applyStyle) {
-        railMarkers.applyStyle(railMarkerStyleRef.current, {
-          trimMaterial: table.userData.finish?.materials?.trim
-        });
-      }
       if (table?.userData) {
         const cushionLip = table.userData.cushionTopLocal ?? TABLE.THICK;
         cushionHeightRef.current = Math.max(TABLE.THICK + 0.1, cushionLip - 0.02);
@@ -12282,7 +11976,6 @@ function SnookerGame() {
           dom.removeEventListener('pointercancel', endInHandDrag);
           window.removeEventListener('pointercancel', endInHandDrag);
           applyFinishRef.current = () => {};
-          applyRailMarkerStyleRef.current = () => {};
           chalkMeshesRef.current = [];
           chalkAreaRef.current = null;
           visibleChalkIndexRef.current = null;
@@ -12618,31 +12311,6 @@ function SnookerGame() {
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Cue Styles
-                </h3>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {WOOD_FINISH_PRESETS.map((preset, index) => {
-                    const active = cueStyleIndex === index;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => selectCueStyleFromMenu(index)}
-                        aria-pressed={active}
-                        className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {preset.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Cloth Color
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -12653,58 +12321,6 @@ function SnookerGame() {
                         key={option.id}
                         type="button"
                         onClick={() => setClothColorId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Rail Markers
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
-                    const active = option.id === railMarkerShapeId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setRailMarkerShapeId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[7rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {RAIL_MARKER_COLOR_OPTIONS.map((option) => {
-                    const active = option.id === railMarkerColorId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setRailMarkerColorId(option.id)}
                         aria-pressed={active}
                         className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
