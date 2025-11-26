@@ -842,6 +842,7 @@ const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // thin air gap so the cloth sits
 const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // preserve the additional drop for cloth sleeves beneath the plywood edge
 const CLOTH_EXTENDED_DEPTH =
   CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
+const CLOTH_UNDERLAY_HOLE_SCALE = 1; // keep the plywood pocket cutouts 1:1 with the cloth apertures above
 const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.12; // thicker cloth-wrapped support to catch shadows beneath the felt
 const CLOTH_SHADOW_BOARD_GAP = TABLE.THICK * 0.01; // small offset so the board sits just under the cloth without z-fighting
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
@@ -5624,7 +5625,9 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
-  const plywoodShape = buildSurfaceShape(POCKET_CLOTH_TOP_RADIUS);
+  const plywoodShape = buildSurfaceShape(
+    POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE
+  );
   const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
     depth: CLOTH_UNDERLAY_THICKNESS,
     bevelEnabled: false,
