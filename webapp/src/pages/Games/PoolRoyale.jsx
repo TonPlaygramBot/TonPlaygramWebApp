@@ -416,7 +416,8 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // align fascia reach with snooker so the arch covers the relieved cut without overhang
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46; // mirror snooker fascia width so both edges flow into the rails cleanly
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56; // extend fascia span toward the corners without widening the inner edge
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 0.72; // bias the side chrome growth toward the corner pockets only
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.136; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
@@ -700,7 +701,7 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 1; // expand the middle jaw span so it follows the wider chrome and wood arcs cleanly
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.992; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
@@ -749,7 +750,7 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
-const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 2.02; // push the middle pockets farther into the rails so the centres sit tight to the chrome hook
+const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.96; // ease the middle pockets closer to centre while keeping them snug against the chrome hook
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // keep the centres tucked while letting the shift reach the fascia without leaving a gap
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -6003,11 +6004,12 @@ function Table3D(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
+  const sideChromePlateWidthExpansion = TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE;
   const sideChromePlateWidth = Math.max(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
-      TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE -
+      sideChromePlateWidthExpansion -
       chromeOuterFlushTrim * 2
   );
   const sidePlateHalfHeightLimit = Math.max(
@@ -6351,7 +6353,8 @@ function Table3D(
   ].forEach(({ id, sx }) => {
     const centerX =
       sx *
-      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift);
+      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
+        (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
     const centerZ = 0;
     const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
     const sidePocketCutCenterPull =
