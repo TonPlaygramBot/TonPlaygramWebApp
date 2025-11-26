@@ -837,8 +837,11 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_WRAP_DROP = TABLE.THICK * 0.052; // let the cloth sleeve hang below the playfield without a plywood backing
-const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS + CLOTH_WRAP_DROP; // wrap the cloth down so sleeves stay clean around the pockets
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // plywood core wrapped in cloth to support the playfield
+const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // thin air gap so the cloth sits cleanly on top of the plywood
+const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // preserve the additional drop for cloth sleeves beneath the plywood edge
+const CLOTH_EXTENDED_DEPTH =
+  CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
 const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.12; // thicker cloth-wrapped support to catch shadows beneath the felt
 const CLOTH_SHADOW_BOARD_GAP = TABLE.THICK * 0.01; // small offset so the board sits just under the cloth without z-fighting
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
@@ -5621,6 +5624,20 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  const plywoodShape = buildSurfaceShape(POCKET_CLOTH_TOP_RADIUS);
+  const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
+    depth: CLOTH_UNDERLAY_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 80,
+    steps: 1
+  });
+  plywoodGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
+  const plywood = new THREE.Mesh(plywoodGeo, [clothMat, clothEdgeMat]);
+  plywood.rotation.x = -Math.PI / 2;
+  plywood.position.y = cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
+  plywood.renderOrder = cloth.renderOrder - 0.6;
+  plywood.receiveShadow = true;
+  table.add(plywood);
   const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_SHADOW_BOARD_THICKNESS,
     bevelEnabled: false,
