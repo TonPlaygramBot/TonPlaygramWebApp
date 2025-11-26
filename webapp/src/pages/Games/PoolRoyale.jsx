@@ -5619,8 +5619,6 @@ function Table3D(
   });
   clothGeo.translate(0, 0, -CLOTH_EXTENDED_DEPTH);
   const cloth = new THREE.Mesh(clothGeo, clothMat);
-  cloth.userData.skipWoodTexture = true;
-  finishParts.underlayMeshes.push(cloth);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
@@ -5639,8 +5637,6 @@ function Table3D(
   plywood.position.y = cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
   plywood.renderOrder = cloth.renderOrder - 0.6;
   plywood.receiveShadow = true;
-  plywood.userData.skipWoodTexture = true;
-  finishParts.underlayMeshes.push(plywood);
   table.add(plywood);
   const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_SHADOW_BOARD_THICKNESS,
@@ -5664,8 +5660,6 @@ function Table3D(
   shadowBoard.renderOrder = cloth.renderOrder - 1.5;
   shadowBoard.receiveShadow = true;
   shadowBoard.castShadow = false;
-  shadowBoard.userData.skipWoodTexture = true;
-  finishParts.underlayMeshes.push(shadowBoard);
   table.add(shadowBoard);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   
@@ -7735,20 +7729,12 @@ function applyTableFinishToTable(table, finish) {
 
     applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
-      if (!mesh || mesh.userData?.skipWoodTexture) return;
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material
-        : mesh.material
-          ? [mesh.material]
-          : [];
-      if (materials.length === 0) return;
-      materials.forEach((mat) => {
-        applyWoodTextureToMaterial(mat, synchronizedRailSurface);
-        if (mat.color && railMat.color) {
-          mat.color.copy(railMat.color);
-        }
-        mat.needsUpdate = true;
-      });
+      if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
+      applyWoodTextureToMaterial(mesh.material, synchronizedRailSurface);
+      if (mesh.material.color && railMat.color) {
+        mesh.material.color.copy(railMat.color);
+      }
+      mesh.material.needsUpdate = true;
     });
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
@@ -7772,15 +7758,10 @@ function applyTableFinishToTable(table, finish) {
     stripWoodTextures(legMat);
     finishInfo.parts.underlayMeshes.forEach((mesh) => {
       if (!mesh?.material) return;
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material
-        : [mesh.material];
-      materials.forEach((mat) => {
-        stripWoodTextures(mat);
-        if (mat.color && railMat.color) {
-          mat.color.copy(railMat.color);
-        }
-      });
+      stripWoodTextures(mesh.material);
+      if (mesh.material.color && railMat.color) {
+        mesh.material.color.copy(railMat.color);
+      }
     });
     woodSurfaces.rail = null;
     woodSurfaces.frame = null;
@@ -7841,18 +7822,14 @@ function applyTableFinishToTable(table, finish) {
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material) return;
-    const materials = Array.isArray(mesh.material)
-      ? mesh.material
-      : [mesh.material];
-    materials.forEach((mat) => {
-      if (mat.color) {
-        mat.color.copy(clothColor);
-      }
-      if (mat.emissive) {
-        mat.emissive.copy(emissiveColor);
-      }
-      mat.needsUpdate = true;
-    });
+    const mat = mesh.material;
+    if (mat.color) {
+      mat.color.copy(clothColor);
+    }
+    if (mat.emissive) {
+      mat.emissive.copy(emissiveColor);
+    }
+    mat.needsUpdate = true;
   });
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
@@ -14491,14 +14468,7 @@ function PoolRoyaleGame({
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z);
-        if (tmpAim.lengthSq() < 1e-6) {
-          const fallbackAim =
-            aimDir.lengthSq() > 1e-6 ? aimDir : TMP_VEC2_FORWARD.set(0, 1);
-          tmpAim.copy(fallbackAim).normalize();
-        } else {
-          tmpAim.normalize();
-        }
+        tmpAim.set(camFwd.x, camFwd.z).normalize();
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
           0,
