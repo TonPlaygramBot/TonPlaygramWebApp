@@ -26,7 +26,6 @@ Exactly **four** chalk blocks are visible at all times—one centred on each woo
 - Rail melamine is split into **six** surface pieces in total, each one kissing the chrome fascia with no visible gaps; the grain/pattern lines must run the full length of the rails so every strip reads as a continuous long-direction plank.
 - Match the skirt underlay: melamine and wooden rails must share the same grain direction, pattern scale, and plank widths as the skirts beneath them so the table reads as one uniform shell and stops cleanly above the legs.
 - Pocket jaws and rims must match the chrome plate cutouts **100%**—never size them from the wooden rail arches.
-- The plywood underlay sitting beneath the cloth must have pocket cutouts identical to the cloth apertures, and the cloth weave around those openings must tile seamlessly with the main field pattern so no mismatched sleeve texture appears at the holes.
 
 ### 3D UK 8 Ball
 - 7 ft pub-style table with rounded corners and smaller pockets.
