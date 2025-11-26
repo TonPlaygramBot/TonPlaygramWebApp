@@ -875,30 +875,30 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.7 +
-  POCKET_VIS_R * 3.1 +
-  BALL_R * 2.2;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.98 +
+  POCKET_VIS_R * 3.4 +
+  BALL_R * 2.6;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.85 +
-  POCKET_VIS_R * 3.2 +
-  BALL_R * 2.1;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.32 +
+  POCKET_VIS_R * 3.6 +
+  BALL_R * 2.4;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 8.4,
-  heightOffsetShortMultiplier: 1.02,
+  heightOffset: BALL_R * 9.6,
+  heightOffsetShortMultiplier: 1.05,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
-  heightDrop: BALL_R * 1.6,
-  distanceScale: 0.9,
-  heightScale: 1.08,
-  focusBlend: 0.44,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
+  heightDrop: BALL_R * 1.2,
+  distanceScale: 0.96,
+  heightScale: 1.2,
+  focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
-  railFocusLong: BALL_R * 7.2,
-  railFocusShort: BALL_R * 4.8
+  railFocusLong: BALL_R * 8,
+  railFocusShort: BALL_R * 5.4
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
@@ -5646,7 +5646,6 @@ function Table3D(
   shadowBoard.receiveShadow = true;
   shadowBoard.castShadow = false;
   table.add(shadowBoard);
-  finishParts.underlayMeshes.push(shadowBoard);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
   const clothEdgeBottomY = clothBottomY - MICRO_EPS;
@@ -10930,16 +10929,6 @@ function PoolRoyaleGame({
             if (!pocketCamEntry) {
               pocketCamEntry = getPocketCameraEntry(anchorId) ?? null;
             }
-            if (!anchorCenter || !pocketCamera) {
-              activeShotView = null;
-              updatePocketCameraState(false);
-              renderCamera = camera;
-              lookTarget = lastCameraTargetRef.current ?? lookTarget;
-              if (renderCamera) {
-                activeRenderCameraRef.current = renderCamera;
-              }
-              return renderCamera;
-            }
             const pocketCenter2D = pocketCenter.clone();
             const outward = activeShotView.anchorOutward
               ? activeShotView.anchorOutward.clone()
@@ -12004,7 +11993,7 @@ function PoolRoyaleGame({
         const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
         const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
 
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.62);
+        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
         const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
         const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
         const triangleRadius = fixtureScale * 0.98;
@@ -12013,27 +12002,23 @@ function PoolRoyaleGame({
         hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.34);
+        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
         hemisphereRig.position.set(0, triangleHeight, 0);
         lightingRig.add(hemisphereRig);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.32);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
         dirLight.position.set(
           -triangleRadius * LIGHT_LATERAL_SCALE,
           triangleHeight,
           triangleRadius * LIGHT_LATERAL_SCALE * 0.4
         );
         dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.set(1024, 1024);
-        dirLight.shadow.bias = -0.00008;
-        dirLight.shadow.normalBias = 0.0045;
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
         const spot = new THREE.SpotLight(
           0xffffff,
-          13.2,
+          12.289725,
           0,
           Math.PI * 0.36,
           0.42,
@@ -12047,7 +12032,7 @@ function PoolRoyaleGame({
         spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
-        spot.shadow.mapSize.set(3072, 3072);
+        spot.shadow.mapSize.set(2048, 2048);
         spot.shadow.bias = -0.00004;
         spot.shadow.normalBias = 0.006;
         lightingRig.add(spot);
@@ -12055,7 +12040,7 @@ function PoolRoyaleGame({
 
         const ambient = new THREE.AmbientLight(
           0xffffff,
-          0.015
+          0.0223125
         ); // match the snooker ambient fill for identical arena lighting
         ambient.position.set(
           0,
