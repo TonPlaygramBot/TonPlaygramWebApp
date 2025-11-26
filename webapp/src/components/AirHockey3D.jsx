@@ -744,8 +744,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     midLine.position.y = lineThickness * 0.25;
     tableGroup.add(midLine);
 
-    const anchorLift = PUCK_HEIGHT * 0.4 + lineThickness * 0.2;
-    const avatarSize = MALLET_RADIUS * 1.5;
+    const anchorLift = lineThickness * 1.4 + TABLE.thickness * 0.015;
+    const avatarSize = TABLE.w * 0.36;
     const ringOffset = TABLE.h * 0.33;
     fieldAnchorsRef.current = {
       ai: { x: 0, y: anchorLift, z: -ringOffset },
@@ -857,13 +857,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const playerRailZ = TABLE.h / 2 + railThickness / 2;
     const cameraFocus = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.thickness * 0.035,
+      elevatedTableSurfaceY + TABLE.thickness * 0.06,
       tableCenterZ
     );
     const cameraAnchor = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.h * 0.28,
-      tableCenterZ + playerRailZ + railThickness * 0.22
+      elevatedTableSurfaceY + TABLE.h * 0.36,
+      tableCenterZ + playerRailZ + railThickness * 0.35
     );
     const cameraDirection = new THREE.Vector3()
       .subVectors(cameraAnchor, cameraFocus)
@@ -945,11 +945,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const SPEED_BOOST = 1.25;
     const HIT_FORCE = 0.5 * SPEED_SCALE * SPEED_BOOST;
     const MAX_SPEED = 0.095 * SPEED_SCALE * SPEED_BOOST;
-    const MAX_VERTICAL_SPEED = MAX_SPEED * 1.1;
     const SERVE_SPEED = 0.055 * SPEED_SCALE * SPEED_BOOST;
-    const GRAVITY = -0.00045 * SPEED_SCALE;
-    const BOUNCE_DAMPING = 0.58;
-    const HOP_IMPULSE = SPEED_SCALE * 0.0025;
     const GOAL_RESET_DELAY = 1500;
 
     const servePuck = (towardTop = false) => {
@@ -972,9 +968,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
         const directionalForce = HIT_FORCE * (isPlayer ? 1.2 : 1);
         S.vel.addScaledVector(normal, directionalForce);
-
-        const hopEnergy = Math.max(0, directionalForce * 0.12 + Math.random() * 0.01);
-        S.vel.y = Math.max(S.vel.y, hopEnergy);
 
         if (isPlayer) {
           const guardOffset = MALLET_RADIUS + PUCK_RADIUS * 0.2;
@@ -1032,43 +1025,19 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const tick = () => {
       const dt = Math.min(0.033, clock.getDelta());
 
-      S.vel.y += GRAVITY * dt * 60;
       puck.position.x += S.vel.x;
-      puck.position.y += S.vel.y;
       puck.position.z += S.vel.z;
-
-      const decay = Math.pow(S.friction, dt * 60);
-      S.vel.x *= decay;
-      S.vel.z *= decay;
-      S.vel.y *= Math.pow(0.995, dt * 60);
-
+      S.vel.multiplyScalar(Math.pow(S.friction, dt * 60));
       // keep puck speed manageable
-      const horizontalSpeed = Math.hypot(S.vel.x, S.vel.z);
-      if (horizontalSpeed > MAX_SPEED) {
-        const scale = MAX_SPEED / horizontalSpeed;
-        S.vel.x *= scale;
-        S.vel.z *= scale;
-      }
-      S.vel.y = THREE.MathUtils.clamp(S.vel.y, -MAX_VERTICAL_SPEED, MAX_VERTICAL_SPEED);
+      S.vel.clampLength(0, MAX_SPEED);
 
-      if (puck.position.y < PUCK_HEIGHT / 2) {
-        puck.position.y = PUCK_HEIGHT / 2;
-        if (S.vel.y < 0) {
-          S.vel.y = -S.vel.y * BOUNCE_DAMPING;
-          S.vel.x *= 0.995;
-          S.vel.z *= 0.995;
-        }
-      }
-
-      const railEngaged = puck.position.y <= railHeight * 0.9;
-      if (Math.abs(puck.position.x) > TABLE.w / 2 - PUCK_RADIUS && railEngaged) {
+      if (Math.abs(puck.position.x) > TABLE.w / 2 - PUCK_RADIUS) {
         puck.position.x = clamp(
           puck.position.x,
           -TABLE.w / 2 + PUCK_RADIUS,
           TABLE.w / 2 - PUCK_RADIUS
         );
         S.vel.x = -S.vel.x;
-        S.vel.y = Math.max(S.vel.y, Math.abs(S.vel.x) * 0.04 + HOP_IMPULSE);
         playHit();
       }
 
@@ -1089,27 +1058,14 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
             }, GOAL_RESET_DELAY);
           }
         } else {
-          if (railEngaged) {
-            S.vel.z = -S.vel.z;
-            puck.position.z = clamp(
-              puck.position.z,
-              -TABLE.h / 2 + PUCK_RADIUS,
-              TABLE.h / 2 - PUCK_RADIUS
-            );
-            S.vel.y = Math.max(S.vel.y, Math.abs(S.vel.z) * 0.04 + HOP_IMPULSE);
-            playPost();
-          }
+          S.vel.z = -S.vel.z;
+          puck.position.z = clamp(
+            puck.position.z,
+            -TABLE.h / 2 + PUCK_RADIUS,
+            TABLE.h / 2 - PUCK_RADIUS
+          );
+          playPost();
         }
-      }
-
-      const escapeMargin = railThickness * 6;
-      const escapedX = Math.abs(puck.position.x) > TABLE.w / 2 + escapeMargin;
-      const escapedZ = Math.abs(puck.position.z) > TABLE.h / 2 + escapeMargin;
-      if ((escapedX || escapedZ) && puck.position.y <= PUCK_HEIGHT * 0.75) {
-        reset(Math.random() > 0.5, false);
-        restartTimeoutRef.current = setTimeout(() => {
-          servePuck(Math.random() > 0.5);
-        }, GOAL_RESET_DELAY / 2);
       }
 
       aiUpdate(dt);
@@ -1227,7 +1183,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         const material = new THREE.MeshBasicMaterial({
           map: texture,
           transparent: true,
-          depthWrite: false,
+          depthWrite: true,
           depthTest: true,
           side: THREE.DoubleSide
         });
