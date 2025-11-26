@@ -1351,7 +1351,8 @@ const BASE_BALL_COLORS = Object.freeze({
 });
 const CLOTH_TEXTURE_INTENSITY = 0.74;
 const CLOTH_HAIR_INTENSITY = 0.7;
-const CLOTH_BUMP_INTENSITY = 0.94;
+const CLOTH_BUMP_INTENSITY = 0.42;
+const CLOTH_TENSION_FLATTEN = 0.48;
 const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
@@ -5322,7 +5323,8 @@ function Table3D(
     clothTextureScale;
   const repeatRatio = 3.45;
   const baseBumpScale =
-    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
+    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12 * CLOTH_TENSION_FLATTEN) *
+    CLOTH_QUALITY.bumpScaleMultiplier;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -5493,7 +5495,7 @@ function Table3D(
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
   const sideRadiusScale = POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
-  const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
+  const buildSurfaceShape = (holeRadius, edgeInset = 0, includePocketHoles = true) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
 
@@ -5570,18 +5572,20 @@ function Table3D(
       return [[closeRing(ring)]];
     };
 
-    const pocketSectors = pocketPositions
-      .map((center, index) => {
-        const isSidePocket = index >= 4;
-        const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
-        const sweep = Math.PI * 2;
-        const baseSegments = isSidePocket ? 96 : 64;
-        return createPocketSector(center, sweep, radius, baseSegments, false);
-      })
-      .filter(Boolean);
+    const pocketSectors = includePocketHoles
+      ? pocketPositions
+          .map((center, index) => {
+            const isSidePocket = index >= 4;
+            const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
+            const sweep = Math.PI * 2;
+            const baseSegments = isSidePocket ? 96 : 64;
+            return createPocketSector(center, sweep, radius, baseSegments, false);
+          })
+          .filter(Boolean)
+      : [];
 
     let shapeMP = baseMP;
-    if (pocketSectors.length) {
+    if (includePocketHoles && pocketSectors.length) {
       shapeMP = polygonClipping.difference(baseMP, ...pocketSectors);
     }
     const shapes = multiPolygonToShapes(shapeMP);
@@ -5598,18 +5602,20 @@ function Table3D(
     fallback.lineTo(insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, -insetHalfH);
-    pocketPositions.forEach((p, index) => {
-      const hole = new THREE.Path();
-      const isSidePocket = index >= 4;
-      const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
-      hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
-      hole.autoClose = true;
-      fallback.holes.push(hole);
-    });
+    if (includePocketHoles) {
+      pocketPositions.forEach((p, index) => {
+        const hole = new THREE.Path();
+        const isSidePocket = index >= 4;
+        const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
+        hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
+        hole.autoClose = true;
+        fallback.holes.push(hole);
+      });
+    }
     return fallback;
   };
 
-  const clothShape = buildSurfaceShape(POCKET_HOLE_R);
+  const clothShape = buildSurfaceShape(POCKET_HOLE_R, 0, false);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
@@ -5686,7 +5692,8 @@ function Table3D(
 
   const shadowCoverShape = buildSurfaceShape(
     CLOTH_SHADOW_COVER_HOLE_RADIUS,
-    CLOTH_SHADOW_COVER_EDGE_INSET
+    CLOTH_SHADOW_COVER_EDGE_INSET,
+    false
   );
   const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
     depth: CLOTH_SHADOW_COVER_THICKNESS,
