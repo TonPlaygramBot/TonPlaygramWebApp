@@ -30,7 +30,12 @@ export default function SnookerLobby() {
   useTelegramBackButton();
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
-  const playType = 'regular';
+  const initialPlayType = (() => {
+    const params = new URLSearchParams(search);
+    const requested = params.get('type');
+    return requested === 'training' ? 'training' : 'regular';
+  })();
+  const [playType, setPlayType] = useState(initialPlayType);
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
   const [tableFinish, setTableFinish] = useState(() => {
@@ -72,17 +77,21 @@ export default function SnookerLobby() {
     let accountId;
     try {
       accountId = await ensureAccountId();
-      const balanceResponse = await getAccountBalance(accountId);
-      if ((balanceResponse.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
+      if (playType !== 'training') {
+        const balanceResponse = await getAccountBalance(accountId);
+        if ((balanceResponse.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        tgId = getTelegramId();
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'snooker',
+          players: 2,
+          accountId
+        });
+      } else {
+        tgId = getTelegramId();
       }
-      tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'snooker',
-        players: 2,
-        accountId
-      });
     } catch {}
 
     if (typeof window !== 'undefined') {
@@ -95,8 +104,10 @@ export default function SnookerLobby() {
     params.set('type', playType);
     params.set('finish', tableFinish);
     params.set('mode', mode);
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
+    if (playType !== 'training') {
+      if (stake.token) params.set('token', stake.token);
+      if (stake.amount) params.set('amount', stake.amount);
+    }
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -128,6 +139,22 @@ export default function SnookerLobby() {
       <p className="text-center text-sm text-subtext">
         Challenge the AI in the brand-new Royal tables inspired by Pool Royale.
       </p>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Play Type</h3>
+        <div className="flex gap-2">
+          {[{ id: 'regular', label: 'Regular' }, { id: 'training', label: 'Training' }].map(
+            ({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setPlayType(id)}
+                className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
+            )
+          )}
+        </div>
+      </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Mode</h3>
         <div className="flex gap-2">
@@ -171,10 +198,16 @@ export default function SnookerLobby() {
           ))}
         </div>
       </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-      </div>
+      {playType === 'regular' ? (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Stake</h3>
+          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+        </div>
+      ) : (
+        <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-subtext">
+          Training mode skips staking and lets you rehearse on the Royal cloth without deductions.
+        </div>
+      )}
       <button
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
