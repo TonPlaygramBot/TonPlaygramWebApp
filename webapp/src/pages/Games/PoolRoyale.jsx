@@ -5647,6 +5647,43 @@ function Table3D(
   shadowBoard.castShadow = false;
   table.add(shadowBoard);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
+  
+  // Seal the pocket apertures with a cloth-toned backing so light cannot leak
+  // through the cutouts while keeping the visible pocket geometry intact.
+  const pocketSealMat = clothMat.clone();
+  pocketSealMat.side = THREE.DoubleSide;
+  pocketSealMat.metalness = 0;
+  pocketSealMat.roughness = Math.min(1, clothMat.roughness + 0.1);
+  pocketSealMat.clearcoat = 0;
+  pocketSealMat.clearcoatRoughness = 1;
+  pocketSealMat.sheen = 0;
+  pocketSealMat.envMapIntensity = 0;
+  pocketSealMat.emissiveIntensity = clothMat.emissiveIntensity * 0.42;
+  pocketSealMat.needsUpdate = true;
+
+  const pocketSealRadius = Math.max(
+    MICRO_EPS,
+    POCKET_VIS_R * POCKET_VISUAL_EXPANSION * POCKET_CUT_EXPANSION
+  );
+  const pocketSealHeight = Math.max(MICRO_EPS * 6, CLOTH_THICKNESS * 0.26);
+  const pocketSealY = clothBottomY + pocketSealHeight * 0.5 + CLOTH_SHADOW_BOARD_GAP;
+  const pocketSealGeo = new THREE.CylinderGeometry(
+    pocketSealRadius,
+    pocketSealRadius,
+    pocketSealHeight,
+    64,
+    1,
+    false
+  );
+  const pocketSeals = pocketPositions.map((center) => {
+    const seal = new THREE.Mesh(pocketSealGeo, pocketSealMat);
+    seal.position.set(center.x, pocketSealY, center.y);
+    seal.castShadow = true;
+    seal.receiveShadow = true;
+    seal.renderOrder = cloth.renderOrder - 2;
+    return seal;
+  });
+  pocketSeals.forEach((seal) => table.add(seal));
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
   const clothEdgeBottomY = clothBottomY - MICRO_EPS;
   const clothEdgeHeight = clothEdgeTopY - clothEdgeBottomY;
