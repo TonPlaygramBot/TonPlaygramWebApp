@@ -855,7 +855,7 @@ const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the clot
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.032; // soften light spill on the sleeve walls
-const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.38; // reduce emissive brightness so the cutouts stay consistent with the cloth plane
+const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.18; // dim the pocket sleeve glow so it no longer bounces onto the field surface
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
@@ -5625,6 +5625,7 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  finishParts.clothEdgeMeshes.push(cloth);
   const plywoodShape = buildSurfaceShape(
     POCKET_HOLE_R * CLOTH_UNDERLAY_HOLE_SCALE
   );
@@ -5641,6 +5642,7 @@ function Table3D(
   plywood.renderOrder = cloth.renderOrder - 0.6;
   plywood.receiveShadow = true;
   table.add(plywood);
+  finishParts.underlayMeshes.push(plywood);
   const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_SHADOW_BOARD_THICKNESS,
     bevelEnabled: false,
@@ -5664,6 +5666,7 @@ function Table3D(
   shadowBoard.receiveShadow = true;
   shadowBoard.castShadow = false;
   table.add(shadowBoard);
+  finishParts.underlayMeshes.push(shadowBoard);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   
   // Leave the pocket apertures completely open so the pocket geometry remains visible.
@@ -7825,14 +7828,28 @@ function applyTableFinishToTable(table, finish) {
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material) return;
-    const mat = mesh.material;
-    if (mat.color) {
-      mat.color.copy(clothColor);
-    }
-    if (mat.emissive) {
-      mat.emissive.copy(emissiveColor);
-    }
-    mat.needsUpdate = true;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (mat.color) {
+        mat.color.copy(clothColor);
+      }
+      if (mat.emissive) {
+        mat.emissive.copy(emissiveColor);
+      }
+      mat.needsUpdate = true;
+    });
+  });
+  finishInfo.parts.clothEdgeMeshes.forEach((mesh) => {
+    const mat = mesh?.material;
+    if (!mat) return;
+    const mats = Array.isArray(mat) ? mat : [mat];
+    mats.forEach((m) => {
+      if (!m) return;
+      if (m.color) m.color.copy(clothColor);
+      if (m.emissive) m.emissive.copy(emissiveColor);
+      m.needsUpdate = true;
+    });
   });
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
@@ -11152,21 +11169,23 @@ function PoolRoyaleGame({
             }
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
-            TMP_SPH.copy(sph);
-            if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1) {
-              const hudState = hudRef.current ?? null;
-              if (hudState?.inHand && !shooting) {
-                TMP_SPH.radius = clampOrbitRadius(
-                  TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
-                );
-              }
+          }
+          lookTarget ??= getDefaultOrbitTarget().multiplyScalar(worldScaleFactor);
+          TMP_SPH.copy(sph);
+          if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1) {
+            const hudState = hudRef.current ?? null;
+            if (hudState?.inHand && !shooting) {
+              TMP_SPH.radius = clampOrbitRadius(
+                TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
+              );
             }
-            if (TMP_SPH.radius > 1e-6) {
-              const aimLineWorldY =
-                (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
-              const aimOffset = aimLineWorldY - lookTarget.y;
-              if (aimOffset > 0) {
-                const normalized = aimOffset / TMP_SPH.radius;
+          }
+          if (TMP_SPH.radius > 1e-6) {
+            const aimLineWorldY =
+              (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
+            const aimOffset = aimLineWorldY - lookTarget.y;
+            if (aimOffset > 0) {
+              const normalized = aimOffset / TMP_SPH.radius;
                 let clampedPhi = TMP_SPH.phi;
                 if (normalized >= 1) {
                   clampedPhi = CAMERA.minPhi;
