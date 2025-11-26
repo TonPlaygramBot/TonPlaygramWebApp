@@ -148,6 +148,73 @@ const TOUCH_TECHNIQUES = [
   }
 ];
 
+const BASE_PIVOT_POS = { x: 0, y: 0.1, z: -0.18 };
+const BASE_PIVOT_ROT = { x: -0.28, y: 0, z: 0 };
+const BASE_HEAD_ROT = { x: Math.PI / 2, y: 0, z: 0 };
+
+const RACKET_ORIENTATIONS = [
+  {
+    id: 'neutral-grip',
+    label: 'Neutral Grip',
+    detail: 'Straight handle with centered string bed.',
+    pivotPosition: BASE_PIVOT_POS,
+    pivotRotation: BASE_PIVOT_ROT,
+    headRotation: BASE_HEAD_ROT,
+    depthOffset: 0,
+    rollOffset: 0
+  },
+  {
+    id: 'tail-left-open',
+    label: 'Tail Left · Open',
+    detail: 'Handle leans left, hoop slightly opened.',
+    pivotPosition: { x: -0.03, y: 0.1, z: -0.15 },
+    pivotRotation: { x: -0.22, y: -0.18, z: -0.12 },
+    headRotation: { x: Math.PI / 2, y: -0.14, z: -0.25 },
+    depthOffset: -0.02,
+    rollOffset: -0.08
+  },
+  {
+    id: 'tail-right-open',
+    label: 'Tail Right · Open',
+    detail: 'Tail biased right with an open face for forehands.',
+    pivotPosition: { x: 0.03, y: 0.11, z: -0.16 },
+    pivotRotation: { x: -0.24, y: 0.18, z: 0.12 },
+    headRotation: { x: Math.PI / 2, y: 0.16, z: 0.22 },
+    depthOffset: -0.015,
+    rollOffset: 0.08
+  },
+  {
+    id: 'closed-face',
+    label: 'Closed Face',
+    detail: 'Hoop rotated forward for flatter drives.',
+    pivotPosition: { x: 0, y: 0.09, z: -0.12 },
+    pivotRotation: { x: -0.36, y: 0.06, z: 0.04 },
+    headRotation: { x: Math.PI / 1.86, y: 0.06, z: 0.08 },
+    depthOffset: 0.04,
+    rollOffset: 0.03
+  },
+  {
+    id: 'lifted-rim',
+    label: 'Lifted Rim',
+    detail: 'Higher offset tail with extra topspin clearance.',
+    pivotPosition: { x: 0.01, y: 0.14, z: -0.2 },
+    pivotRotation: { x: -0.2, y: -0.04, z: -0.06 },
+    headRotation: { x: Math.PI / 2.08, y: -0.02, z: -0.12 },
+    depthOffset: -0.05,
+    rollOffset: -0.04
+  },
+  {
+    id: 'reverse-tail',
+    label: 'Reverse Tail',
+    detail: 'Handle flipped back for backhand-ready stance.',
+    pivotPosition: { x: -0.02, y: 0.095, z: -0.21 },
+    pivotRotation: { x: -0.3, y: Math.PI, z: 0 },
+    headRotation: { x: Math.PI / 2, y: Math.PI, z: 0.12 },
+    depthOffset: -0.08,
+    rollOffset: 0.1
+  }
+];
+
 const BASE_MIN_SWIPE = 220;
 const BASE_MAX_SWIPE = 1600;
 const BASE_HIT_FORCE = 4.6;
@@ -372,9 +439,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   const [broadcastId, setBroadcastId] = useState(BROADCAST_TECHNIQUES[0].id);
   const [physicsId, setPhysicsId] = useState(PHYSICS_PROFILES[0].id);
   const [touchId, setTouchId] = useState(TOUCH_TECHNIQUES[0].id);
+  const [racketOrientationId, setRacketOrientationId] = useState(RACKET_ORIENTATIONS[0].id);
   const broadcastProfileRef = useRef(BROADCAST_TECHNIQUES[0]);
   const physicsProfileRef = useRef(PHYSICS_PROFILES[0]);
   const touchProfileRef = useRef(TOUCH_TECHNIQUES[0]);
+  const racketOrientationRef = useRef(RACKET_ORIENTATIONS[0]);
   const suffixParts = [];
   if (playerName) suffixParts.push(`${playerName} vs AI`);
   if (stakeLabel) suffixParts.push(`Stake ${stakeLabel}`);
@@ -497,6 +566,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   }, [touchId]);
 
   useEffect(() => {
+    racketOrientationRef.current =
+      RACKET_ORIENTATIONS.find((p) => p.id === racketOrientationId) || RACKET_ORIENTATIONS[0];
+  }, [racketOrientationId]);
+
+  useEffect(() => {
     if (!trainingMode) return undefined;
     const stepId = nextTrainingStep?.id || (trainingCompleted ? 'done' : null);
     if (!stepId || stepId === lastTaskToastId.current) return undefined;
@@ -548,10 +622,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const playerZ = halfL - 1.35;
     const cpuZ = -halfL + 1.35;
 
-    let camBack = halfL + apron * 1.32 + 1.1;
-    let camHeight = isNarrow ? 6.15 : 5.65;
-    const camBackRange = { min: halfL + apron * 1.05, max: halfL + apron * 1.75 };
-    const camHeightRange = { min: 5.1, max: 7.2 };
+    let camBack = halfL + apron * 1.28 + 0.85;
+    let camHeight = isNarrow ? 5.1 : 4.85;
+    const camBackRange = { min: halfL + apron * 0.98, max: halfL + apron * 1.7 };
+    const camHeightRange = { min: 4.2, max: 6.8 };
     const cameraMinZ = halfL + apron * 0.62;
     const cameraMaxZ = halfL + apron * 2.05;
     const cameraSideLimit = halfW * 0.94;
@@ -1057,7 +1131,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       urt.rotation.x = Math.PI / 2;
       urt.position.y = 1.0;
       headPivot.add(urt);
-      root.userData = { headPivot, swing: 0, swingLR: 0 };
+      root.userData = { headPivot, head: urt, swing: 0, swingLR: 0 };
       root.scale.setScalar(0.608);
       return root;
     }
@@ -1933,7 +2007,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const endY = evt?.clientY ?? ly;
       const distX = endX - sx;
       const distY = sy - endY;
-      if (distY < 32) return;
+      if (distY < 18) return;
       const duration = Math.max((performance.now() - st) / 1000, 0.12);
       if (!state.live) {
         if (state.serveBy === 'player') {
@@ -1952,8 +2026,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           }
         }
       } else {
-        const near = pos.z > 0 && Math.abs(pos.z - (playerZ - 0.78)) < 3.6;
-        if (near && pos.y <= 3.0) {
+        const ballOnPlayerSide = pos.z > -0.4;
+        const horizontalReach =
+          Math.abs(pos.z - (playerZ - 0.78)) < 4.6 || pos.z > playerZ - 1.4;
+        const reachableHeight = pos.y <= 3.6;
+        if (ballOnPlayerSide && horizontalReach && reachableHeight) {
           const shot = swipeToShot(distX, distY, duration, true);
           playerSwing = shotToSwing(shot);
           player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
@@ -2275,13 +2352,27 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let raf = 0;
     function applyRacketPose(racket, swingAmt = 0, lateral = 0, leanDir = 1) {
       if (!racket?.userData?.headPivot) return;
+      const orient = racketOrientationRef.current || RACKET_ORIENTATIONS[0];
       const pivot = racket.userData.headPivot;
       const swing = swingAmt || 0;
       const lr = THREE.MathUtils.clamp(lateral || 0, -1, 1);
-      pivot.rotation.x = -0.28 - 0.52 * swing;
-      pivot.rotation.y = 0.12 * lr * leanDir;
-      pivot.rotation.z = -0.3 * lr * swing;
-      pivot.position.set(0, 0.1 + 0.06 * swing, -0.18 - 0.08 * swing * leanDir);
+      const pivotPos = orient.pivotPosition || BASE_PIVOT_POS;
+      const pivotRot = orient.pivotRotation || BASE_PIVOT_ROT;
+      const headRot = orient.headRotation || BASE_HEAD_ROT;
+      const depthOffset = orient.depthOffset || 0;
+      const rollOffset = orient.rollOffset || 0;
+
+      pivot.rotation.x = pivotRot.x - 0.52 * swing;
+      pivot.rotation.y = pivotRot.y + 0.12 * lr * leanDir;
+      pivot.rotation.z = pivotRot.z + rollOffset - 0.3 * lr * swing;
+      pivot.position.set(
+        pivotPos.x,
+        pivotPos.y + 0.06 * swing,
+        pivotPos.z + depthOffset - 0.08 * swing * leanDir
+      );
+      if (racket.userData.head) {
+        racket.userData.head.rotation.set(headRot.x, headRot.y, headRot.z);
+      }
     }
 
     function step(dt) {
@@ -2616,7 +2707,17 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
               scrollbarWidth: 'thin'
             }}
           >
-            {[{ title: 'Broadcast Techniques', data: BROADCAST_TECHNIQUES, active: broadcastId, setter: setBroadcastId }, { title: 'Ball Logic & Physics', data: PHYSICS_PROFILES, active: physicsId, setter: setPhysicsId }, { title: 'Touch Control Modes', data: TOUCH_TECHNIQUES, active: touchId, setter: setTouchId }].map((section) => (
+            {[
+              { title: 'Broadcast Techniques', data: BROADCAST_TECHNIQUES, active: broadcastId, setter: setBroadcastId },
+              { title: 'Ball Logic & Physics', data: PHYSICS_PROFILES, active: physicsId, setter: setPhysicsId },
+              {
+                title: 'Racket Orientation',
+                data: RACKET_ORIENTATIONS,
+                active: racketOrientationId,
+                setter: setRacketOrientationId
+              },
+              { title: 'Touch Control Modes', data: TOUCH_TECHNIQUES, active: touchId, setter: setTouchId }
+            ].map((section) => (
               <div key={section.title} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>{section.title}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
