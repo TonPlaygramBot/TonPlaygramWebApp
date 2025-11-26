@@ -837,9 +837,9 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // legacy wood board thickness removed but depth reserved for cloth wrap
-const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // legacy gap kept so the cloth preserves the same vertical span
-const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // legacy drop retained to keep pocket sleeves occupying the same space
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // plywood core wrapped in cloth to support the playfield
+const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // thin air gap so the cloth sits cleanly on top of the plywood
+const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // preserve the additional drop for cloth sleeves beneath the plywood edge
 const CLOTH_EXTENDED_DEPTH =
   CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
 const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.12; // thicker cloth-wrapped support to catch shadows beneath the felt
@@ -876,13 +876,13 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.98 +
-  POCKET_VIS_R * 3.4 +
-  BALL_R * 2.6;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.72 +
+  POCKET_VIS_R * 3.15 +
+  BALL_R * 2.2;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.32 +
-  POCKET_VIS_R * 3.6 +
-  BALL_R * 2.4;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.04 +
+  POCKET_VIS_R * 3.1 +
+  BALL_R * 2.1;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
@@ -3913,10 +3913,10 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.029; // pull the orbit noticeably closer so the tighter table still fills the frame
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.2;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.14;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
@@ -4486,8 +4486,8 @@ const POCKET_CAMERA_IDS = ['TL', 'TR', 'BL', 'BR'];
 const POCKET_CAMERA_OUTWARD = Object.freeze({
   TL: new THREE.Vector2(-1, -1).normalize(),
   TR: new THREE.Vector2(1, -1).normalize(),
-  BL: new THREE.Vector2(-1, 1).normalize(),
-  BR: new THREE.Vector2(1, 1).normalize()
+  BL: new THREE.Vector2(-0.72, 1).normalize(),
+  BR: new THREE.Vector2(0.72, 1).normalize()
 });
 const getPocketCameraOutward = (id) =>
   POCKET_CAMERA_OUTWARD[id] ? POCKET_CAMERA_OUTWARD[id].clone() : null;
@@ -5624,6 +5624,20 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  const plywoodShape = buildSurfaceShape(POCKET_CLOTH_TOP_RADIUS);
+  const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
+    depth: CLOTH_UNDERLAY_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 80,
+    steps: 1
+  });
+  plywoodGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
+  const plywood = new THREE.Mesh(plywoodGeo, [clothMat, clothEdgeMat]);
+  plywood.rotation.x = -Math.PI / 2;
+  plywood.position.y = cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
+  plywood.renderOrder = cloth.renderOrder - 0.6;
+  plywood.receiveShadow = true;
+  table.add(plywood);
   const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_SHADOW_BOARD_THICKNESS,
     bevelEnabled: false,
