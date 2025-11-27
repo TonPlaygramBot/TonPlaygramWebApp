@@ -977,7 +977,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * 0.85;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -5301,13 +5301,13 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.95,
-    sheen: CLOTH_QUALITY.sheen,
+    roughness: 0.97,
+    sheen: CLOTH_QUALITY.sheen * 0.68,
     sheenColor,
-    sheenRoughness: CLOTH_QUALITY.sheenRoughness,
+    sheenRoughness: Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.05),
     clearcoat: 0,
-    clearcoatRoughness: 0.86,
-    envMapIntensity: 0.08,
+    clearcoatRoughness: 0.92,
+    envMapIntensity: 0.045,
     emissive: clothColor.clone().multiplyScalar(0.045),
     emissiveIntensity: 0.52
   });
@@ -5315,7 +5315,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5; // double the weave size so the cloth pattern reads twice as large
+  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25; // tighten the weave by reducing each thread size ~25%
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
@@ -11204,18 +11204,18 @@ function PoolRoyaleGame({
                   setOrbitFocusToDefault();
                 }
               }
-              focusTarget = store.target.clone();
-            }
-            focusTarget.multiplyScalar(worldScaleFactor);
-            lookTarget = focusTarget;
-            if (topViewRef.current) {
-              const topRadius = clampOrbitRadius(
-                Math.max(getMaxOrbitRadius(), CAMERA.minR * 1.6)
-              );
-              camera.up.set(0, 1, 0);
-              camera.position.set(
-                focusTarget.x,
-                focusTarget.y + topRadius,
+            focusTarget = store.target.clone();
+          }
+          focusTarget.multiplyScalar(worldScaleFactor);
+          lookTarget = focusTarget;
+          if (topViewRef.current) {
+            const topRadius = clampOrbitRadius(
+              Math.max(getMaxOrbitRadius() * 0.55, CAMERA.minR * 1.2)
+            );
+            camera.up.set(0, 1, 0);
+            camera.position.set(
+              focusTarget.x,
+              focusTarget.y + topRadius,
                 focusTarget.z
               );
               camera.lookAt(focusTarget);
@@ -11743,10 +11743,11 @@ function PoolRoyaleGame({
         fitRef.current = fit;
         topViewRef.current = false;
         topViewLockedRef.current = false;
+        const topDownMargin = 0.62;
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? 1.05
+            ? topDownMargin
             : window.innerHeight > window.innerWidth
               ? STANDING_VIEW_MARGIN_PORTRAIT
               : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -11758,7 +11759,7 @@ function PoolRoyaleGame({
             const nextMargin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? 1.05
+                ? topDownMargin
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -11785,12 +11786,12 @@ function PoolRoyaleGame({
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          const margin = 1.05;
+          const margin = topDownMargin;
           fit(margin);
           const focusStore = ensureOrbitFocus();
           const focusTarget = focusStore?.target ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
           const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), CAMERA.minR);
-          sph.radius = clampOrbitRadius(Math.max(maxRadius * 0.72, CAMERA.minR * 1.45));
+          sph.radius = clampOrbitRadius(Math.max(maxRadius * 0.46, CAMERA.minR * 1.18));
           sph.phi = CAMERA.minPhi;
           lastCameraTargetRef.current.copy(focusTarget);
           syncBlendToSpherical();
@@ -14631,6 +14632,21 @@ function PoolRoyaleGame({
             aimDir,
             balls
           );
+          if (targetBall) {
+            aimFocusRef.current = new THREE.Vector3(
+              targetBall.pos.x,
+              BALL_CENTER_Y,
+              targetBall.pos.y
+            );
+          } else if (impact) {
+            aimFocusRef.current = new THREE.Vector3(
+              impact.x,
+              BALL_CENTER_Y,
+              impact.y
+            );
+          } else {
+            aimFocusRef.current = null;
+          }
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
@@ -15802,7 +15818,7 @@ function PoolRoyaleGame({
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
+      <div className="absolute left-4 top-4 z-50 flex flex-col items-start gap-2">
         <button
           ref={configButtonRef}
           type="button"
@@ -16158,7 +16174,7 @@ function PoolRoyaleGame({
 
       <div
         className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
-        style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
+        style={{ transform: `scale(${uiScale})`, transformOrigin: 'top left' }}
       >
         <button
           type="button"
