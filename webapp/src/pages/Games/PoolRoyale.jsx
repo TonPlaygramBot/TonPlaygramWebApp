@@ -5324,6 +5324,7 @@ function Table3D(
   const repeatRatio = 3.45;
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
+  const flattenedBumpScale = baseBumpScale * 0.42;
   if (clothMap) {
     clothMat.map = clothMap;
     clothMat.map.repeat.set(baseRepeat, baseRepeat * repeatRatio);
@@ -5332,10 +5333,10 @@ function Table3D(
   if (clothBump) {
     clothMat.bumpMap = clothBump;
     clothMat.bumpMap.repeat.set(baseRepeat, baseRepeat * repeatRatio);
-    clothMat.bumpScale = baseBumpScale;
+    clothMat.bumpScale = flattenedBumpScale;
     clothMat.bumpMap.needsUpdate = true;
   } else {
-    clothMat.bumpScale = baseBumpScale;
+    clothMat.bumpScale = flattenedBumpScale;
   }
   clothMat.userData = {
     ...(clothMat.userData || {}),
@@ -8087,6 +8088,9 @@ function PoolRoyaleGame({
   const [uiScale, setUiScale] = useState(() =>
     detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
   );
+  const [isTopDownView, setIsTopDownView] = useState(false);
+  const [isLookMode, setIsLookMode] = useState(false);
+  const lookModeRef = useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
@@ -8119,6 +8123,21 @@ function PoolRoyaleGame({
       }
     };
   }, []);
+
+  useEffect(() => {
+    lookModeRef.current = isLookMode;
+    cameraUpdateRef.current?.();
+  }, [isLookMode]);
+
+  useEffect(() => {
+    if (isTopDownView) {
+      topViewLockedRef.current = true;
+      topViewControlsRef.current.enter?.();
+    } else {
+      topViewLockedRef.current = false;
+      topViewControlsRef.current.exit?.();
+    }
+  }, [isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
@@ -8704,12 +8723,15 @@ function PoolRoyaleGame({
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
+  const topViewLockedRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
     target: new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0),
     ballId: null
   });
+  const topViewControlsRef = useRef({ enter: () => {}, exit: () => {} });
+  const cameraUpdateRef = useRef(() => {});
   const orbitRadiusLimitRef = useRef(null);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
@@ -11186,78 +11208,97 @@ function PoolRoyaleGame({
             }
             focusTarget.multiplyScalar(worldScaleFactor);
             lookTarget = focusTarget;
-            TMP_SPH.copy(sph);
-            if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1) {
-              const hudState = hudRef.current ?? null;
-              if (hudState?.inHand && !shooting) {
-                TMP_SPH.radius = clampOrbitRadius(
-                  TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
-                );
-              }
-            }
-            if (TMP_SPH.radius > 1e-6) {
-              const aimLineWorldY =
-                (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
-              const aimOffset = aimLineWorldY - lookTarget.y;
-              if (aimOffset > 0) {
-                const normalized = aimOffset / TMP_SPH.radius;
-                let clampedPhi = TMP_SPH.phi;
-                if (normalized >= 1) {
-                  clampedPhi = CAMERA.minPhi;
-                } else {
-                  const limitPhi = Math.acos(
-                    THREE.MathUtils.clamp(normalized, -1, 1)
+            if (topViewRef.current) {
+              const topRadius = clampOrbitRadius(
+                Math.max(getMaxOrbitRadius(), CAMERA.minR * 1.6)
+              );
+              camera.up.set(0, 1, 0);
+              camera.position.set(
+                focusTarget.x,
+                focusTarget.y + topRadius,
+                focusTarget.z
+              );
+              camera.lookAt(focusTarget);
+              renderCamera = camera;
+              broadcastArgs.focusWorld =
+                broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
+              broadcastArgs.targetWorld = focusTarget.clone();
+              broadcastArgs.lerp = 0.12;
+            } else {
+              camera.up.set(0, 1, 0);
+              TMP_SPH.copy(sph);
+              if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1) {
+                const hudState = hudRef.current ?? null;
+                if (hudState?.inHand && !shooting) {
+                  TMP_SPH.radius = clampOrbitRadius(
+                    TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
                   );
-                  const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
-                  if (clampedPhi > safePhi) {
-                    clampedPhi = Math.max(safePhi, CAMERA.minPhi);
+                }
+              }
+              if (TMP_SPH.radius > 1e-6) {
+                const aimLineWorldY =
+                  (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
+                const aimOffset = aimLineWorldY - lookTarget.y;
+                if (aimOffset > 0) {
+                  const normalized = aimOffset / TMP_SPH.radius;
+                  let clampedPhi = TMP_SPH.phi;
+                  if (normalized >= 1) {
+                    clampedPhi = CAMERA.minPhi;
+                  } else {
+                    const limitPhi = Math.acos(
+                      THREE.MathUtils.clamp(normalized, -1, 1)
+                    );
+                    const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
+                    if (clampedPhi > safePhi) {
+                      clampedPhi = Math.max(safePhi, CAMERA.minPhi);
+                    }
+                  }
+                  if (clampedPhi !== TMP_SPH.phi) {
+                    TMP_SPH.phi = clampedPhi;
+                    sph.phi = clampedPhi;
+                    syncBlendToSpherical();
                   }
                 }
-                if (clampedPhi !== TMP_SPH.phi) {
-                  TMP_SPH.phi = clampedPhi;
-                  sph.phi = clampedPhi;
+              }
+              camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
+              const scaleFactor = Number.isFinite(worldScaleFactor)
+                ? worldScaleFactor
+                : WORLD_SCALE;
+              const surfaceMarginWorld = Math.max(0, CAMERA_SURFACE_STOP_MARGIN) * scaleFactor;
+              const cueLevelWorldY = (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
+              const surfaceClampY = Math.max(
+                baseSurfaceWorldY + surfaceMarginWorld,
+                cueLevelWorldY
+              );
+              if (camera.position.y < surfaceClampY) {
+                camera.position.y = surfaceClampY;
+                TMP_VEC3_A.copy(camera.position).sub(lookTarget);
+                const limitedRadius = TMP_VEC3_A.length();
+                if (limitedRadius > 1e-6) {
+                  const normalizedY = THREE.MathUtils.clamp(
+                    TMP_VEC3_A.y / limitedRadius,
+                    -1,
+                    1
+                  );
+                  const correctedPhi = Math.acos(normalizedY);
+                  sph.radius = clampOrbitRadius(limitedRadius);
+                  sph.phi = THREE.MathUtils.clamp(
+                    correctedPhi,
+                    CAMERA.minPhi,
+                    CAMERA.maxPhi
+                  );
+                  TMP_SPH.radius = sph.radius;
+                  TMP_SPH.phi = sph.phi;
                   syncBlendToSpherical();
                 }
               }
+              camera.lookAt(lookTarget);
+              renderCamera = camera;
+              broadcastArgs.focusWorld =
+                broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+              broadcastArgs.targetWorld = null;
+              broadcastArgs.lerp = 0.22;
             }
-            camera.position.setFromSpherical(TMP_SPH).add(lookTarget);
-            const scaleFactor = Number.isFinite(worldScaleFactor)
-              ? worldScaleFactor
-              : WORLD_SCALE;
-            const surfaceMarginWorld = Math.max(0, CAMERA_SURFACE_STOP_MARGIN) * scaleFactor;
-            const cueLevelWorldY = (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
-            const surfaceClampY = Math.max(
-              baseSurfaceWorldY + surfaceMarginWorld,
-              cueLevelWorldY
-            );
-            if (camera.position.y < surfaceClampY) {
-              camera.position.y = surfaceClampY;
-              TMP_VEC3_A.copy(camera.position).sub(lookTarget);
-              const limitedRadius = TMP_VEC3_A.length();
-              if (limitedRadius > 1e-6) {
-                const normalizedY = THREE.MathUtils.clamp(
-                  TMP_VEC3_A.y / limitedRadius,
-                  -1,
-                  1
-                );
-                const correctedPhi = Math.acos(normalizedY);
-                sph.radius = clampOrbitRadius(limitedRadius);
-                sph.phi = THREE.MathUtils.clamp(
-                  correctedPhi,
-                  CAMERA.minPhi,
-                  CAMERA.maxPhi
-                );
-                TMP_SPH.radius = sph.radius;
-                TMP_SPH.phi = sph.phi;
-                syncBlendToSpherical();
-              }
-            }
-            camera.lookAt(lookTarget);
-            renderCamera = camera;
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-            broadcastArgs.targetWorld = null;
-            broadcastArgs.lerp = 0.22;
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -11701,6 +11742,7 @@ function PoolRoyaleGame({
         sphRef.current = sph;
         fitRef.current = fit;
         topViewRef.current = false;
+        topViewLockedRef.current = false;
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
@@ -11740,9 +11782,35 @@ function PoolRoyaleGame({
         dom.style.touchAction = 'none';
         const balls = [];
         let project;
-        const exitTopView = (immediate = false) => {
+        const enterTopView = (immediate = false) => {
+          topViewRef.current = true;
+          topViewLockedRef.current = true;
+          const margin = 1.05;
+          fit(margin);
+          const focusStore = ensureOrbitFocus();
+          const focusTarget = focusStore?.target ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
+          const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), CAMERA.minR);
+          sph.radius = clampOrbitRadius(Math.max(maxRadius * 0.72, CAMERA.minR * 1.45));
+          sph.phi = CAMERA.minPhi;
+          lastCameraTargetRef.current.copy(focusTarget);
+          syncBlendToSpherical();
+          if (immediate) {
+            updateCamera();
+          } else {
+            requestAnimationFrame(() => {
+              syncBlendToSpherical();
+              updateCamera();
+            });
+          }
+        };
+
+        const exitTopView = (immediate = false, { preserveLock = false } = {}) => {
           if (!topViewRef.current) return;
           topViewRef.current = false;
+          if (!preserveLock) {
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
+          }
           const margin = Math.max(
             STANDING_VIEW.margin,
             window.innerHeight > window.innerWidth
@@ -11760,6 +11828,11 @@ function PoolRoyaleGame({
             });
           }
         };
+        topViewControlsRef.current = {
+          enter: enterTopView,
+          exit: (immediate = true) => exitTopView(immediate)
+        };
+        cameraUpdateRef.current = () => updateCamera();
         const clampSpinToLimits = () => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
           const current = spinRef.current || { x: 0, y: 0 };
@@ -11862,7 +11935,8 @@ function PoolRoyaleGame({
           const currentHud = hudRef.current;
           if (currentHud?.turn === 1 || currentHud?.inHand || shooting) return;
           if (e.touches?.length === 2) return;
-          if (topViewRef.current) exitTopView(true);
+          if (topViewRef.current && !topViewLockedRef.current)
+            exitTopView(true, { preserveLock: true });
           drag.on = true;
           drag.moved = false;
           drag.x = e.clientX || e.touches?.[0]?.clientX || 0;
@@ -11921,8 +11995,8 @@ function PoolRoyaleGame({
             registerInteraction();
             return;
           }
-          if (topViewRef.current) {
-            exitTopView(true);
+          if (topViewRef.current && !topViewLockedRef.current) {
+            exitTopView(true, { preserveLock: true });
             drag.on = false;
             drag.moved = false;
             return;
@@ -11999,8 +12073,8 @@ function PoolRoyaleGame({
         dom.addEventListener('touchmove', move, { passive: true });
         window.addEventListener('touchend', up);
         const keyRot = (e) => {
-          if (topViewRef.current) {
-            exitTopView(true);
+          if (topViewRef.current && !topViewLockedRef.current) {
+            exitTopView(true, { preserveLock: true });
             return;
           }
           const currentHud = hudRef.current;
@@ -12683,6 +12757,8 @@ function PoolRoyaleGame({
         state.lateralOffset = 0;
         state.lateralFocusScale = 0.5;
         topViewRef.current = false;
+        topViewLockedRef.current = false;
+        setIsTopDownView(false);
         applyCameraBlend(cameraBlendRef.current);
         updateCamera();
         setCueGalleryActive(true);
@@ -13462,6 +13538,8 @@ function PoolRoyaleGame({
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
@@ -13516,6 +13594,8 @@ function PoolRoyaleGame({
                   cueAnimating = false;
                   if (cameraRef.current && sphRef.current) {
                     topViewRef.current = false;
+                    topViewLockedRef.current = false;
+                    setIsTopDownView(false);
                     const sph = sphRef.current;
                     sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
                     updateCamera();
@@ -14235,6 +14315,8 @@ function PoolRoyaleGame({
           const dir = plan.aimDir.clone().normalize();
           aimDirRef.current.copy(dir);
           topViewRef.current = false;
+          topViewLockedRef.current = false;
+          setIsTopDownView(false);
           alignStandingCameraToAim(cue, dir);
           setAiShotCueViewActive(true);
           setAiShotPreviewActive(true);
@@ -14519,7 +14601,9 @@ function PoolRoyaleGame({
         const aimLerpFactor = chalkAssistTargetRef.current
           ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
           : baseAimLerp;
-        aimDir.lerp(tmpAim, aimLerpFactor);
+        if (!lookModeRef.current) {
+          aimDir.lerp(tmpAim, aimLerpFactor);
+        }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
@@ -14538,7 +14622,8 @@ function PoolRoyaleGame({
           cue?.active &&
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
-          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
+          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current) &&
+          !lookModeRef.current;
 
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
@@ -15452,6 +15537,8 @@ function PoolRoyaleGame({
 
         return () => {
           applyWorldScaleRef.current = () => {};
+          topViewControlsRef.current = { enter: () => {}, exit: () => {} };
+          cameraUpdateRef.current = () => {};
           cancelAnimationFrame(rafRef.current);
           window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
@@ -16068,6 +16155,38 @@ function PoolRoyaleGame({
           )}
         </div>
       )}
+
+      <div
+        className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
+        style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
+      >
+        <button
+          type="button"
+          aria-pressed={isLookMode}
+          onClick={() => setIsLookMode((prev) => !prev)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isLookMode
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+        >
+          <span className="text-base">👁️</span>
+          <span>Look</span>
+        </button>
+        <button
+          type="button"
+          aria-pressed={isTopDownView}
+          onClick={() => setIsTopDownView((prev) => !prev)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isTopDownView
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
+        >
+          <span className="text-base">🧭</span>
+          <span>{isTopDownView ? '3D' : '2D'}</span>
+        </button>
+      </div>
 
       {bottomHudVisible && (
         <div
