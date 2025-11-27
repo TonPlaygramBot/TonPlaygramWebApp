@@ -977,7 +977,8 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85;
+const SHOT_POWER_REDUCTION = 0.85; // soften every strike by an extra 15%
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -3911,6 +3912,10 @@ const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.029; // pull the orbit noticeably closer so the tighter table still fills the frame
+const TOP_VIEW_MARGIN = 0.92; // keep the top-down frame tight so the table reads 2.5× larger
+const TOP_VIEW_RADIUS_SCALE = 0.4; // shrink the overhead camera radius for a tighter 2D table
+const TOP_VIEW_MIN_RADIUS = CAMERA.minR * 1.08; // keep a little clearance above the cloth while zooming in
+const TOP_VIEW_CENTER = new THREE.Vector3(0, BALL_CENTER_Y, 0); // center the 2D framing on the table
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.14;
@@ -5301,21 +5306,21 @@ function Table3D(
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
-    roughness: 0.95,
-    sheen: CLOTH_QUALITY.sheen,
+    roughness: 0.975,
+    sheen: Math.min(1, CLOTH_QUALITY.sheen * 0.65),
     sheenColor,
-    sheenRoughness: CLOTH_QUALITY.sheenRoughness,
+    sheenRoughness: Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.18),
     clearcoat: 0,
-    clearcoatRoughness: 0.86,
-    envMapIntensity: 0.08,
-    emissive: clothColor.clone().multiplyScalar(0.045),
-    emissiveIntensity: 0.52
+    clearcoatRoughness: 0.9,
+    envMapIntensity: 0.02,
+    emissive: clothColor.clone().multiplyScalar(0.04),
+    emissiveIntensity: 0.38
   });
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5; // double the weave size so the cloth pattern reads twice as large
+  const clothPatternUpscale = ((1 / 1.3) * 0.5) * 1.3333333333; // tighten the weave so the pattern is 25% smaller
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
@@ -8126,6 +8131,9 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     lookModeRef.current = isLookMode;
+    if (!isLookMode) {
+      aimFocusRef.current = null;
+    }
     cameraUpdateRef.current?.();
   }, [isLookMode]);
 
@@ -11206,23 +11214,30 @@ function PoolRoyaleGame({
               }
               focusTarget = store.target.clone();
             }
-            focusTarget.multiplyScalar(worldScaleFactor);
+            const worldScale = Number.isFinite(worldScaleFactor)
+              ? worldScaleFactor
+              : WORLD_SCALE;
+            focusTarget.multiplyScalar(worldScale);
             lookTarget = focusTarget;
             if (topViewRef.current) {
-              const topRadius = clampOrbitRadius(
-                Math.max(getMaxOrbitRadius(), CAMERA.minR * 1.6)
-              );
+              const topFocusTarget = TOP_VIEW_CENTER.clone().multiplyScalar(worldScale);
+              const topRadius =
+                clampOrbitRadius(
+                  Math.max(sph.radius, TOP_VIEW_MIN_RADIUS),
+                  TOP_VIEW_MIN_RADIUS
+                ) * worldScale;
               camera.up.set(0, 1, 0);
               camera.position.set(
-                focusTarget.x,
-                focusTarget.y + topRadius,
-                focusTarget.z
+                topFocusTarget.x,
+                topFocusTarget.y + topRadius,
+                topFocusTarget.z
               );
-              camera.lookAt(focusTarget);
+              camera.lookAt(topFocusTarget);
               renderCamera = camera;
+              lookTarget = topFocusTarget;
               broadcastArgs.focusWorld =
-                broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
-              broadcastArgs.targetWorld = focusTarget.clone();
+                broadcastCamerasRef.current?.defaultFocusWorld ?? topFocusTarget;
+              broadcastArgs.targetWorld = topFocusTarget.clone();
               broadcastArgs.lerp = 0.12;
             } else {
               camera.up.set(0, 1, 0);
@@ -11746,7 +11761,7 @@ function PoolRoyaleGame({
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? 1.05
+            ? TOP_VIEW_MARGIN
             : window.innerHeight > window.innerWidth
               ? STANDING_VIEW_MARGIN_PORTRAIT
               : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -11758,7 +11773,7 @@ function PoolRoyaleGame({
             const nextMargin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? 1.05
+                ? TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? STANDING_VIEW_MARGIN_PORTRAIT
                   : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -11785,12 +11800,19 @@ function PoolRoyaleGame({
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
-          const margin = 1.05;
+          const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const focusStore = ensureOrbitFocus();
-          const focusTarget = focusStore?.target ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
-          const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), CAMERA.minR);
-          sph.radius = clampOrbitRadius(Math.max(maxRadius * 0.72, CAMERA.minR * 1.45));
+          const focusTarget = TOP_VIEW_CENTER.clone();
+          focusStore.target.copy(focusTarget);
+          focusStore.ballId = null;
+          const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), TOP_VIEW_MIN_RADIUS);
+          const baseTopRadius = Math.max(maxRadius * 0.72, TOP_VIEW_MIN_RADIUS);
+          const tightTopRadius = clampOrbitRadius(
+            baseTopRadius * TOP_VIEW_RADIUS_SCALE,
+            TOP_VIEW_MIN_RADIUS
+          );
+          sph.radius = tightTopRadius;
           sph.phi = CAMERA.minPhi;
           lastCameraTargetRef.current.copy(focusTarget);
           syncBlendToSpherical();
@@ -12278,7 +12300,7 @@ function PoolRoyaleGame({
       updateCamera();
       fit(
         topViewRef.current
-          ? 1.05
+          ? TOP_VIEW_MARGIN
           : window.innerHeight > window.innerWidth
             ? 1.6
             : 1.4
@@ -14587,7 +14609,10 @@ function PoolRoyaleGame({
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z).normalize();
+        const aimingForward = topViewRef.current
+          ? TMP_VEC3_A.set(Math.sin(sph.theta), 0, Math.cos(sph.theta)).normalize()
+          : camFwd;
+        tmpAim.set(aimingForward.x, aimingForward.z).normalize();
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
           0,
@@ -14631,6 +14656,23 @@ function PoolRoyaleGame({
             aimDir,
             balls
           );
+          if (lookModeRef.current) {
+            if (targetBall?.pos) {
+              aimFocusRef.current = new THREE.Vector3(
+                targetBall.pos.x,
+                BALL_CENTER_Y,
+                targetBall.pos.y
+              );
+            } else if (impact) {
+              aimFocusRef.current = new THREE.Vector3(
+                impact.x,
+                BALL_CENTER_Y,
+                impact.y
+              );
+            } else {
+              aimFocusRef.current = null;
+            }
+          }
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
           const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
@@ -15519,7 +15561,7 @@ function PoolRoyaleGame({
             const margin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? 1.05
+                ? TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
                   ? 1.6
                   : 1.4
@@ -15802,7 +15844,7 @@ function PoolRoyaleGame({
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
+      <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
           ref={configButtonRef}
           type="button"
