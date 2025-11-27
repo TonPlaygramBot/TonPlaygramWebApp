@@ -201,55 +201,34 @@ function detectPreferredFrameRateId() {
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
-  const lowMemory = deviceMemory !== null && deviceMemory <= 3.5;
-  const constrainedCpu = hardwareConcurrency <= 4;
-  const mobileOrTouch = coarsePointer || isTouch || isMobileUA;
 
   if (
     lowRefresh ||
-    lowMemory ||
-    constrainedCpu ||
-    (mobileOrTouch && rendererTier === 'mobile')
+    coarsePointer ||
+    isTouch ||
+    isMobileUA ||
+    (deviceMemory !== null && deviceMemory <= 4) ||
+    rendererTier === 'mobile'
   ) {
-    return 'battery45';
+    return 'balanced60';
   }
 
   if (
     rendererTier === 'desktopHigh' ||
-    (!mobileOrTouch &&
-      hardwareConcurrency >= 8 &&
-      (deviceMemory == null || deviceMemory >= 8))
+    (hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8))
   ) {
-    return 'performance72';
+    return 'performance50';
+  }
+
+  if (
+    rendererTier === 'desktopMid' ||
+    hardwareConcurrency >= 6 ||
+    (deviceMemory != null && deviceMemory >= 6)
+  ) {
+    return 'fullHd';
   }
 
   return 'balanced60';
-}
-
-function resolveGraphicsProfile(option) {
-  const devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-  const baseCap =
-    typeof window !== 'undefined' && typeof window.innerWidth === 'number'
-      ? window.innerWidth <= 1366
-        ? 1.5
-        : 2
-      : 2;
-  const pixelRatioCap = Number.isFinite(option?.pixelRatioCap)
-    ? option.pixelRatioCap
-    : baseCap;
-  const renderScale = Number.isFinite(option?.renderScale) ? option.renderScale : 1;
-  const minPixelRatio = 0.85;
-  const targetPixelRatio = Math.max(
-    minPixelRatio,
-    Math.min(pixelRatioCap, devicePixelRatio * renderScale)
-  );
-
-  return {
-    pixelRatio: targetPixelRatio,
-    pixelRatioCap,
-    renderScale,
-    fps: option?.fps ?? 60
-  };
 }
 
 function signedRingArea(ring) {
@@ -2134,30 +2113,10 @@ const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
     id: 'balanced60',
-    label: 'Balanced (60 Hz)',
+    label: 'Snooker Match (60 Hz)',
     fps: 60,
-    resolution: '1.0x render scale',
-    description: 'Automatic default tuned to your device.',
-    pixelRatioCap: 1.6,
-    renderScale: 1
-  },
-  {
-    id: 'battery45',
-    label: 'Battery Saver (48 Hz)',
-    fps: 48,
-    resolution: '0.9x render scale',
-    description: 'Prioritises stability and battery on entry devices.',
-    pixelRatioCap: 1.1,
-    renderScale: 0.9
-  },
-  {
-    id: 'performance72',
-    label: 'Performance (72 Hz)',
-    fps: 72,
-    resolution: '1.1x render scale',
-    description: 'Flagship phones or desktops with GPU headroom.',
-    pixelRatioCap: 2,
-    renderScale: 1.1
+    resolution: 'Snooker renderer scaling',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
@@ -5356,7 +5315,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = 1 / 2.6; // double the weave scale so the cloth pattern reads larger up close
+  const clothPatternUpscale = 1 / 1.3; // enlarge pattern features so fibres read sooner
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
@@ -5418,16 +5377,6 @@ function Table3D(
     baseBumpScale
   };
   const clothMaterials = [clothMat, cushionMat, clothEdgeMat];
-  const underlayMat = clothMat.clone();
-  underlayMat.color.copy(clothColor);
-  underlayMat.emissiveIntensity = Math.min(underlayMat.emissiveIntensity ?? 0.52, 0.12);
-  underlayMat.envMapIntensity = 0;
-  underlayMat.metalness = 0;
-  underlayMat.clearcoat = 0;
-  underlayMat.sheen = 0;
-  underlayMat.roughness = 1;
-  underlayMat.side = THREE.DoubleSide;
-  underlayMat.needsUpdate = true;
   const applyClothDetail = (detail) => {
     const overrides = detail && typeof detail === 'object' ? detail : {};
     const bumpMultiplier = Number.isFinite(overrides.bumpMultiplier)
@@ -5672,7 +5621,7 @@ function Table3D(
   const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
-  cloth.renderOrder = 5;
+  cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
   // Keep the underlay apertures exactly matched to the cloth cutouts so no
@@ -5685,10 +5634,10 @@ function Table3D(
     steps: 1
   });
   plywoodGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
-  const plywood = new THREE.Mesh(plywoodGeo, [underlayMat, clothEdgeMat]);
+  const plywood = new THREE.Mesh(plywoodGeo, [clothMat, clothEdgeMat]);
   plywood.rotation.x = -Math.PI / 2;
   plywood.position.y = cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
-  plywood.renderOrder = cloth.renderOrder - 2;
+  plywood.renderOrder = cloth.renderOrder - 0.6;
   plywood.receiveShadow = true;
   table.add(plywood);
   const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
@@ -5698,12 +5647,19 @@ function Table3D(
     steps: 1
   });
   shadowBoardGeo.translate(0, 0, -CLOTH_SHADOW_BOARD_THICKNESS);
-  const shadowBoardMat = underlayMat.clone();
-  shadowBoardMat.emissiveIntensity = 0;
+  const shadowBoardMat = clothMat.clone();
+  shadowBoardMat.color = clothMat.color.clone();
+  shadowBoardMat.roughness = 1;
+  shadowBoardMat.metalness = 0;
+  shadowBoardMat.clearcoat = 0;
+  shadowBoardMat.sheen = 0;
+  shadowBoardMat.envMapIntensity = 0;
+  shadowBoardMat.side = THREE.DoubleSide;
+  shadowBoardMat.needsUpdate = true;
   const shadowBoard = new THREE.Mesh(shadowBoardGeo, shadowBoardMat);
   shadowBoard.rotation.x = -Math.PI / 2;
   shadowBoard.position.y = cloth.position.y - CLOTH_SHADOW_BOARD_GAP;
-  shadowBoard.renderOrder = cloth.renderOrder - 3;
+  shadowBoard.renderOrder = cloth.renderOrder - 1.5;
   shadowBoard.receiveShadow = true;
   shadowBoard.castShadow = false;
   table.add(shadowBoard);
@@ -8462,17 +8418,6 @@ function PoolRoyaleGame({
     }
   }, [frameRateId]);
   useEffect(() => {
-    const renderer = rendererRef.current;
-    const host = mountRef.current;
-    if (!renderer) return;
-    const graphicsProfile = resolveGraphicsProfile(activeFrameRateOption);
-    renderer.setPixelRatio(graphicsProfile.pixelRatio);
-    renderer.userData.graphicsProfile = graphicsProfile;
-    if (host) {
-      renderer.setSize(host.clientWidth, host.clientHeight, false);
-    }
-  }, [activeFrameRateOption]);
-  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
     }
@@ -9296,9 +9241,9 @@ function PoolRoyaleGame({
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const graphicsProfile = resolveGraphicsProfile(activeFrameRateOption);
-      renderer.setPixelRatio(graphicsProfile.pixelRatio);
-      renderer.userData.graphicsProfile = graphicsProfile;
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
