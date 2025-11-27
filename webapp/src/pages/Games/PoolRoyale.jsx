@@ -5315,7 +5315,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = 1 / 1.3; // enlarge pattern features so fibres read sooner
+  const clothPatternUpscale = (1 / 1.3) * 0.5; // double the weave size so the cloth pattern reads twice as large
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
@@ -5363,6 +5363,30 @@ function Table3D(
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.sheen = 0;
+  const underlayTopMat = clothMat.clone();
+  underlayTopMat.metalness = 0;
+  underlayTopMat.roughness = 1;
+  underlayTopMat.sheen = 0;
+  underlayTopMat.clearcoat = 0;
+  underlayTopMat.clearcoatRoughness = 1;
+  underlayTopMat.envMapIntensity = 0;
+  underlayTopMat.emissiveIntensity = Math.min(
+    clothMat.emissiveIntensity ?? 0,
+    0.22
+  );
+  underlayTopMat.needsUpdate = true;
+  const underlayEdgeMat = clothEdgeMat.clone();
+  underlayEdgeMat.metalness = 0;
+  underlayEdgeMat.roughness = 1;
+  underlayEdgeMat.sheen = 0;
+  underlayEdgeMat.clearcoat = 0;
+  underlayEdgeMat.clearcoatRoughness = 1;
+  underlayEdgeMat.envMapIntensity = 0;
+  underlayEdgeMat.emissiveIntensity = Math.min(
+    clothEdgeMat.emissiveIntensity ?? CLOTH_EDGE_EMISSIVE_INTENSITY,
+    0.2
+  );
+  underlayEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -5634,10 +5658,10 @@ function Table3D(
     steps: 1
   });
   plywoodGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
-  const plywood = new THREE.Mesh(plywoodGeo, [clothMat, clothEdgeMat]);
+  const plywood = new THREE.Mesh(plywoodGeo, [underlayTopMat, underlayEdgeMat]);
   plywood.rotation.x = -Math.PI / 2;
   plywood.position.y = cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
-  plywood.renderOrder = cloth.renderOrder - 0.6;
+  plywood.renderOrder = cloth.renderOrder - 2;
   plywood.receiveShadow = true;
   table.add(plywood);
   const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
@@ -5659,7 +5683,7 @@ function Table3D(
   const shadowBoard = new THREE.Mesh(shadowBoardGeo, shadowBoardMat);
   shadowBoard.rotation.x = -Math.PI / 2;
   shadowBoard.position.y = cloth.position.y - CLOTH_SHADOW_BOARD_GAP;
-  shadowBoard.renderOrder = cloth.renderOrder - 1.5;
+  shadowBoard.renderOrder = cloth.renderOrder - 2.5;
   shadowBoard.receiveShadow = true;
   shadowBoard.castShadow = false;
   table.add(shadowBoard);
