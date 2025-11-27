@@ -7802,22 +7802,33 @@ function applyTableFinishToTable(table, finish) {
   const cushionColor = new THREE.Color(
     resolvedFinish.colors.cushion ?? resolvedFinish.colors.cloth
   );
+  const clothSheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
+  const cushionSheenColor = cushionColor.clone().lerp(clothHighlight, 0.18);
   const emissiveColor = clothColor.clone().multiplyScalar(0.06);
   const cushionEmissive = cushionColor.clone().multiplyScalar(0.06);
   const clothEdgeColor = clothColor.clone().lerp(clothHighlight, CLOTH_EDGE_TINT);
   const clothEdgeEmissive = clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER);
   if (finishInfo.clothMat) {
     finishInfo.clothMat.color.copy(clothColor);
+    if (finishInfo.clothMat.sheenColor) {
+      finishInfo.clothMat.sheenColor.copy(clothSheenColor);
+    }
     finishInfo.clothMat.emissive.copy(emissiveColor);
     finishInfo.clothMat.needsUpdate = true;
   }
   if (finishInfo.cushionMat) {
     finishInfo.cushionMat.color.copy(cushionColor);
+    if (finishInfo.cushionMat.sheenColor) {
+      finishInfo.cushionMat.sheenColor.copy(cushionSheenColor);
+    }
     finishInfo.cushionMat.emissive.copy(cushionEmissive);
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
     finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
+    if (finishInfo.clothEdgeMat.sheenColor) {
+      finishInfo.clothEdgeMat.sheenColor.copy(clothEdgeColor);
+    }
     finishInfo.clothEdgeMat.emissive.copy(clothEdgeEmissive);
     finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
     finishInfo.clothEdgeMat.needsUpdate = true;
