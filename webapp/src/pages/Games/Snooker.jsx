@@ -462,11 +462,11 @@ function addPocketCuts(parent, clothPlane) {
 
 /**
  * NEW SNOOKER GAME — fresh build (keep ONLY Guret for balls)
- * Per kërkesën tënde:
- *  • Kamera rotullohet si një person te tavolina (orbit e butë), me kënd pak të ulët, pa rënë në nivelin e cloth.
- *  • 6 gropa të prera realisht në cloth (Shape.holes + Extrude) + kapje (capture radius) → guret bien brenda.
- *  • Power slider i RI: i madh, djathtas ekranit, me gjest **PULL** (tërhiq POSHTË sa fort do → fuqi), dhe **gjuan në release**.
- *  • Playable: aiming line + tick, përplasje, kapje në xhepa, logjikë bazë snooker (reds→colour, pastaj colours in order, fouls, in‑hand).
+ * As requested:
+ *  • Camera orbits like a person at the table (smooth orbit) with a slightly low angle, without dropping to cloth level.
+ *  • Six holes cut realistically into the cloth (Shape.holes + Extrude) with capture radius so the balls fall inside.
+ *  • NEW power slider: large on the right side of the screen with a **PULL** gesture (drag DOWN as hard as you want for power) and fires on release.
+ *  • Playable: aiming line + tick, collisions, pocket captures, basic snooker logic (reds→colour, then colours in order, fouls, in-hand).
  */
 
 // --------------------------------------------------
@@ -477,6 +477,7 @@ function addPocketCuts(parent, clothPlane) {
 const TABLE_SIZE_SHRINK = 0.78;
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
 const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
+const OFFICIAL_SIZE_REDUCTION = 0.82; // scale the official footprint down so it stays just larger than Pool Royale
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88;
@@ -485,14 +486,15 @@ const TABLE_GROWTH_MULTIPLIER = 1.5;
 const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
+const TABLE_SCALE =
+  TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE * OFFICIAL_SIZE_REDUCTION;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 2.06; // raise wooden rails slightly to strengthen the Pool Royale profile
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail height so geometry stays consistent
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
@@ -681,42 +683,42 @@ const ACTION_CAM = Object.freeze({
   followHoldMs: 900
 });
 /**
- * Regji Kamera Snooker
+ * Snooker Camera Direction
  *
  * 0–2s (Opening Pan)
- * • Kamera nis nga lart, kënd diagonal mbi tavolinë (rreth 60°).
- * • Pan i ngadaltë djathtas → majtas që tregon gjithë tavolinën.
+ * • Camera starts high with a diagonal angle over the table (~60°).
+ * • Slow pan right → left showing the whole table.
  *
  * 2–4s (Focus on Cue Ball)
- * • Kamera afrohet tek topi i bardhë dhe shkopi.
- * • Këndi ulet në 20–25° mbi tavolinë, direkt pas shkopit.
- * • Zoom i lehtë / shtrëngim i kornizës.
+ * • Camera moves toward the cue ball and cue stick.
+ * • Angle drops to 20–25° above the table directly behind the cue.
+ * • Light zoom / tighter framing.
  *
  * 4–6s (Strike Tracking)
- * • Në momentin e goditjes kamera dridhet lehtë për impakt.
- * • Pastaj ndjek topin e bardhë përgjatë tavolinës duke e mbajtur në qendër.
+ * • At impact the camera shakes lightly.
+ * • Then it follows the cue ball across the table, keeping it centered.
  *
  * 6–9s (Impact & Spread)
- * • Kur topat përplasen, kamera ngrihet gradualisht (top-down).
- * • Hapet FOV që të futen të gjithë topat në kornizë.
- * • Bën lëvizje orbitale të shpejtë rreth tavolinës (rreth 30° rrotullim).
+ * • When the balls collide, the camera rises gradually (toward top-down).
+ * • The FOV widens to frame all balls.
+ * • Executes a quick orbital move around the table (~30° rotation).
  *
  * 9–12s (Potting Shot)
- * • Kamera bën një dolly-in tek xhepi ku bie topi.
- * • Ndjek topin brenda xhepit për ~1 sekondë.
- * • Pastaj fade-out ose rikthim tek pamja e plotë.
+ * • Camera performs a dolly-in to the pocket where the ball drops.
+ * • Follows the ball inside the pocket for ~1 second.
+ * • Then fades out or returns to the full view.
  *
  * 12s+ (Reset)
- * • Kamera kthehet në overview fillestar (45° mbi tavolinë).
- * • Mban pan shumë të ngadaltë si looping idle derisa të ndodhë goditja tjetër.
+ * • Camera returns to the initial overview (45° above the table).
+ * • Holds a very slow pan as an idle loop until the next shot.
  *
  * 🎮 Triggers
- * • Fillim loje → Opening Pan.
- * • Kur lojtari përgatitet → Focus on Cue Ball.
- * • Moment goditjeje → Strike Tracking.
- * • Kur topat përplasen → Impact & Spread.
- * • Kur një top bie në xhep → Potting Shot.
- * • Pas çdo raundi → Reset.
+ * • Start of game → Opening Pan.
+ * • When the player prepares → Focus on Cue Ball.
+ * • Moment of the hit → Strike Tracking.
+ * • When the balls collide → Impact & Spread.
+ * • When a ball drops into a pocket → Potting Shot.
+ * • After each round → Reset.
  */
 const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 12; // pull broadcast cams closer so the snooker table fills the frame
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
@@ -1765,6 +1767,18 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
     }
   }
 ]);
+
+const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    resolution: 'Snooker renderer scaling',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
 
 const toHexColor = (value) => {
   if (typeof value === 'number') {
@@ -2898,7 +2912,7 @@ function applySnookerScaling({
   return { mmToUnits };
 }
 
-// Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
+// Camera: keep a comfortable angle that doesn’t dip below the cloth, but allow a bit more height when it rises
 const STANDING_VIEW_PHI = 0.86; // lift the default orbit a touch higher for a better overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
@@ -5904,6 +5918,15 @@ function SnookerGame() {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -6022,6 +6045,12 @@ function SnookerGame() {
     }
     applySelectedCueStyle(cueStyleIndex);
   }, [cueStyleIndex, applySelectedCueStyle]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    }
+  }, [frameRateId]);
 
   const highlightChalks = useCallback(
     (activeIndex, suggestedIndex = visibleChalkIndexRef.current) => {
@@ -10259,7 +10288,7 @@ function SnookerGame() {
         );
       };
 
-      // Fire (slider e thërret në release)
+      // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
         if (
@@ -11713,7 +11742,7 @@ function SnookerGame() {
             activeShotView = bestPocketView;
           }
         }
-        // Kapje në xhepa
+        // Pocket capture
         balls.forEach((b) => {
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
@@ -12307,6 +12336,43 @@ function SnookerGame() {
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Graphics
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-xs font-semibold tracking-wide">
+                            {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
