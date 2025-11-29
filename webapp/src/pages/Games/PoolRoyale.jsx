@@ -4753,8 +4753,8 @@ function reflectRails(ball) {
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
   const pocketGuard =
-    POCKET_VIS_R * 0.94 * POCKET_VISUAL_EXPANSION + BALL_R * 0.16; // widen the safe zone so balls don't bounce before reaching the jaw
-  const guardClearance = Math.max(0, pocketGuard);
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // widen the safe zone so balls don't bounce before reaching the jaw
+  const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
   const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
@@ -4793,7 +4793,7 @@ function reflectRails(ball) {
   }
 
   const sideSpan =
-    SIDE_POCKET_RADIUS + BALL_R * 1.28; // widen the middle pocket guard so balls don't rebound early
+    SIDE_POCKET_RADIUS + BALL_R * 1.05; // widen the middle pocket guard so balls don't rebound early
   const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
@@ -5735,35 +5735,6 @@ function Table3D(
     }
     clothEdgeMat.needsUpdate = true;
   }
-
-  const pocketTrimMat = clothMat.clone();
-  pocketTrimMat.color.copy(clothMat.color);
-  pocketTrimMat.metalness = 0;
-  pocketTrimMat.roughness = 1;
-  pocketTrimMat.sheen = 0;
-  pocketTrimMat.clearcoat = 0;
-  pocketTrimMat.clearcoatRoughness = 1;
-  pocketTrimMat.envMapIntensity = 0;
-  pocketTrimMat.emissiveIntensity = Math.min(clothMat.emissiveIntensity ?? 0, 0.18);
-  pocketTrimMat.needsUpdate = true;
-
-  const pocketTrimTop = cloth.position.y + MICRO_EPS * 0.25;
-  pocketPositions.forEach((center, index) => {
-    const isSide = index >= 4;
-    const innerRadius = POCKET_HOLE_R * (isSide ? 1.02 : 1.01);
-    const outerRadius = innerRadius + BALL_R * 0.24;
-    const trimGeo = new THREE.RingGeometry(
-      Math.max(0.001, innerRadius),
-      Math.max(innerRadius + MICRO_EPS, outerRadius),
-      isSide ? 80 : 72
-    );
-    const trim = new THREE.Mesh(trimGeo, pocketTrimMat);
-    trim.rotation.x = -Math.PI / 2;
-    trim.position.set(center.x, pocketTrimTop, center.y);
-    trim.renderOrder = cloth.renderOrder + 0.05;
-    trim.userData = { type: 'pocketTrim' };
-    table.add(trim);
-  });
 
   const shadowCoverShape = buildSurfaceShape(
     CLOTH_SHADOW_COVER_HOLE_RADIUS,
