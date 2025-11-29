@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -59,34 +58,34 @@ const clamp01 = (value, fallback = 0) => {
 };
 
 const BASE_BOARD_THEME = Object.freeze({
-  light: '#e7e2d3',
-  dark: '#776a5a',
-  frameLight: '#d2b48c',
-  frameDark: '#3a2d23',
-  accent: '#00e5ff',
-  highlight: '#6ee7b7',
-  capture: '#f87171',
-  surfaceRoughness: 0.74,
-  surfaceMetalness: 0.18,
-  frameRoughness: 0.82,
-  frameMetalness: 0.12
+  light: '#f0f3ff',
+  dark: '#1e2335',
+  frameLight: '#2d3250',
+  frameDark: '#0d101d',
+  accent: '#c7a76a',
+  highlight: '#4ce0c3',
+  capture: '#ff7ba3',
+  surfaceRoughness: 0.42,
+  surfaceMetalness: 0.32,
+  frameRoughness: 0.56,
+  frameMetalness: 0.62
 });
 
 const BOARD_COLOR_OPTIONS = Object.freeze([
   {
-    id: 'classicWalnut',
-    label: 'Dru Klasik',
-    light: '#f3dfc1',
-    dark: '#9a6636',
-    frameLight: '#bb8451',
-    frameDark: '#4c2e18',
-    accent: '#d8b280',
-    highlight: '#4ce0c3',
-    capture: '#ff6f78',
-    surfaceRoughness: 0.72,
-    surfaceMetalness: 0.16,
-    frameRoughness: 0.84,
-    frameMetalness: 0.18
+    id: 'onyxMarble',
+    label: 'Oniks & Mermer',
+    light: '#f6f8ff',
+    dark: '#202539',
+    frameLight: '#2f3552',
+    frameDark: '#0c0f1b',
+    accent: '#c3a56a',
+    highlight: '#5cf2d0',
+    capture: '#ff7ba3',
+    surfaceRoughness: 0.46,
+    surfaceMetalness: 0.36,
+    frameRoughness: 0.6,
+    frameMetalness: 0.64
   },
   {
     id: 'arcticMarble',
@@ -137,30 +136,31 @@ const BOARD_COLOR_OPTIONS = Object.freeze([
 
 const PIECE_STYLE_OPTIONS = Object.freeze([
   {
-    id: 'ivoryObsidian',
-    label: 'Fildish & Obsidian',
+    id: 'porcelainOnyx',
+    label: 'Porcelanë & Oniks',
     white: {
-      color: '#f5f3eb',
-      roughness: 0.34,
-      metalness: 0.18,
-      sheen: 0.28,
+      color: '#f6f7ff',
+      roughness: 0.28,
+      metalness: 0.22,
+      sheen: 0.34,
       sheenColor: '#ffffff',
-      clearcoat: 0.24,
-      clearcoatRoughness: 0.32,
-      specularIntensity: 0.58
+      clearcoat: 0.36,
+      clearcoatRoughness: 0.28,
+      specularIntensity: 0.7
     },
     black: {
-      color: '#2a2f3a',
-      roughness: 0.26,
-      metalness: 0.38,
-      sheen: 0.16,
-      sheenColor: '#7a8699',
-      clearcoat: 0.2,
-      clearcoatRoughness: 0.45,
-      specularIntensity: 0.62
+      color: '#121622',
+      roughness: 0.32,
+      metalness: 0.58,
+      sheen: 0.24,
+      sheenColor: '#8899b8',
+      clearcoat: 0.32,
+      clearcoatRoughness: 0.36,
+      specularIntensity: 0.72
     },
-    accent: '#ffcc70',
-    blackAccent: '#ffd166'
+    accent: '#c4a166',
+    whiteAccent: '#e8d6a4',
+    blackAccent: '#d9b878'
   },
   {
     id: 'marbleGold',
@@ -251,23 +251,6 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const ABEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
-];
-const PIECE_KEYWORDS = {
-  P: ['pawn'],
-  R: ['rook'],
-  N: ['knight', 'horse'],
-  B: ['bishop'],
-  Q: ['queen'],
-  K: ['king']
-};
-const PIECE_COLORS = {
-  white: ['white', 'light'],
-  black: ['black', 'dark']
-};
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -296,19 +279,6 @@ const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
-
-async function tryUrls(urls, loader) {
-  let lastError;
-  for (const url of urls) {
-    try {
-      const value = await loader(url);
-      return value;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError || new Error('All URL attempts failed');
-}
 
 function cloneWithFreshMaterials(object) {
   const clone = object.clone(true);
@@ -350,98 +320,132 @@ function prepareTemplateMesh(mesh, targetHeight) {
   return clone;
 }
 
-function pickByKeywords(meshes, keywords = [], colorKeywords = []) {
-  const lowerKeywords = keywords.map((k) => k.toLowerCase());
-  const lowerColors = colorKeywords.map((k) => k.toLowerCase());
-  const matchScore = (name) => {
-    const lower = (name || '').toLowerCase();
-    const keywordHit = lowerKeywords.some((k) => lower.includes(k));
-    const colorHit = lowerColors.length === 0 || lowerColors.some((k) => lower.includes(k));
-    return keywordHit && colorHit;
-  };
-  return (
-    meshes.find((m) => matchScore(m.name)) ||
-    meshes.find((m) => lowerKeywords.some((k) => (m.name || '').toLowerCase().includes(k))) ||
-    null
+function buildInlineBoardTemplate(boardTheme = BASE_BOARD_THEME) {
+  const tile = BOARD.tile;
+  const N = BOARD.N;
+  const half = (N * tile) / 2;
+  const rim = BOARD.rim;
+  const board = new THREE.Group();
+
+  const frameDark = new THREE.MeshPhysicalMaterial({
+    color: boardTheme.frameDark,
+    roughness: boardTheme.frameRoughness,
+    metalness: boardTheme.frameMetalness
+  });
+  const frameLight = new THREE.MeshPhysicalMaterial({
+    color: boardTheme.frameLight,
+    roughness: Math.max(0.2, boardTheme.frameRoughness - 0.12),
+    metalness: Math.min(1, boardTheme.frameMetalness + 0.18)
+  });
+  const accentMat = new THREE.MeshPhysicalMaterial({
+    color: boardTheme.accent,
+    roughness: 0.36,
+    metalness: Math.min(1, boardTheme.frameMetalness + 0.2),
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.28
+  });
+  const lightTileMat = new THREE.MeshPhysicalMaterial({
+    color: boardTheme.light,
+    roughness: boardTheme.surfaceRoughness,
+    metalness: boardTheme.surfaceMetalness,
+    clearcoat: 0.38,
+    clearcoatRoughness: 0.28
+  });
+  const darkTileMat = new THREE.MeshPhysicalMaterial({
+    color: boardTheme.dark,
+    roughness: Math.max(0.2, boardTheme.surfaceRoughness - 0.12),
+    metalness: Math.min(1, boardTheme.surfaceMetalness + 0.16),
+    clearcoat: 0.44,
+    clearcoatRoughness: 0.24
+  });
+
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + rim * 2, BOARD.baseH, N * tile + rim * 2),
+    frameDark
   );
+  base.position.y = BOARD.baseH / 2;
+  board.add(base);
+
+  const bevel = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + rim * 1.6, 0.24, N * tile + rim * 1.6),
+    frameLight
+  );
+  bevel.position.y = BOARD.baseH + 0.12;
+  board.add(bevel);
+
+  const accent = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + rim * 1.15, 0.12, N * tile + rim * 1.15),
+    accentMat
+  );
+  accent.position.y = BOARD.baseH + 0.24;
+  board.add(accent);
+
+  const stage = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + 0.14, 0.16, N * tile + 0.14),
+    frameLight
+  );
+  stage.position.y = BOARD.baseH + 0.32;
+  board.add(stage);
+
+  const tileGroup = new THREE.Group();
+  const tileHeight = 0.06;
+  const tileY = BOARD.baseH + 0.32 + tileHeight / 2;
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const isDark = (r + c) % 2 === 1;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(tile, tileHeight, tile),
+        isDark ? darkTileMat : lightTileMat
+      );
+      mesh.position.set(c * tile - half + tile / 2, tileY, r * tile - half + tile / 2);
+      tileGroup.add(mesh);
+    }
+  }
+  board.add(tileGroup);
+
+  const inset = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + rim * 0.8, 0.04, N * tile + rim * 0.8),
+    accentMat
+  );
+  inset.position.y = BOARD.baseH + 0.4;
+  board.add(inset);
+
+  return board;
 }
 
-function prepareChessTemplates(scene, targetHeights = {}) {
-  const meshes = [];
-  scene.traverse((child) => {
-    if (child.isMesh) meshes.push(child);
-  });
-
-  const boardCandidate =
-    pickByKeywords(meshes, ['board', 'chessboard']) ||
-    meshes.reduce(
-      (acc, mesh) => {
-        const box = new THREE.Box3().setFromObject(mesh);
-        const size = box.getSize(new THREE.Vector3());
-        const area = size.x * size.z;
-        if (!acc || area > acc.area) return { mesh, area };
-        return acc;
-      },
-      null
-    )?.mesh;
-
-  const board = boardCandidate
-    ? (() => {
-        const clone = cloneWithFreshMaterials(boardCandidate);
-        const box = new THREE.Box3().setFromObject(clone);
-        const size = box.getSize(new THREE.Vector3());
-        const center = box.getCenter(new THREE.Vector3());
-        const maxSide = Math.max(size.x || 1, size.z || 1);
-        const scale = RAW_BOARD_SIZE / maxSide;
-        clone.position.sub(center.multiplyScalar(scale));
-        clone.scale.setScalar(scale);
-        return clone;
-      })()
-    : null;
-
+function buildInlinePieceTemplates(targetHeights = {}) {
+  const placeholders = createPieceMaterials(PIECE_STYLE_OPTIONS[0]);
   const pieceTemplates = { white: {}, black: {} };
-  Object.entries(PIECE_KEYWORDS).forEach(([key, names]) => {
-    const whiteMesh = pickByKeywords(meshes, names, PIECE_COLORS.white);
-    const blackMesh = pickByKeywords(meshes, names, PIECE_COLORS.black);
-    const fallback = pickByKeywords(meshes, names, []);
+
+  Object.entries(BUILDERS).forEach(([key, builder]) => {
     const targetHeight = targetHeights[key];
-    pieceTemplates.white[key] = whiteMesh
-      ? prepareTemplateMesh(whiteMesh, targetHeight)
-      : fallback
-        ? prepareTemplateMesh(fallback, targetHeight)
-        : null;
-    pieceTemplates.black[key] = blackMesh
-      ? prepareTemplateMesh(blackMesh, targetHeight)
-      : fallback
-        ? prepareTemplateMesh(fallback, targetHeight)
-        : null;
+    const whiteMesh = builder(placeholders.white);
+    const blackMesh = builder(placeholders.black);
+    pieceTemplates.white[key] = prepareTemplateMesh(whiteMesh, targetHeight);
+    pieceTemplates.black[key] = prepareTemplateMesh(blackMesh, targetHeight);
   });
 
-  return { board, pieces: pieceTemplates };
+  return pieceTemplates;
+}
+
+function buildInlineChessTemplates(targetHeights = {}, boardTheme = BASE_BOARD_THEME) {
+  const board = buildInlineBoardTemplate(boardTheme);
+  const pieces = buildInlinePieceTemplates(targetHeights);
+  return { board, pieces };
 }
 
 let cachedChessTemplates = null;
 let chessTemplatePromise = null;
 
-async function loadChessTemplates(targetHeights = {}) {
+async function loadChessTemplates(targetHeights = {}, boardTheme = BASE_BOARD_THEME) {
   if (cachedChessTemplates) return cachedChessTemplates;
   if (!chessTemplatePromise) {
-    const loader = new GLTFLoader();
-    chessTemplatePromise = tryUrls(ABEAUTIFUL_GAME_URLS, (url) => {
-      return new Promise((resolve, reject) => {
-        loader.load(url, resolve, undefined, reject);
-      });
-    })
-      .then((gltf) => prepareChessTemplates(gltf.scene, targetHeights))
-      .then((templates) => {
-        cachedChessTemplates = templates;
-        return templates;
-      })
-      .catch((error) => {
-        console.warn('Failed to load ABeautifulGame chess set', error);
-        chessTemplatePromise = null;
-        throw error;
-      });
+    chessTemplatePromise = Promise.resolve(
+      buildInlineChessTemplates(targetHeights, boardTheme)
+    ).then((templates) => {
+      cachedChessTemplates = templates;
+      return templates;
+    });
   }
   return chessTemplatePromise;
 }
@@ -1089,58 +1093,100 @@ function tagPieceMesh(mesh, role = 'base') {
 // ======================= Piece shapes =======================
 function buildPawn(materials = {}) {
   const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const base = tagPieceMesh(cyl(1.1, 1.3, 0.4, baseMat));
-  base.position.y = PIECE_Y;
-  g.add(base);
-  const neck = tagPieceMesh(cyl(0.7, 0.95, 1.6, baseMat));
-  neck.position.y = PIECE_Y + 1.1;
+  const plinth = tagPieceMesh(cyl(1.45, 1.7, 0.5, baseMat));
+  plinth.position.y = PIECE_Y + 0.2;
+  g.add(plinth);
+
+  const waist = tagPieceMesh(cyl(1.15, 1.3, 0.9, baseMat));
+  waist.position.y = PIECE_Y + 0.9;
+  g.add(waist);
+
+  const collar = tagPieceMesh(cyl(1, 1.1, 0.22, accentMat), 'accent');
+  collar.position.y = PIECE_Y + 1.42;
+  g.add(collar);
+
+  const neck = tagPieceMesh(cyl(0.9, 0.9, 0.55, baseMat));
+  neck.position.y = PIECE_Y + 1.7;
   g.add(neck);
-  const head = tagPieceMesh(sph(0.7, baseMat));
-  head.position.y = PIECE_Y + 2.3;
+
+  const head = tagPieceMesh(sph(0.92, baseMat));
+  head.position.y = PIECE_Y + 2.4;
   g.add(head);
+
+  const jewel = tagPieceMesh(sph(0.35, accentMat), 'accent');
+  jewel.position.y = PIECE_Y + 3.05;
+  g.add(jewel);
   return g;
 }
 
 function buildRook(materials = {}) {
   const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const foot = tagPieceMesh(cyl(1.3, 1.6, 0.5, baseMat));
-  foot.position.y = PIECE_Y;
-  g.add(foot);
-  const body = tagPieceMesh(cyl(1.2, 1.2, 2.2, baseMat));
-  body.position.y = PIECE_Y + 1.4;
+  const base = tagPieceMesh(cyl(1.6, 1.9, 0.6, baseMat));
+  base.position.y = PIECE_Y;
+  g.add(base);
+
+  const lower = tagPieceMesh(cyl(1.35, 1.5, 0.55, baseMat));
+  lower.position.y = PIECE_Y + 0.6;
+  g.add(lower);
+
+  const body = tagPieceMesh(cyl(1.25, 1.25, 2.35, baseMat));
+  body.position.y = PIECE_Y + 1.8;
   g.add(body);
-  const crown = tagPieceMesh(box(2.0, 0.5, 2.0, baseMat));
-  crown.position.y = PIECE_Y + 2.8;
+
+  const band = tagPieceMesh(cyl(1.35, 1.35, 0.2, accentMat), 'accent');
+  band.position.y = PIECE_Y + 2.4;
+  g.add(band);
+
+  const crown = new THREE.Group();
+  const crenelations = 6;
+  const radius = 1.05;
+  for (let i = 0; i < crenelations; i++) {
+    const tooth = tagPieceMesh(box(0.55, 0.5, 0.35, accentMat), 'accent');
+    tooth.position.set(
+      radius * Math.cos((i * Math.PI * 2) / crenelations),
+      PIECE_Y + 3.15,
+      radius * Math.sin((i * Math.PI * 2) / crenelations)
+    );
+    crown.add(tooth);
+  }
   g.add(crown);
   return g;
 }
 
 function buildKnight(materials = {}) {
   const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const foot = tagPieceMesh(cyl(1.3, 1.6, 0.5, baseMat));
-  foot.position.y = PIECE_Y;
-  g.add(foot);
-  const body = tagPieceMesh(cyl(1.0, 1.2, 1.6, baseMat));
-  body.position.y = PIECE_Y + 1.1;
+  const base = tagPieceMesh(cyl(1.5, 1.7, 0.6, baseMat));
+  base.position.y = PIECE_Y;
+  g.add(base);
+
+  const collar = tagPieceMesh(cyl(1.3, 1.4, 0.45, accentMat), 'accent');
+  collar.position.y = PIECE_Y + 0.6;
+  g.add(collar);
+
+  const body = tagPieceMesh(cyl(1.2, 1.05, 1.5, baseMat));
+  body.position.y = PIECE_Y + 1.5;
   g.add(body);
-  const head = new THREE.Group();
-  const neck = tagPieceMesh(cyl(0.7, 0.9, 0.8, baseMat));
-  neck.rotation.z = 0.2;
-  neck.position.set(0, PIECE_Y + 1.9, 0.2);
-  head.add(neck);
-  const face = tagPieceMesh(box(0.9, 1.1, 0.6, baseMat));
-  face.position.set(0.1, PIECE_Y + 2.6, 0.2);
-  head.add(face);
-  const ear1 = tagPieceMesh(cone(0.18, 0.35, baseMat));
-  ear1.position.set(0.35, PIECE_Y + 3.0, 0.15);
-  head.add(ear1);
-  const ear2 = tagPieceMesh(cone(0.18, 0.35, baseMat));
-  ear2.position.set(-0.05, PIECE_Y + 3.0, 0.15);
-  head.add(ear2);
+
+  const neck = tagPieceMesh(cyl(0.95, 0.9, 0.6, baseMat));
+  neck.position.set(0.05, PIECE_Y + 2.4, -0.1);
+  neck.rotation.y = -Math.PI / 10;
+  g.add(neck);
+
+  const head = tagPieceMesh(box(1, 1.4, 1.3, baseMat));
+  head.position.set(0.18, PIECE_Y + 3.2, 0.18);
+  head.rotation.y = -Math.PI / 8;
   g.add(head);
+
+  const mane = tagPieceMesh(box(0.35, 1.3, 1.05, accentMat), 'accent');
+  mane.position.set(-0.3, PIECE_Y + 3.1, -0.1);
+  mane.rotation.y = -Math.PI / 12;
+  g.add(mane);
   return g;
 }
 
@@ -1148,18 +1194,29 @@ function buildBishop(materials = {}) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const foot = tagPieceMesh(cyl(1.2, 1.6, 0.5, baseMat));
-  foot.position.y = PIECE_Y;
-  g.add(foot);
-  const body = tagPieceMesh(cyl(0.9, 1.1, 2.2, baseMat));
-  body.position.y = PIECE_Y + 1.3;
+  const base = tagPieceMesh(cyl(1.35, 1.6, 0.55, baseMat));
+  base.position.y = PIECE_Y;
+  g.add(base);
+
+  const waist = tagPieceMesh(cyl(1.1, 1.25, 0.9, baseMat));
+  waist.position.y = PIECE_Y + 0.85;
+  g.add(waist);
+
+  const sash = tagPieceMesh(cyl(1.05, 1.15, 0.2, accentMat), 'accent');
+  sash.position.y = PIECE_Y + 1.4;
+  g.add(sash);
+
+  const body = tagPieceMesh(cyl(0.95, 1.05, 1.6, baseMat));
+  body.position.y = PIECE_Y + 2.1;
   g.add(body);
-  const mitre = tagPieceMesh(sph(0.9, baseMat));
-  mitre.position.y = PIECE_Y + 2.6;
-  g.add(mitre);
-  const slit = tagPieceMesh(box(0.1, 0.6, 0.2, accentMat), 'accent');
-  slit.position.y = PIECE_Y + 2.6;
-  g.add(slit);
+
+  const head = tagPieceMesh(cone(0.95, 1.6, 16, baseMat));
+  head.position.y = PIECE_Y + 3.05;
+  g.add(head);
+
+  const gem = tagPieceMesh(sph(0.42, accentMat), 'accent');
+  gem.position.y = PIECE_Y + 4;
+  g.add(gem);
   return g;
 }
 
@@ -1167,24 +1224,38 @@ function buildQueen(materials = {}) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const base = tagPieceMesh(cyl(1.4, 1.8, 0.6, baseMat));
+  const base = tagPieceMesh(cyl(1.55, 1.85, 0.6, baseMat));
   base.position.y = PIECE_Y;
   g.add(base);
-  const body = tagPieceMesh(cyl(1.1, 1.3, 2.6, baseMat));
-  body.position.y = PIECE_Y + 1.7;
+
+  const mid = tagPieceMesh(cyl(1.25, 1.4, 1, baseMat));
+  mid.position.y = PIECE_Y + 0.9;
+  g.add(mid);
+
+  const waist = tagPieceMesh(cyl(1.05, 1.05, 0.35, accentMat), 'accent');
+  waist.position.y = PIECE_Y + 1.55;
+  g.add(waist);
+
+  const body = tagPieceMesh(cyl(1.05, 1.2, 1.4, baseMat));
+  body.position.y = PIECE_Y + 2.3;
   g.add(body);
+
+  const collar = tagPieceMesh(cyl(0.95, 1.1, 0.25, accentMat), 'accent');
+  collar.position.y = PIECE_Y + 3.1;
+  g.add(collar);
+
   const crown = new THREE.Group();
-  const ring = tagPieceMesh(cyl(1.2, 1.2, 0.3, accentMat), 'accent');
-  ring.position.y = PIECE_Y + 3.1;
-  crown.add(ring);
-  const spikes = 6;
+  const spikes = 7;
   for (let i = 0; i < spikes; i++) {
-    const spike = tagPieceMesh(cone(0.18, 0.6, accentMat), 'accent');
+    const spike = tagPieceMesh(cone(0.2, 0.65, accentMat), 'accent');
     const angle = i * ((Math.PI * 2) / spikes);
-    spike.position.set(Math.cos(angle) * 0.9, PIECE_Y + 3.6, Math.sin(angle) * 0.9);
+    spike.position.set(Math.cos(angle) * 0.95, PIECE_Y + 3.75, Math.sin(angle) * 0.95);
     spike.rotation.x = -Math.PI / 2;
     crown.add(spike);
   }
+  const jewel = tagPieceMesh(sph(0.32, accentMat), 'accent');
+  jewel.position.y = PIECE_Y + 4.4;
+  crown.add(jewel);
   g.add(crown);
   return g;
 }
@@ -1193,20 +1264,36 @@ function buildKing(materials = {}) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const base = tagPieceMesh(cyl(1.4, 1.9, 0.6, baseMat));
+  const base = tagPieceMesh(cyl(1.55, 1.95, 0.6, baseMat));
   base.position.y = PIECE_Y;
   g.add(base);
-  const body = tagPieceMesh(cyl(1.1, 1.3, 2.9, baseMat));
-  body.position.y = PIECE_Y + 1.9;
+
+  const stage = tagPieceMesh(cyl(1.25, 1.45, 1, baseMat));
+  stage.position.y = PIECE_Y + 0.95;
+  g.add(stage);
+
+  const waist = tagPieceMesh(cyl(1.1, 1.1, 0.45, accentMat), 'accent');
+  waist.position.y = PIECE_Y + 1.55;
+  g.add(waist);
+
+  const body = tagPieceMesh(cyl(1.1, 1.2, 1.6, baseMat));
+  body.position.y = PIECE_Y + 2.35;
   g.add(body);
+
+  const collar = tagPieceMesh(cyl(1, 1, 0.35, accentMat), 'accent');
+  collar.position.y = PIECE_Y + 3.2;
+  g.add(collar);
+
   const orb = tagPieceMesh(sph(0.55, accentMat), 'accent');
-  orb.position.y = PIECE_Y + 3.2;
+  orb.position.y = PIECE_Y + 3.8;
   g.add(orb);
-  const crossV = tagPieceMesh(box(0.2, 0.8, 0.2, accentMat), 'accent');
-  crossV.position.y = PIECE_Y + 3.8;
+
+  const crossV = tagPieceMesh(box(0.22, 0.95, 0.22, accentMat), 'accent');
+  crossV.position.y = PIECE_Y + 4.5;
   g.add(crossV);
-  const crossH = tagPieceMesh(box(0.8, 0.2, 0.2, accentMat), 'accent');
-  crossH.position.y = PIECE_Y + 3.8;
+
+  const crossH = tagPieceMesh(box(0.9, 0.22, 0.22, accentMat), 'accent');
+  crossH.position.y = PIECE_Y + 4.5;
   g.add(crossH);
   return g;
 }
@@ -2939,7 +3026,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       pieceReferenceHeights[type] = size.y / BOARD_SCALE;
     });
 
-    loadChessTemplates(pieceReferenceHeights)
+    loadChessTemplates(pieceReferenceHeights, boardTheme)
       .then((templates) => {
         if (cancelled || !templates) return;
         if (templates.board) {
