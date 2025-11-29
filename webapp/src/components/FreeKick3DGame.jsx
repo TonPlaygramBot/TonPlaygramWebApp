@@ -435,6 +435,9 @@ const TARGET_SEPARATION = 0.32;
 const FIXED_TIME_STEP = 1 / 60;
 const MAX_FRAME_DELTA = 1 / 45;
 const MAX_ACCUMULATED_TIME = 0.18;
+const TARGET_FRAME_TIME = 1 / 60;
+const SLOW_FRAME_TIME = TARGET_FRAME_TIME * 1.25;
+const FAST_FRAME_TIME = TARGET_FRAME_TIME * 0.7;
 const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 1.82, START_Z + 4.1);
 const CAMERA_IDLE_FOCUS = new THREE.Vector3(0, 1.48, GOAL_CONFIG.z);
 const CAMERA_ACTIVE_MIN_DISTANCE = 3.4;
@@ -577,8 +580,13 @@ export default function FreeKick3DGame({ config }) {
 
     let disposed = false;
 
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const maxPixelRatio = Math.min(2, devicePixelRatio);
+    const minPixelRatio = devicePixelRatio > 1.6 ? 0.75 : 0.6;
+    const initialPixelRatio = THREE.MathUtils.clamp(devicePixelRatio, minPixelRatio, maxPixelRatio);
+
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.setPixelRatio(initialPixelRatio);
     renderer.setSize(host.clientWidth, host.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -2393,7 +2401,10 @@ export default function FreeKick3DGame({ config }) {
       cameraCurrentPosition: camera.position.clone(),
       cameraFocus: CAMERA_IDLE_FOCUS.clone(),
       cameraShakeIntensity: 0,
-      cameraShakeOffset: new THREE.Vector3()
+      cameraShakeOffset: new THREE.Vector3(),
+      dynamicPixelRatio: initialPixelRatio,
+      minPixelRatio,
+      maxPixelRatio
     };
 
     state.netSim = netSim;
@@ -3063,6 +3074,21 @@ export default function FreeKick3DGame({ config }) {
       camera.up.copy(upVector);
     };
 
+    const adaptRendererQuality = () => {
+      let nextRatio = state.dynamicPixelRatio;
+      if (state.smoothedFrameTime > SLOW_FRAME_TIME) {
+        nextRatio = Math.max(state.minPixelRatio, state.dynamicPixelRatio * 0.9);
+      } else if (state.smoothedFrameTime < FAST_FRAME_TIME) {
+        nextRatio = Math.min(state.maxPixelRatio, state.dynamicPixelRatio * 1.03);
+      }
+
+      if (Math.abs(nextRatio - state.dynamicPixelRatio) > 0.01) {
+        state.dynamicPixelRatio = nextRatio;
+        renderer.setPixelRatio(nextRatio);
+        renderer.setSize(host.clientWidth, host.clientHeight, false);
+      }
+    };
+
     const animate = () => {
       if (state.disposed) return;
       const now = performance.now();
@@ -3110,6 +3136,7 @@ export default function FreeKick3DGame({ config }) {
 
       updateCameraRig(state.smoothedFrameTime);
       updateAimLine();
+      adaptRendererQuality();
       renderer.render(scene, camera);
       state.animationId = requestAnimationFrame(animate);
     };
@@ -3229,6 +3256,7 @@ export default function FreeKick3DGame({ config }) {
     const onResize = () => {
       const width = host.clientWidth;
       const height = host.clientHeight;
+      renderer.setPixelRatio(state.dynamicPixelRatio);
       renderer.setSize(width, height);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
