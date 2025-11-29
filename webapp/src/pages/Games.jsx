@@ -31,7 +31,7 @@ export default function Games() {
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
       <p className="text-center text-sm text-subtext">Online games are under construction and will be available soon.</p>
       <div className="mx-auto max-w-md rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary text-center">
-        New: Three Pool Royale-inspired snooker tables now selectable right from the lobby.
+        Classic snooker tables from the first build are back in the lobby: Pearl Cream, Charred Timber, and Carbon Midnight.
       </div>
       <div className="space-y-4">
         <div className="relative bg-surface border border-border rounded-xl p-6 shadow-lg overflow-hidden wide-card space-y-4 text-center">
