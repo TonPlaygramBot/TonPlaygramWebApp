@@ -4792,8 +4792,7 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan =
-    SIDE_POCKET_RADIUS + BALL_R * 1.05; // widen the middle pocket guard so balls don't rebound early
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
   const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
@@ -6777,20 +6776,6 @@ function Table3D(
       rimMesh.castShadow = false;
       rimMesh.receiveShadow = false;
       group.add(rimMesh);
-      const clothRimMat = clothEdgeMat.clone();
-      clothRimMat.metalness = 0;
-      clothRimMat.roughness = 1;
-      clothRimMat.clearcoat = 0;
-      clothRimMat.clearcoatRoughness = 1;
-      clothRimMat.envMapIntensity = 0;
-      clothRimMat.sheen = 0;
-      clothRimMat.sheenRoughness = 1;
-      const rimHalo = new THREE.Mesh(rimGeom.clone(), clothRimMat);
-      rimHalo.position.copy(rimMesh.position);
-      rimHalo.position.y += MICRO_EPS * 2;
-      rimHalo.castShadow = false;
-      rimHalo.receiveShadow = true;
-      group.add(rimHalo);
     }
 
     return { group, jawMesh, rimMesh };
@@ -9106,10 +9091,6 @@ function PoolRoyaleGame({
       };
     });
   }, [frameState, isTraining]);
-  useEffect(() => {
-    const expectedTurn = frameState.activePlayer === 'B' ? 1 : 0;
-    setHud((prev) => (prev.turn === expectedTurn ? prev : { ...prev, turn: expectedTurn }));
-  }, [frameState.activePlayer]);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
@@ -13797,7 +13778,7 @@ function PoolRoyaleGame({
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
           const activeBalls = balls.filter((b) => b.active);
           const cuePos = cue.pos.clone();
-          const clearance = BALL_R * (activeVariantId === 'uk' ? 1.05 : 1.45);
+          const clearance = BALL_R * (activeVariantId === 'uk' ? 1.2 : 1.45);
           const clearanceSq = clearance * clearance;
           const ballDiameter = BALL_R * 2;
           const safetyAnchor = new THREE.Vector2(0, baulkZ - D_RADIUS * 0.5);
