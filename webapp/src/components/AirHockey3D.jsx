@@ -1183,16 +1183,16 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         const material = new THREE.MeshBasicMaterial({
           map: texture,
           transparent: true,
-          depthWrite: true,
-          depthTest: true,
+          depthWrite: false,
+          depthTest: false,
           side: THREE.DoubleSide
         });
-        const geometry = new THREE.PlaneGeometry(anchors.size, anchors.size);
+        const geometry = new THREE.PlaneGeometry(anchors.size * 0.86, anchors.size * 0.86);
         const badge = new THREE.Mesh(geometry, material);
         const target = anchors[key];
-        badge.position.set(target.x, target.y, target.z);
+        badge.position.set(target.x, target.y + anchors.size * 0.04, target.z);
         badge.rotation.x = -Math.PI / 2;
-        badge.renderOrder = -5;
+        badge.renderOrder = 20;
         tableGroup.add(badge);
         avatarSpritesRef.current[key] = badge;
       });
