@@ -5657,27 +5657,6 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
-  const pocketStripeWidth = BALL_R * 0.55;
-  const pocketStripeLift = MICRO_EPS * 2.5;
-  pocketPositions.forEach((p, index) => {
-    const innerRadius = POCKET_HOLE_R + MICRO_EPS * 2;
-    const widthScale = index >= 4 ? 1.08 : 1;
-    const outerRadius = innerRadius + pocketStripeWidth * widthScale;
-    const stripeSegments = Math.max(
-      48,
-      Math.ceil((outerRadius * Math.PI * 2) / (BALL_R * 0.75))
-    );
-    const stripe = new THREE.Mesh(
-      new THREE.RingGeometry(innerRadius, outerRadius, stripeSegments),
-      clothMat
-    );
-    stripe.rotation.x = -Math.PI / 2;
-    stripe.position.set(p.x, cloth.position.y + pocketStripeLift, p.y);
-    stripe.renderOrder = cloth.renderOrder + 0.02;
-    stripe.castShadow = false;
-    stripe.receiveShadow = true;
-    table.add(stripe);
-  });
   // Keep the underlay apertures exactly matched to the cloth cutouts so no
   // reflective wood peeks through around the middle pockets.
   const plywoodShape = buildSurfaceShape(POCKET_HOLE_R);
@@ -13388,7 +13367,6 @@ function PoolRoyaleGame({
       // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
-        const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
         const inHandPlacementActive = Boolean(
@@ -13411,6 +13389,7 @@ function PoolRoyaleGame({
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(forcedCueView ? 0 : 1);
         updateCamera();
+        const frameSnapshot = frameRef.current ?? frameState;
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
@@ -13924,12 +13903,10 @@ function PoolRoyaleGame({
               let cueDist = cueVec.length();
               let cushionAid = null;
               if (!directGhostClear) {
-                cushionAid = tryCushionRoute(cuePos, ghost, ignore);
-                if (cushionAid) {
+                if (!directClear) {
+                  cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                  if (!cushionAid) continue;
                   cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
-                  cueDist = cueVec.length();
-                } else if (directClear) {
-                  cueVec = cueToBall.clone();
                   cueDist = cueVec.length();
                 } else {
                   continue;
