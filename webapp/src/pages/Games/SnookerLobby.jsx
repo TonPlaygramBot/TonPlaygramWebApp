@@ -13,14 +13,19 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 
 const FEATURED_TABLES = Object.freeze([
   {
-    id: 'royalWalnut',
-    label: 'Royal Walnut',
-    description: 'Warm walnut rails with brushed brass trim inspired by the Pool Royale flagship table.'
+    id: 'rusticSplit',
+    label: 'Pearl Cream Arena',
+    description: 'Pool Royale pearl-cream rails with satin brass trim and emerald tour cloth.'
   },
   {
-    id: 'royalObsidian',
-    label: 'Royal Obsidian',
-    description: 'Midnight graphite shell with neon edge lighting for a modern arena look.'
+    id: 'charredTimber',
+    label: 'Charred Timber Elite',
+    description: 'Dark roasted planks with bronze trim and the full Pool Royale chrome accents.'
+  },
+  {
+    id: 'jetBlackCarbon',
+    label: 'Carbon Midnight',
+    description: 'Matte carbon fibre shell with smoked chrome plates and neon underglow accents.'
   }
 ]);
 
@@ -137,7 +142,7 @@ export default function SnookerLobby() {
       )}
       <h2 className="text-xl font-bold text-center">3D Snooker Lobby</h2>
       <p className="text-center text-sm text-subtext">
-        Challenge the AI in the brand-new Royal tables inspired by Pool Royale.
+        Play on the original Pool Royale-spec snooker tables restored from the earliest build.
       </p>
       <div className="space-y-2">
         <h3 className="font-semibold">Play Type</h3>
@@ -205,7 +210,7 @@ export default function SnookerLobby() {
         </div>
       ) : (
         <div className="rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-subtext">
-          Training mode skips staking and lets you rehearse on the Royal cloth without deductions.
+          Training mode skips staking and lets you rehearse on the classic cloth without deductions.
         </div>
       )}
       <button
