@@ -153,8 +153,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     hit: null,
     goal: null,
     whistle: null,
-    post: null,
-    crowd: null
+    post: null
   });
   const audioStartedRef = useRef(false);
   const scoreRef = useRef({ left: 0, right: 0 });
@@ -212,7 +211,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     audioRef.current.goal = new Audio('/assets/sounds/a-football-hits-the-net-goal-313216.mp3');
     audioRef.current.whistle = new Audio('/assets/sounds/metal-whistle-6121.mp3');
     audioRef.current.post = new Audio('/assets/sounds/frying-pan-over-the-head-89303.mp3');
-    audioRef.current.crowd = new Audio('/assets/sounds/football-crowd-3-69245.mp3');
 
     const primeAudio = () => {
       const audios = Object.values(audioRef.current).filter(Boolean);
@@ -292,7 +290,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const playGoal = () => {
       const goal = audioRef.current.goal;
-      const crowd = audioRef.current.crowd;
       if (!goal || !audioStartedRef.current) return;
       goal.volume = getGameVolume();
       goal.currentTime = 0;
@@ -301,15 +298,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         goal.pause();
         goal.currentTime = 0;
       }, 2000);
-      if (crowd) {
-        crowd.volume = Math.min(1, getGameVolume() * 0.8);
-        crowd.currentTime = 0;
-        crowd.play().catch(() => {});
-        setTimeout(() => {
-          crowd.pause();
-          crowd.currentTime = 0;
-        }, 2500);
-      }
     };
 
     const recordGoal = (playerScored) => {
@@ -745,7 +733,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroup.add(midLine);
 
     const anchorLift = lineThickness * 1.4 + TABLE.thickness * 0.015;
-    const avatarSize = TABLE.w * 0.36;
+    const avatarSize = TABLE.w * 0.28;
     const ringOffset = TABLE.h * 0.33;
     fieldAnchorsRef.current = {
       ai: { x: 0, y: anchorLift, z: -ringOffset },
@@ -1118,7 +1106,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, size, size);
       ctx.save();
-      const maskRadius = size / 2 - 6;
+      const maskRadius = size / 2 - 10;
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, maskRadius, 0, Math.PI * 2);
       ctx.closePath();
@@ -1132,7 +1120,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         const cropSize = Math.min(image.width, image.height);
         const sx = (image.width - cropSize) / 2;
         const sy = (image.height - cropSize) / 2;
-        ctx.drawImage(image, sx, sy, cropSize, cropSize, 0, 0, size, size);
+        const inset = size * 0.12;
+        ctx.drawImage(
+          image,
+          sx,
+          sy,
+          cropSize,
+          cropSize,
+          inset,
+          inset,
+          size - inset * 2,
+          size - inset * 2
+        );
       } else {
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(0, 0, size, size);
@@ -1187,7 +1186,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           depthTest: false,
           side: THREE.DoubleSide
         });
-        const geometry = new THREE.PlaneGeometry(anchors.size * 0.86, anchors.size * 0.86);
+        const geometry = new THREE.PlaneGeometry(anchors.size * 0.72, anchors.size * 0.72);
         const badge = new THREE.Mesh(geometry, material);
         const target = anchors[key];
         badge.position.set(target.x, target.y + anchors.size * 0.04, target.z);
