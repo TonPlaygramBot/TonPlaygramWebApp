@@ -1,257 +1,239 @@
-<!DOCTYPE html>
+<!doctype html>
+<!--
+Open‑source 3D Chess (Three.js, ES Modules) — ABeautifulGame asset
+• Engine: three.js r159 (MIT)
+• Controls/Loader: OrbitControls.js, GLTFLoader.js from three.js examples (MIT)
+• Model: “A Beautiful Game” chess set (glTF) from KhronosGroup/glTF‑Sample‑Assets (CC‑BY 4.0)
+This is a fresh codebase (different from previous) with ES Module imports and robust multi‑CDN fallback.
+Tone mapping: ACESFilmic, exposure 1.85. +Y up. Mobile orbit + pinch zoom enabled.
+-->
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>Chess Royale</title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard-1.0.0.min.css" integrity="sha512-hPXgC7EIgA6GrCVuVi//3yQt+P52ZS4nVrLOT9eFWx6tEN84ImU8vzBL6Rca2hY6M4ZaChkCGbdJrYzsa3sGdw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-<style>
-  :root{--bg:#050812;--p1:#22c55e;--p2:#f59e0b;}
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{height:100vh;height:100dvh;overscroll-behavior:none;}
-  body{margin:0;background:var(--bg);color:#e5e7eb;font-family:'Luckiest Guy','Comic Sans MS',cursive;overflow:hidden}
-  .ui{position:fixed;inset:0;}
-  .scoreboard{position:absolute;top:10px;left:0;right:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-  .score{background:rgba(11,18,32,0.85);backdrop-filter:blur(8px);border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 12px 32px rgba(0,0,0,0.35);}
-  .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;display:flex;align-items:center;gap:4px;}
-  .p1{background:var(--p1);}
-  .p2{background:var(--p2);}
-  .avatar{width:20px;height:20px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:16px;}
-  .badge.active{outline:2px solid #fff;}
-  .boardWrap{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
-  #board{touch-action:none;}
-  .controls{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(11,18,32,0.9);border:1px solid #233050;border-radius:14px;box-shadow:0 10px 28px rgba(0,0,0,0.38);}
-  .controls button{background:#121d33;color:#fff;border:1px solid #233050;border-radius:10px;padding:8px 12px;font-family:inherit;font-size:16px;cursor:pointer;}
-  .controls button:active{transform:translateY(1px);}
-  .controls label{display:flex;align-items:center;gap:10px;color:#e5e7eb;font-weight:700;}
-  .controls input[type=range]{width:140px;accent-color:#22c55e;}
-  .lobby{position:fixed;inset:0;background:rgba(5,8,18,0.92);display:flex;align-items:center;justify-content:center;z-index:5;}
-  .card{background:#0b1220;border:1px solid #233050;border-radius:16px;padding:20px;max-width:420px;width:calc(100% - 32px);color:#e5e7eb;box-shadow:0 18px 38px rgba(0,0,0,0.45);}
-  .card h1{margin:0 0 6px;font-size:28px;letter-spacing:0.5px;}
-  .card p{margin:0 0 14px;font-size:14px;color:#cbd5e1;}
-  .mode-toggle{display:flex;gap:10px;margin-bottom:12px;}
-  .mode-btn{flex:1;padding:10px;border-radius:12px;border:1px solid #233050;background:#121d33;color:#fff;font-weight:700;cursor:pointer;}
-  .mode-btn.active{border-color:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.35);}
-  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
-  .field label{font-size:13px;color:#cbd5e1;}
-  .field input,.field select{padding:10px;border-radius:10px;border:1px solid #233050;background:#0f1628;color:#fff;font-family:inherit;font-size:15px;}
-  .actions{display:flex;justify-content:flex-end;gap:10px;margin-top:6px;}
-  .primary{background:#22c55e;color:#041204;border:none;padding:10px 16px;border-radius:12px;font-weight:800;cursor:pointer;}
-  .muted{background:#121d33;color:#fff;border:1px solid #233050;padding:10px 12px;border-radius:12px;font-weight:700;cursor:pointer;}
-  .hidden{display:none;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chess Battle Royal — 3D ABeautifulGame set</title>
+  <style>
+    html,body{margin:0;height:100%;overflow:hidden;background:#0b0f16;color:#e8eef7;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    #app{position:fixed;inset:0}
+    canvas{display:block;width:100%;height:100%}
+    .hud{position:fixed;left:10px;top:10px;display:flex;gap:8px;align-items:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);padding:8px 10px;border-radius:10px;font-size:12px;z-index:2}
+    .btn{cursor:pointer;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);color:#e8eef7;padding:6px 10px;border-radius:8px}
+    .btn:active{transform:translateY(1px)}
+    .badge{position:fixed;right:12px;bottom:12px;font-size:12px;padding:6px 10px;border-radius:8px;background:rgba(12,180,75,.15);border:1px solid rgba(12,180,75,.35);color:#c7f7da;z-index:2}
+    .badge.fail{background:rgba(200,20,20,.15);border-color:rgba(200,20,20,.45);color:#ffd8d8}
+    .failbox{position:fixed;inset:0;display:none;place-items:center;text-align:center;padding:24px}
+    .failbox.show{display:grid}
+    .failbox>div{max-width:760px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.18);padding:18px 20px;border-radius:12px}
+    a{color:#9cd1ff}
+    .toolbar{position:fixed;left:10px;bottom:10px;display:flex;gap:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);padding:8px 10px;border-radius:10px;font-size:12px;z-index:2}
+    .toggle{display:inline-flex;align-items:center;gap:6px}
+    input[type="checkbox"]{accent-color:#3fbf7f}
+  </style>
 </head>
 <body>
-<div class="lobby" id="lobby">
-  <div class="card" role="dialog" aria-modal="true">
-    <h1>Chess Battle Royale</h1>
-    <p>Choose how you want to play and make sure your banner is ready for battle.</p>
-    <div class="mode-toggle" role="group" aria-label="Game mode">
-      <button class="mode-btn active" data-mode="online" id="onlineBtn">Play Online</button>
-      <button class="mode-btn" data-mode="ai" id="aiBtn">Play vs AI</button>
-    </div>
-    <div class="field">
-      <label for="playerName">Your name</label>
-      <input id="playerName" maxlength="18" />
-    </div>
-    <div class="field" id="opponentField">
-      <label for="opponentName">Opponent name</label>
-      <input id="opponentName" maxlength="18" />
-    </div>
-    <div class="field hidden" id="flagField">
-      <label for="playerFlag">Choose your flag</label>
-      <select id="playerFlag"></select>
-    </div>
-    <div class="field hidden" id="aiFlagField">
-      <label for="aiFlag">AI banner</label>
-      <select id="aiFlag"></select>
-    </div>
-    <div class="actions">
-      <button class="muted" id="cancelLobby" type="button">Close</button>
-      <button class="primary" id="startBtn" type="button">Start Match</button>
-    </div>
+  <div class="hud">
+    <button id="reset" class="btn">Reset view</button>
+    <span>Drag = orbit · Pinch/Wheel = zoom</span>
   </div>
-</div>
-<div class="ui">
-  <div class="scoreboard">
-    <div class="score" aria-live="polite">
-      <span id="p1" class="badge p1"><span id="p1Avatar" class="avatar"></span><span id="p1Name">P1</span></span>
-      <span>vs</span>
-      <span id="p2" class="badge p2"><span id="p2Avatar" class="avatar"></span><span id="p2Name">P2</span></span>
-    </div>
+  <div id="app"></div>
+  <div id="badge" class="badge">Loading open‑source chess…</div>
+  <div id="fail" class="failbox"><div>
+    <h3>Preview nuk u ngarkua</h3>
+    <p>Skriptet ose modeli nuk u shkarkuan nga CDN‑të. Ky projekt është plotësisht open‑source (Three.js MIT, model “A Beautiful Game” CC‑BY 4.0). Provoje përsëri, ose hap <a href="https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/ABeautifulGame" target="_blank" rel="noopener">burimin e modelit</a>.</p>
+  </div></div>
+  <div class="toolbar">
+    <label class="toggle"><input id="hdr" type="checkbox" checked /> HDR env</label>
+    <label class="toggle"><input id="focus" type="checkbox" /> Focus highlight</label>
+    <label class="toggle"><input id="turn" type="checkbox" /> Turntable</label>
   </div>
-  <div class="boardWrap">
-    <div id="board"></div>
-  </div>
-  <div class="controls" aria-label="Zoom controls">
-    <button id="zoomOut" aria-label="Zoom out">−</button>
-    <label>Zoom <input type="range" id="zoom" min="70" max="140" step="1" value="100"></label>
-    <button id="zoomIn" aria-label="Zoom in">+</button>
-  </div>
-</div>
-<script src="/flag-emojis.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/1.0.0/chess.min.js" integrity="sha512-XQKnNVuMcZV8K4D4ew3Efr2E1VlzDq+W8sELpAo0P5NdQ4KJIp4jOSAmhpN6wX6Z1GDZCBoBPXaGNsq4CPGKiw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard.js/1.0.0/chessboard-1.0.0.min.js" integrity="sha512-Q4G/n2xbYlR5c+EMF4iAfDdc0AGJi/7luWGINuD/7++UZ5EKeosFVJeFt3uTJS3BM4tiTn84qOD/4hE2lE8pzw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script>
-  const params = new URLSearchParams(location.search);
-  const p1NameEl = document.getElementById('p1Name');
-  const p2NameEl = document.getElementById('p2Name');
-  const p1AvatarEl = document.getElementById('p1Avatar');
-  const p2AvatarEl = document.getElementById('p2Avatar');
-  const p1Badge = document.getElementById('p1');
-  const p2Badge = document.getElementById('p2');
-  const lobby = document.getElementById('lobby');
-  const onlineBtn = document.getElementById('onlineBtn');
-  const aiBtn = document.getElementById('aiBtn');
-  const playerNameInput = document.getElementById('playerName');
-  const opponentNameInput = document.getElementById('opponentName');
-  const playerFlagSelect = document.getElementById('playerFlag');
-  const aiFlagSelect = document.getElementById('aiFlag');
-  const flagField = document.getElementById('flagField');
-  const aiFlagField = document.getElementById('aiFlagField');
-  const opponentField = document.getElementById('opponentField');
-  const startBtn = document.getElementById('startBtn');
-  const cancelLobby = document.getElementById('cancelLobby');
-  const zoomInput = document.getElementById('zoom');
-  const zoomOutBtn = document.getElementById('zoomOut');
-  const zoomInBtn = document.getElementById('zoomIn');
-  const boardEl = document.getElementById('board');
 
-  const game = new Chess();
-  let aiMode = false;
-  let zoomLevel = 1;
+  <script type="module">
+  const badge = document.getElementById('badge');
+  const failBox = document.getElementById('fail');
+  let MODEL_LOADED=false;
 
-  const board = Chessboard('board', {
-    position: 'start',
-    draggable: true,
-    onDragStart: (source, piece) => {
-      if (game.game_over()) return false;
-      if ((game.turn() === 'w' && piece.startsWith('b')) || (game.turn() === 'b' && piece.startsWith('w'))) return false;
-    },
-    onDrop: (source, target) => {
-      const move = game.move({ from: source, to: target, promotion: 'q' });
-      if (move === null) return 'snapback';
-      board.position(game.fen());
-      updateTurn();
-      if(aiMode && game.turn()==='b' && !game.game_over()){
-        setTimeout(makeAiMove, 260);
-      }
+  // ESM CDN fallbacks (prefer ESM CDNs first)
+  const THREE_URLS = [
+    'https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js',
+    'https://unpkg.com/three@0.159.0/build/three.module.js',
+    'https://esm.sh/three@0.159.0',
+    'https://cdn.skypack.dev/three@0.159.0'
+  ];
+  const ORBIT_URLS = [
+    'https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js',
+    'https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js',
+    'https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js',
+    'https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'
+  ];
+  const GLTF_URLS = [
+    'https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js',
+    'https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js',
+    'https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js',
+    'https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'
+  ];
+
+  // ABeautifulGame (glTF JSON with external BIN & textures) — use mirrors
+  const MODEL_URLS = [
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+    'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  ];
+
+  const HDRI_URLS = [
+    // Royal Esplanade (three.js examples) — optional
+    'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/royal_esplanade_1k.hdr',
+    'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/equirectangular/royal_esplanade_1k.hdr'
+  ];
+
+  async function tryUrls(urls, importer){
+    let lastErr; for(const u of urls){
+      try{ const v = await importer(u); return v; }catch(e){ lastErr=e; }
     }
-  });
+    throw lastErr || new Error('All attempts failed');
+  }
 
-  function setAvatar(el,param){
-    if(typeof param === 'string' && (param.startsWith('http') || param.startsWith('/'))){
-      el.style.backgroundImage = `url(${param})`;
-      el.textContent='';
-    }else{
-      el.style.backgroundImage = '';
-      el.textContent=param || '';
+  (async function boot(){
+    try{
+      badge.textContent = 'Importing three.module.js…';
+      const THREE_NS = await tryUrls(THREE_URLS, u=>import(u));
+
+      // Clone namespace to a mutable object to avoid "object not extensible" errors
+      const THREE = Object.assign({}, THREE_NS);
+      window.THREE = THREE;
+      if(THREE.REVISION && THREE.REVISION!=='159') console.warn('Three.js revision', THREE.REVISION);
+
+      badge.textContent = 'Importing OrbitControls & GLTFLoader…';
+      const { OrbitControls } = await tryUrls(ORBIT_URLS, u=>import(u));
+      const { GLTFLoader }  = await tryUrls(GLTF_URLS, u=>import(u));
+      THREE.OrbitControls = OrbitControls; // attach to mutable clone
+      THREE.GLTFLoader   = GLTFLoader;
+
+      badge.textContent = 'Starting scene…';
+      start(THREE);
+    }catch(e){
+      console.error(e);
+      badge.textContent = 'Init failed';
+      badge.classList.add('fail');
+      failBox.classList.add('show');
     }
-  }
+  })();
 
-  function updateTurn(){
-    if(game.turn()==='w'){
-      p1Badge.classList.add('active');
-      p2Badge.classList.remove('active');
-    }else{
-      p2Badge.classList.add('active');
-      p1Badge.classList.remove('active');
+  function start(THREE){
+    const app = document.getElementById('app');
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping; // ACES
+    renderer.toneMappingExposure = 1.85;
+    renderer.shadowMap.enabled = true;
+    app.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f16);
+
+    const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 2000);
+    camera.position.set(10, 12, 18);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true; controls.dampingFactor = 0.06;
+    controls.minDistance = 6; controls.maxDistance = 60; controls.target.set(0,2,0); controls.update();
+
+    // Three‑point lighting
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35); scene.add(ambient);
+    const key = new THREE.DirectionalLight(0xffffff, 1.2); key.position.set(12,16,10); key.castShadow = true; scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.6); fill.position.set(-10,8,4); scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.9); rim.position.set(0,10,-12); scene.add(rim);
+
+    // Ground plane for contact shadows
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(140,140),
+      new THREE.MeshStandardMaterial({ color: 0x0a0d12, roughness: 0.9, metalness: 0.0 })
+    );
+    ground.rotation.x = -Math.PI/2; ground.receiveShadow = true; scene.add(ground);
+
+    // Optional HDRI environment toggle
+    const hdrToggle = document.getElementById('hdr');
+    let hdrTex=null;
+    async function setHDR(on){
+      if(!on){ scene.environment=null; renderer.toneMappingExposure=1.85; return; }
+      try{
+        const { RGBELoader } = await import('https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/RGBELoader.js');
+        const url = await tryUrls(HDRI_URLS, u=>fetch(u,{mode:'cors'}).then(r=>r.ok?u:Promise.reject(new Error('hdr fetch fail'))));
+        const l = new RGBELoader();
+        hdrTex = await new Promise((res,rej)=> l.load(url, res, undefined, rej));
+        hdrTex.mapping = THREE.EquirectangularReflectionMapping;
+        scene.environment = hdrTex;
+        renderer.toneMappingExposure = 1.35;
+      }catch(e){ console.warn('HDRI failed', e); }
     }
-    if(game.game_over()){
-      setTimeout(()=>alert('Game over'),10);
+    setHDR(true); hdrToggle.addEventListener('change', e=>setHDR(e.target.checked));
+
+    // Load the chess model (glTF JSON + external resources)
+    const loader = new THREE.GLTFLoader();
+    (async()=>{
+      try{
+        badge.textContent = 'Downloading ABeautifulGame (glTF)…';
+        const modelUrl = await tryUrls(MODEL_URLS, u=>new Promise((res,rej)=>loader.load(u,()=>res(u),undefined,rej)));
+        badge.textContent = 'Model URL OK: '+modelUrl;
+        loader.load(modelUrl, (gltf)=>{
+          const root = gltf.scene; root.traverse(o=>{ if(o.isMesh){ o.castShadow = true; o.receiveShadow = true; }});
+          // Center & scale to nice view
+          const box = new THREE.Box3().setFromObject(root); const size=new THREE.Vector3(); box.getSize(size); const center=new THREE.Vector3(); box.getCenter(center);
+          const s = 0.85 * (12 / Math.max(size.x, size.z));
+          root.scale.setScalar(s);
+          root.position.sub(center.multiplyScalar(s));
+          root.position.y = 0.02;
+          scene.add(root);
+          MODEL_LOADED=true;
+          badge.textContent = 'Loaded: ABeautifulGame (CC‑BY 4.0)';
+        }, undefined, (err)=>{ throw err; });
+      }catch(e){ console.error(e); badge.textContent='Model failed'; badge.classList.add('fail'); failBox.classList.add('show'); }
+    })();
+
+    // Picking/highlight (optional)
+    const focusToggle = document.getElementById('focus');
+    const ray = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let lastPick=null, lastMat=null; let highlightOn=false;
+    function onPointer(ev){ if(!highlightOn) return; const rect=renderer.domElement.getBoundingClientRect(); const x=(ev.clientX-rect.left)/rect.width; const y=(ev.clientY-rect.top)/rect.height; mouse.set(x*2-1, -(y*2-1)); ray.setFromCamera(mouse, camera); const hits = ray.intersectObjects(scene.children, true); if(hits.length){ const m = hits[0].object; if(lastPick!==m){ if(lastPick){ lastPick.material=lastMat; lastPick=null; } lastPick=m; lastMat=m.material; m.material = lastMat.clone(); m.material.emissive = new THREE.Color(0x88ffcc); m.material.emissiveIntensity=0.4; } } }
+    focusToggle.addEventListener('change', e=>{ highlightOn=e.target.checked; if(!highlightOn && lastPick){ lastPick.material=lastMat; lastPick=null; } });
+    addEventListener('pointermove', onPointer);
+
+    // Turntable animation toggle
+    const turnToggle = document.getElementById('turn');
+    let spin=false; turnToggle.addEventListener('change', e=>{ spin=e.target.checked; });
+
+    function resize(){
+      renderer.setSize(innerWidth, innerHeight);
+      camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
     }
-  }
+    addEventListener('resize', resize);
 
-  function makeAiMove(){
-    if(!aiMode || game.game_over() || game.turn()!=='b') return;
-    const moves = game.moves({ verbose:true });
-    if(!moves.length) return updateTurn();
-    const captures = moves.filter(m => m.flags && m.flags.includes('c'));
-    const move = (captures.length ? captures : moves)[Math.floor(Math.random()* (captures.length ? captures.length : moves.length))];
-    game.move(move);
-    board.position(game.fen());
-    updateTurn();
-  }
-
-  function applyBoardSize(){
-    const base = Math.min(window.innerWidth, window.innerHeight);
-    const size = Math.max(220, Math.round(base * zoomLevel));
-    boardEl.style.width = boardEl.style.height = size + 'px';
-    board.resize();
-  }
-
-  function clampZoom(val){
-    zoomLevel = Math.min(1.4, Math.max(0.7, val));
-    zoomInput.value = Math.round(zoomLevel*100);
-    applyBoardSize();
-  }
-
-  zoomInput.addEventListener('input', (e)=>{
-    clampZoom(Number(e.target.value)/100);
-  });
-  zoomOutBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 - 8)/100));
-  zoomInBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 + 8)/100));
-  window.addEventListener('resize', applyBoardSize);
-
-  function populateFlags(){
-    const flags = (window.FLAG_EMOJIS || ['😀','🤖']).slice();
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Pick a flag';
-    [playerFlagSelect, aiFlagSelect].forEach(sel => {
-      sel.innerHTML='';
-      sel.appendChild(defaultOption.cloneNode(true));
-      flags.forEach(f=>{
-        const o=document.createElement('option');
-        o.value=o.textContent=f;
-        sel.appendChild(o);
-      });
+    document.getElementById('reset').addEventListener('click', ()=>{
+      camera.position.set(10,12,18); controls.target.set(0,2,0); controls.update();
     });
+
+    (function loop(){
+      requestAnimationFrame(loop);
+      if(spin){ camera.position.applyAxisAngle(new THREE.Vector3(0,1,0), 0.003); controls.update(); }
+      controls.update(); renderer.render(scene, camera);
+    })();
+
+    // ===== Tests (leave logic intact; add a couple more) =====
+    try{
+      if(!window.THREE) throw new Error('THREE not found');
+      if(THREE.REVISION && THREE.REVISION !== '159') throw new Error('Unexpected THREE revision: '+THREE.REVISION);
+      if(!THREE.OrbitControls) throw new Error('OrbitControls not found');
+      if(!THREE.GLTFLoader) throw new Error('GLTFLoader not found');
+      if(!Object.isExtensible(THREE)) throw new Error('THREE object is not extensible');
+      if(renderer.getContext() == null) throw new Error('WebGL context missing');
+      const lights = scene.children.filter(o=>o.isLight).length; if(lights<3) throw new Error('Lights missing');
+      // async test for model within timeout
+      setTimeout(()=>{ if(!MODEL_LOADED){ badge.textContent='Tests failed: model not loaded (network/CDN blocked)'; badge.classList.add('fail'); } }, 9000);
+      badge.textContent = 'Ready';
+    }catch(err){ badge.textContent = 'Tests failed: '+err.message; badge.classList.add('fail'); }
   }
-
-  function setMode(mode){
-    aiMode = mode==='ai';
-    onlineBtn.classList.toggle('active', !aiMode);
-    aiBtn.classList.toggle('active', aiMode);
-    flagField.classList.toggle('hidden', !aiMode);
-    aiFlagField.classList.toggle('hidden', !aiMode);
-    opponentField.classList.toggle('hidden', aiMode);
-  }
-
-  function startMatch(){
-    const name = playerNameInput.value.trim() || 'Player 1';
-    const opponentName = aiMode ? 'Grandmaster AI' : (opponentNameInput.value.trim() || 'Online Rival');
-    const playerFlag = aiMode ? (playerFlagSelect.value || '😀') : (params.get('avatar') || '😀');
-    const opponentFlag = aiMode ? (aiFlagSelect.value || '🤖') : (opponentNameInput.value.trim() ? '🛡️' : (params.get('p2Avatar') || '🤖'));
-    p1NameEl.textContent = name;
-    p2NameEl.textContent = opponentName;
-    setAvatar(p1AvatarEl, playerFlag);
-    setAvatar(p2AvatarEl, opponentFlag);
-    lobby.classList.add('hidden');
-    game.reset();
-    board.start();
-    updateTurn();
-    applyBoardSize();
-  }
-
-  function hydrateDefaults(){
-    playerNameInput.value = params.get('name') || 'Player 1';
-    opponentNameInput.value = params.get('p2Name') || 'Player 2';
-    populateFlags();
-  }
-
-  onlineBtn.addEventListener('click', ()=> setMode('online'));
-  aiBtn.addEventListener('click', ()=> setMode('ai'));
-  startBtn.addEventListener('click', startMatch);
-  cancelLobby.addEventListener('click', ()=> lobby.classList.add('hidden'));
-
-  hydrateDefaults();
-  setMode('online');
-  applyBoardSize();
-  updateTurn();
-</script>
+  </script>
 </body>
 </html>
