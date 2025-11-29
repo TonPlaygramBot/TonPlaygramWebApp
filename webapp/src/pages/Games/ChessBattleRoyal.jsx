@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -250,6 +251,23 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
+const ABEAUTIFUL_GAME_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+];
+const PIECE_KEYWORDS = {
+  P: ['pawn'],
+  R: ['rook'],
+  N: ['knight', 'horse'],
+  B: ['bishop'],
+  Q: ['queen'],
+  K: ['king']
+};
+const PIECE_COLORS = {
+  white: ['white', 'light'],
+  black: ['black', 'dark']
+};
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -278,6 +296,155 @@ const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
+
+async function tryUrls(urls, loader) {
+  let lastError;
+  for (const url of urls) {
+    try {
+      const value = await loader(url);
+      return value;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('All URL attempts failed');
+}
+
+function cloneWithFreshMaterials(object) {
+  const clone = object.clone(true);
+  clone.traverse((child) => {
+    if (child.isMesh) {
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map((mat) => mat?.clone?.() || mat);
+      } else if (child.material) {
+        child.material = child.material.clone?.() || child.material;
+      }
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+  return clone;
+}
+
+function applyPieceMaterialSet(object, materialSet) {
+  object.traverse((child) => {
+    if (!child.isMesh) return;
+    const wantsAccent = child.userData?.__pieceMaterialRole === 'accent';
+    const targetMaterial = wantsAccent && materialSet.accent ? materialSet.accent : materialSet.base;
+    if (targetMaterial) child.material = targetMaterial;
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+}
+
+function prepareTemplateMesh(mesh, targetHeight) {
+  const clone = cloneWithFreshMaterials(mesh);
+  const box = new THREE.Box3().setFromObject(clone);
+  const size = box.getSize(new THREE.Vector3());
+  const center = box.getCenter(new THREE.Vector3());
+  clone.position.sub(center);
+  if (targetHeight && size.y > 1e-4) {
+    const scale = targetHeight / size.y;
+    clone.scale.setScalar(scale);
+  }
+  return clone;
+}
+
+function pickByKeywords(meshes, keywords = [], colorKeywords = []) {
+  const lowerKeywords = keywords.map((k) => k.toLowerCase());
+  const lowerColors = colorKeywords.map((k) => k.toLowerCase());
+  const matchScore = (name) => {
+    const lower = (name || '').toLowerCase();
+    const keywordHit = lowerKeywords.some((k) => lower.includes(k));
+    const colorHit = lowerColors.length === 0 || lowerColors.some((k) => lower.includes(k));
+    return keywordHit && colorHit;
+  };
+  return (
+    meshes.find((m) => matchScore(m.name)) ||
+    meshes.find((m) => lowerKeywords.some((k) => (m.name || '').toLowerCase().includes(k))) ||
+    null
+  );
+}
+
+function prepareChessTemplates(scene, targetHeights = {}) {
+  const meshes = [];
+  scene.traverse((child) => {
+    if (child.isMesh) meshes.push(child);
+  });
+
+  const boardCandidate =
+    pickByKeywords(meshes, ['board', 'chessboard']) ||
+    meshes.reduce(
+      (acc, mesh) => {
+        const box = new THREE.Box3().setFromObject(mesh);
+        const size = box.getSize(new THREE.Vector3());
+        const area = size.x * size.z;
+        if (!acc || area > acc.area) return { mesh, area };
+        return acc;
+      },
+      null
+    )?.mesh;
+
+  const board = boardCandidate
+    ? (() => {
+        const clone = cloneWithFreshMaterials(boardCandidate);
+        const box = new THREE.Box3().setFromObject(clone);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const maxSide = Math.max(size.x || 1, size.z || 1);
+        const scale = RAW_BOARD_SIZE / maxSide;
+        clone.position.sub(center.multiplyScalar(scale));
+        clone.scale.setScalar(scale);
+        return clone;
+      })()
+    : null;
+
+  const pieceTemplates = { white: {}, black: {} };
+  Object.entries(PIECE_KEYWORDS).forEach(([key, names]) => {
+    const whiteMesh = pickByKeywords(meshes, names, PIECE_COLORS.white);
+    const blackMesh = pickByKeywords(meshes, names, PIECE_COLORS.black);
+    const fallback = pickByKeywords(meshes, names, []);
+    const targetHeight = targetHeights[key];
+    pieceTemplates.white[key] = whiteMesh
+      ? prepareTemplateMesh(whiteMesh, targetHeight)
+      : fallback
+        ? prepareTemplateMesh(fallback, targetHeight)
+        : null;
+    pieceTemplates.black[key] = blackMesh
+      ? prepareTemplateMesh(blackMesh, targetHeight)
+      : fallback
+        ? prepareTemplateMesh(fallback, targetHeight)
+        : null;
+  });
+
+  return { board, pieces: pieceTemplates };
+}
+
+let cachedChessTemplates = null;
+let chessTemplatePromise = null;
+
+async function loadChessTemplates(targetHeights = {}) {
+  if (cachedChessTemplates) return cachedChessTemplates;
+  if (!chessTemplatePromise) {
+    const loader = new GLTFLoader();
+    chessTemplatePromise = tryUrls(ABEAUTIFUL_GAME_URLS, (url) => {
+      return new Promise((resolve, reject) => {
+        loader.load(url, resolve, undefined, reject);
+      });
+    })
+      .then((gltf) => prepareChessTemplates(gltf.scene, targetHeights))
+      .then((templates) => {
+        cachedChessTemplates = templates;
+        return templates;
+      })
+      .catch((error) => {
+        console.warn('Failed to load ABeautifulGame chess set', error);
+        chessTemplatePromise = null;
+        throw error;
+      });
+  }
+  return chessTemplatePromise;
+}
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '84%' },
@@ -2198,6 +2365,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let renderer = null;
     let controls = null;
     let ray = null;
+    let cancelled = false;
     const seatWorld = new THREE.Vector3();
     const seatNdc = new THREE.Vector3();
     const capturedByWhite = [];
@@ -2761,6 +2929,60 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         if (p) placePieceMesh(r, c, p);
       }
 
+    const pieceReferenceHeights = {};
+    const sizeVec = new THREE.Vector3();
+    const boxHelper = new THREE.Box3();
+    allPieceMeshes.forEach((mesh) => {
+      const type = mesh?.userData?.t;
+      if (!type || pieceReferenceHeights[type]) return;
+      const size = boxHelper.setFromObject(mesh).getSize(sizeVec);
+      pieceReferenceHeights[type] = size.y / BOARD_SCALE;
+    });
+
+    loadChessTemplates(pieceReferenceHeights)
+      .then((templates) => {
+        if (cancelled || !templates) return;
+        if (templates.board) {
+          const boardModel = cloneWithFreshMaterials(templates.board);
+          const boardBox = new THREE.Box3().setFromObject(boardModel);
+          const targetTop = BOARD.baseH + 0.12;
+          boardModel.position.y = targetTop - boardBox.max.y;
+          boardGroup.add(boardModel);
+          base.visible = false;
+          top.visible = false;
+          tiles.forEach((tileMesh) => {
+            tileMesh.material.transparent = true;
+            tileMesh.material.opacity = 0.0001;
+            tileMesh.material.depthWrite = false;
+          });
+        }
+
+        const templatesByColor = templates.pieces || {};
+        const updatedMeshes = [];
+        for (let r = 0; r < 8; r += 1) {
+          for (let c = 0; c < 8; c += 1) {
+            const piece = board[r][c];
+            const currentMesh = pieceMeshes[r][c];
+            if (!piece || !currentMesh) continue;
+            const template = templatesByColor[piece.w ? 'white' : 'black']?.[piece.t];
+            if (!template) continue;
+            const replacement = cloneWithFreshMaterials(template);
+            applyPieceMaterialSet(replacement, piece.w ? pieceMaterials.white : pieceMaterials.black);
+            replacement.userData = { ...(currentMesh.userData || {}), type: 'piece' };
+            replacement.position.copy(currentMesh.position);
+            replacement.rotation.copy(currentMesh.rotation);
+            boardGroup.add(replacement);
+            boardGroup.remove(currentMesh);
+            pieceMeshes[r][c] = replacement;
+            updatedMeshes.push(replacement);
+          }
+        }
+        if (updatedMeshes.length) {
+          allPieceMeshes.splice(0, allPieceMeshes.length, ...updatedMeshes);
+        }
+      })
+      .catch((error) => console.warn('Falling back to procedural chess set', error));
+
       arenaRef.current = {
         renderer,
         scene,
@@ -3139,6 +3361,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     startTimer(true);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', onResize);
       clearInterval(timerRef.current);
