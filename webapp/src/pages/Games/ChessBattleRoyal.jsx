@@ -289,6 +289,7 @@ const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
+const PIECE_Y = 1.2; // baseline height for meshes
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
@@ -1346,6 +1347,203 @@ function disposePieceMaterials(materials) {
     }
   });
 }
+
+// =============== Materials & simple builders ===============
+function ensureMaterial(input, defaults = {}) {
+  if (input instanceof THREE.Material) return input;
+  const { roughness = 0.82, metalness = 0.12 } = defaults;
+  return new THREE.MeshStandardMaterial({ color: input, roughness, metalness });
+}
+const box = (w, h, d, material, opts = {}) =>
+  new THREE.Mesh(new THREE.BoxGeometry(w, h, d), ensureMaterial(material, opts));
+const cyl = (rt, rb, h, material, seg = 24, opts = {}) =>
+  new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), ensureMaterial(material, opts));
+const sph = (r, material, seg = 20, opts = {}) =>
+  new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), ensureMaterial(material, { roughness: opts.roughness ?? 0.6, metalness: opts.metalness ?? 0.05 }));
+const cone = (r, h, material, seg = 24, opts = {}) =>
+  new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), ensureMaterial(material, opts));
+const torus = (r, tube, material, arc = Math.PI * 2, opts = {}) =>
+  new THREE.Mesh(new THREE.TorusGeometry(r, tube, 12, 28, arc), ensureMaterial(material, opts));
+
+function tagPieceMesh(mesh, role = 'base') {
+  if (!mesh) return mesh;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { ...(mesh.userData || {}), __pieceMaterialRole: role };
+  return mesh;
+}
+
+// ======================= Piece shapes =======================
+function buildPawn(materials = {}) {
+  const baseMat = materials.base;
+  const g = new THREE.Group();
+  const foot = tagPieceMesh(cyl(1.35, 1.55, 0.45, baseMat));
+  foot.position.y = PIECE_Y;
+  g.add(foot);
+  const shank = tagPieceMesh(cyl(1.15, 0.95, 1.2, baseMat));
+  shank.position.y = PIECE_Y + 0.95;
+  g.add(shank);
+  const collar = tagPieceMesh(torus(0.95, 0.13, baseMat));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = PIECE_Y + 1.75;
+  g.add(collar);
+  const head = tagPieceMesh(sph(0.72, baseMat));
+  head.position.y = PIECE_Y + 2.35;
+  g.add(head);
+  return g;
+}
+
+function buildRook(materials = {}) {
+  const baseMat = materials.base;
+  const g = new THREE.Group();
+  const foot = tagPieceMesh(cyl(1.35, 1.7, 0.55, baseMat));
+  foot.position.y = PIECE_Y;
+  g.add(foot);
+  const body = tagPieceMesh(cyl(1.2, 1.3, 2.15, baseMat));
+  body.position.y = PIECE_Y + 1.42;
+  g.add(body);
+  const belt = tagPieceMesh(torus(1.05, 0.12, baseMat));
+  belt.rotation.x = Math.PI / 2;
+  belt.position.y = PIECE_Y + 1.95;
+  g.add(belt);
+  const crown = new THREE.Group();
+  const ring = tagPieceMesh(cyl(1.25, 1.1, 0.35, baseMat));
+  ring.position.y = PIECE_Y + 2.6;
+  crown.add(ring);
+  const crenels = 4;
+  for (let i = 0; i < crenels; i++) {
+    const chunk = tagPieceMesh(box(0.5, 0.55, 0.5, baseMat));
+    const angle = i * ((Math.PI * 2) / crenels);
+    chunk.position.set(Math.cos(angle) * 0.8, PIECE_Y + 2.95, Math.sin(angle) * 0.8);
+    crown.add(chunk);
+  }
+  g.add(crown);
+  return g;
+}
+
+function buildKnight(materials = {}) {
+  const baseMat = materials.base;
+  const g = new THREE.Group();
+  const foot = tagPieceMesh(cyl(1.35, 1.65, 0.55, baseMat));
+  foot.position.y = PIECE_Y;
+  g.add(foot);
+  const body = tagPieceMesh(cyl(1.0, 1.25, 1.65, baseMat));
+  body.position.y = PIECE_Y + 1.15;
+  g.add(body);
+  const head = new THREE.Group();
+  const neck = tagPieceMesh(cyl(0.75, 0.95, 0.9, baseMat));
+  neck.rotation.z = 0.18;
+  neck.position.set(0.05, PIECE_Y + 2.05, 0.25);
+  head.add(neck);
+  const face = tagPieceMesh(box(1.05, 1.15, 0.7, baseMat));
+  face.position.set(0.15, PIECE_Y + 2.75, 0.35);
+  head.add(face);
+  const muzzle = tagPieceMesh(box(0.7, 0.45, 0.7, baseMat));
+  muzzle.position.set(0.35, PIECE_Y + 3.05, 0.4);
+  head.add(muzzle);
+  const ear1 = tagPieceMesh(cone(0.22, 0.45, baseMat));
+  ear1.position.set(0.4, PIECE_Y + 3.25, 0.05);
+  head.add(ear1);
+  const ear2 = tagPieceMesh(cone(0.22, 0.45, baseMat));
+  ear2.position.set(-0.05, PIECE_Y + 3.2, 0.05);
+  head.add(ear2);
+  const mane = tagPieceMesh(box(0.25, 1.3, 0.95, baseMat));
+  mane.position.set(-0.35, PIECE_Y + 2.55, -0.05);
+  head.add(mane);
+  g.add(head);
+  return g;
+}
+
+function buildBishop(materials = {}) {
+  const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
+  const g = new THREE.Group();
+  const foot = tagPieceMesh(cyl(1.25, 1.7, 0.55, baseMat));
+  foot.position.y = PIECE_Y;
+  g.add(foot);
+  const body = tagPieceMesh(cyl(0.95, 1.15, 2.2, baseMat));
+  body.position.y = PIECE_Y + 1.35;
+  g.add(body);
+  const collar = tagPieceMesh(torus(0.9, 0.12, baseMat));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = PIECE_Y + 2.1;
+  g.add(collar);
+  const mitre = tagPieceMesh(cone(0.95, 1.35, baseMat));
+  mitre.position.y = PIECE_Y + 2.5;
+  g.add(mitre);
+  const slit = tagPieceMesh(box(0.12, 0.9, 0.28, accentMat), 'accent');
+  slit.position.y = PIECE_Y + 2.55;
+  g.add(slit);
+  return g;
+}
+
+function buildQueen(materials = {}) {
+  const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
+  const g = new THREE.Group();
+  const base = tagPieceMesh(cyl(1.45, 1.9, 0.6, baseMat));
+  base.position.y = PIECE_Y;
+  g.add(base);
+  const midBase = tagPieceMesh(cyl(1.35, 1.55, 0.45, baseMat));
+  midBase.position.y = PIECE_Y + 0.6;
+  g.add(midBase);
+  const body = tagPieceMesh(cyl(1.08, 1.28, 2.45, baseMat));
+  body.position.y = PIECE_Y + 1.8;
+  g.add(body);
+  const crown = new THREE.Group();
+  const ring = tagPieceMesh(cyl(1.25, 1.15, 0.32, accentMat), 'accent');
+  ring.position.y = PIECE_Y + 3.15;
+  crown.add(ring);
+  const spikes = 8;
+  for (let i = 0; i < spikes; i++) {
+    const spike = tagPieceMesh(cone(0.16, 0.65, accentMat), 'accent');
+    const angle = i * ((Math.PI * 2) / spikes);
+    spike.position.set(Math.cos(angle) * 0.95, PIECE_Y + 3.65, Math.sin(angle) * 0.95);
+    spike.rotation.x = -Math.PI / 2;
+    crown.add(spike);
+  }
+  const orb = tagPieceMesh(sph(0.28, accentMat), 'accent');
+  orb.position.y = PIECE_Y + 4.05;
+  crown.add(orb);
+  g.add(crown);
+  return g;
+}
+
+function buildKing(materials = {}) {
+  const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
+  const g = new THREE.Group();
+  const base = tagPieceMesh(cyl(1.45, 1.95, 0.6, baseMat));
+  base.position.y = PIECE_Y;
+  g.add(base);
+  const body = tagPieceMesh(cyl(1.12, 1.32, 2.85, baseMat));
+  body.position.y = PIECE_Y + 1.9;
+  g.add(body);
+  const collar = tagPieceMesh(torus(1.05, 0.12, baseMat));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = PIECE_Y + 2.6;
+  g.add(collar);
+  const orb = tagPieceMesh(sph(0.58, accentMat), 'accent');
+  orb.position.y = PIECE_Y + 3.25;
+  g.add(orb);
+  const crossV = tagPieceMesh(box(0.22, 0.95, 0.22, accentMat), 'accent');
+  crossV.position.y = PIECE_Y + 3.95;
+  g.add(crossV);
+  const crossH = tagPieceMesh(box(0.95, 0.22, 0.22, accentMat), 'accent');
+  crossH.position.y = PIECE_Y + 3.95;
+  g.add(crossH);
+  return g;
+}
+
+// Map to builder
+const BUILDERS = {
+  P: buildPawn,
+  R: buildRook,
+  N: buildKnight,
+  B: buildBishop,
+  Q: buildQueen,
+  K: buildKing
+};
 
 // ======================= Game logic ========================
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
@@ -3039,6 +3237,40 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let board = parseFEN(START_FEN);
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
+
+    function placePieceMesh(r, c, p) {
+      const materialSet = p.w ? pieceMaterials.white : pieceMaterials.black;
+      const b = BUILDERS[p.t](materialSet);
+      b.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
+      const styleId = pieceStyleOption?.id ?? 'default';
+      b.userData = {
+        r,
+        c,
+        w: p.w,
+        t: p.t,
+        type: 'piece',
+        __pieceColor: p.w ? 'white' : 'black',
+        __pieceStyleId: styleId
+      };
+      b.traverse((child) => {
+        if (child.isMesh) {
+          child.userData = {
+            ...(child.userData || {}),
+            __pieceColor: p.w ? 'white' : 'black',
+            __pieceStyleId: styleId
+          };
+        }
+      });
+      boardGroup.add(b);
+      pieceMeshes[r][c] = b;
+      allPieceMeshes.push(b);
+    }
+
+    for (let r = 0; r < 8; r++)
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c];
+        if (p) placePieceMesh(r, c, p);
+      }
 
     beautifulGamePromise.then(({ boardModel, piecePrototypes }) => {
       if (cancelled) return;
