@@ -69,6 +69,12 @@ const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 
 const DEFAULT_PLAYER_COUNT = 4;
+const clampPlayerCount = (value) =>
+  clamp(
+    Number.isFinite(value) ? Math.floor(value) : DEFAULT_PLAYER_COUNT,
+    1,
+    DEFAULT_PLAYER_COUNT
+  );
 const CUSTOM_CHAIR_ANGLES = [
   THREE.MathUtils.degToRad(90),
   THREE.MathUtils.degToRad(315),
@@ -1545,7 +1551,7 @@ function clearTokenHighlight(token) {
   setTokenHighlight(token, false);
 }
 
-function Ludo3D({ avatar, username, aiFlagOverrides }) {
+function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const zoomRef = useRef({});
@@ -1566,6 +1572,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   const turnAdvanceTimeoutRef = useRef(null);
   const humanSelectionRef = useRef(null);
   const fitRef = useRef(() => {});
+  const activePlayerCount = useMemo(() => clampPlayerCount(playerCount), [playerCount]);
+  const aiSlots = Math.max(0, activePlayerCount - 1);
+  const aiOpponentCount = useMemo(
+    () => clamp(Math.floor(aiCount ?? aiSlots), 0, aiSlots),
+    [aiCount, aiSlots]
+  );
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const settingsRef = useRef({ soundEnabled: true });
@@ -1594,21 +1606,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   });
 
   const playerColorsHex = useMemo(
-    () => PLAYER_COLORS.map((value) => colorNumberToHex(value)),
-    []
+    () => PLAYER_COLORS.slice(0, activePlayerCount).map((value) => colorNumberToHex(value)),
+    [activePlayerCount]
   );
 
   const aiFlags = useMemo(() => {
     const base = Array.isArray(aiFlagOverrides) ? aiFlagOverrides.filter(Boolean) : [];
     const pool = [...base];
-    while (pool.length < DEFAULT_PLAYER_COUNT - 1) {
+    while (pool.length < aiOpponentCount) {
       pool.push(FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)]);
     }
-    return pool.slice(0, DEFAULT_PLAYER_COUNT - 1);
-  }, [aiFlagOverrides]);
+    return pool.slice(0, aiOpponentCount);
+  }, [aiFlagOverrides, aiOpponentCount]);
 
   const players = useMemo(() => {
-    return Array.from({ length: DEFAULT_PLAYER_COUNT }, (_, index) => {
+    return Array.from({ length: activePlayerCount }, (_, index) => {
       if (index === 0) {
         return {
           index,
@@ -1628,7 +1640,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
         isAI: true
       };
     });
-  }, [aiFlags, avatar, username, playerColorsHex]);
+  }, [activePlayerCount, aiFlags, avatar, username, playerColorsHex]);
 
   useEffect(() => {
     uiRef.current = ui;
@@ -1646,21 +1658,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
 
   useEffect(() => {
     appearanceRef.current = appearance;
-  }, [appearance]);
+  }, [activePlayerCount, appearance]);
 
   const clearHumanRollTimeout = useCallback(() => {
     if (humanRollTimeoutRef.current) {
       clearTimeout(humanRollTimeoutRef.current);
       humanRollTimeoutRef.current = null;
     }
-  }, []);
+  }, [activePlayerCount]);
 
   const clearTurnAdvanceTimeout = useCallback(() => {
     if (turnAdvanceTimeoutRef.current) {
       clearTimeout(turnAdvanceTimeoutRef.current);
       turnAdvanceTimeoutRef.current = null;
     }
-  }, []);
+  }, [activePlayerCount, players]);
 
   const clearHumanSelection = useCallback(() => {
     const selection = humanSelectionRef.current;
@@ -1764,7 +1776,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const state = stateRef.current;
     if (!state) return;
     const counts = new Map();
-    for (let player = 0; player < DEFAULT_PLAYER_COUNT; player += 1) {
+    for (let player = 0; player < activePlayerCount; player += 1) {
       for (let tokenIndex = 0; tokenIndex < 4; tokenIndex += 1) {
         const progress = state.progress?.[player]?.[tokenIndex];
         const token = state.tokens?.[player]?.[tokenIndex];
@@ -1976,13 +1988,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const state = stateRef.current;
     if (!dice || !state) return;
     const layouts = dice.userData?.tokenRails;
-    if (!Array.isArray(layouts) || layouts.length < DEFAULT_PLAYER_COUNT) return;
+    if (!Array.isArray(layouts) || layouts.length < activePlayerCount) return;
 
     const padMeshes = Array.isArray(dice.userData?.railPads) ? dice.userData.railPads : [];
     const updatedPads =
-      Array.isArray(state.startPads) && state.startPads.length >= DEFAULT_PLAYER_COUNT
+      Array.isArray(state.startPads) && state.startPads.length >= activePlayerCount
         ? state.startPads.slice()
-        : Array.from({ length: DEFAULT_PLAYER_COUNT }, () =>
+        : Array.from({ length: activePlayerCount }, () =>
             Array.from({ length: 4 }, () => new THREE.Vector3())
           );
 
@@ -2074,7 +2086,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     });
 
     state.startPads = updatedPads;
-  }, []);
+  }, [activePlayerCount]);
 
   const configureDiceAnchors = useCallback(
     ({ dice, boardGroup, chairs, tableInfo } = {}) => {
@@ -2112,7 +2124,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       group.worldToLocal(centerLocal);
       const seatWorldPos = new THREE.Vector3();
 
-      for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
+      for (let i = 0; i < activePlayerCount; i += 1) {
         const seatDir = new THREE.Vector3();
         const chairGroup = chairList?.[i]?.group;
         if (chairGroup) {
@@ -2204,7 +2216,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       diceObj.userData.rollTargets = preferredLanding;
       diceObj.userData.tokenRails = layouts;
       applyRailLayout();
-    }, [applyRailLayout]);
+    }, [activePlayerCount, applyRailLayout]);
 
   useEffect(() => {
     const applyVolume = (baseVolume) => {
@@ -2266,12 +2278,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     if (!arena) return;
 
     const normalized = normalizeAppearance(appearance);
-    const safe = enforceShapeForPlayers(normalized, DEFAULT_PLAYER_COUNT);
+    const safe = enforceShapeForPlayers(normalized, activePlayerCount);
     const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, DEFAULT_PLAYER_COUNT);
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, activePlayerCount);
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -2456,12 +2468,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     arenaGroup.add(wall);
 
     const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
-    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, DEFAULT_PLAYER_COUNT);
+    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, activePlayerCount);
     const woodOption = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(initialAppearance.tableShape, DEFAULT_PLAYER_COUNT);
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
+      initialAppearance.tableShape,
+      activePlayerCount
+    );
 
     const tableInfo = createMurlanStyleTable({
       arena: arenaGroup,
@@ -2541,8 +2556,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     legMaterial.userData = { chairId: chairOption.id ?? 'default' };
 
     const chairs = [];
-    for (let i = 0; i < DEFAULT_PLAYER_COUNT; i += 1) {
-      const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / DEFAULT_PLAYER_COUNT) * Math.PI * 2;
+    for (let i = 0; i < activePlayerCount; i += 1) {
+      const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / activePlayerCount) * Math.PI * 2;
       const angle = CUSTOM_CHAIR_ANGLES[i] ?? fallbackAngle;
       const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
       const seatPos = forward.clone().multiplyScalar(AI_CHAIR_RADIUS);
@@ -2586,7 +2601,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       chairs.push({ group, anchor: avatarAnchor, meshes: [seatMesh, backMesh, ...armMeshes], legMesh: legBase });
     }
 
-    const boardData = buildLudoBoard(boardGroup);
+    const boardData = buildLudoBoard(boardGroup, activePlayerCount);
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -2602,7 +2617,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
       turnIndicator: boardData.turnIndicator,
       trackTiles: boardData.trackTiles,
       homeColumnTiles: boardData.homeColumnTiles,
-      progress: Array.from({ length: 4 }, () => Array(4).fill(-1)),
+      progress: Array.from({ length: activePlayerCount }, () => Array(4).fill(-1)),
       turn: 0,
       winner: null,
       animation: null
@@ -3022,7 +3037,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const landingIdx = getTrackIndexForProgress(player, targetProgress);
     if (landingIdx == null || SAFE_TRACK_INDEXES.has(landingIdx)) return 0;
     let captures = 0;
-    for (let opponent = 0; opponent < 4; opponent += 1) {
+    for (let opponent = 0; opponent < activePlayerCount; opponent += 1) {
       if (opponent === player) continue;
       for (let t = 0; t < 4; t += 1) {
         const prog = state.progress[opponent][t];
@@ -3054,7 +3069,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     const landingIdx = getTrackIndexForProgress(player, targetProgress);
     if (landingIdx == null || SAFE_TRACK_INDEXES.has(landingIdx)) return 0;
     let threat = 0;
-    for (let opponent = 0; opponent < 4; opponent += 1) {
+    for (let opponent = 0; opponent < activePlayerCount; opponent += 1) {
       if (opponent === player) continue;
       for (let t = 0; t < 4; t += 1) {
         const prog = state.progress[opponent][t];
@@ -3190,7 +3205,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     let updated = false;
     setUi((s) => {
       if (s.winner) return s;
-      nextTurn = extraTurn ? s.turn : (s.turn + 3) % 4;
+      const playerCycle = Math.max(1, activePlayerCount);
+      nextTurn = extraTurn ? s.turn : (s.turn + playerCycle - 1) % playerCycle;
       const state = stateRef.current;
       if (state) state.turn = nextTurn;
       updateTurnIndicator(nextTurn);
@@ -3240,7 +3256,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
     if (prog < 0 || prog >= RING_STEPS) return;
     const landingIdx = (PLAYER_START_INDEX[player] + prog) % RING_STEPS;
     if (SAFE_TRACK_INDEXES.has(landingIdx)) return;
-    for (let p = 0; p < 4; p++) {
+    for (let p = 0; p < activePlayerCount; p++) {
       if (p === player) continue;
       for (let t = 0; t < 4; t++) {
         if (state.progress[p][t] < 0 || state.progress[p][t] >= RING_STEPS) continue;
@@ -3614,11 +3630,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides }) {
   );
 }
 
-function buildLudoBoard(boardGroup) {
+function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   const scene = boardGroup;
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
-  const homeColumnTiles = Array.from({ length: DEFAULT_PLAYER_COUNT }, () =>
+  const homeColumnTiles = Array.from({ length: playerCount }, () =>
     new Array(HOME_STEPS).fill(null)
   );
 
@@ -3649,10 +3665,10 @@ function buildLudoBoard(boardGroup) {
     return new THREE.Vector3(x, TILE_HALF_HEIGHT, z);
   };
 
-  const startPads = getHomeStartPads(half);
-  const goalSlots = getGoalSlots(half);
+  const startPads = getHomeStartPads(half, playerCount);
+  const goalSlots = getGoalSlots(half, playerCount);
   const ringPath = buildRingFromGrid(cellToWorld);
-  const homeColumnPositions = HOME_COLUMN_COORDS.map((coords) =>
+  const homeColumnPositions = HOME_COLUMN_COORDS.slice(0, playerCount).map((coords) =>
     coords.map(([r, c]) => cellToWorld(r, c))
   );
   const diceRollTargets = startPads.map((pads) => {
@@ -3685,14 +3701,14 @@ function buildLudoBoard(boardGroup) {
       if (inCenter) {
         continue;
       }
-      if (columnIndex !== -1) {
+      if (columnIndex !== -1 && columnIndex < playerCount) {
         const baseColor = PLAYER_COLORS[columnIndex];
         const accent = adjustHexColor(colorNumberToHex(baseColor), 0.2);
         const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
         mesh.position.copy(pos);
         registerTile(mesh);
         const stepIndex = HOME_COLUMN_KEY_TO_STEP.get(key);
-        if (stepIndex != null) {
+        if (stepIndex != null && homeColumnTiles[columnIndex]) {
           homeColumnTiles[columnIndex][stepIndex] = mesh;
         }
         scene.add(mesh);
@@ -3721,7 +3737,7 @@ function buildLudoBoard(boardGroup) {
   addCenterHome(scene);
   addBoardMarkers(scene, cellToWorld);
 
-  const tokens = TOKEN_COLORS.map((color, playerIdx) => {
+  const tokens = TOKEN_COLORS.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const rook = makeRook(makeTokenMaterial(color));
       rook.userData = {
@@ -3749,7 +3765,7 @@ function buildLudoBoard(boardGroup) {
   const clothHalf = BOARD_CLOTH_HALF;
   const railHeight = DICE_BASE_HEIGHT;
   const diceAnchor = new THREE.Vector3(0, railHeight, 0);
-  const railPositions = Array.from({ length: 4 }, () => diceAnchor.clone());
+  const railPositions = Array.from({ length: playerCount }, () => diceAnchor.clone());
   dice.position.copy(diceAnchor);
   dice.userData.railPositions = railPositions.map((pos) => pos.clone());
   dice.userData.baseHeight = DICE_BASE_HEIGHT;
@@ -3757,7 +3773,7 @@ function buildLudoBoard(boardGroup) {
   dice.userData.bounceHeight = 0.07;
   dice.userData.clothLimit = clothHalf - 0.12;
   dice.userData.isRolling = false;
-  dice.userData.railPads = Array.from({ length: DEFAULT_PLAYER_COUNT }, () => null);
+  dice.userData.railPads = Array.from({ length: playerCount }, () => null);
   scene.add(dice);
 
   const diceLightTarget = new THREE.Object3D();
@@ -3824,7 +3840,8 @@ function buildRingFromGrid(cellToWorld) {
   return TRACK_COORDS.map(([r, c]) => cellToWorld(r, c));
 }
 
-function getHomeStartPads(half) {
+function getHomeStartPads(half, playerCount = DEFAULT_PLAYER_COUNT) {
+  const count = clampPlayerCount(playerCount);
   const TILE = LUDO_TILE;
   const off = half - TILE * 3;
   const inwardPull = TILE * 0.45;
@@ -3836,7 +3853,7 @@ function getHomeStartPads(half) {
     [-1, -1],
     [-1, 1]
   ];
-  return layout.map(([sx, sz]) => {
+  return layout.slice(0, count).map(([sx, sz]) => {
     const cx = sx * off - sx * inwardPull;
     const cz = sz * off - sz * inwardPull;
     return [
@@ -3848,7 +3865,7 @@ function getHomeStartPads(half) {
   });
 }
 
-function getGoalSlots(half) {
+function getGoalSlots(half, playerCount = DEFAULT_PLAYER_COUNT) {
   const TILE = LUDO_TILE;
   const offsets = [
     [-TILE * 0.3, -TILE * 0.3],
@@ -3856,7 +3873,8 @@ function getGoalSlots(half) {
     [-TILE * 0.3, TILE * 0.3],
     [TILE * 0.3, TILE * 0.3]
   ];
-  return Array.from({ length: 4 }, (_, player) =>
+  const count = clampPlayerCount(playerCount);
+  return Array.from({ length: count }, () =>
     offsets.map(([ox, oz]) => new THREE.Vector3(ox, PLAYFIELD_HEIGHT, oz))
   );
 }
@@ -3871,6 +3889,14 @@ export default function LudoBattleRoyal() {
     params.get('name') ||
     getTelegramFirstName() ||
     getTelegramUsername();
+  const tableId = params.get('table') || 'royale';
+  const capacityParam = parseInt(params.get('capacity') ?? '', 10);
+  const aiParam = parseInt(params.get('ai') ?? '', 10);
+  const parsedCapacity = clampPlayerCount(capacityParam);
+  const requestedAiCount = clamp(Math.max(0, aiParam || 0), 0, DEFAULT_PLAYER_COUNT - 1);
+  const playerCount = tableId === 'practice'
+    ? clampPlayerCount(1 + requestedAiCount)
+    : parsedCapacity;
   const flagsParam = params.get('flags');
   const aiFlagOverrides = useMemo(() => {
     if (!flagsParam) return null;
@@ -3881,5 +3907,13 @@ export default function LudoBattleRoyal() {
     if (!indices.length) return null;
     return indices.map((idx) => FLAG_EMOJIS[idx]);
   }, [flagsParam]);
-  return <Ludo3D avatar={avatar} username={username} aiFlagOverrides={aiFlagOverrides} />;
+  return (
+    <Ludo3D
+      avatar={avatar}
+      username={username}
+      aiFlagOverrides={aiFlagOverrides}
+      playerCount={playerCount}
+      aiCount={tableId === 'practice' ? requestedAiCount : playerCount - 1}
+    />
+  );
 }
