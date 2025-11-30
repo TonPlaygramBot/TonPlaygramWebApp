@@ -633,17 +633,30 @@ function addPocketCuts(
 ) {
   if (!parent || !Array.isArray(pocketPositions) || !clothEdgeMat) return [];
   const stripes = [];
-  const stripeWidth = BALL_R * 0.24;
+  const stripeWidth = BALL_R * 0.32;
+  const stripeHeight = CLOTH_EXTENDED_DEPTH + BALL_R * 0.32;
+  const stripeLift = BALL_R * 0.06;
   pocketPositions.forEach((p, index) => {
     if (!p) return;
     const isSide = index >= 4;
     const baseRadius = isSide ? POCKET_HOLE_R * sideRadiusScale : POCKET_HOLE_R;
     const inner = Math.max(MICRO_EPS, baseRadius * POCKET_CUT_EXPANSION);
     const outer = inner + stripeWidth;
-    const geo = new THREE.RingGeometry(inner, outer, 64);
+    const sleeveShape = new THREE.Shape();
+    sleeveShape.absarc(0, 0, outer, 0, Math.PI * 2, false);
+    const innerPath = new THREE.Path();
+    innerPath.absarc(0, 0, inner, 0, Math.PI * 2, true);
+    sleeveShape.holes.push(innerPath);
+    const geo = new THREE.ExtrudeGeometry(sleeveShape, {
+      depth: stripeHeight,
+      bevelEnabled: false,
+      curveSegments: 64,
+      steps: 1
+    });
+    geo.rotateX(Math.PI / 2);
+    geo.translate(0, -stripeHeight, 0);
     const mesh = new THREE.Mesh(geo, clothEdgeMat);
-    mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(p.x, clothPlane - CLOTH_DROP + MICRO_EPS * 2, p.y);
+    mesh.position.set(p.x, clothPlane - CLOTH_DROP + stripeLift, p.y);
     mesh.renderOrder = 3.1;
     mesh.receiveShadow = true;
     parent.add(mesh);
@@ -793,6 +806,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
+const SIDE_POCKET_CUT_SCALE = 1.05; // enlarge only the middle cloth cutouts so chrome and wooden rail arcs stay unchanged
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -1216,8 +1230,27 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
   }
 });
 
+function normalizeVariantKey(value) {
+  if (typeof value !== 'string') return '';
+  return value
+    .toLowerCase()
+    .replace(/[_\s-]+/g, '')
+    .trim();
+}
+
 function resolvePoolVariant(variantId) {
-  const key = typeof variantId === 'string' ? variantId.toLowerCase() : '';
+  const normalized = normalizeVariantKey(variantId);
+  let key = normalized;
+  if (normalized === '9' || normalized === 'nineball') {
+    key = '9ball';
+  } else if (
+    normalized === '8balluk' ||
+    normalized === 'eightballuk' ||
+    normalized === '8pooluk' ||
+    normalized === 'uk8'
+  ) {
+    key = 'uk';
+  }
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
 }
 
@@ -5546,7 +5579,8 @@ function Table3D(
   sidePocketShift = Math.max(0, baseSidePocketShift + extraSidePocketShift - fieldPull);
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
-  const sideRadiusScale = POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
+  const sideRadiusScale =
+    POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
@@ -8589,6 +8623,20 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  useEffect(() => {
+    const nextInHand = deriveInHandFromFrame(initialFrame);
+    cueBallPlacedFromHandRef.current = !nextInHand;
+    setHud((prev) => ({
+      ...prev,
+      A: 0,
+      B: 0,
+      turn: 0,
+      phase: 'reds',
+      next: 'red',
+      inHand: nextInHand,
+      over: false
+    }));
+  }, [initialFrame]);
   useEffect(() => {
     if (!isTraining) return;
     gameOverHandledRef.current = false;
