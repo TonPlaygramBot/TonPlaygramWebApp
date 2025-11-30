@@ -16379,8 +16379,6 @@ function PoolRoyaleGame({
           </div>
         </div>
       )}
-
-      )}
     </div>
   );
 }
