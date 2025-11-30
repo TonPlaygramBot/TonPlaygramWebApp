@@ -208,7 +208,7 @@ function createDefaultPocketJawMaterial() {
 
 const POCKET_VISUAL_EXPANSION = 1.018;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // align corner notch reach with Pool Royale fascia depth
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -240,15 +240,15 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // push middle chrome cuts farther from centre to match Pool Royale
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012;
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
 const POCKET_JAW_DEPTH_SCALE = 0.52;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
@@ -476,6 +476,7 @@ function addPocketCuts(parent, clothPlane) {
 // Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
 const TABLE_SIZE_SHRINK = 0.78;
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
+const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88;
@@ -484,7 +485,7 @@ const TABLE_GROWTH_MULTIPLIER = 1.5;
 const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // match Pool Royale vertical height and camera framing
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
@@ -505,7 +506,7 @@ const BLACK_FROM_TOP_REF = 558.8;
 const CORNER_MOUTH_REF = 114.3;
 const SIDE_MOUTH_REF = 127;
 const CORNER_POCKET_SCALE_BOOST = 0.994;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // mirror Pool Royale side pocket width
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996;
 const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -555,10 +556,11 @@ const POCKET_SIDE_MOUTH =
   SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
-const POCKET_INTERIOR_TOP_SCALE = 0.94;
+const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // shift corner pocket centres outward to match Pool Royale spacing
-const MIDDLE_POCKET_LONGITUDINAL_OFFSET = 0; // lock side pockets exactly at mid-field
+  POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // pull corner cuts inward so fascia + jaws sit flush over the pockets
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
+  POCKET_VIS_R * 0.62; // push middle pockets further from center for a wider mid-rail opening
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -4604,7 +4606,7 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = CORNER_POCKET_CENTER_INSET;
-  const sideInset = SIDE_POCKET_RADIUS * 0.72 * POCKET_VISUAL_EXPANSION;
+  const sideInset = SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -12159,7 +12161,7 @@ function SnookerGame() {
         </div>
       )}
 
-      <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
+      <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
           ref={configButtonRef}
           type="button"
@@ -12273,31 +12275,6 @@ function SnookerGame() {
                           />
                           {option.label}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Cue Styles
-                </h3>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  {WOOD_FINISH_PRESETS.map((preset, index) => {
-                    const active = cueStyleIndex === index;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setCueStyleIndex(index)}
-                        aria-pressed={active}
-                        className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
-                            : 'bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        {preset.label}
                       </button>
                     );
                   })}
