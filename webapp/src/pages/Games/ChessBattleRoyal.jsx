@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/MeshoptDecoder.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -891,6 +892,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
 async function loadBeautifulGameSet() {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
+  loader.setMeshoptDecoder(MeshoptDecoder);
   let lastError = null;
   for (const url of BEAUTIFUL_GAME_URLS) {
     try {
