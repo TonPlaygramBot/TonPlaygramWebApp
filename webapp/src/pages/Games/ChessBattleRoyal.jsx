@@ -338,6 +338,9 @@ const BEAUTIFUL_GAME_URLS = [
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
+// Small shrink so imported pieces sit comfortably on the procedural board footprint
+const BEAUTIFUL_GAME_ASSET_SCALE = 0.94;
+
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
 const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
@@ -1145,7 +1148,7 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BASE_BOARD_THE
   }
 
   const piecePrototypes = { white: {}, black: {} };
-  const scale = tile / 0.9;
+  const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
   const accentLight = '#d4af78';
   const accentDark = '#b58f4f';
   piecePrototypes.white.P = buildBeautifulGamePiece('P', '#f6f7fb', accentLight, scale);
@@ -1365,7 +1368,7 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
       protoBox.getCenter(protoCenter);
       proto.position.sub(protoCenter);
       proto.position.y -= protoBox.min.y;
-      proto.scale.multiplyScalar(scale);
+      proto.scale.multiplyScalar(scale * BEAUTIFUL_GAME_ASSET_SCALE);
     });
   });
 
