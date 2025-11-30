@@ -624,11 +624,32 @@ function buildChromePlateGeometry({
   geo.computeVertexNormals();
   return geo;
 }
-function addPocketCuts(parent, clothPlane) {
-  // Pocket cut overlay meshes have been intentionally disabled.
-  // The gameplay geometry (cuts, undercut, rail bevels, etc.) still derives
-  // from the underlying mesh booleans, so we simply return an empty list here.
-  return [];
+function addPocketCuts(
+  parent,
+  clothPlane,
+  pocketPositions,
+  clothEdgeMat,
+  sideRadiusScale = 1
+) {
+  if (!parent || !Array.isArray(pocketPositions) || !clothEdgeMat) return [];
+  const stripes = [];
+  const stripeWidth = BALL_R * 0.24;
+  pocketPositions.forEach((p, index) => {
+    if (!p) return;
+    const isSide = index >= 4;
+    const baseRadius = isSide ? POCKET_HOLE_R * sideRadiusScale : POCKET_HOLE_R;
+    const inner = Math.max(MICRO_EPS, baseRadius * POCKET_CUT_EXPANSION);
+    const outer = inner + stripeWidth;
+    const geo = new THREE.RingGeometry(inner, outer, 64);
+    const mesh = new THREE.Mesh(geo, clothEdgeMat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(p.x, clothPlane - CLOTH_DROP + MICRO_EPS * 2, p.y);
+    mesh.renderOrder = 3.1;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    stripes.push(mesh);
+  });
+  return stripes;
 }
 
 /**
@@ -5656,6 +5677,14 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  const pocketCutStripes = addPocketCuts(
+    table,
+    cloth.position.y,
+    pocketPositions,
+    clothEdgeMat,
+    sideRadiusScale
+  );
+  finishParts.clothEdgeMeshes.push(...pocketCutStripes);
   // Keep the underlay apertures exactly matched to the cloth cutouts so no
   // reflective wood peeks through around the middle pockets.
   const plywoodShape = buildSurfaceShape(POCKET_HOLE_R);
@@ -13277,6 +13306,7 @@ function PoolRoyaleGame({
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
+          cue.active = true;
           cueBallPlacedFromHandRef.current = true;
         }
         if (allowFullTableInHand()) {
@@ -14114,9 +14144,17 @@ function PoolRoyaleGame({
           try {
             const plan = selectUkAiShot(aiState, {});
             if (!plan) return null;
+            const aimPointRaw = plan.aimPoint;
+            if (
+              !aimPointRaw ||
+              !Number.isFinite(aimPointRaw.x) ||
+              !Number.isFinite(aimPointRaw.y)
+            ) {
+              return null;
+            }
             const aimPoint = new THREE.Vector2(
-              plan.aimPoint.x - width / 2,
-              plan.aimPoint.y - height / 2
+              aimPointRaw.x - width / 2,
+              aimPointRaw.y - height / 2
             );
             const aimDir = aimPoint.clone().sub(cueBall.pos);
             if (aimDir.lengthSq() < 1e-6) aimDir.set(0, 1);
