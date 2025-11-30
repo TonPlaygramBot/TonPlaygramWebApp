@@ -889,8 +889,8 @@ const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the w
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
 const CLOTH_EDGE_TEXTURE_HEIGHT_SCALE = 1.2; // boost vertical tiling so the wrapped cloth reads with tighter, more realistic fibres
 const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt tone so they don't glow around the cuts
-const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.032; // soften light spill on the sleeve walls
-const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.38; // reduce emissive brightness so the cutouts stay consistent with the cloth plane
+const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
+const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
@@ -2892,6 +2892,15 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     }
   }
   if (finishInfo.clothEdgeMat) {
+    const edgeColor = finishInfo.clothMat?.color
+      ? finishInfo.clothMat.color.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT)
+      : null;
+    if (edgeColor) {
+      finishInfo.clothEdgeMat.color.copy(edgeColor);
+      finishInfo.clothEdgeMat.emissive.copy(
+        edgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
+      );
+    }
     finishInfo.clothEdgeMat.map = null;
     finishInfo.clothEdgeMat.bumpMap = null;
     finishInfo.clothEdgeMat.bumpScale = 0;
@@ -2900,6 +2909,9 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     finishInfo.clothEdgeMat.clearcoatRoughness = 1;
     finishInfo.clothEdgeMat.envMapIntensity = 0;
     finishInfo.clothEdgeMat.sheen = 0;
+    finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
+    finishInfo.clothEdgeMat.metalness = 0;
+    finishInfo.clothEdgeMat.reflectivity = 0;
     finishInfo.clothEdgeMat.needsUpdate = true;
   }
   finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
@@ -5423,9 +5435,10 @@ function Table3D(
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
-  clothEdgeMat.color.copy(clothColor);
+  const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
+  clothEdgeMat.color.copy(clothEdgeColor);
   clothEdgeMat.emissive.copy(
-    clothColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
+    clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
   );
   clothEdgeMat.map = null;
   clothEdgeMat.bumpMap = null;
@@ -5438,6 +5451,7 @@ function Table3D(
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.sheen = 0;
+  clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
   const underlayTopMat = clothMat.clone();
   underlayTopMat.metalness = 0;
@@ -7948,7 +7962,8 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
-    finishInfo.clothEdgeMat.color.copy(clothColor);
+    const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
+    finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
     finishInfo.clothEdgeMat.map = null;
     finishInfo.clothEdgeMat.bumpMap = null;
     finishInfo.clothEdgeMat.bumpScale = 0;
@@ -7958,10 +7973,14 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.clothEdgeMat.envMapIntensity = 0;
     finishInfo.clothEdgeMat.sheen = 0;
     if (finishInfo.clothEdgeMat.sheenColor) {
-      finishInfo.clothEdgeMat.sheenColor.copy(clothColor);
+      finishInfo.clothEdgeMat.sheenColor.copy(clothEdgeColor);
     }
-    finishInfo.clothEdgeMat.emissive.copy(emissiveColor);
+    finishInfo.clothEdgeMat.emissive.copy(
+      clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
+    );
     finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
+    finishInfo.clothEdgeMat.metalness = 0;
+    finishInfo.clothEdgeMat.reflectivity = 0;
     finishInfo.clothEdgeMat.needsUpdate = true;
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
