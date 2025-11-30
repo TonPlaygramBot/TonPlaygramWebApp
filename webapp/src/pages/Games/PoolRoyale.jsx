@@ -8733,8 +8733,8 @@ function PoolRoyaleGame({
     const slider = sliderInstanceRef.current;
     if (!slider) return;
     const hudState = hudRef.current;
-    const isPlayerTurn = (hudState?.turn ?? 0) === 0;
-    const shouldLock = !isPlayerTurn || hudState?.over || shootingRef.current;
+    const shouldLock =
+      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
     if (shouldLock) slider.lock();
     else slider.unlock();
   }, []);
@@ -15746,7 +15746,7 @@ function PoolRoyaleGame({
     };
   }, [applySliderLock, showPowerSlider]);
 
-  const isPlayerTurn = (hud.turn ?? 0) === 0;
+  const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over;
 
