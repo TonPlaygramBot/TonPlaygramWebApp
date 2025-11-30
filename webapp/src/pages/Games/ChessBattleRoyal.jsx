@@ -1165,8 +1165,16 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BASE_BOARD_THE
 }
 
 async function resolveBeautifulGameAssets(targetBoardSize, boardTheme) {
+  const timeoutMs = 7000;
+  const withTimeout = (promise) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
+      )
+    ]);
   try {
-    const gltf = await loadBeautifulGameSet();
+    const gltf = await withTimeout(loadBeautifulGameSet());
     if (gltf?.scene) {
       return extractBeautifulGameAssets(gltf.scene, targetBoardSize);
     }
@@ -1190,6 +1198,8 @@ function cloneWithShadows(object) {
 function extractBeautifulGameAssets(scene, targetBoardSize) {
   if (!scene) return { boardModel: null, piecePrototypes: null };
   const root = scene.clone(true);
+  root.updateMatrixWorld(true);
+
   const piecePrototypes = { white: {}, black: {} };
   const typeRegex = {
     K: /king/i,
@@ -1200,6 +1210,18 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
     P: /pawn/i
   };
 
+  const pickMaterialColor = (node) => {
+    let color = null;
+    node.traverse((child) => {
+      if (color || !child.isMesh) return;
+      const mat = Array.isArray(child.material) ? child.material[0] : child.material;
+      if (mat?.color instanceof THREE.Color) {
+        color = mat.color;
+      }
+    });
+    return color;
+  };
+
   const detectColor = (node) => {
     let current = node;
     while (current) {
@@ -1207,6 +1229,20 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
       if (/white/i.test(name)) return 'white';
       if (/black/i.test(name)) return 'black';
       current = current.parent;
+    }
+
+    const color = pickMaterialColor(node);
+    if (color) {
+      const luminance = (color.r + color.g + color.b) / 3;
+      return luminance >= 0.45 ? 'white' : 'black';
+    }
+
+    const worldPos = new THREE.Vector3();
+    try {
+      node.getWorldPosition?.(worldPos);
+      return worldPos.z >= 0 ? 'white' : 'black';
+    } catch (error) {
+      console.warn('Chess Battle Royal: fallback color detection failed', error);
     }
     return null;
   };
@@ -1223,25 +1259,85 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
     return null;
   };
 
-  const registerPrototype = (node) => {
-    const color = detectColor(node);
-    const type = detectType(node);
+  const setPrototype = (node, color, type) => {
     if (!color || !type || piecePrototypes[color][type]) return;
+    node.userData = { ...(node.userData || {}), __beautifulGameSourcePiece: true };
     const clone = cloneWithShadows(node);
     piecePrototypes[color][type] = clone;
   };
 
+  const registerPrototype = (node) => {
+    const color = detectColor(node);
+    const type = detectType(node);
+    setPrototype(node, color, type);
+  };
+
+  const meshEntries = [];
   root.traverse((node) => {
-    if (!node?.name) return;
+    if (!node) return;
+    if (node.isMesh) {
+      const bounds = new THREE.Box3().setFromObject(node);
+      const size = new THREE.Vector3();
+      bounds.getSize(size);
+      const center = new THREE.Vector3();
+      bounds.getCenter(center);
+      meshEntries.push({ node, bounds, size, center });
+    }
     registerPrototype(node);
   });
+
+  const missingTypes = () =>
+    ['white', 'black'].flatMap((color) =>
+      Object.keys(typeRegex)
+        .filter((type) => !piecePrototypes[color][type])
+        .map((type) => `${color}-${type}`)
+    );
+
+  if (missingTypes().length > 0 && meshEntries.length > 0) {
+    const minX = Math.min(...meshEntries.map((m) => m.center.x));
+    const maxX = Math.max(...meshEntries.map((m) => m.center.x));
+    const minZ = Math.min(...meshEntries.map((m) => m.center.z));
+    const maxZ = Math.max(...meshEntries.map((m) => m.center.z));
+    const spanX = Math.max(0.001, maxX - minX);
+    const spanZ = Math.max(0.001, maxZ - minZ);
+    const tileX = spanX / 7;
+    const tileZ = spanZ / 7;
+    const tile = (tileX + tileZ) / 2;
+    const sizeThreshold = Math.max(tile * 2.5, Math.max(spanX, spanZ) * 0.15);
+
+    const fenBoard = parseFEN(START_FEN);
+    const expectAt = new Map();
+    for (let r = 0; r < 8; r += 1) {
+      for (let c = 0; c < 8; c += 1) {
+        const p = fenBoard[r][c];
+        if (!p) continue;
+        expectAt.set(`${r}-${c}`, { color: p.w ? 'white' : 'black', type: p.t });
+      }
+    }
+
+    const toGrid = (pos) => {
+      const c = clamp(Math.round((pos.x - minX) / tileX), 0, 7);
+      const r = clamp(Math.round((pos.z - minZ) / tileZ), 0, 7);
+      return { r, c };
+    };
+
+    meshEntries.forEach(({ node, size, center }) => {
+      const largest = Math.max(size.x, size.y, size.z);
+      if (largest > sizeThreshold) return;
+      const { r, c } = toGrid(center);
+      const expected = expectAt.get(`${r}-${c}`);
+      if (!expected) return;
+      setPrototype(node, expected.color, expected.type);
+    });
+  }
 
   const boardModel = cloneWithShadows(root);
   const nodesToCull = [];
   boardModel.traverse((node) => {
-    if (!node?.name) return;
+    if (!node) return;
+    const flaggedAsPiece = node.userData?.__beautifulGameSourcePiece;
     const type = detectType(node);
-    if (type) {
+    if (flaggedAsPiece || type) {
       nodesToCull.push(node);
     }
   });
@@ -3238,73 +3334,27 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
 
-    function placePieceMesh(r, c, p) {
-      const materialSet = p.w ? pieceMaterials.white : pieceMaterials.black;
-      const b = BUILDERS[p.t](materialSet);
-      b.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
-      const styleId = pieceStyleOption?.id ?? 'default';
-      b.userData = {
-        r,
-        c,
-        w: p.w,
-        t: p.t,
-        type: 'piece',
-        __pieceColor: p.w ? 'white' : 'black',
-        __pieceStyleId: styleId
-      };
-      b.traverse((child) => {
-        if (child.isMesh) {
-          child.userData = {
-            ...(child.userData || {}),
-            __pieceColor: p.w ? 'white' : 'black',
-            __pieceStyleId: styleId
-          };
-        }
+    const paintPiecesFromPrototypes = (prototypes) => {
+      if (!prototypes) return;
+      const colorKey = (p) => (p.w ? 'white' : 'black');
+      const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
+
+      // Clear any existing procedural meshes
+      allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
+        try {
+          boardGroup.remove(m);
+        } catch {}
+        disposeObject3D(m);
       });
-      boardGroup.add(b);
-      pieceMeshes[r][c] = b;
-      allPieceMeshes.push(b);
-    }
-
-    for (let r = 0; r < 8; r++)
-      for (let c = 0; c < 8; c++) {
-        const p = board[r][c];
-        if (p) placePieceMesh(r, c, p);
-      }
-
-    beautifulGamePromise.then(({ boardModel, piecePrototypes }) => {
-      if (cancelled) return;
-      beautifulBoardModel = boardModel || null;
-      beautifulPiecePrototypes = piecePrototypes || null;
-      if (boardModel) {
-        boardGroup.add(boardModel);
-        base.material.transparent = true;
-        base.material.opacity = 0.001;
-        base.material.depthWrite = false;
-        top.material.transparent = true;
-        top.material.opacity = 0.001;
-        top.material.depthWrite = false;
-        tiles.forEach((tileMesh) => {
-          tileMesh.material.transparent = true;
-          tileMesh.material.opacity = 0.001;
-          tileMesh.material.depthWrite = false;
-        });
-        if (arenaRef.current) {
-          arenaRef.current.boardModel = boardModel;
-          arenaRef.current.piecePrototypes = piecePrototypes || null;
-        }
-        disposers.push(() => {
-          try {
-            boardGroup.remove(boardModel);
-          } catch {}
-          disposeObject3D(boardModel);
-        });
-      }
-      if (piecePrototypes) {
-        const convertPieceMesh = (r, c, p) => {
-          const color = p.w ? 'white' : 'black';
-          const proto = piecePrototypes[color]?.[p.t];
-          if (!proto) return null;
+      for (let r = 0; r < 8; r += 1) {
+        for (let c = 0; c < 8; c += 1) {
+          const p = board[r][c];
+          if (!p) {
+            pieceMeshes[r][c] = null;
+            continue;
+          }
+          const proto = build(p);
+          if (!proto) continue;
           const clone = cloneWithShadows(proto);
           clone.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
           clone.userData = {
@@ -3313,48 +3363,63 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             w: p.w,
             t: p.t,
             type: 'piece',
-            __pieceColor: color,
+            __pieceColor: colorKey(p),
             __pieceStyleId: 'beautifulGame'
           };
           clone.traverse((child) => {
             if (!child.isMesh) return;
             child.userData = {
               ...(child.userData || {}),
-              __pieceColor: color,
+              __pieceColor: colorKey(p),
               __pieceStyleId: 'beautifulGame'
             };
           });
-          return clone;
-        };
-
-        allPieceMeshes.length = 0;
-        for (let r = 0; r < 8; r += 1) {
-          for (let c = 0; c < 8; c += 1) {
-            const p = board[r][c];
-            if (!p) continue;
-            const next = convertPieceMesh(r, c, p);
-            if (!next) {
-              if (pieceMeshes[r][c]) {
-                allPieceMeshes.push(pieceMeshes[r][c]);
-              }
-              continue;
-            }
-            const current = pieceMeshes[r][c];
-            if (current) {
-              try {
-                boardGroup.remove(current);
-              } catch {}
-            }
-            pieceMeshes[r][c] = next;
-            boardGroup.add(next);
-            allPieceMeshes.push(next);
-          }
-        }
-        if (arenaRef.current) {
-          arenaRef.current.allPieceMeshes = allPieceMeshes;
+          boardGroup.add(clone);
+          pieceMeshes[r][c] = clone;
+          allPieceMeshes.push(clone);
         }
       }
-    });
+      if (arenaRef.current) {
+        arenaRef.current.allPieceMeshes = allPieceMeshes;
+      }
+    };
+
+    beautifulGamePromise
+      .then(({ boardModel, piecePrototypes }) => {
+        if (cancelled) return;
+        beautifulBoardModel = boardModel || null;
+        beautifulPiecePrototypes = piecePrototypes || null;
+        if (boardModel) {
+          boardGroup.add(boardModel);
+          base.material.transparent = true;
+          base.material.opacity = 0.001;
+          base.material.depthWrite = false;
+          top.material.transparent = true;
+          top.material.opacity = 0.001;
+          top.material.depthWrite = false;
+          tiles.forEach((tileMesh) => {
+            tileMesh.material.transparent = true;
+            tileMesh.material.opacity = 0.001;
+            tileMesh.material.depthWrite = false;
+          });
+          if (arenaRef.current) {
+            arenaRef.current.boardModel = boardModel;
+            arenaRef.current.piecePrototypes = piecePrototypes || null;
+          }
+          disposers.push(() => {
+            try {
+              boardGroup.remove(boardModel);
+            } catch {}
+            disposeObject3D(boardModel);
+          });
+        }
+        if (piecePrototypes) {
+          paintPiecesFromPrototypes(piecePrototypes);
+        }
+      })
+      .catch((error) => {
+        console.error('Chess Battle Royal: failed to resolve ABeautifulGame assets', error);
+      });
 
       arenaRef.current = {
         renderer,
