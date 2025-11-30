@@ -60,11 +60,13 @@ type PoolMeta =
       variant: 'american';
       state: AmericanSerializedState;
       hud: HudInfo;
+      breakInProgress?: boolean;
     }
   | {
       variant: '9ball';
       state: NineSerializedState;
       hud: HudInfo;
+      breakInProgress?: boolean;
     };
 
 const UK_TOTAL_PER_COLOUR = 7;
@@ -270,7 +272,8 @@ export class PoolRoyaleRules {
         base.meta = {
           variant: '9ball',
           state: snapshot,
-          hud
+          hud,
+          breakInProgress: true
         } satisfies PoolMeta;
         return base;
       }
@@ -297,7 +300,8 @@ export class PoolRoyaleRules {
         base.meta = {
           variant: 'american',
           state: snapshot,
-          hud
+          hud,
+          breakInProgress: true
         } satisfies PoolMeta;
         return base;
       }
@@ -492,7 +496,8 @@ export class PoolRoyaleRules {
       meta: {
         variant: 'american',
         state: snapshot,
-        hud
+        hud,
+        breakInProgress: false
       } satisfies PoolMeta
     };
     return nextState;
@@ -554,7 +559,8 @@ export class PoolRoyaleRules {
       meta: {
         variant: '9ball',
         state: snapshot,
-        hud
+        hud,
+        breakInProgress: false
       } satisfies PoolMeta
     };
     return nextState;

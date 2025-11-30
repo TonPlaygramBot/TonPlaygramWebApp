@@ -13035,9 +13035,23 @@ function PoolRoyaleGame({
       // In-hand placement
       const variantId = () => activeVariantRef.current?.id ?? variantKey;
 
+      const isBreakRestrictedInHand = () => {
+        const frameSnapshot = frameRef.current ?? frameState;
+        const meta = frameSnapshot?.meta;
+        if (!meta || typeof meta !== 'object') return false;
+        if (meta.variant === 'american' || meta.variant === '9ball') {
+          return Boolean(meta.breakInProgress);
+        }
+        return false;
+      };
+
       const allowFullTableInHand = () => {
         const id = variantId();
-        return id === 'american' || id === '9ball';
+        if (id === 'uk') return false;
+        if (id === 'american' || id === '9ball') {
+          return !isBreakRestrictedInHand();
+        }
+        return false;
       };
 
       const isSpotFree = (point, clearanceMultiplier = 2.05) => {
@@ -15728,14 +15742,11 @@ function PoolRoyaleGame({
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
       onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
-      onCommit: (value) => {
-        const pct = Number.isFinite(value) ? value : slider.get?.() ?? 0;
-        const isZeroShot = pct <= slider.min + 0.0001;
+      onCommit: () => {
+        fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
         });
-        if (isZeroShot) return;
-        fireRef.current?.();
       }
     });
     sliderInstanceRef.current = slider;
