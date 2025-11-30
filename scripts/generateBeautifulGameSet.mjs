@@ -10,6 +10,7 @@ globalThis.FileReader =
   class FileReader {
     constructor() {
       this.onload = null;
+      this.onloadend = null;
       this.result = null;
     }
 
@@ -18,6 +19,9 @@ globalThis.FileReader =
         this.result = arrayBuffer;
         if (typeof this.onload === 'function') {
           this.onload({ target: this });
+        }
+        if (typeof this.onloadend === 'function') {
+          this.onloadend({ target: this });
         }
       });
     }
@@ -30,6 +34,9 @@ globalThis.FileReader =
           this.result = `data:${blob.type || 'application/octet-stream'};base64,${base64}`;
           if (typeof this.onload === 'function') {
             this.onload({ target: this });
+          }
+          if (typeof this.onloadend === 'function') {
+            this.onloadend({ target: this });
           }
         });
     }
@@ -300,13 +307,17 @@ populate('White', whiteColor, 1);
 populate('Black', blackColor, -1);
 
 const exporter = new GLTFExporter();
-const arrayBuffer = await new Promise((resolve, reject) => {
-  exporter.parse(scene, resolve, { binary: true }, reject);
-});
 
-const buffer = Buffer.from(Array.isArray(arrayBuffer) ? arrayBuffer[0] : arrayBuffer);
-const outputPath = path.join(process.cwd(), 'webapp/public/assets/ABeautifulGame.glb');
-fs.mkdirSync(path.dirname(outputPath), { recursive: true });
-fs.writeFileSync(outputPath, buffer);
-// eslint-disable-next-line no-console
-console.log('Saved', outputPath, 'bytes', buffer.length);
+try {
+  const arrayBuffer = await exporter.parseAsync(scene, { binary: true });
+  const buffer = Buffer.from(Array.isArray(arrayBuffer) ? arrayBuffer[0] : arrayBuffer);
+  const outputPath = path.join(process.cwd(), 'webapp/public/assets/ABeautifulGame.glb');
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(outputPath, buffer);
+  // eslint-disable-next-line no-console
+  console.log('Saved', outputPath, 'bytes', buffer.length);
+} catch (error) {
+  // eslint-disable-next-line no-console
+  console.error('Failed to export ABeautifulGame GLB', error);
+  process.exitCode = 1;
+}

@@ -817,9 +817,12 @@ async function loadBeautifulGameSet() {
   let lastError = null;
   for (const url of BEAUTIFUL_GAME_URLS) {
     try {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      loader.setResourcePath(resourcePath);
       // eslint-disable-next-line no-await-in-loop
       const gltf = await new Promise((resolve, reject) => {
-        loader.load(url, resolve, undefined, reject);
+        loader.load(resolvedUrl, resolve, undefined, reject);
       });
       return gltf;
     } catch (error) {
