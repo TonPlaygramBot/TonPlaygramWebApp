@@ -214,9 +214,9 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
@@ -817,9 +817,13 @@ async function loadBeautifulGameSet() {
   let lastError = null;
   for (const url of BEAUTIFUL_GAME_URLS) {
     try {
+      const resolvedUrl = new URL(url, window.location.href).href;
+      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
+      loader.setPath(resourcePath);
+      loader.setResourcePath(resourcePath);
       // eslint-disable-next-line no-await-in-loop
       const gltf = await new Promise((resolve, reject) => {
-        loader.load(url, resolve, undefined, reject);
+        loader.load(resolvedUrl, resolve, undefined, reject);
       });
       return gltf;
     } catch (error) {
