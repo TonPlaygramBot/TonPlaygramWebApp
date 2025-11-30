@@ -246,9 +246,9 @@ const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome p
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
 const POCKET_JAW_DEPTH_SCALE = 0.52;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
@@ -558,9 +558,11 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // pull corner cuts inward so fascia + jaws sit flush over the pockets
+  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner pocket offset so the cuts sit farther toward each pocket mouth
+const CORNER_RAIL_CUT_INSET =
+  POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // preserve the existing chrome/wood cut positioning for jaws and fascia
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.62; // push middle pockets further from center for a wider mid-rail opening
+  POCKET_VIS_R * 0.9; // align side pocket cutouts to the pocket centres while moving the assemblies farther from table centre
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -718,7 +720,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 9; // pull broadcast cams closer so the snooker table fills the frame
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 22; // mirror Pool Royale framing so the table fill matches broadcast coverage
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -2899,7 +2901,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9; // match Pool Royale standing orbit for identical framing
+const STANDING_VIEW_PHI = 0.86; // match Pool Royale standing orbit for identical framing
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
@@ -2976,7 +2978,7 @@ const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.052;
+const CUE_VIEW_PHI_LIFT = 0.085;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -4605,7 +4607,7 @@ function Table3D(
   const innerHalfH = halfHext;
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
-  const cornerInset = CORNER_POCKET_CENTER_INSET;
+  const cornerCutInset = CORNER_RAIL_CUT_INSET;
   const sideInset = SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
@@ -4733,8 +4735,8 @@ function Table3D(
   };
 
   const cornerNotchMP = (sx, sz) => {
-    const cx = sx * (innerHalfW - cornerInset);
-    const cz = sz * (innerHalfH - cornerInset);
+    const cx = sx * (innerHalfW - cornerCutInset);
+    const cz = sz * (innerHalfH - cornerCutInset);
     const notchCircle = circlePoly(
       cx,
       cz,
@@ -5190,8 +5192,8 @@ function Table3D(
     ].forEach(({ sx, sz }) => {
       const baseMP = cornerNotchMP(sx, sz);
       const fallbackCenter = new THREE.Vector2(
-        sx * (innerHalfW - cornerInset),
-        sz * (innerHalfH - cornerInset)
+        sx * (innerHalfW - cornerCutInset),
+        sz * (innerHalfH - cornerCutInset)
       );
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
       const orientationAngle = Math.atan2(sz, sx);
