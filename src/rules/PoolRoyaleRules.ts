@@ -249,6 +249,7 @@ export class PoolRoyaleRules {
       }
       case '9ball': {
         const game = new NineBall();
+        game.state.ballInHand = true;
         const snapshot = serializeNineState(game.state);
         const lowest = lowestBall(snapshot.ballsOnTable) ?? 1;
         const base: FrameState = {
@@ -275,6 +276,7 @@ export class PoolRoyaleRules {
       }
       default: {
         const game = new AmericanBilliards();
+        game.state.ballInHand = true;
         const snapshot = serializeAmericanState(game.state);
         const lowest = lowestBall(snapshot.ballsOnTable) ?? 1;
         const base: FrameState = {
