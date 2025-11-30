@@ -206,7 +206,7 @@ function createDefaultPocketJawMaterial() {
   });
 }
 
-const POCKET_VISUAL_EXPANSION = 1.012;
+const POCKET_VISUAL_EXPANSION = 1.018;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
@@ -221,27 +221,27 @@ const CHROME_CORNER_HEIGHT_SCALE = 0.962;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0;
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia proportions aligned with Pool Royale plates
-const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.012;
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008;
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.028; // reuse Pool Royale side pocket arch width
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.041; // mirror Pool Royale side pocket arch width and reach
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.034;
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1;
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08;
 const CHROME_PLATE_RENDER_ORDER = 3.5;
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.46;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.004;
-const WOOD_CORNER_CUT_SCALE = 1; // keep wood cuts identical to chrome plate reliefs
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024;
+const WOOD_CORNER_CUT_SCALE = 0.984; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
@@ -249,7 +249,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
-const POCKET_JAW_DEPTH_SCALE = 0.56;
+const POCKET_JAW_DEPTH_SCALE = 0.52;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
@@ -260,10 +260,10 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.426;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.982;
-const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.86;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
+const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const CORNER_JAW_ARC_DEG = 120;
@@ -492,7 +492,7 @@ const TABLE = {
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
-const RAIL_HEIGHT = TABLE.THICK * 2.06; // raise wooden rails slightly to strengthen the Pool Royale profile
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // match Pool Royale rail stack height
 const FRAME_TOP_Y = -TABLE.THICK + 0.01;
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
@@ -505,7 +505,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 558.8;
 const CORNER_MOUTH_REF = 114.3;
 const SIDE_MOUTH_REF = 127;
-const CORNER_POCKET_SCALE_BOOST = 0.985;
+const CORNER_POCKET_SCALE_BOOST = 0.994;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996;
 const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
@@ -2899,24 +2899,24 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.82; // lift the default orbit a touch higher for a better overview
+const STANDING_VIEW_PHI = 0.86; // match Pool Royale standing orbit for identical framing
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon as the cue level is reached
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.028; // pull the player camera much tighter to mirror Pool Royale framing
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.06;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.029; // align orbit distance with Pool Royale framing
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.24;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.14;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
-const BROADCAST_MARGIN_WIDTH = BALL_R * 6;
-const BROADCAST_MARGIN_LENGTH = BALL_R * 6;
+const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
+const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
   nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
@@ -2950,7 +2950,7 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
-const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.04; // keep a touch of clearance above the aim line
+const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // match Pool Royale aim-line headroom
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
