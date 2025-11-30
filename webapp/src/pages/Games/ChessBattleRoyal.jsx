@@ -165,166 +165,6 @@ const BOARD_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
-const PIECE_STYLE_OPTIONS = Object.freeze([
-  {
-    id: 'royaleObsidian',
-    label: 'Royale Obsidian',
-    white: {
-      color: '#f7f8fb',
-      roughness: 0.28,
-      metalness: 0.26,
-      sheen: 0.35,
-      sheenColor: '#ffffff',
-      clearcoat: 0.3,
-      clearcoatRoughness: 0.22,
-      specularIntensity: 0.72
-    },
-    black: {
-      color: '#0d1424',
-      roughness: 0.24,
-      metalness: 0.46,
-      sheen: 0.2,
-      sheenColor: '#5f799c',
-      clearcoat: 0.26,
-      clearcoatRoughness: 0.36,
-      specularIntensity: 0.7,
-      emissive: '#0b1220',
-      emissiveIntensity: 0.24
-    },
-    accent: '#22c55e',
-    blackAccent: '#f59e0b'
-  },
-  {
-    id: 'ivoryObsidian',
-    label: 'Fildish & Obsidian',
-    white: {
-      color: '#f5f3eb',
-      roughness: 0.34,
-      metalness: 0.18,
-      sheen: 0.28,
-      sheenColor: '#ffffff',
-      clearcoat: 0.24,
-      clearcoatRoughness: 0.32,
-      specularIntensity: 0.58
-    },
-    black: {
-      color: '#2a2f3a',
-      roughness: 0.26,
-      metalness: 0.38,
-      sheen: 0.16,
-      sheenColor: '#7a8699',
-      clearcoat: 0.2,
-      clearcoatRoughness: 0.45,
-      specularIntensity: 0.62
-    },
-    accent: '#ffcc70',
-    blackAccent: '#ffd166'
-  },
-  {
-    id: 'marbleGold',
-    label: 'Mermer & Ar',
-    white: {
-      color: '#f3f1ff',
-      roughness: 0.22,
-      metalness: 0.28,
-      sheen: 0.32,
-      sheenColor: '#f8f6ff',
-      clearcoat: 0.35,
-      clearcoatRoughness: 0.22,
-      specularIntensity: 0.7
-    },
-    black: {
-      color: '#2c1f33',
-      roughness: 0.24,
-      metalness: 0.52,
-      sheen: 0.18,
-      sheenColor: '#cbb79e',
-      clearcoat: 0.28,
-      clearcoatRoughness: 0.36,
-      specularIntensity: 0.68
-    },
-    accent: '#ffd36b',
-    whiteAccent: '#ffeab5'
-  },
-  {
-    id: 'carbonCeramic',
-    label: 'Karbon Keramik',
-    white: {
-      color: '#dfe6ec',
-      roughness: 0.3,
-      metalness: 0.22,
-      sheen: 0.2,
-      sheenColor: '#ffffff',
-      clearcoat: 0.18,
-      clearcoatRoughness: 0.38,
-      specularIntensity: 0.55
-    },
-    black: {
-      color: '#1b1f23',
-      roughness: 0.42,
-      metalness: 0.28,
-      sheen: 0.12,
-      sheenColor: '#5e6670',
-      clearcoat: 0.12,
-      clearcoatRoughness: 0.44,
-      specularIntensity: 0.5
-    },
-    accent: '#64d3ff',
-    blackAccent: '#5dd0ff'
-  },
-  {
-    id: 'aquaQuartz',
-    label: 'Kuarc Akullt',
-    white: {
-      color: '#e6f9ff',
-      roughness: 0.18,
-      metalness: 0.25,
-      sheen: 0.34,
-      sheenColor: '#ffffff',
-      clearcoat: 0.42,
-      clearcoatRoughness: 0.24,
-      specularIntensity: 0.72
-    },
-    black: {
-      color: '#1c2835',
-      roughness: 0.28,
-      metalness: 0.46,
-      sheen: 0.22,
-      sheenColor: '#7ac0ff',
-      clearcoat: 0.3,
-      clearcoatRoughness: 0.3,
-      specularIntensity: 0.66
-    },
-    accent: '#7ae1ff'
-  },
-  {
-    id: 'stoneJade',
-    label: 'Stone & Jade',
-    white: {
-      color: '#dcd7c9',
-      roughness: 0.38,
-      metalness: 0.14,
-      sheen: 0.22,
-      sheenColor: '#f1efe7',
-      clearcoat: 0.16,
-      clearcoatRoughness: 0.32,
-      specularIntensity: 0.54
-    },
-    black: {
-      color: '#2f3035',
-      roughness: 0.34,
-      metalness: 0.22,
-      sheen: 0.16,
-      sheenColor: '#8ba297',
-      clearcoat: 0.14,
-      clearcoatRoughness: 0.34,
-      specularIntensity: 0.52
-    },
-    accent: '#6fb487',
-    blackAccent: '#82c59f'
-  }
-]);
-
 const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
@@ -379,18 +219,50 @@ const BEAUTIFUL_GAME_URLS = [
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
-const BEAUTIFUL_GAME_THEME = Object.freeze({
-  light: '#f0d9b5',
-  dark: '#8b5a2b',
-  frameLight: '#b88a55',
-  frameDark: '#3d2a1c',
+const BEAUTIFUL_GAME_THEME = Object.freeze(
+  buildBoardTheme({
+    ...(BOARD_COLOR_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
+    light: '#f0d9b5',
+    dark: '#8b5a2b',
+    frameLight: '#b88a55',
+    frameDark: '#3d2a1c',
+    accent: '#caa472',
+    highlight: '#7ef9a1',
+    capture: '#ff8975',
+    surfaceRoughness: 0.62,
+    surfaceMetalness: 0.22,
+    frameRoughness: 0.78,
+    frameMetalness: 0.18
+  })
+);
+
+const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
+  id: 'beautifulGameAuthentic',
+  label: 'A Beautiful Game',
+  white: {
+    color: '#f6f7fb',
+    roughness: 0.3,
+    metalness: 0.28,
+    sheen: 0.28,
+    sheenColor: '#ffffff',
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.22,
+    specularIntensity: 0.72
+  },
+  black: {
+    color: '#0f131f',
+    roughness: 0.24,
+    metalness: 0.38,
+    sheen: 0.22,
+    sheenColor: '#5f799c',
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.34,
+    specularIntensity: 0.72,
+    emissive: '#0b1220',
+    emissiveIntensity: 0.24
+  },
   accent: '#caa472',
-  highlight: '#7ef9a1',
-  capture: '#ff8975',
-  surfaceRoughness: 0.62,
-  surfaceMetalness: 0.22,
-  frameRoughness: 0.78,
-  frameMetalness: 0.18
+  blackAccent: '#b58f4f'
 });
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
@@ -439,9 +311,7 @@ const FALLBACK_FLAG = '🇺🇸';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
-  tableShape: 0,
-  boardPalette: 5,
-  pieceStyle: 5
+  tableShape: 0
 };
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -493,8 +363,6 @@ const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.i
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'boardPalette', label: 'Board Colors', options: BOARD_COLOR_OPTIONS },
-  { key: 'pieceStyle', label: 'Piece Style', options: PIECE_STYLE_OPTIONS },
   { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
@@ -507,9 +375,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['boardPalette', BOARD_COLOR_OPTIONS.length],
-    ['pieceStyle', PIECE_STYLE_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -933,10 +799,9 @@ function buildBoardTheme(option) {
 }
 
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
-  const normalized = normalizeAppearance(appearance);
-  const boardOption = BEAUTIFUL_GAME_THEME;
-  const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-  const boardTheme = buildBoardTheme(boardOption);
+  normalizeAppearance(appearance);
+  const pieceOption = BEAUTIFUL_GAME_PIECE_STYLE;
+  const boardTheme = buildBoardTheme(BEAUTIFUL_GAME_THEME);
   return {
     board: boardTheme,
     pieces: pieceOption,
@@ -1204,20 +1069,22 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
 
   const piecePrototypes = { white: {}, black: {} };
   const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
-  const accentLight = '#d4af78';
-  const accentDark = '#b58f4f';
-  piecePrototypes.white.P = buildBeautifulGamePiece('P', '#f6f7fb', accentLight, scale);
-  piecePrototypes.white.R = buildBeautifulGamePiece('R', '#f6f7fb', accentLight, scale);
-  piecePrototypes.white.N = buildBeautifulGamePiece('N', '#f6f7fb', accentLight, scale);
-  piecePrototypes.white.B = buildBeautifulGamePiece('B', '#f6f7fb', accentLight, scale);
-  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', '#f6f7fb', accentLight, scale);
-  piecePrototypes.white.K = buildBeautifulGamePiece('K', '#f6f7fb', accentLight, scale);
-  piecePrototypes.black.P = buildBeautifulGamePiece('P', '#0f131f', accentDark, scale);
-  piecePrototypes.black.R = buildBeautifulGamePiece('R', '#0f131f', accentDark, scale);
-  piecePrototypes.black.N = buildBeautifulGamePiece('N', '#0f131f', accentDark, scale);
-  piecePrototypes.black.B = buildBeautifulGamePiece('B', '#0f131f', accentDark, scale);
-  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', '#0f131f', accentDark, scale);
-  piecePrototypes.black.K = buildBeautifulGamePiece('K', '#0f131f', accentDark, scale);
+  const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
+  const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
+  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
+  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? accentLight;
+  piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
+  piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
+  piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
+  piecePrototypes.white.B = buildBeautifulGamePiece('B', authenticWhite, accentLight, scale);
+  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', authenticWhite, accentLight, scale);
+  piecePrototypes.white.K = buildBeautifulGamePiece('K', authenticWhite, accentLight, scale);
+  piecePrototypes.black.P = buildBeautifulGamePiece('P', authenticBlack, accentDark, scale);
+  piecePrototypes.black.R = buildBeautifulGamePiece('R', authenticBlack, accentDark, scale);
+  piecePrototypes.black.N = buildBeautifulGamePiece('N', authenticBlack, accentDark, scale);
+  piecePrototypes.black.B = buildBeautifulGamePiece('B', authenticBlack, accentDark, scale);
+  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
+  piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
 
   return { boardModel, piecePrototypes };
 }
@@ -1467,8 +1334,8 @@ function createPhysicalPieceMaterial(config = {}, fallbackColor) {
   return material;
 }
 
-function createPieceMaterials(styleOption = PIECE_STYLE_OPTIONS[0]) {
-  const option = styleOption || PIECE_STYLE_OPTIONS[0] || {};
+function createPieceMaterials(styleOption = BEAUTIFUL_GAME_PIECE_STYLE) {
+  const option = styleOption || BEAUTIFUL_GAME_PIECE_STYLE || {};
   const whiteConfig = option.white || {};
   const blackConfig = option.black || {};
 
