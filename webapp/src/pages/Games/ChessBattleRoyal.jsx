@@ -930,27 +930,47 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
     P: /pawn/i
   };
 
-  const isPieceNode = (name) => Object.values(typeRegex).some((regex) => regex.test(name));
+  const detectColor = (node) => {
+    let current = node;
+    while (current) {
+      const name = current.name || '';
+      if (/white/i.test(name)) return 'white';
+      if (/black/i.test(name)) return 'black';
+      current = current.parent;
+    }
+    return null;
+  };
+
+  const detectType = (node) => {
+    let current = node;
+    while (current) {
+      const name = current.name || '';
+      for (const [key, regex] of Object.entries(typeRegex)) {
+        if (regex.test(name)) return key;
+      }
+      current = current.parent;
+    }
+    return null;
+  };
+
+  const registerPrototype = (node) => {
+    const color = detectColor(node);
+    const type = detectType(node);
+    if (!color || !type || piecePrototypes[color][type]) return;
+    const clone = cloneWithShadows(node);
+    piecePrototypes[color][type] = clone;
+  };
+
   root.traverse((node) => {
     if (!node?.name) return;
-    const name = node.name;
-    const color = /white/i.test(name)
-      ? 'white'
-      : /black/i.test(name)
-        ? 'black'
-        : null;
-    if (!color) return;
-    Object.entries(typeRegex).forEach(([key, regex]) => {
-      if (regex.test(name) && !piecePrototypes[color][key]) {
-        const clone = cloneWithShadows(node);
-        piecePrototypes[color][key] = clone;
-      }
-    });
+    registerPrototype(node);
   });
 
   const boardModel = cloneWithShadows(root);
   boardModel.traverse((node) => {
-    if (node?.name && isPieceNode(node.name)) {
+    if (!node?.name) return;
+    const type = detectType(node);
+    if (type) {
       node.visible = false;
     }
   });
