@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -330,6 +331,12 @@ const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
+
+const BEAUTIFUL_GAME_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+];
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -879,6 +886,114 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
     capture: boardTheme.capture,
     accent: boardTheme.accent
   };
+}
+
+async function loadBeautifulGameSet() {
+  const loader = new GLTFLoader();
+  let lastError = null;
+  for (const url of BEAUTIFUL_GAME_URLS) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const gltf = await new Promise((resolve, reject) => {
+        loader.load(url, resolve, undefined, reject);
+      });
+      return gltf;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (lastError) throw lastError;
+  throw new Error('ABeautifulGame model failed to load');
+}
+
+function cloneWithShadows(object) {
+  const clone = object.clone(true);
+  clone.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+  return clone;
+}
+
+function extractBeautifulGameAssets(scene, targetBoardSize) {
+  if (!scene) return { boardModel: null, piecePrototypes: null };
+  const root = scene.clone(true);
+  const piecePrototypes = { white: {}, black: {} };
+  const typeRegex = {
+    K: /king/i,
+    Q: /queen/i,
+    R: /rook/i,
+    B: /bishop/i,
+    N: /knight/i,
+    P: /pawn/i
+  };
+
+  const isPieceNode = (name) => Object.values(typeRegex).some((regex) => regex.test(name));
+  root.traverse((node) => {
+    if (!node?.name) return;
+    const name = node.name;
+    const color = /white/i.test(name)
+      ? 'white'
+      : /black/i.test(name)
+        ? 'black'
+        : null;
+    if (!color) return;
+    Object.entries(typeRegex).forEach(([key, regex]) => {
+      if (regex.test(name) && !piecePrototypes[color][key]) {
+        const clone = cloneWithShadows(node);
+        piecePrototypes[color][key] = clone;
+      }
+    });
+  });
+
+  const boardModel = cloneWithShadows(root);
+  boardModel.traverse((node) => {
+    if (node?.name && isPieceNode(node.name)) {
+      node.visible = false;
+    }
+  });
+
+  // Scale to our procedural board footprint so the interactive logic still aligns
+  const size = new THREE.Vector3();
+  const box = new THREE.Box3().setFromObject(boardModel);
+  box.getSize(size);
+  const largest = Math.max(size.x || 1, size.z || 1);
+  const scale = targetBoardSize > 0 ? targetBoardSize / largest : 1;
+  boardModel.scale.setScalar(scale);
+  const centeredBox = new THREE.Box3().setFromObject(boardModel);
+  const center = new THREE.Vector3();
+  centeredBox.getCenter(center);
+  boardModel.position.set(-center.x, -centeredBox.min.y + (BOARD.baseH + 0.02), -center.z);
+
+  Object.values(piecePrototypes).forEach((byColor) => {
+    Object.keys(byColor).forEach((key) => {
+      const proto = byColor[key];
+      const protoBox = new THREE.Box3().setFromObject(proto);
+      const protoCenter = new THREE.Vector3();
+      protoBox.getCenter(protoCenter);
+      proto.position.sub(protoCenter);
+      proto.position.y -= protoBox.min.y;
+      proto.scale.multiplyScalar(scale);
+    });
+  });
+
+  return { boardModel, piecePrototypes };
+}
+
+function disposeObject3D(object) {
+  if (!object) return;
+  object.traverse((node) => {
+    if (node.isMesh) {
+      node.geometry?.dispose?.();
+      if (Array.isArray(node.material)) {
+        node.material.forEach((m) => m?.dispose?.());
+      } else {
+        node.material?.dispose?.();
+      }
+    }
+  });
 }
 
 function createPhysicalPieceMaterial(config = {}, fallbackColor) {
@@ -2222,21 +2337,37 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       baseMat?.color?.set?.(boardTheme.frameDark);
       baseMat.roughness = boardTheme.frameRoughness;
       baseMat.metalness = boardTheme.frameMetalness;
+      if (arena.boardModel) {
+        baseMat.transparent = true;
+        baseMat.opacity = Math.min(baseMat.opacity ?? 0.02, 0.08);
+        baseMat.depthWrite = false;
+      }
       topMat?.color?.set?.(boardTheme.frameLight);
       topMat.roughness = boardTheme.surfaceRoughness;
       topMat.metalness = boardTheme.surfaceMetalness;
+      if (arena.boardModel) {
+        topMat.transparent = true;
+        topMat.opacity = Math.min(topMat.opacity ?? 0.02, 0.08);
+        topMat.depthWrite = false;
+      }
       coordMat?.color?.set?.(palette.accent);
       tiles?.forEach((tileMesh) => {
         const isDark = (tileMesh.userData?.r + tileMesh.userData?.c) % 2 === 1;
         tileMesh.material.color.set(isDark ? boardTheme.dark : boardTheme.light);
         tileMesh.material.roughness = boardTheme.surfaceRoughness;
         tileMesh.material.metalness = boardTheme.surfaceMetalness;
+        if (arena.boardModel) {
+          tileMesh.material.transparent = true;
+          tileMesh.material.opacity = Math.min(tileMesh.material.opacity ?? 0.08, 0.12);
+          tileMesh.material.depthWrite = false;
+        }
       });
     }
 
     if (arena.allPieceMeshes) {
       const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
       arena.allPieceMeshes.forEach((group) => {
+        if (group.userData?.__pieceStyleId === 'beautifulGame') return;
         const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
         const materialSet = nextPieceMaterials[colorKey];
         if (!materialSet) return;
@@ -2275,6 +2406,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     const host = wrapRef.current;
     if (!host) return;
+    let cancelled = false;
     let scene = null;
     let camera = null;
     let renderer = null;
@@ -2312,6 +2444,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     disposers.push(() => {
       disposePieceMaterials(pieceMaterials);
     });
+    const beautifulGamePromise = loadBeautifulGameSet()
+      .then((gltf) => extractBeautifulGameAssets(gltf?.scene, RAW_BOARD_SIZE))
+      .catch((error) => {
+        console.warn('Chess Battle Royal: failed to load ABeautifulGame set', error);
+        return { boardModel: null, piecePrototypes: null };
+      });
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -2725,6 +2863,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const tile = BOARD.tile;
     const N = 8;
     const half = (N * tile) / 2;
+    let beautifulBoardModel = null;
     const base = box(
       N * tile + BOARD.rim * 2,
       BOARD.baseH,
@@ -2843,6 +2982,88 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         if (p) placePieceMesh(r, c, p);
       }
 
+    beautifulGamePromise.then(({ boardModel, piecePrototypes }) => {
+      if (cancelled) return;
+      beautifulBoardModel = boardModel || null;
+      if (boardModel) {
+        boardGroup.add(boardModel);
+        base.material.transparent = true;
+        base.material.opacity = 0.02;
+        base.material.depthWrite = false;
+        top.material.transparent = true;
+        top.material.opacity = 0.02;
+        top.material.depthWrite = false;
+        tiles.forEach((tileMesh) => {
+          tileMesh.material.transparent = true;
+          tileMesh.material.opacity = 0.08;
+          tileMesh.material.depthWrite = false;
+        });
+        if (arenaRef.current) {
+          arenaRef.current.boardModel = boardModel;
+        }
+        disposers.push(() => {
+          try {
+            boardGroup.remove(boardModel);
+          } catch {}
+          disposeObject3D(boardModel);
+        });
+      }
+      if (piecePrototypes) {
+        const convertPieceMesh = (r, c, p) => {
+          const color = p.w ? 'white' : 'black';
+          const proto = piecePrototypes[color]?.[p.t];
+          if (!proto) return null;
+          const clone = cloneWithShadows(proto);
+          clone.position.set(c * tile - half + tile / 2, 0, r * tile - half + tile / 2);
+          clone.userData = {
+            r,
+            c,
+            w: p.w,
+            t: p.t,
+            type: 'piece',
+            __pieceColor: color,
+            __pieceStyleId: 'beautifulGame'
+          };
+          clone.traverse((child) => {
+            if (!child.isMesh) return;
+            child.userData = {
+              ...(child.userData || {}),
+              __pieceColor: color,
+              __pieceStyleId: 'beautifulGame'
+            };
+          });
+          return clone;
+        };
+
+        allPieceMeshes.length = 0;
+        for (let r = 0; r < 8; r += 1) {
+          for (let c = 0; c < 8; c += 1) {
+            const p = board[r][c];
+            if (!p) continue;
+            const next = convertPieceMesh(r, c, p);
+            if (!next) {
+              if (pieceMeshes[r][c]) {
+                allPieceMeshes.push(pieceMeshes[r][c]);
+              }
+              continue;
+            }
+            const current = pieceMeshes[r][c];
+            if (current) {
+              try {
+                boardGroup.remove(current);
+              } catch {}
+            }
+            pieceMeshes[r][c] = next;
+            boardGroup.add(next);
+            allPieceMeshes.push(next);
+          }
+        }
+        if (arenaRef.current) {
+          arenaRef.current.allPieceMeshes = allPieceMeshes;
+        }
+      }
+    });
+
       arenaRef.current = {
         renderer,
         scene,
@@ -2867,7 +3088,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         capturedByBlack,
         palette,
         playerFlag: initialPlayerFlag,
-        aiFlag: initialAiFlagValue
+        aiFlag: initialAiFlagValue,
+        boardModel: beautifulBoardModel
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
@@ -3221,6 +3443,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     startTimer(true);
 
     return () => {
+      cancelled = true;
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', onResize);
       clearInterval(timerRef.current);
