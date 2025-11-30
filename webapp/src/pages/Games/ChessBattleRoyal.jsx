@@ -73,6 +73,21 @@ const BASE_BOARD_THEME = Object.freeze({
 
 const BOARD_COLOR_OPTIONS = Object.freeze([
   {
+    id: 'royaleNight',
+    label: 'Royale Nightfall',
+    light: '#f0d9b5',
+    dark: '#8b5a2b',
+    frameLight: '#1b243b',
+    frameDark: '#0b1220',
+    accent: '#22c55e',
+    highlight: '#22c55e',
+    capture: '#f97316',
+    surfaceRoughness: 0.58,
+    surfaceMetalness: 0.22,
+    frameRoughness: 0.76,
+    frameMetalness: 0.24
+  },
+  {
     id: 'classicWalnut',
     label: 'Dru Klasik',
     light: '#f3dfc1',
@@ -135,6 +150,34 @@ const BOARD_COLOR_OPTIONS = Object.freeze([
 ]);
 
 const PIECE_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'royaleObsidian',
+    label: 'Royale Obsidian',
+    white: {
+      color: '#f7f8fb',
+      roughness: 0.28,
+      metalness: 0.26,
+      sheen: 0.35,
+      sheenColor: '#ffffff',
+      clearcoat: 0.3,
+      clearcoatRoughness: 0.22,
+      specularIntensity: 0.72
+    },
+    black: {
+      color: '#0d1424',
+      roughness: 0.24,
+      metalness: 0.46,
+      sheen: 0.2,
+      sheenColor: '#5f799c',
+      clearcoat: 0.26,
+      clearcoatRoughness: 0.36,
+      specularIntensity: 0.7,
+      emissive: '#0b1220',
+      emissiveIntensity: 0.24
+    },
+    accent: '#22c55e',
+    blackAccent: '#f59e0b'
+  },
   {
     id: 'ivoryObsidian',
     label: 'Fildish & Obsidian',
@@ -910,6 +953,8 @@ const sph = (r, material, seg = 20, opts = {}) =>
   new THREE.Mesh(new THREE.SphereGeometry(r, seg, seg), ensureMaterial(material, { roughness: opts.roughness ?? 0.6, metalness: opts.metalness ?? 0.05 }));
 const cone = (r, h, material, seg = 24, opts = {}) =>
   new THREE.Mesh(new THREE.ConeGeometry(r, h, seg), ensureMaterial(material, opts));
+const torus = (r, tube, material, arc = Math.PI * 2, opts = {}) =>
+  new THREE.Mesh(new THREE.TorusGeometry(r, tube, 12, 28, arc), ensureMaterial(material, opts));
 
 function tagPieceMesh(mesh, role = 'base') {
   if (!mesh) return mesh;
@@ -923,14 +968,18 @@ function tagPieceMesh(mesh, role = 'base') {
 function buildPawn(materials = {}) {
   const baseMat = materials.base;
   const g = new THREE.Group();
-  const base = tagPieceMesh(cyl(1.1, 1.3, 0.4, baseMat));
-  base.position.y = PIECE_Y;
-  g.add(base);
-  const neck = tagPieceMesh(cyl(0.7, 0.95, 1.6, baseMat));
-  neck.position.y = PIECE_Y + 1.1;
-  g.add(neck);
-  const head = tagPieceMesh(sph(0.7, baseMat));
-  head.position.y = PIECE_Y + 2.3;
+  const foot = tagPieceMesh(cyl(1.35, 1.55, 0.45, baseMat));
+  foot.position.y = PIECE_Y;
+  g.add(foot);
+  const shank = tagPieceMesh(cyl(1.15, 0.95, 1.2, baseMat));
+  shank.position.y = PIECE_Y + 0.95;
+  g.add(shank);
+  const collar = tagPieceMesh(torus(0.95, 0.13, baseMat));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = PIECE_Y + 1.75;
+  g.add(collar);
+  const head = tagPieceMesh(sph(0.72, baseMat));
+  head.position.y = PIECE_Y + 2.35;
   g.add(head);
   return g;
 }
@@ -938,14 +987,27 @@ function buildPawn(materials = {}) {
 function buildRook(materials = {}) {
   const baseMat = materials.base;
   const g = new THREE.Group();
-  const foot = tagPieceMesh(cyl(1.3, 1.6, 0.5, baseMat));
+  const foot = tagPieceMesh(cyl(1.35, 1.7, 0.55, baseMat));
   foot.position.y = PIECE_Y;
   g.add(foot);
-  const body = tagPieceMesh(cyl(1.2, 1.2, 2.2, baseMat));
-  body.position.y = PIECE_Y + 1.4;
+  const body = tagPieceMesh(cyl(1.2, 1.3, 2.15, baseMat));
+  body.position.y = PIECE_Y + 1.42;
   g.add(body);
-  const crown = tagPieceMesh(box(2.0, 0.5, 2.0, baseMat));
-  crown.position.y = PIECE_Y + 2.8;
+  const belt = tagPieceMesh(torus(1.05, 0.12, baseMat));
+  belt.rotation.x = Math.PI / 2;
+  belt.position.y = PIECE_Y + 1.95;
+  g.add(belt);
+  const crown = new THREE.Group();
+  const ring = tagPieceMesh(cyl(1.25, 1.1, 0.35, baseMat));
+  ring.position.y = PIECE_Y + 2.6;
+  crown.add(ring);
+  const crenels = 4;
+  for (let i = 0; i < crenels; i++) {
+    const chunk = tagPieceMesh(box(0.5, 0.55, 0.5, baseMat));
+    const angle = i * ((Math.PI * 2) / crenels);
+    chunk.position.set(Math.cos(angle) * 0.8, PIECE_Y + 2.95, Math.sin(angle) * 0.8);
+    crown.add(chunk);
+  }
   g.add(crown);
   return g;
 }
@@ -953,26 +1015,32 @@ function buildRook(materials = {}) {
 function buildKnight(materials = {}) {
   const baseMat = materials.base;
   const g = new THREE.Group();
-  const foot = tagPieceMesh(cyl(1.3, 1.6, 0.5, baseMat));
+  const foot = tagPieceMesh(cyl(1.35, 1.65, 0.55, baseMat));
   foot.position.y = PIECE_Y;
   g.add(foot);
-  const body = tagPieceMesh(cyl(1.0, 1.2, 1.6, baseMat));
-  body.position.y = PIECE_Y + 1.1;
+  const body = tagPieceMesh(cyl(1.0, 1.25, 1.65, baseMat));
+  body.position.y = PIECE_Y + 1.15;
   g.add(body);
   const head = new THREE.Group();
-  const neck = tagPieceMesh(cyl(0.7, 0.9, 0.8, baseMat));
-  neck.rotation.z = 0.2;
-  neck.position.set(0, PIECE_Y + 1.9, 0.2);
+  const neck = tagPieceMesh(cyl(0.75, 0.95, 0.9, baseMat));
+  neck.rotation.z = 0.18;
+  neck.position.set(0.05, PIECE_Y + 2.05, 0.25);
   head.add(neck);
-  const face = tagPieceMesh(box(0.9, 1.1, 0.6, baseMat));
-  face.position.set(0.1, PIECE_Y + 2.6, 0.2);
+  const face = tagPieceMesh(box(1.05, 1.15, 0.7, baseMat));
+  face.position.set(0.15, PIECE_Y + 2.75, 0.35);
   head.add(face);
-  const ear1 = tagPieceMesh(cone(0.18, 0.35, baseMat));
-  ear1.position.set(0.35, PIECE_Y + 3.0, 0.15);
+  const muzzle = tagPieceMesh(box(0.7, 0.45, 0.7, baseMat));
+  muzzle.position.set(0.35, PIECE_Y + 3.05, 0.4);
+  head.add(muzzle);
+  const ear1 = tagPieceMesh(cone(0.22, 0.45, baseMat));
+  ear1.position.set(0.4, PIECE_Y + 3.25, 0.05);
   head.add(ear1);
-  const ear2 = tagPieceMesh(cone(0.18, 0.35, baseMat));
-  ear2.position.set(-0.05, PIECE_Y + 3.0, 0.15);
+  const ear2 = tagPieceMesh(cone(0.22, 0.45, baseMat));
+  ear2.position.set(-0.05, PIECE_Y + 3.2, 0.05);
   head.add(ear2);
+  const mane = tagPieceMesh(box(0.25, 1.3, 0.95, baseMat));
+  mane.position.set(-0.35, PIECE_Y + 2.55, -0.05);
+  head.add(mane);
   g.add(head);
   return g;
 }
@@ -981,17 +1049,21 @@ function buildBishop(materials = {}) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const foot = tagPieceMesh(cyl(1.2, 1.6, 0.5, baseMat));
+  const foot = tagPieceMesh(cyl(1.25, 1.7, 0.55, baseMat));
   foot.position.y = PIECE_Y;
   g.add(foot);
-  const body = tagPieceMesh(cyl(0.9, 1.1, 2.2, baseMat));
-  body.position.y = PIECE_Y + 1.3;
+  const body = tagPieceMesh(cyl(0.95, 1.15, 2.2, baseMat));
+  body.position.y = PIECE_Y + 1.35;
   g.add(body);
-  const mitre = tagPieceMesh(sph(0.9, baseMat));
-  mitre.position.y = PIECE_Y + 2.6;
+  const collar = tagPieceMesh(torus(0.9, 0.12, baseMat));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = PIECE_Y + 2.1;
+  g.add(collar);
+  const mitre = tagPieceMesh(cone(0.95, 1.35, baseMat));
+  mitre.position.y = PIECE_Y + 2.5;
   g.add(mitre);
-  const slit = tagPieceMesh(box(0.1, 0.6, 0.2, accentMat), 'accent');
-  slit.position.y = PIECE_Y + 2.6;
+  const slit = tagPieceMesh(box(0.12, 0.9, 0.28, accentMat), 'accent');
+  slit.position.y = PIECE_Y + 2.55;
   g.add(slit);
   return g;
 }
@@ -1000,24 +1072,30 @@ function buildQueen(materials = {}) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const base = tagPieceMesh(cyl(1.4, 1.8, 0.6, baseMat));
+  const base = tagPieceMesh(cyl(1.45, 1.9, 0.6, baseMat));
   base.position.y = PIECE_Y;
   g.add(base);
-  const body = tagPieceMesh(cyl(1.1, 1.3, 2.6, baseMat));
-  body.position.y = PIECE_Y + 1.7;
+  const midBase = tagPieceMesh(cyl(1.35, 1.55, 0.45, baseMat));
+  midBase.position.y = PIECE_Y + 0.6;
+  g.add(midBase);
+  const body = tagPieceMesh(cyl(1.08, 1.28, 2.45, baseMat));
+  body.position.y = PIECE_Y + 1.8;
   g.add(body);
   const crown = new THREE.Group();
-  const ring = tagPieceMesh(cyl(1.2, 1.2, 0.3, accentMat), 'accent');
-  ring.position.y = PIECE_Y + 3.1;
+  const ring = tagPieceMesh(cyl(1.25, 1.15, 0.32, accentMat), 'accent');
+  ring.position.y = PIECE_Y + 3.15;
   crown.add(ring);
-  const spikes = 6;
+  const spikes = 8;
   for (let i = 0; i < spikes; i++) {
-    const spike = tagPieceMesh(cone(0.18, 0.6, accentMat), 'accent');
+    const spike = tagPieceMesh(cone(0.16, 0.65, accentMat), 'accent');
     const angle = i * ((Math.PI * 2) / spikes);
-    spike.position.set(Math.cos(angle) * 0.9, PIECE_Y + 3.6, Math.sin(angle) * 0.9);
+    spike.position.set(Math.cos(angle) * 0.95, PIECE_Y + 3.65, Math.sin(angle) * 0.95);
     spike.rotation.x = -Math.PI / 2;
     crown.add(spike);
   }
+  const orb = tagPieceMesh(sph(0.28, accentMat), 'accent');
+  orb.position.y = PIECE_Y + 4.05;
+  crown.add(orb);
   g.add(crown);
   return g;
 }
@@ -1026,20 +1104,24 @@ function buildKing(materials = {}) {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
-  const base = tagPieceMesh(cyl(1.4, 1.9, 0.6, baseMat));
+  const base = tagPieceMesh(cyl(1.45, 1.95, 0.6, baseMat));
   base.position.y = PIECE_Y;
   g.add(base);
-  const body = tagPieceMesh(cyl(1.1, 1.3, 2.9, baseMat));
+  const body = tagPieceMesh(cyl(1.12, 1.32, 2.85, baseMat));
   body.position.y = PIECE_Y + 1.9;
   g.add(body);
-  const orb = tagPieceMesh(sph(0.55, accentMat), 'accent');
-  orb.position.y = PIECE_Y + 3.2;
+  const collar = tagPieceMesh(torus(1.05, 0.12, baseMat));
+  collar.rotation.x = Math.PI / 2;
+  collar.position.y = PIECE_Y + 2.6;
+  g.add(collar);
+  const orb = tagPieceMesh(sph(0.58, accentMat), 'accent');
+  orb.position.y = PIECE_Y + 3.25;
   g.add(orb);
-  const crossV = tagPieceMesh(box(0.2, 0.8, 0.2, accentMat), 'accent');
-  crossV.position.y = PIECE_Y + 3.8;
+  const crossV = tagPieceMesh(box(0.22, 0.95, 0.22, accentMat), 'accent');
+  crossV.position.y = PIECE_Y + 3.95;
   g.add(crossV);
-  const crossH = tagPieceMesh(box(0.8, 0.2, 0.2, accentMat), 'accent');
-  crossH.position.y = PIECE_Y + 3.8;
+  const crossH = tagPieceMesh(box(0.95, 0.22, 0.22, accentMat), 'accent');
+  crossH.position.y = PIECE_Y + 3.95;
   g.add(crossH);
   return g;
 }
