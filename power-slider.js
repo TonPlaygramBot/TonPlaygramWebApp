@@ -86,22 +86,13 @@ export class PowerSlider {
     this._onPointerUp = this._pointerUp.bind(this);
     this._onWheel = this._wheel.bind(this);
     this._onKeyDown = this._keyDown.bind(this);
-    this._onResize = () => {
-      this._setupPowerBar();
-      this._update(false);
-    };
-
     this.el.addEventListener('pointerdown', this._onPointerDown);
     this.el.addEventListener('wheel', this._onWheel, { passive: false });
     this.el.addEventListener('keydown', this._onKeyDown);
-    window.addEventListener('resize', this._onResize);
 
     this.cueImg.addEventListener('load', () => {
-      this._setupPowerBar();
       this._update(false);
     });
-
-    this._setupPowerBar();
 
     this.set(value);
   }
@@ -139,7 +130,6 @@ export class PowerSlider {
     this.el.removeEventListener('pointerdown', this._onPointerDown);
     this.el.removeEventListener('wheel', this._onWheel);
     this.el.removeEventListener('keydown', this._onKeyDown);
-    window.removeEventListener('resize', this._onResize);
     this.el.remove();
   }
 
@@ -191,32 +181,10 @@ export class PowerSlider {
     this.track.style.background = `linear-gradient(to bottom, ${lowColor} 0%, ${color} ${pct}%, var(--ps-track-bg) ${pct}%, var(--ps-track-bg) 100%)`;
   }
 
-  _setupPowerBar() {
-    if (!this.powerBar) return;
-    const uWidth = this._measureCharWidth('u');
-    const pWidth = this._measureCharWidth('P');
-    this.powerBar.style.width = `${uWidth}px`;
-    const textRect = this.handleText.getBoundingClientRect();
-    const imgRect = this.cueImg.getBoundingClientRect();
-    const elRect = this.el.getBoundingClientRect();
-    const left = textRect.left - elRect.left + pWidth;
-    const top = textRect.bottom - elRect.top;
-    const height = imgRect.bottom - textRect.bottom;
-    this.powerBar.style.left = `${left}px`;
-    this.powerBar.style.top = `${top}px`;
-    this.powerBar.style.height = `${height}px`;
-  }
+  _setupPowerBar() {}
 
-  _measureCharWidth(ch) {
-    const span = document.createElement('span');
-    span.textContent = ch;
-    span.className = this.handleText.className;
-    span.style.visibility = 'hidden';
-    span.style.position = 'absolute';
-    this.el.appendChild(span);
-    const width = span.getBoundingClientRect().width;
-    span.remove();
-    return width;
+  _measureCharWidth() {
+    return 0;
   }
 
   _updateFromClientY(y) {
