@@ -5214,7 +5214,7 @@ function Table3D(
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
-      const orientationAngle = Math.atan2(0, sx);
+      const orientationAngle = Math.atan2(0, -sx);
       addPocketJaw({
         center,
         baseRadius: sideBaseRadius,
