@@ -146,34 +146,6 @@ function scaleMultiPolygonBy(mp, scale) {
   return scaleMultiPolygon(mp, scale);
 }
 
-function translatePocketCutMP(mp, sx, sz, offset) {
-  if (!Array.isArray(mp) || !mp.length) {
-    return mp;
-  }
-  if (!Number.isFinite(offset) || Math.abs(offset) <= MICRO_EPS) {
-    return mp;
-  }
-  const dx = -sx * offset;
-  const dz = -sz * offset;
-  if (!Number.isFinite(dx) || !Number.isFinite(dz)) {
-    return mp;
-  }
-  if (Math.abs(dx) <= MICRO_EPS && Math.abs(dz) <= MICRO_EPS) {
-    return mp;
-  }
-  return mp.map((poly) => {
-    if (!Array.isArray(poly)) return poly;
-    return poly.map((ring) => {
-      if (!Array.isArray(ring)) return ring;
-      return ring.map((pt) => {
-        if (!Array.isArray(pt) || pt.length < 2) return pt;
-        const [x, z] = pt;
-        return [x + dx, z + dz];
-      });
-    });
-  });
-}
-
 function adjustCornerNotchDepth(mp, centerZ, sz) {
   if (!Array.isArray(mp) || !Number.isFinite(centerZ) || !Number.isFinite(sz)) {
     return Array.isArray(mp) ? mp : [];
@@ -268,10 +240,9 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // mirror Pool Royale outward pull so the chrome cut hugs the rounded rail relief
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012;
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.264; // shift middle wood arches to match Pool Royale's relieved centreline
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -2930,7 +2901,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86; // match Pool Royale standing orbit for identical framing
+const STANDING_VIEW_PHI = 0.83; // bring the orbit slightly higher above the cloth
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
@@ -2938,10 +2909,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.029; // align orbit distance with Pool Royale framing
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.027; // align orbit distance with Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.14;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.1;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
@@ -5164,7 +5135,6 @@ function Table3D(
 
   const CORNER_JAW_ANGLE = THREE.MathUtils.degToRad(CORNER_JAW_ARC_DEG);
   const SIDE_JAW_ANGLE = THREE.MathUtils.degToRad(SIDE_JAW_ARC_DEG);
-  const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236;
 
   // Each pocket jaw must match 100% to the rounded chrome plate cuts—never the wooden rail arches.
   // Repeat: each pocket jaw must match 100% to the size of the rounded cuts on the chrome plates.
@@ -5244,7 +5214,6 @@ function Table3D(
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
-      center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
@@ -5270,16 +5239,8 @@ function Table3D(
     }
   }
 
-  const woodSideCutCenterOutset = TABLE.THICK * WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE;
   const woodSideNotches = [-1, 1]
-    .map((sx) =>
-      translatePocketCutMP(
-        scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE),
-        sx,
-        0,
-        woodSideCutCenterOutset
-      )
-    )
+    .map((sx) => scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE))
     .filter((mp) => Array.isArray(mp) && mp.length);
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
