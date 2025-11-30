@@ -2888,11 +2888,15 @@ function updateClothTexturesForFinish (finishInfo, textureKey = DEFAULT_CLOTH_TE
     }
   }
   if (finishInfo.clothEdgeMat) {
-    replaceMaterialTexture(finishInfo.clothEdgeMat, 'map', textures.map, fallbackRepeat);
-    replaceMaterialTexture(finishInfo.clothEdgeMat, 'bumpMap', textures.bump, fallbackRepeat);
-    if (Number.isFinite(finishInfo.clothBase?.baseBumpScale)) {
-      finishInfo.clothEdgeMat.bumpScale = finishInfo.clothBase.baseBumpScale;
-    }
+    finishInfo.clothEdgeMat.map = null;
+    finishInfo.clothEdgeMat.bumpMap = null;
+    finishInfo.clothEdgeMat.bumpScale = 0;
+    finishInfo.clothEdgeMat.roughness = 1;
+    finishInfo.clothEdgeMat.clearcoat = 0;
+    finishInfo.clothEdgeMat.clearcoatRoughness = 1;
+    finishInfo.clothEdgeMat.envMapIntensity = 0;
+    finishInfo.clothEdgeMat.sheen = 0;
+    finishInfo.clothEdgeMat.needsUpdate = true;
   }
   finishInfo.parts?.underlayMeshes?.forEach((mesh) => {
     if (!mesh?.material) return;
@@ -5357,7 +5361,6 @@ function Table3D(
   const clothHighlight = new THREE.Color(0xf6fff9);
   const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
   const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
-  const clothEdgeColor = clothPrimary.clone().lerp(clothHighlight, CLOTH_EDGE_TINT);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
   const clothSheen = CLOTH_QUALITY.sheen * 0.72;
   const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.08);
@@ -5416,16 +5419,22 @@ function Table3D(
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
-  clothEdgeMat.color.copy(clothEdgeColor);
-  clothEdgeMat.emissive.copy(clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER));
+  clothEdgeMat.color.copy(clothColor);
+  clothEdgeMat.emissive.copy(
+    clothColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
+  );
+  clothEdgeMat.map = null;
+  clothEdgeMat.bumpMap = null;
+  clothEdgeMat.bumpScale = 0;
   clothEdgeMat.side = THREE.DoubleSide;
   clothEdgeMat.envMapIntensity = 0;
   clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
   clothEdgeMat.metalness = 0;
-  clothEdgeMat.roughness = Math.min(0.96, clothMat.roughness + 0.18);
+  clothEdgeMat.roughness = 1;
   clothEdgeMat.clearcoat = 0;
   clothEdgeMat.clearcoatRoughness = 1;
   clothEdgeMat.sheen = 0;
+  clothEdgeMat.needsUpdate = true;
   const underlayTopMat = clothMat.clone();
   underlayTopMat.metalness = 0;
   underlayTopMat.roughness = 1;
@@ -5532,6 +5541,15 @@ function Table3D(
     }
   };
   applyClothDetail(resolvedFinish?.clothDetail);
+  clothEdgeMat.map = null;
+  clothEdgeMat.bumpMap = null;
+  clothEdgeMat.bumpScale = 0;
+  clothEdgeMat.roughness = 1;
+  clothEdgeMat.clearcoat = 0;
+  clothEdgeMat.clearcoatRoughness = 1;
+  clothEdgeMat.envMapIntensity = 0;
+  clothEdgeMat.sheen = 0;
+  clothEdgeMat.needsUpdate = true;
   const finishInfo = {
     id: resolvedFinish?.id ?? DEFAULT_TABLE_FINISH_ID,
     palette,
@@ -7909,8 +7927,6 @@ function applyTableFinishToTable(table, finish) {
   const cushionSheenColor = cushionColor.clone().lerp(clothHighlight, 0.18);
   const emissiveColor = clothColor.clone().multiplyScalar(0.06);
   const cushionEmissive = cushionColor.clone().multiplyScalar(0.06);
-  const clothEdgeColor = clothColor.clone().lerp(clothHighlight, CLOTH_EDGE_TINT);
-  const clothEdgeEmissive = clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER);
   if (finishInfo.clothMat) {
     finishInfo.clothMat.color.copy(clothColor);
     if (finishInfo.clothMat.sheenColor) {
@@ -7928,11 +7944,19 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.cushionMat.needsUpdate = true;
   }
   if (finishInfo.clothEdgeMat) {
-    finishInfo.clothEdgeMat.color.copy(clothEdgeColor);
+    finishInfo.clothEdgeMat.color.copy(clothColor);
+    finishInfo.clothEdgeMat.map = null;
+    finishInfo.clothEdgeMat.bumpMap = null;
+    finishInfo.clothEdgeMat.bumpScale = 0;
+    finishInfo.clothEdgeMat.roughness = 1;
+    finishInfo.clothEdgeMat.clearcoat = 0;
+    finishInfo.clothEdgeMat.clearcoatRoughness = 1;
+    finishInfo.clothEdgeMat.envMapIntensity = 0;
+    finishInfo.clothEdgeMat.sheen = 0;
     if (finishInfo.clothEdgeMat.sheenColor) {
-      finishInfo.clothEdgeMat.sheenColor.copy(clothEdgeColor);
+      finishInfo.clothEdgeMat.sheenColor.copy(clothColor);
     }
-    finishInfo.clothEdgeMat.emissive.copy(clothEdgeEmissive);
+    finishInfo.clothEdgeMat.emissive.copy(emissiveColor);
     finishInfo.clothEdgeMat.emissiveIntensity = CLOTH_EDGE_EMISSIVE_INTENSITY;
     finishInfo.clothEdgeMat.needsUpdate = true;
   }
@@ -16472,7 +16496,15 @@ export default function PoolRoyale() {
   }, [location.search]);
   const mode = useMemo(() => {
     const params = new URLSearchParams(location.search);
-    return params.get('mode') || 'ai';
+    const requested = params.get('mode');
+    if (requested === 'online') return 'online';
+    if (requested === 'local') return 'local';
+    return 'ai';
+  }, [location.search]);
+  const trainingMode = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('mode');
+    return requested === 'solo' ? 'solo' : 'ai';
   }, [location.search]);
   const trainingRulesEnabled = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -16571,7 +16603,7 @@ export default function PoolRoyale() {
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}
-      trainingMode={mode}
+      trainingMode={trainingMode}
       trainingRulesEnabled={trainingRulesEnabled}
       accountId={accountId}
       tgId={tgId}
