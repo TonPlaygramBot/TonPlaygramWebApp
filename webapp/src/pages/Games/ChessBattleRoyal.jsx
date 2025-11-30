@@ -379,8 +379,22 @@ const BEAUTIFUL_GAME_URLS = [
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
-// Small shrink so imported pieces sit comfortably on the procedural board footprint
-const BEAUTIFUL_GAME_ASSET_SCALE = 1;
+const BEAUTIFUL_GAME_THEME = Object.freeze({
+  light: '#f0d9b5',
+  dark: '#8b5a2b',
+  frameLight: '#b88a55',
+  frameDark: '#3d2a1c',
+  accent: '#caa472',
+  highlight: '#7ef9a1',
+  capture: '#ff8975',
+  surfaceRoughness: 0.62,
+  surfaceMetalness: 0.22,
+  frameRoughness: 0.78,
+  frameMetalness: 0.18
+});
+
+// Sized to the physical ABeautifulGame set while fitting the playable footprint
+const BEAUTIFUL_GAME_ASSET_SCALE = 0.94;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -920,7 +934,7 @@ function buildBoardTheme(option) {
 
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
-  const boardOption = BOARD_COLOR_OPTIONS[normalized.boardPalette] ?? BOARD_COLOR_OPTIONS[0];
+  const boardOption = BEAUTIFUL_GAME_THEME;
   const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
   const boardTheme = buildBoardTheme(boardOption);
   return {
@@ -1137,7 +1151,7 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
   return g;
 }
 
-function buildBeautifulGameFallback(targetBoardSize, boardTheme = BASE_BOARD_THEME) {
+function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME_THEME) {
   const boardModel = new THREE.Group();
   boardModel.name = 'ABeautifulGameLocal';
   const tile = BOARD.tile;
@@ -1208,7 +1222,7 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BASE_BOARD_THE
   return { boardModel, piecePrototypes };
 }
 
-async function resolveBeautifulGameAssets(targetBoardSize, boardTheme) {
+async function resolveBeautifulGameAssets(targetBoardSize) {
   const timeoutMs = 7000;
   const withTimeout = (promise) =>
     Promise.race([
@@ -1225,7 +1239,7 @@ async function resolveBeautifulGameAssets(targetBoardSize, boardTheme) {
   } catch (error) {
     console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using local fallback', error);
   }
-  return buildBeautifulGameFallback(targetBoardSize, boardTheme);
+  return buildBeautifulGameFallback(targetBoardSize, BEAUTIFUL_GAME_THEME);
 }
 
 function cloneWithShadows(object) {
@@ -2700,7 +2714,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
-    const boardTheme = palette.board;
+    const boardTheme = BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces;
 
     if (shapeOption) {
@@ -2861,7 +2875,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const normalizedAppearance = normalizeAppearance(appearanceRef.current);
     const palette = createChessPalette(normalizedAppearance);
     paletteRef.current = palette;
-    const boardTheme = palette.board;
+    const boardTheme = BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces;
     const initialPlayerFlag =
       playerFlag ||
@@ -2878,7 +2892,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     disposers.push(() => {
       disposePieceMaterials(pieceMaterials);
     });
-    const beautifulGamePromise = resolveBeautifulGameAssets(RAW_BOARD_SIZE, boardTheme);
+    const beautifulGamePromise = resolveBeautifulGameAssets(RAW_BOARD_SIZE);
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -3450,6 +3464,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           top.material.transparent = true;
           top.material.opacity = 0.001;
           top.material.depthWrite = false;
+          if (coordMat) {
+            coordMat.transparent = true;
+            coordMat.opacity = 0.001;
+            coordMat.depthWrite = false;
+          }
           tiles.forEach((tileMesh) => {
             tileMesh.material.transparent = true;
             tileMesh.material.opacity = 0.001;
