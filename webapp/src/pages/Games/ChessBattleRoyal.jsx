@@ -907,6 +907,275 @@ async function loadBeautifulGameSet() {
   throw new Error('ABeautifulGame model failed to load');
 }
 
+function buildLathe(profile, segments = 32) {
+  return new THREE.LatheGeometry(profile, segments);
+}
+
+function makeSmoothMaterial(color, options = {}) {
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(color),
+    roughness: clamp01(options.roughness ?? 0.32),
+    metalness: clamp01(options.metalness ?? 0.18),
+    clearcoat: clamp01(options.clearcoat ?? 0.32),
+    clearcoatRoughness: clamp01(options.clearcoatRoughness ?? 0.22),
+    sheen: clamp01(options.sheen ?? 0.35),
+    sheenColor: new THREE.Color(options.sheenColor ?? '#ffffff'),
+    specularIntensity: clamp01(options.specularIntensity ?? 0.62)
+  });
+}
+
+function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
+  const baseRadius = 0.38 * scale;
+  const baseHeight = 0.18 * scale;
+  const collarRadius = 0.26 * scale;
+  const collarHeight = 0.16 * scale;
+  const bodyRadius = 0.3 * scale;
+  const bodyHeight = 0.82 * scale;
+  const crownRadius = 0.22 * scale;
+  const g = new THREE.Group();
+  g.name = `${colorHex}-${type}`;
+  const base = new THREE.Mesh(
+    buildLathe([
+      new THREE.Vector2(0, 0),
+      new THREE.Vector2(baseRadius, 0),
+      new THREE.Vector2(baseRadius * 1.05, baseHeight * 0.4),
+      new THREE.Vector2(baseRadius * 0.9, baseHeight),
+      new THREE.Vector2(baseRadius * 0.15, baseHeight * 1.02),
+      new THREE.Vector2(0, baseHeight * 1.05)
+    ]),
+    makeSmoothMaterial(colorHex, { metalness: 0.22, roughness: 0.28 })
+  );
+  g.add(base);
+
+  const buildBody = (radius, height, roughness = 0.25) =>
+    new THREE.Mesh(
+      buildLathe([
+        new THREE.Vector2(radius * 0.55, 0),
+        new THREE.Vector2(radius, height * 0.12),
+        new THREE.Vector2(radius * 0.68, height * 0.5),
+        new THREE.Vector2(radius * 0.9, height * 0.78),
+        new THREE.Vector2(radius * 0.5, height)
+      ]),
+      makeSmoothMaterial(colorHex, { roughness, metalness: 0.2 })
+    );
+
+  const collar = new THREE.Mesh(
+    buildLathe([
+      new THREE.Vector2(0, 0),
+      new THREE.Vector2(collarRadius * 1.1, 0),
+      new THREE.Vector2(collarRadius * 1.2, collarHeight * 0.4),
+      new THREE.Vector2(collarRadius * 0.65, collarHeight * 0.7),
+      new THREE.Vector2(collarRadius * 0.4, collarHeight)
+    ]),
+    makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.22 })
+  );
+
+  if (type === 'P') {
+    const body = buildBody(bodyRadius * 0.82, bodyHeight * 0.65, 0.3);
+    body.position.y = baseHeight;
+    g.add(body);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 * scale, 24, 16),
+      makeSmoothMaterial(colorHex, { roughness: 0.26, metalness: 0.24 })
+    );
+    head.position.y = baseHeight + bodyHeight * 0.68;
+    g.add(head);
+  } else if (type === 'R') {
+    const body = buildBody(bodyRadius * 0.9, bodyHeight * 0.7, 0.26);
+    body.position.y = baseHeight;
+    g.add(body);
+    const crenel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26 * scale, 0.28 * scale, 0.22 * scale, 32, 1, false),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.26 })
+    );
+    crenel.position.y = baseHeight + bodyHeight * 0.72 + 0.1 * scale;
+    g.add(crenel);
+  } else if (type === 'N') {
+    const body = buildBody(bodyRadius * 0.88, bodyHeight * 0.7, 0.28);
+    body.position.y = baseHeight;
+    g.add(body);
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.quadraticCurveTo(0.05 * scale, 0.1 * scale, -0.02 * scale, 0.22 * scale);
+    shape.quadraticCurveTo(-0.08 * scale, 0.35 * scale, 0.05 * scale, 0.48 * scale);
+    shape.quadraticCurveTo(0.25 * scale, 0.72 * scale, 0.12 * scale, 0.9 * scale);
+    shape.quadraticCurveTo(0.02 * scale, 1.05 * scale, -0.06 * scale, 0.88 * scale);
+    shape.quadraticCurveTo(-0.18 * scale, 0.65 * scale, -0.12 * scale, 0.35 * scale);
+    shape.quadraticCurveTo(-0.2 * scale, 0.1 * scale, 0, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.22 * scale,
+      bevelEnabled: true,
+      bevelThickness: 0.04 * scale,
+      bevelSize: 0.05 * scale,
+      bevelSegments: 4
+    });
+    geo.translate(-0.12 * scale, 0, -0.1 * scale);
+    const head = new THREE.Mesh(geo, makeSmoothMaterial(colorHex, { roughness: 0.3, metalness: 0.26 }));
+    head.rotation.y = Math.PI / 2;
+    head.position.y = baseHeight + bodyHeight * 0.55;
+    g.add(head);
+  } else if (type === 'B') {
+    const body = buildBody(bodyRadius * 0.92, bodyHeight * 0.78, 0.24);
+    body.position.y = baseHeight;
+    g.add(body);
+    collar.position.y = baseHeight + bodyHeight * 0.8;
+    g.add(collar);
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 * scale, 24, 16),
+      makeSmoothMaterial(colorHex, { roughness: 0.24, metalness: 0.24 })
+    );
+    dome.position.y = collar.position.y + 0.22 * scale;
+    g.add(dome);
+  } else if (type === 'Q') {
+    const body = buildBody(bodyRadius * 1.02, bodyHeight * 0.88, 0.22);
+    body.position.y = baseHeight;
+    g.add(body);
+    collar.position.y = baseHeight + bodyHeight * 0.9;
+    g.add(collar);
+    const crown = new THREE.Group();
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(crownRadius, 0.05 * scale, 12, 32),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.22, metalness: 0.24 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1 * scale, 24, 16),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.26 })
+    );
+    orb.position.y = 0.16 * scale;
+    crown.add(ring, orb);
+    crown.position.y = collar.position.y + 0.28 * scale;
+    g.add(crown);
+  } else if (type === 'K') {
+    const body = buildBody(bodyRadius * 1.08, bodyHeight * 0.95, 0.2);
+    body.position.y = baseHeight;
+    g.add(body);
+    collar.position.y = baseHeight + bodyHeight * 0.98;
+    g.add(collar);
+    const crown = new THREE.Group();
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(crownRadius * 1.05, 0.048 * scale, 12, 32),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.2, metalness: 0.26 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.11 * scale, 24, 16),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.16, metalness: 0.28 })
+    );
+    orb.position.y = 0.18 * scale;
+    const crossVert = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08 * scale, 0.36 * scale, 0.08 * scale),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
+    );
+    crossVert.position.y = 0.25 * scale;
+    const crossHoriz = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32 * scale, 0.08 * scale, 0.08 * scale),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
+    );
+    crossHoriz.position.y = 0.35 * scale;
+    crown.add(ring, orb, crossVert, crossHoriz);
+    crown.position.y = collar.position.y + 0.32 * scale;
+    g.add(crown);
+  }
+
+  g.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
+  });
+
+  const box = new THREE.Box3().setFromObject(g);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  g.position.sub(center);
+  g.position.y -= box.min.y;
+  return g;
+}
+
+function buildBeautifulGameFallback(targetBoardSize, boardTheme = BASE_BOARD_THEME) {
+  const boardModel = new THREE.Group();
+  boardModel.name = 'ABeautifulGameLocal';
+  const tile = BOARD.tile;
+  const N = BOARD.N;
+  const half = (N * tile) / 2;
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      targetBoardSize || N * tile + BOARD.rim * 2,
+      BOARD.baseH * 1.05,
+      targetBoardSize || N * tile + BOARD.rim * 2
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
+      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
+      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
+      clearcoat: 0.32
+    })
+  );
+  base.position.y = BOARD.baseH * 0.5;
+  boardModel.add(base);
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
+      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+      clearcoat: 0.22
+    })
+  );
+  top.position.y = BOARD.baseH + 0.07;
+  boardModel.add(top);
+
+  const tiles = new THREE.Group();
+  boardModel.add(tiles);
+  for (let r = 0; r < N; r += 1) {
+    for (let c = 0; c < N; c += 1) {
+      const isDark = (r + c) % 2 === 1;
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
+        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+        clearcoat: 0.08,
+        specularIntensity: 0.32
+      });
+      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
+      tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
+      tiles.add(tileMesh);
+    }
+  }
+
+  const piecePrototypes = { white: {}, black: {} };
+  const scale = tile / 0.9;
+  const accentLight = '#d4af78';
+  const accentDark = '#b58f4f';
+  piecePrototypes.white.P = buildBeautifulGamePiece('P', '#f6f7fb', accentLight, scale);
+  piecePrototypes.white.R = buildBeautifulGamePiece('R', '#f6f7fb', accentLight, scale);
+  piecePrototypes.white.N = buildBeautifulGamePiece('N', '#f6f7fb', accentLight, scale);
+  piecePrototypes.white.B = buildBeautifulGamePiece('B', '#f6f7fb', accentLight, scale);
+  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', '#f6f7fb', accentLight, scale);
+  piecePrototypes.white.K = buildBeautifulGamePiece('K', '#f6f7fb', accentLight, scale);
+  piecePrototypes.black.P = buildBeautifulGamePiece('P', '#0f131f', accentDark, scale);
+  piecePrototypes.black.R = buildBeautifulGamePiece('R', '#0f131f', accentDark, scale);
+  piecePrototypes.black.N = buildBeautifulGamePiece('N', '#0f131f', accentDark, scale);
+  piecePrototypes.black.B = buildBeautifulGamePiece('B', '#0f131f', accentDark, scale);
+  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', '#0f131f', accentDark, scale);
+  piecePrototypes.black.K = buildBeautifulGamePiece('K', '#0f131f', accentDark, scale);
+
+  return { boardModel, piecePrototypes };
+}
+
+async function resolveBeautifulGameAssets(targetBoardSize, boardTheme) {
+  try {
+    const gltf = await loadBeautifulGameSet();
+    if (gltf?.scene) {
+      return extractBeautifulGameAssets(gltf.scene, targetBoardSize);
+    }
+  } catch (error) {
+    console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using local fallback', error);
+  }
+  return buildBeautifulGameFallback(targetBoardSize, boardTheme);
+}
+
 function cloneWithShadows(object) {
   const clone = object.clone(true);
   clone.traverse((child) => {
@@ -2469,12 +2738,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     disposers.push(() => {
       disposePieceMaterials(pieceMaterials);
     });
-    const beautifulGamePromise = loadBeautifulGameSet()
-      .then((gltf) => extractBeautifulGameAssets(gltf?.scene, RAW_BOARD_SIZE))
-      .catch((error) => {
-        console.warn('Chess Battle Royal: failed to load ABeautifulGame set', error);
-        return { boardModel: null, piecePrototypes: null };
-      });
+    const beautifulGamePromise = resolveBeautifulGameAssets(RAW_BOARD_SIZE, boardTheme);
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
