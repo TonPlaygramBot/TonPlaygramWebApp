@@ -12421,11 +12421,27 @@ function SnookerGame() {
 
 export default function NewSnookerGame() {
   const isMobileOrTablet = useIsMobile(1366);
+  const [allowDesktop, setAllowDesktop] = useState(isMobileOrTablet);
 
-  if (!isMobileOrTablet) {
+  useEffect(() => {
+    if (isMobileOrTablet) {
+      setAllowDesktop(true);
+    }
+  }, [isMobileOrTablet]);
+
+  if (!isMobileOrTablet && !allowDesktop) {
     return (
       <div className="flex items-center justify-center w-full h-full p-4 text-center">
-        <p>This game is available on mobile phones and tablets only.</p>
+        <div className="flex flex-col items-center gap-4">
+          <p>This game is available on mobile phones and tablets only.</p>
+          <button
+            type="button"
+            className="rounded-full bg-amber-400 px-6 py-2 text-sm font-semibold uppercase text-gray-900 shadow-md transition hover:scale-[1.02] hover:bg-amber-300"
+            onClick={() => setAllowDesktop(true)}
+          >
+            Continue anyway
+          </button>
+        </div>
       </div>
     );
   }
