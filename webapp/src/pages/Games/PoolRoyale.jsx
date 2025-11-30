@@ -737,7 +737,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 1; // expand the middle jaw span so it follows the wider chrome and wood arcs cleanly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaw crowns so side pockets sit tighter to the cloth wrap
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.06; // raise middle jaws so the side pockets press firmly into the cloth-backed plywood
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
