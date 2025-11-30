@@ -416,16 +416,20 @@ function createStraightArmrest(side, material) {
   const supportHeight = ARM_HEIGHT + SEAT_THICKNESS * 0.65;
   const topLength = ARM_DEPTH * 1.1;
   const topThickness = ARM_THICKNESS * 0.65;
+  const cornerRadius = Math.min(SEAT_THICKNESS, ARM_THICKNESS) * 0.4;
 
-  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
+  const top = new THREE.Mesh(
+    new RoundedBoxGeometry(ARM_THICKNESS * 0.95, topThickness * 1.05, topLength, 5, cornerRadius),
+    material
+  );
   top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
   top.castShadow = true;
   top.receiveShadow = true;
   group.add(top);
 
-  const createSupport = (zOffset) => {
+  const createSupport = (zOffset, taper) => {
     const support = new THREE.Mesh(
-      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
+      new RoundedBoxGeometry(ARM_THICKNESS * 0.64, supportHeight, ARM_THICKNESS * taper, 4, cornerRadius * 0.65),
       material
     );
     support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
@@ -434,12 +438,12 @@ function createStraightArmrest(side, material) {
     return support;
   };
 
-  const frontSupport = createSupport(ARM_DEPTH * 0.4);
-  const rearSupport = createSupport(-ARM_DEPTH * 0.4);
+  const frontSupport = createSupport(ARM_DEPTH * 0.4, 0.82);
+  const rearSupport = createSupport(-ARM_DEPTH * 0.38, 0.75);
   group.add(frontSupport, rearSupport);
 
   const sidePanel = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
+    new RoundedBoxGeometry(ARM_THICKNESS * 0.55, supportHeight * 0.92, ARM_DEPTH * 0.9, 4, cornerRadius * 0.5),
     material
   );
   sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
@@ -447,8 +451,18 @@ function createStraightArmrest(side, material) {
   sidePanel.receiveShadow = true;
   group.add(sidePanel);
 
+  const rail = new THREE.Mesh(
+    new THREE.CylinderGeometry(ARM_THICKNESS * 0.24, ARM_THICKNESS * 0.28, topLength * 0.82, 10),
+    material
+  );
+  rail.rotation.z = Math.PI / 2;
+  rail.position.set(0, baseHeight + supportHeight * 0.65, top.position.z);
+  rail.castShadow = true;
+  rail.receiveShadow = true;
+  group.add(rail);
+
   const handRest = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
+    new RoundedBoxGeometry(ARM_THICKNESS * 0.8, topThickness * 0.7, topLength * 0.78, 5, cornerRadius * 0.75),
     material
   );
   handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
@@ -458,7 +472,7 @@ function createStraightArmrest(side, material) {
 
   group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
 
-  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
+  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, rail, handRest] };
 }
 
 const LUDO_GRID = 15;
@@ -2344,9 +2358,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         });
         nextLeg.userData = { chairId: chairOption.id ?? 'default' };
         arena.chairs?.forEach((chair) => {
-          if (chair.legMesh) {
-            chair.legMesh.material = nextLeg;
-          }
+          const legTargets = chair.legMeshes?.length ? chair.legMeshes : chair.legMesh ? [chair.legMesh] : [];
+          legTargets.forEach((mesh) => {
+            mesh.material = nextLeg;
+          });
         });
         arena.legMaterial?.dispose?.();
         arena.legMaterial = nextLeg;
@@ -2566,17 +2581,41 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       group.position.copy(seatPos);
       group.lookAt(new THREE.Vector3(0, seatPos.y, 0));
 
-      const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), chairMaterial);
-      seatMesh.position.y = SEAT_THICKNESS / 2;
-      seatMesh.castShadow = true;
-      seatMesh.receiveShadow = true;
-      group.add(seatMesh);
+      const cushion = new THREE.Mesh(
+        new RoundedBoxGeometry(SEAT_WIDTH, SEAT_THICKNESS * 1.05, SEAT_DEPTH, 5, SEAT_THICKNESS * 0.45),
+        chairMaterial
+      );
+      cushion.position.y = SEAT_THICKNESS / 2;
+      cushion.castShadow = true;
+      cushion.receiveShadow = true;
+      group.add(cushion);
 
-      const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), chairMaterial);
+      const cushionTopper = new THREE.Mesh(
+        new RoundedBoxGeometry(SEAT_WIDTH * 0.92, SEAT_THICKNESS * 0.55, SEAT_DEPTH * 0.92, 4, SEAT_THICKNESS * 0.28),
+        chairMaterial
+      );
+      cushionTopper.position.y = cushion.position.y + SEAT_THICKNESS * 0.35;
+      cushionTopper.castShadow = true;
+      cushionTopper.receiveShadow = true;
+      group.add(cushionTopper);
+
+      const backMesh = new THREE.Mesh(
+        new RoundedBoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS * 1.1, 6, BACK_THICKNESS * 0.5),
+        chairMaterial
+      );
       backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
       backMesh.castShadow = true;
       backMesh.receiveShadow = true;
       group.add(backMesh);
+
+      const lumbarPad = new THREE.Mesh(
+        new RoundedBoxGeometry(SEAT_WIDTH * 0.82, BACK_HEIGHT * 0.35, BACK_THICKNESS * 0.9, 5, BACK_THICKNESS * 0.45),
+        chairMaterial
+      );
+      lumbarPad.position.set(0, backMesh.position.y - BACK_HEIGHT * 0.08, backMesh.position.z + BACK_THICKNESS * 0.08);
+      lumbarPad.castShadow = true;
+      lumbarPad.receiveShadow = true;
+      group.add(lumbarPad);
 
       const armLeft = createStraightArmrest('left', chairMaterial);
       group.add(armLeft.group);
@@ -2584,7 +2623,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       group.add(armRight.group);
 
       const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
+        new THREE.CylinderGeometry(0.18 * MODEL_SCALE * STOOL_SCALE, 0.22 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 20),
         legMaterial
       );
       legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
@@ -2592,13 +2631,28 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       legBase.receiveShadow = true;
       group.add(legBase);
 
+      const legCap = new THREE.Mesh(
+        new RoundedBoxGeometry(SEAT_WIDTH * 0.4, SEAT_THICKNESS * 0.25, SEAT_DEPTH * 0.4, 4, SEAT_THICKNESS * 0.18),
+        legMaterial
+      );
+      legCap.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT + SEAT_THICKNESS * 0.35;
+      legCap.castShadow = true;
+      legCap.receiveShadow = true;
+      group.add(legCap);
+
       const avatarAnchor = new THREE.Object3D();
       avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
       group.add(avatarAnchor);
 
       arenaGroup.add(group);
       const armMeshes = [...armLeft.meshes, ...armRight.meshes];
-      chairs.push({ group, anchor: avatarAnchor, meshes: [seatMesh, backMesh, ...armMeshes], legMesh: legBase });
+      chairs.push({
+        group,
+        anchor: avatarAnchor,
+        meshes: [cushion, cushionTopper, backMesh, lumbarPad, ...armMeshes],
+        legMesh: legBase,
+        legMeshes: [legBase, legCap]
+      });
     }
 
     const boardData = buildLudoBoard(boardGroup, activePlayerCount);
@@ -2894,7 +2948,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           chair.meshes.forEach((mesh) => {
             mesh.geometry?.dispose?.();
           });
-          chair.legMesh?.geometry?.dispose?.();
+          const legs = chair.legMeshes?.length ? chair.legMeshes : chair.legMesh ? [chair.legMesh] : [];
+          legs.forEach((mesh) => mesh.geometry?.dispose?.());
         });
         disposeChairMaterial(arena.chairMaterial);
         arena.legMaterial?.dispose?.();
