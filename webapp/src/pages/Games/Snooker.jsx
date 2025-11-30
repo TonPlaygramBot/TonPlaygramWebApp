@@ -240,19 +240,20 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0;
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 0.988;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
-const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE * 0.986;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
 const POCKET_JAW_DEPTH_SCALE = 0.52;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.46;
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42;
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66;
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
@@ -260,14 +261,82 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.6;
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42;
+const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR;
+const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97;
+const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR;
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085;
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05;
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
+const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72;
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82;
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236;
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01;
+const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 120;
+const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    resolution: 'Snooker renderer scaling',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
+const DEFAULT_RAIL_MARKER_SHAPE = 'diamond';
+const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
+  { id: 'diamond', label: 'Diamonds' },
+  { id: 'circle', label: 'Circles' }
+]);
+const DEFAULT_RAIL_MARKER_COLOR_ID = 'chrome';
+const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
+  {
+    id: 'chrome',
+    label: 'Chrome',
+    color: 0xd2d8e2,
+    metalness: 0.9,
+    roughness: 0.22,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.18
+  },
+  {
+    id: 'pearl',
+    label: 'Pearl',
+    color: 0xf3ede3,
+    metalness: 0.42,
+    roughness: 0.2,
+    clearcoat: 0.64,
+    clearcoatRoughness: 0.12,
+    sheen: 0.28,
+    sheenRoughness: 0.42
+  },
+  {
+    id: 'gold',
+    label: 'Gold',
+    color: 0xd4af37,
+    metalness: 0.88,
+    roughness: 0.26,
+    clearcoat: 0.58,
+    clearcoatRoughness: 0.18,
+    sheen: 0.32,
+    sheenRoughness: 0.4
+  }
+]);
+const resolveRailMarkerColorOption = (id) =>
+  RAIL_MARKER_COLOR_OPTIONS.find((opt) => opt.id === id) ??
+  RAIL_MARKER_COLOR_OPTIONS.find((opt) => opt.id === DEFAULT_RAIL_MARKER_COLOR_ID) ??
+  RAIL_MARKER_COLOR_OPTIONS[0];
 
 function buildChromePlateGeometry({
   width,
@@ -558,9 +627,9 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // pull corner cuts inward so fascia + jaws sit flush over the pockets
+  POCKET_VIS_R * 0.48 * POCKET_VISUAL_EXPANSION; // slide corner pockets outward to mirror Pool Royale fascia spacing
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.62; // push middle pockets further from center for a wider mid-rail opening
+  POCKET_VIS_R * 0.9; // move middle pockets and their cutouts farther from center
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -607,7 +676,7 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
 const FRICTION = 0.993;
 const CUSHION_RESTITUTION = 1;
 const STOP_EPS = 0.02;
-const TARGET_FPS = 90;
+const TARGET_FPS = 60;
 const TARGET_FRAME_TIME_MS = 1000 / TARGET_FPS;
 const MAX_FRAME_TIME_MS = TARGET_FRAME_TIME_MS * 3; // allow up to 3 frames of catch-up
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
@@ -718,7 +787,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 9; // pull broadcast cams closer so the snooker table fills the frame
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 22; // align with Pool Royale broadcast framing
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -745,31 +814,35 @@ const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const POCKET_SOUND_TAIL = 1;
-// Make the four round legs dramatically taller so the table surface rides higher
+// Match Pool Royale leg stance and table elevation
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const LEG_HEIGHT_BOOST = 1.15; // lift the playfield by extending the legs 15%
-const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
-const TABLE_LIFT_BASE =
+const TABLE_HEIGHT_REDUCTION = 0.8;
+const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after 20% reduction
+const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
-const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
+const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
+const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
+const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
-const LEG_ROOM_HEIGHT_RAW_BASE = BASE_LEG_HEIGHT + TABLE_LIFT_BASE;
-const LEG_ROOM_HEIGHT_BASE =
-  (LEG_ROOM_HEIGHT_RAW_BASE + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_ROOM_HEIGHT = LEG_ROOM_HEIGHT_BASE * LEG_HEIGHT_BOOST;
-const TABLE_LIFT = TABLE_LIFT_BASE + (LEG_ROOM_HEIGHT - LEG_ROOM_HEIGHT_BASE);
-// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
+const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
+const BASE_LEG_ROOM_HEIGHT =
+  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ROOM_HEIGHT =
+  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
+// adjust overall table position so the shorter legs bring the playfield closer to floor level
+const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -2899,7 +2972,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9; // match Pool Royale standing orbit for identical framing
+const STANDING_VIEW_PHI = 0.86; // match Pool Royale standing orbit for identical framing
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
@@ -3337,8 +3410,14 @@ const pocketCenters = () => [
     PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
     PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
   ),
-  new THREE.Vector2(-PLAY_W / 2, -MIDDLE_POCKET_LONGITUDINAL_OFFSET),
-  new THREE.Vector2(PLAY_W / 2, MIDDLE_POCKET_LONGITUDINAL_OFFSET)
+  new THREE.Vector2(
+    -PLAY_W / 2 - SIDE_POCKET_JAW_OUTWARD_SHIFT,
+    -MIDDLE_POCKET_LONGITUDINAL_OFFSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 + SIDE_POCKET_JAW_OUTWARD_SHIFT,
+    MIDDLE_POCKET_LONGITUDINAL_OFFSET
+  )
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -4424,6 +4503,7 @@ function Table3D(
   const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const pocketSurfaceOffset = TABLE.THICK * 0.06;
+  const pocketTopY = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -4440,7 +4520,7 @@ function Table3D(
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
     pocket.position.set(
       p.x,
-      clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset,
+      pocketTopY,
       p.y
     );
     pocket.receiveShadow = true;
@@ -4862,7 +4942,9 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
+    const centerX =
+      sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset) +
+      sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
     const centerZ = 0;
     const notchMP = sideNotchMP(sx);
     const sidePocketCutCenterPull =
@@ -4906,7 +4988,12 @@ function Table3D(
     sideThinFactor,
     middleThinFactor,
     centerEase,
-    clampOuter
+    clampOuter,
+    edgeTaperScaleOverride = POCKET_JAW_EDGE_TAPER_SCALE,
+    edgeProfilePowerOverride = POCKET_JAW_EDGE_TAPER_PROFILE_POWER,
+    outerExpansion = 0,
+    taperHoldOverride = null,
+    edgeTrim = null
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -4932,7 +5019,7 @@ function Table3D(
     const edgeFactor = THREE.MathUtils.clamp(sideThinFactor ?? 0.32, 0.1, 0.9);
     const edgeThickness = Math.max(
       MICRO_EPS * 12,
-      baseThickness * edgeFactor * POCKET_JAW_EDGE_TAPER_SCALE
+      baseThickness * edgeFactor * edgeTaperScaleOverride
     );
     const edgeInnerRadius = Math.max(
       innerBaseRadius + MICRO_EPS * 6,
@@ -4950,15 +5037,32 @@ function Table3D(
     centerOuterRadius = Math.max(innerBaseRadius + MICRO_EPS * 4, centerOuterRadius);
 
     const easeFactor = THREE.MathUtils.clamp(centerEase ?? 0.3, 0.1, 0.9);
+    const taperHold =
+      typeof taperHoldOverride === 'number'
+        ? THREE.MathUtils.clamp(taperHoldOverride, 0, 1)
+        : POCKET_JAW_CENTER_TAPER_HOLD;
+    const taperBlend = THREE.MathUtils.smootherstep(
+      easeFactor,
+      0,
+      Math.max(0.01, taperHold)
+    );
     const easeT = THREE.MathUtils.clamp((easeFactor - 0.1) / 0.8, 0, 1);
     const outerPower = THREE.MathUtils.lerp(
       POCKET_JAW_OUTER_EXPONENT_MAX,
-      POCKET_JAW_OUTER_EXPONENT_MIN,
+      THREE.MathUtils.lerp(
+        POCKET_JAW_OUTER_EXPONENT_MIN,
+        POCKET_JAW_OUTER_EXPONENT_MAX,
+        taperBlend
+      ),
       easeT
     );
     const innerPower = THREE.MathUtils.lerp(
       POCKET_JAW_INNER_EXPONENT_MAX,
-      POCKET_JAW_INNER_EXPONENT_MIN,
+      THREE.MathUtils.lerp(
+        POCKET_JAW_INNER_EXPONENT_MIN,
+        POCKET_JAW_INNER_EXPONENT_MAX,
+        taperBlend
+      ),
       easeT
     );
 
@@ -4972,6 +5076,8 @@ function Table3D(
     const outerPts = [];
     const innerPts = [];
 
+    const outerExpansionAmount = Math.max(0, outerExpansion);
+    const powerScale = Math.max(0.01, edgeProfilePowerOverride / POCKET_JAW_EDGE_TAPER_PROFILE_POWER);
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
       const theta = startAngle + t * (endAngle - startAngle);
@@ -4982,24 +5088,39 @@ function Table3D(
         : clamped >= 1
           ? 1
           : THREE.MathUtils.smootherstep(clamped, 0, 1);
-      const outerWeight = Math.pow(eased, outerPower);
-      const innerWeight = Math.pow(eased, innerPower);
+      const outerWeight = Math.pow(eased, outerPower * powerScale);
+      const innerWeight = Math.pow(eased, innerPower * powerScale);
 
       let outerRadius = THREE.MathUtils.lerp(
         centerOuterRadius,
         outerLimit,
         outerWeight
       );
-      if (Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS) {
+      const maxOuterRadius =
+        Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS
+          ? clampOuter
+          : outerLimit;
+      if (Number.isFinite(maxOuterRadius) && maxOuterRadius > innerBaseRadius + MICRO_EPS) {
         const flushBlend = THREE.MathUtils.smootherstep(
           clamped,
           POCKET_JAW_EDGE_FLUSH_START,
           POCKET_JAW_EDGE_FLUSH_END
         );
         outerRadius = Math.min(
-          clampOuter,
-          THREE.MathUtils.lerp(outerRadius, clampOuter, flushBlend)
+          maxOuterRadius,
+          THREE.MathUtils.lerp(outerRadius, maxOuterRadius, flushBlend)
         );
+      }
+      if (outerExpansionAmount > MICRO_EPS) {
+        outerRadius = Math.min(maxOuterRadius + outerExpansionAmount, outerRadius + outerExpansionAmount);
+      }
+      if (edgeTrim && normalized >= (edgeTrim.start ?? 0)) {
+        const trimRange = 1 - (edgeTrim.start ?? 0);
+        const trimT = trimRange > 0
+          ? Math.pow((normalized - (edgeTrim.start ?? 0)) / trimRange, edgeTrim.curve ?? 1)
+          : 1;
+        const trimScale = THREE.MathUtils.lerp(1, edgeTrim.scale ?? 1, THREE.MathUtils.clamp(trimT, 0, 1));
+        outerRadius *= trimScale;
       }
       outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
 
@@ -5043,7 +5164,8 @@ function Table3D(
     orientationAngle,
     wide,
     isMiddle,
-    clampOuter
+    clampOuter,
+    outerExpansion = 0
   }) => {
     const baseInnerScale = wide
       ? POCKET_JAW_SIDE_INNER_SCALE
@@ -5055,9 +5177,12 @@ function Table3D(
     let localClampOuter = clampOuter;
     let localJawAngle = jawAngle;
     let depthMultiplier = 1;
-    let steps = wide ? 88 : 68;
+    let steps = wide ? 132 : 104;
 
     if (isMiddle) {
+      const signX = Math.sign(center.x || (wide ? 1 : 0.0001)) || 1;
+      center = center.clone();
+      center.x += signX * SIDE_POCKET_JAW_OUTWARD_SHIFT;
       localJawAngle *= SIDE_POCKET_JAW_LATERAL_EXPANSION;
       depthMultiplier = SIDE_POCKET_JAW_DEPTH_EXPANSION;
       steps = Math.max(steps, Math.ceil(steps * SIDE_POCKET_JAW_LATERAL_EXPANSION));
@@ -5075,8 +5200,8 @@ function Table3D(
       );
     }
 
-    let sideThinFactor = wide ? 0.3 : 0.36;
-    let middleThinFactor = wide ? 0.82 : 0.92;
+    let sideThinFactor = wide ? POCKET_JAW_SIDE_EDGE_FACTOR : POCKET_JAW_CORNER_EDGE_FACTOR;
+    let middleThinFactor = wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR;
     if (isMiddle && wide) {
       sideThinFactor *= SIDE_POCKET_JAW_SIDE_TRIM_SCALE;
       middleThinFactor *= SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE;
@@ -5093,15 +5218,42 @@ function Table3D(
       sideThinFactor,
       middleThinFactor,
       centerEase: wide ? 0.28 : 0.36,
-      clampOuter: localClampOuter
+      clampOuter: localClampOuter,
+      taperHoldOverride: isMiddle
+        ? POCKET_JAW_CENTER_TAPER_HOLD
+        : POCKET_JAW_CENTER_TAPER_HOLD,
+      edgeTaperScaleOverride: isMiddle
+        ? SIDE_POCKET_JAW_EDGE_TRIM_SCALE
+        : POCKET_JAW_EDGE_TAPER_SCALE,
+      edgeProfilePowerOverride: isMiddle
+        ? POCKET_JAW_EDGE_TAPER_PROFILE_POWER
+        : POCKET_JAW_EDGE_TAPER_PROFILE_POWER,
+      outerExpansion,
+      edgeTrim:
+        wide && SIDE_POCKET_JAW_EDGE_TRIM_SCALE < 1
+          ? {
+              start: SIDE_POCKET_JAW_EDGE_TRIM_START,
+              scale: SIDE_POCKET_JAW_EDGE_TRIM_SCALE,
+              curve: SIDE_POCKET_JAW_EDGE_TRIM_CURVE
+            }
+          : null
     });
     if (!jawShape) {
       return null;
     }
-    const jawDepth = Math.max(
+    const jawVerticalOffset = isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0;
+    const jawTopY = railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset;
+    let jawDepth = Math.max(
       MICRO_EPS,
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
+    const clearance = Math.max(0, POCKET_JAW_BOTTOM_CLEARANCE);
+    const safeBottomY = pocketTopY + clearance;
+    const maxJawDepth = jawTopY - safeBottomY;
+    if (Number.isFinite(maxJawDepth)) {
+      const limitedDepth = Math.max(MICRO_EPS, maxJawDepth - MICRO_EPS * 0.5);
+      jawDepth = Math.min(jawDepth, limitedDepth);
+    }
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
@@ -5112,7 +5264,7 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    jawMesh.position.y = railsTopY;
+    jawMesh.position.y = jawTopY;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -5202,7 +5354,8 @@ function Table3D(
         orientationAngle,
         wide: false,
         isMiddle: false,
-        clampOuter: cornerJawOuterLimit
+        clampOuter: cornerJawOuterLimit,
+        outerExpansion: POCKET_JAW_CORNER_OUTER_EXPANSION
       });
     });
   }
@@ -5220,7 +5373,8 @@ function Table3D(
         orientationAngle,
         wide: true,
         isMiddle: true,
-        clampOuter: sideJawOuterLimit
+        clampOuter: sideJawOuterLimit,
+        outerExpansion: SIDE_POCKET_JAW_OUTER_EXPANSION
       });
     });
   }
@@ -5238,7 +5392,13 @@ function Table3D(
   }
 
   const woodSideNotches = [-1, 1]
-    .map((sx) => scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE))
+    .map((sx) =>
+      scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE).map((poly) =>
+        poly.map((ring) =>
+          ring.map(([x, z]) => [x + sx * SIDE_POCKET_JAW_OUTWARD_SHIFT, z])
+        )
+      )
+    )
     .filter((mp) => Array.isArray(mp) && mp.length);
   let openingMP = polygonClipping.union(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
@@ -5904,6 +6064,24 @@ function SnookerGame() {
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolRailMarkerShape');
+      if (stored && RAIL_MARKER_SHAPE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_RAIL_MARKER_SHAPE;
+  });
+  const [railMarkerColorId, setRailMarkerColorId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem('poolRailMarkerColor');
+      if (stored && RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_RAIL_MARKER_COLOR_ID;
+  });
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
     [chromeColorId]
@@ -5911,6 +6089,10 @@ function SnookerGame() {
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
+  );
+  const activeRailMarkerColor = useMemo(
+    () => resolveRailMarkerColorOption(railMarkerColorId),
+    [railMarkerColorId]
   );
   const activeWoodTexture = useMemo(
     () =>
@@ -5961,6 +6143,15 @@ function SnookerGame() {
     prev: null
   });
   const [cueGalleryActive, setCueGalleryActive] = useState(false);
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
 
   const getCueColorFromIndex = useCallback((index) => {
     if (!Array.isArray(CUE_RACK_PALETTE) || CUE_RACK_PALETTE.length === 0) {
@@ -6121,6 +6312,10 @@ function SnookerGame() {
       },
       woodTexture: woodSelection,
       woodTextureId: woodSelection?.id ?? DEFAULT_WOOD_GRAIN_ID,
+      railMarkerStyle: {
+        shape: railMarkerShapeId,
+        color: activeRailMarkerColor
+      },
       createMaterials: () => {
         const baseMaterials = baseCreateMaterials();
         const materials = { ...baseMaterials };
@@ -6152,7 +6347,14 @@ function SnookerGame() {
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
+  }, [
+    tableFinishId,
+    activeChromeOption,
+    activeClothOption,
+    activeWoodTexture,
+    railMarkerShapeId,
+    activeRailMarkerColor
+  ]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -6174,9 +6376,24 @@ function SnookerGame() {
   }, [clothColorId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolRailMarkerShape', railMarkerShapeId);
+    }
+  }, [railMarkerShapeId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('poolRailMarkerColor', railMarkerColorId);
+    }
+  }, [railMarkerColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    }
+  }, [frameRateId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -12161,7 +12378,7 @@ function SnookerGame() {
         </div>
       )}
 
-      <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
+      <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
           ref={configButtonRef}
           type="button"
@@ -12307,6 +12524,122 @@ function SnookerGame() {
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Cue Styles
+                </h3>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {WOOD_FINISH_PRESETS.map((preset, index) => {
+                    const active = cueStyleIndex === index;
+                    return (
+                      <button
+                        key={preset.id}
+                        type="button"
+                        onClick={() => setCueStyleIndex(index)}
+                        aria-pressed={active}
+                        className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Rail Markers
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
+                    const active = option.id === railMarkerShapeId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerShapeId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[7rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {RAIL_MARKER_COLOR_OPTIONS.map((option) => {
+                    const active = option.id === railMarkerColorId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setRailMarkerColorId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Graphics
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-xs font-semibold tracking-wide">
+                            {option.resolution
+                              ? `${option.resolution} • ${option.fps} FPS`
+                              : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
