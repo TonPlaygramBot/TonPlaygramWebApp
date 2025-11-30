@@ -737,7 +737,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 1; // expand the middle jaw span so it follows the wider chrome and wood arcs cleanly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.012; // drop the middle jaw crowns slightly so they sit deeper than the corners
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaw crowns so side pockets sit tighter to the cloth wrap
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
@@ -879,6 +879,7 @@ const CLOTH_EXTENDED_DEPTH =
   CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
 const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.12; // thicker cloth-wrapped support to catch shadows beneath the felt
 const CLOTH_SHADOW_BOARD_GAP = TABLE.THICK * 0.01; // small offset so the board sits just under the cloth without z-fighting
+const CLOTH_SHADOW_BOARD_OVERSCAN = BALL_R * 0.8; // slightly oversize the board so it fully covers the cloth footprint
 const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
 const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
 const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
@@ -5721,7 +5722,10 @@ function Table3D(
   finishParts.clothEdgeMeshes.push(...pocketCutStripes);
   // Keep the underlay apertures exactly matched to the cloth cutouts so no
   // reflective wood peeks through around the middle pockets.
-  const plywoodShape = buildSurfaceShape(POCKET_HOLE_R);
+  const plywoodShape = buildSurfaceShape(
+    POCKET_HOLE_R,
+    -CLOTH_SHADOW_BOARD_OVERSCAN
+  );
   const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
     depth: CLOTH_UNDERLAY_THICKNESS,
     bevelEnabled: false,
@@ -5735,7 +5739,11 @@ function Table3D(
   plywood.renderOrder = cloth.renderOrder - 2;
   plywood.receiveShadow = true;
   table.add(plywood);
-  const shadowBoardGeo = new THREE.ExtrudeGeometry(clothShape, {
+  const shadowBoardShape = buildSurfaceShape(
+    POCKET_HOLE_R,
+    -CLOTH_SHADOW_BOARD_OVERSCAN
+  );
+  const shadowBoardGeo = new THREE.ExtrudeGeometry(shadowBoardShape, {
     depth: CLOTH_SHADOW_BOARD_THICKNESS,
     bevelEnabled: false,
     curveSegments: 80,
@@ -13291,7 +13299,7 @@ function PoolRoyaleGame({
         const currentHud = hudRef.current;
         if (!currentHud) return false;
         if (currentHud.turn !== 1 || !currentHud.inHand) return false;
-        if (!cue || cue.active) return false;
+        if (!cue) return false;
         if (!allStopped(balls)) return false;
         const pos = findAiInHandPlacement();
         if (!pos) return false;
