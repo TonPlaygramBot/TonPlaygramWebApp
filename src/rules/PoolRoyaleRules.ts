@@ -69,6 +69,14 @@ type PoolMeta =
 
 const UK_TOTAL_PER_COLOUR = 7;
 
+function normalizeVariantId(value: string | null | undefined): string {
+  if (typeof value !== 'string') return '';
+  return value
+    .toLowerCase()
+    .replace(/[_\s-]+/g, '')
+    .trim();
+}
+
 function basePlayers(playerA: string, playerB: string): { A: Player; B: Player } {
   return {
     A: { id: 'A', name: playerA, score: 0 },
@@ -200,10 +208,14 @@ export class PoolRoyaleRules {
   private readonly variant: PoolVariantId;
 
   constructor(variantKey: string | null | undefined) {
-    const normalized = typeof variantKey === 'string' ? variantKey.toLowerCase() : '';
-    if (normalized === 'uk') this.variant = 'uk';
-    else if (normalized === '9ball') this.variant = '9ball';
-    else this.variant = 'american';
+    const normalized = normalizeVariantId(variantKey);
+    if (normalized === 'uk' || normalized === '8balluk' || normalized === 'eightballuk' || normalized === 'uk8') {
+      this.variant = 'uk';
+    } else if (normalized === '9ball' || normalized === 'nineball' || normalized === '9') {
+      this.variant = '9ball';
+    } else {
+      this.variant = 'american';
+    }
   }
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
