@@ -221,7 +221,7 @@ const CHROME_CORNER_HEIGHT_SCALE = 0.962;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0;
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia proportions aligned with Pool Royale plates
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008;
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0.012;
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
@@ -558,9 +558,9 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner cushion reach
+  POCKET_VIS_R * 0.42 * POCKET_VISUAL_EXPANSION; // pull corner cuts inward so fascia + jaws sit flush over the pockets
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.22; // pull middle pockets toward the side rails to open the center a touch
+  POCKET_VIS_R * 0.42; // push middle pockets further from center for a wider mid-rail opening
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -2899,7 +2899,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86; // lift the default orbit a touch higher for a better overview
+const STANDING_VIEW_PHI = 0.82; // lift the default orbit a touch higher for a better overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
@@ -2910,7 +2910,7 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.18; // halt the downward sweep as soon a
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.028; // pull the player camera much tighter to mirror Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.06;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.29;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.24;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.006;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.004;
@@ -3067,7 +3067,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Keep a little more distance so rails remain visible while fitting the table
-  const r = Math.max(dzH, dzW) * 0.68 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
