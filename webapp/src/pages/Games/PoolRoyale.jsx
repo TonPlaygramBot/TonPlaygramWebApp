@@ -14446,7 +14446,11 @@ function PoolRoyaleGame({
         startUserSuggestionRef.current = updateUserSuggestion;
 
         aiShoot.current = () => {
-          const currentHud = hudRef.current;
+          let currentHud = hudRef.current;
+          if (currentHud?.turn === 1 && currentHud?.inHand) {
+            autoPlaceAiCueBall();
+            currentHud = hudRef.current;
+          }
           if (currentHud?.over || currentHud?.inHand || shooting) return;
           try {
             cancelAiShotPreview();
