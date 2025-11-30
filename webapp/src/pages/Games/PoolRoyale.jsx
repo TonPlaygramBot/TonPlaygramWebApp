@@ -2511,7 +2511,7 @@ function createPocketLinerTextures(option) {
   return textures;
 }
 
-function createPocketLinerMaterials(option) {
+function createPocketLinerMaterials(option, clothColor) {
   const selection = option ?? POCKET_LINER_OPTIONS[0];
   const textures = createPocketLinerTextures(selection);
   const baseSheenColor = new THREE.Color(selection.sheenColor ?? 0x9298a0);
@@ -2551,12 +2551,16 @@ function createPocketLinerMaterials(option) {
     bumpScale: selection.bumpScale,
     sheenColor: baseSheenColor
   });
-  const rimMaterial = makeMaterial(selection.rimColor, {
+  const rimMaterial = new THREE.MeshPhysicalMaterial({
+    color: clothColor ?? selection.rimColor,
     roughness: selection.rimRoughness ?? selection.roughness,
-    bumpScale: selection.rimBumpScale ?? selection.bumpScale,
     metalness: selection.rimMetalness ?? selection.metalness,
     sheen: selection.rimSheen ?? selection.sheen,
-    sheenColor: rimSheenColor
+    sheenRoughness: selection.sheenRoughness ?? 0.6,
+    sheenColor: (clothColor ? new THREE.Color(clothColor) : rimSheenColor).clone(),
+    clearcoat: selection.clearcoat ?? 0.16,
+    clearcoatRoughness: selection.clearcoatRoughness ?? 0.46,
+    envMapIntensity: selection.envMapIntensity ?? 0.28
   });
   return { jawMaterial, rimMaterial };
 }
@@ -8530,7 +8534,7 @@ function PoolRoyaleGame({
             material: materials.accent.material.clone()
           };
         }
-        const liners = createPocketLinerMaterials(linerSelection);
+        const liners = createPocketLinerMaterials(linerSelection, clothSelection.color);
         materials.pocketJaw = liners.jawMaterial;
         materials.pocketRim = liners.rimMaterial;
         return materials;
@@ -9153,6 +9157,7 @@ function PoolRoyaleGame({
     };
   }, [stopActiveCrowdSound]);
   useEffect(() => {
+    const isSoloTraining = isTraining && trainingModeState === 'solo';
     setHud((prev) => {
       const hudMeta =
         frameState.meta && typeof frameState.meta === 'object'
@@ -9192,14 +9197,14 @@ function PoolRoyaleGame({
         ...prev,
         A: scoreA,
         B: scoreB,
-        turn: isPlayerTurn ? 0 : 1,
+        turn: isSoloTraining ? 0 : isPlayerTurn ? 0 : 1,
         phase: phaseLabel,
         next: nextLabel,
         inHand: resolvedInHand,
         over: isTraining ? false : frameState.frameOver
       };
     });
-  }, [frameState, isTraining]);
+  }, [frameState, isTraining, trainingModeState]);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
@@ -9306,7 +9311,8 @@ function PoolRoyaleGame({
   }, [updateHudPanels]);
 
   useEffect(() => {
-    if (hud.over) return;
+    const isSoloTraining = isTraining && trainingModeState === 'solo';
+    if (hud.over || isSoloTraining) return undefined;
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
@@ -9337,7 +9343,7 @@ function PoolRoyaleGame({
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock]);
+  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState]);
 
   useEffect(() => {
     if (hud.over) {
@@ -14442,52 +14448,62 @@ function PoolRoyaleGame({
         aiShoot.current = () => {
           const currentHud = hudRef.current;
           if (currentHud?.over || currentHud?.inHand || shooting) return;
-          cancelAiShotPreview();
-          let plan = aiPlanRef.current ?? computeAiShot();
-          if (!plan) {
-            const cuePos = cue?.pos ? cue.pos.clone() : null;
-            if (!cuePos) return;
-            const fallbackDir = new THREE.Vector2(-cuePos.x, -cuePos.y);
-            if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
-            fallbackDir.normalize();
-            plan = {
-              type: 'safety',
-              aimDir: fallbackDir,
-              power: computePowerFromDistance(BALL_R * 18),
-              target: 'fallback',
-              spin: { x: 0, y: 0 }
-            };
-          }
-          clearEarlyAiShot();
-          stopAiThinking();
-          setAiPlanning(null);
-          const dir = plan.aimDir.clone().normalize();
-          aimDirRef.current.copy(dir);
-          topViewRef.current = false;
-          topViewLockedRef.current = false;
-          setIsTopDownView(false);
-          alignStandingCameraToAim(cue, dir);
-          setAiShotCueViewActive(true);
-          setAiShotPreviewActive(true);
-          applyCameraBlend(0);
-          updateCamera();
-          powerRef.current = plan.power;
-          setHud((s) => ({ ...s, power: plan.power }));
-          const spinToApply = plan.spin ?? { x: 0, y: 0 };
-          spinRef.current = { ...spinToApply };
-          spinRequestRef.current = { ...spinToApply };
-          resetSpinRef.current?.();
-          if (aiShotTimeoutRef.current) {
-            clearTimeout(aiShotTimeoutRef.current);
-            aiShotTimeoutRef.current = null;
-          }
-          const previewDelayMs = resolveAiPreviewDelay();
-          aiShotTimeoutRef.current = window.setTimeout(() => {
-            aiShotTimeoutRef.current = null;
+          try {
+            cancelAiShotPreview();
+            let plan = aiPlanRef.current ?? computeAiShot();
+            if (!plan) {
+              const cuePos = cue?.pos ? cue.pos.clone() : null;
+              if (!cuePos) return;
+              const fallbackDir = new THREE.Vector2(-cuePos.x, -cuePos.y);
+              if (fallbackDir.lengthSq() < 1e-6) fallbackDir.set(0, 1);
+              fallbackDir.normalize();
+              plan = {
+                type: 'safety',
+                aimDir: fallbackDir,
+                power: computePowerFromDistance(BALL_R * 18),
+                target: 'fallback',
+                spin: { x: 0, y: 0 }
+              };
+            }
+            clearEarlyAiShot();
+            stopAiThinking();
+            setAiPlanning(null);
+            const dir = plan.aimDir.clone().normalize();
+            aimDirRef.current.copy(dir);
+            topViewRef.current = false;
+            topViewLockedRef.current = false;
+            setIsTopDownView(false);
+            alignStandingCameraToAim(cue, dir);
             setAiShotCueViewActive(true);
-            setAiShotPreviewActive(false);
-            fire();
-          }, previewDelayMs);
+            setAiShotPreviewActive(true);
+            applyCameraBlend(0);
+            updateCamera();
+            powerRef.current = plan.power;
+            setHud((s) => ({ ...s, power: plan.power }));
+            const spinToApply = plan.spin ?? { x: 0, y: 0 };
+            spinRef.current = { ...spinToApply };
+            spinRequestRef.current = { ...spinToApply };
+            resetSpinRef.current?.();
+            if (aiShotTimeoutRef.current) {
+              clearTimeout(aiShotTimeoutRef.current);
+              aiShotTimeoutRef.current = null;
+            }
+            const previewDelayMs = resolveAiPreviewDelay();
+            aiShotTimeoutRef.current = window.setTimeout(() => {
+              aiShotTimeoutRef.current = null;
+              setAiShotCueViewActive(true);
+              setAiShotPreviewActive(false);
+              fire();
+            }, previewDelayMs);
+          } catch (err) {
+            console.error('Pool Royale AI shot failed:', err);
+            stopAiThinking();
+            setAiPlanning(null);
+            aiPlanRef.current = null;
+            setHud((s) => ({ ...s, turn: 0, inHand: true }));
+            setFrameState((prev) => ({ ...prev, activePlayer: 'A' }));
+            setInHandPlacementMode(true);
+          }
         };
 
         fireRef.current = fire;
