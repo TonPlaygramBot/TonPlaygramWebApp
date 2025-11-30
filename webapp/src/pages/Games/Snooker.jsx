@@ -221,7 +221,7 @@ const CHROME_CORNER_HEIGHT_SCALE = 0.962;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0;
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia proportions aligned with Pool Royale plates
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02;
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008;
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
@@ -240,8 +240,8 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.012;
-const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024;
+const WOOD_CORNER_CUT_SCALE = 0.984; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
@@ -558,9 +558,9 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_R = POCKET_VIS_R * 0.985;
 const POCKET_INTERIOR_TOP_SCALE = 0.92;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // pull corner cuts inward so fascia + jaws sit flush over the pockets
+  POCKET_VIS_R * 0.42 * POCKET_VISUAL_EXPANSION; // pull corner cuts inward so fascia + jaws sit flush over the pockets
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.62; // push middle pockets further from center for a wider mid-rail opening
+  POCKET_VIS_R * 0.42; // push middle pockets further from center for a wider mid-rail opening
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -718,7 +718,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 9; // pull broadcast cams closer so the snooker table fills the frame
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 12; // pull broadcast cams closer so the snooker table fills the frame
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -2899,7 +2899,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.9; // match Pool Royale standing orbit for identical framing
+const STANDING_VIEW_PHI = 0.86; // match Pool Royale standing orbit for identical framing
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
