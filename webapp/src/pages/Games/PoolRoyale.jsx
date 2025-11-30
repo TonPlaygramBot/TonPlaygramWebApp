@@ -5519,8 +5519,13 @@ function Table3D(
     applyClothDetail,
     woodTextureId: finishParts.woodTextureId,
     clothTextureKey,
-    woodRepeatScale
+    woodRepeatScale,
+    edgeDefaults: {
+      roughness: clothEdgeMat.roughness,
+      emissive: clothEdgeMat.emissiveIntensity ?? CLOTH_EDGE_EMISSIVE_INTENSITY
+    }
   };
+  finishInfoRef.current = finishInfo;
 
   const clothExtendBase = Math.max(
     SIDE_RAIL_INNER_THICKNESS * 0.38,
@@ -7943,6 +7948,7 @@ function PoolRoyaleGame({
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
+  const finishInfoRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
@@ -8176,6 +8182,25 @@ function PoolRoyaleGame({
       topViewLockedRef.current = false;
       topViewControlsRef.current.exit?.();
     }
+  }, [isTopDownView]);
+  useEffect(() => {
+    const info = finishInfoRef.current;
+    const mat = info?.clothEdgeMat;
+    if (!mat) return;
+    const baseRoughness = info.edgeDefaults?.roughness ?? mat.roughness ?? 1;
+    const baseEmissive = info.edgeDefaults?.emissive ?? CLOTH_EDGE_EMISSIVE_INTENSITY;
+    if (isTopDownView) {
+      mat.envMapIntensity = 0;
+      mat.metalness = 0;
+      mat.roughness = 1;
+      mat.clearcoat = 0;
+      mat.clearcoatRoughness = 1;
+      mat.emissiveIntensity = baseEmissive * 0.45;
+    } else {
+      mat.roughness = baseRoughness;
+      mat.emissiveIntensity = baseEmissive;
+    }
+    mat.needsUpdate = true;
   }, [isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
@@ -8564,6 +8589,14 @@ function PoolRoyaleGame({
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
+  const requiresPlayerBreak = useMemo(
+    () => activeVariant?.id === 'american' || activeVariant?.id === '9ball',
+    [activeVariant]
+  );
+  const [openingShotPending, setOpeningShotPending] = useState(requiresPlayerBreak);
+  useEffect(() => {
+    setOpeningShotPending(requiresPlayerBreak);
+  }, [requiresPlayerBreak]);
   const initialHudInHand = useMemo(
     () => deriveInHandFromFrame(initialFrame),
     [initialFrame]
@@ -8686,10 +8719,12 @@ function PoolRoyaleGame({
     if (!slider) return;
     const hudState = hudRef.current;
     const shouldLock =
-      hudState?.turn !== 0 || hudState?.over || shootingRef.current;
+      (hudState?.turn !== 0 && !(openingShotPending && requiresPlayerBreak)) ||
+      hudState?.over ||
+      shootingRef.current;
     if (shouldLock) slider.lock();
     else slider.unlock();
-  }, []);
+  }, [openingShotPending, requiresPlayerBreak]);
   useEffect(() => {
     applySliderLock();
   }, [applySliderLock, hud.turn, hud.over, shotActive]);
@@ -9108,18 +9143,19 @@ function PoolRoyaleGame({
       }
       const activeId = frameState.activePlayer === 'B' ? 'B' : 'A';
       const isPlayerTurn = activeId === localId;
+      const forceOpeningTurn = openingShotPending && requiresPlayerBreak;
       return {
         ...prev,
         A: scoreA,
         B: scoreB,
-        turn: isPlayerTurn ? 0 : 1,
+        turn: forceOpeningTurn ? 0 : isPlayerTurn ? 0 : 1,
         phase: phaseLabel,
         next: nextLabel,
         inHand: resolvedInHand,
         over: isTraining ? false : frameState.frameOver
       };
     });
-  }, [frameState, isTraining]);
+  }, [frameState, isTraining, openingShotPending, requiresPlayerBreak]);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
@@ -9227,6 +9263,10 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     if (hud.over) return;
+    if (openingShotPending && requiresPlayerBreak) {
+      setTimer(60);
+      return undefined;
+    }
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
@@ -9257,7 +9297,7 @@ function PoolRoyaleGame({
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock]);
+  }, [hud.turn, hud.over, playTurnKnock, openingShotPending, requiresPlayerBreak]);
 
   useEffect(() => {
     if (hud.over) {
@@ -9266,7 +9306,7 @@ function PoolRoyaleGame({
       aiPlanRef.current = null;
       return;
     }
-    if (hud.turn === 1) {
+    if (hud.turn === 1 && !(openingShotPending && requiresPlayerBreak)) {
       userSuggestionRef.current = null;
       userSuggestionPlanRef.current = null;
       suggestionAimKeyRef.current = null;
@@ -9281,23 +9321,23 @@ function PoolRoyaleGame({
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [hud.turn, hud.over]);
+  }, [hud.turn, hud.over, openingShotPending, requiresPlayerBreak]);
 
   useEffect(() => {
     if (hud.over) return;
-    if (hud.turn === 0) {
+    if (hud.turn === 0 || (openingShotPending && requiresPlayerBreak)) {
       suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, openingShotPending, requiresPlayerBreak]);
 
   useEffect(() => {
     if (hud.over) return;
-    if (hud.turn === 1) {
+    if (hud.turn === 1 && !(openingShotPending && requiresPlayerBreak)) {
       startAiThinkingRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, openingShotPending, requiresPlayerBreak]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -13390,6 +13430,9 @@ function PoolRoyaleGame({
           currentHud?.over
         )
           return;
+        if (openingShotPending && requiresPlayerBreak) {
+          setOpeningShotPending(false);
+        }
         if (currentHud?.inHand && (fullTableHandPlacement || inHandPlacementActive)) {
           hudRef.current = { ...currentHud, inHand: false };
           setHud((prev) => ({ ...prev, inHand: false }));
