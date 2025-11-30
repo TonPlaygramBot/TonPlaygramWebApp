@@ -5435,11 +5435,8 @@ function Table3D(
   cushionMat.emissive.copy(cushionColor.clone().multiplyScalar(0.045));
   cushionMat.side = THREE.DoubleSide;
   const clothEdgeMat = clothMat.clone();
-  const clothEdgeColor = clothColor.clone().lerp(new THREE.Color(0x000000), CLOTH_EDGE_TINT);
-  clothEdgeMat.color.copy(clothEdgeColor);
-  clothEdgeMat.emissive.copy(
-    clothEdgeColor.clone().multiplyScalar(CLOTH_EDGE_EMISSIVE_MULTIPLIER)
-  );
+  clothEdgeMat.color.copy(clothColor);
+  clothEdgeMat.emissive.set(0x000000);
   clothEdgeMat.map = null;
   clothEdgeMat.bumpMap = null;
   clothEdgeMat.bumpScale = 0;
@@ -5454,28 +5451,28 @@ function Table3D(
   clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
   const underlayTopMat = clothMat.clone();
+  underlayTopMat.color.copy(clothColor);
   underlayTopMat.metalness = 0;
   underlayTopMat.roughness = 1;
   underlayTopMat.sheen = 0;
   underlayTopMat.clearcoat = 0;
   underlayTopMat.clearcoatRoughness = 1;
   underlayTopMat.envMapIntensity = 0;
-  underlayTopMat.emissiveIntensity = Math.min(
-    clothMat.emissiveIntensity ?? 0,
-    0.22
-  );
+  underlayTopMat.reflectivity = 0;
+  underlayTopMat.emissive.set(0x000000);
+  underlayTopMat.emissiveIntensity = 0;
   underlayTopMat.needsUpdate = true;
   const underlayEdgeMat = clothEdgeMat.clone();
+  underlayEdgeMat.color.copy(clothColor);
   underlayEdgeMat.metalness = 0;
   underlayEdgeMat.roughness = 1;
   underlayEdgeMat.sheen = 0;
   underlayEdgeMat.clearcoat = 0;
   underlayEdgeMat.clearcoatRoughness = 1;
   underlayEdgeMat.envMapIntensity = 0;
-  underlayEdgeMat.emissiveIntensity = Math.min(
-    clothEdgeMat.emissiveIntensity ?? CLOTH_EDGE_EMISSIVE_INTENSITY,
-    0.2
-  );
+  underlayEdgeMat.reflectivity = 0;
+  underlayEdgeMat.emissive.set(0x000000);
+  underlayEdgeMat.emissiveIntensity = 0;
   underlayEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
