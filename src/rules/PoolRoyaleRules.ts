@@ -321,7 +321,7 @@ export class PoolRoyaleRules {
 
   private applyUkShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
-    const previous = meta && meta.variant === 'uk' ? meta : null;
+    const previous = meta && meta.variant === 'uk' && meta.state ? meta : null;
     const game = new UkPool();
     if (previous) {
       applyUkState(game, previous.state);
@@ -425,10 +425,12 @@ export class PoolRoyaleRules {
 
   private applyAmericanShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
-    const previous = meta && meta.variant === 'american' ? meta : null;
+    const previous = meta && meta.variant === 'american' && meta.state ? meta : null;
     const game = new AmericanBilliards();
     if (previous) {
       applyAmericanState(game, previous.state);
+    } else {
+      game.state.ballInHand = true;
     }
     const contactOrder: number[] = [];
     for (const ev of events) {
@@ -505,10 +507,12 @@ export class PoolRoyaleRules {
 
   private applyNineBallShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
     const meta = state.meta as PoolMeta | undefined;
-    const previous = meta && meta.variant === '9ball' ? meta : null;
+    const previous = meta && meta.variant === '9ball' && meta.state ? meta : null;
     const game = new NineBall();
     if (previous) {
       applyNineState(game, previous.state);
+    } else {
+      game.state.ballInHand = true;
     }
     const contactOrder: number[] = [];
     for (const ev of events) {
