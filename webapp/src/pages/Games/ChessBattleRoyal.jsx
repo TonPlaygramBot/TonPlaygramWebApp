@@ -147,6 +147,21 @@ const BOARD_COLOR_OPTIONS = Object.freeze([
     surfaceMetalness: 0.48,
     frameRoughness: 0.42,
     frameMetalness: 0.56
+  },
+  {
+    id: 'stoneMarbleJade',
+    label: 'Stone & Jade',
+    light: '#e4e3dd',
+    dark: '#60605b',
+    frameLight: '#9ea09b',
+    frameDark: '#4a4d51',
+    accent: '#7ed3a0',
+    highlight: '#7ed3a0',
+    capture: '#dc5c5c',
+    surfaceRoughness: 0.52,
+    surfaceMetalness: 0.16,
+    frameRoughness: 0.64,
+    frameMetalness: 0.2
   }
 ]);
 
@@ -281,6 +296,32 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
       specularIntensity: 0.66
     },
     accent: '#7ae1ff'
+  },
+  {
+    id: 'stoneJade',
+    label: 'Stone & Jade',
+    white: {
+      color: '#dcd7c9',
+      roughness: 0.38,
+      metalness: 0.14,
+      sheen: 0.22,
+      sheenColor: '#f1efe7',
+      clearcoat: 0.16,
+      clearcoatRoughness: 0.32,
+      specularIntensity: 0.54
+    },
+    black: {
+      color: '#2f3035',
+      roughness: 0.34,
+      metalness: 0.22,
+      sheen: 0.16,
+      sheenColor: '#8ba297',
+      clearcoat: 0.14,
+      clearcoatRoughness: 0.34,
+      specularIntensity: 0.52
+    },
+    accent: '#6fb487',
+    blackAccent: '#82c59f'
   }
 ]);
 
@@ -385,8 +426,8 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
   tableShape: 0,
-  boardPalette: 0,
-  pieceStyle: 0
+  boardPalette: 5,
+  pieceStyle: 5
 };
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
