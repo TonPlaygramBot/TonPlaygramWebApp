@@ -890,6 +890,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
 
 async function loadBeautifulGameSet() {
   const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
   let lastError = null;
   for (const url of BEAUTIFUL_GAME_URLS) {
     try {
@@ -967,12 +968,16 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
   });
 
   const boardModel = cloneWithShadows(root);
+  const nodesToCull = [];
   boardModel.traverse((node) => {
     if (!node?.name) return;
     const type = detectType(node);
     if (type) {
-      node.visible = false;
+      nodesToCull.push(node);
     }
+  });
+  nodesToCull.forEach((node) => {
+    if (node?.parent) node.parent.remove(node);
   });
 
   // Scale to our procedural board footprint so the interactive logic still aligns
@@ -2884,6 +2889,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const N = 8;
     const half = (N * tile) / 2;
     let beautifulBoardModel = null;
+    let beautifulPiecePrototypes = null;
     const base = box(
       N * tile + BOARD.rim * 2,
       BOARD.baseH,
@@ -3005,21 +3011,23 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     beautifulGamePromise.then(({ boardModel, piecePrototypes }) => {
       if (cancelled) return;
       beautifulBoardModel = boardModel || null;
+      beautifulPiecePrototypes = piecePrototypes || null;
       if (boardModel) {
         boardGroup.add(boardModel);
         base.material.transparent = true;
-        base.material.opacity = 0.02;
+        base.material.opacity = 0.001;
         base.material.depthWrite = false;
         top.material.transparent = true;
-        top.material.opacity = 0.02;
+        top.material.opacity = 0.001;
         top.material.depthWrite = false;
         tiles.forEach((tileMesh) => {
           tileMesh.material.transparent = true;
-          tileMesh.material.opacity = 0.08;
+          tileMesh.material.opacity = 0.001;
           tileMesh.material.depthWrite = false;
         });
         if (arenaRef.current) {
           arenaRef.current.boardModel = boardModel;
+          arenaRef.current.piecePrototypes = piecePrototypes || null;
         }
         disposers.push(() => {
           try {
@@ -3109,7 +3117,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         palette,
         playerFlag: initialPlayerFlag,
         aiFlag: initialAiFlagValue,
-        boardModel: beautifulBoardModel
+        boardModel: beautifulBoardModel,
+        piecePrototypes: beautifulPiecePrototypes
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
@@ -3305,23 +3314,58 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         pieceMeshes[rr][cc] = null;
       }
       // move board
-      board[rr][cc] = board[sel.r][sel.c];
+      const movedPiece = board[sel.r][sel.c];
+      const movedFromPawn = movedPiece?.t === 'P';
+      board[rr][cc] = movedPiece;
       board[sel.r][sel.c] = null;
       // promotion (auto to Queen)
-      if (board[rr][cc].t === 'P' && (rr === 0 || rr === 7)) {
+      const promoted = movedFromPawn && (rr === 0 || rr === 7);
+      if (promoted) {
         board[rr][cc].t = 'Q';
       }
       // move mesh
-      const m = pieceMeshes[sel.r][sel.c];
+      let m = pieceMeshes[sel.r][sel.c];
       pieceMeshes[sel.r][sel.c] = null;
       pieceMeshes[rr][cc] = m;
       m.userData.r = rr;
       m.userData.c = cc;
+      m.userData.t = board[rr][cc].t;
       m.position.set(
         cc * tile - half + tile / 2,
         0,
         rr * tile - half + tile / 2
       );
+      if (promoted && beautifulPiecePrototypes) {
+        const color = board[rr][cc].w ? 'white' : 'black';
+        const queenProto = beautifulPiecePrototypes[color]?.Q;
+        if (queenProto) {
+          const replacement = cloneWithShadows(queenProto);
+          replacement.position.copy(m.position);
+          replacement.userData = {
+            ...m.userData,
+            t: 'Q',
+            __pieceStyleId: 'beautifulGame'
+          };
+          replacement.traverse((child) => {
+            if (!child.isMesh) return;
+            child.userData = {
+              ...(child.userData || {}),
+              __pieceColor: color,
+              __pieceStyleId: 'beautifulGame'
+            };
+          });
+          pieceMeshes[rr][cc] = replacement;
+          const index = allPieceMeshes.indexOf(m);
+          if (index >= 0) allPieceMeshes[index] = replacement;
+          else allPieceMeshes.push(replacement);
+          boardGroup.add(replacement);
+          try {
+            boardGroup.remove(m);
+          } catch {}
+          disposeObject3D(m);
+          m = replacement;
+        }
+      }
 
       // turn switch & status
       const nextWhite = !uiRef.current.turnWhite;
