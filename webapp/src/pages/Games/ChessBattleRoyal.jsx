@@ -339,7 +339,7 @@ const BEAUTIFUL_GAME_URLS = [
 ];
 
 // Small shrink so imported pieces sit comfortably on the procedural board footprint
-const BEAUTIFUL_GAME_ASSET_SCALE = 0.94;
+const BEAUTIFUL_GAME_ASSET_SCALE = 1;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -2847,7 +2847,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     });
     applyRendererSRGB(renderer);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.85;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
     renderer.domElement.style.position = 'absolute';
     renderer.domElement.style.top = '0';
@@ -2860,19 +2863,25 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     host.appendChild(renderer.domElement);
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0c1020);
-    const hemi = new THREE.HemisphereLight(0xffffff, 0x1a1f2b, 0.95);
-    scene.add(hemi);
-    const key = new THREE.DirectionalLight(0xffffff, 1.0);
-    key.position.set(1.8, 2.6, 1.6);
+    scene.background = new THREE.Color(0x0b0f16);
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+    scene.add(ambient);
+
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
+    key.position.set(6, 8, 5);
+    key.castShadow = true;
     scene.add(key);
-    const fill = new THREE.DirectionalLight(0xffffff, 0.55);
-    fill.position.set(-1.4, 2.2, -2.0);
+
+    const fill = new THREE.DirectionalLight(0xffffff, 0.65);
+    fill.position.set(-5, 5.5, 3);
     scene.add(fill);
-    const rim = new THREE.PointLight(0xff7373, 0.4, 12, 2.0);
-    rim.position.set(0, 2.1, 0);
+
+    const rim = new THREE.DirectionalLight(0xffffff, 0.9);
+    rim.position.set(0, 6, -6);
     scene.add(rim);
-    const spot = new THREE.SpotLight(0xffffff, 1.05, 0, Math.PI / 4, 0.35, 1.1);
+
+    const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
     spot.position.set(0, 4.2, 4.6);
     scene.add(spot);
     const spotTarget = new THREE.Object3D();
