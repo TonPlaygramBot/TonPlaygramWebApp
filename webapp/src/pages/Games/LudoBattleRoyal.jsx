@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import {
@@ -11,7 +13,7 @@ import {
   TABLE_SHAPE_OPTIONS
 } from '../../utils/murlanTable.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
-import { applyRendererSRGB } from '../../utils/colorSpace.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
@@ -87,6 +89,17 @@ const HUMAN_ROLL_DELAY_MS = 2000;
 const AUTO_ROLL_DURATION_MS = 1100;
 const DICE_RESULT_EXTRA_HOLD_MS = 3000;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
+const CHAIR_SIZE_SCALE = 1;
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
+];
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
+  CHAIR_SIZE_SCALE
+);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '84%' },
@@ -244,9 +257,6 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
-const CHAIR_CLOTH_REPEAT = 6;
-
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
@@ -313,152 +323,222 @@ function adjustHexColor(hex, amount) {
   return `#${base.getHexString()}`;
 }
 
-function createChairClothTexture(chairOption, renderer) {
-  const primary = chairOption?.primary ?? '#0f6a2f';
-  const accent = chairOption?.accent ?? adjustHexColor(primary, -0.28);
-  const highlight = chairOption?.highlight ?? adjustHexColor(primary, 0.22);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const shadow = adjustHexColor(accent, -0.22);
-  const seam = adjustHexColor(accent, -0.35);
-
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, adjustHexColor(primary, 0.2));
-  gradient.addColorStop(0.5, primary);
-  gradient.addColorStop(1, accent);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const spacing = canvas.width / CHAIR_CLOTH_REPEAT;
-  const halfSpacing = spacing / 2;
-  const lineWidth = Math.max(1.6, spacing * 0.06);
-
-  ctx.strokeStyle = seam;
-  ctx.lineWidth = lineWidth;
-  ctx.globalAlpha = 0.9;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(offset, 0);
-    ctx.lineTo(offset - canvas.height, canvas.height);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(offset, 0);
-    ctx.lineTo(offset + canvas.height, canvas.height);
-    ctx.stroke();
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    const scale = targetMax / currentMax;
+    model.scale.multiplyScalar(scale);
   }
-  ctx.globalAlpha = 1;
 
-  ctx.strokeStyle = adjustHexColor(highlight, 0.18);
-  ctx.lineWidth = lineWidth * 0.55;
-  ctx.globalAlpha = 0.55;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(offset + halfSpacing, 0);
-    ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(offset + halfSpacing, 0);
-    ctx.lineTo(offset + halfSpacing + canvas.height, canvas.height);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-  texture.repeat.set(2.5, 2.5);
-  texture.needsUpdate = true;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  const offset = new THREE.Vector3(
+    -scaledCenter.x,
+    TARGET_CHAIR_MIN_Y - scaledBox.min.y,
+    TARGET_CHAIR_CENTER_Z - scaledCenter.z
+  );
+  model.position.add(offset);
 }
 
-function createChairFabricMaterial(chairOption, renderer) {
-  const clothTexture = createChairClothTexture(chairOption, renderer);
-  const material = new THREE.MeshPhysicalMaterial({
-    map: clothTexture,
-    color: new THREE.Color('#ffffff'),
-    roughness: 0.72,
-    metalness: 0.08,
-    clearcoat: 0.24,
-    clearcoatRoughness: 0.38,
-    sheen: 0.35,
-    sheenColor: new THREE.Color('#ffffff'),
-    sheenRoughness: 0.6
+function extractChairMaterials(model) {
+  const upholstery = new Set();
+  const metal = new Set();
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
+        bucket.add(mat);
+      });
+    }
   });
-  material.userData = {
-    ...(material.userData || {}),
-    chairId: chairOption?.id ?? 'default',
-    clothTexture
+  const upholsteryArr = Array.from(upholstery);
+  const metalArr = Array.from(metal);
+  return {
+    seat: upholsteryArr[0] ?? metalArr[0] ?? null,
+    leg: metalArr[0] ?? upholsteryArr[0] ?? null,
+    upholstery: upholsteryArr,
+    metal: metalArr
   };
-  return material;
 }
 
-function disposeChairMaterial(material) {
-  if (!material) return;
-  const texture = material.userData?.clothTexture;
-  texture?.dispose?.();
-  if (material.map && material.map !== texture) {
-    material.map.dispose?.();
+function applyChairThemeMaterials(three, theme) {
+  const mats = three?.chairMaterials;
+  if (!mats) return;
+  if (mats.seat?.color) {
+    mats.seat.color.set(theme.seatColor);
+    mats.seat.needsUpdate = true;
   }
-  material.dispose();
+  if (mats.leg?.color) {
+    mats.leg.color.set(theme.legColor);
+    mats.leg.needsUpdate = true;
+  }
+  (mats.upholstery ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.seatColor);
+      mat.needsUpdate = true;
+    }
+  });
+  (mats.metal ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.legColor);
+      mat.needsUpdate = true;
+    }
+  });
 }
 
-function createStraightArmrest(side, material) {
-  const sideSign = side === 'right' ? 1 : -1;
-  const group = new THREE.Group();
+async function loadGltfChair() {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
 
-  const baseHeight = SEAT_THICKNESS / 2;
-  const supportHeight = ARM_HEIGHT + SEAT_THICKNESS * 0.65;
-  const topLength = ARM_DEPTH * 1.1;
-  const topThickness = ARM_THICKNESS * 0.65;
+  let gltf = null;
+  let lastError = null;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) {
+    throw lastError || new Error('Failed to load chair model');
+  }
 
-  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
-  top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
-  top.castShadow = true;
-  top.receiveShadow = true;
-  group.add(top);
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) {
+    throw new Error('Chair model missing scene');
+  }
 
-  const createSupport = (zOffset) => {
-    const support = new THREE.Mesh(
-      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
-      material
-    );
-    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
-    support.castShadow = true;
-    support.receiveShadow = true;
-    return support;
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
+    }
+  });
+
+  fitChairModelToFootprint(model);
+
+  return {
+    chairTemplate: model,
+    materials: extractChairMaterials(model)
   };
+}
 
-  const frontSupport = createSupport(ARM_DEPTH * 0.4);
-  const rearSupport = createSupport(-ARM_DEPTH * 0.4);
-  group.add(frontSupport, rearSupport);
+function createProceduralChair(theme) {
+  const seatMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.seatColor || '#7c3aed'),
+    roughness: 0.42,
+    metalness: 0.18
+  });
+  const legMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.legColor || '#111827'),
+    roughness: 0.55,
+    metalness: 0.38
+  });
 
-  const sidePanel = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
-    material
+  const chair = new THREE.Group();
+
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+  seatMesh.position.y = SEAT_THICKNESS / 2;
+  seatMesh.castShadow = true;
+  seatMesh.receiveShadow = true;
+  chair.add(seatMesh);
+
+  const backMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS),
+    seatMaterial
   );
-  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
-  sidePanel.castShadow = true;
-  sidePanel.receiveShadow = true;
-  group.add(sidePanel);
+  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  backMesh.castShadow = true;
+  backMesh.receiveShadow = true;
+  chair.add(backMesh);
 
-  const handRest = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
-    material
+  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+  const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
+  const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
+  const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
+  const leftArm = new THREE.Mesh(armGeometry, seatMaterial);
+  leftArm.position.set(-armOffsetX, armOffsetY, armOffsetZ);
+  leftArm.castShadow = true;
+  leftArm.receiveShadow = true;
+  chair.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeometry, seatMaterial);
+  rightArm.position.set(armOffsetX, armOffsetY, armOffsetZ);
+  rightArm.castShadow = true;
+  rightArm.receiveShadow = true;
+  chair.add(rightArm);
+
+  const legMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
+    legMaterial
   );
-  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
-  handRest.castShadow = true;
-  handRest.receiveShadow = true;
-  group.add(handRest);
+  legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
+  legMesh.castShadow = true;
+  legMesh.receiveShadow = true;
+  chair.add(legMesh);
 
-  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
+  const foot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    legMaterial
+  );
+  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.castShadow = true;
+  foot.receiveShadow = true;
+  chair.add(foot);
 
-  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
+  return {
+    chairTemplate: chair,
+    materials: {
+      seat: seatMaterial,
+      leg: legMaterial,
+      upholstery: [seatMaterial],
+      metal: [legMaterial]
+    }
+  };
+}
+
+async function buildChairTemplate(theme) {
+  try {
+    const gltfChair = await loadGltfChair();
+    applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    return gltfChair;
+  } catch (error) {
+    console.error('Falling back to procedural chair', error);
+  }
+  return createProceduralChair(theme);
+}
+
+function disposeChairAssets(chairTemplate, chairMaterials) {
+  if (chairTemplate) {
+    chairTemplate.traverse((obj) => {
+      if (obj.isMesh) {
+        obj.geometry?.dispose?.();
+      }
+    });
+  }
+  if (chairMaterials) {
+    const mats = new Set([
+      chairMaterials.seat,
+      chairMaterials.leg,
+      ...(chairMaterials.upholstery ?? []),
+      ...(chairMaterials.metal ?? [])
+    ]);
+    mats.forEach((mat) => mat?.dispose?.());
+  }
 }
 
 const LUDO_GRID = 15;
@@ -2328,29 +2408,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
 
     if (chairOption) {
-      if (arena.chairMaterial?.userData?.chairId !== (chairOption.id ?? 'default')) {
-        const nextMaterial = createChairFabricMaterial(chairOption, arena.renderer);
-        arena.chairs?.forEach((chair) => {
-          chair.meshes.forEach((mesh) => {
-            mesh.material = nextMaterial;
-          });
-        });
-        disposeChairMaterial(arena.chairMaterial);
-        arena.chairMaterial = nextMaterial;
-      }
-      if (arena.legMaterial?.userData?.chairId !== (chairOption.id ?? 'default')) {
-        const nextLeg = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor)
-        });
-        nextLeg.userData = { chairId: chairOption.id ?? 'default' };
-        arena.chairs?.forEach((chair) => {
-          if (chair.legMesh) {
-            chair.legMesh.material = nextLeg;
-          }
-        });
-        arena.legMaterial?.dispose?.();
-        arena.legMaterial = nextLeg;
-      }
+      const chairTheme = {
+        seatColor: chairOption.primary,
+        legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
+      };
+      applyChairThemeMaterials(arena, chairTheme);
     }
   }, [appearance]);
 
@@ -2383,58 +2445,65 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const pointer = new THREE.Vector2();
     const raycaster = new THREE.Raycaster();
 
-    const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
-    [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
-      if (ref.current) {
-        ref.current.volume = baseVolume;
-      }
-    });
+    let cancelled = false;
+    let onPointerDown = null;
+    let onPointerUp = null;
+    let onResize = null;
 
-    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    renderer.localClippingEnabled = true;
-    renderer.shadowMap.enabled = true;
-    applyRendererSRGB(renderer);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.domElement.style.position = 'absolute';
-    renderer.domElement.style.top = '0';
-    renderer.domElement.style.left = '0';
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = '100%';
-    renderer.domElement.style.zIndex = '0';
-    renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.style.cursor = 'grab';
-    host.appendChild(renderer.domElement);
+    const setupScene = async () => {
 
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color('#030712');
+      const baseVolume = settingsRef.current.soundEnabled ? getGameVolume() : 0;
+      [moveSoundRef, captureSoundRef, cheerSoundRef, diceSoundRef].forEach((ref) => {
+        if (ref.current) {
+          ref.current.volume = baseVolume;
+        }
+      });
 
-    camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
-    const isPortrait = host.clientHeight > host.clientWidth;
-    const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = isPortrait ? 2.05 : 1.45;
-    const cameraForwardOffset = isPortrait ? 0.12 : 0.25;
-    const cameraHeightOffset = isPortrait ? 1.6 : 1.26;
-    const chairRadius = AI_CHAIR_RADIUS;
-    const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
-    camera.position.set(
-      Math.cos(cameraSeatAngle) * cameraRadius,
-      TABLE_HEIGHT + cameraHeightOffset,
-      Math.sin(cameraSeatAngle) * cameraRadius
-    );
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+      renderer.localClippingEnabled = true;
+      renderer.shadowMap.enabled = true;
+      applyRendererSRGB(renderer);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.domElement.style.position = 'absolute';
+      renderer.domElement.style.top = '0';
+      renderer.domElement.style.left = '0';
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+      renderer.domElement.style.zIndex = '0';
+      renderer.domElement.style.touchAction = 'none';
+      renderer.domElement.style.cursor = 'grab';
+      host.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 1.08);
-    scene.add(ambient);
-    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
-    spot.position.set(3, 7, 3);
-    spot.castShadow = true;
-    scene.add(spot);
-    const rim = new THREE.PointLight(0x33ccff, 1.728);
-    rim.position.set(-4, 3, -4);
-    scene.add(rim);
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#030712');
 
-    const arenaGroup = new THREE.Group();
-    scene.add(arenaGroup);
+      camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
+      const isPortrait = host.clientHeight > host.clientWidth;
+      const cameraSeatAngle = Math.PI / 2;
+      const cameraBackOffset = isPortrait ? 2.05 : 1.45;
+      const cameraForwardOffset = isPortrait ? 0.12 : 0.25;
+      const cameraHeightOffset = isPortrait ? 1.6 : 1.26;
+      const chairRadius = AI_CHAIR_RADIUS;
+      const cameraRadius = chairRadius + cameraBackOffset - cameraForwardOffset;
+      camera.position.set(
+        Math.cos(cameraSeatAngle) * cameraRadius,
+        TABLE_HEIGHT + cameraHeightOffset,
+        Math.sin(cameraSeatAngle) * cameraRadius
+      );
+
+      const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+      scene.add(ambient);
+      const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+      spot.position.set(3, 7, 3);
+      spot.castShadow = true;
+      scene.add(spot);
+      const rim = new THREE.PointLight(0x33ccff, 1.728);
+      rim.position.set(-4, 3, -4);
+      scene.add(rim);
+
+      const arenaGroup = new THREE.Group();
+      scene.add(arenaGroup);
 
     const floor = new THREE.Mesh(
       new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
@@ -2549,11 +2618,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       }
     };
 
-    const chairMaterial = createChairFabricMaterial(chairOption, renderer);
-    const legMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor)
-    });
-    legMaterial.userData = { chairId: chairOption.id ?? 'default' };
+    const chairTheme = {
+      seatColor: chairOption.primary,
+      legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
+    };
+    const chairBuild = await buildChairTemplate(chairTheme);
+    if (cancelled || !chairBuild) return;
+    const chairTemplate = chairBuild.chairTemplate;
+    const chairMaterials = chairBuild.materials;
+    applyChairThemeMaterials({ chairMaterials }, chairTheme);
 
     const chairs = [];
     for (let i = 0; i < activePlayerCount; i += 1) {
@@ -2566,39 +2639,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       group.position.copy(seatPos);
       group.lookAt(new THREE.Vector3(0, seatPos.y, 0));
 
-      const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), chairMaterial);
-      seatMesh.position.y = SEAT_THICKNESS / 2;
-      seatMesh.castShadow = true;
-      seatMesh.receiveShadow = true;
-      group.add(seatMesh);
-
-      const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), chairMaterial);
-      backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
-      backMesh.castShadow = true;
-      backMesh.receiveShadow = true;
-      group.add(backMesh);
-
-      const armLeft = createStraightArmrest('left', chairMaterial);
-      group.add(armLeft.group);
-      const armRight = createStraightArmrest('right', chairMaterial);
-      group.add(armRight.group);
-
-      const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
-        legMaterial
-      );
-      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
-      legBase.castShadow = true;
-      legBase.receiveShadow = true;
-      group.add(legBase);
+      const chairModel = chairTemplate.clone(true);
+      chairModel.traverse((obj) => {
+        if (obj.isMesh) {
+          obj.castShadow = true;
+          obj.receiveShadow = true;
+        }
+      });
+      group.add(chairModel);
 
       const avatarAnchor = new THREE.Object3D();
       avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
       group.add(avatarAnchor);
 
       arenaGroup.add(group);
-      const armMeshes = [...armLeft.meshes, ...armRight.meshes];
-      chairs.push({ group, anchor: avatarAnchor, meshes: [seatMesh, backMesh, ...armMeshes], legMesh: legBase });
+      chairs.push({ group, anchor: avatarAnchor });
     }
 
     const boardData = buildLudoBoard(boardGroup, activePlayerCount);
@@ -2640,8 +2695,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       boardGroup,
       boardLookTarget,
       defaultLookTarget: boardLookTarget.clone(),
-      chairMaterial,
-      legMaterial,
+      chairTemplate,
+      chairMaterials,
       chairs,
       seatAnchors: chairs.map((chair) => chair.anchor)
     };
@@ -2716,7 +2771,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       return true;
     };
     let pointerLocked = false;
-    const onPointerDown = (event) => {
+    onPointerDown = (event) => {
       const { clientX, clientY } = event;
       if (clientX == null || clientY == null) return;
       let handled = attemptHumanSelection(clientX, clientY);
@@ -2729,7 +2784,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         event.preventDefault();
       }
     };
-    const onPointerUp = () => {
+    onPointerUp = () => {
       if (!pointerLocked) return;
       pointerLocked = false;
       if (controls) controls.enabled = true;
@@ -2862,10 +2917,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     };
     animationId = requestAnimationFrame(step);
 
-    const onResize = () => fit();
+    onResize = () => fit();
     window.addEventListener('resize', onResize);
 
+    };
+
+    setupScene();
+
     return () => {
+      cancelled = true;
       clearHumanSelection();
       cancelAnimationFrame(animationId);
       if (aiTimeoutRef.current) {
@@ -2876,10 +2936,16 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       setSeatAnchors([]);
       stateRef.current = null;
       turnIndicatorRef.current = null;
-      window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      if (onResize) {
+        window.removeEventListener('resize', onResize);
+      }
+      if (renderer?.domElement && onPointerDown) {
+        renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      }
+      if (onPointerUp) {
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+      }
       controlsRef.current = null;
       controls?.dispose();
       controls = null;
@@ -2891,18 +2957,13 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           if (chair.group.parent) {
             chair.group.parent.remove(chair.group);
           }
-          chair.meshes.forEach((mesh) => {
-            mesh.geometry?.dispose?.();
-          });
-          chair.legMesh?.geometry?.dispose?.();
         });
-        disposeChairMaterial(arena.chairMaterial);
-        arena.legMaterial?.dispose?.();
+        disposeChairAssets(arena.chairTemplate, arena.chairMaterials);
         arena.tableInfo?.dispose?.();
       }
       arenaRef.current = null;
-      renderer.dispose();
-      if (renderer.domElement.parentElement === host) {
+      renderer?.dispose?.();
+      if (renderer?.domElement?.parentElement === host) {
         host.removeChild(renderer.domElement);
       }
     };
