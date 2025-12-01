@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -75,6 +76,12 @@ const STOOL_THEMES = [
   { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
   { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
   { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' }
+];
+
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 
 const DEFAULT_APPEARANCE = {
@@ -159,6 +166,12 @@ const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
 const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
+const CHAIR_TARGET_SIZE = {
+  width: SEAT_WIDTH + ARM_THICKNESS * 2,
+  depth: SEAT_DEPTH + BACK_THICKNESS,
+  height: BACK_HEIGHT + SEAT_THICKNESS + BASE_COLUMN_HEIGHT
+};
+const CHAIR_BASE_DROP = BASE_COLUMN_HEIGHT / 2 + SEAT_THICKNESS / 2;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
@@ -250,7 +263,9 @@ export default function MurlanRoyaleArena({ search }) {
     discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
     scoreboard: null,
     tableInfo: null,
-    chairMaterials: null,
+    chairMaterials: { seat: new Set(), leg: new Set() },
+    chairGeometries: new Set(),
+    chairs: [],
     outfitParts: null,
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
@@ -926,293 +941,308 @@ export default function MurlanRoyaleArena({ search }) {
     const mount = mountRef.current;
     if (!mount) return undefined;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    applyRendererSRGB(renderer);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = '100%';
-    renderer.domElement.style.display = 'block';
-    mount.appendChild(renderer.domElement);
+    let cancelled = false;
+    let renderer;
+    let controls;
+    let observer;
+    let frameId = 0;
+    const chairGeometries = new Set();
+    const chairMaterials = { seat: new Set(), leg: new Set() };
+    const chairs = [];
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#030712');
+    const initScene = async () => {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+      applyRendererSRGB(renderer);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+      renderer.domElement.style.display = 'block';
+      mount.appendChild(renderer.domElement);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 1.08);
-    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
-    spot.position.set(3, 7, 3);
-    spot.castShadow = true;
-    const rim = new THREE.PointLight(0x33ccff, 1.728);
-    rim.position.set(-4, 3, -4);
-    scene.add(ambient, spot, rim);
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color('#030712');
 
-    const spotTarget = new THREE.Object3D();
-    spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
-    scene.add(spotTarget);
-    spot.target = spotTarget;
+      const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+      const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+      spot.position.set(3, 7, 3);
+      spot.castShadow = true;
+      const rim = new THREE.PointLight(0x33ccff, 1.728);
+      rim.position.set(-4, 3, -4);
+      scene.add(ambient, spot, rim);
 
-    const arenaGroup = new THREE.Group();
-    scene.add(arenaGroup);
+      const spotTarget = new THREE.Object3D();
+      spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
+      scene.add(spotTarget);
+      spot.target = spotTarget;
 
-    const currentAppearance = normalizeAppearance(appearanceRef.current);
-    const woodOption =
-      TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption =
-      TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption =
-      TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
-    const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
+      const arenaGroup = new THREE.Group();
+      scene.add(arenaGroup);
 
-    const arenaScale = 1.3 * ARENA_GROWTH;
-    const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
-    const camConfig = buildArenaCameraConfig(boardSize);
+      const currentAppearance = normalizeAppearance(appearanceRef.current);
+      const woodOption =
+        TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+      const clothOption =
+        TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+      const baseOption =
+        TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
+      const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
 
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    arenaGroup.add(floor);
+      const arenaScale = 1.3 * ARENA_GROWTH;
+      const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
+      const camConfig = buildArenaCameraConfig(boardSize);
 
-    const carpet = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
-      createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
-    );
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.01;
-    carpet.receiveShadow = true;
-    arenaGroup.add(carpet);
-
-    const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
-    const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        wallInnerRadius,
-        TABLE_RADIUS * ARENA_GROWTH * 2.6,
-        ARENA_WALL_HEIGHT,
-        48,
-        1,
-        true
-      ),
-      createArenaWallMaterial('#0b1120', '#1e293b')
-    );
-    wall.position.y = ARENA_WALL_CENTER_Y;
-    wall.receiveShadow = false;
-    arenaGroup.add(wall);
-
-    const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
-    threeStateRef.current.cameraBounds = {
-      minX: -cameraBoundRadius,
-      maxX: cameraBoundRadius,
-      minZ: -cameraBoundRadius,
-      maxZ: cameraBoundRadius,
-      minY: CHAIR_BASE_HEIGHT * 0.5,
-      maxY: ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN
-    };
-
-    const scoreboardCanvas = document.createElement('canvas');
-    scoreboardCanvas.width = 1024;
-    scoreboardCanvas.height = 512;
-    const scoreboardContext = scoreboardCanvas.getContext('2d');
-    if (scoreboardContext) {
-      const scoreboardTexture = new THREE.CanvasTexture(scoreboardCanvas);
-      applySRGBColorSpace(scoreboardTexture);
-      scoreboardTexture.anisotropy = 8;
-      const scoreboardMaterial = new THREE.MeshBasicMaterial({
-        map: scoreboardTexture,
-        transparent: true,
-        toneMapped: false,
-        depthWrite: false
-      });
-      const scoreboardWidth = Math.min(wallInnerRadius * 0.7, 4.4 * MODEL_SCALE);
-      const scoreboardHeight = scoreboardWidth * 0.42;
-      const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
-      const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-      scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -wallInnerRadius + 0.12);
-      scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
-      scoreboardMesh.renderOrder = 2;
-      scoreboardMesh.visible = false;
-      arenaGroup.add(scoreboardMesh);
-      threeStateRef.current.scoreboard = {
-        canvas: scoreboardCanvas,
-        context: scoreboardContext,
-        texture: scoreboardTexture,
-        material: scoreboardMaterial,
-        geometry: scoreboardGeometry,
-        mesh: scoreboardMesh
-      };
-    } else {
-      threeStateRef.current.scoreboard = null;
-    }
-
-    updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
-
-    const tableInfo = createMurlanStyleTable({
-      arena: arenaGroup,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      woodOption,
-      clothOption,
-      baseOption
-    });
-    applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
-    threeStateRef.current.tableInfo = tableInfo;
-    threeStateRef.current.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
-    threeStateRef.current.discardAnchor = new THREE.Vector3(
-      -TABLE_RADIUS * 0.76,
-      tableInfo.surfaceY - CARD_H * 0.3,
-      -TABLE_RADIUS * 0.62
-    );
-    const chairMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(stoolTheme.seatColor),
-      roughness: 0.35,
-      metalness: 0.5,
-      clearcoat: 1
-    });
-    const legMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(stoolTheme.legColor) });
-
-    threeStateRef.current.chairMaterials = { seat: chairMat, leg: legMat };
-
-    const outfitBodyMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(outfitTheme.baseColor),
-      roughness: 0.55,
-      metalness: 0.35,
-      emissive: new THREE.Color(outfitTheme.glow || '#000000'),
-      emissiveIntensity: 0.25
-    });
-    const outfitAccentMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(outfitTheme.accentColor),
-      roughness: 0.4,
-      metalness: 0.55
-    });
-    const headMat = new THREE.MeshStandardMaterial({ color: '#f9e0d0', roughness: 0.75, metalness: 0.1 });
-    const torsoGeo = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
-    const headGeo = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
-    const collarGeo = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
-
-    threeStateRef.current.outfitParts = {
-      bodyMaterial: outfitBodyMat,
-      accentMaterial: outfitAccentMat,
-      headMaterial: headMat
-    };
-    const chairRadius = CHAIR_RADIUS;
-    const seatWidth = SEAT_WIDTH;
-    const seatDepth = SEAT_DEPTH;
-    const seatThickness = SEAT_THICKNESS;
-    const backHeight = BACK_HEIGHT;
-    const backThickness = BACK_THICKNESS;
-    const armThickness = ARM_THICKNESS;
-    const armHeight = ARM_HEIGHT;
-    const armDepth = ARM_DEPTH;
-    const baseColumnHeight = BASE_COLUMN_HEIGHT;
-
-    const cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
-    const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
-
-    const seatConfigs = [];
-
-    for (let i = 0; i < CHAIR_COUNT; i++) {
-      const player = players[i] ?? null;
-      const chair = new THREE.Group();
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, seatThickness, seatDepth), chairMat);
-      const back = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, backHeight, backThickness), chairMat);
-      back.position.set(0, seatThickness / 2 + backHeight / 2, -seatDepth / 2 + backThickness / 2);
-      const armLeft = new THREE.Mesh(new THREE.BoxGeometry(armThickness, armHeight, armDepth), chairMat);
-      const armOffsetX = seatWidth / 2 + armThickness / 2;
-      const armOffsetY = seatThickness / 2 + armHeight / 2;
-      const armOffsetZ = -seatDepth * 0.05;
-      armLeft.position.set(-armOffsetX, armOffsetY, armOffsetZ);
-      const armRight = armLeft.clone();
-      armRight.position.x = armOffsetX;
-      const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(
-          0.16 * MODEL_SCALE * STOOL_SCALE,
-          0.2 * MODEL_SCALE * STOOL_SCALE,
-          baseColumnHeight,
-          16
-        ),
-        legMat
+      const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
+        new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
       );
-      legBase.position.y = -seatThickness / 2 - baseColumnHeight / 2;
-      chair.add(seat, back, armLeft, armRight, legBase);
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      arenaGroup.add(floor);
 
-      const occupant = new THREE.Group();
-      occupant.position.z = -seatDepth * 0.12;
-      const torso = new THREE.Mesh(torsoGeo, outfitBodyMat);
-      torso.position.y = seatThickness / 2 + 0.38 * MODEL_SCALE;
-      occupant.add(torso);
-      const head = new THREE.Mesh(headGeo, headMat);
-      head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
-      occupant.add(head);
-      const collar = new THREE.Mesh(collarGeo, outfitAccentMat);
-      collar.rotation.x = Math.PI / 2;
-      collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
-      occupant.add(collar);
-      chair.add(occupant);
+      const carpet = new THREE.Mesh(
+        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
+        createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
+      );
+      carpet.rotation.x = -Math.PI / 2;
+      carpet.position.y = 0.01;
+      carpet.receiveShadow = true;
+      arenaGroup.add(carpet);
 
-      const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
-      const x = Math.cos(angle) * chairRadius;
-      const z = Math.sin(angle) * chairRadius;
-      const chairBaseHeight = CHAIR_BASE_HEIGHT;
-      chair.position.set(x, chairBaseHeight, z);
-      chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
-      arenaGroup.add(chair);
+      const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+      const wall = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          wallInnerRadius,
+          TABLE_RADIUS * ARENA_GROWTH * 2.6,
+          ARENA_WALL_HEIGHT,
+          48,
+          1,
+          true
+        ),
+        createArenaWallMaterial('#0b1120', '#1e293b')
+      );
+      wall.position.y = ARENA_WALL_CENTER_Y;
+      wall.receiveShadow = false;
+      arenaGroup.add(wall);
 
-      const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-      const isHumanSeat = Boolean(player?.isHuman);
-      const focus = forward
-        .clone()
-        .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
-      focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
-      const stoolPosition = forward.clone().multiplyScalar(chairRadius);
-      stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
-      const stoolHeight = STOOL_HEIGHT;
-      seatConfigs.push({
-        forward,
-        right,
-        focus,
-        radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
-        spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
-        maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
-        stoolPosition,
-        stoolHeight
-      });
+      const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
+      threeStateRef.current.cameraBounds = {
+        minX: -cameraBoundRadius,
+        maxX: cameraBoundRadius,
+        minZ: -cameraBoundRadius,
+        maxZ: cameraBoundRadius,
+        minY: CHAIR_BASE_HEIGHT * 0.5,
+        maxY: ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN
+      };
 
-      if (player) {
-        const labelTex = makeLabelTexture(player.name, player.avatar);
-        labelTex.wrapS = THREE.RepeatWrapping;
-        labelTex.repeat.x = -1;
-        labelTex.offset.x = 1;
-        const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
-        const label = new THREE.Mesh(labelGeo, labelMat);
-        const baseLabelHeight = 0.62 * MODEL_SCALE;
-        const labelForward = player.isHuman ? 0.88 * MODEL_SCALE : 0.98 * MODEL_SCALE;
-        label.position.set(0, baseLabelHeight, labelForward);
-        label.rotation.y = Math.PI;
-        chair.add(label);
-        threeStateRef.current.labelTextures.push(labelTex);
-        threeStateRef.current.labelMaterials.push(labelMat);
+      const scoreboardCanvas = document.createElement('canvas');
+      scoreboardCanvas.width = 1024;
+      scoreboardCanvas.height = 512;
+      const scoreboardContext = scoreboardCanvas.getContext('2d');
+      if (scoreboardContext) {
+        const scoreboardTexture = new THREE.CanvasTexture(scoreboardCanvas);
+        applySRGBColorSpace(scoreboardTexture);
+        scoreboardTexture.anisotropy = 8;
+        const scoreboardMaterial = new THREE.MeshBasicMaterial({
+          map: scoreboardTexture,
+          transparent: true,
+          toneMapped: false,
+          depthWrite: false
+        });
+        const scoreboardWidth = Math.min(wallInnerRadius * 0.7, 4.4 * MODEL_SCALE);
+        const scoreboardHeight = scoreboardWidth * 0.42;
+        const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
+        const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
+        scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -wallInnerRadius + 0.12);
+        scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
+        scoreboardMesh.renderOrder = 2;
+        scoreboardMesh.visible = false;
+        arenaGroup.add(scoreboardMesh);
+        threeStateRef.current.scoreboard = {
+          canvas: scoreboardCanvas,
+          context: scoreboardContext,
+          texture: scoreboardTexture,
+          material: scoreboardMaterial,
+          geometry: scoreboardGeometry,
+          mesh: scoreboardMesh
+        };
+      } else {
+        threeStateRef.current.scoreboard = null;
       }
-    }
 
-    const humanSeatIndex = players.findIndex((player) => player?.isHuman);
-    const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
+      updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
-    threeStateRef.current.appearance = { ...currentAppearance };
+      const tableInfo = createMurlanStyleTable({
+        arena: arenaGroup,
+        renderer,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        woodOption,
+        clothOption,
+        baseOption
+      });
+      applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+      threeStateRef.current.tableInfo = tableInfo;
+      threeStateRef.current.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
+      threeStateRef.current.discardAnchor = new THREE.Vector3(
+        -TABLE_RADIUS * 0.76,
+        tableInfo.surfaceY - CARD_H * 0.3,
+        -TABLE_RADIUS * 0.62
+      );
 
-    spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
-    spot.target.updateMatrixWorld();
+      let chairPrefab;
+      try {
+        chairPrefab = await loadArmchairPrefab({
+          targetSize: CHAIR_TARGET_SIZE,
+          materials: chairMaterials,
+          geometries: chairGeometries,
+          seatColor: stoolTheme.seatColor,
+          legColor: stoolTheme.legColor
+        });
+      } catch (error) {
+        console.error('Failed to load GLB chair, using fallback box model', error);
+        chairPrefab = buildLegacyChair({
+          chairMat: new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(stoolTheme.seatColor),
+            roughness: 0.35,
+            metalness: 0.5,
+            clearcoat: 1
+          }),
+          legMat: new THREE.MeshStandardMaterial({ color: new THREE.Color(stoolTheme.legColor) }),
+          seatWidth: SEAT_WIDTH,
+          seatDepth: SEAT_DEPTH,
+          seatThickness: SEAT_THICKNESS,
+          backHeight: BACK_HEIGHT,
+          backThickness: BACK_THICKNESS,
+          armThickness: ARM_THICKNESS,
+          armHeight: ARM_HEIGHT,
+          armDepth: ARM_DEPTH,
+          baseColumnHeight: BASE_COLUMN_HEIGHT,
+          materials,
+          geometries: chairGeometries
+        });
+      }
 
-    const isPortrait = mount.clientHeight > mount.clientWidth;
-    const camera = new THREE.PerspectiveCamera(
-      camConfig.fov,
-      mount.clientWidth / mount.clientHeight,
-      camConfig.near,
-      camConfig.far
-    );
+      const outfitBodyMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(outfitTheme.baseColor),
+        roughness: 0.55,
+        metalness: 0.35,
+        emissive: new THREE.Color(outfitTheme.glow || '#000000'),
+        emissiveIntensity: 0.25
+      });
+      const outfitAccentMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(outfitTheme.accentColor),
+        roughness: 0.4,
+        metalness: 0.55
+      });
+      const headMat = new THREE.MeshStandardMaterial({ color: '#f9e0d0', roughness: 0.75, metalness: 0.1 });
+      const torsoGeo = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
+      const headGeo = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
+      const collarGeo = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
+
+      threeStateRef.current.outfitParts = {
+        bodyMaterial: outfitBodyMat,
+        accentMaterial: outfitAccentMat,
+        headMaterial: headMat
+      };
+      const chairRadius = CHAIR_RADIUS;
+      const seatDepth = SEAT_DEPTH;
+      const seatThickness = SEAT_THICKNESS;
+
+      const cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
+      const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
+
+      const seatConfigs = [];
+
+      for (let i = 0; i < CHAIR_COUNT; i++) {
+        const player = players[i] ?? null;
+        const chair = new THREE.Group();
+        const chairModel = chairPrefab.clone(true);
+        registerChairAssets(chairModel, chairMaterials, chairGeometries);
+        chair.add(chairModel);
+
+        const occupant = new THREE.Group();
+        occupant.position.z = -seatDepth * 0.12;
+        const torso = new THREE.Mesh(torsoGeo, outfitBodyMat);
+        torso.position.y = seatThickness / 2 + 0.38 * MODEL_SCALE;
+        occupant.add(torso);
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
+        occupant.add(head);
+        const collar = new THREE.Mesh(collarGeo, outfitAccentMat);
+        collar.rotation.x = Math.PI / 2;
+        collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
+        occupant.add(collar);
+        chair.add(occupant);
+
+        const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
+        const x = Math.cos(angle) * chairRadius;
+        const z = Math.sin(angle) * chairRadius;
+        const chairBaseHeight = CHAIR_BASE_HEIGHT;
+        chair.position.set(x, chairBaseHeight, z);
+        chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
+        arenaGroup.add(chair);
+        chairs.push(chair);
+
+        const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+        const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+        const isHumanSeat = Boolean(player?.isHuman);
+        const focus = forward
+          .clone()
+          .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
+        focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
+        const stoolPosition = forward.clone().multiplyScalar(chairRadius);
+        stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
+        const stoolHeight = STOOL_HEIGHT;
+        seatConfigs.push({
+          forward,
+          right,
+          focus,
+          radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
+          spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
+          maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
+          stoolPosition,
+          stoolHeight
+        });
+
+        if (player) {
+          const labelTex = makeLabelTexture(player.name, player.avatar);
+          labelTex.wrapS = THREE.RepeatWrapping;
+          labelTex.repeat.x = -1;
+          labelTex.offset.x = 1;
+          const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
+          const label = new THREE.Mesh(labelGeo, labelMat);
+          const baseLabelHeight = 0.62 * MODEL_SCALE;
+          const labelForward = player.isHuman ? 0.88 * MODEL_SCALE : 0.98 * MODEL_SCALE;
+          label.position.set(0, baseLabelHeight, labelForward);
+          label.rotation.y = Math.PI;
+          chair.add(label);
+          threeStateRef.current.labelTextures.push(labelTex);
+          threeStateRef.current.labelMaterials.push(labelMat);
+        }
+      }
+
+      const humanSeatIndex = players.findIndex((player) => player?.isHuman);
+      const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
+
+      threeStateRef.current.appearance = { ...currentAppearance };
+      threeStateRef.current.chairMaterials = chairMaterials;
+      threeStateRef.current.chairGeometries = chairGeometries;
+      threeStateRef.current.chairs = chairs;
+
+      applyChairThemeMaterials(threeStateRef.current, stoolTheme);
+
+      spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
+      spot.target.updateMatrixWorld();
+
+      const isPortrait = mount.clientHeight > mount.clientWidth;
+      const camera = new THREE.PerspectiveCamera(
+        camConfig.fov,
+        mount.clientWidth / mount.clientHeight,
+        camConfig.near,
+        camConfig.far
+      );
     const targetHeightOffset = 0.08 * MODEL_SCALE;
     let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
     let initialCameraPosition;
@@ -1269,7 +1299,7 @@ export default function MurlanRoyaleArena({ search }) {
     const homeTheta = storedSpherical.theta;
     const headLimit = threeStateRef.current.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
 
-    const controls = new OrbitControls(camera, renderer.domElement);
+    controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.target.copy(target);
     controls.enablePan = false;
@@ -1325,7 +1355,7 @@ export default function MurlanRoyaleArena({ search }) {
       camera.updateProjectionMatrix();
     };
 
-    const observer = new ResizeObserver(resize);
+    observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
 
@@ -1356,7 +1386,7 @@ export default function MurlanRoyaleArena({ search }) {
       frameId = requestAnimationFrame(animate);
     };
 
-    let frameId = requestAnimationFrame(animate);
+    frameId = requestAnimationFrame(animate);
 
     threeStateRef.current.renderer = renderer;
     threeStateRef.current.scene = scene;
@@ -1366,14 +1396,16 @@ export default function MurlanRoyaleArena({ search }) {
     threeStateRef.current.cardGeometry = cardGeometry;
     threeStateRef.current.seatConfigs = seatConfigs;
 
-    ensureCardMeshes(gameStateRef.current);
-    applyStateToScene(gameStateRef.current, selectedRef.current, true);
-    focusCameraOnActivePlayer(gameStateRef.current, true);
-    setThreeReady(true);
+    if (!cancelled) {
+      ensureCardMeshes(gameStateRef.current);
+      applyStateToScene(gameStateRef.current, selectedRef.current, true);
+      focusCameraOnActivePlayer(gameStateRef.current, true);
+      setThreeReady(true);
+    }
 
     const dom = renderer.domElement;
     const handlePointerDown = (event) => {
-      if (!humanTurnRef.current) return;
+      if (cancelled || !humanTurnRef.current) return;
       const rect = dom.getBoundingClientRect();
       const pointer = new THREE.Vector2(
         ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -1386,27 +1418,32 @@ export default function MurlanRoyaleArena({ search }) {
       const cardId = picked.userData.cardId || picked.parent?.userData.cardId;
       if (cardId) toggleSelection(cardId);
     };
-    dom.addEventListener('pointerdown', handlePointerDown);
+    if (!cancelled) {
+      dom.addEventListener('pointerdown', handlePointerDown);
+    }
 
     return () => {
       const store = threeStateRef.current;
+      if (!renderer) return;
       if (store.cameraAnimationId) {
         cancelAnimationFrame(store.cameraAnimationId);
       }
       if (store.cameraChangeHandler) {
-        controls.removeEventListener('change', store.cameraChangeHandler);
+        controls?.removeEventListener('change', store.cameraChangeHandler);
       }
       cancelAnimationFrame(frameId);
-      observer.disconnect();
-      controls.dispose();
-      dom.removeEventListener('pointerdown', handlePointerDown);
-      mount.removeChild(dom);
+      observer?.disconnect?.();
+      controls?.dispose?.();
+      dom?.removeEventListener('pointerdown', handlePointerDown);
+      if (dom?.parentElement === mount) {
+        mount.removeChild(dom);
+      }
       renderer.dispose();
-      cardGeometry.dispose();
-      labelGeo.dispose();
-      torsoGeo.dispose();
-      headGeo.dispose();
-      collarGeo.dispose();
+      cardGeometry?.dispose?.();
+      labelGeo?.dispose?.();
+      torsoGeo?.dispose?.();
+      headGeo?.dispose?.();
+      collarGeo?.dispose?.();
       store.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
@@ -1419,7 +1456,8 @@ export default function MurlanRoyaleArena({ search }) {
             mat.dispose();
           }
         });
-        arena.remove(mesh);
+        const arena = store.arena ?? arenaGroup;
+        arena?.remove(mesh);
       });
       store.faceTextureCache.forEach((tex) => tex.dispose());
       store.labelTextures.forEach((tex) => tex.dispose());
@@ -1438,9 +1476,21 @@ export default function MurlanRoyaleArena({ search }) {
         store.tableInfo.dispose?.();
         store.tableInfo = null;
       }
+      if (store.chairs?.length) {
+        const arena = store.arena ?? arenaGroup;
+        store.chairs.forEach((chair) => {
+          arena?.remove(chair);
+        });
+      }
+      if (store.chairGeometries?.size) {
+        store.chairGeometries.forEach((geo) => geo?.dispose?.());
+      }
       if (store.chairMaterials) {
-        [store.chairMaterials.seat, store.chairMaterials.leg].forEach((mat) => {
-          if (mat && typeof mat.dispose === 'function') mat.dispose();
+        ['seat', 'leg'].forEach((key) => {
+          const bucket = store.chairMaterials[key];
+          if (bucket && typeof bucket.forEach === 'function') {
+            bucket.forEach((mat) => mat?.dispose?.());
+          }
         });
       }
       if (store.outfitParts) {
@@ -1485,12 +1535,28 @@ export default function MurlanRoyaleArena({ search }) {
         discardAnchor: new THREE.Vector3(-TABLE_RADIUS * 0.76, TABLE_HEIGHT - CARD_H * 0.3, -TABLE_RADIUS * 0.62),
         scoreboard: null,
         tableInfo: null,
-        chairMaterials: null,
+        chairMaterials: { seat: new Set(), leg: new Set() },
+        chairGeometries: new Set(),
+        chairs: [],
         outfitParts: null,
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }
       };
       setThreeReady(false);
+    };
+
+    let cleanup = () => {};
+    initScene()
+      .then((dispose) => {
+        if (typeof dispose === 'function') {
+          cleanup = dispose;
+        }
+      })
+      .catch((error) => console.error('Failed to initialize Murlan Royale scene', error));
+
+    return () => {
+      cancelled = true;
+      cleanup();
     };
   }, [applyStateToScene, ensureCardMeshes, focusCameraOnActivePlayer, players, toggleSelection, updateScoreboardDisplay]);
 
@@ -2291,11 +2357,133 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
   return texture;
 }
 
+async function loadArmchairPrefab({ targetSize, materials, geometries, seatColor, legColor }) {
+  const loader = new GLTFLoader();
+  let lastError;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      const gltf = await loader.loadAsync(url);
+      const scene = gltf.scene?.clone(true);
+      if (!scene) throw new Error('Chair scene missing');
+      applySRGBToSceneTextures(scene);
+      normalizeChairPrefab(scene, targetSize);
+      registerChairAssets(scene, materials, geometries);
+      applyChairThemeMaterials(
+        { chairMaterials: materials ?? { seat: new Set(), leg: new Set() } },
+        { seatColor, legColor }
+      );
+      return scene;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Failed to load chair model');
+}
+
+function applySRGBToSceneTextures(root) {
+  root.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+    materials.forEach((mat) => {
+      ['map', 'emissiveMap', 'aoMap', 'roughnessMap', 'metalnessMap', 'specularMap', 'clearcoatMap'].forEach(
+        (key) => {
+          if (mat?.[key]) applySRGBColorSpace(mat[key]);
+        }
+      );
+    });
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+  });
+}
+
+function normalizeChairPrefab(root, targetSize) {
+  const box = new THREE.Box3().setFromObject(root);
+  const size = box.getSize(new THREE.Vector3(1, 1, 1));
+  const scaleFactor = Math.min(
+    targetSize.width / Math.max(size.x, 1e-5),
+    targetSize.depth / Math.max(size.z, 1e-5),
+    targetSize.height / Math.max(size.y, 1e-5)
+  );
+  root.scale.multiplyScalar(scaleFactor);
+  const centered = new THREE.Box3().setFromObject(root);
+  const center = centered.getCenter(new THREE.Vector3());
+  root.position.sub(center);
+  const shifted = new THREE.Box3().setFromObject(root);
+  const lift = -shifted.min.y - CHAIR_BASE_DROP;
+  root.position.y += lift;
+  return root;
+}
+
+function registerChairAssets(root, materials, geometries) {
+  root.traverse((obj) => {
+    if (!obj.isMesh) return;
+    if (geometries) geometries.add(obj.geometry);
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      const metalness = typeof mat.metalness === 'number' ? mat.metalness : 0;
+      const bucket = metalness > 0.5 ? materials?.leg : materials?.seat;
+      bucket?.add?.(mat);
+    });
+  });
+}
+
+function buildLegacyChair({
+  chairMat,
+  legMat,
+  seatWidth,
+  seatDepth,
+  seatThickness,
+  backHeight,
+  backThickness,
+  armThickness,
+  armHeight,
+  armDepth,
+  baseColumnHeight,
+  materials,
+  geometries
+}) {
+  const chair = new THREE.Group();
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, seatThickness, seatDepth), chairMat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, backHeight, backThickness), chairMat);
+  back.position.set(0, seatThickness / 2 + backHeight / 2, -seatDepth / 2 + backThickness / 2);
+  const armLeft = new THREE.Mesh(new THREE.BoxGeometry(armThickness, armHeight, armDepth), chairMat);
+  const armOffsetX = seatWidth / 2 + armThickness / 2;
+  const armOffsetY = seatThickness / 2 + armHeight / 2;
+  const armOffsetZ = -seatDepth * 0.05;
+  armLeft.position.set(-armOffsetX, armOffsetY, armOffsetZ);
+  const armRight = armLeft.clone();
+  armRight.position.x = armOffsetX;
+  const legBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, baseColumnHeight, 16),
+    legMat
+  );
+  legBase.position.y = -seatThickness / 2 - baseColumnHeight / 2;
+  chair.add(seat, back, armLeft, armRight, legBase);
+  registerChairAssets(chair, materials, geometries);
+  return chair;
+}
+
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
-  if (mats.seat?.color) mats.seat.color.set(theme.seatColor);
-  if (mats.leg?.color) mats.leg.color.set(theme.legColor);
+  const paint = (bucket, color) => {
+    if (!bucket) return;
+    if (typeof bucket.forEach === 'function') {
+      bucket.forEach((mat) => {
+        if (!mat?.color) return;
+        mat.color.set(color);
+        mat.needsUpdate = true;
+      });
+      return;
+    }
+    if (bucket?.color) {
+      bucket.color.set(color);
+      bucket.needsUpdate = true;
+    }
+  };
+  paint(mats.seat, theme.seatColor);
+  paint(mats.leg, theme.legColor);
 }
 
 function applyOutfitThemeMaterials(three, theme) {
