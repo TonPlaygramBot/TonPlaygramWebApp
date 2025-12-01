@@ -678,6 +678,7 @@ const normalizeHue = (h) => {
 
 let chairTemplatePromise = null;
 let chairTemplateBounds = null;
+let chairBuildToken = 0;
 
 function fitChairModelToFootprint(model) {
   const box = new THREE.Box3().setFromObject(model);
@@ -2972,10 +2973,6 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-applyAppearanceChange({ refresh: false });
-refreshConfigUI();
-
-
 /* ---------- Seating (Texas Hold'em Style Chairs) ---------- */
 const CHAIR_TEXTURE_PROPS = Object.freeze([
   'map',
@@ -3017,7 +3014,11 @@ function disposeChairResources(root) {
   });
 }
 
-async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
+const CHAIR_MODEL_TIMEOUT_MS = 2500;
+
+function placeChairsWithOption(option, chairData, token) {
+  if (token !== chairBuildToken) return;
+
   disposeSeatLabel({ persistPreference: false });
   while (chairs.length) {
     const chair = chairs.pop();
@@ -3026,14 +3027,9 @@ async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?
   }
 
   const lookTarget = new THREE.Vector3(0, TABLE_HEIGHT, 0);
-  let chairData = null;
-  try {
-    chairData = await ensureMurlanChairTemplate();
-  } catch (error) {
-    console.warn("Falling back to procedural chair for Domino", error);
-  }
-
-  const seatBottomOffset = chairData ? -chairTemplateBounds.min.y : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
+  const seatBottomOffset = chairData
+    ? -chairTemplateBounds.min.y
+    : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight;
   const labelHeight = chairData
     ? seatBottomOffset + chairTemplateBounds.max.y + 0.12
     : CHAIR_DIMENSIONS.baseThickness + CHAIR_DIMENSIONS.columnHeight + CHAIR_DIMENSIONS.seatThickness + 0.72;
@@ -3080,6 +3076,28 @@ async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?
       wrapper.add(seatLabelMesh);
     }
   });
+}
+
+async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
+  const token = ++chairBuildToken;
+  const chairDataPromise = ensureMurlanChairTemplate().catch((error) => {
+    console.warn("Falling back to procedural chair for Domino", error);
+    return null;
+  });
+
+  const chairData = await Promise.race([
+    chairDataPromise,
+    new Promise((resolve) => setTimeout(() => resolve(null), CHAIR_MODEL_TIMEOUT_MS))
+  ]);
+
+  placeChairsWithOption(option, chairData, token);
+
+  if (!chairData) {
+    chairDataPromise.then((resolved) => {
+      if (!resolved || token !== chairBuildToken) return;
+      placeChairsWithOption(option, resolved, token);
+    });
+  }
 }
 
 /* ---------- Tile Helpers (ensure defined before use) ---------- */
@@ -3256,6 +3274,9 @@ if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
   statusPrefix = `Stake ${stakeAmount.toLocaleString('en-US')} ${stakeToken.toUpperCase()}`;
   setStatus('Ready');
 }
+
+applyAppearanceChange({ refresh: false });
+refreshConfigUI();
 
 function layoutSeat(idx){
   const EDGE = CLOTH_RADIUS;
