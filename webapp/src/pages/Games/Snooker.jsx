@@ -268,10 +268,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.16; // push side chrome arches further from center so the middle pockets sit proud of the rail
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // align the side chrome arches with the wooden rail cuts like Pool Royale
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.62; // pull middle wood arches outward so the side pockets flare away from center
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.264; // match Pool Royale's middle-pocket arch alignment
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -5227,7 +5227,7 @@ function Table3D(
   }
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
-    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.4;
+    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236;
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
@@ -8000,7 +8000,11 @@ function SnookerGame() {
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
           const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
-          const clampedPhi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
+          const topViewMinPhi = topViewRef.current ? 0.0001 : CAMERA.minPhi;
+          const topViewMaxPhi = topViewRef.current
+            ? Math.max(CAMERA.maxPhi, Math.PI / 2)
+            : CAMERA.maxPhi;
+          const clampedPhi = clamp(safePhi, topViewMinPhi, topViewMaxPhi);
           let finalRadius = radius;
           let minRadiusForRails = null;
           if (clampedPhi >= CAMERA_RAIL_APPROACH_PHI) {
@@ -8737,8 +8741,8 @@ function SnookerGame() {
               sph.radius = clampOrbitRadius(limitedRadius);
               sph.phi = THREE.MathUtils.clamp(
                 correctedPhi,
-                CAMERA.minPhi,
-                CAMERA.maxPhi
+                topViewMinPhi,
+                topViewMaxPhi
               );
               TMP_SPH.radius = sph.radius;
               TMP_SPH.phi = sph.phi;
