@@ -268,10 +268,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.12; // push side chrome arches further from center so the middle pockets sit proud of the rail
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.16; // push side chrome arches further from center so the middle pockets sit proud of the rail
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.54; // pull middle wood arches outward so the side pockets flare away from center
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.62; // pull middle wood arches outward so the side pockets flare away from center
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -2925,7 +2925,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.029; // align orbit distance with Pool Royale framing
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.026; // align orbit distance with Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.14;
@@ -2988,13 +2988,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.05;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.22;
+const CUE_VIEW_RADIUS_RATIO = 0.044;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.18;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.18
+  STANDING_VIEW_PHI + 0.14
 );
-const CUE_VIEW_PHI_LIFT = 0.085;
+const CUE_VIEW_PHI_LIFT = 0.075;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -5227,7 +5227,7 @@ function Table3D(
   }
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
-    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.34;
+    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.4;
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
@@ -6367,12 +6367,21 @@ function SnookerGame() {
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
+  const [isLookMode, setIsLookMode] = useState(false);
+  const lookModeRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
   const orbitFocusRef = useRef({
     target: new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0),
     ballId: null
   });
+  useEffect(() => {
+    lookModeRef.current = isLookMode;
+    if (!isLookMode) {
+      aimFocusRef.current = null;
+    }
+    updateCameraRef.current?.();
+  }, [isLookMode]);
   const orbitRadiusLimitRef = useRef(null);
   const [timer, setTimer] = useState(60);
   const timerRef = useRef(null);
@@ -9213,6 +9222,7 @@ function SnookerGame() {
         fitRef.current = fit;
         topViewRef.current = false;
         setTopView(false);
+        setTopView(false);
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
@@ -10504,6 +10514,7 @@ function SnookerGame() {
 
           if (cameraRef.current && sphRef.current) {
             topViewRef.current = false;
+            setTopView(false);
             const sph = sphRef.current;
             const bounds = cameraBoundsRef.current;
             const standingView = bounds?.standing;
@@ -10558,6 +10569,7 @@ function SnookerGame() {
                   cueAnimating = false;
                   if (cameraRef.current && sphRef.current) {
                     topViewRef.current = false;
+                    setTopView(false);
                     const sph = sphRef.current;
                     sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
                     updateCamera();
@@ -11041,6 +11053,7 @@ function SnookerGame() {
           const dir = plan.aimDir.clone().normalize();
           aimDirRef.current.copy(dir);
           topViewRef.current = false;
+          setTopView(false);
           alignStandingCameraToAim(cue, dir);
           powerRef.current = plan.power;
           setHud((s) => ({ ...s, power: plan.power }));
@@ -11193,7 +11206,9 @@ function SnookerGame() {
         const aimLerpFactor = chalkAssistTargetRef.current
           ? CHALK_AIM_LERP_SLOW
           : 0.2;
-        aimDir.lerp(tmpAim, aimLerpFactor);
+        if (!lookModeRef.current) {
+          aimDir.lerp(tmpAim, aimLerpFactor);
+        }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
         const newCollisions = new Set();
@@ -11268,6 +11283,14 @@ function SnookerGame() {
             end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
+          if (lookModeRef.current) {
+            const lookFocus = targetBall
+              ? new THREE.Vector3(targetBall.pos.x, BALL_CENTER_Y, targetBall.pos.y)
+              : end.clone();
+            aimFocusRef.current = lookFocus;
+          } else {
+            aimFocusRef.current = null;
+          }
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
@@ -12231,6 +12254,37 @@ function SnookerGame() {
       )}
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
+        <div
+          className="pointer-events-none flex flex-col gap-2"
+          style={{ transform: `scale(${UI_SCALE})`, transformOrigin: 'bottom left' }}
+        >
+          <button
+            type="button"
+            aria-pressed={isLookMode}
+            onClick={() => setIsLookMode((prev) => !prev)}
+            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              isLookMode
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+          >
+            <span className="text-base">👁️</span>
+            <span>Look</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={topView}
+            onClick={toggleView}
+            className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+              topView
+                ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+                : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+            }`}
+          >
+            <span className="text-base">🧭</span>
+            <span>{topView ? '3D' : '2D'}</span>
+          </button>
+        </div>
         <button
           ref={configButtonRef}
           type="button"
