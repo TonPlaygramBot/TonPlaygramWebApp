@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
@@ -11,22 +11,12 @@ import {
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
-const FEATURED_TABLES = Object.freeze([
-  {
-    id: 'rusticSplit',
-    label: 'Pearl Cream Arena',
-    description: 'Pool Royale pearl-cream rails with satin brass trim and emerald tour cloth.'
-  },
-  {
-    id: 'charredTimber',
-    label: 'Charred Timber Elite',
-    description: 'Dark roasted planks with bronze trim and the full Pool Royale chrome accents.'
-  },
-  {
-    id: 'jetBlackCarbon',
-    label: 'Carbon Midnight',
-    description: 'Matte carbon fibre shell with smoked chrome plates and neon underglow accents.'
-  }
+const AVAILABLE_TABLE_FINISHES = Object.freeze([
+  'rusticSplit',
+  'charredTimber',
+  'plankStudio',
+  'weatheredGrey',
+  'jetBlackCarbon'
 ]);
 
 export default function SnookerLobby() {
@@ -43,24 +33,22 @@ export default function SnookerLobby() {
   const [playType, setPlayType] = useState(initialPlayType);
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
-  const [tableFinish, setTableFinish] = useState(() => {
+  const tableFinish = useMemo(() => {
+    const params = new URLSearchParams(search);
+    const requested = params.get('finish');
+    if (requested && AVAILABLE_TABLE_FINISHES.includes(requested)) {
+      return requested;
+    }
     if (typeof window !== 'undefined') {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const requested = params.get('finish');
-        if (requested && FEATURED_TABLES.some((option) => option.id === requested)) {
-          return requested;
-        }
-      } catch {}
-      try {
         const stored = window.localStorage.getItem('snookerTableFinish');
-        if (stored && FEATURED_TABLES.some((option) => option.id === stored)) {
+        if (stored && AVAILABLE_TABLE_FINISHES.includes(stored)) {
           return stored;
         }
       } catch {}
     }
-    return FEATURED_TABLES[0].id;
-  });
+    return AVAILABLE_TABLE_FINISHES[0];
+  }, [search]);
 
   useEffect(() => {
     try {
@@ -68,14 +56,6 @@ export default function SnookerLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage.setItem('snookerTableFinish', tableFinish);
-      } catch {}
-    }
-  }, [tableFinish]);
 
   const startGame = async () => {
     let tgId;
@@ -183,23 +163,6 @@ export default function SnookerLobby() {
                 </span>
               )}
             </div>
-          ))}
-        </div>
-      </div>
-      <div className="space-y-2">
-        <h3 className="font-semibold">Table</h3>
-        <div className="space-y-2">
-          {FEATURED_TABLES.map(({ id, label, description }) => (
-            <button
-              key={id}
-              onClick={() => setTableFinish(id)}
-              className={`w-full text-left lobby-tile ${
-                tableFinish === id ? 'lobby-selected' : ''
-              }`}
-            >
-              <div className="font-semibold">{label}</div>
-              <div className="text-xs text-subtext leading-snug">{description}</div>
-            </button>
           ))}
         </div>
       </div>
