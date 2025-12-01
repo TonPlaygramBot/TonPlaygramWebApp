@@ -16,6 +16,7 @@ import NFT_GIFTS from '../utils/nftGifts.js';
 
 import { mintGiftNFT } from '../utils/nftService.js';
 import { generateWalletAddress } from '../utils/wallet.js';
+import { fetchTelegramInfo } from '../utils/telegram.js';
 
 const router = Router();
 
@@ -23,76 +24,114 @@ const router = Router();
 router.post('/create', async (req, res) => {
   const { telegramId, googleId } = req.body;
 
-  let user;
-  if (telegramId) {
-    user = await User.findOne({ telegramId });
-    if (!user) {
-      const wallet = await generateWalletAddress();
-      user = new User({
-        telegramId,
-        accountId: uuidv4(),
-        referralCode: String(telegramId),
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
-      await user.save();
-    } else {
-      let updated = false;
-      if (!user.accountId) {
-        user.accountId = uuidv4();
-        updated = true;
-      }
-      if (!user.walletAddress) {
-        const wallet = await generateWalletAddress();
-        user.walletAddress = wallet.address;
-        user.walletPublicKey = wallet.publicKey;
-        updated = true;
-      }
-      if (updated) await user.save();
-    }
-  } else if (googleId) {
-    user = await User.findOne({ googleId });
-    if (!user) {
-      const wallet = await generateWalletAddress();
-      user = new User({
-        googleId,
-        accountId: uuidv4(),
-        referralCode: googleId,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
-      await user.save();
-    } else {
-      let updated = false;
-      if (!user.accountId) {
-        user.accountId = uuidv4();
-        updated = true;
-      }
-      if (!user.walletAddress) {
-        const wallet = await generateWalletAddress();
-        user.walletAddress = wallet.address;
-        user.walletPublicKey = wallet.publicKey;
-        updated = true;
-      }
-      if (updated) await user.save();
-    }
-  } else {
-    const wallet = await generateWalletAddress();
-    const id = uuidv4();
-    user = new User({
-      accountId: id,
-      referralCode: id,
-      walletAddress: wallet.address,
-      walletPublicKey: wallet.publicKey
-    });
-    await user.save();
-  }
+  try {
+    let user;
+    let telegramProfile = null;
 
-  res.json({
-    accountId: user.accountId,
-    balance: user.balance,
-    walletAddress: user.walletAddress
-  });
+    if (telegramId) {
+      try {
+        telegramProfile = await fetchTelegramInfo(telegramId);
+      } catch (err) {
+        console.error('fetchTelegramInfo failed:', err);
+      }
+
+      user = await User.findOne({ telegramId });
+      if (!user) {
+        const wallet = await generateWalletAddress();
+        const baseData = {
+          telegramId,
+          accountId: uuidv4(),
+          referralCode: String(telegramId),
+          walletAddress: wallet.address,
+          walletPublicKey: wallet.publicKey
+        };
+
+        if (telegramProfile) {
+          baseData.firstName = telegramProfile.firstName || '';
+          baseData.lastName = telegramProfile.lastName || '';
+          baseData.photo = telegramProfile.photoUrl || '';
+        }
+
+        user = new User(baseData);
+        await user.save();
+      } else {
+        let updated = false;
+        if (!user.accountId) {
+          user.accountId = uuidv4();
+          updated = true;
+        }
+        if (!user.walletAddress) {
+          const wallet = await generateWalletAddress();
+          user.walletAddress = wallet.address;
+          user.walletPublicKey = wallet.publicKey;
+          updated = true;
+        }
+        if (telegramProfile) {
+          if (!user.firstName && telegramProfile.firstName) {
+            user.firstName = telegramProfile.firstName;
+            updated = true;
+          }
+          if (!user.lastName && telegramProfile.lastName) {
+            user.lastName = telegramProfile.lastName;
+            updated = true;
+          }
+          if (!user.photo && telegramProfile.photoUrl) {
+            user.photo = telegramProfile.photoUrl;
+            updated = true;
+          }
+        }
+        if (updated) await user.save();
+      }
+    } else if (googleId) {
+      user = await User.findOne({ googleId });
+      if (!user) {
+        const wallet = await generateWalletAddress();
+        user = new User({
+          googleId,
+          accountId: uuidv4(),
+          referralCode: googleId,
+          walletAddress: wallet.address,
+          walletPublicKey: wallet.publicKey
+        });
+        await user.save();
+      } else {
+        let updated = false;
+        if (!user.accountId) {
+          user.accountId = uuidv4();
+          updated = true;
+        }
+        if (!user.walletAddress) {
+          const wallet = await generateWalletAddress();
+          user.walletAddress = wallet.address;
+          user.walletPublicKey = wallet.publicKey;
+          updated = true;
+        }
+        if (updated) await user.save();
+      }
+    } else {
+      const wallet = await generateWalletAddress();
+      const id = uuidv4();
+      user = new User({
+        accountId: id,
+        referralCode: id,
+        walletAddress: wallet.address,
+        walletPublicKey: wallet.publicKey
+      });
+      await user.save();
+    }
+
+    res.json({
+      accountId: user.accountId,
+      balance: user.balance,
+      walletAddress: user.walletAddress,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      photo: user.photo
+    });
+  } catch (err) {
+    console.error('Failed to create account:', err);
+    res.status(500).json({ error: 'failed to create account' });
+  }
 });
 
 // Get balance by account id
