@@ -410,7 +410,8 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.034; // match snooker fascia depth for consistent chrome heft at the pockets
+const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
+const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08; // give the middle fascias a subtle lift for extra depth like the snooker table
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
@@ -623,6 +624,28 @@ function buildChromePlateGeometry({
   geo.rotateX(-Math.PI / 2);
   geo.computeVertexNormals();
   return geo;
+}
+
+function applyChromePlateDamping(material) {
+  if (!material) return null;
+  const mat = material.clone();
+  const baseEnv = typeof material.envMapIntensity === 'number' ? material.envMapIntensity : 1;
+  mat.envMapIntensity = baseEnv * CHROME_PLATE_REFLECTION_SCALE;
+  const baseRoughness = typeof material.roughness === 'number' ? material.roughness : 0;
+  mat.roughness = THREE.MathUtils.clamp(
+    baseRoughness + CHROME_PLATE_ROUGHNESS_LIFT,
+    0,
+    1
+  );
+  if (typeof mat.metalness === 'number') {
+    mat.metalness = THREE.MathUtils.clamp(
+      mat.metalness * (1 - CHROME_PLATE_REFLECTION_SCALE * 0.35),
+      0,
+      1
+    );
+  }
+  mat.needsUpdate = true;
+  return mat;
 }
 function addPocketCuts(
   parent,
@@ -2062,6 +2085,7 @@ const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
   { id: 'diamond', label: 'Diamonds' },
   { id: 'circle', label: 'Circles' }
 ]);
+const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.06;
 
 const DEFAULT_RAIL_MARKER_COLOR_ID = 'chrome';
 const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
@@ -6117,7 +6141,7 @@ function Table3D(
     verticalCushionLength / 2 +
     SIDE_CUSHION_CORNER_SHIFT;
 
-  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // drop the plates far enough to hide the rail pocket cuts
+  const chromePlateThickness = RAIL_MARKER_THICKNESS; // keep fascia flush with diamond markers so surfaces stay level
   const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // give the middle-pocket fascias extra depth
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
@@ -6479,6 +6503,7 @@ function Table3D(
 
   const chromePlates = new THREE.Group();
   const chromePlateShapeSegments = 128;
+  const chromePlateMat = applyChromePlateDamping(trimMat) ?? trimMat;
   // Every chrome plate (corner and side) relies on the exact chrome-defined arcs without referencing woodwork.
   [
     { corner: 'topLeft', sx: -1, sz: -1 },
@@ -6515,8 +6540,9 @@ function Table3D(
         shapeSegments: chromePlateShapeSegments,
         flat: true
       }),
-      trimMat
+      chromePlateMat
     );
+    plate.userData.isChromePlate = true;
     plate.position.set(centerX, chromePlateY + chromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
@@ -6556,8 +6582,9 @@ function Table3D(
         shapeSegments: chromePlateShapeSegments,
         flat: true
       }),
-      trimMat
+      chromePlateMat
     );
+    plate.userData.isChromePlate = true;
     plate.position.set(centerX, sideChromePlateY + sideChromePlateThickness, centerZ);
     plate.castShadow = false;
     plate.receiveShadow = false;
@@ -7162,7 +7189,7 @@ function Table3D(
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
   const railMarkerOutset = longRailW * 0.7;
   const railMarkerGroup = new THREE.Group();
-  const railMarkerThickness = TABLE.THICK * 0.06;
+  const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
   const railMarkerLength = railMarkerWidth * 0.62;
   const railMarkerShape = new THREE.Shape();
@@ -7837,9 +7864,12 @@ function applyTableFinishToTable(table, finish) {
   };
   const swapMaterial = (mesh, material) => {
     if (!mesh || !material) return;
-    if (mesh.material !== material) {
+    const nextMaterial = mesh.userData?.isChromePlate
+      ? applyChromePlateDamping(material)
+      : material;
+    if (mesh.material !== nextMaterial) {
       disposeMaterial(mesh.material);
-      mesh.material = material;
+      mesh.material = nextMaterial;
     }
   };
 
