@@ -4,7 +4,7 @@ export const ARENA_CAMERA_DEFAULTS = Object.freeze({
   far: 5000,
   initialRadiusFactor: 1.35,
   minRadiusFactor: 0.95,
-  maxRadiusFactor: 2.4,
+  maxRadiusFactor: 3.1,
   initialPhiLerp: 0.35,
   phiMin: 0.92,
   phiMax: 1.22,
