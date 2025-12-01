@@ -3,11 +3,12 @@ import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
-import { applyRendererSRGB } from '../../utils/colorSpace.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   createMurlanStyleTable,
   applyTableMaterials,
@@ -166,7 +167,8 @@ const BOARD_COLOR_OPTIONS = Object.freeze([
 ]);
 
 const MODEL_SCALE = 0.75;
-const STOOL_SCALE = 1.5 * 1.3;
+const CHAIR_SIZE_SCALE = 1.3;
+const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
 const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
@@ -313,47 +315,25 @@ const DEFAULT_APPEARANCE = {
   tableShape: 0
 };
 
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
+];
+
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
+  CHAIR_SIZE_SCALE
+);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
+
 const CHAIR_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'crimsonVelvet',
-    label: 'Crimson Velvet',
-    primary: '#8b1538',
-    accent: '#5c0f26',
-    highlight: '#d35a7a',
-    legColor: '#1f1f1f'
-  },
-  {
-    id: 'midnightNavy',
-    label: 'Midnight Blue',
-    primary: '#153a8b',
-    accent: '#0c214f',
-    highlight: '#4d74d8',
-    legColor: '#10131c'
-  },
-  {
-    id: 'emeraldWave',
-    label: 'Emerald Wave',
-    primary: '#0f6a2f',
-    accent: '#063d1b',
-    highlight: '#48b26a',
-    legColor: '#142318'
-  },
-  {
-    id: 'onyxShadow',
-    label: 'Onyx Shadow',
-    primary: '#202020',
-    accent: '#101010',
-    highlight: '#6f6f6f',
-    legColor: '#080808'
-  },
-  {
-    id: 'royalPlum',
-    label: 'Royal Chestnut',
-    primary: '#3f1f5b',
-    accent: '#2c1340',
-    highlight: '#7c4ae0',
-    legColor: '#140a24'
-  }
+  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f' },
+  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a' },
+  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a' },
+  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
+  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
+  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' }
 ]);
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
@@ -382,29 +362,6 @@ function getEffectiveShapeConfig(shapeIndex) {
   const fallback = TABLE_SHAPE_MENU_OPTIONS[0] ?? TABLE_SHAPE_OPTIONS[0];
   const requested = TABLE_SHAPE_MENU_OPTIONS[shapeIndex] ?? fallback;
   return { option: requested ?? fallback, rotationY: 0, forced: false };
-}
-
-const DEFAULT_CHAIR_THEME = Object.freeze({ legColor: '#1f1f1f' });
-
-function createChessChairMaterials(chairOption) {
-  const fabricColor = new THREE.Color(chairOption?.primary ?? '#2b314e');
-  const accent = new THREE.Color(chairOption?.highlight ?? '#465086');
-  const fabricMaterial = new THREE.MeshStandardMaterial({
-    color: fabricColor,
-    roughness: 0.6,
-    metalness: 0.15,
-    emissive: accent.clone().multiplyScalar(0.05)
-  });
-  fabricMaterial.userData = { chairId: chairOption?.id ?? 'default' };
-
-  const legMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(chairOption?.legColor ?? DEFAULT_CHAIR_THEME.legColor),
-    roughness: 0.68,
-    metalness: 0.22
-  });
-  legMaterial.userData = { chairId: chairOption?.id ?? 'default' };
-
-  return { fabricMaterial, legMaterial };
 }
 
 function createStraightArmrest(side, material) {
@@ -460,10 +417,197 @@ function createStraightArmrest(side, material) {
   return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
 }
 
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    const scale = targetMax / currentMax;
+    model.scale.multiplyScalar(scale);
+  }
+
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  const offset = new THREE.Vector3(-scaledCenter.x, TARGET_CHAIR_MIN_Y - scaledBox.min.y, TARGET_CHAIR_CENTER_Z - scaledCenter.z);
+  model.position.add(offset);
+}
+
+function extractChairMaterials(model) {
+  const upholstery = new Set();
+  const metal = new Set();
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
+        bucket.add(mat);
+      });
+    }
+  });
+  const upholsteryArr = Array.from(upholstery);
+  const metalArr = Array.from(metal);
+  return {
+    seat: upholsteryArr[0] ?? metalArr[0] ?? null,
+    leg: metalArr[0] ?? upholsteryArr[0] ?? null,
+    upholstery: upholsteryArr,
+    metal: metalArr
+  };
+}
+
+async function loadGltfChair() {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
+
+  let gltf = null;
+  let lastError = null;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) {
+    throw lastError || new Error('Failed to load chair model');
+  }
+
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) {
+    throw new Error('Chair model missing scene');
+  }
+
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
+    }
+  });
+
+  fitChairModelToFootprint(model);
+
+  return {
+    chairTemplate: model,
+    materials: extractChairMaterials(model)
+  };
+}
+
+function createProceduralChair(theme) {
+  const seatMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.seatColor || '#7c3aed'),
+    roughness: 0.42,
+    metalness: 0.18
+  });
+  const legMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.legColor || '#111827'),
+    roughness: 0.55,
+    metalness: 0.38
+  });
+
+  const chair = new THREE.Group();
+
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+  seat.position.y = SEAT_THICKNESS / 2;
+  seat.castShadow = true;
+  seat.receiveShadow = true;
+  chair.add(seat);
+
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS),
+    seatMaterial
+  );
+  back.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  back.castShadow = true;
+  back.receiveShadow = true;
+  chair.add(back);
+
+  const armLeft = createStraightArmrest('left', seatMaterial);
+  chair.add(armLeft.group);
+  const armRight = createStraightArmrest('right', seatMaterial);
+  chair.add(armRight.group);
+
+  const legBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
+    legMaterial
+  );
+  legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
+  legBase.castShadow = true;
+  legBase.receiveShadow = true;
+  chair.add(legBase);
+
+  const foot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    legMaterial
+  );
+  foot.position.y = legBase.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.castShadow = true;
+  foot.receiveShadow = true;
+  chair.add(foot);
+
+  return {
+    chairTemplate: chair,
+    materials: {
+      seat: seatMaterial,
+      leg: legMaterial,
+      upholstery: [seatMaterial],
+      metal: [legMaterial]
+    }
+  };
+}
+
+async function buildChessChairTemplate(theme) {
+  try {
+    const gltfChair = await loadGltfChair();
+    applyChessChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    return gltfChair;
+  } catch (error) {
+    console.error('Falling back to procedural chess chair', error);
+  }
+  return createProceduralChair(theme);
+}
+
+function applyChessChairThemeMaterials(three, theme) {
+  const mats = three?.chairMaterials;
+  if (!mats) return;
+  if (mats.seat?.color) {
+    mats.seat.color.set(theme.seatColor);
+    mats.seat.needsUpdate = true;
+  }
+  if (mats.leg?.color) {
+    mats.leg.color.set(theme.legColor);
+    mats.leg.needsUpdate = true;
+  }
+  (mats.upholstery ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.seatColor);
+      mat.needsUpdate = true;
+    }
+  });
+  (mats.metal ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.legColor);
+      mat.needsUpdate = true;
+    }
+  });
+}
+
 function disposeChessChairMaterials(materials) {
   if (!materials) return;
-  materials.fabricMaterial?.dispose?.();
-  materials.legMaterial?.dispose?.();
+  const mats = new Set([materials.seat, materials.leg, ...(materials.upholstery ?? []), ...(materials.metal ?? [])]);
+  mats.forEach((mat) => {
+    if (mat && typeof mat.dispose === 'function') mat.dispose();
+  });
 }
 
 function createSandTimer(accentColor = '#f4b400') {
@@ -2506,23 +2650,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     }
 
-    if (chairOption) {
-      const currentMaterials = arena.chairMaterials;
-      const currentId = currentMaterials?.fabricMaterial?.userData?.chairId ?? 'default';
-      const nextId = chairOption.id ?? 'default';
-      if (currentId !== nextId) {
-        const nextMaterials = createChessChairMaterials(chairOption);
-        arena.chairs?.forEach((chair) => {
-          chair.seatMeshes.forEach((mesh) => {
-            mesh.material = nextMaterials.fabricMaterial;
-          });
-          chair.legMeshes.forEach((mesh) => {
-            mesh.material = nextMaterials.legMaterial;
-          });
-        });
-        disposeChessChairMaterials(currentMaterials);
-        arena.chairMaterials = nextMaterials;
-      }
+    if (chairOption && arena.chairMaterials) {
+      applyChessChairThemeMaterials(arena, chairOption);
     }
 
     if (arena.boardMaterials) {
@@ -2808,44 +2937,31 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       });
     }
 
-    const chairMaterials = createChessChairMaterials(chairOption);
+    const chairBuild = await buildChessChairTemplate(chairOption);
+    const chairTemplate = chairBuild?.chairTemplate;
+    const chairMaterials = chairBuild?.materials;
+    applyChessChairThemeMaterials({ chairMaterials }, chairOption);
     disposers.push(() => {
       disposeChessChairMaterials(chairMaterials);
+      if (chairTemplate) {
+        chairTemplate.traverse((obj) => {
+          if (obj.isMesh) obj.geometry?.dispose?.();
+        });
+      }
     });
 
     function makeChair(index) {
       const g = new THREE.Group();
-      const seat = new THREE.Mesh(
-        new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
-        chairMaterials.fabricMaterial
-      );
-      seat.position.y = SEAT_THICKNESS / 2;
-      seat.castShadow = true;
-      seat.receiveShadow = true;
-      g.add(seat);
-
-      const back = new THREE.Mesh(
-        new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS),
-        chairMaterials.fabricMaterial
-      );
-      back.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
-      back.castShadow = true;
-      back.receiveShadow = true;
-      g.add(back);
-
-      const armLeft = createStraightArmrest('left', chairMaterials.fabricMaterial);
-      g.add(armLeft.group);
-      const armRight = createStraightArmrest('right', chairMaterials.fabricMaterial);
-      g.add(armRight.group);
-
-      const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
-        chairMaterials.legMaterial
-      );
-      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
-      legBase.castShadow = true;
-      legBase.receiveShadow = true;
-      g.add(legBase);
+      if (chairTemplate) {
+        const chairModel = chairTemplate.clone(true);
+        chairModel.traverse((obj) => {
+          if (obj.isMesh) {
+            obj.castShadow = true;
+            obj.receiveShadow = true;
+          }
+        });
+        g.add(chairModel);
+      }
 
       const avatarAnchor = new THREE.Object3D();
       avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
@@ -2855,8 +2971,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       g.scale.setScalar(CHAIR_SCALE);
       return {
         group: g,
-        seatMeshes: [seat, back, ...armLeft.meshes, ...armRight.meshes],
-        legMeshes: [legBase],
         anchor: avatarAnchor
       };
     }
@@ -3249,6 +3363,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         boardGroup,
         boardLookTarget,
         chairMaterials,
+        chairTemplate,
         chairs,
         seatAnchors: chairs.map((chair) => chair.anchor),
         sandTimer,
@@ -3675,6 +3790,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const arenaState = arenaRef.current;
       if (arenaState) {
         disposeChessChairMaterials(arenaState.chairMaterials);
+        if (arenaState.chairTemplate) {
+          arenaState.chairTemplate.traverse((obj) => {
+            if (obj.isMesh) obj.geometry?.dispose?.();
+          });
+        }
         arenaState.tableInfo?.dispose?.();
       }
       arenaRef.current = null;
