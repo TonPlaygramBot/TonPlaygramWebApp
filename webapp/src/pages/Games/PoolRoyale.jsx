@@ -5941,15 +5941,17 @@ function Table3D(
     spots: spotMeshes
   };
 
-  const POCKET_TOP_R =
-    POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
-  const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-  const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the cloth wrap without z-fighting
-  const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
-  const pocketGeo = new THREE.CylinderGeometry(
-    POCKET_TOP_R,
-    POCKET_BOTTOM_R,
-    TABLE.THICK,
+const POCKET_TOP_R =
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
+const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the cloth wrap without z-fighting
+const SIDE_POCKET_PLYWOOD_LIFT =
+  CLOTH_UNDERLAY_THICKNESS + CLOTH_UNDERLAY_EXTRA_DROP; // raise middle pockets so their rims rest directly against the plywood underlay
+const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
+const pocketGeo = new THREE.CylinderGeometry(
+  POCKET_TOP_R,
+  POCKET_BOTTOM_R,
+  TABLE.THICK,
     48,
     1,
     true
@@ -5968,16 +5970,23 @@ function Table3D(
   const pocketBaseGeo = new THREE.CircleGeometry(POCKET_BOTTOM_R * 0.98, 64);
   pocketBaseGeo.rotateX(-Math.PI / 2);
   const pocketMeshes = [];
-  pocketCenters().forEach((p) => {
+  pocketCenters().forEach((p, index) => {
+    const isMiddlePocket = index >= 4;
+    const pocketLift = isMiddlePocket ? SIDE_POCKET_PLYWOOD_LIFT : 0;
     const pocket = new THREE.Mesh(pocketGeo, pocketMat);
-    pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2, p.y);
+    pocket.position.set(p.x, pocketTopY - TABLE.THICK / 2 + pocketLift, p.y);
     pocket.renderOrder = cloth.renderOrder - 0.5; // render beneath the cloth to avoid z-fighting
     pocket.castShadow = false;
     pocket.receiveShadow = true;
+    pocket.userData.verticalLift = pocketLift;
     table.add(pocket);
     pocketMeshes.push(pocket);
     const base = new THREE.Mesh(pocketBaseGeo, pocketBaseMat);
-    base.position.set(p.x, pocketTopY - TABLE.THICK + TABLE.THICK * 0.12, p.y);
+    base.position.set(
+      p.x,
+      pocketTopY - TABLE.THICK + TABLE.THICK * 0.12 + pocketLift,
+      p.y
+    );
     base.receiveShadow = false;
     base.castShadow = false;
     table.add(base);
@@ -7718,7 +7727,8 @@ function Table3D(
   });
 
   pocketMeshes.forEach((mesh) => {
-    mesh.position.y = pocketTopY - TABLE.THICK / 2;
+    const lift = mesh?.userData?.verticalLift || 0;
+    mesh.position.y = pocketTopY - TABLE.THICK / 2 + lift;
   });
 
   alignRailsToCushions(table, railsGroup);
