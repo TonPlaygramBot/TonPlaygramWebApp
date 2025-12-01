@@ -90,6 +90,13 @@ const COMMUNITY_CARD_FORWARD_OFFSET = 0;
 const COMMUNITY_CARD_LIFT = CARD_D * 18;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = THREE.MathUtils.degToRad(6);
+const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
+  new THREE.Vector3(
+    index * COMMUNITY_SPACING,
+    TABLE_HEIGHT + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
+    COMMUNITY_CARD_FORWARD_OFFSET
+  )
+);
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
 const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
@@ -123,6 +130,7 @@ const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.12;
 const HUMAN_CARD_CHIP_BLEND = 0.08;
 const HUMAN_CARD_SCALE = 0.92;
+const COMMUNITY_CARD_SCALE = 0.96;
 const HUMAN_CHIP_SCALE = 0.9;
 const TURN_TOKEN_RADIUS = 0.14 * MODEL_SCALE;
 const TURN_TOKEN_HEIGHT = 0.05 * MODEL_SCALE;
@@ -2102,6 +2110,8 @@ function TexasHoldemArena({ search }) {
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
+    const raycaster = new THREE.Raycaster();
+
     const ambient = new THREE.AmbientLight(0xffffff, 1.08);
     scene.add(ambient);
     const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
@@ -2451,23 +2461,22 @@ function TexasHoldemArena({ search }) {
       });
 
       const nameplates = seatGroups.map((seat) => seat.nameplate);
-      const humanSeat = seatGroups.find((seat) => seat.isHuman);
-      if (humanSeat) {
-        nameplates.forEach((plate) => {
-          plate.renderOrder = 10;
-        });
-        humanSeat.group.renderOrder = 5;
-        humanSeat.cardMeshes.forEach((mesh) => {
-          mesh.renderOrder = 20;
-        });
-        humanSeat.cardMeshes[1].position.add(new THREE.Vector3(0, HUMAN_CARD_VERTICAL_OFFSET * 1.2, 0));
-        const controls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
-        if (controls) {
-          raiseControlsRef.current = controls;
-          threeRef.current = { ...threeRef.current, raiseControls: controls };
-          raiseControlsRef.current.group.visible = false;
+        const humanSeat = seatGroups.find((seat) => seat.isHuman);
+        if (humanSeat) {
+          nameplates.forEach((plate) => {
+            plate.renderOrder = 10;
+          });
+          humanSeat.group.renderOrder = 5;
+          humanSeat.cardMeshes.forEach((mesh) => {
+            mesh.renderOrder = 20;
+          });
+          humanSeat.cardMeshes[1].position.add(new THREE.Vector3(0, HUMAN_CARD_VERTICAL_OFFSET * 1.2, 0));
+          const controls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
+          if (controls) {
+            threeRef.current = { ...threeRef.current, raiseControls: controls };
+            controls.group.visible = false;
+          }
         }
-      }
 
       const communityMeshes = COMMUNITY_CARD_POSITIONS.map((pos) => {
         const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
@@ -2484,21 +2493,43 @@ function TexasHoldemArena({ search }) {
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
 
-      threeRef.current = {
-        renderer,
-        scene,
-        camera,
+        const orientHumanCards = () => {
+          const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
+          if (!humanSeatGroup) return;
+          const baseAnchor = humanSeatGroup.cardAnchor.clone();
+          const right = humanSeatGroup.right.clone();
+          const forward = humanSeatGroup.forward.clone();
+          humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
+            const lateral = right.clone().setLength((idx - 0.5) * HUMAN_CARD_SPREAD + HUMAN_CARD_LATERAL_SHIFT);
+            const inward = forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT);
+            const forwardOffset = forward.clone().setLength(HUMAN_CARD_FORWARD_OFFSET);
+            const position = baseAnchor.clone().add(lateral).add(inward).add(forwardOffset);
+            position.y += HUMAN_CARD_VERTICAL_OFFSET;
+            mesh.position.copy(position);
+            const lookTarget = position
+              .clone()
+              .add(new THREE.Vector3(0, HUMAN_CARD_LOOK_LIFT, 0))
+              .addScaledVector(forward, HUMAN_CARD_LOOK_SPLAY);
+            orientCard(mesh, lookTarget, { face: 'front', flat: true });
+            setCardFace(mesh, 'front');
+          });
+        };
+
+        threeRef.current = {
+          renderer,
+          scene,
+          camera,
         chipFactory,
         cardGeometry,
         faceCache,
         seatGroups,
         communityMeshes,
         potStack,
-        potLayout,
-        deckAnchor,
-        raiseControls,
-        raycaster,
-        orientHumanCards,
+          potLayout,
+          deckAnchor,
+          raiseControls,
+          raycaster,
+          orientHumanCards,
         frameId: null,
         chairTemplate,
         chairMaterials,
@@ -2701,7 +2732,10 @@ function TexasHoldemArena({ search }) {
 
     const animate = (time) => {
       const three = threeRef.current;
-      if (!three) return;
+      if (!three) {
+        animationRef.current = requestAnimationFrame(animate);
+        return;
+      }
       const pointerState = pointerStateRef.current;
       if (lastFrameRef.current == null) {
         lastFrameRef.current = time;
