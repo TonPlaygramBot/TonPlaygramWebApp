@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -75,6 +76,12 @@ const STOOL_THEMES = [
   { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
   { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
   { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' }
+];
+
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
 
 const DEFAULT_APPEARANCE = {
@@ -187,6 +194,62 @@ const CAMERA_TRANSITION_DURATION = 520;
 const AI_TURN_DELAY = 2000;
 const TURN_FOCUS_HOLD_MS = AI_TURN_DELAY;
 
+async function loadChairModel(loader) {
+  let lastError = null;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      const gltf = await loader.loadAsync(url);
+      const scene = gltf.scene || (Array.isArray(gltf.scenes) ? gltf.scenes[0] : null);
+      if (scene) return scene;
+      throw new Error('Chair model missing scene');
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Failed to load chair model');
+}
+
+function prepareChairTemplate(chairScene) {
+  const targetSize = new THREE.Vector3(
+    SEAT_WIDTH,
+    BACK_HEIGHT + BASE_COLUMN_HEIGHT + SEAT_THICKNESS,
+    SEAT_DEPTH
+  );
+  const box = new THREE.Box3().setFromObject(chairScene);
+  const size = box.getSize(new THREE.Vector3());
+  const scale = Math.min(targetSize.x / size.x, targetSize.y / size.y, targetSize.z / size.z);
+  chairScene.scale.multiplyScalar(scale);
+  box.setFromObject(chairScene);
+  const targetMinY = -(SEAT_THICKNESS / 2 + BASE_COLUMN_HEIGHT);
+  chairScene.position.y += targetMinY - box.min.y;
+  chairScene.updateMatrixWorld(true);
+
+  const upholsteryMaterials = new Set();
+  const metalMaterials = new Set();
+  chairScene.traverse((obj) => {
+    if (!obj.isMesh) return;
+    obj.castShadow = true;
+    obj.receiveShadow = true;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    mats.forEach((mat) => {
+      if (!mat) return;
+      if (mat.map) applySRGBColorSpace(mat.map);
+      if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      if (typeof mat.metalness === 'number' && mat.metalness > 0.5) {
+        metalMaterials.add(mat);
+      } else if (mat.color) {
+        upholsteryMaterials.add(mat);
+      }
+    });
+  });
+
+  return {
+    chairTemplate: chairScene,
+    upholsteryMaterials: Array.from(upholsteryMaterials),
+    metalMaterials: Array.from(metalMaterials)
+  };
+}
+
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
 
@@ -251,6 +314,7 @@ export default function MurlanRoyaleArena({ search }) {
     scoreboard: null,
     tableInfo: null,
     chairMaterials: null,
+    chairTemplate: null,
     outfitParts: null,
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
@@ -926,487 +990,502 @@ export default function MurlanRoyaleArena({ search }) {
     const mount = mountRef.current;
     if (!mount) return undefined;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-    applyRendererSRGB(renderer);
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.domElement.style.width = '100%';
-    renderer.domElement.style.height = '100%';
-    renderer.domElement.style.display = 'block';
-    mount.appendChild(renderer.domElement);
+    let renderer = null;
+    let scene = null;
+    let camera = null;
+    let controls = null;
+    let observer = null;
+    let frameId = null;
+    let dom = null;
+    let cardGeometry = null;
+    let labelGeo = null;
+    let torsoGeo = null;
+    let headGeo = null;
+    let collarGeo = null;
+    let arenaGroup = null;
+    let handlePointerDown = null;
+    let disposed = false;
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#030712');
+    const setup = async () => {
+      const gltfLoader = new GLTFLoader();
 
-    const ambient = new THREE.AmbientLight(0xffffff, 1.08);
-    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
-    spot.position.set(3, 7, 3);
-    spot.castShadow = true;
-    const rim = new THREE.PointLight(0x33ccff, 1.728);
-    rim.position.set(-4, 3, -4);
-    scene.add(ambient, spot, rim);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+      applyRendererSRGB(renderer);
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.domElement.style.width = '100%';
+      renderer.domElement.style.height = '100%';
+      renderer.domElement.style.display = 'block';
+      mount.appendChild(renderer.domElement);
+      dom = renderer.domElement;
 
-    const spotTarget = new THREE.Object3D();
-    spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
-    scene.add(spotTarget);
-    spot.target = spotTarget;
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#030712');
 
-    const arenaGroup = new THREE.Group();
-    scene.add(arenaGroup);
+      const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+      const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+      spot.position.set(3, 7, 3);
+      spot.castShadow = true;
+      const rim = new THREE.PointLight(0x33ccff, 1.728);
+      rim.position.set(-4, 3, -4);
+      scene.add(ambient, spot, rim);
 
-    const currentAppearance = normalizeAppearance(appearanceRef.current);
-    const woodOption =
-      TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption =
-      TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption =
-      TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
-    const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
+      const spotTarget = new THREE.Object3D();
+      spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
+      scene.add(spotTarget);
+      spot.target = spotTarget;
 
-    const arenaScale = 1.3 * ARENA_GROWTH;
-    const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
-    const camConfig = buildArenaCameraConfig(boardSize);
+      arenaGroup = new THREE.Group();
+      scene.add(arenaGroup);
 
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    arenaGroup.add(floor);
+      const currentAppearance = normalizeAppearance(appearanceRef.current);
+      const woodOption =
+        TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+      const clothOption =
+        TABLE_CLOTH_OPTIONS[currentAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+      const baseOption =
+        TABLE_BASE_OPTIONS[currentAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const stoolTheme = STOOL_THEMES[currentAppearance.stools] ?? STOOL_THEMES[0];
+      const outfitTheme = OUTFIT_THEMES[currentAppearance.outfit] ?? OUTFIT_THEMES[0];
 
-    const carpet = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
-      createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
-    );
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.01;
-    carpet.receiveShadow = true;
-    arenaGroup.add(carpet);
+      const arenaScale = 1.3 * ARENA_GROWTH;
+      const boardSize = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * arenaScale;
+      const camConfig = buildArenaCameraConfig(boardSize);
 
-    const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
-    const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        wallInnerRadius,
-        TABLE_RADIUS * ARENA_GROWTH * 2.6,
-        ARENA_WALL_HEIGHT,
-        48,
-        1,
-        true
-      ),
-      createArenaWallMaterial('#0b1120', '#1e293b')
-    );
-    wall.position.y = ARENA_WALL_CENTER_Y;
-    wall.receiveShadow = false;
-    arenaGroup.add(wall);
+      const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
+        new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      arenaGroup.add(floor);
 
-    const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
-    threeStateRef.current.cameraBounds = {
-      minX: -cameraBoundRadius,
-      maxX: cameraBoundRadius,
-      minZ: -cameraBoundRadius,
-      maxZ: cameraBoundRadius,
-      minY: CHAIR_BASE_HEIGHT * 0.5,
-      maxY: ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN
-    };
+      const carpet = new THREE.Mesh(
+        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
+        createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
+      );
+      carpet.rotation.x = -Math.PI / 2;
+      carpet.position.y = 0.01;
+      carpet.receiveShadow = true;
+      arenaGroup.add(carpet);
 
-    const scoreboardCanvas = document.createElement('canvas');
-    scoreboardCanvas.width = 1024;
-    scoreboardCanvas.height = 512;
-    const scoreboardContext = scoreboardCanvas.getContext('2d');
-    if (scoreboardContext) {
-      const scoreboardTexture = new THREE.CanvasTexture(scoreboardCanvas);
-      applySRGBColorSpace(scoreboardTexture);
-      scoreboardTexture.anisotropy = 8;
-      const scoreboardMaterial = new THREE.MeshBasicMaterial({
-        map: scoreboardTexture,
-        transparent: true,
-        toneMapped: false,
-        depthWrite: false
-      });
-      const scoreboardWidth = Math.min(wallInnerRadius * 0.7, 4.4 * MODEL_SCALE);
-      const scoreboardHeight = scoreboardWidth * 0.42;
-      const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
-      const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
-      scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -wallInnerRadius + 0.12);
-      scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
-      scoreboardMesh.renderOrder = 2;
-      scoreboardMesh.visible = false;
-      arenaGroup.add(scoreboardMesh);
-      threeStateRef.current.scoreboard = {
-        canvas: scoreboardCanvas,
-        context: scoreboardContext,
-        texture: scoreboardTexture,
-        material: scoreboardMaterial,
-        geometry: scoreboardGeometry,
-        mesh: scoreboardMesh
-      };
-    } else {
-      threeStateRef.current.scoreboard = null;
-    }
-
-    updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
-
-    const tableInfo = createMurlanStyleTable({
-      arena: arenaGroup,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      woodOption,
-      clothOption,
-      baseOption
-    });
-    applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
-    threeStateRef.current.tableInfo = tableInfo;
-    threeStateRef.current.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
-    threeStateRef.current.discardAnchor = new THREE.Vector3(
-      -TABLE_RADIUS * 0.76,
-      tableInfo.surfaceY - CARD_H * 0.3,
-      -TABLE_RADIUS * 0.62
-    );
-    const chairMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(stoolTheme.seatColor),
-      roughness: 0.35,
-      metalness: 0.5,
-      clearcoat: 1
-    });
-    const legMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(stoolTheme.legColor) });
-
-    threeStateRef.current.chairMaterials = { seat: chairMat, leg: legMat };
-
-    const outfitBodyMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(outfitTheme.baseColor),
-      roughness: 0.55,
-      metalness: 0.35,
-      emissive: new THREE.Color(outfitTheme.glow || '#000000'),
-      emissiveIntensity: 0.25
-    });
-    const outfitAccentMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(outfitTheme.accentColor),
-      roughness: 0.4,
-      metalness: 0.55
-    });
-    const headMat = new THREE.MeshStandardMaterial({ color: '#f9e0d0', roughness: 0.75, metalness: 0.1 });
-    const torsoGeo = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
-    const headGeo = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
-    const collarGeo = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
-
-    threeStateRef.current.outfitParts = {
-      bodyMaterial: outfitBodyMat,
-      accentMaterial: outfitAccentMat,
-      headMaterial: headMat
-    };
-    const chairRadius = CHAIR_RADIUS;
-    const seatWidth = SEAT_WIDTH;
-    const seatDepth = SEAT_DEPTH;
-    const seatThickness = SEAT_THICKNESS;
-    const backHeight = BACK_HEIGHT;
-    const backThickness = BACK_THICKNESS;
-    const armThickness = ARM_THICKNESS;
-    const armHeight = ARM_HEIGHT;
-    const armDepth = ARM_DEPTH;
-    const baseColumnHeight = BASE_COLUMN_HEIGHT;
-
-    const cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
-    const labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
-
-    const seatConfigs = [];
-
-    for (let i = 0; i < CHAIR_COUNT; i++) {
-      const player = players[i] ?? null;
-      const chair = new THREE.Group();
-      const seat = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, seatThickness, seatDepth), chairMat);
-      const back = new THREE.Mesh(new THREE.BoxGeometry(seatWidth, backHeight, backThickness), chairMat);
-      back.position.set(0, seatThickness / 2 + backHeight / 2, -seatDepth / 2 + backThickness / 2);
-      const armLeft = new THREE.Mesh(new THREE.BoxGeometry(armThickness, armHeight, armDepth), chairMat);
-      const armOffsetX = seatWidth / 2 + armThickness / 2;
-      const armOffsetY = seatThickness / 2 + armHeight / 2;
-      const armOffsetZ = -seatDepth * 0.05;
-      armLeft.position.set(-armOffsetX, armOffsetY, armOffsetZ);
-      const armRight = armLeft.clone();
-      armRight.position.x = armOffsetX;
-      const legBase = new THREE.Mesh(
+      const wallInnerRadius = TABLE_RADIUS * ARENA_GROWTH * 2.4;
+      const wall = new THREE.Mesh(
         new THREE.CylinderGeometry(
-          0.16 * MODEL_SCALE * STOOL_SCALE,
-          0.2 * MODEL_SCALE * STOOL_SCALE,
-          baseColumnHeight,
-          16
+          wallInnerRadius,
+          TABLE_RADIUS * ARENA_GROWTH * 2.6,
+          ARENA_WALL_HEIGHT,
+          48,
+          1,
+          true
         ),
-        legMat
+        createArenaWallMaterial('#0b1120', '#1e293b')
       );
-      legBase.position.y = -seatThickness / 2 - baseColumnHeight / 2;
-      chair.add(seat, back, armLeft, armRight, legBase);
+      wall.position.y = ARENA_WALL_CENTER_Y;
+      wall.receiveShadow = false;
+      arenaGroup.add(wall);
 
-      const occupant = new THREE.Group();
-      occupant.position.z = -seatDepth * 0.12;
-      const torso = new THREE.Mesh(torsoGeo, outfitBodyMat);
-      torso.position.y = seatThickness / 2 + 0.38 * MODEL_SCALE;
-      occupant.add(torso);
-      const head = new THREE.Mesh(headGeo, headMat);
-      head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
-      occupant.add(head);
-      const collar = new THREE.Mesh(collarGeo, outfitAccentMat);
-      collar.rotation.x = Math.PI / 2;
-      collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
-      occupant.add(collar);
-      chair.add(occupant);
+      const cameraBoundRadius = wallInnerRadius - CAMERA_WALL_PADDING;
+      threeStateRef.current.cameraBounds = {
+        minX: -cameraBoundRadius,
+        maxX: cameraBoundRadius,
+        minZ: -cameraBoundRadius,
+        maxZ: cameraBoundRadius,
+        minY: CHAIR_BASE_HEIGHT * 0.5,
+        maxY: ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN
+      };
 
-      const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
-      const x = Math.cos(angle) * chairRadius;
-      const z = Math.sin(angle) * chairRadius;
-      const chairBaseHeight = CHAIR_BASE_HEIGHT;
-      chair.position.set(x, chairBaseHeight, z);
-      chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
-      arenaGroup.add(chair);
-
-      const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-      const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-      const isHumanSeat = Boolean(player?.isHuman);
-      const focus = forward
-        .clone()
-        .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
-      focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
-      const stoolPosition = forward.clone().multiplyScalar(chairRadius);
-      stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
-      const stoolHeight = STOOL_HEIGHT;
-      seatConfigs.push({
-        forward,
-        right,
-        focus,
-        radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
-        spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
-        maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
-        stoolPosition,
-        stoolHeight
-      });
-
-      if (player) {
-        const labelTex = makeLabelTexture(player.name, player.avatar);
-        labelTex.wrapS = THREE.RepeatWrapping;
-        labelTex.repeat.x = -1;
-        labelTex.offset.x = 1;
-        const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
-        const label = new THREE.Mesh(labelGeo, labelMat);
-        const baseLabelHeight = 0.62 * MODEL_SCALE;
-        const labelForward = player.isHuman ? 0.88 * MODEL_SCALE : 0.98 * MODEL_SCALE;
-        label.position.set(0, baseLabelHeight, labelForward);
-        label.rotation.y = Math.PI;
-        chair.add(label);
-        threeStateRef.current.labelTextures.push(labelTex);
-        threeStateRef.current.labelMaterials.push(labelMat);
+      const scoreboardCanvas = document.createElement('canvas');
+      scoreboardCanvas.width = 1024;
+      scoreboardCanvas.height = 512;
+      const scoreboardContext = scoreboardCanvas.getContext('2d');
+      if (scoreboardContext) {
+        const scoreboardTexture = new THREE.CanvasTexture(scoreboardCanvas);
+        applySRGBColorSpace(scoreboardTexture);
+        scoreboardTexture.anisotropy = 8;
+        const scoreboardMaterial = new THREE.MeshBasicMaterial({
+          map: scoreboardTexture,
+          transparent: true,
+          toneMapped: false,
+          depthWrite: false
+        });
+        const scoreboardWidth = Math.min(wallInnerRadius * 0.7, 4.4 * MODEL_SCALE);
+        const scoreboardHeight = scoreboardWidth * 0.42;
+        const scoreboardGeometry = new THREE.PlaneGeometry(scoreboardWidth, scoreboardHeight);
+        const scoreboardMesh = new THREE.Mesh(scoreboardGeometry, scoreboardMaterial);
+        scoreboardMesh.position.set(0, ARENA_WALL_HEIGHT * 0.6, -wallInnerRadius + 0.12);
+        scoreboardMesh.lookAt(new THREE.Vector3(0, scoreboardMesh.position.y, 0));
+        scoreboardMesh.renderOrder = 2;
+        scoreboardMesh.visible = false;
+        arenaGroup.add(scoreboardMesh);
+        threeStateRef.current.scoreboard = {
+          canvas: scoreboardCanvas,
+          context: scoreboardContext,
+          texture: scoreboardTexture,
+          material: scoreboardMaterial,
+          geometry: scoreboardGeometry,
+          mesh: scoreboardMesh
+        };
+      } else {
+        threeStateRef.current.scoreboard = null;
       }
-    }
 
-    const humanSeatIndex = players.findIndex((player) => player?.isHuman);
-    const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
+      updateScoreboardDisplay(computeUiState(gameStateRef.current).scoreboard);
 
-    threeStateRef.current.appearance = { ...currentAppearance };
-
-    spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
-    spot.target.updateMatrixWorld();
-
-    const isPortrait = mount.clientHeight > mount.clientWidth;
-    const camera = new THREE.PerspectiveCamera(
-      camConfig.fov,
-      mount.clientWidth / mount.clientHeight,
-      camConfig.near,
-      camConfig.far
-    );
-    const targetHeightOffset = 0.08 * MODEL_SCALE;
-    let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
-    let initialCameraPosition;
-    if (humanSeatConfig) {
-      const humanSeatAngle = Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x);
-      const stoolAnchor = humanSeatConfig.stoolPosition?.clone() ??
-        new THREE.Vector3(
-          Math.cos(humanSeatAngle) * chairRadius,
-          TABLE_HEIGHT,
-          Math.sin(humanSeatAngle) * chairRadius
-        );
-      const stoolHeight = humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
-      const retreatOffset = isPortrait ? 1.95 : 1.45;
-      const elevation = isPortrait ? 1.95 : 1.58;
-      initialCameraPosition = stoolAnchor.addScaledVector(humanSeatConfig.forward, -retreatOffset);
-      initialCameraPosition.y = stoolHeight + elevation;
-      target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
-    } else {
-      const humanSeatAngle = Math.PI / 2;
-      const cameraBackOffset = isPortrait ? 1.65 : 1.05;
-      const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-      const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
-      initialCameraPosition = new THREE.Vector3(
-        Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
-        TABLE_HEIGHT + cameraHeightOffset,
-        Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
+      const tableInfo = createMurlanStyleTable({
+        arena: arenaGroup,
+        renderer,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        woodOption,
+        clothOption,
+        baseOption
+      });
+      applyTableMaterials(tableInfo.materials, { woodOption, clothOption, baseOption }, renderer);
+      threeStateRef.current.tableInfo = tableInfo;
+      threeStateRef.current.tableAnchor = new THREE.Vector3(0, tableInfo.surfaceY + CARD_SURFACE_OFFSET, 0);
+      threeStateRef.current.discardAnchor = new THREE.Vector3(
+        -TABLE_RADIUS * 0.76,
+        tableInfo.surfaceY - CARD_H * 0.3,
+        -TABLE_RADIUS * 0.62
       );
-    }
-    const initialOffset = initialCameraPosition.clone().sub(target);
-    const spherical = new THREE.Spherical().setFromVector3(initialOffset);
-    const maxHorizontalReach = cameraBoundRadius;
-    const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, maxHorizontalReach);
-    const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
-    const minOrbitRadius = Math.max(2.6 * MODEL_SCALE, maxOrbitRadius * 0.7);
-    const desiredRadius = THREE.MathUtils.clamp(
-      spherical.radius * 1.18,
-      minOrbitRadius + 0.05 * MODEL_SCALE,
-      maxOrbitRadius * 1.02
-    );
-    spherical.radius = desiredRadius;
-    spherical.phi = THREE.MathUtils.clamp(
-      spherical.phi,
-      ARENA_CAMERA_DEFAULTS.phiMin,
-      ARENA_CAMERA_DEFAULTS.phiMax
-    );
-    threeStateRef.current.cameraIdealRadius = spherical.radius;
-    threeStateRef.current.cameraRadius = spherical.radius;
-    threeStateRef.current.cameraAdjusting = true;
-    updateCameraFromSpherical(camera, spherical, target, threeStateRef.current);
-    threeStateRef.current.cameraAdjusting = false;
 
-    const storedSpherical = spherical.clone();
-    storedSpherical.theta = normalizeAngle(storedSpherical.theta);
-    const homeTheta = storedSpherical.theta;
-    const headLimit = threeStateRef.current.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.target.copy(target);
-    controls.enablePan = false;
-    controls.enableZoom = false;
-    controls.enableRotate = false;
-    controls.minPolarAngle = storedSpherical.phi;
-    controls.maxPolarAngle = storedSpherical.phi;
-    controls.minAzimuthAngle = homeTheta - headLimit;
-    controls.maxAzimuthAngle = homeTheta + headLimit;
-    controls.minDistance = storedSpherical.radius;
-    controls.maxDistance = storedSpherical.radius;
-    controls.rotateSpeed = 0.38;
-
-    threeStateRef.current.cameraTarget = target.clone();
-    threeStateRef.current.cameraSpherical = storedSpherical;
-    threeStateRef.current.cameraRadius = storedSpherical.radius;
-    threeStateRef.current.cameraIdealRadius = storedSpherical.radius;
-    threeStateRef.current.cameraPhi = storedSpherical.phi;
-    threeStateRef.current.cameraAzimuthSwing = CAMERA_AZIMUTH_SWING;
-    threeStateRef.current.cameraHomeTheta = homeTheta;
-    threeStateRef.current.cameraHeadLimit = headLimit;
-
-    const handleControlChange = () => {
-      const store = threeStateRef.current;
-      if (!store.cameraTarget || !store.cameraSpherical || store.cameraAdjusting) return;
-      store.cameraAdjusting = true;
+      let chairTemplate;
       try {
-        const offset = camera.position.clone().sub(store.cameraTarget);
-        const current = new THREE.Spherical().setFromVector3(offset);
-        updateCameraFromSpherical(camera, current, store.cameraTarget, store);
-        store.cameraSpherical.theta = normalizeAngle(current.theta);
-        store.cameraSpherical.phi = current.phi;
-        store.cameraSpherical.radius = current.radius;
-        if (typeof store.cameraIdealRadius !== 'number') {
-          store.cameraIdealRadius = current.radius;
-        }
-        const actualRadius = store.cameraRadius ?? current.radius;
-        controls.minDistance = actualRadius;
-        controls.maxDistance = actualRadius;
-        controls.update();
-      } finally {
-        store.cameraAdjusting = false;
+        const loadedChair = await loadChairModel(gltfLoader);
+        if (disposed) return;
+        const prepared = prepareChairTemplate(loadedChair.clone(true));
+        chairTemplate = prepared.chairTemplate;
+        threeStateRef.current.chairTemplate = chairTemplate;
+        threeStateRef.current.chairMaterials = {
+          upholstery: prepared.upholsteryMaterials,
+          metal: prepared.metalMaterials
+        };
+      } catch (error) {
+        console.error('Failed to load chair model', error);
+        if (disposed) return;
+        chairTemplate = new THREE.Group();
+        threeStateRef.current.chairTemplate = chairTemplate;
+        threeStateRef.current.chairMaterials = { upholstery: [], metal: [] };
       }
-    };
-    controls.addEventListener('change', handleControlChange);
-    threeStateRef.current.cameraChangeHandler = handleControlChange;
-    threeStateRef.current.cameraAnimationId = null;
 
-    const resize = () => {
-      const { clientWidth, clientHeight } = mount;
-      renderer.setSize(clientWidth, clientHeight, false);
-      camera.aspect = clientWidth / clientHeight;
-      camera.updateProjectionMatrix();
-    };
+      applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
-    const observer = new ResizeObserver(resize);
-    observer.observe(mount);
-    resize();
-
-    const stepAnimations = (time) => {
-      const store = threeStateRef.current;
-      const list = store.animations;
-      if (!list?.length) return;
-      store.animations = list.filter((anim) => {
-        if (anim.cancelled) return false;
-        const progress = Math.min(1, (time - anim.start) / anim.duration);
-        const eased = easeOutCubic(progress);
-        anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
-        orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
-        if (progress >= 1) {
-          anim.mesh.position.copy(anim.to);
-          orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
-          anim.mesh.userData.animation = null;
-          return false;
-        }
-        return true;
+      const outfitBodyMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(outfitTheme.baseColor),
+        roughness: 0.55,
+        metalness: 0.35,
+        emissive: new THREE.Color(outfitTheme.glow || '#000000'),
+        emissiveIntensity: 0.25
       });
-    };
+      const outfitAccentMat = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(outfitTheme.accentColor),
+        roughness: 0.4,
+        metalness: 0.55
+      });
+      const headMat = new THREE.MeshStandardMaterial({ color: '#f9e0d0', roughness: 0.75, metalness: 0.1 });
+      torsoGeo = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
+      headGeo = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
+      collarGeo = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
 
-    const animate = (time) => {
-      stepAnimations(time);
-      controls.update();
-      renderer.render(scene, camera);
-      frameId = requestAnimationFrame(animate);
-    };
+      threeStateRef.current.outfitParts = {
+        bodyMaterial: outfitBodyMat,
+        accentMaterial: outfitAccentMat,
+        headMaterial: headMat
+      };
+      const chairRadius = CHAIR_RADIUS;
+      const seatDepth = SEAT_DEPTH;
+      const seatThickness = SEAT_THICKNESS;
 
-    let frameId = requestAnimationFrame(animate);
+      cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
+      labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
 
-    threeStateRef.current.renderer = renderer;
-    threeStateRef.current.scene = scene;
-    threeStateRef.current.camera = camera;
-    threeStateRef.current.controls = controls;
-    threeStateRef.current.arena = arenaGroup;
-    threeStateRef.current.cardGeometry = cardGeometry;
-    threeStateRef.current.seatConfigs = seatConfigs;
+      const seatConfigs = [];
 
-    ensureCardMeshes(gameStateRef.current);
-    applyStateToScene(gameStateRef.current, selectedRef.current, true);
-    focusCameraOnActivePlayer(gameStateRef.current, true);
-    setThreeReady(true);
+      for (let i = 0; i < CHAIR_COUNT; i++) {
+        const player = players[i] ?? null;
+        const chair = new THREE.Group();
+        const chairModel = chairTemplate.clone(true);
+        chair.add(chairModel);
 
-    const dom = renderer.domElement;
-    const handlePointerDown = (event) => {
-      if (!humanTurnRef.current) return;
-      const rect = dom.getBoundingClientRect();
-      const pointer = new THREE.Vector2(
-        ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        -((event.clientY - rect.top) / rect.height) * 2 + 1
+        const occupant = new THREE.Group();
+        occupant.position.z = -seatDepth * 0.12;
+        const torso = new THREE.Mesh(torsoGeo, outfitBodyMat);
+        torso.position.y = seatThickness / 2 + 0.38 * MODEL_SCALE;
+        occupant.add(torso);
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
+        occupant.add(head);
+        const collar = new THREE.Mesh(collarGeo, outfitAccentMat);
+        collar.rotation.x = Math.PI / 2;
+        collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
+        occupant.add(collar);
+        chair.add(occupant);
+
+        const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
+        const x = Math.cos(angle) * chairRadius;
+        const z = Math.sin(angle) * chairRadius;
+        const chairBaseHeight = CHAIR_BASE_HEIGHT;
+        chair.position.set(x, chairBaseHeight, z);
+        chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
+        arenaGroup.add(chair);
+
+        const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
+        const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
+        const isHumanSeat = Boolean(player?.isHuman);
+        const focus = forward
+          .clone()
+          .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
+        focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
+        const stoolPosition = forward.clone().multiplyScalar(chairRadius);
+        stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
+        const stoolHeight = STOOL_HEIGHT;
+        seatConfigs.push({
+          forward,
+          right,
+          focus,
+          radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
+          spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
+          maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
+          stoolPosition,
+          stoolHeight
+        });
+
+        if (player) {
+          const labelTex = makeLabelTexture(player.name, player.avatar);
+          labelTex.wrapS = THREE.RepeatWrapping;
+          labelTex.repeat.x = -1;
+          labelTex.offset.x = 1;
+          const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
+          const label = new THREE.Mesh(labelGeo, labelMat);
+          const baseLabelHeight = 0.62 * MODEL_SCALE;
+          const labelForward = player.isHuman ? 0.88 * MODEL_SCALE : 0.98 * MODEL_SCALE;
+          label.position.set(0, baseLabelHeight, labelForward);
+          label.rotation.y = Math.PI;
+          chair.add(label);
+          threeStateRef.current.labelTextures.push(labelTex);
+          threeStateRef.current.labelMaterials.push(labelMat);
+        }
+      }
+
+      const humanSeatIndex = players.findIndex((player) => player?.isHuman);
+      const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
+
+      threeStateRef.current.appearance = { ...currentAppearance };
+
+      spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
+      spot.target.updateMatrixWorld();
+
+      const isPortrait = mount.clientHeight > mount.clientWidth;
+      camera = new THREE.PerspectiveCamera(
+        camConfig.fov,
+        mount.clientWidth / mount.clientHeight,
+        camConfig.near,
+        camConfig.far
       );
-      threeStateRef.current.raycaster.setFromCamera(pointer, camera);
-      const intersects = threeStateRef.current.raycaster.intersectObjects(threeStateRef.current.selectionTargets, false);
-      if (!intersects.length) return;
-      const picked = intersects[0].object;
-      const cardId = picked.userData.cardId || picked.parent?.userData.cardId;
-      if (cardId) toggleSelection(cardId);
+      const targetHeightOffset = 0.08 * MODEL_SCALE;
+      let target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset, 0);
+      let initialCameraPosition;
+      if (humanSeatConfig) {
+        const humanSeatAngle = Math.atan2(humanSeatConfig.forward.z, humanSeatConfig.forward.x);
+        const stoolAnchor = humanSeatConfig.stoolPosition?.clone() ??
+          new THREE.Vector3(
+            Math.cos(humanSeatAngle) * chairRadius,
+            TABLE_HEIGHT,
+            Math.sin(humanSeatAngle) * chairRadius
+          );
+        const stoolHeight = humanSeatConfig.stoolHeight ?? TABLE_HEIGHT + seatThickness / 2;
+        const retreatOffset = isPortrait ? 1.95 : 1.45;
+        const elevation = isPortrait ? 1.95 : 1.58;
+        initialCameraPosition = stoolAnchor.addScaledVector(humanSeatConfig.forward, -retreatOffset);
+        initialCameraPosition.y = stoolHeight + elevation;
+        target = new THREE.Vector3(0, TABLE_HEIGHT + targetHeightOffset + 0.12 * MODEL_SCALE, 0);
+      } else {
+        const humanSeatAngle = Math.PI / 2;
+        const cameraBackOffset = isPortrait ? 1.65 : 1.05;
+        const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
+        const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+        initialCameraPosition = new THREE.Vector3(
+          Math.cos(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset),
+          TABLE_HEIGHT + cameraHeightOffset,
+          Math.sin(humanSeatAngle) * (chairRadius + cameraBackOffset - cameraForwardOffset)
+        );
+      }
+      const initialOffset = initialCameraPosition.clone().sub(target);
+      const spherical = new THREE.Spherical().setFromVector3(initialOffset);
+      const maxHorizontalReach = cameraBoundRadius;
+      const safeHorizontalReach = Math.max(2.6 * MODEL_SCALE, maxHorizontalReach);
+      const maxOrbitRadius = Math.max(3.6 * MODEL_SCALE, safeHorizontalReach / Math.sin(ARENA_CAMERA_DEFAULTS.phiMax));
+      const minOrbitRadius = Math.max(2.6 * MODEL_SCALE, maxOrbitRadius * 0.7);
+      const desiredRadius = THREE.MathUtils.clamp(
+        spherical.radius * 1.18,
+        minOrbitRadius + 0.05 * MODEL_SCALE,
+        maxOrbitRadius * 1.02
+      );
+      spherical.radius = desiredRadius;
+      spherical.phi = THREE.MathUtils.clamp(
+        spherical.phi,
+        ARENA_CAMERA_DEFAULTS.phiMin,
+        ARENA_CAMERA_DEFAULTS.phiMax
+      );
+      threeStateRef.current.cameraIdealRadius = spherical.radius;
+      threeStateRef.current.cameraRadius = spherical.radius;
+      threeStateRef.current.cameraAdjusting = true;
+      updateCameraFromSpherical(camera, spherical, target, threeStateRef.current);
+      threeStateRef.current.cameraAdjusting = false;
+
+      const storedSpherical = spherical.clone();
+      storedSpherical.theta = normalizeAngle(storedSpherical.theta);
+      const homeTheta = storedSpherical.theta;
+      const headLimit = threeStateRef.current.cameraHeadLimit ?? CAMERA_HEAD_LIMIT;
+
+      controls = new OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.target.copy(target);
+      controls.enablePan = false;
+      controls.enableZoom = false;
+      controls.enableRotate = false;
+      controls.minPolarAngle = storedSpherical.phi;
+      controls.maxPolarAngle = storedSpherical.phi;
+      controls.minAzimuthAngle = homeTheta - headLimit;
+      controls.maxAzimuthAngle = homeTheta + headLimit;
+      controls.minDistance = storedSpherical.radius;
+      controls.maxDistance = storedSpherical.radius;
+      controls.rotateSpeed = 0.38;
+
+      threeStateRef.current.cameraTarget = target.clone();
+      threeStateRef.current.cameraSpherical = storedSpherical;
+      threeStateRef.current.cameraRadius = storedSpherical.radius;
+      threeStateRef.current.cameraIdealRadius = storedSpherical.radius;
+      threeStateRef.current.cameraPhi = storedSpherical.phi;
+      threeStateRef.current.cameraAzimuthSwing = CAMERA_AZIMUTH_SWING;
+      threeStateRef.current.cameraHomeTheta = homeTheta;
+      threeStateRef.current.cameraHeadLimit = headLimit;
+
+      const handleControlChange = () => {
+        const store = threeStateRef.current;
+        if (!store.cameraTarget || !store.cameraSpherical || store.cameraAdjusting) return;
+        store.cameraAdjusting = true;
+        try {
+          const offset = camera.position.clone().sub(store.cameraTarget);
+          const current = new THREE.Spherical().setFromVector3(offset);
+          updateCameraFromSpherical(camera, current, store.cameraTarget, store);
+          store.cameraSpherical.theta = normalizeAngle(current.theta);
+          store.cameraSpherical.phi = current.phi;
+          store.cameraSpherical.radius = current.radius;
+          if (typeof store.cameraIdealRadius !== 'number') {
+            store.cameraIdealRadius = current.radius;
+          }
+          const actualRadius = store.cameraRadius ?? current.radius;
+          controls.minDistance = actualRadius;
+          controls.maxDistance = actualRadius;
+          controls.update();
+        } finally {
+          store.cameraAdjusting = false;
+        }
+      };
+      controls.addEventListener('change', handleControlChange);
+      threeStateRef.current.cameraChangeHandler = handleControlChange;
+      threeStateRef.current.cameraAnimationId = null;
+
+      const resize = () => {
+        const { clientWidth, clientHeight } = mount;
+        renderer.setSize(clientWidth, clientHeight, false);
+        camera.aspect = clientWidth / clientHeight;
+        camera.updateProjectionMatrix();
+      };
+
+      observer = new ResizeObserver(resize);
+      observer.observe(mount);
+      resize();
+
+      const stepAnimations = (time) => {
+        const store = threeStateRef.current;
+        const list = store.animations;
+        if (!list?.length) return;
+        store.animations = list.filter((anim) => {
+          if (anim.cancelled) return false;
+          const progress = Math.min(1, (time - anim.start) / anim.duration);
+          const eased = easeOutCubic(progress);
+          anim.mesh.position.lerpVectors(anim.from, anim.to, eased);
+          orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
+          if (progress >= 1) {
+            anim.mesh.position.copy(anim.to);
+            orientMesh(anim.mesh, anim.lookTarget, anim.orientation);
+            anim.mesh.userData.animation = null;
+            return false;
+          }
+          return true;
+        });
+      };
+
+      const animate = (time) => {
+        stepAnimations(time);
+        controls.update();
+        renderer.render(scene, camera);
+        frameId = requestAnimationFrame(animate);
+      };
+
+      frameId = requestAnimationFrame(animate);
+
+      threeStateRef.current.renderer = renderer;
+      threeStateRef.current.scene = scene;
+      threeStateRef.current.camera = camera;
+      threeStateRef.current.controls = controls;
+      threeStateRef.current.arena = arenaGroup;
+      threeStateRef.current.cardGeometry = cardGeometry;
+      threeStateRef.current.seatConfigs = seatConfigs;
+
+      ensureCardMeshes(gameStateRef.current);
+      applyStateToScene(gameStateRef.current, selectedRef.current, true);
+      focusCameraOnActivePlayer(gameStateRef.current, true);
+      setThreeReady(true);
+
+      handlePointerDown = (event) => {
+        if (!humanTurnRef.current) return;
+        const rect = dom.getBoundingClientRect();
+        const pointer = new THREE.Vector2(
+          ((event.clientX - rect.left) / rect.width) * 2 - 1,
+          -((event.clientY - rect.top) / rect.height) * 2 + 1
+        );
+        threeStateRef.current.raycaster.setFromCamera(pointer, camera);
+        const intersects = threeStateRef.current.raycaster.intersectObjects(threeStateRef.current.selectionTargets, false);
+        if (!intersects.length) return;
+        const picked = intersects[0].object;
+        const cardId = picked.userData.cardId || picked.parent?.userData.cardId;
+        if (cardId) toggleSelection(cardId);
+      };
+      dom.addEventListener('pointerdown', handlePointerDown);
     };
-    dom.addEventListener('pointerdown', handlePointerDown);
+
+    setup();
 
     return () => {
+      disposed = true;
       const store = threeStateRef.current;
       if (store.cameraAnimationId) {
         cancelAnimationFrame(store.cameraAnimationId);
       }
-      if (store.cameraChangeHandler) {
+      if (store.cameraChangeHandler && controls) {
         controls.removeEventListener('change', store.cameraChangeHandler);
       }
-      cancelAnimationFrame(frameId);
-      observer.disconnect();
-      controls.dispose();
-      dom.removeEventListener('pointerdown', handlePointerDown);
-      mount.removeChild(dom);
-      renderer.dispose();
-      cardGeometry.dispose();
-      labelGeo.dispose();
-      torsoGeo.dispose();
-      headGeo.dispose();
-      collarGeo.dispose();
+      if (frameId) {
+        cancelAnimationFrame(frameId);
+      }
+      observer?.disconnect?.();
+      controls?.dispose?.();
+      if (dom && handlePointerDown) {
+        dom.removeEventListener('pointerdown', handlePointerDown);
+      }
+      if (mount && dom && dom.parentElement === mount) {
+        mount.removeChild(dom);
+      }
+      renderer?.dispose?.();
+      cardGeometry?.dispose?.();
+      labelGeo?.dispose?.();
+      torsoGeo?.dispose?.();
+      headGeo?.dispose?.();
+      collarGeo?.dispose?.();
       store.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
@@ -1419,7 +1498,7 @@ export default function MurlanRoyaleArena({ search }) {
             mat.dispose();
           }
         });
-        arena.remove(mesh);
+        arenaGroup?.remove(mesh);
       });
       store.faceTextureCache.forEach((tex) => tex.dispose());
       store.labelTextures.forEach((tex) => tex.dispose());
@@ -1439,16 +1518,28 @@ export default function MurlanRoyaleArena({ search }) {
         store.tableInfo = null;
       }
       if (store.chairMaterials) {
-        [store.chairMaterials.seat, store.chairMaterials.leg].forEach((mat) => {
+        const mats = new Set([
+          store.chairMaterials.seat,
+          store.chairMaterials.leg,
+          ...(store.chairMaterials.upholstery ?? []),
+          ...(store.chairMaterials.metal ?? [])
+        ]);
+        mats.forEach((mat) => {
           if (mat && typeof mat.dispose === 'function') mat.dispose();
         });
       }
-      if (store.outfitParts) {
-        [store.outfitParts.bodyMaterial, store.outfitParts.accentMaterial, store.outfitParts.headMaterial].forEach(
-          (mat) => {
-            if (mat && typeof mat.dispose === 'function') mat.dispose();
+      if (store.chairTemplate) {
+        store.chairTemplate.traverse((obj) => {
+          if (obj.isMesh) {
+            obj.geometry?.dispose?.();
           }
-        );
+        });
+        store.chairTemplate = null;
+      }
+      if (store.outfitParts) {
+        [store.outfitParts.bodyMaterial, store.outfitParts.accentMaterial, store.outfitParts.headMaterial].forEach((mat) => {
+          if (mat && typeof mat.dispose === 'function') mat.dispose();
+        });
       }
       if (focusTimerRef.current) {
         clearTimeout(focusTimerRef.current);
@@ -1486,6 +1577,7 @@ export default function MurlanRoyaleArena({ search }) {
         scoreboard: null,
         tableInfo: null,
         chairMaterials: null,
+        chairTemplate: null,
         outfitParts: null,
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }
@@ -2294,8 +2386,26 @@ function makeCardBackTexture(theme, w = 512, h = 720) {
 function applyChairThemeMaterials(three, theme) {
   const mats = three?.chairMaterials;
   if (!mats) return;
-  if (mats.seat?.color) mats.seat.color.set(theme.seatColor);
-  if (mats.leg?.color) mats.leg.color.set(theme.legColor);
+  if (mats.seat?.color) {
+    mats.seat.color.set(theme.seatColor);
+    mats.seat.needsUpdate = true;
+  }
+  if (mats.leg?.color) {
+    mats.leg.color.set(theme.legColor);
+    mats.leg.needsUpdate = true;
+  }
+  (mats.upholstery ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.seatColor);
+      mat.needsUpdate = true;
+    }
+  });
+  (mats.metal ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.legColor);
+      mat.needsUpdate = true;
+    }
+  });
 }
 
 function applyOutfitThemeMaterials(three, theme) {
