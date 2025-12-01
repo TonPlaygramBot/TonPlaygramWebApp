@@ -40,19 +40,6 @@ export default function HomeGamesCard() {
           </h3>
         </Link>
         <Link
-          to="/games/blackjack/lobby"
-          className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
-        >
-          <img
-            src="/assets/icons/blackjack.svg"
-            alt=""
-            className="h-20 w-20"
-          />
-          <h3 className="text-xs font-semibold text-center text-yellow-400">
-            Black Jack Multiplayer
-          </h3>
-        </Link>
-        <Link
           to="/games/poolroyale/lobby"
           className="flex flex-col items-center space-y-1 border border-border rounded-lg p-2 flex-shrink-0 tetris-grid-bg"
         >
