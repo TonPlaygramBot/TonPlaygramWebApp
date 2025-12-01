@@ -689,6 +689,8 @@ const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
+const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
+const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
@@ -8041,7 +8043,7 @@ function PoolRoyaleGame({
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerTableFinish');
+      const stored = window.localStorage.getItem(TABLE_FINISH_STORAGE_KEY);
       if (stored && TABLE_FINISHES[stored]) {
         return stored;
       }
@@ -8050,7 +8052,7 @@ function PoolRoyaleGame({
   });
   const [clothColorId, setClothColorId] = useState(() => {
     if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('snookerClothColor');
+      const stored = window.localStorage.getItem(CLOTH_COLOR_STORAGE_KEY);
       if (stored && CLOTH_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
         return stored;
       }
@@ -8567,12 +8569,12 @@ function PoolRoyaleGame({
   }, [activeVariant]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerTableFinish', tableFinishId);
+      window.localStorage.setItem(TABLE_FINISH_STORAGE_KEY, tableFinishId);
     }
   }, [tableFinishId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem('snookerClothColor', clothColorId);
+      window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
   useEffect(() => {
