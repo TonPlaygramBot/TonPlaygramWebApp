@@ -268,10 +268,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.08; // push side chrome arches further from center so the middle pockets sit proud of the rail
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.12; // push side chrome arches further from center so the middle pockets sit proud of the rail
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.42; // pull middle wood arches outward so the side pockets flare away from center
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.54; // pull middle wood arches outward so the side pockets flare away from center
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -289,7 +289,7 @@ const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.592;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.66;
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
@@ -2917,7 +2917,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.83; // bring the orbit slightly higher above the cloth
+const STANDING_VIEW_PHI = 0.86; // bring the orbit slightly higher above the cloth
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
@@ -2925,10 +2925,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.027; // align orbit distance with Pool Royale framing
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.029; // align orbit distance with Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.1;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.14;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
@@ -2988,13 +2988,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.038;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.2;
+const CUE_VIEW_RADIUS_RATIO = 0.05;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.22;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.18;
+const CUE_VIEW_PHI_LIFT = 0.085;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -3005,7 +3005,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
-const IN_HAND_CAMERA_PULLBACK = 1.35;
+const IN_HAND_CAMERA_PULLBACK = 1.48;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -6196,6 +6196,7 @@ function SnookerGame() {
   const applyFinishRef = useRef(() => {});
   useEffect(() => {
     tableFinishRef.current = tableFinish;
+    applyFinishRef.current?.(tableFinish);
   }, [tableFinish]);
   useEffect(() => {
     const nextFinish = tableFinishRef.current;
