@@ -5455,9 +5455,6 @@ function Table3D(
   clothEdgeMat.needsUpdate = true;
   const underlayTopMat = clothMat.clone();
   underlayTopMat.color.copy(clothColor);
-  underlayTopMat.map = null;
-  underlayTopMat.bumpMap = null;
-  underlayTopMat.bumpScale = 0;
   underlayTopMat.metalness = 0;
   underlayTopMat.roughness = 1;
   underlayTopMat.sheen = 0;
@@ -5467,13 +5464,9 @@ function Table3D(
   underlayTopMat.reflectivity = 0;
   underlayTopMat.emissive.set(0x000000);
   underlayTopMat.emissiveIntensity = 0;
-  underlayTopMat.side = THREE.DoubleSide;
   underlayTopMat.needsUpdate = true;
   const underlayEdgeMat = clothEdgeMat.clone();
   underlayEdgeMat.color.copy(clothColor);
-  underlayEdgeMat.map = null;
-  underlayEdgeMat.bumpMap = null;
-  underlayEdgeMat.bumpScale = 0;
   underlayEdgeMat.metalness = 0;
   underlayEdgeMat.roughness = 1;
   underlayEdgeMat.sheen = 0;
@@ -5483,7 +5476,6 @@ function Table3D(
   underlayEdgeMat.reflectivity = 0;
   underlayEdgeMat.emissive.copy(clothEdgeMat.emissive);
   underlayEdgeMat.emissiveIntensity = clothEdgeMat.emissiveIntensity;
-  underlayEdgeMat.side = THREE.DoubleSide;
   underlayEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
@@ -5747,12 +5739,10 @@ function Table3D(
     depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
     curveSegments: 96,
-    steps: 1,
-    material: 0,
-    extrudeMaterial: 1
+    steps: 1
   });
   clothGeo.translate(0, 0, -CLOTH_EXTENDED_DEPTH);
-  const cloth = new THREE.Mesh(clothGeo, [clothMat, clothEdgeMat]);
+  const cloth = new THREE.Mesh(clothGeo, clothMat);
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
@@ -5798,15 +5788,11 @@ function Table3D(
   shadowBoardGeo.translate(0, 0, -CLOTH_SHADOW_BOARD_THICKNESS);
   const shadowBoardMat = clothMat.clone();
   shadowBoardMat.color = clothMat.color.clone();
-  shadowBoardMat.map = null;
-  shadowBoardMat.bumpMap = null;
-  shadowBoardMat.bumpScale = 0;
   shadowBoardMat.roughness = 1;
   shadowBoardMat.metalness = 0;
   shadowBoardMat.clearcoat = 0;
   shadowBoardMat.sheen = 0;
   shadowBoardMat.envMapIntensity = 0;
-  shadowBoardMat.reflectivity = 0;
   shadowBoardMat.side = THREE.DoubleSide;
   shadowBoardMat.needsUpdate = true;
   const shadowBoard = new THREE.Mesh(shadowBoardGeo, shadowBoardMat);
