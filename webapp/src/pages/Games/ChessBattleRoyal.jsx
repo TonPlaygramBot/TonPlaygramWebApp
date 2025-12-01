@@ -4,7 +4,6 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
@@ -239,23 +238,19 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 
-const HDRI_URLS = [
-  'https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/equirectangular/royal_esplanade_1k.hdr',
-  'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/equirectangular/royal_esplanade_1k.hdr'
-];
-
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
+    ...(BOARD_COLOR_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
     light: '#f0d9b5',
     dark: '#8b5a2b',
-    frameLight: '#c59966',
-    frameDark: '#3c2612',
-    accent: '#d6b169',
-    highlight: '#8be2b3',
-    capture: '#f28f8f',
-    surfaceRoughness: 0.42,
-    surfaceMetalness: 0.16,
-    frameRoughness: 0.58,
+    frameLight: '#b88a55',
+    frameDark: '#3d2a1c',
+    accent: '#caa472',
+    highlight: '#7ef9a1',
+    capture: '#ff8975',
+    surfaceRoughness: 0.62,
+    surfaceMetalness: 0.22,
+    frameRoughness: 0.78,
     frameMetalness: 0.18
   })
 );
@@ -264,29 +259,29 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
   label: 'A Beautiful Game',
   white: {
-    color: '#f4efe3',
-    roughness: 0.32,
-    metalness: 0.14,
-    sheen: 0.36,
-    sheenColor: '#fff4e6',
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.18,
-    specularIntensity: 0.82
+    color: '#f6f7fb',
+    roughness: 0.3,
+    metalness: 0.28,
+    sheen: 0.28,
+    sheenColor: '#ffffff',
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.22,
+    specularIntensity: 0.72
   },
   black: {
-    color: '#2b2520',
-    roughness: 0.28,
-    metalness: 0.24,
-    sheen: 0.28,
-    sheenColor: '#c8a880',
-    clearcoat: 0.34,
-    clearcoatRoughness: 0.22,
-    specularIntensity: 0.82,
-    emissive: '#1a120d',
-    emissiveIntensity: 0.18
+    color: '#0f131f',
+    roughness: 0.24,
+    metalness: 0.38,
+    sheen: 0.22,
+    sheenColor: '#5f799c',
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.34,
+    specularIntensity: 0.72,
+    emissive: '#0b1220',
+    emissiveIntensity: 0.24
   },
-  accent: '#d2b48c',
-  blackAccent: '#b08a5c'
+  accent: '#caa472',
+  blackAccent: '#b58f4f'
 });
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
@@ -998,27 +993,6 @@ async function loadBeautifulGameSet() {
   throw new Error('ABeautifulGame model failed to load');
 }
 
-async function loadHdriEnvironment(scene, renderer) {
-  const loader = new RGBELoader();
-  let lastError = null;
-  for (const url of HDRI_URLS) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      const texture = await loader.loadAsync(url);
-      texture.mapping = THREE.EquirectangularReflectionMapping;
-      scene.environment = texture;
-      renderer.toneMappingExposure = 1.35;
-      return texture;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  if (lastError) {
-    console.warn('Chess Battle Royal: HDRI load failed', lastError);
-  }
-  return null;
-}
-
 function buildLathe(profile, segments = 32) {
   return new THREE.LatheGeometry(profile, segments);
 }
@@ -1211,9 +1185,6 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   const tile = BOARD.tile;
   const N = BOARD.N;
   const half = (N * tile) / 2;
-  const tileRoughness = clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness);
-  const tileMetalness = clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness);
-  const tileSheen = 0.24;
   const base = new THREE.Mesh(
     new THREE.BoxGeometry(
       targetBoardSize || N * tile + BOARD.rim * 2,
@@ -1222,13 +1193,9 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
     ),
     new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
-      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness) * 0.85,
-      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness) * 1.1,
-      clearcoat: 0.42,
-      clearcoatRoughness: 0.18,
-      sheen: 0.16,
-      sheenColor: new THREE.Color('#f0e4d0'),
-      specularIntensity: 0.46
+      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
+      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
+      clearcoat: 0.32
     })
   );
   base.position.y = BOARD.baseH * 0.5;
@@ -1237,49 +1204,27 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
     new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
     new THREE.MeshPhysicalMaterial({
       color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
-      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness) * 0.78,
-      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness) * 0.85,
-      clearcoat: 0.48,
-      clearcoatRoughness: 0.16,
-      sheen: 0.22,
-      sheenColor: new THREE.Color('#ffe9c7'),
-      specularIntensity: 0.52
+      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+      clearcoat: 0.22
     })
   );
   top.position.y = BOARD.baseH + 0.07;
   boardModel.add(top);
-
-  const lightTileMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(boardTheme.light),
-    roughness: Math.max(0.16, tileRoughness * 0.7),
-    metalness: tileMetalness * 0.55,
-    clearcoat: 0.56,
-    clearcoatRoughness: 0.2,
-    sheen: tileSheen,
-    sheenColor: new THREE.Color('#fff4e6'),
-    specularIntensity: 0.64
-  });
-
-  const darkTileMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(boardTheme.dark),
-    roughness: Math.max(0.18, tileRoughness * 0.82),
-    metalness: tileMetalness * 0.72,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.22,
-    sheen: tileSheen,
-    sheenColor: new THREE.Color('#d7b48a'),
-    specularIntensity: 0.6
-  });
 
   const tiles = new THREE.Group();
   boardModel.add(tiles);
   for (let r = 0; r < N; r += 1) {
     for (let c = 0; c < N; c += 1) {
       const isDark = (r + c) % 2 === 1;
-      const tileMesh = new THREE.Mesh(
-        new THREE.BoxGeometry(tile, 0.06, tile),
-        isDark ? darkTileMaterial : lightTileMaterial
-      );
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
+        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+        clearcoat: 0.08,
+        specularIntensity: 0.32
+      });
+      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
       tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
       tiles.add(tileMesh);
     }
@@ -2961,37 +2906,17 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     scene.add(ambient);
 
     const key = new THREE.DirectionalLight(0xffffff, 1.2);
-    key.position.set(12, 16, 10);
+    key.position.set(6, 8, 5);
     key.castShadow = true;
     scene.add(key);
 
-    const fill = new THREE.DirectionalLight(0xffffff, 0.6);
-    fill.position.set(-10, 8, 4);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.65);
+    fill.position.set(-5, 5.5, 3);
     scene.add(fill);
 
     const rim = new THREE.DirectionalLight(0xffffff, 0.9);
-    rim.position.set(0, 10, -12);
+    rim.position.set(0, 6, -6);
     scene.add(rim);
-
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(140, 140),
-      new THREE.MeshStandardMaterial({ color: 0x0a0d12, roughness: 0.9, metalness: 0 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    let envTexture = null;
-    const hdriPromise = loadHdriEnvironment(scene, renderer)
-      .then((texture) => {
-        envTexture = texture;
-      })
-      .catch(() => {});
-    disposers.push(() => {
-      if (envTexture) {
-        envTexture.dispose?.();
-      }
-    });
 
     const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
     spot.position.set(0, 4.2, 4.6);
@@ -3014,13 +2939,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
       new THREE.MeshStandardMaterial({
-        color: 0x0a0d12,
+        color: 0x0f1222,
         roughness: 0.95,
         metalness: 0.05
       })
     );
     floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
     arena.add(floor);
 
     const carpetMat = createArenaCarpetMaterial();
