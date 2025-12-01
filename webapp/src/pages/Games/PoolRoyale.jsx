@@ -8725,8 +8725,16 @@ function PoolRoyaleGame({
   const aiShotPreviewRef = useRef(false);
   const aiShotTimeoutRef = useRef(null);
   const aiShotCueViewRef = useRef(false);
+  const aiRetryTimeoutRef = useRef(null);
   const aiShotWindowRef = useRef({ startedAt: 0, duration: AI_MIN_SHOT_TIME_MS });
   const [aiTakingShot, setAiTakingShot] = useState(false);
+
+  useEffect(() => () => {
+    if (aiRetryTimeoutRef.current) {
+      clearTimeout(aiRetryTimeoutRef.current);
+      aiRetryTimeoutRef.current = null;
+    }
+  }, []);
   const recomputeAiShotState = useCallback(() => {
     const hudState = hudRef.current;
     const aiTurn = hudState?.turn === 1;
@@ -14462,10 +14470,21 @@ function PoolRoyaleGame({
         startUserSuggestionRef.current = updateUserSuggestion;
 
         aiShoot.current = () => {
+          if (aiRetryTimeoutRef.current) {
+            clearTimeout(aiRetryTimeoutRef.current);
+            aiRetryTimeoutRef.current = null;
+          }
           let currentHud = hudRef.current;
           if (currentHud?.turn === 1 && currentHud?.inHand) {
             autoPlaceAiCueBall();
             currentHud = hudRef.current;
+            if (currentHud?.inHand) {
+              aiRetryTimeoutRef.current = window.setTimeout(() => {
+                aiRetryTimeoutRef.current = null;
+                aiShoot.current();
+              }, 250);
+              return;
+            }
           }
           if (currentHud?.over || currentHud?.inHand || shooting) return;
           try {
