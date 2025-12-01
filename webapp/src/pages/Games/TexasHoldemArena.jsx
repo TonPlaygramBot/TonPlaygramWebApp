@@ -133,46 +133,12 @@ const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'crimsonVelvet',
-    label: 'Crimson Velvet',
-    primary: '#8b1538',
-    accent: '#5c0f26',
-    highlight: '#d35a7a',
-    legColor: '#1f1f1f'
-  },
-  {
-    id: 'midnightNavy',
-    label: 'Midnight Blue',
-    primary: '#153a8b',
-    accent: '#0c214f',
-    highlight: '#4d74d8',
-    legColor: '#10131c'
-  },
-  {
-    id: 'emeraldWave',
-    label: 'Emerald Wave',
-    primary: '#0f6a2f',
-    accent: '#063d1b',
-    highlight: '#48b26a',
-    legColor: '#142318'
-  },
-  {
-    id: 'onyxShadow',
-    label: 'Onyx Shadow',
-    primary: '#202020',
-    accent: '#101010',
-    highlight: '#6f6f6f',
-    legColor: '#080808'
-  },
-  {
-    id: 'goldenHour',
-    label: 'Golden Hour',
-    primary: '#8b5a1a',
-    accent: '#4a2f0b',
-    highlight: '#d8a85f',
-    legColor: '#2a1a09'
-  }
+  { id: 'ruby', label: 'Ruby', primary: '#8b0000', accent: '#8b0000', highlight: '#b22222', legColor: '#1f1f1f' },
+  { id: 'slate', label: 'Slate', primary: '#374151', accent: '#374151', highlight: '#6b7280', legColor: '#0f172a' },
+  { id: 'teal', label: 'Teal', primary: '#0f766e', accent: '#0f766e', highlight: '#38b2ac', legColor: '#082f2a' },
+  { id: 'amber', label: 'Amber', primary: '#b45309', accent: '#b45309', highlight: '#f59e0b', legColor: '#2f2410' },
+  { id: 'violet', label: 'Violet', primary: '#7c3aed', accent: '#7c3aed', highlight: '#c084fc', legColor: '#2b1059' },
+  { id: 'frost', label: 'Ice', primary: '#1f2937', accent: '#1f2937', highlight: '#9ca3af', legColor: '#0f172a' }
 ]);
 
 const CHAIR_MODEL_URLS = [
@@ -1560,6 +1526,10 @@ function performPlayerAction(state, action, raiseSize = BIG_BLIND) {
     advanced = true;
   }
   if (!advanced) return;
+  if (allActiveMatched(state)) {
+    advanceStage(state);
+    return;
+  }
   const nextIndex = getNextActiveIndex(state.players, state.actionIndex);
   if (nextIndex === state.actionIndex || nextIndex < 0) {
     if (allActiveMatched(state)) {
@@ -1612,6 +1582,9 @@ function TexasHoldemArena({ search }) {
   const threeRef = useRef(null);
   const animationRef = useRef(null);
   const headAnglesRef = useRef({ yaw: 0, pitch: 0 });
+  const humanSeatRef = useRef(null);
+  const seatTopPointRef = useRef(null);
+  const viewControlsRef = useRef({ applySeatedCamera: null, applyOverheadCamera: null });
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
     baseForward: new THREE.Vector3(0, 0, -1),
@@ -1658,6 +1631,7 @@ function TexasHoldemArena({ search }) {
   });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
+  const [overheadView, setOverheadView] = useState(false);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -2218,6 +2192,8 @@ function TexasHoldemArena({ search }) {
     }
 
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
+    humanSeatRef.current = humanSeat;
+    seatTopPointRef.current = seatTopPoint;
     const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
     const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
     const applySeatedCamera = (width, height) => {
@@ -2273,7 +2249,35 @@ function TexasHoldemArena({ search }) {
       }
     };
 
-    applySeatedCamera(mount.clientWidth, mount.clientHeight);
+    const applyOverheadCamera = () => {
+      const height = TABLE_HEIGHT + BOARD_SIZE * 1.2;
+      camera.position.set(0, height, 0.001);
+      camera.up.set(0, 0, 1);
+      const focus = new THREE.Vector3(0, TABLE_HEIGHT, 0);
+      camera.lookAt(focus);
+      camera.updateMatrixWorld();
+      const baseForward = new THREE.Vector3(0, -1, 0);
+      const baseUp = new THREE.Vector3(0, 0, 1);
+      const baseRight = new THREE.Vector3(1, 0, 0);
+      cameraBasisRef.current = {
+        position: camera.position.clone(),
+        baseForward,
+        baseUp,
+        baseRight,
+        pitchLimits: { min: 0, max: 0 }
+      };
+      headAnglesRef.current.yaw = 0;
+      headAnglesRef.current.pitch = 0;
+      cameraAutoTargetRef.current = null;
+      applyHeadOrientation();
+    };
+
+    viewControlsRef.current = { applySeatedCamera, applyOverheadCamera };
+    if (overheadView) {
+      applyOverheadCamera();
+    } else {
+      applySeatedCamera(mount.clientWidth, mount.clientHeight);
+    }
 
     (async () => {
       const chairBuild = await buildChairTemplate(initialChair, renderer);
@@ -3318,36 +3322,62 @@ function TexasHoldemArena({ search }) {
     };
   }, [handleChipClick, handleUndoChip]);
 
+  useEffect(() => {
+    const controls = viewControlsRef.current;
+    const mount = mountRef.current;
+    const three = threeRef.current;
+    if (!three?.camera) return;
+    if (overheadView) {
+      controls.applyOverheadCamera?.();
+    } else {
+      const width = mount?.clientWidth ?? window.innerWidth;
+      const height = mount?.clientHeight ?? window.innerHeight;
+      controls.applySeatedCamera?.(width, height);
+    }
+  }, [overheadView]);
+
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
-        <button
-          type="button"
-          onClick={() => setConfigOpen((prev) => !prev)}
-          aria-expanded={configOpen}
-          className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-            configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-          }`}
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            className="h-6 w-6"
-            aria-hidden="true"
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setConfigOpen((prev) => !prev)}
+            aria-expanded={configOpen}
+            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+            }`}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-            />
-          </svg>
-          <span className="sr-only">Open table customization</span>
-        </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-6 w-6"
+              aria-hidden="true"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+              />
+            </svg>
+            <span className="sr-only">Open table customization</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setOverheadView((prev) => !prev)}
+            aria-pressed={overheadView}
+            className={`pointer-events-auto rounded-full border border-white/20 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              overheadView ? 'bg-emerald-600/80 hover:bg-emerald-500' : 'bg-black/70 hover:bg-black/60'
+            }`}
+          >
+            {overheadView ? '3D View' : '2D View'}
+          </button>
+        </div>
         {configOpen && (
           <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
             <div className="flex items-center justify-between gap-3">
