@@ -15,9 +15,6 @@
   #railControls button{background:rgba(12,16,28,.72);color:#ffe8a3;font-size:.95rem;padding:.55rem .9rem;border-radius:999px;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
   #draw{font-size:1rem;padding:.6rem 1rem;background:linear-gradient(135deg, rgba(255,210,74,.95), rgba(255,196,45,.85));color:#3b250f;border:0;}
   #pass{background:rgba(255,210,74,.12);color:#ffe8a3;border:1px solid rgba(255,210,74,.35);}
-  #viewToggle{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(3.6rem + env(safe-area-inset-right,0px));height:2.75rem;padding:0 1rem;border-radius:999px;background:rgba(0,0,0,.7);color:#ffe8a3;border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;font-weight:800;letter-spacing:.02em;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(7px);}
-  #viewToggle[aria-pressed="true"]{background:rgba(255,210,74,.16);border-color:rgba(255,210,74,.5);color:#fef08a;box-shadow:0 0 0 1px rgba(255,210,74,.24),0 10px 18px rgba(0,0,0,.28);}
-  #viewToggle:active{transform:translateY(1px);}
   #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
   #btnRules span{pointer-events:none;}
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
@@ -81,7 +78,6 @@
   <h3 id="configTitle">Table Setup</h3>
   <div id="configSections"></div>
 </div>
-<button id="viewToggle" type="button" aria-label="Switch to 2D view" title="Switch to 2D view">2D</button>
 <button id="btnRules" type="button" aria-label="Rules" title="Rules">
   <span aria-hidden="true">ℹ️</span>
 </button>
@@ -116,33 +112,103 @@ import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GL
 import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
 
 /* ---------- Audio (SFX) ---------- */
-function createSfx(url) {
-  const audio = new Audio(url);
-  audio.preload = 'auto';
-  audio.crossOrigin = 'anonymous';
-  return audio;
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let audioPrimed = false;
+
+function primeAudio() {
+  if (audioPrimed) return;
+  audioPrimed = true;
+  audioCtx?.resume?.().catch(() => {});
 }
+
+function playEnvelope({ frequency = 440, duration = 0.18, type = "sine", gain = 0.2, attack = 0.01, decay = 0.12, detune = 0, pan = 0 }) {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime + 0.01;
+  const osc = audioCtx.createOscillator();
+  osc.type = type;
+  osc.frequency.value = frequency;
+  osc.detune.value = detune;
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.setValueAtTime(0.0001, now);
+  gainNode.gain.linearRampToValueAtTime(gain, now + attack);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration + decay);
+  const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  if (panNode) {
+    panNode.pan.value = pan;
+    osc.connect(gainNode).connect(panNode).connect(audioCtx.destination);
+  } else {
+    osc.connect(gainNode).connect(audioCtx.destination);
+  }
+  osc.start(now);
+  osc.stop(now + duration + decay + 0.02);
+}
+
+function playNoise({ duration = 0.32, gain = 0.16, filterType = "lowpass", frequency = 900, pan = 0 }) {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime + 0.01;
+  const bufferSize = Math.max(128, Math.floor(audioCtx.sampleRate * duration));
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i += 1) {
+    data[i] = Math.random() * 2 - 1;
+  }
+  const source = audioCtx.createBufferSource();
+  source.buffer = buffer;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = filterType;
+  filter.frequency.value = frequency;
+  const gainNode = audioCtx.createGain();
+  gainNode.gain.setValueAtTime(gain, now);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+  const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+  if (panNode) {
+    panNode.pan.value = pan;
+    source.connect(filter).connect(gainNode).connect(panNode).connect(audioCtx.destination);
+  } else {
+    source.connect(filter).connect(gainNode).connect(audioCtx.destination);
+  }
+  source.start(now);
+  source.stop(now + duration + 0.05);
+}
+
+function playDominoClick() {
+  const pan = (Math.random() - 0.5) * 0.25;
+  playNoise({ duration: 0.08, gain: 0.2, filterType: "bandpass", frequency: 1820, pan });
+  playEnvelope({ frequency: 210, type: "sine", gain: 0.14, duration: 0.08, attack: 0.002, decay: 0.08, detune: -8, pan: pan * 0.4 });
+  playEnvelope({ frequency: 480, type: "triangle", gain: 0.12, duration: 0.05, attack: 0.001, decay: 0.06, detune: 9, pan });
+}
+
 const SFX = {
-  place: createSfx("https://cdn.pixabay.com/download/audio/2022/03/15/audio_7dc2b2.mp3?filename=click-124467.mp3"),
-  draw: createSfx("https://cdn.pixabay.com/download/audio/2022/03/15/audio_b2f7c5.mp3?filename=pop-124476.mp3"),
-  pass: createSfx("https://cdn.pixabay.com/download/audio/2022/10/11/audio_5b4d94.mp3?filename=airy-whoosh-124467.mp3")
+  place() {
+    playDominoClick();
+  },
+  draw() {
+    playEnvelope({ frequency: 360, type: "sawtooth", gain: 0.18, duration: 0.12, attack: 0.006, decay: 0.12, detune: -4, pan: -0.08 });
+    playEnvelope({ frequency: 540, type: "triangle", gain: 0.16, duration: 0.14, attack: 0.004, decay: 0.14, detune: 3, pan: 0.08 });
+  },
+  pass() {
+    playNoise({ duration: 0.24, gain: 0.16, filterType: "bandpass", frequency: 780, pan: -0.05 });
+    playEnvelope({ frequency: 220, type: "sine", gain: 0.12, duration: 0.22, attack: 0.01, decay: 0.16, pan: 0.1 });
+  },
+  win() {
+    playEnvelope({ frequency: 580, type: "triangle", gain: 0.24, duration: 0.14, attack: 0.008, decay: 0.18 });
+    playEnvelope({ frequency: 760, type: "triangle", gain: 0.22, duration: 0.16, attack: 0.008, decay: 0.2, detune: 5 });
+    playEnvelope({ frequency: 980, type: "square", gain: 0.18, duration: 0.2, attack: 0.01, decay: 0.24, detune: 8 });
+  },
+  drawGame() {
+    playEnvelope({ frequency: 420, type: "triangle", gain: 0.16, duration: 0.16, attack: 0.01, decay: 0.16 });
+    playEnvelope({ frequency: 310, type: "sine", gain: 0.14, duration: 0.22, attack: 0.012, decay: 0.18, detune: -6, pan: -0.04 });
+  }
 };
-SFX.place.volume = 0.7;
-SFX.draw.volume = 0.7;
-SFX.pass.volume = 0.55;
-SFX.pass.playbackRate = 0.92;
 
 function playPassSfx() {
-  try {
-    SFX.pass.currentTime = 0;
-    void SFX.pass.play();
-  } catch {}
+  SFX.pass();
 }
 
 /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
-const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.25, 3));
+const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.1, 2.4));
 renderer.setPixelRatio(devicePixelRatioTarget);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
@@ -150,14 +216,16 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 1.85;
 function setRendererSize(){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
-  renderer.setSize(w, h, false);
+renderer.setSize(w, h, false);
 }
 setRendererSize();
 app.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = 'none';
+renderer.domElement.addEventListener('pointerdown', primeAudio, { once: true });
+window.addEventListener('keydown', primeAudio, { once: true });
 
 const scene = new THREE.Scene();
 const textureLoader = new THREE.TextureLoader();
@@ -194,16 +262,16 @@ const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const HUMAN_SEAT_INDEX = 0;
 const CHAIR_SEAT_ANGLES = Object.freeze([
-  THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
-  THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  Math.PI / 2,
+  0,
+  (3 * Math.PI) / 2,
+  Math.PI
 ]);
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS,
-  CHAIR_RADIUS * 0.94,
+  CHAIR_RADIUS * 0.98,
   CHAIR_RADIUS * 1.02,
-  CHAIR_RADIUS * 0.94
+  CHAIR_RADIUS * 0.98
 ]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -431,10 +499,10 @@ function toggleCameraViewMode() {
 
 
 /* ---------- Lights ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.55));
-const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
-const rimLight = new THREE.DirectionalLight(0xffffff, 0.55); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.32));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.42));
+const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.42); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
 
 const getPoolCarpetTextures = (() => {
   let cache = null;
@@ -559,22 +627,22 @@ const getPoolCarpetTextures = (() => {
 })();
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
-const CHAIR_CLOTH_REPEAT = 4;
+const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
-  id: "ruby",
-  label: "Ruby",
-  seatColor: "#8b0000",
-  legColor: "#1f1f1f",
-  highlight: "#d46a6a"
+  id: "moss",
+  label: "Moss",
+  seatColor: "#4f6650",
+  legColor: "#2c2a25",
+  highlight: "#c2b68a"
 });
 
 const CHAIR_THEME_OPTIONS = Object.freeze([
   DEFAULT_CHAIR_THEME,
-  { id: "slate", label: "Slate", seatColor: "#374151", legColor: "#0f172a", highlight: "#9ca3af" },
-  { id: "teal", label: "Teal", seatColor: "#0f766e", legColor: "#082f2a", highlight: "#34d399" },
-  { id: "amber", label: "Amber", seatColor: "#b45309", legColor: "#2f2410", highlight: "#fbbf24" },
-  { id: "violet", label: "Violet", seatColor: "#7c3aed", legColor: "#2b1059", highlight: "#d8b4fe" },
-  { id: "frost", label: "Frost", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#94a3b8" }
+  { id: "spruce", label: "Spruce", seatColor: "#3f5645", legColor: "#1f241d", highlight: "#a7c49c" },
+  { id: "riverstone", label: "Riverstone", seatColor: "#4b4f55", legColor: "#25282c", highlight: "#c1c7d0" },
+  { id: "sand", label: "Sand", seatColor: "#b59773", legColor: "#3f3528", highlight: "#e8d7b3" },
+  { id: "clay", label: "Clay", seatColor: "#7b5a46", legColor: "#2e241d", highlight: "#d8b79a" },
+  { id: "deepsea", label: "Deep Sea", seatColor: "#36595b", legColor: "#1d2c2c", highlight: "#9ac2c4" }
 ]);
 
 const CHAIR_MODEL_URLS = [
@@ -1062,12 +1130,11 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
-  { id: "crimson", label: "Crimson Cloth", feltTop: "#b0122d", feltBottom: "#650a1b", border: "#2b050c", emissive: "#6c101f", emissiveIntensity: 0.5 },
-  { id: "emerald", label: "Emerald Cloth", feltTop: "#1fa44d", feltBottom: "#0b7030", border: "#043018", emissive: "#0f6a2f", emissiveIntensity: 0.72 },
-  { id: "arctic", label: "Arctic Cloth", feltTop: "#3b82f6", feltBottom: "#1d4ed8", border: "#0a1c4d", emissive: "#2563eb", emissiveIntensity: 0.62 },
-  { id: "sunset", label: "Sunset Cloth", feltTop: "#f97316", feltBottom: "#c2410c", border: "#3b1203", emissive: "#e2580f", emissiveIntensity: 0.58 },
-  { id: "violet", label: "Violet Cloth", feltTop: "#8b5cf6", feltBottom: "#5b21b6", border: "#241055", emissive: "#6d28d9", emissiveIntensity: 0.58 },
-  { id: "amber", label: "Amber Cloth", feltTop: "#f59e0b", feltBottom: "#b45309", border: "#3b1a02", emissive: "#d97706", emissiveIntensity: 0.54 }
+  { id: "meadow", label: "Meadow", feltTop: "#3a6b4b", feltBottom: "#264233", border: "#12241b", emissive: "#2f5840", emissiveIntensity: 0.46 },
+  { id: "harbor", label: "Harbor", feltTop: "#3a5664", feltBottom: "#243642", border: "#111d26", emissive: "#2f4a58", emissiveIntensity: 0.42 },
+  { id: "cedar", label: "Cedar", feltTop: "#7a5a3e", feltBottom: "#4c3522", border: "#26170e", emissive: "#5f452f", emissiveIntensity: 0.4 },
+  { id: "slate", label: "Slate", feltTop: "#4b545f", feltBottom: "#2f343d", border: "#171920", emissive: "#3b444f", emissiveIntensity: 0.36 },
+  { id: "dune", label: "Dune", feltTop: "#c0ac86", feltBottom: "#9b886b", border: "#493825", emissive: "#b19c76", emissiveIntensity: 0.32 }
 ]);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
@@ -1393,9 +1460,9 @@ function createChairClothTexture(option, renderer) {
   if (typeof document === "undefined") {
     return null;
   }
-  const primary = option?.seatColor ?? "#8b0000";
-  const accent = adjustHexColor(primary, -0.28);
-  const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
+  const primary = option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor;
+  const accent = adjustHexColor(primary, -0.22);
+  const highlight = option?.highlight ?? adjustHexColor(primary, 0.16);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
   const ctx = canvas.getContext("2d");
@@ -1494,7 +1561,7 @@ function createChairClothTexture(option, renderer) {
 
 function createChairFabricMaterial(option, renderer) {
   const texture = createChairClothTexture(option, renderer);
-  const primary = option?.seatColor ?? "#8b0000";
+  const primary = option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor;
   const sheenColor = option?.highlight ?? adjustHexColor(primary, 0.2);
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(adjustHexColor(primary, 0.04)),
@@ -2166,7 +2233,7 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
   return shape;
 }
 
-function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
+function makeClothTexture({ top = "#325a3d", bottom = "#233a29", border = "#0f1f14" } = {}) {
   const size = 512;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
@@ -2222,7 +2289,7 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(18 * 5, 18 * 5);
+  texture.repeat.set(18 * 15, 18 * 15);
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -2463,7 +2530,7 @@ const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
-const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
+const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.05;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
 const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.25;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
@@ -2618,7 +2685,7 @@ let boneyardStackTopLocal = 0;
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = 640;
+const PLACE_ANIM_DURATION = 480;
 const PLACE_ANIM_ARC = 0.05;
 const CPU_PLAY_DELAY = 2000;
 
@@ -3151,6 +3218,34 @@ let winnerHighlight = null;
 let winnerHighlightStart = 0;
 let cpuMoveTimeout = null;
 
+function applyDominoSelectionHighlight(domino) {
+  if (!domino) return;
+  const accentColor = new THREE.Color('#f6d860');
+  domino.traverse((child) => {
+    if (child.isMesh && child.material) {
+      const mat = child.material.clone();
+      if ('emissive' in mat && mat.emissive) {
+        mat.emissive = mat.emissive.clone();
+        mat.emissive.lerp(accentColor, 0.5);
+        mat.emissiveIntensity = (mat.emissiveIntensity ?? 0) + 0.35;
+      }
+      mat.transparent = true;
+      mat.opacity = 0.97;
+      child.material = mat;
+    }
+  });
+  const box = new THREE.Box3().setFromObject(domino);
+  const size = box.getSize(new THREE.Vector3());
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(size.x * 0.58, size.x * 0.86, 48),
+    new THREE.MeshBasicMaterial({ color: '#f6d860', transparent: true, opacity: 0.6, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = -size.y * 0.52;
+  ring.renderOrder = 12;
+  domino.add(ring);
+}
+
 function tileKey(tile){
   const ct = canonTile(tile);
   return ct ? `${ct.a}|${ct.b}` : '';
@@ -3230,6 +3325,7 @@ function renderHands(){
 
     p.hand.forEach((h,hi)=>{
       const m = makeDomino(h.a,h.b,{flat: openFlat, faceUp});
+      const isSelected = selectedTile === h;
       const offset = count>1 ? start + gap*hi : 0;
       if(isSide){
         m.position.set(x0, handY, z0 + offset);
@@ -3243,6 +3339,9 @@ function renderHands(){
       } else {
         m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
         m.rotation.z += (Math.random()*0.006-0.003);
+      }
+      if(isSelected){
+        applyDominoSelectionHighlight(m);
       }
       h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
     });
@@ -3836,8 +3935,7 @@ function placeOnBoard(tile, side, options = {}){
   } else {
     renderChain();
   }
-  SFX.place.currentTime = 0;
-  SFX.place.play();
+  SFX.place();
   return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
@@ -3879,7 +3977,7 @@ function nextCandidate(end){
 
 /* ---------- Markers for manual placement ---------- */
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.098, .02, 24, 72); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.13, .028, 28, 96); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.013; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -3889,6 +3987,8 @@ function showMarkersFor(tile){
 
 /* ---------- Interactivity ---------- */
 const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
+raycaster.params.Line = { threshold: 0.08 };
+raycaster.params.Points = { threshold: 0.12 };
 const activePointers = new Set();
 function findPickRoot(o){
   let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
@@ -3946,7 +4046,7 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
     const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
     if(canL||canR) break;
   }
-  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw.currentTime=0; SFX.draw.play(); }
+  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw(); }
 });
 btnPass.addEventListener('click',()=>{
   if(current===human && !gameFinished){
@@ -4014,8 +4114,12 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
   renderChain();
   if(reason){
     setStatus(reason);
+    if(reason.toLowerCase().includes('blocked')){
+      SFX.drawGame();
+    }
   } else if(winnerIndex !== null){
     setStatus(winnerIndex === human ? 'You won!' : `Player ${winnerIndex+1} won!`);
+    SFX.win();
   } else {
     setStatus('Game over');
   }
@@ -4080,7 +4184,7 @@ function cpuPlay(){
     const drew = cpuDrawUntilPlayable(player);
     if(drew){
       renderHands();
-      SFX.draw.currentTime = 0; SFX.draw.play();
+      SFX.draw();
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
@@ -4115,7 +4219,7 @@ function cpuPlay(){
   const drew = cpuDrawUntilPlayable(player);
   if(drew){
     renderHands();
-    SFX.draw.currentTime = 0; SFX.draw.play();
+    SFX.draw();
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
