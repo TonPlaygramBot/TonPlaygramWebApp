@@ -1617,15 +1617,17 @@ const createPocketMaterials = () => ({
     envMapIntensity: 0.46
   }),
   pocketRim: new THREE.MeshPhysicalMaterial({
-    color: 0x383b40,
-    metalness: 0.32,
-    roughness: 0.38,
-    clearcoat: 0.32,
-    clearcoatRoughness: 0.22,
-    sheen: 0.4,
-    sheenColor: new THREE.Color(0x88909a),
-    sheenRoughness: 0.5,
-    envMapIntensity: 0.52
+    color: new THREE.Color(0x2d7f4b),
+    metalness: 0,
+    roughness: 1,
+    clearcoat: 0,
+    clearcoatRoughness: 1,
+    sheen: 0,
+    sheenColor: new THREE.Color(0x2d7f4b),
+    sheenRoughness: 1,
+    envMapIntensity: 0,
+    reflectivity: 0,
+    emissive: new THREE.Color(0x2d7f4b).multiplyScalar(0.02)
   })
 });
 
@@ -2554,17 +2556,25 @@ function createPocketLinerMaterials(option, clothColor) {
     bumpScale: selection.bumpScale,
     sheenColor: baseSheenColor
   });
+  const rimClothColor = clothColor
+    ? new THREE.Color(clothColor)
+    : selection.rimColor
+      ? new THREE.Color(selection.rimColor)
+      : rimSheenColor.clone();
   const rimMaterial = new THREE.MeshPhysicalMaterial({
-    color: clothColor ?? selection.rimColor,
-    roughness: selection.rimRoughness ?? selection.roughness,
-    metalness: selection.rimMetalness ?? selection.metalness,
-    sheen: selection.rimSheen ?? selection.sheen,
-    sheenRoughness: selection.sheenRoughness ?? 0.6,
-    sheenColor: (clothColor ? new THREE.Color(clothColor) : rimSheenColor).clone(),
-    clearcoat: selection.clearcoat ?? 0.16,
-    clearcoatRoughness: selection.clearcoatRoughness ?? 0.46,
-    envMapIntensity: selection.envMapIntensity ?? 0.28
+    color: rimClothColor,
+    roughness: 1,
+    metalness: 0,
+    sheen: 0,
+    sheenRoughness: 1,
+    sheenColor: rimClothColor.clone(),
+    clearcoat: 0,
+    clearcoatRoughness: 1,
+    envMapIntensity: 0,
+    reflectivity: 0,
+    emissive: rimClothColor.clone().multiplyScalar(0.02)
   });
+  rimMaterial.needsUpdate = true;
   return { jawMaterial, rimMaterial };
 }
 
