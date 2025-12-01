@@ -287,6 +287,48 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 0.94;
 
+const PIECE_STYLE_OPTIONS = Object.freeze([
+  BEAUTIFUL_GAME_PIECE_STYLE,
+  {
+    id: 'ivoryObsidian',
+    label: 'Ivory & Obsidian',
+    white: { color: '#f7f1e9', roughness: 0.4, metalness: 0.16, sheen: 0.2, sheenColor: '#ffffff' },
+    black: {
+      color: '#0f1218',
+      roughness: 0.32,
+      metalness: 0.34,
+      sheen: 0.16,
+      sheenColor: '#7c879c',
+      emissive: '#0a0d14',
+      emissiveIntensity: 0.2
+    },
+    accent: '#d7b98c'
+  },
+  {
+    id: 'arcticChrome',
+    label: 'Arctic Chrome',
+    white: { color: '#e8f1ff', roughness: 0.22, metalness: 0.48, clearcoat: 0.38, sheen: 0.14 },
+    black: {
+      color: '#1a2433',
+      roughness: 0.24,
+      metalness: 0.52,
+      clearcoat: 0.36,
+      sheen: 0.12,
+      emissive: '#0c1424',
+      emissiveIntensity: 0.22
+    },
+    accent: '#7ad7ff'
+  },
+  {
+    id: 'emberGold',
+    label: 'Ember Gold',
+    white: { color: '#f6ebd0', roughness: 0.34, metalness: 0.26, sheen: 0.22 },
+    black: { color: '#26140f', roughness: 0.28, metalness: 0.36, sheen: 0.2, emissive: '#1a0d0a', emissiveIntensity: 0.18 },
+    accent: '#d39b47',
+    blackAccent: { color: '#c47c2d', metalness: 0.46, roughness: 0.24 }
+  }
+]);
+
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
 const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
@@ -329,8 +371,11 @@ const FALLBACK_FLAG = '🇺🇸';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
-  tableShape: 0
+  tableShape: 0,
+  boardColor: 0,
+  pieceStyle: 0
 };
+const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
@@ -378,6 +423,16 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
+const CUSTOMIZATION_SECTIONS = [
+  { key: 'boardColor', label: 'Board Colors', options: BOARD_COLOR_OPTIONS },
+  { key: 'pieceStyle', label: 'Chess Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
+  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
+  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
+  { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
+];
+
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const entries = [
@@ -385,7 +440,9 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
+    ['boardColor', BOARD_COLOR_OPTIONS.length],
+    ['pieceStyle', PIECE_STYLE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -958,9 +1015,10 @@ function buildBoardTheme(option) {
 }
 
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
-  normalizeAppearance(appearance);
-  const pieceOption = BEAUTIFUL_GAME_PIECE_STYLE;
-  const boardTheme = buildBoardTheme(BEAUTIFUL_GAME_THEME);
+  const normalized = normalizeAppearance(appearance);
+  const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle] ?? BEAUTIFUL_GAME_PIECE_STYLE;
+  const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+  const boardTheme = buildBoardTheme(boardOption);
   return {
     board: boardTheme,
     pieces: pieceOption,
@@ -2446,7 +2504,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const viewModeRef = useRef('3d');
   const cameraTweenRef = useRef(0);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true });
-  const [appearance] = useState({ ...DEFAULT_APPEARANCE });
+  const [appearance, setAppearance] = useState(() => {
+    if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
+    try {
+      const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
+      if (stored) {
+        return normalizeAppearance(JSON.parse(stored));
+      }
+    } catch {}
+    return { ...DEFAULT_APPEARANCE };
+  });
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
   const seatPositionsRef = useRef([]);
@@ -2518,6 +2585,92 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     viewModeRef.current = viewMode;
     cameraViewRef.current?.setMode(viewMode);
   }, [viewMode]);
+
+  const renderCustomizationPreview = useCallback((key, option) => {
+    if (!option) return null;
+    if (key === 'boardColor') {
+      return (
+        <div className="w-full overflow-hidden rounded-lg border border-white/10">
+          <div className="grid grid-cols-2" style={{ backgroundColor: option.frameDark }}>
+            {[0, 1, 2, 3].map((idx) => (
+              // eslint-disable-next-line react/no-array-index-key
+              <div key={idx} className="h-8" style={{ background: idx % 2 === 0 ? option.light : option.dark }} />
+            ))}
+          </div>
+        </div>
+      );
+    }
+    if (key === 'pieceStyle') {
+      return (
+        <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
+          <span
+            className="h-6 w-6 rounded-full border border-white/20 shadow"
+            style={{ background: option.white?.color || '#f5f5f7' }}
+          />
+          <span
+            className="h-6 w-6 rounded-full border border-white/20 shadow"
+            style={{ background: option.black?.color || '#111827' }}
+          />
+          <span
+            className="h-3 w-8 rounded-full border border-white/10"
+            style={{ background: option.accent || option.blackAccent?.color || '#caa472' }}
+          />
+        </div>
+      );
+    }
+    if (key === 'tableWood') {
+      const preset = WOOD_PRESETS_BY_ID[option.presetId] ?? WOOD_FINISH_PRESETS[0];
+      const color = `#${hslToHexNumber(preset.hue, preset.sat, preset.light).toString(16).padStart(6, '0')}`;
+      return <div className="h-10 w-full rounded-lg border border-white/10" style={{ background: color }} />;
+    }
+    if (key === 'tableCloth') {
+      return (
+        <div
+          className="h-10 w-full rounded-lg border border-white/10"
+          style={{ background: `linear-gradient(180deg, ${option.feltTop}, ${option.feltBottom})` }}
+        />
+      );
+    }
+    if (key === 'tableBase') {
+      return (
+        <div
+          className="h-10 w-full rounded-lg border border-white/10"
+          style={{ background: `linear-gradient(135deg, ${option.baseColor}, ${option.trimColor})` }}
+        />
+      );
+    }
+    if (key === 'chairColor') {
+      return (
+        <div
+          className="flex h-10 w-full items-center justify-between rounded-lg border border-white/10 px-2"
+          style={{ background: option.primary }}
+        >
+          <span className="h-6 w-6 rounded-full border border-white/30" style={{ background: option.accent }} />
+          <span className="h-4 w-8 rounded-full border border-white/20" style={{ background: option.legColor }} />
+        </div>
+      );
+    }
+    if (key === 'tableShape') {
+      return (
+        <div className="flex h-10 w-full items-center justify-center rounded-lg border border-white/10 bg-white/5">
+          <div
+            className="h-7 w-14 bg-sky-300/60"
+            style={{ ...(option.preview || {}), border: '1px solid rgba(255,255,255,0.35)' }}
+          />
+        </div>
+      );
+    }
+    return null;
+  }, []);
+
+  const resetAppearance = useCallback(() => {
+    setAppearance({ ...DEFAULT_APPEARANCE });
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage?.removeItem(APPEARANCE_STORAGE_KEY);
+      } catch {}
+    }
+  }, []);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -2591,6 +2744,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   useEffect(() => {
     appearanceRef.current = appearance;
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+      } catch {}
+    }
   }, [appearance]);
 
   useEffect(() => {
@@ -2731,8 +2889,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
-    const boardTheme = BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces;
+    const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
+    const pieceStyleOption = palette.pieces ?? BEAUTIFUL_GAME_PIECE_STYLE;
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -2894,8 +3052,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const normalizedAppearance = normalizeAppearance(appearanceRef.current);
     const palette = createChessPalette(normalizedAppearance);
     paletteRef.current = palette;
-    const boardTheme = BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces;
+    const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
+    const pieceStyleOption = palette.pieces ?? BEAUTIFUL_GAME_PIECE_STYLE;
     const initialPlayerFlag =
       playerFlag ||
       resolvedInitialFlag ||
@@ -4066,13 +4224,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
-                  <p className="mt-1 text-[0.7rem] text-white/70">
-                    Board and pieces are locked to the “A Beautiful Game” set.
-                  </p>
-                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
+                    <p className="mt-1 text-[0.7rem] text-white/70">
+                    Personalize the board, pieces, chairs, and table finish.
+                    </p>
+                  </div>
                 <button
                   type="button"
                   onClick={() => setConfigOpen(false)}
@@ -4120,6 +4278,58 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                 >
                   Restart match
                 </button>
+                <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, board palette, and chess pieces.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={resetAppearance}
+                      className="rounded-lg border border-white/15 px-2 py-1 text-[0.65rem] font-semibold text-white/80 transition hover:border-white/30 hover:text-white"
+                    >
+                      Reset
+                    </button>
+                  </div>
+                  <div className="mt-3 max-h-72 space-y-3 overflow-y-auto pr-1">
+                    {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                      <div key={key} className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">{label}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {options.map((option, idx) => {
+                            const selected = appearance[key] === idx;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                onClick={() =>
+                                  setAppearance((prev) =>
+                                    normalizeAppearance({
+                                      ...prev,
+                                      [key]: idx
+                                    })
+                                  )
+                                }
+                                aria-pressed={selected}
+                                className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                  selected
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                }`}
+                              >
+                                {renderCustomizationPreview(key, option)}
+                                <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
+                                  {option.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
           )}
