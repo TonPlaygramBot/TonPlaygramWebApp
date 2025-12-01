@@ -410,7 +410,7 @@ const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profi
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.068; // double the fascia depth for a chunkier chrome plate without changing its footprint
+const CHROME_PLATE_THICKNESS_SCALE = 0.034; // match snooker fascia depth for consistent chrome heft at the pockets
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08; // give the middle fascias a subtle lift for extra depth like the snooker table
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
@@ -5620,7 +5620,7 @@ function Table3D(
   );
   const clothExtend =
     clothExtendBase +
-    Math.min(PLAY_W, PLAY_H) * 0.0068; // push the cloth farther under the chrome and pocket rims to eliminate visible voids
+    Math.min(PLAY_W, PLAY_H) * 0.0042; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
   const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
