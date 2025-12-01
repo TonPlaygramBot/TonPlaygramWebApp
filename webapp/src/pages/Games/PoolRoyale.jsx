@@ -5444,14 +5444,12 @@ function Table3D(
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25; // tighten the weave for a smaller, denser pattern
-  const clothTextureScale =
-    0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
+  const threadsPerBallTarget = 10; // match snooker cloth density for identical weave sizing
+  const clothTextureScale = 0.032 * 1.35 * 0.85; // align Pool Royale cloth pattern scale with snooker
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
-  const repeatRatio = 3.45;
+  const repeatRatio = 3.25;
   const baseBumpScale =
     (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
   const flattenedBumpScale = baseBumpScale * 0.42;
@@ -5472,8 +5470,8 @@ function Table3D(
     ...(clothMat.userData || {}),
     baseRepeat,
     repeatRatio,
-    nearRepeat: baseRepeat * 1.12,
-    farRepeat: baseRepeat * 0.44,
+    nearRepeat: baseRepeat * 1.18,
+    farRepeat: baseRepeat * 0.5,
     bumpScale: clothMat.bumpScale,
     baseBumpScale: clothMat.bumpScale,
     quality: CLOTH_QUALITY
@@ -6193,10 +6191,11 @@ function Table3D(
     chromePlateWidth / 2,
     chromePlateHeight / 2
   );
-  const chromePlateY =
-    railsTopY - chromePlateThickness + MICRO_EPS * 2;
+  const chromePlateTopY = railsTopY + MICRO_EPS * 6 + RAIL_MARKER_THICKNESS;
+  const chromePlateY = chromePlateTopY - chromePlateThickness; // lift fascia to the same top height as the diamond markers
+  const sideChromePlateTopY = chromePlateTopY;
   const sideChromePlateY =
-    railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
+    sideChromePlateTopY - sideChromePlateThickness;
   const chromeCornerCenterOutset =
     TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
   const chromeCornerShortRailShift =
