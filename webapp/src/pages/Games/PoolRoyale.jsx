@@ -13534,6 +13534,7 @@ function PoolRoyaleGame({
       // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
+        const frameSnapshot = frameRef.current ?? frameState;
         const fullTableHandPlacement =
           allowFullTableInHand() && Boolean(frameSnapshot?.meta?.state?.ballInHand);
         const inHandPlacementActive = Boolean(
@@ -13556,7 +13557,6 @@ function PoolRoyaleGame({
         alignStandingCameraToAim(cue, aimDirRef.current);
         applyCameraBlend(forcedCueView ? 0 : 1);
         updateCamera();
-        const frameSnapshot = frameRef.current ?? frameState;
         let placedFromHand = false;
         const meta = frameSnapshot?.meta;
         if (meta && typeof meta === 'object') {
