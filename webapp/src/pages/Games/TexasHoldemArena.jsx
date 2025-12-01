@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -41,9 +42,10 @@ import {
 } from '../../../../lib/texasHoldemGame.js';
 
 const MODEL_SCALE = 0.75;
+const TABLE_SIZE_SCALE = 0.85;
 const ARENA_GROWTH = 1.45;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SIZE_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SIZE_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
 const CHAIR_SIZE_SCALE = 1.3;
@@ -1238,6 +1240,7 @@ function buildInitialState(players, token, stake) {
     handId: 0,
     showdown: false,
     winningCommunityCards: [],
+    hiddenFlop: [],
     winnerFocusIndex: null
   };
 }
@@ -1254,6 +1257,7 @@ function resetForNextHand(state) {
   next.minRaise = BIG_BLIND;
   next.dealerIndex = (state.dealerIndex + 1) % state.players.length;
   next.winningCommunityCards = [];
+  next.hiddenFlop = [];
   next.winnerFocusIndex = null;
   next.players = state.players.map((p, idx) => ({
     ...p,
@@ -1273,6 +1277,7 @@ function resetForNextHand(state) {
     return next;
   }
   dealHoleCardsToState(next);
+  prepareHiddenFlop(next);
   postBlinds(next);
   prepareNextAction(next, true);
   return next;
@@ -1287,6 +1292,15 @@ function dealHoleCardsToState(state) {
     player.allIn = player.chips <= 0;
     player.status = player.folded ? 'Out' : '';
   });
+}
+
+function prepareHiddenFlop(state) {
+  if (state.deck.length < 4) return;
+  state.deck.pop();
+  const cardA = state.deck.pop();
+  const cardB = state.deck.pop();
+  const cardC = state.deck.pop();
+  state.hiddenFlop = [cardA, cardB, cardC];
 }
 
 function postBlinds(state) {
@@ -1355,11 +1369,16 @@ function advanceStage(state) {
   const nextStage = STAGE_SEQUENCE[stageIndex + 1];
   state.stage = nextStage;
   if (nextStage === 'flop') {
-    state.deck.pop();
-    const cardA = state.deck.pop();
-    const cardB = state.deck.pop();
-    const cardC = state.deck.pop();
-    state.community = [cardA, cardB, cardC];
+    if (state.hiddenFlop?.length === 3) {
+      state.community = [...state.hiddenFlop];
+      state.hiddenFlop = [];
+    } else {
+      state.deck.pop();
+      const cardA = state.deck.pop();
+      const cardB = state.deck.pop();
+      const cardC = state.deck.pop();
+      state.community = [cardA, cardB, cardC];
+    }
   } else if (nextStage === 'turn' || nextStage === 'river') {
     state.deck.pop();
     state.community = [...state.community, state.deck.pop()];
@@ -1378,6 +1397,10 @@ function advanceStage(state) {
 }
 
 function goToShowdown(state) {
+  if (!state.community.length && state.hiddenFlop?.length === 3) {
+    state.community = [...state.hiddenFlop];
+    state.hiddenFlop = [];
+  }
   while (state.community.length < 5 && state.deck.length) {
     if (state.community.length === 3 || state.community.length === 4) {
       state.deck.pop();
@@ -1771,89 +1794,23 @@ function TexasHoldemArena({ search }) {
   const applyHeadOrientation = useCallback(() => {
     const three = threeRef.current;
     if (!three) return;
-    const { camera } = three;
-    const basis = cameraBasisRef.current;
-    const { yaw, pitch } = headAnglesRef.current;
-
-    const yawQuat = new THREE.Quaternion().setFromAxisAngle(WORLD_UP, yaw);
-    const rotatedForward = basis.baseForward.clone().applyQuaternion(yawQuat);
-    const rotatedUp = basis.baseUp.clone().applyQuaternion(yawQuat);
-    const rightAxis = basis.baseRight.clone().applyQuaternion(yawQuat);
-    const pitchQuat = new THREE.Quaternion().setFromAxisAngle(rightAxis, pitch);
-    const finalForward = rotatedForward.applyQuaternion(pitchQuat).normalize();
-    const finalUp = rotatedUp.applyQuaternion(pitchQuat).normalize();
-
-    camera.position.copy(basis.position);
-    camera.up.copy(finalUp);
-    camera.lookAt(basis.position.clone().add(finalForward));
-    three.orientHumanCards?.();
+    three.orbitControls?.update?.();
   }, []);
 
   const focusCameraOnSeat = useCallback(
     (seatIndex, immediate = false) => {
       if (typeof seatIndex !== 'number' || seatIndex < 0) return;
       const three = threeRef.current;
-      const basis = cameraBasisRef.current;
-      if (!three || !basis) return;
+      if (!three) return;
       const seat = three.seatGroups?.[seatIndex];
       if (!seat) return;
-      const focusPoint = seat.stoolAnchor.clone();
-      focusPoint.y += seat.stoolHeight + CAMERA_TURN_FOCUS_LIFT;
-      const toTarget = focusPoint.sub(basis.position);
-      if (toTarget.lengthSq() === 0) return;
-      const projected = toTarget.clone().projectOnPlane(basis.baseUp);
-      if (projected.lengthSq() === 0) return;
-      projected.normalize();
-      const baseForward = basis.baseForward.clone().projectOnPlane(basis.baseUp).normalize();
-      const baseRight = basis.baseRight.clone().projectOnPlane(basis.baseUp).normalize();
-      const yaw = Math.atan2(projected.dot(baseRight), projected.dot(baseForward));
-      const clampedYaw = THREE.MathUtils.clamp(yaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
-      if (immediate) {
-        headAnglesRef.current.yaw = clampedYaw;
-        headAnglesRef.current.pitch = 0;
-        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
-        applyHeadOrientation();
-      } else {
-        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
-      }
+      three.orbitControls?.target.copy(seat.chipAnchor ?? seat.stoolAnchor ?? new THREE.Vector3());
+      three.orbitControls?.update?.();
     },
-    [applyHeadOrientation]
+    []
   );
 
-  const updateCameraAutoTarget = useCallback((actionIndex) => {
-    if (typeof actionIndex !== 'number' || actionIndex < 0) {
-      return;
-    }
-    const three = threeRef.current;
-    const basis = cameraBasisRef.current;
-    if (!three || !basis) return;
-    const seat = three.seatGroups?.[actionIndex];
-    const playerState = gameStateRef.current?.players?.[actionIndex];
-    if (!playerState || playerState.folded || playerState.chips <= 0) {
-      if (cameraAutoTargetRef.current?.activeIndex === actionIndex) {
-        cameraAutoTargetRef.current = null;
-      }
-      return;
-    }
-    if (!seat || seat.isHuman || seat.folded) {
-      if (cameraAutoTargetRef.current?.activeIndex === actionIndex) {
-        cameraAutoTargetRef.current = null;
-      }
-      return;
-    }
-    const focusPoint = seat.stoolAnchor.clone();
-    focusPoint.y += seat.stoolHeight + CAMERA_TURN_FOCUS_LIFT;
-    const toTarget = focusPoint.sub(basis.position);
-    if (toTarget.lengthSq() === 0) return;
-    const projected = toTarget.clone().projectOnPlane(basis.baseUp);
-    if (projected.lengthSq() === 0) return;
-    projected.normalize();
-    const baseForward = basis.baseForward.clone().projectOnPlane(basis.baseUp).normalize();
-    const baseRight = basis.baseRight.clone().projectOnPlane(basis.baseUp).normalize();
-    const yaw = Math.atan2(projected.dot(baseRight), projected.dot(baseForward));
-    const clampedYaw = THREE.MathUtils.clamp(yaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
-    cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: actionIndex };
-  }, []);
+  const updateCameraAutoTarget = useCallback(() => {}, []);
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -2107,6 +2064,14 @@ function TexasHoldemArena({ search }) {
       CAMERA_SETTINGS.far
     );
     camera.position.set(0, TABLE_HEIGHT * 2.85, TABLE_RADIUS * 3.9);
+    const orbitControls = new OrbitControls(camera, renderer.domElement);
+    orbitControls.enableDamping = true;
+    orbitControls.dampingFactor = 0.08;
+    orbitControls.enablePan = false;
+    orbitControls.minDistance = CAMERA_SETTINGS.minRadius;
+    orbitControls.maxDistance = CAMERA_SETTINGS.maxRadius;
+    orbitControls.maxPolarAngle = Math.PI * 0.48;
+    orbitControls.target.set(0, TABLE_HEIGHT, 0);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
 
@@ -2245,18 +2210,8 @@ function TexasHoldemArena({ search }) {
         baseRight,
         pitchLimits
       };
-      headAnglesRef.current.yaw = THREE.MathUtils.clamp(0, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
-      headAnglesRef.current.pitch = 0;
-      cameraAutoTargetRef.current = {
-        yaw: headAnglesRef.current.yaw,
-        activeIndex: cameraAutoTargetRef.current.activeIndex
-      };
-      applyHeadOrientation();
-      const currentActionIndex = gameStateRef.current?.actionIndex;
-      const stage = gameStateRef.current?.stage;
-      if (typeof currentActionIndex === 'number' && stage !== 'showdown') {
-        updateCameraAutoTarget(currentActionIndex);
-      }
+      orbitControls.target.copy(focus);
+      orbitControls.update();
     };
 
     const applyOverheadCamera = () => {
@@ -2276,10 +2231,8 @@ function TexasHoldemArena({ search }) {
         baseRight,
         pitchLimits: { min: 0, max: 0 }
       };
-      headAnglesRef.current.yaw = 0;
-      headAnglesRef.current.pitch = 0;
-      cameraAutoTargetRef.current = null;
-      applyHeadOrientation();
+      orbitControls.target.copy(focus);
+      orbitControls.update();
     };
 
     viewControlsRef.current = { applySeatedCamera, applyOverheadCamera };
@@ -2509,7 +2462,7 @@ function TexasHoldemArena({ search }) {
             const lookTarget = position
               .clone()
               .add(new THREE.Vector3(0, HUMAN_CARD_LOOK_LIFT, 0))
-              .addScaledVector(forward, HUMAN_CARD_LOOK_SPLAY);
+              .addScaledVector(forward, -HUMAN_CARD_LOOK_SPLAY);
             orientCard(mesh, lookTarget, { face: 'front', flat: true });
             setCardFace(mesh, 'front');
           });
@@ -2535,6 +2488,7 @@ function TexasHoldemArena({ search }) {
         chairMaterials,
         arenaGroup,
         tableInfo,
+        orbitControls,
         tableShapeId: initialShape.id,
         cardThemeId: cardTheme.id
       };
@@ -2605,9 +2559,9 @@ function TexasHoldemArena({ search }) {
     };
 
     const handlePointerDown = (event) => {
-      event.preventDefault();
       const interactive = pickInteractive(event);
       if (interactive) {
+        event.preventDefault();
         const { target } = interactive;
         const type = target.userData?.type;
         if (type === 'button' && target.userData?.enabled === false) {
@@ -2634,19 +2588,7 @@ function TexasHoldemArena({ search }) {
         }
         return;
       }
-      pointerStateRef.current = {
-        active: true,
-        pointerId: event.pointerId,
-        mode: 'camera',
-        startX: event.clientX,
-        startY: event.clientY,
-        startYaw: headAnglesRef.current.yaw,
-        startPitch: headAnglesRef.current.pitch,
-        buttonAction: null,
-        dragged: false
-      };
-      element.setPointerCapture(event.pointerId);
-      element.style.cursor = 'grabbing';
+      resetPointerState();
     };
 
     const handlePointerMove = (event) => {
@@ -2662,24 +2604,6 @@ function TexasHoldemArena({ search }) {
         element.style.cursor = hit ? 'pointer' : 'grab';
         return;
       }
-      if (state.mode === 'camera') {
-        const dx = event.clientX - state.startX;
-        if (!state.dragged && Math.abs(dx) > 3) {
-          state.dragged = true;
-        }
-        headAnglesRef.current.yaw = THREE.MathUtils.clamp(
-          state.startYaw - dx * HEAD_YAW_SENSITIVITY,
-          -CAMERA_HEAD_TURN_LIMIT,
-          CAMERA_HEAD_TURN_LIMIT
-        );
-        headAnglesRef.current.pitch = 0;
-        cameraAutoTargetRef.current = {
-          yaw: headAnglesRef.current.yaw,
-          activeIndex: cameraAutoTargetRef.current.activeIndex
-        };
-        applyHeadOrientation();
-        return;
-      }
       if (state.mode === 'button' || state.mode === 'chip-button') {
         const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
         state.dragged = distance > 10;
@@ -2690,8 +2614,6 @@ function TexasHoldemArena({ search }) {
       const state = pointerStateRef.current;
       if (state.pointerId === event.pointerId) {
         element.releasePointerCapture(event.pointerId);
-        const wasCameraDrag = state.mode === 'camera' && state.dragged;
-        const releaseYaw = headAnglesRef.current.yaw;
         if (state.mode === 'button' && !state.dragged) {
           if (state.buttonAction === 'undo') {
             interactionsRef.current.onUndo?.();
@@ -2700,15 +2622,6 @@ function TexasHoldemArena({ search }) {
         resetPointerState();
         element.style.cursor = 'grab';
         applyHoverTarget(null);
-        if (wasCameraDrag) {
-          cameraAutoTargetRef.current = { yaw: releaseYaw, activeIndex: null };
-        } else {
-          const currentActionIndex = gameStateRef.current?.actionIndex;
-          const stage = gameStateRef.current?.stage;
-          if (typeof currentActionIndex === 'number' && stage !== 'showdown') {
-            updateCameraAutoTarget(currentActionIndex);
-          }
-        }
       }
     };
 
@@ -2725,7 +2638,11 @@ function TexasHoldemArena({ search }) {
       r.setSize(clientWidth, clientHeight);
       cam.aspect = clientWidth / clientHeight;
       cam.updateProjectionMatrix();
-      applySeatedCamera(clientWidth, clientHeight);
+      if (overheadView) {
+        applyOverheadCamera();
+      } else {
+        applySeatedCamera(clientWidth, clientHeight);
+      }
     };
 
     window.addEventListener('resize', handleResize);
@@ -2736,29 +2653,13 @@ function TexasHoldemArena({ search }) {
         animationRef.current = requestAnimationFrame(animate);
         return;
       }
-      const pointerState = pointerStateRef.current;
       if (lastFrameRef.current == null) {
         lastFrameRef.current = time;
       }
       const deltaSeconds = Math.max(0, Math.min(0.1, (time - lastFrameRef.current) / 1000));
       lastFrameRef.current = time;
       three.chipFactory.update(deltaSeconds);
-      if (!pointerState.active || pointerState.mode !== 'camera') {
-        const targetYaw = cameraAutoTargetRef.current?.yaw;
-        if (typeof targetYaw === 'number') {
-          const currentYaw = headAnglesRef.current.yaw;
-          const delta = targetYaw - currentYaw;
-          if (Math.abs(delta) > 0.0005) {
-            headAnglesRef.current.yaw = currentYaw + delta * CAMERA_AUTO_YAW_SMOOTHING;
-          } else {
-            headAnglesRef.current.yaw = targetYaw;
-          }
-        }
-      } else {
-        cameraAutoTargetRef.current.yaw = headAnglesRef.current.yaw;
-      }
-      headAnglesRef.current.pitch = 0;
-      applyHeadOrientation();
+      three.orbitControls?.update?.();
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -2781,6 +2682,7 @@ function TexasHoldemArena({ search }) {
           seatGroups: seats,
           communityMeshes: community,
           raiseControls: controls,
+          orbitControls: orbit,
           chairMaterials,
           arenaGroup: arena
         } = threeRef.current;
@@ -2825,6 +2727,7 @@ function TexasHoldemArena({ search }) {
         factory.dispose();
         arena?.parent?.remove(arena);
         controls?.dispose?.();
+        orbit?.dispose?.();
         disposeChairMaterials(chairMaterials);
         tableInfo?.dispose?.();
         r.dispose();
@@ -2847,6 +2750,8 @@ function TexasHoldemArena({ search }) {
 
     const showdownState = showdownAnimationRef.current;
     const winningCommunity = new Set(state.winningCommunityCards ?? []);
+    const hiddenFlop = state.hiddenFlop ?? [];
+    const stage = state.stage;
 
     state.players.forEach((player, idx) => {
       const seat = seatGroups[idx];
@@ -2988,7 +2893,10 @@ function TexasHoldemArena({ search }) {
     three.orientHumanCards?.();
 
     communityMeshes.forEach((mesh, idx) => {
-      const card = state.community[idx];
+      const activeCommunityCard = state.community[idx];
+      const hiddenCard = hiddenFlop[idx];
+      const showHidden = stage === 'preflop' && idx < 3 && hiddenCard;
+      const card = showHidden ? hiddenCard : activeCommunityCard;
       if (!card) {
         mesh.position.copy(deckAnchor);
         mesh.visible = false;
@@ -3005,14 +2913,14 @@ function TexasHoldemArena({ search }) {
         baseY + COMMUNITY_CARD_LOOK_LIFT,
         COMMUNITY_CARD_FORWARD_OFFSET + 1
       );
-      orientCard(mesh, lookTarget, { face: 'front', flat: true });
+      orientCard(mesh, lookTarget, { face: showHidden ? 'back' : 'front', flat: true });
       if (COMMUNITY_CARD_TILT) {
         mesh.rotateX(COMMUNITY_CARD_TILT);
       }
-      setCardFace(mesh, 'front');
+      setCardFace(mesh, showHidden ? 'back' : 'front');
       const communityKey = cardKey(card);
-      setCardHighlight(mesh, state.showdown && winningCommunity.has(communityKey));
-      if (!previous?.community?.[idx]) {
+      setCardHighlight(mesh, !showHidden && state.showdown && winningCommunity.has(communityKey));
+      if (!showHidden && !previous?.community?.[idx]) {
         playSound('flip');
       }
     });
@@ -3053,19 +2961,11 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     if (typeof currentActionIndex !== 'number') return;
     if (currentStage === 'showdown') return;
-    const three = threeRef.current;
-    if (!three) return;
-    const seat = three.seatGroups?.[currentActionIndex];
-    if (seat?.isHuman) {
-      headAnglesRef.current.yaw = 0;
-      headAnglesRef.current.pitch = 0;
-      cameraAutoTargetRef.current = { yaw: 0, activeIndex: currentActionIndex };
-      applyHeadOrientation();
+    const player = gameState?.players?.[currentActionIndex];
+    if (player?.isHuman) {
       playSound('knock');
-      return;
     }
-    updateCameraAutoTarget(currentActionIndex);
-  }, [currentActionIndex, currentStage, updateCameraAutoTarget, applyHeadOrientation, playSound]);
+  }, [currentActionIndex, currentStage, gameState, playSound]);
 
   useEffect(() => {
     if (!gameState) return;
