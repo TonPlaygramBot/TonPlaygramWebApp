@@ -171,10 +171,16 @@ function playNoise({ duration = 0.32, gain = 0.16, filterType = "lowpass", frequ
   source.stop(now + duration + 0.05);
 }
 
+function playDominoClick() {
+  const pan = (Math.random() - 0.5) * 0.25;
+  playNoise({ duration: 0.08, gain: 0.2, filterType: "bandpass", frequency: 1820, pan });
+  playEnvelope({ frequency: 210, type: "sine", gain: 0.14, duration: 0.08, attack: 0.002, decay: 0.08, detune: -8, pan: pan * 0.4 });
+  playEnvelope({ frequency: 480, type: "triangle", gain: 0.12, duration: 0.05, attack: 0.001, decay: 0.06, detune: 9, pan });
+}
+
 const SFX = {
   place() {
-    playEnvelope({ frequency: 520, type: "triangle", gain: 0.28, duration: 0.12, attack: 0.005, decay: 0.08, detune: -12 });
-    playEnvelope({ frequency: 820, type: "sine", gain: 0.18, duration: 0.08, attack: 0.005, decay: 0.08, detune: 6 });
+    playDominoClick();
   },
   draw() {
     playEnvelope({ frequency: 360, type: "sawtooth", gain: 0.18, duration: 0.12, attack: 0.006, decay: 0.12, detune: -4, pan: -0.08 });
@@ -202,7 +208,7 @@ function playPassSfx() {
 /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
-const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.25, 3));
+const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.1, 2.4));
 renderer.setPixelRatio(devicePixelRatioTarget);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
@@ -210,7 +216,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 1.85;
 function setRendererSize(){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
 renderer.setSize(w, h, false);
@@ -256,16 +262,16 @@ const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const HUMAN_SEAT_INDEX = 0;
 const CHAIR_SEAT_ANGLES = Object.freeze([
-  THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
-  THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  Math.PI / 2,
+  0,
+  (3 * Math.PI) / 2,
+  Math.PI
 ]);
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS,
-  CHAIR_RADIUS * 0.94,
+  CHAIR_RADIUS * 0.98,
   CHAIR_RADIUS * 1.02,
-  CHAIR_RADIUS * 0.94
+  CHAIR_RADIUS * 0.98
 ]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -493,10 +499,10 @@ function toggleCameraViewMode() {
 
 
 /* ---------- Lights ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.55));
-const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
-const rimLight = new THREE.DirectionalLight(0xffffff, 0.55); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.32));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.42));
+const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.42); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
 
 const getPoolCarpetTextures = (() => {
   let cache = null;
@@ -2524,7 +2530,7 @@ const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
-const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
+const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.05;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
 const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.25;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
@@ -2679,7 +2685,7 @@ let boneyardStackTopLocal = 0;
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = 640;
+const PLACE_ANIM_DURATION = 480;
 const PLACE_ANIM_ARC = 0.05;
 const CPU_PLAY_DELAY = 2000;
 
