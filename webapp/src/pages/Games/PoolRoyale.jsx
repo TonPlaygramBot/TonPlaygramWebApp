@@ -14157,6 +14157,62 @@ function PoolRoyaleGame({
           });
           potShots.sort((a, b) => a.difficulty - b.difficulty);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
+          if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
+            const targetBall = activeBalls
+              .filter((b) => b.id !== cue.id)
+              .sort((a, b) => a.id - b.id)[0];
+            if (targetBall) {
+              const pocketCenter = centers
+                .slice()
+                .sort(
+                  (a, b) =>
+                    targetBall.pos.distanceToSquared(a) - targetBall.pos.distanceToSquared(b)
+                )[0];
+              if (pocketCenter) {
+                const toPocketDir = pocketCenter.clone().sub(targetBall.pos).normalize();
+                const ghost = targetBall.pos
+                  .clone()
+                  .sub(toPocketDir.clone().multiplyScalar(ballDiameter));
+                const cueVec = ghost.clone().sub(cuePos);
+                if (cueVec.lengthSq() < 1e-6) cueVec.set(0, 1);
+                const aimDir = cueVec.clone().normalize();
+                const cueDist = cueVec.length();
+                const toPocket = targetBall.pos.distanceTo(pocketCenter);
+                const power = computePowerFromDistance(cueDist + toPocket);
+                potShots.push({
+                  type: 'pot',
+                  aimDir,
+                  power,
+                  target: toBallColorId(targetBall.id),
+                  targetBall,
+                  pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
+                  pocketCenter: pocketCenter.clone(),
+                  difficulty: cueDist + toPocket,
+                  cueToTarget: cueDist,
+                  targetToPocket: toPocket,
+                  railNormal: null,
+                  viaCushion: false,
+                  spin: computePlanSpin(
+                    {
+                      type: 'pot',
+                      aimDir,
+                      power,
+                      target: toBallColorId(targetBall.id),
+                      targetBall,
+                      pocketId: POCKET_IDS[centers.indexOf(pocketCenter)] ?? 'TM',
+                      pocketCenter: pocketCenter.clone(),
+                      difficulty: cueDist + toPocket,
+                      cueToTarget: cueDist,
+                      targetToPocket: toPocket,
+                      railNormal: null,
+                      viaCushion: false
+                    },
+                    state
+                  )
+                });
+              }
+            }
+          }
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
