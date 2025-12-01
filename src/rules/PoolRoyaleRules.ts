@@ -430,9 +430,6 @@ export class PoolRoyaleRules {
     if (previous) {
       applyAmericanState(game, previous.state);
     } else {
-      // Preserve the current turn information so the active player is not reset
-      // when the previous frame snapshot is missing (e.g. after a hot reload).
-      game.state.currentPlayer = state.activePlayer ?? 'A';
       game.state.ballInHand = true;
     }
     const contactOrder: number[] = [];
@@ -515,9 +512,6 @@ export class PoolRoyaleRules {
     if (previous) {
       applyNineState(game, previous.state);
     } else {
-      // Keep the active player in sync if we lost the previous snapshot so the
-      // turn does not get stuck on player A.
-      game.state.currentPlayer = state.activePlayer ?? 'A';
       game.state.ballInHand = true;
     }
     const contactOrder: number[] = [];
