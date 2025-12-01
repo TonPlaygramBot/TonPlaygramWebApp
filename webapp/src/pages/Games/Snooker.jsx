@@ -268,6 +268,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.136;
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // align the side chrome arches with the wooden rail cuts like Pool Royale
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
@@ -294,6 +295,23 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01;
+const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION;
+const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42;
+const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR;
+const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97;
+const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR;
+const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.6;
+const POCKET_JAW_CENTER_TAPER_HOLD = 0.46;
+const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD;
+const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE;
+const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER;
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085;
+const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05;
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.06;
+const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72;
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82;
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 120;
@@ -2924,6 +2942,10 @@ const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
+const TOP_VIEW_MARGIN = 0.42;
+const TOP_VIEW_RADIUS_SCALE = 0.4;
+const TOP_VIEW_MIN_RADIUS_SCALE = 0.95;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.04, CAMERA_MIN_PHI * 0.62);
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.026; // align orbit distance with Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -4059,6 +4081,7 @@ function Table3D(
       ? resolvedFinish.createMaterials
       : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials;
   const rawMaterials = createMaterialsFn();
+  applySnookerWoodPreset(rawMaterials, resolvedFinish.id);
   let fallbackMaterials = null;
   const getFallbackMaterial = (key) => {
     if (!fallbackMaterials) {
@@ -4881,7 +4904,10 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
+    const centerX =
+      sx *
+      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset +
+        TABLE.THICK * CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE);
     const centerZ = 0;
     const notchMP = sideNotchMP(sx);
     const sidePocketCutCenterPull =
@@ -4925,7 +4951,8 @@ function Table3D(
     sideThinFactor,
     middleThinFactor,
     centerEase,
-    clampOuter
+    clampOuter,
+    outerExpansion = 0
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -4942,6 +4969,9 @@ function Table3D(
     const endAngle = orientationAngle + halfAngle;
     const innerBaseRadius = Math.max(MICRO_EPS, baseRadius * innerScale);
     let outerLimit = Math.max(innerBaseRadius + MICRO_EPS, baseRadius * outerScale);
+    if (Number.isFinite(outerExpansion)) {
+      outerLimit = Math.max(innerBaseRadius + MICRO_EPS, outerLimit + outerExpansion);
+    }
     if (Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS) {
       outerLimit = Math.min(outerLimit, clampOuter);
       outerLimit = Math.max(innerBaseRadius + MICRO_EPS, outerLimit);
@@ -5062,7 +5092,8 @@ function Table3D(
     orientationAngle,
     wide,
     isMiddle,
-    clampOuter
+    clampOuter,
+    outerExpansion = 0
   }) => {
     const baseInnerScale = wide
       ? POCKET_JAW_SIDE_INNER_SCALE
@@ -5074,7 +5105,7 @@ function Table3D(
     let localClampOuter = clampOuter;
     let localJawAngle = jawAngle;
     let depthMultiplier = 1;
-    let steps = wide ? 88 : 68;
+    let steps = wide ? 132 : 104;
 
     if (isMiddle) {
       localJawAngle *= SIDE_POCKET_JAW_LATERAL_EXPANSION;
@@ -5094,8 +5125,12 @@ function Table3D(
       );
     }
 
-    let sideThinFactor = wide ? 0.3 : 0.36;
-    let middleThinFactor = wide ? 0.82 : 0.92;
+    let sideThinFactor = wide
+      ? POCKET_JAW_SIDE_EDGE_FACTOR
+      : POCKET_JAW_CORNER_EDGE_FACTOR;
+    let middleThinFactor = wide
+      ? POCKET_JAW_SIDE_MIDDLE_FACTOR
+      : POCKET_JAW_CORNER_MIDDLE_FACTOR;
     if (isMiddle && wide) {
       sideThinFactor *= SIDE_POCKET_JAW_SIDE_TRIM_SCALE;
       middleThinFactor *= SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE;
@@ -5111,16 +5146,23 @@ function Table3D(
       steps,
       sideThinFactor,
       middleThinFactor,
-      centerEase: wide ? 0.28 : 0.36,
-      clampOuter: localClampOuter
+      centerEase: 0.36,
+      clampOuter: localClampOuter,
+      outerExpansion
     });
     if (!jawShape) {
       return null;
     }
-    const jawDepth = Math.max(
+    let jawDepth = Math.max(
       MICRO_EPS,
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
+    const clearance = Math.max(0, POCKET_JAW_BOTTOM_CLEARANCE);
+    const pocketFloor = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset - clearance;
+    const maxJawDepth = jawTopY - pocketFloor;
+    if (Number.isFinite(maxJawDepth)) {
+      jawDepth = Math.min(jawDepth, Math.max(MICRO_EPS, maxJawDepth));
+    }
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
@@ -5131,7 +5173,8 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    jawMesh.position.y = railsTopY;
+    const jawVerticalOffset = isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0;
+    jawMesh.position.y = railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -5221,7 +5264,8 @@ function Table3D(
         orientationAngle,
         wide: false,
         isMiddle: false,
-        clampOuter: cornerJawOuterLimit
+        clampOuter: cornerJawOuterLimit,
+        outerExpansion: POCKET_JAW_CORNER_OUTER_EXPANSION
       });
     });
   }
@@ -5241,7 +5285,8 @@ function Table3D(
         orientationAngle,
         wide: true,
         isMiddle: true,
-        clampOuter: sideJawOuterLimit
+        clampOuter: sideJawOuterLimit,
+        outerExpansion: SIDE_POCKET_JAW_OUTER_EXPANSION
       });
     });
   }
@@ -5764,6 +5809,7 @@ function applyTableFinishToTable(table, finish) {
       ? resolvedFinish.createMaterials
       : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials;
   const rawMaterials = createMaterialsFn();
+  applySnookerWoodPreset(rawMaterials, resolvedFinish.id);
   let fallbackMaterials = null;
   const getFallbackMaterial = (key) => {
     if (!fallbackMaterials) {
@@ -5810,24 +5856,10 @@ function applyTableFinishToTable(table, finish) {
   finishInfo.parts.railMeshes.forEach((mesh) => swapMaterial(mesh, railMat));
   finishInfo.parts.trimMeshes.forEach((mesh) => swapMaterial(mesh, trimMat));
   finishInfo.parts.pocketJawMeshes.forEach((mesh) => swapMaterial(mesh, pocketJawMat));
-
-  const stripWoodTexture = (material) => {
-    if (!material) return;
-    ['map', 'normalMap', 'roughnessMap', 'bumpMap', 'metalnessMap'].forEach((prop) => {
-      if (material[prop]) {
-        material[prop] = null;
-      }
-    });
-    material.needsUpdate = true;
-  };
-  stripWoodTexture(frameMat);
-  stripWoodTexture(railMat);
-  if (legMat !== frameMat) {
-    stripWoodTexture(legMat);
-  }
-  finishInfo.parts.woodSurfaces = { frame: null, rail: null };
-  finishInfo.woodTextureId = null;
-  finishInfo.parts.woodTextureId = null;
+  finishInfo.parts.woodSurfaces = finishInfo.parts.woodSurfaces || { frame: null, rail: null };
+  finishInfo.woodTextureId =
+    resolvedFinish?.woodTextureId ?? finishInfo.woodTextureId ?? DEFAULT_WOOD_GRAIN_ID;
+  finishInfo.parts.woodTextureId = finishInfo.woodTextureId;
 
   const { accentMesh, accentParent, dimensions } = finishInfo.parts;
   if (accentMesh) {
@@ -6782,15 +6814,18 @@ function SnookerGame() {
       theta: sph.theta
     };
     if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
-      const targetMargin = next
-        ? 1.05
-        : window.innerHeight > window.innerWidth
-          ? 1.6
-          : 1.4;
-    const targetRadius = fitRadius(cam, targetMargin);
+    const targetMargin = next
+      ? TOP_VIEW_MARGIN
+      : window.innerHeight > window.innerWidth
+        ? STANDING_VIEW_MARGIN_PORTRAIT
+        : STANDING_VIEW_MARGIN_LANDSCAPE;
+    const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), CAMERA.minR);
+    const targetRadius = next
+      ? Math.max(maxRadius * TOP_VIEW_RADIUS_SCALE, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
+      : clampOrbitRadius(fitRadius(cam, targetMargin));
     const target = {
-      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
-      phi: next ? 0.0001 : last3DRef.current.phi,
+      radius: targetRadius,
+      phi: next ? Math.max(TOP_VIEW_PHI, CAMERA_MIN_PHI) : last3DRef.current.phi,
       theta: next ? sph.theta : last3DRef.current.theta
     };
     const duration = 600;
@@ -9230,7 +9265,7 @@ function SnookerGame() {
         const margin = Math.max(
           STANDING_VIEW.margin,
           topViewRef.current
-            ? 1.05
+            ? TOP_VIEW_MARGIN
             : window.innerHeight > window.innerWidth
               ? STANDING_VIEW_MARGIN_PORTRAIT
               : STANDING_VIEW_MARGIN_LANDSCAPE
@@ -9623,10 +9658,10 @@ function SnookerGame() {
       updateCamera();
       fit(
         topViewRef.current
-          ? 1.05
+          ? TOP_VIEW_MARGIN
           : window.innerHeight > window.innerWidth
-            ? 1.6
-            : 1.4
+            ? STANDING_VIEW_MARGIN_PORTRAIT
+            : STANDING_VIEW_MARGIN_LANDSCAPE
       );
       animateWorldScale(growthStartScale, growthTargetScale);
 
@@ -12003,10 +12038,10 @@ function SnookerGame() {
           const margin = Math.max(
             STANDING_VIEW.margin,
             topViewRef.current
-              ? 1.05
+              ? TOP_VIEW_MARGIN
               : window.innerHeight > window.innerWidth
-                ? 1.6
-                : 1.4
+                ? STANDING_VIEW_MARGIN_PORTRAIT
+                : STANDING_VIEW_MARGIN_LANDSCAPE
           );
           fit(margin);
           const resizeAspect = host.clientWidth / host.clientHeight;
