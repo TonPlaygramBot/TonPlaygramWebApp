@@ -268,10 +268,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // mirror Pool Royale outward pull so the chrome cut hugs the rounded rail relief
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.08; // push side chrome arches further from center so the middle pockets sit proud of the rail
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.264; // shift middle wood arches to match Pool Royale's relieved centreline
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.42; // pull middle wood arches outward so the side pockets flare away from center
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -3005,7 +3005,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
-const IN_HAND_CAMERA_PULLBACK = 1.2;
+const IN_HAND_CAMERA_PULLBACK = 1.35;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -5227,7 +5227,7 @@ function Table3D(
   }
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
-    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236;
+    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.34;
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
@@ -6193,9 +6193,16 @@ function SnookerGame() {
     };
   }, [tableFinishId, activeChromeOption, activeClothOption, activeWoodTexture]);
   const tableFinishRef = useRef(tableFinish);
+  const applyFinishRef = useRef(() => {});
   useEffect(() => {
     tableFinishRef.current = tableFinish;
   }, [tableFinish]);
+  useEffect(() => {
+    const nextFinish = tableFinishRef.current;
+    if (nextFinish) {
+      applyFinishRef.current?.(nextFinish);
+    }
+  }, [activeChromeOption, activeClothOption, activeWoodTexture]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerTableFinish', tableFinishId);
@@ -6238,7 +6245,6 @@ function SnookerGame() {
       window.removeEventListener('pointerdown', handlePointerDown);
     };
   }, [configOpen]);
-  const applyFinishRef = useRef(() => {});
   const [frameState, setFrameState] = useState(() =>
     rules.getInitialFrame('Player', 'AI')
   );
