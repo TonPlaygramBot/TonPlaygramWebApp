@@ -3250,11 +3250,29 @@ function renderHands(){
 }
 
 /* ---------- Chain Rendering ---------- */
-const DOMINO_FLAT_EULER = new THREE.Euler(-Math.PI / 2, 0, 0, 'XYZ');
+const DOMINO_UP = new THREE.Vector3(0, 1, 0);
+const DOMINO_FORWARD = new THREE.Vector3();
+const DOMINO_RIGHT = new THREE.Vector3();
+const DOMINO_BASIS = new THREE.Matrix4();
 
 function orientDominoFlat(domino, yawAngle = 0) {
-  DOMINO_FLAT_EULER.set(-Math.PI / 2, Number.isFinite(yawAngle) ? yawAngle : 0, 0, 'XYZ');
-  domino.setRotationFromEuler(DOMINO_FLAT_EULER);
+  const angle = Number.isFinite(yawAngle) ? yawAngle : 0;
+  DOMINO_FORWARD.set(Math.cos(angle), 0, Math.sin(angle));
+  if (DOMINO_FORWARD.lengthSq() === 0) {
+    DOMINO_FORWARD.set(1, 0, 0);
+  } else {
+    DOMINO_FORWARD.normalize();
+  }
+
+  DOMINO_RIGHT.crossVectors(DOMINO_FORWARD, DOMINO_UP);
+  if (DOMINO_RIGHT.lengthSq() === 0) {
+    DOMINO_RIGHT.set(0, 0, 1);
+  } else {
+    DOMINO_RIGHT.normalize();
+  }
+
+  DOMINO_BASIS.makeBasis(DOMINO_RIGHT, DOMINO_FORWARD, DOMINO_UP);
+  domino.setRotationFromMatrix(DOMINO_BASIS);
 }
 
 function renderChain(){
