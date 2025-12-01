@@ -214,9 +214,9 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
@@ -305,7 +305,6 @@ const CAM = {
   phiMax: cameraPhiHardMax
 };
 
-const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const PLAYER_FLAG_STORAGE_KEY = 'chessBattleRoyalPlayerFlag';
 const FALLBACK_FLAG = '🇺🇸';
 const DEFAULT_APPEARANCE = {
@@ -359,14 +358,6 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
-
-const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
-];
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -2225,18 +2216,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const arenaRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true });
-  const [appearance, setAppearance] = useState(() => {
-    if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
-    try {
-      const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
-      if (!stored) return { ...DEFAULT_APPEARANCE };
-      const parsed = JSON.parse(stored);
-      return normalizeAppearance(parsed);
-    } catch (error) {
-      console.warn('Failed to load Chess appearance', error);
-      return { ...DEFAULT_APPEARANCE };
-    }
-  });
+  const [appearance] = useState({ ...DEFAULT_APPEARANCE });
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
   const seatPositionsRef = useRef([]);
@@ -2373,104 +2353,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
   }, [aiFlag]);
 
-  const renderPreview = useCallback((type, option) => {
-    switch (type) {
-      case 'tableWood': {
-        const preset = option?.presetId ? WOOD_PRESETS_BY_ID[option.presetId] : undefined;
-        const grain = option?.grainId ? WOOD_GRAIN_OPTIONS_BY_ID[option.grainId] : undefined;
-        const presetRef = preset || WOOD_FINISH_PRESETS?.[0];
-        const baseHex = presetRef
-          ? `#${hslToHexNumber(presetRef.hue, presetRef.sat, presetRef.light)
-              .toString(16)
-              .padStart(6, '0')}`
-          : '#8b5a2b';
-        const accentHex = presetRef
-          ? `#${hslToHexNumber(
-              presetRef.hue,
-              Math.min(1, presetRef.sat + 0.12),
-              Math.max(0, presetRef.light - 0.18)
-            )
-              .toString(16)
-              .padStart(6, '0')}`
-          : '#5a3820';
-        const grainLabel = grain?.label ?? WOOD_GRAIN_OPTIONS?.[0]?.label ?? '';
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage: `repeating-linear-gradient(135deg, ${baseHex}, ${baseHex} 12%, ${accentHex} 12%, ${accentHex} 20%)`
-              }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
-            <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-2 py-0.5 text-[0.55rem] font-semibold uppercase tracking-wide text-emerald-100/80">
-              {grainLabel.slice(0, 12)}
-            </div>
-          </div>
-        );
-      }
-      case 'tableCloth':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-[999px] border border-white/10"
-                style={{ background: `radial-gradient(circle at 35% 30%, ${option.feltTop}, ${option.feltBottom})` }}
-              />
-            </div>
-            <div className="absolute inset-x-0 bottom-0 h-4 bg-gradient-to-t from-black/50 to-transparent" />
-          </div>
-        );
-      case 'chairColor':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-3xl border border-white/10"
-                style={{
-                  background: `linear-gradient(135deg, ${option.primary}, ${option.accent})`,
-                  boxShadow: 'inset 0 0 12px rgba(0,0,0,0.35)'
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-black/40" />
-          </div>
-        );
-      case 'tableBase':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 rounded-3xl border border-white/10"
-                style={{
-                  background: `linear-gradient(135deg, ${option.baseColor}, ${option.trimColor ?? option.baseColor})`,
-                  boxShadow: 'inset 0 0 10px rgba(0,0,0,0.4)'
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
-          </div>
-        );
-      case 'tableShape':
-        return (
-          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div
-                className="h-12 w-20 bg-white/10"
-                style={{
-                  borderRadius: option.preview?.borderRadius ?? '18%',
-                  clipPath: option.preview?.clipPath
-                }}
-              />
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/40" />
-          </div>
-        );
-      default:
-        return null;
-    }
-  }, []);
-
   useEffect(() => {
     appearanceRef.current = appearance;
   }, [appearance]);
@@ -2561,14 +2443,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
-      } catch (error) {
-        console.warn('Failed to persist Chess appearance', error);
-      }
-    }
-
     const arena = arenaRef.current;
     if (!arena) return;
 
@@ -3820,7 +3694,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           </div>
           <button
             type="button"
-            onClick={() => setConfigOpen((prev) => !prev)}
+            onClick={() => setConfigOpen((open) => !open)}
             aria-expanded={configOpen}
             className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
               configOpen ? 'bg-black/60' : 'hover:bg-black/60'
@@ -3842,52 +3716,27 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                 d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
               />
             </svg>
-            <span className="sr-only">Open table customization</span>
+            <span className="sr-only">Open chess settings</span>
           </button>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
+                <div>
+                  <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
+                  <p className="mt-1 text-[0.7rem] text-white/70">
+                    Board and pieces are locked to the “A Beautiful Game” set.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => setConfigOpen(false)}
                   className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  aria-label="Close customization"
+                  aria-label="Close settings"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
                     <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
                   </svg>
                 </button>
-              </div>
-              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option, idx) => {
-                        const selected = appearance[key] === idx;
-                        return (
-                          <button
-                            key={option.id ?? idx}
-                            type="button"
-                            onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
-                            aria-pressed={selected}
-                            className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            }`}
-                          >
-                            {renderPreview(key, option)}
-                            <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
               </div>
               <div className="mt-4 space-y-3">
                 <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
