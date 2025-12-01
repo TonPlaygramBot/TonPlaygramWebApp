@@ -2898,7 +2898,6 @@ async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?
     const wrapper = new THREE.Group();
     wrapper.position.set(basis.position.x, CHAIR_BASE_HEIGHT, basis.position.z);
     wrapper.lookAt(lookTarget);
-    wrapper.rotateY(Math.PI);
 
     const chair = chairData
       ? cloneChairWithTheme(chairData, option)
