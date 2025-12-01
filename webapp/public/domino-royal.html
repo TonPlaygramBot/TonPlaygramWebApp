@@ -3239,9 +3239,7 @@ function renderHands(){
       }
       const yawTowardCenter = Math.atan2(-x0, -z0);
       if(openFlat){
-        const flatYaw = isSide ? Math.PI / 2 : 0;
-        orientDominoFlat(m, flatYaw);
-        m.rotation.z = 0;
+        m.rotation.set(-Math.PI/2, yawTowardCenter, 0);
       } else {
         m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
         m.rotation.z += (Math.random()*0.006-0.003);
