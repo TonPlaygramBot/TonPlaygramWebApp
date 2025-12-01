@@ -5277,7 +5277,6 @@ function Table3D(
     pocketBaseMeshes: [],
     underlayMeshes: [],
     clothEdgeMeshes: [],
-    rubberSealMeshes: [],
     accentParent: null,
     accentMesh: null,
     dimensions: null,
@@ -5464,18 +5463,6 @@ function Table3D(
   clothEdgeMat.sheen = 0;
   clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
-  const clothRubberMat = clothEdgeMat.clone();
-  clothRubberMat.color.copy(clothColor);
-  clothRubberMat.metalness = 0;
-  clothRubberMat.roughness = 1;
-  clothRubberMat.envMapIntensity = 0;
-  clothRubberMat.clearcoat = 0;
-  clothRubberMat.clearcoatRoughness = 1;
-  clothRubberMat.sheen = 0;
-  clothRubberMat.reflectivity = 0;
-  clothRubberMat.emissive.set(0x000000);
-  clothRubberMat.side = THREE.DoubleSide;
-  clothRubberMat.needsUpdate = true;
   const underlayTopMat = clothMat.clone();
   underlayTopMat.color.copy(clothColor);
   underlayTopMat.metalness = 0;
@@ -5606,7 +5593,6 @@ function Table3D(
     clothMat,
     cushionMat,
     clothEdgeMat,
-    clothRubberMat,
     parts: finishParts,
     clothDetail: resolvedFinish?.clothDetail ?? null,
     clothBase: clothBaseSettings,
@@ -5827,24 +5813,7 @@ function Table3D(
   shadowBoard.castShadow = false;
   table.add(shadowBoard);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-
-  const pocketSealerHeight =
-    CLOTH_EXTENDED_DEPTH +
-    CLOTH_THICKNESS +
-    CLOTH_UNDERLAY_GAP +
-    CLOTH_UNDERLAY_THICKNESS +
-    CLOTH_UNDERLAY_EXTRA_DROP;
-  const pocketSealerBaseRadius = POCKET_HOLE_R * POCKET_CUT_EXPANSION * 1.004;
-  const pocketSealerGeo = new THREE.CylinderGeometry(
-    pocketSealerBaseRadius,
-    pocketSealerBaseRadius,
-    pocketSealerHeight,
-    96,
-    1,
-    true
-  );
-  pocketSealerGeo.computeVertexNormals();
-
+  
   // Leave the pocket apertures completely open so the pocket geometry remains visible.
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
   const clothEdgeBottomY = clothBottomY - MICRO_EPS;
@@ -6012,23 +5981,6 @@ const pocketGeo = new THREE.CylinderGeometry(
     pocket.userData.verticalLift = pocketLift;
     table.add(pocket);
     pocketMeshes.push(pocket);
-    const sealer = new THREE.Mesh(pocketSealerGeo, clothRubberMat);
-    const pocketSealerRadius =
-      (isMiddlePocket ? POCKET_HOLE_R * sideRadiusScale : POCKET_HOLE_R) *
-      POCKET_CUT_EXPANSION *
-      1.004;
-    sealer.scale.setScalar(
-      Math.max(
-        MICRO_EPS,
-        pocketSealerRadius / pocketSealerBaseRadius
-      )
-    );
-    sealer.position.set(p.x, cloth.position.y - pocketSealerHeight / 2, p.y);
-    sealer.renderOrder = cloth.renderOrder + 0.05;
-    sealer.castShadow = false;
-    sealer.receiveShadow = true;
-    table.add(sealer);
-    finishParts.rubberSealMeshes.push(sealer);
     const base = new THREE.Mesh(pocketBaseGeo, pocketBaseMat);
     base.position.set(
       p.x,
@@ -8050,18 +8002,6 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.clothEdgeMat.metalness = 0;
     finishInfo.clothEdgeMat.reflectivity = 0;
     finishInfo.clothEdgeMat.needsUpdate = true;
-  }
-  if (finishInfo.clothRubberMat) {
-    finishInfo.clothRubberMat.color.copy(clothColor);
-    finishInfo.clothRubberMat.emissive.set(0x000000);
-    finishInfo.clothRubberMat.metalness = 0;
-    finishInfo.clothRubberMat.roughness = 1;
-    finishInfo.clothRubberMat.envMapIntensity = 0;
-    finishInfo.clothRubberMat.clearcoat = 0;
-    finishInfo.clothRubberMat.clearcoatRoughness = 1;
-    finishInfo.clothRubberMat.sheen = 0;
-    finishInfo.clothRubberMat.reflectivity = 0;
-    finishInfo.clothRubberMat.needsUpdate = true;
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material) return;
