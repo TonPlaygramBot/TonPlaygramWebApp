@@ -227,10 +227,13 @@ export function makeRoughClothTexture(size, topHex, bottomHex, anisotropy = 8) {
   ctx.fillStyle = centerGradient;
   ctx.fillRect(0, 0, size, size);
 
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.fillRect(0, 0, size, size);
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
   const baseRepeat = 12;
-  const scaledRepeat = baseRepeat * 30 * 3;
+  const scaledRepeat = baseRepeat * 30 * 6;
   texture.repeat.set(scaledRepeat, scaledRepeat);
   texture.anisotropy = anisotropy;
   applySRGBColorSpace(texture);
