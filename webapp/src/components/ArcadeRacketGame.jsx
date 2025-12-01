@@ -127,13 +127,15 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     scene.add(ball);
 
     const velocity = new THREE.Vector3();
+    const previousPosition = new THREE.Vector3();
     const clock = new THREE.Clock();
-    const BASE_STEP = 1 / 60;
-    const GRAVITY = mode === 'tabletennis' ? -18 : -16;
-    const AIR_DECAY = mode === 'tabletennis' ? 0.9965 : 0.993;
-    const TABLE_RESTITUTION = 0.9;
-    const WALL_REBOUND = 0.65;
-    const FLOOR_FRICTION = 0.92;
+    const BASE_STEP = 1 / 120;
+    const MAX_SUBSTEPS = 8;
+    const GRAVITY = mode === 'tabletennis' ? -18.5 : -16.5;
+    const AIR_DECAY = mode === 'tabletennis' ? 0.9976 : 0.9945;
+    const TABLE_RESTITUTION = 0.92;
+    const WALL_REBOUND = 0.7;
+    const FLOOR_FRICTION = 0.935;
 
     const MIN_SWIPE_SPEED = mode === 'tabletennis' ? 110 : 220;
     const MAX_SWIPE_SPEED = mode === 'tabletennis' ? 900 : 1400;
@@ -288,6 +290,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       lastX = startX;
       lastY = startY;
       startT = Date.now();
+      touchActive = true;
       player.position.x = screenToCourt(t.clientX);
     }
 
@@ -309,6 +312,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     function onPointerUp(e) {
       const end = e.changedTouches ? e.changedTouches[0] : e;
       launchFromSwipe(end.clientX || lastX, end.clientY || lastY);
+      touchActive = false;
     }
 
     function onPointerMove(e) {
@@ -362,6 +366,10 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const swingDamping = Math.exp(-dt * 8);
       playerSwing *= swingDamping;
       enemySwing *= swingDamping;
+      if (!touchActive) {
+        const autoTrackX = clampX(ball.position.x * 0.9);
+        player.position.x += (autoTrackX - player.position.x) * blend(0.32, dt);
+      }
       player.position.y += (targetY - player.position.y) * alpha;
       enemy.position.y += (targetY - enemy.position.y) * alpha;
       player.position.z = playerBaseZ - playerSwing * 0.18;
@@ -411,22 +419,24 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     }
 
     function updateCamera(dt) {
-      const followStrength = mode === 'tabletennis' ? 0.16 : 0.08;
+      const followStrength = mode === 'tabletennis' ? 0.2 : 0.1;
       const yLift = config.tableHeight + THREE.MathUtils.lerp(
         config.cameraHeight,
         config.cameraHeight * 0.65,
         Math.min((ball.position.y - config.tableHeight) * 0.4, 1)
       );
+      const cameraDepth = Math.max(ball.position.z, 0) + config.cameraOffset * (mode === 'tabletennis' ? 0.72 : 0.95);
+      const maxDepth = halfL - config.playerZOffset + config.cameraOffset * 0.35;
       cameraTarget.set(
         THREE.MathUtils.clamp(ball.position.x * 0.85, -halfW, halfW),
         yLift,
-        ball.position.z + config.cameraOffset * (mode === 'tabletennis' ? 0.78 : 1)
+        THREE.MathUtils.clamp(cameraDepth, config.tableHeight + config.ballRadius + 0.12, maxDepth)
       );
       camera.position.lerp(cameraTarget, blend(followStrength, dt));
       cameraLook.set(
         ball.position.x,
         Math.max(config.tableHeight + config.ballRadius * 1.5, ball.position.y),
-        ball.position.z
+        Math.max(ball.position.z, 0)
       );
       camera.lookAt(cameraLook);
     }
@@ -434,17 +444,23 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     function handleTableBounds(dt) {
       const floorY = config.tableHeight + config.ballRadius;
       const damping = Math.pow(AIR_DECAY, dt / BASE_STEP);
+      previousPosition.copy(ball.position);
       velocity.multiplyScalar(damping);
       velocity.y += GRAVITY * dt;
       ball.position.addScaledVector(velocity, dt);
 
       const inCourt = Math.abs(ball.position.x) <= halfW && Math.abs(ball.position.z) <= halfL;
 
-      // Net collision
-      if (Math.abs(ball.position.z) < 0.06 && ball.position.y <= config.tableHeight + config.netHeight + config.ballRadius) {
-        ball.position.z = ball.position.z >= 0 ? 0.07 : -0.07;
-        velocity.z *= -WALL_REBOUND;
-        velocity.y = Math.abs(velocity.y) * 0.5;
+      // Net collision with sweep to avoid tunneling
+      const crossedNet = previousPosition.z >= 0 !== ball.position.z >= 0;
+      if (
+        (Math.abs(ball.position.z) < 0.06 || crossedNet) &&
+        ball.position.y <= config.tableHeight + config.netHeight + config.ballRadius * 1.4
+      ) {
+        const sign = ball.position.z >= 0 ? 1 : -1;
+        ball.position.z = 0.08 * sign;
+        velocity.z = -Math.abs(velocity.z) * WALL_REBOUND * sign;
+        velocity.y = Math.abs(velocity.y) * 0.6;
       }
 
       // Side rails to keep training rallies playable
@@ -479,8 +495,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     }
 
     function physics(dt) {
-      const steps = Math.min(5, Math.max(1, Math.ceil(dt / BASE_STEP)));
-      const stepDt = dt / steps;
+      const steps = Math.min(MAX_SUBSTEPS, Math.max(1, Math.ceil(dt / BASE_STEP)));
+      const stepDt = Math.min(dt / steps, BASE_STEP);
       for (let i = 0; i < steps; i += 1) {
         if (started) {
           handleTableBounds(stepDt);
