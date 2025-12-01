@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 import { createArenaCarpetMaterial, createArenaWallMaterial } from '../../utils/arenaDecor.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -34,6 +36,7 @@ const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
 const ARENA_SCALE = 1.3 * ARENA_GROWTH;
 const BOARD_SIZE = (TABLE_RADIUS * 2 + 1.2 * MODEL_SCALE) * ARENA_SCALE;
+const CHAIR_SIZE_SCALE = 1;
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
@@ -97,6 +100,17 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
+
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
+];
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
+  CHAIR_SIZE_SCALE
+);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
@@ -191,8 +205,6 @@ const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
 const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const CAMERA_TURN_FOCUS_LIFT = 0.6 * MODEL_SCALE;
 
-const CHAIR_CLOTH_TEXTURE_SIZE = 512;
-const CHAIR_CLOTH_REPEAT = 7;
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
@@ -231,547 +243,200 @@ function flagToName(flag) {
   return REGION_NAMES.of(code) || 'Guest';
 }
 
-function adjustHexColor(hex, amount) {
-  const base = new THREE.Color(hex);
-  const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
-  base.lerp(target, Math.min(Math.abs(amount), 1));
-  return `#${base.getHexString()}`;
-}
-
-function createChairClothTexture(chairOption, renderer) {
-  const primary = chairOption?.primary ?? '#0f6a2f';
-  const accent = chairOption?.accent ?? adjustHexColor(primary, -0.28);
-  const highlight = chairOption?.highlight ?? adjustHexColor(primary, 0.22);
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const shadow = adjustHexColor(accent, -0.22);
-  const seam = adjustHexColor(accent, -0.35);
-
-  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  gradient.addColorStop(0, adjustHexColor(primary, 0.2));
-  gradient.addColorStop(0.5, primary);
-  gradient.addColorStop(1, accent);
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const spacing = canvas.width / CHAIR_CLOTH_REPEAT;
-  const halfSpacing = spacing / 2;
-  const lineWidth = Math.max(1.6, spacing * 0.06);
-
-  ctx.strokeStyle = seam;
-  ctx.lineWidth = lineWidth;
-  ctx.globalAlpha = 0.9;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(offset, 0);
-    ctx.lineTo(offset - canvas.height, canvas.height);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(offset, 0);
-    ctx.lineTo(offset + canvas.height, canvas.height);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  ctx.strokeStyle = adjustHexColor(highlight, 0.18);
-  ctx.lineWidth = lineWidth * 0.55;
-  ctx.globalAlpha = 0.55;
-  for (let offset = -canvas.height; offset <= canvas.width + canvas.height; offset += spacing) {
-    ctx.beginPath();
-    ctx.moveTo(offset + halfSpacing, 0);
-    ctx.lineTo(offset + halfSpacing - canvas.height, canvas.height);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(offset + halfSpacing, 0);
-    ctx.lineTo(offset + halfSpacing + canvas.height, canvas.height);
-    ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
-  const tuftRadius = Math.max(1.8, spacing * 0.08);
-  for (let y = -spacing; y <= canvas.height + spacing; y += spacing) {
-    for (let x = -spacing; x <= canvas.width + spacing; x += spacing) {
-      ctx.beginPath();
-      ctx.ellipse(x + halfSpacing, y + halfSpacing, tuftRadius, tuftRadius * 0.85, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    const scale = targetMax / currentMax;
+    model.scale.multiplyScalar(scale);
   }
 
-  ctx.save();
-  ctx.globalCompositeOperation = 'overlay';
-  const sheenGradient = ctx.createRadialGradient(
-    canvas.width * 0.28,
-    canvas.height * 0.32,
-    canvas.width * 0.05,
-    canvas.width * 0.28,
-    canvas.height * 0.32,
-    canvas.width * 0.75
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  const offset = new THREE.Vector3(
+    -scaledCenter.x,
+    TARGET_CHAIR_MIN_Y - scaledBox.min.y,
+    TARGET_CHAIR_CENTER_Z - scaledCenter.z
   );
-  sheenGradient.addColorStop(0, 'rgba(255, 255, 255, 0.26)');
-  sheenGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.08)');
-  sheenGradient.addColorStop(1, 'rgba(0, 0, 0, 0.35)');
-  ctx.fillStyle = sheenGradient;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.restore();
-
-  ctx.globalAlpha = 0.08;
-  for (let y = 0; y < canvas.height; y += 2) {
-    for (let x = 0; x < canvas.width; x += 2) {
-      ctx.fillStyle = Math.random() > 0.5 ? highlight : shadow;
-      ctx.fillRect(x, y, 1, 1);
-    }
-  }
-  ctx.globalAlpha = 1;
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(CHAIR_CLOTH_REPEAT, CHAIR_CLOTH_REPEAT);
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
-  applySRGBColorSpace(texture);
-  texture.needsUpdate = true;
-  return texture;
+  model.position.add(offset);
 }
 
-function createChairFabricMaterial(chairOption, renderer) {
-  const texture = createChairClothTexture(chairOption, renderer);
-  const primary = chairOption?.primary ?? '#0f6a2f';
-  const sheenColor = chairOption?.highlight ?? adjustHexColor(primary, 0.2);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(adjustHexColor(primary, 0.04)),
-    map: texture,
-    roughness: 0.28,
-    metalness: 0.08,
-    clearcoat: 0.48,
-    clearcoatRoughness: 0.28,
-    sheen: 0.18
+function extractChairMaterials(model) {
+  const upholstery = new Set();
+  const metal = new Set();
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
+        bucket.add(mat);
+      });
+    }
   });
-  if ('sheenColor' in material) {
-    material.sheenColor.set(sheenColor);
-  }
-  if ('sheenRoughness' in material) {
-    material.sheenRoughness = 0.32;
-  }
-  if ('specularIntensity' in material) {
-    material.specularIntensity = 0.65;
-  }
-  material.userData.clothTexture = texture;
-  material.userData.chairId = chairOption?.id ?? 'default';
-  return material;
-}
-
-function disposeChairMaterial(material) {
-  if (!material) return;
-  const texture = material.userData?.clothTexture;
-  texture?.dispose?.();
-  if (material.map && material.map !== texture) {
-    material.map.dispose?.();
-  }
-  material.dispose();
-}
-
-function createStraightArmrest(side, material) {
-  const sideSign = side === 'right' ? 1 : -1;
-  const group = new THREE.Group();
-
-  const baseHeight = SEAT_THICKNESS / 2;
-  const supportHeight = ARM_HEIGHT + SEAT_THICKNESS * 0.65;
-  const topLength = ARM_DEPTH * 1.1;
-  const topThickness = ARM_THICKNESS * 0.65;
-
-  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
-  top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
-  top.castShadow = true;
-  top.receiveShadow = true;
-  group.add(top);
-
-  const createSupport = (zOffset) => {
-    const support = new THREE.Mesh(
-      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
-      material
-    );
-    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
-    support.castShadow = true;
-    support.receiveShadow = true;
-    return support;
-  };
-
-  const frontSupport = createSupport(ARM_DEPTH * 0.4);
-  const rearSupport = createSupport(-ARM_DEPTH * 0.4);
-  group.add(frontSupport, rearSupport);
-
-  const sidePanel = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
-    material
-  );
-  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
-  sidePanel.castShadow = true;
-  sidePanel.receiveShadow = true;
-  group.add(sidePanel);
-
-  const handRest = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
-    material
-  );
-  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
-  handRest.castShadow = true;
-  handRest.receiveShadow = true;
-  group.add(handRest);
-
-  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
-
-  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
-}
-
-function computeCameraPitchLimits(position, baseForward, options = {}) {
-  const { seatTopPoint = null } = options ?? {};
-  const horizontalForward = Math.hypot(baseForward.x, baseForward.z);
-  const baseDownAngle = Math.atan2(-baseForward.y, horizontalForward);
-  const radialDistance = Math.hypot(position.x, position.z);
-  const horizontalGap = Math.max(0.35, ARENA_WALL_INNER_RADIUS - radialDistance);
-  const verticalReach = Math.max(0.01, ARENA_WALL_TOP_Y - position.y);
-  const wallLimitedUp = Math.max(0, Math.atan2(verticalReach, horizontalGap) - CAMERA_WALL_MARGIN);
-  const maxUpAngle = Math.max(0, Math.min(wallLimitedUp, THREE.MathUtils.degToRad(65)));
-  const computedUp = Math.max(0, Math.min(baseDownAngle + maxUpAngle, THREE.MathUtils.degToRad(65)));
-  let safeUp = computedUp > 0 ? computedUp : CAMERA_HEAD_PITCH_UP;
-  if (seatTopPoint) {
-    const limitVector = seatTopPoint.clone().sub(position);
-    const horizontal = Math.hypot(limitVector.x, limitVector.z);
-    if (horizontal > 1e-3) {
-      const seatDownAngle = Math.atan2(Math.max(0, -limitVector.y), horizontal);
-      const maxSeatUp = Math.max(0, baseDownAngle - seatDownAngle);
-      safeUp = Math.min(safeUp, maxSeatUp);
-    } else if (limitVector.y < 0) {
-      safeUp = 0;
-    }
-  }
+  const upholsteryArr = Array.from(upholstery);
+  const metalArr = Array.from(metal);
   return {
-    min: -safeUp,
-    max: CAMERA_HEAD_PITCH_DOWN
+    seat: upholsteryArr[0] ?? metalArr[0] ?? null,
+    leg: metalArr[0] ?? upholsteryArr[0] ?? null,
+    upholstery: upholsteryArr,
+    metal: metalArr
   };
 }
 
-function clampValue(value, min, max) {
-  let low = Number.isFinite(min) ? min : 0;
-  let high = Number.isFinite(max) ? max : 0;
-  if (low > high) {
-    [low, high] = [high, low];
-  }
-  if (!Number.isFinite(value)) {
-    return low;
-  }
-  return Math.min(Math.max(value, low), high);
-}
+async function loadGltfChair() {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
 
-function buildCardinalSeatAngles(count) {
-  if (!Number.isFinite(count) || count <= 0) {
-    return [];
-  }
-  const baseAngles = [-Math.PI / 2, 0, Math.PI / 2, Math.PI];
-  switch (Math.min(count, baseAngles.length)) {
-    case 1:
-      return [baseAngles[0]];
-    case 2:
-      return [baseAngles[0], baseAngles[2]];
-    case 3:
-      return [baseAngles[0], baseAngles[3], baseAngles[1]];
-    default:
-      return baseAngles.slice(0, Math.min(count, baseAngles.length));
-  }
-}
-
-function buildClassicOctagonAngles(count) {
-  if (!Number.isFinite(count) || count <= 0) {
-    return [];
-  }
-  const safeCount = Math.max(1, Math.floor(count));
-  const slotAngles = [
-    (3 * Math.PI) / 8,
-    Math.PI / 8,
-    -Math.PI / 8,
-    (-3 * Math.PI) / 8,
-    (-5 * Math.PI) / 8,
-    (-7 * Math.PI) / 8,
-    (7 * Math.PI) / 8,
-    (5 * Math.PI) / 8
-  ];
-  const preferredSlots = [0, 2, 3, 4, 5, 6];
-  const angles = [];
-  for (let i = 0; i < safeCount; i += 1) {
-    const slotIndex = preferredSlots[i];
-    if (slotIndex == null) {
-      const fallbackAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
-      angles.push(fallbackAngle);
-    } else {
-      angles.push(slotAngles[slotIndex]);
+  let gltf = null;
+  let lastError = null;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
     }
   }
-  return angles;
-}
+  if (!gltf) {
+    throw lastError || new Error('Failed to load chair model');
+  }
 
-function normalizeAppearance(value = {}) {
-  const normalized = { ...DEFAULT_APPEARANCE };
-  const entries = [
-    ['tableWood', TABLE_WOOD_OPTIONS.length],
-    ['tableCloth', TABLE_CLOTH_OPTIONS.length],
-    ['tableBase', TABLE_BASE_OPTIONS.length],
-    ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length],
-    ['cards', CARD_THEMES.length]
-  ];
-  entries.forEach(([key, max]) => {
-    const raw = Number(value?.[key]);
-    if (Number.isFinite(raw)) {
-      const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
-      normalized[key] = clamped;
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) {
+    throw new Error('Chair model missing scene');
+  }
+
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
     }
   });
-  return normalized;
+
+  fitChairModelToFootprint(model);
+
+  return {
+    chairTemplate: model,
+    materials: extractChairMaterials(model)
+  };
 }
 
-function clampPlayerCount(value) {
-  if (!Number.isFinite(value)) {
-    return DEFAULT_PLAYER_COUNT;
-  }
-  const rounded = Math.round(value);
-  return Math.min(Math.max(rounded, MIN_PLAYER_COUNT), MAX_PLAYER_COUNT);
-}
+function createProceduralChair(theme) {
+  const seatMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.seatColor || '#7c3aed'),
+    roughness: 0.42,
+    metalness: 0.18
+  });
+  const legMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.legColor || '#111827'),
+    roughness: 0.55,
+    metalness: 0.38
+  });
 
-function enforceShapeForPlayers(appearance, playerCount) {
-  const safe = { ...appearance };
-  const shapeOption = TABLE_SHAPE_OPTIONS[safe.tableShape];
-  if (playerCount > 4 && shapeOption?.id === DIAMOND_SHAPE_ID) {
-    safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
-  }
-  return safe;
-}
+  const chair = new THREE.Group();
 
-function getEffectiveShapeConfig(shapeIndex, playerCount) {
-  const fallback = TABLE_SHAPE_OPTIONS[NON_DIAMOND_SHAPE_INDEX] ?? TABLE_SHAPE_OPTIONS[0];
-  const requested = TABLE_SHAPE_OPTIONS[shapeIndex] ?? fallback;
-  if (requested?.id === DIAMOND_SHAPE_ID && playerCount > 4) {
-    return { option: fallback, rotationY: 0, forced: true };
-  }
-  const rotationY = requested?.id === DIAMOND_SHAPE_ID && playerCount <= 4 ? Math.PI / 4 : 0;
-  return { option: requested ?? fallback, rotationY, forced: false };
-}
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+  seatMesh.position.y = SEAT_THICKNESS / 2;
+  seatMesh.castShadow = true;
+  seatMesh.receiveShadow = true;
+  chair.add(seatMesh);
 
-function parseSearch(search) {
-  const params = new URLSearchParams(search);
-  const username = params.get('username') || 'You';
-  const avatar = params.get('avatar') || '';
-  const amount = Number.parseInt(params.get('amount') || '500', 10);
-  const token = params.get('token') || 'TPC';
-  const stake = Number.isFinite(amount) && amount > 0 ? amount : 500;
-  const rawPlayers = Number.parseInt(params.get('players') || params.get('playerCount') || '', 10);
-  const playerCount = clampPlayerCount(rawPlayers);
-  const flags = (params.get('flags') || '')
-    .split(',')
-    .map((value) => Number.parseInt(value, 10))
-    .filter(Number.isFinite)
-    .map((index) => FLAG_EMOJIS[index])
-    .filter(Boolean);
-  return { username, avatar, stake, token, playerCount, flags };
-}
+  const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS), seatMaterial);
+  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  backMesh.castShadow = true;
+  backMesh.receiveShadow = true;
+  chair.add(backMesh);
 
-function buildPlayers(searchOrOptions) {
-  const options =
-    typeof searchOrOptions === 'string' ? parseSearch(searchOrOptions) : { ...searchOrOptions };
-  const { username, avatar, stake } = options;
-  const seatCount = clampPlayerCount(options?.playerCount);
-  const baseChips = Math.max(200, Math.round(stake));
-  const preferredFlags = Array.isArray(options.flags) ? options.flags.filter(Boolean) : [];
-  const shuffledFlags = [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
-  const fallbackFlags = preferredFlags.length ? [...shuffledFlags] : [...shuffledFlags];
-  const flags = preferredFlags.length ? [...preferredFlags] : [...shuffledFlags];
-  const nextFlag = () => flags.shift() || fallbackFlags.shift() || FLAG_EMOJIS[(flags.length + 3) % FLAG_EMOJIS.length];
-  const players = [];
-  for (let i = 0; i < seatCount; i += 1) {
-    if (i === DEALER_INDEX) {
-      players.push({
-        id: 'dealer',
-        name: 'Dealer',
-        flag: '🎩',
-        isDealer: true,
-        isHuman: false,
-        chips: baseChips * 2,
-        avatar: null
-      });
-    } else if (i === 0) {
-      const flag = nextFlag() || '🇦🇱';
-      players.push({
-        id: 'player',
-        name: username,
-        flag,
-        isDealer: false,
-        isHuman: true,
-        chips: baseChips,
-        avatar: avatar || null
-      });
-    } else {
-      const flag = nextFlag() || FLAG_EMOJIS[(i * 11) % FLAG_EMOJIS.length];
-      players.push({
-        id: `ai-${i}`,
-        name: flagToName(flag),
-        flag,
-        isDealer: false,
-        isHuman: false,
-        chips: baseChips,
-        avatar: null
-      });
-    }
-  }
-  return players;
-}
+  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+  const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
+  const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
+  const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
+  const leftArm = new THREE.Mesh(armGeometry, seatMaterial);
+  leftArm.position.set(-armOffsetX, armOffsetY, armOffsetZ);
+  leftArm.castShadow = true;
+  leftArm.receiveShadow = true;
+  chair.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeometry, seatMaterial);
+  rightArm.position.set(armOffsetX, armOffsetY, armOffsetZ);
+  rightArm.castShadow = true;
+  rightArm.receiveShadow = true;
+  chair.add(rightArm);
 
-function createSeatLayout(count, tableInfo = null, options = {}) {
-  const layout = [];
-  const safeCount = Math.max(0, Math.floor(Number(count) || 0));
-  if (safeCount <= 0) {
-    return layout;
-  }
-  const cardinalForDiamond =
-    tableInfo?.shapeId === DIAMOND_SHAPE_ID && safeCount > 0 && safeCount <= 4;
-  const useCardinal = Boolean(options?.useCardinal) || cardinalForDiamond;
-  const cardinalAngles = useCardinal ? buildCardinalSeatAngles(safeCount) : null;
-  const classicAngles =
-    tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
-  for (let i = 0; i < safeCount; i += 1) {
-    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
-    const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
-    const isHuman = i === 0;
-    const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
-    const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-    const baseRadius = tableInfo?.radius ?? TABLE_RADIUS;
-    const tableSurfaceY = tableInfo?.surfaceY ?? TABLE_HEIGHT;
-    const outerDistance = tableInfo?.getOuterRadius?.(forward) ?? baseRadius;
-    let innerDistance = tableInfo?.getInnerRadius?.(forward);
-    if (!Number.isFinite(innerDistance) || innerDistance <= 0 || innerDistance >= outerDistance) {
-      innerDistance = outerDistance * 0.85;
-    }
-    const railSpan = Math.max(outerDistance - innerDistance, baseRadius * 0.04);
-    let forwardMargin = outerDistance * RAIL_FORWARD_MARGIN_RATIO;
-    const maxForwardMargin = Math.max(railSpan * 0.75, baseRadius * 0.015);
-    forwardMargin = clampValue(forwardMargin, baseRadius * 0.01, maxForwardMargin);
-    const railAnchorDistance = outerDistance - forwardMargin;
-    const railAnchor = forward.clone().multiplyScalar(railAnchorDistance);
-    railAnchor.y = tableSurfaceY + RAIL_HEIGHT_OFFSET;
-    const railSurfaceY = railAnchor.y + RAIL_SURFACE_LIFT;
-    const cardRailBase = railAnchorDistance + forwardMargin * CARD_RAIL_FORWARD_SHIFT_RATIO;
-    const chipRailBase = railAnchorDistance + forwardMargin * CHIP_RAIL_FORWARD_SHIFT_RATIO;
-    const cardRailDistance = clampValue(
-      cardRailBase,
-      innerDistance + railSpan * 0.15,
-      railAnchorDistance - railSpan * 0.05
-    );
-    const chipRailDistance = clampValue(
-      chipRailBase,
-      innerDistance + railSpan * 0.4,
-      outerDistance - railSpan * 0.05
-    );
-    const seatRadius = outerDistance + (isHuman ? HUMAN_SEAT_RADIUS_OFFSET : AI_SEAT_RADIUS_OFFSET);
-    const seatPos = forward.clone().multiplyScalar(seatRadius);
-    seatPos.y = CHAIR_BASE_HEIGHT;
-    const cardRailCenter = forward.clone().multiplyScalar(cardRailDistance);
-    cardRailCenter.y = railSurfaceY;
-    const chipRailCenter = forward.clone().multiplyScalar(chipRailDistance);
-    chipRailCenter.y = railSurfaceY;
-    const cardAnchor = cardRailCenter
-      .clone()
-      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
-      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
-    cardAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
-    const chipAnchor = chipRailCenter
-      .clone()
-      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
-      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
-    chipAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
-    const cardRailAnchor = cardRailCenter
-      .clone()
-      .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
-      .addScaledVector(right, -HUMAN_CARD_LATERAL_SHIFT);
-    cardRailAnchor.y = railSurfaceY;
-    const chipRailAnchor = chipRailCenter
-      .clone()
-      .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
-      .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
-    chipRailAnchor.y = railSurfaceY;
-    const betAnchor = forward
-      .clone()
-      .multiplyScalar(outerDistance * BET_DISTANCE_RATIO)
-      .addScaledVector(forward, -BET_FORWARD_OFFSET);
-    betAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
-    const previewAnchor = betAnchor.clone();
-    previewAnchor.y = betAnchor.y;
-    const stoolAnchor = forward.clone().multiplyScalar(seatRadius);
-    stoolAnchor.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
-    layout.push({
-      angle,
-      forward,
-      right,
-      seatPos,
-      cardAnchor,
-      chipAnchor,
-      cardRailAnchor,
-      chipRailAnchor,
-      betAnchor,
-      previewAnchor,
-      labelOffset: {
-        height: LABEL_BASE_HEIGHT,
-        forward: isHuman ? HUMAN_LABEL_FORWARD : AI_LABEL_FORWARD
-      },
-      stoolAnchor,
-      stoolHeight: STOOL_HEIGHT,
-      isHuman,
-      isDealer: i === DEALER_INDEX
-    });
-  }
-  return layout;
-}
+  const legMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
+    legMaterial
+  );
+  legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
+  legMesh.castShadow = true;
+  legMesh.receiveShadow = true;
+  chair.add(legMesh);
 
-function makeNameplate(name, chips, renderer) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 220;
-  const ctx = canvas.getContext('2d');
-  const draw = (playerName, stack, highlight, status) => {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = highlight ? 'rgba(34,197,94,0.3)' : 'rgba(15,23,42,0.78)';
-    ctx.strokeStyle = highlight ? '#4ade80' : 'rgba(255,255,255,0.16)';
-    ctx.lineWidth = 10;
-    roundRect(ctx, 16, 16, canvas.width - 32, canvas.height - 32, 32);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 64px "Inter", system-ui, sans-serif';
-    ctx.textBaseline = 'top';
-    ctx.fillText(playerName, 40, 40);
-    ctx.font = '600 48px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#cbd5f5';
-    ctx.fillText(`${stack} chips`, 40, 130);
-    if (status) {
-      ctx.textAlign = 'right';
-      ctx.fillStyle = '#facc15';
-      ctx.fillText(status, canvas.width - 40, 130);
-      ctx.textAlign = 'left';
+  const foot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    legMaterial
+  );
+  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.castShadow = true;
+  foot.receiveShadow = true;
+  chair.add(foot);
+
+  return {
+    chairTemplate: chair,
+    materials: {
+      seat: seatMaterial,
+      leg: legMaterial,
+      upholstery: [seatMaterial],
+      metal: [legMaterial]
     }
   };
-  draw(name, chips, false, '');
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-  const sprite = new THREE.Sprite(material);
-  const scale = 1.3 * MODEL_SCALE;
-  sprite.scale.set(scale, scale * 0.45, 1);
-  sprite.userData.update = draw;
-  sprite.userData.texture = texture;
-  return sprite;
+}
+
+async function buildChairTemplate(theme) {
+  try {
+    const gltfChair = await loadGltfChair();
+    applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    return gltfChair;
+  } catch (error) {
+    console.error('Falling back to procedural chair', error);
+  }
+  return createProceduralChair(theme);
+}
+
+function applyChairThemeMaterials(three, theme) {
+  const mats = three?.chairMaterials;
+  if (!mats) return;
+  if (mats.seat?.color) {
+    mats.seat.color.set(theme.seatColor);
+    mats.seat.needsUpdate = true;
+  }
+  if (mats.leg?.color) {
+    mats.leg.color.set(theme.legColor);
+    mats.leg.needsUpdate = true;
+  }
+  (mats.upholstery ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.seatColor);
+      mat.needsUpdate = true;
+    }
+  });
+  (mats.metal ?? []).forEach((mat) => {
+    if (mat?.color) {
+      mat.color.set(theme.legColor);
+      mat.needsUpdate = true;
+    }
+  });
 }
 
 function createBetControls({ arena, seat, chipFactory, tableInfo }) {
@@ -1234,383 +899,404 @@ function BlackJackArena({ search }) {
     three.orientHumanCards?.();
   }, []);
 
+
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return undefined;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    applyRendererSRGB(renderer);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.shadowMap.enabled = true;
-    mount.appendChild(renderer.domElement);
+    let disposed = false;
 
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#030712');
+    let renderer = null;
+    let scene = null;
+    let camera = null;
+    let arenaGroup = null;
+    let tableInfo = null;
+    let chipFactory = null;
+    let seatGroups = [];
+    let potStack = null;
+    let deckAnchor = null;
+    let raiseControls = null;
+    let raycaster = null;
+    let cardGeometry = null;
+    let faceCache = null;
+    let cardTheme = null;
+    let chairTemplate = null;
+    let chairMaterials = null;
 
-    const camera = new THREE.PerspectiveCamera(
-      CAMERA_SETTINGS.fov,
-      mount.clientWidth / mount.clientHeight,
-      CAMERA_SETTINGS.near,
-      CAMERA_SETTINGS.far
-    );
-    camera.position.set(0, TABLE_HEIGHT * 2.85, TABLE_RADIUS * 3.9);
-    renderer.domElement.style.touchAction = 'none';
-    renderer.domElement.style.cursor = 'grab';
+    let handleResize = null;
+    let handlePointerDown = null;
+    let handlePointerMove = null;
+    let handlePointerUp = null;
 
-    const ambient = new THREE.AmbientLight(0xffffff, 1.08);
-    scene.add(ambient);
-    const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
-    spot.position.set(3, 7, 3);
-    spot.castShadow = true;
-    scene.add(spot);
-    const rim = new THREE.PointLight(0x33ccff, 1.728);
-    rim.position.set(-4, 3, -4);
-    scene.add(rim);
+    const setup = async () => {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      applyRendererSRGB(renderer);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      renderer.shadowMap.enabled = true;
+      mount.appendChild(renderer.domElement);
 
-    const arenaGroup = new THREE.Group();
-    scene.add(arenaGroup);
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color('#030712');
 
-    const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
-      new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
-    );
-    floor.rotation.x = -Math.PI / 2;
-    floor.receiveShadow = true;
-    arenaGroup.add(floor);
-
-    const carpet = new THREE.Mesh(
-      new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
-      createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
-    );
-    carpet.rotation.x = -Math.PI / 2;
-    carpet.position.y = 0.01;
-    carpet.receiveShadow = true;
-    arenaGroup.add(carpet);
-
-    const wall = new THREE.Mesh(
-      new THREE.CylinderGeometry(
-        TABLE_RADIUS * ARENA_GROWTH * 2.4,
-        TABLE_RADIUS * ARENA_GROWTH * 2.6,
-        ARENA_WALL_HEIGHT,
-        32,
-        1,
-        true
-      ),
-      createArenaWallMaterial('#0b1120', '#1e293b')
-    );
-    wall.position.y = ARENA_WALL_CENTER_Y;
-    arenaGroup.add(wall);
-
-    const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
-    const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
-    const initialWood = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const initialChair = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: initialShape, rotationY: initialRotation } = getEffectiveShapeConfig(
-      initialAppearance.tableShape,
-      effectivePlayerCount
-    );
-
-    const tableInfo = createMurlanStyleTable({
-      arena: arenaGroup,
-      renderer,
-      tableRadius: TABLE_RADIUS,
-      tableHeight: TABLE_HEIGHT,
-      woodOption: initialWood,
-      clothOption: initialCloth,
-      baseOption: initialBase,
-      shapeOption: initialShape,
-      rotationY: initialRotation
-    });
-    applyTableMaterials(
-      tableInfo.materials,
-      { woodOption: initialWood, clothOption: initialCloth, baseOption: initialBase },
-      renderer
-    );
-
-    const cardGeometry = createCardGeometry(CARD_W, CARD_H, CARD_D);
-    const faceCache = new Map();
-    const cardTheme = CARD_THEMES[initialAppearance.cards] ?? CARD_THEMES[0];
-    const chipFactory = createChipFactory(renderer, { cardWidth: CARD_W });
-    const initialPlayers = gameState?.players ?? [];
-    const initialSeatCount = initialPlayers.length || effectivePlayerCount;
-    const seatLayout = createSeatLayout(initialSeatCount, tableInfo, {
-      useCardinal: initialShape?.id === DIAMOND_SHAPE_ID && initialSeatCount <= 4
-    });
-    const topSeat = seatLayout
-      .filter((seat) => !seat.isHuman)
-      .reduce((best, seat) => (!best || seat.seatPos.z < best.seatPos.z ? seat : best), null);
-    const seatTopPoint = topSeat ? topSeat.stoolAnchor.clone().setY(topSeat.stoolHeight) : null;
-
-    const seatGroups = [];
-    const deckAnchor = DECK_POSITION.clone();
-    if (tableInfo.rotationY) {
-      deckAnchor.applyAxisAngle(WORLD_UP, tableInfo.rotationY);
-    }
-
-    const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
-    const raiseControls = createBetControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
-    const applySeatedCamera = (width, height) => {
-      if (!humanSeat) return;
-      const portrait = height > width;
-      const lateralOffset = portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape;
-      const retreatOffset = portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape;
-      const elevation = portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape;
-      const position = humanSeat.stoolAnchor
-        .clone()
-        .addScaledVector(humanSeat.forward, -retreatOffset)
-        .addScaledVector(humanSeat.right, lateralOffset);
-      const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
-      position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
-
-      const focusBase = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_FOCUS_CENTER_LIFT, 0);
-      const focusForwardPull = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL : CAMERA_PLAYER_FOCUS_FORWARD_PULL;
-      const focusHeight = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT : CAMERA_PLAYER_FOCUS_HEIGHT;
-      const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
-      const chipFocus = humanSeat.chipAnchor.clone().addScaledVector(humanSeat.forward, -focusForwardPull);
-      chipFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
-      const focus = focusBase.lerp(chipFocus, focusBlend);
-
-      camera.position.copy(position);
-      camera.lookAt(focus);
-      camera.updateMatrixWorld();
-      const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
-      const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
-      const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
-      const pitchLimits = computeCameraPitchLimits(position, baseForward, { seatTopPoint });
-      cameraBasisRef.current = {
-        position: position.clone(),
-        baseForward,
-        baseUp,
-        baseRight,
-        pitchLimits
-      };
-      headAnglesRef.current.yaw = THREE.MathUtils.clamp(0, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
-      headAnglesRef.current.pitch = THREE.MathUtils.clamp(0, pitchLimits.min, pitchLimits.max);
-      applyHeadOrientation();
-    };
-
-    applySeatedCamera(mount.clientWidth, mount.clientHeight);
-
-    const stoolTheme = DEFAULT_STOOL_THEME;
-    const chairMaterial = createChairFabricMaterial(initialChair, renderer);
-    const legMaterial = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(initialChair.legColor ?? stoolTheme.legColor)
-    });
-    legMaterial.userData = { ...(legMaterial.userData || {}), chairId: initialChair.id ?? 'default' };
-
-    seatLayout.forEach((seat) => {
-      const group = new THREE.Group();
-      group.position.copy(seat.seatPos);
-      group.lookAt(new THREE.Vector3(0, seat.seatPos.y, 0));
-
-      const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), chairMaterial);
-      seatMesh.position.y = SEAT_THICKNESS / 2;
-      seatMesh.castShadow = true;
-      seatMesh.receiveShadow = true;
-      group.add(seatMesh);
-
-      const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), chairMaterial);
-      backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
-      backMesh.castShadow = true;
-      backMesh.receiveShadow = true;
-      group.add(backMesh);
-
-      const armLeft = createStraightArmrest('left', chairMaterial);
-      group.add(armLeft.group);
-      const armRight = createStraightArmrest('right', chairMaterial);
-      group.add(armRight.group);
-
-      const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
-        legMaterial
+      camera = new THREE.PerspectiveCamera(
+        CAMERA_SETTINGS.fov,
+        mount.clientWidth / mount.clientHeight,
+        CAMERA_SETTINGS.near,
+        CAMERA_SETTINGS.far
       );
-      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
-      legBase.castShadow = true;
-      legBase.receiveShadow = true;
-      group.add(legBase);
+      camera.position.set(0, TABLE_HEIGHT * 2.85, TABLE_RADIUS * 3.9);
+      renderer.domElement.style.touchAction = 'none';
+      renderer.domElement.style.cursor = 'grab';
 
-      arenaGroup.add(group);
+      const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+      scene.add(ambient);
+      const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+      spot.position.set(3, 7, 3);
+      spot.castShadow = true;
+      scene.add(spot);
+      const rim = new THREE.PointLight(0x33ccff, 1.728);
+      rim.position.set(-4, 3, -4);
+      scene.add(rim);
 
-      const cardMeshes = Array.from({ length: 6 }, () => {
-        const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
-        mesh.position.copy(deckAnchor);
-        mesh.castShadow = true;
-        arenaGroup.add(mesh);
-        return mesh;
+      arenaGroup = new THREE.Group();
+      scene.add(arenaGroup);
+
+      const floor = new THREE.Mesh(
+        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 3.2, 64),
+        new THREE.MeshStandardMaterial({ color: 0x0b1120, roughness: 0.9, metalness: 0.1 })
+      );
+      floor.rotation.x = -Math.PI / 2;
+      floor.receiveShadow = true;
+      arenaGroup.add(floor);
+
+      const carpet = new THREE.Mesh(
+        new THREE.CircleGeometry(TABLE_RADIUS * ARENA_GROWTH * 2.2, 64),
+        createArenaCarpetMaterial(new THREE.Color('#0f172a'), new THREE.Color('#1e3a8a'))
+      );
+      carpet.rotation.x = -Math.PI / 2;
+      carpet.position.y = 0.01;
+      carpet.receiveShadow = true;
+      arenaGroup.add(carpet);
+
+      const wall = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          TABLE_RADIUS * ARENA_GROWTH * 2.4,
+          TABLE_RADIUS * ARENA_GROWTH * 2.6,
+          ARENA_WALL_HEIGHT,
+          32,
+          1,
+          true
+        ),
+        createArenaWallMaterial('#0b1120', '#1e293b')
+      );
+      wall.position.y = ARENA_WALL_CENTER_Y;
+      arenaGroup.add(wall);
+
+      const initialAppearanceRaw = normalizeAppearance(appearanceRef.current);
+      const initialAppearance = enforceShapeForPlayers(initialAppearanceRaw, effectivePlayerCount);
+      const initialWood = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+      const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+      const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const initialChair = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const { option: initialShape, rotationY: initialRotation } = getEffectiveShapeConfig(
+        initialAppearance.tableShape,
+        effectivePlayerCount
+      );
+
+      tableInfo = createMurlanStyleTable({
+        arena: arenaGroup,
+        renderer,
+        tableRadius: TABLE_RADIUS,
+        tableHeight: TABLE_HEIGHT,
+        woodOption: initialWood,
+        clothOption: initialCloth,
+        baseOption: initialBase,
+        shapeOption: initialShape,
+        rotationY: initialRotation
       });
 
-      const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
-      chipStack.position.copy(seat.chipAnchor);
-      arenaGroup.add(chipStack);
+      const deckBuild = createDeck(THREE, createCardGeometry, CARD_THEMES, renderer);
+      const table = deckBuild.table;
+      faceCache = deckBuild.faceCache;
+      cardGeometry = deckBuild.cardGeometry;
+      cardTheme = deckBuild.cardTheme;
+      table.position.set(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
+      arenaGroup.add(table);
 
-      const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
-      betStack.position.copy(seat.betAnchor);
-      arenaGroup.add(betStack);
+      chipFactory = createChipFactory({ renderer });
+      const seatLayout = createSeatLayout(effectivePlayerCount, tableInfo, { useCardinal: initialShape?.useCardinal });
+      seatGroups = [];
+      deckAnchor = DECK_POSITION.clone();
+      if (tableInfo.rotationY) {
+        deckAnchor.applyAxisAngle(WORLD_UP, tableInfo.rotationY);
+      }
 
-      const previewStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
-      previewStack.position.copy(seat.previewAnchor);
-      previewStack.visible = false;
-      arenaGroup.add(previewStack);
+      const topSeat = seatLayout
+        .filter((seat) => !seat.isHuman)
+        .reduce((best, seat) => (!best || seat.seatPos.z < best.seatPos.z ? seat : best), null);
+      const seatTopPoint = topSeat ? topSeat.stoolAnchor.clone().setY(topSeat.stoolHeight) : null;
 
-      const nameplate = makeNameplate('Player', 0, renderer);
-      nameplate.position.set(0, seat.labelOffset.height, seat.labelOffset.forward);
-      group.add(nameplate);
-
-      seatGroups.push({
-        group,
-        chairMeshes: [seatMesh, backMesh, ...armLeft.meshes, ...armRight.meshes],
-        legMesh: legBase,
-        cardMeshes,
-        chipStack,
-        betStack,
-        previewStack,
-        nameplate,
-        forward: seat.forward.clone(),
-        right: seat.right.clone(),
-        cardAnchor: seat.cardAnchor.clone(),
-        chipAnchor: seat.chipAnchor.clone(),
-        cardRailAnchor: seat.cardRailAnchor.clone(),
-        chipRailAnchor: seat.chipRailAnchor.clone(),
-        betAnchor: seat.betAnchor.clone(),
-        previewAnchor: seat.previewAnchor.clone(),
-        stoolAnchor: seat.stoolAnchor.clone(),
-        stoolHeight: seat.stoolHeight,
-        labelOffset: { ...seat.labelOffset },
-        isHuman: seat.isHuman,
-        isDealer: seat.isDealer,
-        tableLayout: CHIP_SCATTER_LAYOUT,
-        lastBet: 0,
-        lastChips: 0,
-        lastStatus: ''
-      });
-    });
-
-    const potLayout = {
-      perRow: POT_SCATTER_LAYOUT.perRow,
-      spacing: POT_SCATTER_LAYOUT.spacing,
-      rowSpacing: POT_SCATTER_LAYOUT.rowSpacing,
-      jitter: POT_SCATTER_LAYOUT.jitter,
-      lift: POT_SCATTER_LAYOUT.lift,
-      right: new THREE.Vector3(1, 0, 0),
-      forward: new THREE.Vector3(0, 0, 1)
-    };
-    const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: potLayout });
-    potStack.position.copy(POT_OFFSET);
-    arenaGroup.add(potStack);
-
-    const raycaster = new THREE.Raycaster();
-
-    threeRef.current = {
-      renderer,
-      scene,
-      camera,
-      arenaGroup,
-      tableInfo,
-      tableShapeId: initialShape?.id ?? null,
-      cardGeometry,
-      faceCache,
-      chipFactory,
-      seatGroups,
-      potStack,
-      deckAnchor,
-      raiseControls,
-      raycaster,
-      sharedMaterials: { chair: chairMaterial, leg: legMaterial },
-      cardTheme,
-      orientHumanCards: () => {
-        const seat = seatGroups.find((s) => s.isHuman);
-        if (!seat) return;
-        const baseAnchor = seat.cardAnchor
+      const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
+      raiseControls = createBetControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
+      const applySeatedCamera = (width, height) => {
+        if (!humanSeat) return;
+        const portrait = height > width;
+        const lateralOffset = portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape;
+        const retreatOffset = portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape;
+        const elevation = portrait ? CAMERA_ELEVATION_OFFSETS.portrait : CAMERA_ELEVATION_OFFSETS.landscape;
+        const position = humanSeat.stoolAnchor
           .clone()
-          .addScaledVector(seat.forward, HUMAN_CARD_FORWARD_OFFSET)
-          .lerp(seat.chipAnchor, HUMAN_CARD_CHIP_BLEND);
-        seat.cardMeshes.forEach((mesh, idx) => {
-          if (!mesh.visible || !mesh.userData?.card) {
-            return;
-          }
-          const position = baseAnchor.clone().add(seat.right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
-          position.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET;
-          mesh.position.copy(position);
-          const lookTarget = camera.position.clone();
-          lookTarget.y = position.y + HUMAN_CARD_LOOK_LIFT;
-          lookTarget.add(seat.right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
-          orientCard(mesh, lookTarget, { face: 'front', flat: false });
-        });
-      }
-    };
+          .addScaledVector(humanSeat.forward, -retreatOffset)
+          .addScaledVector(humanSeat.right, lateralOffset);
+        const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
+        position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
 
-    const element = renderer.domElement;
+        const focusBase = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_FOCUS_CENTER_LIFT, 0);
+        const focusForwardPull = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL : CAMERA_PLAYER_FOCUS_FORWARD_PULL;
+        const focusHeight = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT : CAMERA_PLAYER_FOCUS_HEIGHT;
+        const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
+        const chipFocus = humanSeat.chipAnchor.clone().addScaledVector(humanSeat.forward, -focusForwardPull);
+        chipFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
+        const focus = focusBase.lerp(chipFocus, focusBlend);
 
-    const updateCameraAngles = () => {
-      const basis = cameraBasisRef.current;
-      const pitchLimits = basis?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
-      headAnglesRef.current.yaw = THREE.MathUtils.clamp(
-        headAnglesRef.current.yaw,
-        -CAMERA_HEAD_TURN_LIMIT,
-        CAMERA_HEAD_TURN_LIMIT
-      );
-      headAnglesRef.current.pitch = THREE.MathUtils.clamp(
-        headAnglesRef.current.pitch,
-        pitchLimits.min,
-        pitchLimits.max
-      );
-      applyHeadOrientation();
-    };
-
-    const resetPointerState = () => {
-      pointerStateRef.current = {
-        active: false,
-        pointerId: null,
-        mode: null,
-        startX: 0,
-        startY: 0,
-        startYaw: 0,
-        startPitch: 0,
-        dragged: false
+        camera.position.copy(position);
+        camera.lookAt(focus);
+        camera.updateMatrixWorld();
+        const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
+        const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+        const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
+        const pitchLimits = computeCameraPitchLimits(position, baseForward, { seatTopPoint });
+        cameraBasisRef.current = {
+          position: position.clone(),
+          baseForward,
+          baseUp,
+          baseRight,
+          pitchLimits
+        };
+        headAnglesRef.current.yaw = THREE.MathUtils.clamp(0, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
+        headAnglesRef.current.pitch = THREE.MathUtils.clamp(0, pitchLimits.min, pitchLimits.max);
+        applyHeadOrientation();
       };
-    };
 
-    const getControls = () => threeRef.current?.raiseControls || null;
+      applySeatedCamera(mount.clientWidth, mount.clientHeight);
 
-    const applyHoverTarget = (target) => {
-      const previous = hoverTargetRef.current;
-      if (previous && previous !== target && previous.userData?.type === 'chip-button') {
-        previous.scale.setScalar(previous.userData.baseScale);
-      }
-      hoverTargetRef.current = target || null;
-      if (!target) return;
-      if (target.userData?.type === 'chip-button') {
-        target.scale.setScalar(target.userData.baseScale * 1.12);
-      }
-    };
+      const chairTheme = {
+        seatColor: initialChair.primary ?? '#0f6a2f',
+        legColor: initialChair.legColor ?? DEFAULT_STOOL_THEME.legColor
+      };
+      const chairBuild = await buildChairTemplate(chairTheme);
+      if (!chairBuild || disposed) return;
+      chairTemplate = chairBuild.chairTemplate;
+      chairMaterials = chairBuild.materials;
+      applyChairThemeMaterials({ chairMaterials }, chairTheme);
 
-    const pickInteractive = (event) => {
-      const controls = getControls();
-      if (!controls?.group?.visible) return null;
-      const rect = element.getBoundingClientRect();
-      pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(pointerVectorRef.current, camera);
-      const intersects = raycaster.intersectObjects(controls.interactables, true);
-      if (!intersects.length) return null;
-      let target = intersects[0].object;
-      while (target && !target.userData?.type && target.parent) {
-        target = target.parent;
-      }
-      if (!target?.userData?.type) return null;
-      return target;
-    };
+      seatLayout.forEach((seat) => {
+        const group = new THREE.Group();
+        group.position.copy(seat.seatPos);
+        group.lookAt(new THREE.Vector3(0, seat.seatPos.y, 0));
 
-    const handlePointerDown = (event) => {
-      event.preventDefault();
-      const target = pickInteractive(event);
-      if (target) {
+        if (chairTemplate) {
+          const chairModel = chairTemplate.clone(true);
+          group.add(chairModel);
+        }
+
+        arenaGroup.add(group);
+
+        const cardMeshes = Array.from({ length: 6 }, () => {
+          const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
+          mesh.position.copy(deckAnchor);
+          mesh.castShadow = true;
+          arenaGroup.add(mesh);
+          return mesh;
+        });
+
+        const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
+        chipStack.position.copy(seat.chipAnchor);
+        arenaGroup.add(chipStack);
+
+        const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
+        betStack.position.copy(seat.betAnchor);
+        arenaGroup.add(betStack);
+
+        const previewStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
+        previewStack.position.copy(seat.previewAnchor);
+        previewStack.visible = false;
+        arenaGroup.add(previewStack);
+
+        const nameplate = makeNameplate('Player', 0, renderer);
+        nameplate.position.set(0, seat.labelOffset.height, seat.labelOffset.forward);
+        group.add(nameplate);
+
+        seatGroups.push({
+          group,
+          cardMeshes,
+          chipStack,
+          betStack,
+          previewStack,
+          nameplate,
+          forward: seat.forward.clone(),
+          right: seat.right.clone(),
+          cardAnchor: seat.cardAnchor.clone(),
+          chipAnchor: seat.chipAnchor.clone(),
+          cardRailAnchor: seat.cardRailAnchor.clone(),
+          chipRailAnchor: seat.chipRailAnchor.clone(),
+          betAnchor: seat.betAnchor.clone(),
+          previewAnchor: seat.previewAnchor.clone(),
+          stoolAnchor: seat.stoolAnchor.clone(),
+          stoolHeight: seat.stoolHeight,
+          labelOffset: { ...seat.labelOffset },
+          isHuman: seat.isHuman,
+          isDealer: seat.isDealer,
+          tableLayout: CHIP_SCATTER_LAYOUT,
+          lastBet: 0,
+          lastChips: 0,
+          lastStatus: ''
+        });
+      });
+
+      const potLayout = {
+        perRow: POT_SCATTER_LAYOUT.perRow,
+        spacing: POT_SCATTER_LAYOUT.spacing,
+        rowSpacing: POT_SCATTER_LAYOUT.rowSpacing,
+        jitter: POT_SCATTER_LAYOUT.jitter,
+        lift: POT_SCATTER_LAYOUT.lift,
+        right: new THREE.Vector3(1, 0, 0),
+        forward: new THREE.Vector3(0, 0, 1)
+      };
+      potStack = chipFactory.createStack(0, { mode: 'scatter', layout: potLayout });
+      potStack.position.copy(POT_OFFSET);
+      arenaGroup.add(potStack);
+
+      raycaster = new THREE.Raycaster();
+
+      threeRef.current = {
+        renderer,
+        scene,
+        camera,
+        arenaGroup,
+        tableInfo,
+        tableShapeId: initialShape?.id ?? null,
+        cardGeometry,
+        faceCache,
+        chipFactory,
+        seatGroups,
+        potStack,
+        deckAnchor,
+        raiseControls,
+        raycaster,
+        chairTemplate,
+        chairMaterials,
+        cardTheme,
+        orientHumanCards: () => {
+          const seat = seatGroups.find((s) => s.isHuman);
+          if (!seat) return;
+          const baseAnchor = seat.cardAnchor
+            .clone()
+            .addScaledVector(seat.forward, HUMAN_CARD_FORWARD_OFFSET)
+            .lerp(seat.chipAnchor, HUMAN_CARD_CHIP_BLEND);
+          seat.cardMeshes.forEach((mesh, idx) => {
+            if (!mesh.visible || !mesh.userData?.card) {
+              return;
+            }
+            const position = baseAnchor.clone().add(seat.right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
+            position.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET;
+            mesh.position.copy(position);
+            const lookTarget = camera.position.clone();
+            lookTarget.y = position.y + HUMAN_CARD_LOOK_LIFT;
+            lookTarget.add(seat.right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
+            orientCard(mesh, lookTarget, { face: 'front', flat: false });
+          });
+        }
+      };
+
+      const element = renderer.domElement;
+
+      const applyHoverTarget = (target) => {
+        const previous = hoverTargetRef.current;
+        if (previous && previous !== target && previous.userData?.type === 'chip-button') {
+          previous.scale.setScalar(previous.userData.baseScale);
+        }
+        hoverTargetRef.current = target || null;
+        if (!target) return;
+        if (target.userData?.type === 'chip-button') {
+          target.scale.setScalar(target.userData.baseScale * 1.12);
+        }
+      };
+
+      const getControls = () => threeRef.current?.raiseControls || null;
+
+      const resetPointerState = () => {
+        pointerStateRef.current = {
+          active: false,
+          pointerId: null,
+          mode: null,
+          startX: 0,
+          startY: 0,
+          startYaw: 0,
+          startPitch: 0,
+          dragged: false
+        };
+      };
+
+      const pickInteractive = (event) => {
+        const controls = getControls();
+        if (!controls?.group?.visible) return null;
+        const rect = element.getBoundingClientRect();
+        pointerVectorRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointerVectorRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointerVectorRef.current, camera);
+        const intersects = raycaster.intersectObjects(controls.interactables, true);
+        if (!intersects.length) return null;
+        let target = intersects[0].object;
+        while (target && !target.userData?.type && target.parent) {
+          target = target.parent;
+        }
+        if (!target?.userData?.type) return null;
+        return target;
+      };
+
+      const updateCameraAngles = () => {
+        const basis = cameraBasisRef.current;
+        const pitchLimits = basis?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
+        headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+          headAnglesRef.current.yaw,
+          -CAMERA_HEAD_TURN_LIMIT,
+          CAMERA_HEAD_TURN_LIMIT
+        );
+        headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+          headAnglesRef.current.pitch,
+          pitchLimits.min,
+          pitchLimits.max
+        );
+        applyHeadOrientation();
+      };
+
+      handlePointerDown = (event) => {
+        event.preventDefault();
+        const target = pickInteractive(event);
+        if (target) {
+          pointerStateRef.current = {
+            active: true,
+            pointerId: event.pointerId,
+            mode: target.userData.type,
+            startX: event.clientX,
+            startY: event.clientY,
+            startYaw: headAnglesRef.current.yaw,
+            startPitch: headAnglesRef.current.pitch,
+            dragged: false
+          };
+          element.setPointerCapture(event.pointerId);
+          if (target.userData.type === 'chip-button') {
+            interactionsRef.current.onChip?.(target.userData.value);
+            applyHoverTarget(target);
+            element.style.cursor = 'pointer';
+          }
+          return;
+        }
         pointerStateRef.current = {
           active: true,
           pointerId: event.pointerId,
-          mode: target.userData.type,
+          mode: 'camera',
           startX: event.clientX,
           startY: event.clientY,
           startYaw: headAnglesRef.current.yaw,
@@ -1618,107 +1304,96 @@ function BlackJackArena({ search }) {
           dragged: false
         };
         element.setPointerCapture(event.pointerId);
-        if (target.userData.type === 'chip-button') {
-          interactionsRef.current.onChip?.(target.userData.value);
-          applyHoverTarget(target);
-          element.style.cursor = 'pointer';
-        }
-        return;
-      }
-      pointerStateRef.current = {
-        active: true,
-        pointerId: event.pointerId,
-        mode: 'camera',
-        startX: event.clientX,
-        startY: event.clientY,
-        startYaw: headAnglesRef.current.yaw,
-        startPitch: headAnglesRef.current.pitch,
-        dragged: false
+        element.style.cursor = 'grabbing';
       };
-      element.setPointerCapture(event.pointerId);
-      element.style.cursor = 'grabbing';
-    };
 
-    const handlePointerMove = (event) => {
-      const state = pointerStateRef.current;
-      if (!state.active || state.pointerId !== event.pointerId) {
-        const target = pickInteractive(event);
-        applyHoverTarget(target);
-        element.style.cursor = target ? 'pointer' : 'grab';
-        return;
-      }
-      if (state.mode === 'camera') {
-        const dx = event.clientX - state.startX;
-        if (!state.dragged && Math.abs(dx) > 3) {
-          state.dragged = true;
+      handlePointerMove = (event) => {
+        const state = pointerStateRef.current;
+        if (!state.active || state.pointerId !== event.pointerId) {
+          const target = pickInteractive(event);
+          applyHoverTarget(target);
+          element.style.cursor = target ? 'pointer' : 'grab';
+          return;
         }
-        const dy = event.clientY - state.startY;
-        const basis = cameraBasisRef.current;
-        const pitchLimits = basis?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
-        headAnglesRef.current.yaw = THREE.MathUtils.clamp(
-          state.startYaw - dx * HEAD_YAW_SENSITIVITY,
-          -CAMERA_HEAD_TURN_LIMIT,
-          CAMERA_HEAD_TURN_LIMIT
-        );
-        headAnglesRef.current.pitch = THREE.MathUtils.clamp(
-          state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
-          pitchLimits.min,
-          pitchLimits.max
-        );
-        applyHeadOrientation();
-        return;
-      }
-      if (state.mode === 'chip-button') {
-        const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
-        state.dragged = distance > 10;
-      }
+        if (state.mode === 'camera') {
+          const dx = event.clientX - state.startX;
+          if (!state.dragged && Math.abs(dx) > 3) {
+            state.dragged = true;
+          }
+          const dy = event.clientY - state.startY;
+          const basis = cameraBasisRef.current;
+          const pitchLimits = basis?.pitchLimits ?? DEFAULT_PITCH_LIMITS;
+          headAnglesRef.current.yaw = THREE.MathUtils.clamp(
+            state.startYaw - dx * HEAD_YAW_SENSITIVITY,
+            -CAMERA_HEAD_TURN_LIMIT,
+            CAMERA_HEAD_TURN_LIMIT
+          );
+          headAnglesRef.current.pitch = THREE.MathUtils.clamp(
+            state.startPitch - dy * HEAD_PITCH_SENSITIVITY,
+            pitchLimits.min,
+            pitchLimits.max
+          );
+          applyHeadOrientation();
+          return;
+        }
+        if (state.mode === 'chip-button') {
+          const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+          state.dragged = distance > 10;
+        }
+      };
+
+      handlePointerUp = (event) => {
+        const state = pointerStateRef.current;
+        if (state.pointerId !== event.pointerId) {
+          return;
+        }
+        element.releasePointerCapture(event.pointerId);
+        element.style.cursor = 'grab';
+        resetPointerState();
+        updateCameraAngles();
+        applyHoverTarget(null);
+      };
+
+      element.addEventListener('pointerdown', handlePointerDown);
+      element.addEventListener('pointermove', handlePointerMove);
+      element.addEventListener('pointerup', handlePointerUp);
+      element.addEventListener('pointercancel', handlePointerUp);
+      element.addEventListener('pointerleave', handlePointerUp);
+
+      handleResize = () => {
+        if (!threeRef.current) return;
+        const { renderer: r, camera: cam } = threeRef.current;
+        const { clientWidth, clientHeight } = mount;
+        r.setSize(clientWidth, clientHeight);
+        cam.aspect = clientWidth / clientHeight;
+        cam.updateProjectionMatrix();
+        applySeatedCamera(clientWidth, clientHeight);
+      };
+      window.addEventListener('resize', handleResize);
+
+      const animate = () => {
+        const three = threeRef.current;
+        if (!three || disposed) return;
+        three.renderer.render(three.scene, three.camera);
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animate();
     };
 
-    const handlePointerUp = (event) => {
-      const state = pointerStateRef.current;
-      if (state.pointerId !== event.pointerId) {
-        return;
-      }
-      element.releasePointerCapture(event.pointerId);
-      element.style.cursor = 'grab';
-      resetPointerState();
-      updateCameraAngles();
-      applyHoverTarget(null);
-    };
-
-    element.addEventListener('pointerdown', handlePointerDown);
-    element.addEventListener('pointermove', handlePointerMove);
-    element.addEventListener('pointerup', handlePointerUp);
-    element.addEventListener('pointercancel', handlePointerUp);
-    element.addEventListener('pointerleave', handlePointerUp);
-
-    const handleResize = () => {
-      if (!threeRef.current) return;
-      const { renderer: r, camera: cam } = threeRef.current;
-      const { clientWidth, clientHeight } = mount;
-      r.setSize(clientWidth, clientHeight);
-      cam.aspect = clientWidth / clientHeight;
-      cam.updateProjectionMatrix();
-      applySeatedCamera(clientWidth, clientHeight);
-    };
-    window.addEventListener('resize', handleResize);
-
-    const animate = () => {
-      const three = threeRef.current;
-      if (!three) return;
-      three.renderer.render(three.scene, three.camera);
-      animationRef.current = requestAnimationFrame(animate);
-    };
-    animate();
+    setup();
 
     return () => {
+      disposed = true;
       window.removeEventListener('resize', handleResize);
+      const element = renderer?.domElement;
+      if (element) {
+        element.removeEventListener('pointerdown', handlePointerDown);
+        element.removeEventListener('pointermove', handlePointerMove);
+        element.removeEventListener('pointerup', handlePointerUp);
+        element.removeEventListener('pointercancel', handlePointerUp);
+        element.removeEventListener('pointerleave', handlePointerUp);
+      }
       cancelAnimationFrame(animationRef.current);
-      element.removeEventListener('pointerdown', handlePointerDown);
-      element.removeEventListener('pointermove', handlePointerMove);
-      element.removeEventListener('pointerup', handlePointerUp);
-      element.removeEventListener('pointercancel', handlePointerUp);
-      element.removeEventListener('pointerleave', handlePointerUp);
       if (threeRef.current) {
         const {
           renderer: r,
@@ -1727,7 +1402,9 @@ function BlackJackArena({ search }) {
           seatGroups: seats,
           potStack: pot,
           tableInfo: info,
-          raiseControls: controls
+          raiseControls: controls,
+          chairMaterials: chairs,
+          chairTemplate: template
         } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
@@ -1747,16 +1424,35 @@ function BlackJackArena({ search }) {
             seat.nameplate.material?.dispose?.();
             s.remove(seat.nameplate);
           }
+          if (seat.group?.parent) {
+            seat.group.parent.remove(seat.group);
+          }
         });
         factory.disposeStack(pot);
         controls?.dispose?.();
         factory.dispose();
         info?.dispose?.();
-        disposeChairMaterial(threeRef.current.sharedMaterials?.chair);
-        threeRef.current.sharedMaterials?.leg?.dispose?.();
+        if (chairs) {
+          const mats = new Set([
+            chairs.seat,
+            chairs.leg,
+            ...(chairs.upholstery ?? []),
+            ...(chairs.metal ?? [])
+          ]);
+          mats.forEach((mat) => mat?.dispose?.());
+        }
+        if (template) {
+          template.traverse((obj) => {
+            if (obj.isMesh) {
+              obj.geometry?.dispose?.();
+            }
+          });
+        }
         r.dispose();
       }
-      mount.removeChild(renderer.domElement);
+      if (renderer?.domElement && renderer.domElement.parentElement === mount) {
+        mount.removeChild(renderer.domElement);
+      }
       threeRef.current = null;
     };
   }, [applyHeadOrientation]);
@@ -1812,32 +1508,12 @@ function BlackJackArena({ search }) {
       applyTableMaterials(three.tableInfo.materials, { woodOption, clothOption, baseOption }, three.renderer);
     }
 
-    if (chairOption && three.sharedMaterials) {
-      const currentChairId = three.sharedMaterials.chair?.userData?.chairId;
-      if (currentChairId !== (chairOption.id ?? 'default')) {
-        const nextMaterial = createChairFabricMaterial(chairOption, three.renderer);
-        three.seatGroups?.forEach((seat) => {
-          seat.chairMeshes.forEach((mesh) => {
-            mesh.material = nextMaterial;
-          });
-        });
-        disposeChairMaterial(three.sharedMaterials.chair);
-        three.sharedMaterials.chair = nextMaterial;
-      }
-      const currentLegId = three.sharedMaterials.leg?.userData?.chairId;
-      if (currentLegId !== (chairOption.id ?? 'default')) {
-        const nextLeg = new THREE.MeshStandardMaterial({
-          color: new THREE.Color(chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor)
-        });
-        nextLeg.userData = { chairId: chairOption.id ?? 'default' };
-        three.seatGroups?.forEach((seat) => {
-          if (seat.legMesh) {
-            seat.legMesh.material = nextLeg;
-          }
-        });
-        three.sharedMaterials.leg?.dispose?.();
-        three.sharedMaterials.leg = nextLeg;
-      }
+    if (chairOption && three.chairMaterials) {
+      const chairTheme = {
+        seatColor: chairOption.primary ?? '#0f6a2f',
+        legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
+      };
+      applyChairThemeMaterials(three, chairTheme);
     }
 
     if (cardTheme && three.cardTheme !== cardTheme) {
