@@ -40,7 +40,7 @@ import {
   determineWinnersFromHands
 } from '../../../../lib/texasHoldemGame.js';
 
-const MODEL_SCALE = 0.75;
+const MODEL_SCALE = 0.75 * 0.85;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
@@ -68,7 +68,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85 * CHAIR_SIZE_SCALE;
-const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE * CHAIR_SIZE_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.18 * MODEL_SCALE * CHAIR_SIZE_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -119,8 +119,8 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.16 });
-const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.2, landscape: 0.92 });
+const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.35, landscape: 1.05 });
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.64;
@@ -1820,41 +1820,6 @@ function TexasHoldemArena({ search }) {
     [applyHeadOrientation]
   );
 
-  const updateCameraAutoTarget = useCallback((actionIndex) => {
-    if (typeof actionIndex !== 'number' || actionIndex < 0) {
-      return;
-    }
-    const three = threeRef.current;
-    const basis = cameraBasisRef.current;
-    if (!three || !basis) return;
-    const seat = three.seatGroups?.[actionIndex];
-    const playerState = gameStateRef.current?.players?.[actionIndex];
-    if (!playerState || playerState.folded || playerState.chips <= 0) {
-      if (cameraAutoTargetRef.current?.activeIndex === actionIndex) {
-        cameraAutoTargetRef.current = null;
-      }
-      return;
-    }
-    if (!seat || seat.isHuman || seat.folded) {
-      if (cameraAutoTargetRef.current?.activeIndex === actionIndex) {
-        cameraAutoTargetRef.current = null;
-      }
-      return;
-    }
-    const focusPoint = seat.stoolAnchor.clone();
-    focusPoint.y += seat.stoolHeight + CAMERA_TURN_FOCUS_LIFT;
-    const toTarget = focusPoint.sub(basis.position);
-    if (toTarget.lengthSq() === 0) return;
-    const projected = toTarget.clone().projectOnPlane(basis.baseUp);
-    if (projected.lengthSq() === 0) return;
-    projected.normalize();
-    const baseForward = basis.baseForward.clone().projectOnPlane(basis.baseUp).normalize();
-    const baseRight = basis.baseRight.clone().projectOnPlane(basis.baseUp).normalize();
-    const yaw = Math.atan2(projected.dot(baseRight), projected.dot(baseForward));
-    const clampedYaw = THREE.MathUtils.clamp(yaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
-    cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: actionIndex };
-  }, []);
-
   useEffect(() => {
     appearanceRef.current = appearance;
     if (typeof window !== 'undefined') {
@@ -2252,15 +2217,10 @@ function TexasHoldemArena({ search }) {
         activeIndex: cameraAutoTargetRef.current.activeIndex
       };
       applyHeadOrientation();
-      const currentActionIndex = gameStateRef.current?.actionIndex;
-      const stage = gameStateRef.current?.stage;
-      if (typeof currentActionIndex === 'number' && stage !== 'showdown') {
-        updateCameraAutoTarget(currentActionIndex);
-      }
     };
 
     const applyOverheadCamera = () => {
-      const height = TABLE_HEIGHT + BOARD_SIZE * 1.2;
+      const height = TABLE_HEIGHT + BOARD_SIZE * 1.05;
       camera.position.set(0, height, 0.001);
       camera.up.set(0, 0, 1);
       const focus = new THREE.Vector3(0, TABLE_HEIGHT, 0);
@@ -2702,12 +2662,6 @@ function TexasHoldemArena({ search }) {
         applyHoverTarget(null);
         if (wasCameraDrag) {
           cameraAutoTargetRef.current = { yaw: releaseYaw, activeIndex: null };
-        } else {
-          const currentActionIndex = gameStateRef.current?.actionIndex;
-          const stage = gameStateRef.current?.stage;
-          if (typeof currentActionIndex === 'number' && stage !== 'showdown') {
-            updateCameraAutoTarget(currentActionIndex);
-          }
         }
       }
     };
@@ -2832,7 +2786,7 @@ function TexasHoldemArena({ search }) {
       mount.removeChild(renderer.domElement);
       threeRef.current = null;
     };
-  }, [updateCameraAutoTarget]);
+  }, []);
 
   useEffect(() => {
     const three = threeRef.current;
@@ -3057,15 +3011,9 @@ function TexasHoldemArena({ search }) {
     if (!three) return;
     const seat = three.seatGroups?.[currentActionIndex];
     if (seat?.isHuman) {
-      headAnglesRef.current.yaw = 0;
-      headAnglesRef.current.pitch = 0;
-      cameraAutoTargetRef.current = { yaw: 0, activeIndex: currentActionIndex };
-      applyHeadOrientation();
       playSound('knock');
-      return;
     }
-    updateCameraAutoTarget(currentActionIndex);
-  }, [currentActionIndex, currentStage, updateCameraAutoTarget, applyHeadOrientation, playSound]);
+  }, [currentActionIndex, currentStage, playSound]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3361,6 +3309,13 @@ function TexasHoldemArena({ search }) {
     const mount = mountRef.current;
     const three = threeRef.current;
     if (!three?.camera) return;
+    if (Array.isArray(three.seatGroups)) {
+      three.seatGroups.forEach((seat) => {
+        if (seat?.group) {
+          seat.group.visible = !overheadView;
+        }
+      });
+    }
     if (overheadView) {
       controls.applyOverheadCamera?.();
     } else {

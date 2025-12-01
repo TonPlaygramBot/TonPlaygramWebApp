@@ -74,7 +74,7 @@ export function setCardFace(mesh, face) {
     mesh.userData.cardFace = 'back';
   } else {
     mesh.material[4] = frontMaterial;
-    mesh.material[5] = backMaterial;
+    mesh.material[5] = frontMaterial;
     mesh.userData.cardFace = 'front';
   }
 }
