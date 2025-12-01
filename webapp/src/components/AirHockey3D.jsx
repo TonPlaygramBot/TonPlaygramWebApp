@@ -137,7 +137,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [goalPopup, setGoalPopup] = useState(null);
   const [postPopup, setPostPopup] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
-  const [anchorsReady, setAnchorsReady] = useState(0);
   const [selections, setSelections] = useState({
     field: 0,
     table: 0,
@@ -175,9 +174,15 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     aiKnob: null,
     puck: null
   });
+  const malletRefs = useRef({ player: null, ai: null });
+  const malletDimensionsRef = useRef({
+    radius: 0,
+    knobRadius: 0,
+    height: 0,
+    knobHeight: 0
+  });
   const tableGroupRef = useRef(null);
   const avatarSpritesRef = useRef({ player: null, ai: null });
-  const fieldAnchorsRef = useRef(null);
 
   useEffect(() => {
     if (!gameOver) return undefined;
@@ -472,6 +477,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const MALLET_HEIGHT = MALLET_RADIUS * (0.05 / 0.12);
     const MALLET_KNOB_RADIUS = MALLET_RADIUS * (0.065 / 0.12);
     const MALLET_KNOB_HEIGHT = MALLET_RADIUS * (0.1 / 0.12);
+    malletDimensionsRef.current = {
+      radius: MALLET_RADIUS,
+      knobRadius: MALLET_KNOB_RADIUS,
+      height: MALLET_HEIGHT,
+      knobHeight: MALLET_KNOB_HEIGHT
+    };
     const PUCK_RADIUS = TABLE.w * 0.0295;
     const PUCK_HEIGHT = PUCK_RADIUS * 1.05;
 
@@ -732,16 +743,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     midLine.position.y = lineThickness * 0.25;
     tableGroup.add(midLine);
 
-    const anchorLift = lineThickness * 1.4 + TABLE.thickness * 0.015;
-    const avatarSize = TABLE.w * 0.28;
-    const ringOffset = TABLE.h * 0.33;
-    fieldAnchorsRef.current = {
-      ai: { x: 0, y: anchorLift, z: -ringOffset },
-      player: { x: 0, y: anchorLift, z: ringOffset },
-      size: avatarSize
-    };
-    setAnchorsReady((v) => v + 1);
-
     const goalGeometry = new THREE.BoxGeometry(
       TABLE.goalW,
       0.11 * SCALE_WIDTH,
@@ -799,6 +800,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroup.add(you);
     materialsRef.current.playerMallet = youData.baseMaterial;
     materialsRef.current.playerKnob = youData.knobMaterial;
+    malletRefs.current.player = you;
 
     const aiData = makeMallet(0x66ddff);
     const aiMallet = aiData.mallet;
@@ -806,6 +808,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     tableGroup.add(aiMallet);
     materialsRef.current.aiMallet = aiData.baseMaterial;
     materialsRef.current.aiKnob = aiData.knobMaterial;
+    malletRefs.current.ai = aiMallet;
 
     const puckTexture = createPuckTexture();
     const puck = new THREE.Mesh(
@@ -1094,9 +1097,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   }, []);
 
   useEffect(() => {
-    const tableGroup = tableGroupRef.current;
-    const anchors = fieldAnchorsRef.current;
-    if (!tableGroup || !anchors) return undefined;
+    const playerMallet = malletRefs.current.player;
+    const aiMallet = malletRefs.current.ai;
+    const dims = malletDimensionsRef.current;
+    if (!playerMallet || !aiMallet || !dims.knobRadius || !dims.knobHeight) {
+      return undefined;
+    }
 
     const createCircleTexture = (image, fallbackLabel = '?') => {
       const size = 512;
@@ -1171,7 +1177,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const setAvatar = (key, avatar) => {
       const existing = avatarSpritesRef.current[key];
       if (existing) {
-        tableGroup.remove(existing);
+        existing.parent?.remove(existing);
         existing.material.map?.dispose();
         existing.material.dispose();
         existing.geometry?.dispose();
@@ -1186,13 +1192,13 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           depthTest: false,
           side: THREE.DoubleSide
         });
-        const geometry = new THREE.PlaneGeometry(anchors.size * 0.72, anchors.size * 0.72);
+        const geometry = new THREE.CircleGeometry(dims.knobRadius, 64);
         const badge = new THREE.Mesh(geometry, material);
-        const target = anchors[key];
-        badge.position.set(target.x, target.y + anchors.size * 0.04, target.z);
+        badge.position.set(0, dims.height + dims.knobHeight + 0.0005, 0);
         badge.rotation.x = -Math.PI / 2;
         badge.renderOrder = 20;
-        tableGroup.add(badge);
+        const targetMallet = key === 'player' ? playerMallet : aiMallet;
+        targetMallet.add(badge);
         avatarSpritesRef.current[key] = badge;
       });
     };
@@ -1204,7 +1210,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       ['player', 'ai'].forEach((key) => {
         const sprite = avatarSpritesRef.current[key];
         if (sprite) {
-          tableGroup.remove(sprite);
+          sprite.parent?.remove(sprite);
           sprite.material.map?.dispose();
           sprite.material.dispose();
           sprite.geometry?.dispose();
@@ -1212,7 +1218,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         }
       });
     };
-  }, [player.avatar, ai.avatar, anchorsReady]);
+  }, [player.avatar, ai.avatar]);
 
   useEffect(() => {
     const mats = materialsRef.current;
