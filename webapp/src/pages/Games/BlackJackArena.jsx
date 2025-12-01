@@ -61,9 +61,9 @@ const AI_CHAIR_GAP = CARD_W * 0.4;
 const AI_CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + AI_CHAIR_GAP;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const HOLE_SPACING = CARD_W * 0.65;
-const DEALER_INDEX = 3;
+const DEALER_INDEX = -1;
 const DEFAULT_PLAYER_COUNT = 6;
-const MIN_PLAYER_COUNT = DEALER_INDEX + 1;
+const MIN_PLAYER_COUNT = 2;
 const MAX_PLAYER_COUNT = DEFAULT_PLAYER_COUNT;
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
@@ -592,17 +592,7 @@ function buildPlayers(searchOrOptions) {
   const nextFlag = () => flags.shift() || fallbackFlags.shift() || FLAG_EMOJIS[(flags.length + 3) % FLAG_EMOJIS.length];
   const players = [];
   for (let i = 0; i < seatCount; i += 1) {
-    if (i === DEALER_INDEX) {
-      players.push({
-        id: 'dealer',
-        name: 'Dealer',
-        flag: '🎩',
-        isDealer: true,
-        isHuman: false,
-        chips: baseChips * 2,
-        avatar: null
-      });
-    } else if (i === 0) {
+    if (i === 0) {
       const flag = nextFlag() || '🇦🇱';
       players.push({
         id: 'player',
@@ -728,7 +718,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       stoolAnchor,
       stoolHeight: STOOL_HEIGHT,
       isHuman,
-      isDealer: i === DEALER_INDEX
+      isDealer: false
     });
   }
   return layout;
@@ -876,7 +866,6 @@ function buildInitialState(players, token, stake) {
     stake,
     stage: 'betting',
     currentIndex: 0,
-    dealerIndex: DEALER_INDEX,
     pot: 0,
     awaitingInput: false,
     winners: [],
@@ -896,7 +885,7 @@ function resetForNextRound(state) {
     hand: [],
     bet: 0,
     result: '',
-    revealed: p.isDealer,
+    revealed: false,
     bust: false
   }));
   return next;
@@ -905,7 +894,6 @@ function resetForNextRound(state) {
 function placeInitialBets(state, options = {}) {
   const { humanBet } = options;
   state.players.forEach((player) => {
-    if (player.isDealer) return;
     const baseBet = Math.min(player.chips, Math.max(20, Math.round(state.stake * 0.2)));
     let wager = baseBet;
     if (player.isHuman && Number.isFinite(humanBet)) {
@@ -926,7 +914,7 @@ function dealInitialCards(state) {
   state.players.forEach((player, idx) => {
     player.hand = hands[idx];
     player.bust = false;
-    player.revealed = player.isDealer ? false : true;
+    player.revealed = true;
   });
   state.stage = 'player-turns';
   state.currentIndex = getNextPlayerIndex(state.players, -1);
@@ -934,77 +922,43 @@ function dealInitialCards(state) {
 
 function getNextPlayerIndex(players, start) {
   const total = players.length;
-
-  if (start < 0) {
-    for (let idx = 0; idx < total; idx += 1) {
-      const player = players[idx];
-      if (!player) continue;
-      if (!player.isDealer && player.bet > 0 && !player.bust) {
-        return idx;
-      }
-    }
-    return DEALER_INDEX;
-  }
-
-  for (let offset = 1; offset <= total; offset += 1) {
-    const idx = (start - offset + total) % total;
+  const startIdx = start < 0 ? 0 : (start + 1) % total;
+  for (let offset = 0; offset < total; offset += 1) {
+    const idx = (startIdx + offset) % total;
     const player = players[idx];
     if (!player) continue;
-    if (!player.isDealer && player.bet > 0 && !player.bust) {
+    if (player.bet > 0 && !player.bust && !player.stood) {
       return idx;
     }
   }
-  return DEALER_INDEX;
-}
-
-function playDealer(state) {
-  const dealer = state.players[state.dealerIndex];
-  dealer.revealed = true;
-  dealer.result = '';
-  while (handValue(dealer.hand) < 17) {
-    const { card, deck } = hitCard(state.deck);
-    state.deck = deck;
-    dealer.hand.push(card);
-  }
-  if (isBust(dealer.hand)) {
-    dealer.bust = true;
-    dealer.result = 'Bust';
-  } else {
-    dealer.result = `Dealer ${handValue(dealer.hand)}`;
-  }
+  return -1;
 }
 
 function resolveRound(state) {
-  playDealer(state);
-  const dealer = state.players[state.dealerIndex];
-  const contenders = state.players.filter((p) => !p.isDealer);
-  const winners = [];
-  contenders.forEach((player) => {
-    if (player.bet <= 0) return;
-    const playerValue = handValue(player.hand);
-    const dealerValue = handValue(dealer.hand);
-    if (player.bust) {
-      player.result = 'Lose';
-    } else if (dealer.bust || playerValue > dealerValue) {
-      const payout = player.bet * 2;
+  const activePlayers = state.players.filter((player) => player.bet > 0);
+  const winnerOffsets = evaluateWinners(activePlayers);
+  const winnerSeats = winnerOffsets.map((offset) => activePlayers[offset]?.seatIndex).filter(Number.isFinite);
+  const payout = winnerSeats.length > 0 ? Math.floor(state.pot / winnerSeats.length) : 0;
+
+  state.players.forEach((player) => {
+    const isWinner = winnerSeats.includes(player.seatIndex);
+    player.revealed = true;
+    if (isWinner) {
       player.chips += payout;
       player.result = `Win ${payout}`;
-      winners.push(player.seatIndex);
-    } else if (playerValue === dealerValue) {
-      player.chips += player.bet;
-      player.result = 'Push';
-    } else {
-      player.result = 'Lose';
+    } else if (player.bet > 0) {
+      player.result = player.bust ? 'Bust' : 'Lose';
     }
   });
+
   state.pot = 0;
   state.stage = 'round-end';
-  state.winners = winners;
+  state.winners = winnerSeats;
 }
 
 function applyPlayerAction(state, action) {
   const player = state.players[state.currentIndex];
-  if (!player || player.isDealer) return;
+  if (!player) return;
   if (action === 'hit') {
     const { card, deck } = hitCard(state.deck);
     state.deck = deck;
@@ -1023,13 +977,11 @@ function applyPlayerAction(state, action) {
 
 function advancePlayer(state) {
   const nextIndex = getNextPlayerIndex(state.players, state.currentIndex);
-  if (nextIndex === DEALER_INDEX) {
-    state.stage = 'dealer';
-    state.currentIndex = DEALER_INDEX;
+  if (nextIndex === -1) {
     resolveRound(state);
-  } else {
-    state.currentIndex = nextIndex;
+    return;
   }
+  state.currentIndex = nextIndex;
 }
 
 function cloneState(state) {
@@ -1920,7 +1872,10 @@ function BlackJackArena({ search }) {
     }
     if (gameState.stage === 'player-turns') {
       const actor = gameState.players[gameState.currentIndex];
-      if (!actor) return;
+      if (!actor) {
+        setUiState({ actions: [] });
+        return;
+      }
       if (actor.isHuman) {
         setUiState({
           actions: [
@@ -1940,15 +1895,8 @@ function BlackJackArena({ search }) {
           });
         }, 900);
       }
-    } else if (gameState.stage === 'dealer') {
+    } else {
       setUiState({ actions: [] });
-      timerRef.current = setTimeout(() => {
-        setGameState((prev) => {
-          const next = cloneState(prev);
-          resolveRound(next);
-          return next;
-        });
-      }, 600);
     }
     return () => {
       if (timerRef.current) {
@@ -1967,7 +1915,7 @@ function BlackJackArena({ search }) {
     });
   };
 
-  const humanPlayer = gameState.players.find((player) => player.isHuman && !player.isDealer);
+  const humanPlayer = gameState.players.find((player) => player.isHuman);
   const sliderMax = humanPlayer ? Math.max(0, Math.round(humanPlayer.chips)) : 0;
   const baseBetAmount = humanPlayer ? Math.max(20, Math.round(gameState.stake * 0.2)) : 0;
   const minBet = sliderMax > 0 ? Math.min(sliderMax, baseBetAmount || sliderMax) : 0;
@@ -2091,8 +2039,15 @@ function BlackJackArena({ search }) {
     }
   }, [sliderEnabled, sliderMax]);
 
-  const dealer = gameState.players[DEALER_INDEX];
-  const dealerValue = dealer?.hand?.length ? (dealer.revealed ? handValue(dealer.hand) : '??') : '--';
+  const highestVisibleScore = (() => {
+    const activeHands = gameState.players.filter((player) => player.hand?.length);
+    if (!activeHands.length) return '--';
+    const best = activeHands.reduce((max, player) => {
+      const value = handValue(player.hand);
+      return value > max && value <= 21 ? value : max;
+    }, 0);
+    return best > 0 ? best : '--';
+  })();
 
 
   return (
@@ -2180,7 +2135,7 @@ function BlackJackArena({ search }) {
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center text-white drop-shadow-lg">
         <p className="text-lg font-semibold">Black Jack Multiplayer</p>
         <p className="text-sm opacity-80">
-          Pot: {Math.round(gameState.pot)} {gameState.token} · Dealer: {dealerValue}
+          Pot: {Math.round(gameState.pot)} {gameState.token} · Best hand: {highestVisibleScore}
         </p>
       </div>
       {gameState.stage === 'round-end' && (
