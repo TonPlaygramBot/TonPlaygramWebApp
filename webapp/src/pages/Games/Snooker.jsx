@@ -591,6 +591,8 @@ const CORNER_POCKET_CENTER_INSET =
 const CORNER_RAIL_CUT_INSET =
   POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // preserve the existing chrome/wood cut positioning for jaws and fascia
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET = 0; // align side pocket cuts and pockets flush with Pool Royale's centred middle pockets
+const SIDE_POCKET_OUTSET_BOOST = TABLE.THICK * 0.5;
+let MIDDLE_POCKET_LATERAL_SHIFT = 0;
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -1742,7 +1744,8 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
     metalness: 0.88,
     roughness: 0.35,
     clearcoat: 0.26,
-    clearcoatRoughness: 0.2
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.58
   }
 ]);
 
@@ -3005,7 +3008,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
-const IN_HAND_CAMERA_PULLBACK = 1.2;
+const IN_HAND_CAMERA_PULLBACK = 1.45;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -3356,8 +3359,14 @@ const pocketCenters = () => [
     PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
     PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
   ),
-  new THREE.Vector2(-PLAY_W / 2, -MIDDLE_POCKET_LONGITUDINAL_OFFSET),
-  new THREE.Vector2(PLAY_W / 2, MIDDLE_POCKET_LONGITUDINAL_OFFSET)
+  new THREE.Vector2(
+    -(PLAY_W / 2 + MIDDLE_POCKET_LATERAL_SHIFT),
+    -MIDDLE_POCKET_LONGITUDINAL_OFFSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 + MIDDLE_POCKET_LATERAL_SHIFT,
+    MIDDLE_POCKET_LONGITUDINAL_OFFSET
+  )
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -4245,6 +4254,14 @@ function Table3D(
     Math.min(PLAY_W, PLAY_H) * 0.0032; // extend the cloth slightly more so rails meet the cloth with no gaps
   const halfWext = halfW + clothExtend;
   const halfHext = halfH + clothExtend;
+  const sideInset = SIDE_POCKET_RADIUS * 0.84 * POCKET_VISUAL_EXPANSION;
+  const desiredSidePocketShift = Math.max(0, halfWext - sideInset - halfW);
+  const maxSidePocketShift = Math.max(0, halfWext - MICRO_EPS - halfW);
+  const outwardBoost = Math.max(SIDE_POCKET_OUTSET_BOOST, clothExtend * 0.4);
+  MIDDLE_POCKET_LATERAL_SHIFT = Math.min(
+    desiredSidePocketShift + outwardBoost,
+    maxSidePocketShift
+  );
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? SIDE_POCKET_RADIUS / POCKET_VIS_R : 1;
@@ -6216,6 +6233,9 @@ function SnookerGame() {
       window.localStorage.setItem('snookerWoodTexture', woodTextureId);
     }
   }, [woodTextureId]);
+  useEffect(() => {
+    applyFinishRef.current?.(tableFinishRef.current);
+  }, [tableFinishId, chromeColorId, clothColorId, woodTextureId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
