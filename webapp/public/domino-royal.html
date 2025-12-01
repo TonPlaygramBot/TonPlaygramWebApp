@@ -15,6 +15,9 @@
   #railControls button{background:rgba(12,16,28,.72);color:#ffe8a3;font-size:.95rem;padding:.55rem .9rem;border-radius:999px;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
   #draw{font-size:1rem;padding:.6rem 1rem;background:linear-gradient(135deg, rgba(255,210,74,.95), rgba(255,196,45,.85));color:#3b250f;border:0;}
   #pass{background:rgba(255,210,74,.12);color:#ffe8a3;border:1px solid rgba(255,210,74,.35);}
+  #viewToggle{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(3.6rem + env(safe-area-inset-right,0px));height:2.75rem;padding:0 1rem;border-radius:999px;background:rgba(0,0,0,.7);color:#ffe8a3;border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;font-weight:800;letter-spacing:.02em;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(7px);}
+  #viewToggle[aria-pressed="true"]{background:rgba(255,210,74,.16);border-color:rgba(255,210,74,.5);color:#fef08a;box-shadow:0 0 0 1px rgba(255,210,74,.24),0 10px 18px rgba(0,0,0,.28);}
+  #viewToggle:active{transform:translateY(1px);}
   #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
   #btnRules span{pointer-events:none;}
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
@@ -78,6 +81,7 @@
   <h3 id="configTitle">Table Setup</h3>
   <div id="configSections"></div>
 </div>
+<button id="viewToggle" type="button" aria-label="Switch to 2D view" title="Switch to 2D view">2D</button>
 <button id="btnRules" type="button" aria-label="Rules" title="Rules">
   <span aria-hidden="true">ℹ️</span>
 </button>
@@ -162,9 +166,10 @@ const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = envTex;
 
 const MODEL_SCALE = 0.75;
+const TABLE_SCALE = 0.85;
 const ARENA_GROWTH = 1.45;
-const TABLE_RADIUS = 3.4 * MODEL_SCALE;
-const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
+const TABLE_RADIUS = 3.4 * MODEL_SCALE * TABLE_SCALE;
+const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE * TABLE_SCALE;
 const STOOL_SCALE = 1.5 * 1.3;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
 const SEAT_DEPTH = 0.95 * MODEL_SCALE * STOOL_SCALE;
@@ -185,7 +190,7 @@ const CHAIR_GAP = 0.12 * MODEL_SCALE;
 const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_GAP;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
-const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE;
+const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const HUMAN_SEAT_INDEX = 0;
 const CHAIR_SEAT_ANGLES = Object.freeze([
@@ -221,7 +226,15 @@ const CAMERA_LATERAL_OFFSET = { portrait: 0.78, landscape: 0.58 };
 const CAMERA_REAR_OFFSET = { portrait: 1.85, landscape: 1.35 };
 const CAMERA_HEIGHT_BOOST = { portrait: 1.95, landscape: 1.58 };
 const CAMERA_TARGET = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT + CAMERA_TARGET_EXTRA, 0);
+const CAMERA_TOPDOWN_RADIUS = TABLE_RADIUS * 2.35;
+const CAMERA_TOPDOWN_MIN_RADIUS = TABLE_RADIUS * 1.2;
+const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
+const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
+const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
 const UP = new THREE.Vector3(0, 1, 0);
+
+const VIEW_MODES = Object.freeze({ threeD: '3d', twoD: '2d' });
+let cameraViewMode = VIEW_MODES.threeD;
 
 const urlParams = new URLSearchParams(window.location.search);
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
@@ -316,23 +329,64 @@ function computeDesiredCameraPosition() {
   return desiredPosition;
 }
 
+function computeTopDownCameraPosition() {
+  const lift = Math.max(TABLE_HEIGHT + CAMERA_TARGET_EXTRA, CAMERA_TOPDOWN_RADIUS);
+  return CAMERA_TARGET.clone().add(new THREE.Vector3(0, lift, 0.0001));
+}
+
+function getActiveCameraConstraints() {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return {
+      minPolar: CAMERA_TOPDOWN_MIN_POLAR,
+      maxPolar: CAMERA_TOPDOWN_MAX_POLAR,
+      minRadius: CAMERA_TOPDOWN_MIN_RADIUS,
+      maxRadius: CAMERA_TOPDOWN_MAX_RADIUS
+    };
+  }
+
+  return {
+    minPolar: CAMERA_MIN_POLAR,
+    maxPolar: CAMERA_MAX_POLAR,
+    minRadius: CAMERA_MIN_RADIUS,
+    maxRadius: CAMERA_MAX_RADIUS
+  };
+}
+
+function getDesiredCameraPosition() {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return computeTopDownCameraPosition();
+  }
+  return computeDesiredCameraPosition();
+}
+
+function applyCameraConstraints() {
+  const { minPolar, maxPolar, minRadius, maxRadius } = getActiveCameraConstraints();
+  controls.minPolarAngle = minPolar;
+  controls.maxPolarAngle = maxPolar;
+  controls.minDistance = minRadius;
+  controls.maxDistance = maxRadius;
+  controls.enableRotate = cameraViewMode !== VIEW_MODES.twoD;
+}
+
 function clampCameraPosition(position) {
+  const { minPolar, maxPolar, minRadius, maxRadius } = getActiveCameraConstraints();
   const offset = position.clone().sub(CAMERA_TARGET);
   const spherical = new THREE.Spherical().setFromVector3(offset);
   if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
-    spherical.radius = CAMERA_MIN_RADIUS;
+    spherical.radius = minRadius;
     spherical.theta = CAMERA_DEFAULT_AZIMUTH;
-    spherical.phi = THREE.MathUtils.clamp(CAMERA_INITIAL_PHI, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
+    spherical.phi = THREE.MathUtils.clamp(CAMERA_INITIAL_PHI, minPolar, maxPolar);
   }
-  spherical.radius = THREE.MathUtils.clamp(spherical.radius, CAMERA_MIN_RADIUS, CAMERA_MAX_RADIUS);
-  spherical.phi = THREE.MathUtils.clamp(spherical.phi, CAMERA_MIN_POLAR, CAMERA_MAX_POLAR);
+  spherical.radius = THREE.MathUtils.clamp(spherical.radius, minRadius, maxRadius);
+  spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
   const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
   return CAMERA_TARGET.clone().add(clampedOffset);
 }
 
 function positionCameraForViewport({ force = false } = {}) {
   fitCamera();
-  const desiredPosition = computeDesiredCameraPosition();
+  applyCameraConstraints();
+  const desiredPosition = getDesiredCameraPosition();
   const clampedDesired = clampCameraPosition(desiredPosition);
   if (!cameraHasUserControl || force) {
     camera.position.copy(clampedDesired);
@@ -345,6 +399,33 @@ function positionCameraForViewport({ force = false } = {}) {
 
   controls.target.copy(CAMERA_TARGET);
   controls.update();
+}
+
+function updateViewToggleLabel() {
+  const isTopDown = cameraViewMode === VIEW_MODES.twoD;
+  if (viewToggle) {
+    viewToggle.textContent = isTopDown ? '3D' : '2D';
+    viewToggle.setAttribute('aria-pressed', isTopDown ? 'true' : 'false');
+    const nextLabel = isTopDown ? 'Switch to 3D view' : 'Switch to 2D view';
+    viewToggle.setAttribute('aria-label', nextLabel);
+    viewToggle.title = nextLabel;
+  }
+}
+
+function setCameraViewMode(mode = VIEW_MODES.threeD) {
+  if (!Object.values(VIEW_MODES).includes(mode)) return;
+  if (mode === cameraViewMode) return;
+
+  cameraViewMode = mode;
+  cameraHasUserControl = false;
+  applyCameraConstraints();
+  positionCameraForViewport({ force: true });
+  updateViewToggleLabel();
+}
+
+function toggleCameraViewMode() {
+  const next = cameraViewMode === VIEW_MODES.twoD ? VIEW_MODES.threeD : VIEW_MODES.twoD;
+  setCameraViewMode(next);
 }
 
 
@@ -2002,7 +2083,7 @@ function configureEntryCurves(finalPosition) {
 
 function startHallwayEntry() {
   fitCamera();
-  const finalDesired = clampCameraPosition(computeDesiredCameraPosition());
+  const finalDesired = clampCameraPosition(getDesiredCameraPosition());
   configureEntryCurves(finalDesired);
   entrySequenceActive = true;
   entryStartTime = performance.now();
@@ -2281,7 +2362,7 @@ function createSeatLabelMesh() {
 const TABLE_OUTER_RADIUS = TABLE_RADIUS;
 const TABLE_INNER_RADIUS = TABLE_OUTER_RADIUS * 0.84;
 const CLOTH_RADIUS = TABLE_OUTER_RADIUS * 0.72;
-const TABLE_TOP_DEPTH = 0.06 * MODEL_SCALE;
+const TABLE_TOP_DEPTH = 0.06 * MODEL_SCALE * TABLE_SCALE;
 const RIM_THICK = 0.08 * MODEL_SCALE;
 const TABLE_BASE_Y = TABLE_HEIGHT - TABLE_TOP_DEPTH;
 const CLOTH_TOP = TABLE_HEIGHT;
@@ -2376,7 +2457,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5; // enlarge domino tiles by 50%
+const DOMINO_SCALE = 1.5 * 0.85; // shrink domino tiles by 15% from previous upscale
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
@@ -3052,6 +3133,7 @@ const statusEl = document.getElementById('status');
 const btnDraw = document.getElementById('draw');
 const btnPass = document.getElementById('pass');
 const btnRules = document.getElementById('btnRules');
+const viewToggle = document.getElementById('viewToggle');
 const panelRules = document.getElementById('rules');
 const closeRules = document.getElementById('closeRules');
 
@@ -4038,6 +4120,10 @@ function cpuPlay(){
 btnRules.addEventListener('click',()=>{ panelRules.style.display='flex'; });
 closeRules.addEventListener('click',()=>{ panelRules.style.display='none'; });
 panelRules.addEventListener('click',(e)=>{ if(e.target===panelRules) panelRules.style.display='none'; });
+if (viewToggle) {
+  viewToggle.addEventListener('click', toggleCameraViewMode);
+}
+updateViewToggleLabel();
 
 /* ---------- Mini tests (console) ---------- */
 console.assert(document.getElementById('draw') && document.getElementById('pass'), 'UI buttons exist');
@@ -4141,7 +4227,7 @@ requestAnimationFrame(tick);
 function onResize(){
   if (entrySequenceActive) {
     fitCamera();
-    const finalDesired = clampCameraPosition(computeDesiredCameraPosition());
+    const finalDesired = clampCameraPosition(getDesiredCameraPosition());
     configureEntryCurves(finalDesired);
     const now = performance.now();
     const elapsed = Math.max(0, now - entryStartTime);
