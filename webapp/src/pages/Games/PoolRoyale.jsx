@@ -1004,6 +1004,7 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
+const POCKET_VIEW_MAX_HOLD_MS = 3200;
 const SPIN_STRENGTH = BALL_R * 0.03125;
 const SPIN_DECAY = 0.88;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
@@ -15703,6 +15704,8 @@ function PoolRoyaleGame({
           const pocketView = activeShotView;
           const focusBall = balls.find((b) => b.id === pocketView.ballId);
           const now = performance.now();
+          const maxHoldReached =
+            pocketView.startedAt != null && now - pocketView.startedAt >= POCKET_VIEW_MAX_HOLD_MS;
           if (!focusBall?.active) {
             if (pocketView.holdUntil == null) {
               pocketView.holdUntil = now + POCKET_VIEW_POST_POT_HOLD_MS;
@@ -15738,6 +15741,8 @@ function PoolRoyaleGame({
                   pocketView.holdUntil != null
                     ? Math.max(pocketView.holdUntil, extendTo)
                     : extendTo;
+              } else if (maxHoldReached) {
+                resumeAfterPocket(pocketView, now);
               } else {
                 const holdTarget = Math.max(
                   pocketView.holdUntil ?? now,
