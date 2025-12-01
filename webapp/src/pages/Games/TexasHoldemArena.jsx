@@ -83,8 +83,7 @@ const MAX_PLAYER_COUNT = 6;
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
-const SMALL_BLIND = CLASSIC_ANTE / 2;
-const BIG_BLIND = CLASSIC_ANTE;
+const ANTE = CLASSIC_ANTE;
 const COMMUNITY_SPACING = CARD_W * 0.75;
 const COMMUNITY_CARD_FORWARD_OFFSET = 0;
 const COMMUNITY_CARD_LIFT = CARD_D * 12;
@@ -1232,7 +1231,7 @@ function buildInitialState(players, token, stake) {
     dealerIndex: players.length - 1,
     actionIndex: 0,
     currentBet: 0,
-    minRaise: BIG_BLIND,
+    minRaise: ANTE,
     winners: [],
     awaitingInput: false,
     handId: 0,
@@ -1251,7 +1250,7 @@ function resetForNextHand(state) {
   next.showdown = false;
   next.pot = 0;
   next.currentBet = 0;
-  next.minRaise = BIG_BLIND;
+  next.minRaise = ANTE;
   next.dealerIndex = (state.dealerIndex + 1) % state.players.length;
   next.winningCommunityCards = [];
   next.winnerFocusIndex = null;
@@ -1272,8 +1271,8 @@ function resetForNextHand(state) {
   if (active.length < 2) {
     return next;
   }
+  collectAntes(next);
   dealHoleCardsToState(next);
-  postBlinds(next);
   prepareNextAction(next, true);
   return next;
 }
@@ -1289,23 +1288,20 @@ function dealHoleCardsToState(state) {
   });
 }
 
-function postBlinds(state) {
-  const smallBlindIndex = getNextActiveIndex(state.players, state.dealerIndex);
-  const bigBlindIndex = getNextActiveIndex(state.players, smallBlindIndex);
-  const sbPlayer = state.players[smallBlindIndex];
-  const bbPlayer = state.players[bigBlindIndex];
-  const sbAmount = payChips(sbPlayer, Math.min(SMALL_BLIND, sbPlayer.chips), state);
-  const bbAmount = payChips(bbPlayer, Math.min(BIG_BLIND, bbPlayer.chips), state);
-  sbPlayer.bet = sbAmount;
-  sbPlayer.totalBet = sbAmount;
-  bbPlayer.bet = bbAmount;
-  bbPlayer.totalBet = bbAmount;
-  sbPlayer.status = `SB ${sbAmount}`;
-  bbPlayer.status = `BB ${bbAmount}`;
-  state.currentBet = bbPlayer.bet;
-  state.smallBlindIndex = smallBlindIndex;
-  state.bigBlindIndex = bigBlindIndex;
-  state.actionIndex = getNextActiveIndex(state.players, bigBlindIndex);
+function collectAntes(state) {
+  const ante = Math.max(0, ANTE);
+  state.players.forEach((player) => {
+    if (player.chips <= 0 || player.folded || player.allIn) return;
+    const paid = payChips(player, Math.min(ante, player.chips), state);
+    player.totalBet = (player.totalBet ?? 0) + paid;
+    player.bet = 0;
+    if (paid > 0) {
+      player.status = `Ante ${paid}`;
+    }
+  });
+  state.currentBet = 0;
+  state.minRaise = ante;
+  state.actionIndex = getNextActiveIndex(state.players, state.dealerIndex);
   resetActedFlags(state);
 }
 
@@ -1372,7 +1368,7 @@ function advanceStage(state) {
     }
   });
   state.currentBet = 0;
-  state.minRaise = BIG_BLIND;
+  state.minRaise = ANTE;
   state.actionIndex = getNextActiveIndex(state.players, state.dealerIndex);
   prepareNextAction(state, false);
 }
@@ -1472,7 +1468,7 @@ function prepareNextAction(state, isNewHand) {
   }
 }
 
-function performPlayerAction(state, action, raiseSize = BIG_BLIND) {
+function performPlayerAction(state, action, raiseSize = ANTE) {
   const player = state.players[state.actionIndex];
   if (!player || player.folded || player.allIn) return;
   const toCall = Math.max(0, state.currentBet - player.bet);
@@ -1640,7 +1636,7 @@ function TexasHoldemArena({ search }) {
   });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
-  const [overheadView, setOverheadView] = useState(false);
+  const overheadView = false;
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -2377,16 +2373,6 @@ function TexasHoldemArena({ search }) {
         hoverChip.visible = false;
         arenaGroup.add(hoverChip);
 
-        const turnToken = new THREE.Mesh(
-          new THREE.CylinderGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_RADIUS * 0.92, TURN_TOKEN_HEIGHT, 24),
-          new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#78350f', emissiveIntensity: 0.32, metalness: 0.5 })
-        );
-        turnToken.position.copy(seat.cardRailAnchor.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
-        turnToken.visible = false;
-        turnToken.castShadow = true;
-        turnToken.receiveShadow = true;
-        arenaGroup.add(turnToken);
-
         const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer);
         nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
         arenaGroup.add(nameplate);
@@ -2415,7 +2401,6 @@ function TexasHoldemArena({ search }) {
           tableLayout,
           railLayout,
           nameplate,
-          turnToken,
           lastBet: 0,
           folded: false,
           lastStatus: '',
@@ -2507,6 +2492,16 @@ function TexasHoldemArena({ search }) {
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
 
+      const turnIndicator = new THREE.Mesh(
+        new THREE.CylinderGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_RADIUS * 0.92, TURN_TOKEN_HEIGHT, 24),
+        new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#78350f', emissiveIntensity: 0.38, metalness: 0.55 })
+      );
+      turnIndicator.position.copy(POT_OFFSET.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
+      turnIndicator.visible = false;
+      turnIndicator.castShadow = true;
+      turnIndicator.receiveShadow = true;
+      arenaGroup.add(turnIndicator);
+
         const orientHumanCards = () => {
           const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
           if (!humanSeatGroup) return;
@@ -2539,6 +2534,7 @@ function TexasHoldemArena({ search }) {
         seatGroups,
         communityMeshes,
         potStack,
+          turnIndicator,
           potLayout,
           deckAnchor,
           raiseControls,
@@ -2790,7 +2786,8 @@ function TexasHoldemArena({ search }) {
           communityMeshes: community,
           raiseControls: controls,
           chairMaterials,
-          arenaGroup: arena
+          arenaGroup: arena,
+          turnIndicator
         } = threeRef.current;
         seats.forEach((seat) => {
           seat.cardMeshes.forEach((mesh) => {
@@ -2813,11 +2810,6 @@ function TexasHoldemArena({ search }) {
             seat.nameplate.userData?.dispose?.();
             seat.nameplate.parent?.remove(seat.nameplate);
           }
-          if (seat.turnToken) {
-            seat.turnToken.geometry?.dispose?.();
-            seat.turnToken.material?.dispose?.();
-            seat.turnToken.parent?.remove(seat.turnToken);
-          }
           seat.group?.parent?.remove(seat.group);
         });
         community.forEach((mesh) => {
@@ -2830,6 +2822,11 @@ function TexasHoldemArena({ search }) {
           s.remove(mesh);
         });
         factory.disposeStack(threeRef.current.potStack);
+        if (turnIndicator) {
+          turnIndicator.geometry?.dispose?.();
+          turnIndicator.material?.dispose?.();
+          turnIndicator.parent?.remove(turnIndicator);
+        }
         factory.dispose();
         arena?.parent?.remove(arena);
         controls?.dispose?.();
@@ -2845,7 +2842,7 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
-    const { seatGroups, communityMeshes, chipFactory, potStack, potLayout, deckAnchor, arenaGroup } = three;
+    const { seatGroups, communityMeshes, chipFactory, potStack, potLayout, deckAnchor, arenaGroup, turnIndicator } = three;
     const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
     if (!state) return;
@@ -2855,6 +2852,9 @@ function TexasHoldemArena({ search }) {
 
     const showdownState = showdownAnimationRef.current;
     const winningCommunity = new Set(state.winningCommunityCards ?? []);
+
+    let turnTarget = null;
+    let turnForward = null;
 
     state.players.forEach((player, idx) => {
       const seat = seatGroups[idx];
@@ -2962,8 +2962,11 @@ function TexasHoldemArena({ search }) {
       }
 
       const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
-      if (seat.turnToken) {
-        seat.turnToken.visible = highlight;
+      if (highlight) {
+        turnTarget = seat.cardRailAnchor
+          .clone()
+          .add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET));
+        turnForward = seat.forward.clone();
       }
       const label = seat.nameplate;
       if (label?.userData?.update) {
@@ -2992,6 +2995,25 @@ function TexasHoldemArena({ search }) {
       }
       seat.lastStatus = currentStatus;
     });
+
+    if (turnIndicator) {
+      if (turnTarget) {
+        if (!turnIndicator.visible) {
+          turnIndicator.position.copy(turnTarget);
+        } else {
+          turnIndicator.position.lerp(turnTarget, 0.32);
+        }
+        const forward = turnForward ? turnForward.clone().setY(0).normalize() : null;
+        if (forward && forward.lengthSq() > 0) {
+          const lookTarget = turnIndicator.position.clone().add(forward);
+          turnIndicator.lookAt(lookTarget);
+          turnIndicator.up.copy(WORLD_UP);
+        }
+        turnIndicator.visible = true;
+      } else {
+        turnIndicator.visible = false;
+      }
+    }
 
     three.orientHumanCards?.();
 
@@ -3411,16 +3433,6 @@ function TexasHoldemArena({ search }) {
               />
             </svg>
             <span className="sr-only">Open table customization</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setOverheadView((prev) => !prev)}
-            aria-pressed={overheadView}
-            className={`pointer-events-auto rounded-full border border-white/20 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-              overheadView ? 'bg-emerald-600/80 hover:bg-emerald-500' : 'bg-black/70 hover:bg-black/60'
-            }`}
-          >
-            {overheadView ? '3D View' : '2D View'}
           </button>
         </div>
         {configOpen && (
