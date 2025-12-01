@@ -380,36 +380,38 @@ function adjustSideNotchDepth(mp) {
 }
 
 const POCKET_VISUAL_EXPANSION = 1.018;
-const CORNER_POCKET_INWARD_SCALE = 1; // match snooker pocket depth so chrome overlays align perfectly
-const CORNER_POCKET_SCALE_BOOST = 1; // keep mouth dimensions identical to snooker chrome cuts
+const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
+const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker chrome notch depth
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
-const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
+const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
 const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // extend the fascia slightly farther along the arc so the chrome starts flush with the pocket curve
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034; // mirror the extension along the second axis so the rounded arc ends stay covered
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
-const CHROME_CORNER_DIMENSION_SCALE = 1;
-const CHROME_CORNER_WIDTH_SCALE = 0.982;
-const CHROME_CORNER_HEIGHT_SCALE = 0.962;
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align fascia offset with snooker
+const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
+const CHROME_CORNER_WIDTH_SCALE = 0.982; // shave the chrome plate slightly so it ends at the jaw line on the long rail
+const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008; // pull the corner fascia slightly toward the table centre so the chrome hugs the jaws
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.041; // match snooker side arches exactly
+const CHROME_SIDE_POCKET_RADIUS_SCALE =
+  CORNER_POCKET_INWARD_SCALE *
+  CHROME_CORNER_POCKET_RADIUS_SCALE *
+  1.016; // mirror snooker side arches so the middle chrome cut matches its rounded radius and position
 const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.034; // mirror snooker fascia depth ratio
-const CHROME_PLATE_REFLECTION_SCALE = 1; // match snooker chrome reflectivity
-const CHROME_PLATE_ROUGHNESS_LIFT = 0; // keep snooker roughness baseline
+const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
+const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08; // give the middle fascias a subtle lift for extra depth like the snooker table
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
@@ -418,7 +420,7 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56; // extend fascia span toward the corners without widening the inner edge
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 0.72; // bias the side chrome growth toward the corner pockets only
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0; // keep fascia positioning identical to snooker
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.136; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
@@ -901,10 +903,11 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = 0; // remove the plywood layer under the cloth
-const CLOTH_UNDERLAY_GAP = 0;
-const CLOTH_UNDERLAY_EXTRA_DROP = 0;
-const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS; // keep cloth wrapping only its own thickness
+const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // plywood core wrapped in cloth to support the playfield
+const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // thin air gap so the cloth sits cleanly on top of the plywood
+const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // preserve the additional drop for cloth sleeves beneath the plywood edge
+const CLOTH_EXTENDED_DEPTH =
+  CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
 const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.12; // thicker cloth-wrapped support to catch shadows beneath the felt
 const CLOTH_SHADOW_BOARD_GAP = TABLE.THICK * 0.01; // small offset so the board sits just under the cloth without z-fighting
 const CLOTH_SHADOW_BOARD_OVERSCAN = BALL_R * 0.8; // slightly oversize the board so it fully covers the cloth footprint
@@ -943,7 +946,8 @@ const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the cloth wrap without z-fighting
-const SIDE_POCKET_PLYWOOD_LIFT = 0; // no plywood lift beneath the middle pockets
+const SIDE_POCKET_PLYWOOD_LIFT =
+  CLOTH_UNDERLAY_THICKNESS + CLOTH_UNDERLAY_EXTRA_DROP; // raise middle pockets so their rims rest directly against the plywood underlay
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.72 +
   POCKET_VIS_R * 3.15 +
@@ -5495,6 +5499,30 @@ function Table3D(
   clothEdgeMat.sheen = 0;
   clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
+  const underlayTopMat = clothMat.clone();
+  underlayTopMat.color.copy(clothColor);
+  underlayTopMat.metalness = 0;
+  underlayTopMat.roughness = 1;
+  underlayTopMat.sheen = 0;
+  underlayTopMat.clearcoat = 0;
+  underlayTopMat.clearcoatRoughness = 1;
+  underlayTopMat.envMapIntensity = 0;
+  underlayTopMat.reflectivity = 0;
+  underlayTopMat.emissive.set(0x000000);
+  underlayTopMat.emissiveIntensity = 0;
+  underlayTopMat.needsUpdate = true;
+  const underlayEdgeMat = clothEdgeMat.clone();
+  underlayEdgeMat.color.copy(clothColor);
+  underlayEdgeMat.metalness = 0;
+  underlayEdgeMat.roughness = 1;
+  underlayEdgeMat.sheen = 0;
+  underlayEdgeMat.clearcoat = 0;
+  underlayEdgeMat.clearcoatRoughness = 1;
+  underlayEdgeMat.envMapIntensity = 0;
+  underlayEdgeMat.reflectivity = 0;
+  underlayEdgeMat.emissive.copy(clothEdgeMat.emissive);
+  underlayEdgeMat.emissiveIntensity = clothEdgeMat.emissiveIntensity;
+  underlayEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -5777,6 +5805,25 @@ function Table3D(
     pocketEdgeStopY
   );
   finishParts.clothEdgeMeshes.push(...pocketCutStripes);
+  // Keep the underlay apertures exactly matched to the cloth cutouts so no
+  // reflective wood peeks through around the middle pockets.
+  const plywoodShape = buildSurfaceShape(
+    POCKET_HOLE_R,
+    -CLOTH_SHADOW_BOARD_OVERSCAN
+  );
+  const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
+    depth: CLOTH_UNDERLAY_THICKNESS,
+    bevelEnabled: false,
+    curveSegments: 80,
+    steps: 1
+  });
+  plywoodGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
+  const plywood = new THREE.Mesh(plywoodGeo, [underlayTopMat, underlayEdgeMat]);
+  plywood.rotation.x = -Math.PI / 2;
+  plywood.position.y = cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
+  plywood.renderOrder = cloth.renderOrder - 2;
+  plywood.receiveShadow = true;
+  table.add(plywood);
   const shadowBoardShape = buildSurfaceShape(
     POCKET_HOLE_R,
     -CLOTH_SHADOW_BOARD_OVERSCAN
@@ -6094,7 +6141,7 @@ function Table3D(
     verticalCushionLength / 2 +
     SIDE_CUSHION_CORNER_SHIFT;
 
-  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror snooker fascia depth ratio
+  const chromePlateThickness = RAIL_MARKER_THICKNESS; // keep fascia flush with diamond markers so surfaces stay level
   const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // give the middle-pocket fascias extra depth
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
