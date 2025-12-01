@@ -765,8 +765,10 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-// Base shot speed tuned for livelier pace while keeping slider sensitivity manageable.
-const SHOT_FORCE_BOOST = 2.7 * 0.75; // trim strike strength by 25% for softer launches
+// Mirror Pool Royale's tuned shot power and lift it by 30% for a livelier snooker break.
+const SHOT_POWER_REDUCTION = 0.85;
+const POOL_ROYALE_SHOT_FORCE = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
+const SHOT_FORCE_BOOST = POOL_ROYALE_SHOT_FORCE * 1.3;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -1778,20 +1780,6 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
       sheen: 0.72,
       sheenRoughness: 0.4,
       envMapIntensity: 0.22
-    }
-  },
-  {
-    id: 'emeraldClassic',
-    label: 'Green Cloth',
-    color: 0x19a34a,
-    textureKey: 'freshGreen',
-    detail: {
-      bumpMultiplier: 1.22,
-      roughness: 0.78,
-      sheenRoughness: 0.52,
-      clearcoat: 0.05,
-      clearcoatRoughness: 0.32,
-      emissiveIntensity: 0.52
     }
   }
 ]);
@@ -3000,13 +2988,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.042;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.22;
+const CUE_VIEW_RADIUS_RATIO = 0.038;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.2;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.12;
+const CUE_VIEW_PHI_LIFT = 0.18;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -3017,7 +3005,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
-const IN_HAND_CAMERA_PULLBACK = 1.08;
+const IN_HAND_CAMERA_PULLBACK = 1.2;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -6051,6 +6039,16 @@ function SnookerGame() {
       updateCueRackHighlights();
     },
     [getCueColorFromIndex, updateCueRackHighlights]
+  );
+
+  const selectCueStyleFromMenu = useCallback(
+    (index) => {
+      const paletteLength = CUE_RACK_PALETTE.length || 1;
+      const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
+      applySelectedCueStyle(normalized);
+      setCueStyleIndex(normalized);
+    },
+    [applySelectedCueStyle]
   );
 
   useEffect(() => {
@@ -12346,36 +12344,63 @@ function SnookerGame() {
               </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Cloth Color
+                  Cue Styles
                 </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {CLOTH_COLOR_OPTIONS.map((option) => {
-                    const active = option.id === clothColorId;
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  {WOOD_FINISH_PRESETS.map((preset, index) => {
+                    const active = cueStyleIndex === index;
                     return (
                       <button
-                        key={option.id}
+                        key={preset.id}
                         type="button"
-                        onClick={() => setClothColorId(option.id)}
+                        onClick={() => selectCueStyleFromMenu(index)}
                         aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                        className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                            ? 'bg-emerald-400 text-black shadow-[0_0_18px_rgba(16,185,129,0.55)]'
+                            : 'bg-white/10 text-white/80 hover:bg-white/20'
                         }`}
                       >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
+                        {preset.label}
                       </button>
                     );
                   })}
                 </div>
               </div>
+              {CLOTH_COLOR_OPTIONS.length > 1 ? (
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                    Cloth Color
+                  </h3>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {CLOTH_COLOR_OPTIONS.map((option) => {
+                      const active = option.id === clothColorId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setClothColorId(option.id)}
+                          aria-pressed={active}
+                          className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                            active
+                              ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-center gap-2">
+                            <span
+                              className="h-3.5 w-3.5 rounded-full border border-white/40"
+                              style={{ backgroundColor: toHexColor(option.color) }}
+                              aria-hidden="true"
+                            />
+                            {option.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
         )}
