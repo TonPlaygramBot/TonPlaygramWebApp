@@ -629,12 +629,12 @@ function addPocketCuts(
   clothPlane,
   pocketPositions,
   clothEdgeMat,
-  sideRadiusScale = 1
+  sideRadiusScale = 1,
+  stopY = null
 ) {
   if (!parent || !Array.isArray(pocketPositions) || !clothEdgeMat) return [];
   const stripes = [];
   const stripeWidth = BALL_R * 0.32;
-  const stripeHeight = CLOTH_EXTENDED_DEPTH + BALL_R * 0.32;
   const stripeLift = BALL_R * 0.06;
   pocketPositions.forEach((p, index) => {
     if (!p) return;
@@ -647,6 +647,12 @@ function addPocketCuts(
     const innerPath = new THREE.Path();
     innerPath.absarc(0, 0, inner, 0, Math.PI * 2, true);
     sleeveShape.holes.push(innerPath);
+    const sleeveTopY = clothPlane - CLOTH_DROP + stripeLift;
+    const baseStripeHeight = CLOTH_EXTENDED_DEPTH + BALL_R * 0.32;
+    const targetHeight = Number.isFinite(stopY)
+      ? sleeveTopY - stopY
+      : baseStripeHeight;
+    const stripeHeight = Math.max(MICRO_EPS, targetHeight);
     const geo = new THREE.ExtrudeGeometry(sleeveShape, {
       depth: stripeHeight,
       bevelEnabled: false,
@@ -656,7 +662,7 @@ function addPocketCuts(
     geo.rotateX(Math.PI / 2);
     geo.translate(0, -stripeHeight, 0);
     const mesh = new THREE.Mesh(geo, clothEdgeMat);
-    mesh.position.set(p.x, clothPlane - CLOTH_DROP + stripeLift, p.y);
+    mesh.position.set(p.x, sleeveTopY, p.y);
     mesh.renderOrder = 3.1;
     mesh.receiveShadow = true;
     parent.add(mesh);
@@ -913,6 +919,12 @@ const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
+const POCKET_TOP_R =
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
+const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
+const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the cloth wrap without z-fighting
+const SIDE_POCKET_PLYWOOD_LIFT =
+  CLOTH_UNDERLAY_THICKNESS + CLOTH_UNDERLAY_EXTRA_DROP; // raise middle pockets so their rims rest directly against the plywood underlay
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.72 +
   POCKET_VIS_R * 3.15 +
@@ -5758,12 +5770,15 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
+  const pocketEdgeStopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketCutStripes = addPocketCuts(
     table,
     cloth.position.y,
     pocketPositions,
     clothEdgeMat,
-    sideRadiusScale
+    sideRadiusScale,
+    pocketEdgeStopY
   );
   finishParts.clothEdgeMeshes.push(...pocketCutStripes);
   // Keep the underlay apertures exactly matched to the cloth cutouts so no
@@ -5812,8 +5827,6 @@ function Table3D(
   shadowBoard.receiveShadow = true;
   shadowBoard.castShadow = false;
   table.add(shadowBoard);
-  const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-  
   // Leave the pocket apertures completely open so the pocket geometry remains visible.
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
   const clothEdgeBottomY = clothBottomY - MICRO_EPS;
@@ -5941,17 +5954,11 @@ function Table3D(
     spots: spotMeshes
   };
 
-const POCKET_TOP_R =
-  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
-const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the cloth wrap without z-fighting
-const SIDE_POCKET_PLYWOOD_LIFT =
-  CLOTH_UNDERLAY_THICKNESS + CLOTH_UNDERLAY_EXTRA_DROP; // raise middle pockets so their rims rest directly against the plywood underlay
-const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
-const pocketGeo = new THREE.CylinderGeometry(
-  POCKET_TOP_R,
-  POCKET_BOTTOM_R,
-  TABLE.THICK,
+  const pocketTopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
+  const pocketGeo = new THREE.CylinderGeometry(
+    POCKET_TOP_R,
+    POCKET_BOTTOM_R,
+    TABLE.THICK,
     48,
     1,
     true
