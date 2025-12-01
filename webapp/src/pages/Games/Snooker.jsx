@@ -590,8 +590,7 @@ const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner pocket offset so the cuts sit farther toward each pocket mouth
 const CORNER_RAIL_CUT_INSET =
   POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // preserve the existing chrome/wood cut positioning for jaws and fascia
-const MIDDLE_POCKET_LONGITUDINAL_OFFSET =
-  POCKET_VIS_R * 0.9; // align side pocket cutouts to the pocket centres while moving the assemblies farther from table centre
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET = 0; // align side pocket cuts and pockets flush with Pool Royale's centred middle pockets
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -3001,13 +3000,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.05;
+const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.22;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.085;
+const CUE_VIEW_PHI_LIFT = 0.12;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -3018,6 +3017,7 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
+const IN_HAND_CAMERA_PULLBACK = 1.08;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -6279,6 +6279,25 @@ function SnookerGame() {
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  useEffect(() => {
+    const sph = sphRef.current;
+    const bounds = cameraBoundsRef.current;
+    if (!sph || !bounds) return;
+    const standingRadius = bounds.standing?.radius ?? sph.radius;
+    const targetRadius = THREE.MathUtils.clamp(
+      standingRadius * (hud.inHand ? IN_HAND_CAMERA_PULLBACK : 1),
+      CAMERA.minR,
+      CAMERA.maxR
+    );
+    orbitRadiusLimitRef.current = targetRadius;
+    const nextRadius = hud.inHand
+      ? Math.max(sph.radius, targetRadius)
+      : THREE.MathUtils.clamp(sph.radius, CAMERA.minR, targetRadius);
+    if (Math.abs(nextRadius - sph.radius) > 1e-4) {
+      sph.radius = nextRadius;
+      updateCameraRef.current?.();
+    }
+  }, [hud.inHand]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -6326,6 +6345,7 @@ function SnookerGame() {
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
+  const updateCameraRef = useRef(() => {});
   const initialCuePhi = THREE.MathUtils.clamp(
     CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5,
     CAMERA.minPhi,
@@ -8743,6 +8763,7 @@ function SnookerGame() {
           activeRenderCameraRef.current = renderCamera;
           return renderCamera;
         };
+        updateCameraRef.current = updateCamera;
         const lerpAngle = (a, b, t) => {
           const delta =
             THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) -
@@ -11063,6 +11084,8 @@ function SnookerGame() {
         setFrameState(nextState);
         const cueBallPotted =
           potted.some((entry) => entry.color === 'CUE') || !cue.active;
+        const foulInHand = Boolean(nextState.foul);
+        const awardInHand = cueBallPotted || foulInHand;
         const colourNames = ['yellow', 'green', 'brown', 'blue', 'pink', 'black'];
         colourNames.forEach((name) => {
           const simBall = colors[name];
@@ -11090,7 +11113,7 @@ function SnookerGame() {
             simBall.mesh.visible = false;
           }
         });
-        if (cueBallPotted) {
+        if (awardInHand) {
           cue.active = false;
           pocketDropRef.current.delete(cue.id);
           const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
@@ -11106,7 +11129,7 @@ function SnookerGame() {
           cue.impacted = false;
           cue.launchDir = null;
         }
-        setHud((prev) => ({ ...prev, inHand: cueBallPotted }));
+        setHud((prev) => ({ ...prev, inHand: awardInHand }));
         setShootingState(false);
         shotPrediction = null;
         activeShotView = null;
