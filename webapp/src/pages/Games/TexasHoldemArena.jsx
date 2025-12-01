@@ -68,7 +68,7 @@ const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.91737499003112
 const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
 const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85 * CHAIR_SIZE_SCALE;
-const HUMAN_CHAIR_PULLBACK = 0.18 * MODEL_SCALE * CHAIR_SIZE_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.08 * MODEL_SCALE * CHAIR_SIZE_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -87,7 +87,7 @@ const SMALL_BLIND = CLASSIC_ANTE / 2;
 const BIG_BLIND = CLASSIC_ANTE;
 const COMMUNITY_SPACING = CARD_W * 0.75;
 const COMMUNITY_CARD_FORWARD_OFFSET = 0;
-const COMMUNITY_CARD_LIFT = CARD_D * 18;
+const COMMUNITY_CARD_LIFT = CARD_D * 12;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = THREE.MathUtils.degToRad(6);
 const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
@@ -1593,6 +1593,7 @@ function TexasHoldemArena({ search }) {
   const humanSeatRef = useRef(null);
   const seatTopPointRef = useRef(null);
   const viewControlsRef = useRef({ applySeatedCamera: null, applyOverheadCamera: null });
+  const lastViewRef = useRef(false);
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
     baseForward: new THREE.Vector3(0, 0, -1),
@@ -2171,8 +2172,30 @@ function TexasHoldemArena({ search }) {
     seatTopPointRef.current = seatTopPoint;
     const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
     const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
-    const applySeatedCamera = (width, height) => {
+
+    const smoothCameraTransition = (targetPosition, targetQuaternion, onComplete = null, duration = 260) => {
+      const startPosition = camera.position.clone();
+      const startQuaternion = camera.quaternion.clone();
+      const startTime = performance.now();
+      const step = () => {
+        const now = performance.now();
+        const t = Math.min(1, (now - startTime) / duration);
+        const eased = t * (2 - t);
+        camera.position.lerpVectors(startPosition, targetPosition, eased);
+        THREE.Quaternion.slerp(startQuaternion, targetQuaternion, camera.quaternion, eased);
+        camera.updateMatrixWorld();
+        if (t < 1) {
+          requestAnimationFrame(step);
+        } else if (onComplete) {
+          onComplete();
+        }
+      };
+      requestAnimationFrame(step);
+    };
+
+    const applySeatedCamera = (width, height, options = {}) => {
       if (!humanSeat) return;
+      const animate = Boolean(options.animate);
       const portrait = height > width;
       const lateralOffset = portrait ? CAMERA_LATERAL_OFFSETS.portrait : CAMERA_LATERAL_OFFSETS.landscape;
       const retreatOffset = portrait ? CAMERA_RETREAT_OFFSETS.portrait : CAMERA_RETREAT_OFFSETS.landscape;
@@ -2196,18 +2219,18 @@ function TexasHoldemArena({ search }) {
         .addScaledVector(humanSeat.forward, -focusForwardPull);
       chipFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
       const focus = focusBase.lerp(chipFocus, focusBlend);
-      camera.position.copy(position);
-      camera.lookAt(focus);
-      camera.updateMatrixWorld();
-      const baseForward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion).normalize();
-      const baseUp = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
-      const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
-      const pitchLimits = computeCameraPitchLimits(position, baseForward, { seatTopPoint });
+      const lookMatrix = new THREE.Matrix4();
+      lookMatrix.lookAt(position, focus, WORLD_UP);
+      const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
+      const targetUp = WORLD_UP.clone().applyQuaternion(targetQuaternion).normalize();
+      const targetForward = focus.clone().sub(position).normalize();
+      const targetRight = new THREE.Vector3().crossVectors(targetForward, targetUp).normalize();
+      const pitchLimits = computeCameraPitchLimits(position, targetForward, { seatTopPoint });
       cameraBasisRef.current = {
         position: position.clone(),
-        baseForward,
-        baseUp,
-        baseRight,
+        baseForward: targetForward,
+        baseUp: targetUp,
+        baseRight: targetRight,
         pitchLimits
       };
       headAnglesRef.current.yaw = THREE.MathUtils.clamp(0, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
@@ -2216,21 +2239,41 @@ function TexasHoldemArena({ search }) {
         yaw: headAnglesRef.current.yaw,
         activeIndex: cameraAutoTargetRef.current.activeIndex
       };
-      applyHeadOrientation();
+      const finalize = () => {
+        camera.position.copy(position);
+        camera.quaternion.copy(targetQuaternion);
+        camera.up.copy(WORLD_UP);
+        camera.updateMatrixWorld();
+        applyHeadOrientation();
+      };
+      if (animate) {
+        smoothCameraTransition(position, targetQuaternion, finalize, 220);
+      } else {
+        finalize();
+      }
     };
 
-    const applyOverheadCamera = () => {
-      const height = TABLE_HEIGHT + BOARD_SIZE * 1.05;
-      camera.position.set(0, height, 0.001);
-      camera.up.set(0, 0, 1);
+    const applyOverheadCamera = (options = {}) => {
+      const animate = Boolean(options.animate);
+      const height = TABLE_HEIGHT + BOARD_SIZE * 0.88;
+      const lateralPull = humanSeat?.forward.clone().setY(0).normalize().multiplyScalar(TABLE_RADIUS * 0.12) ??
+        new THREE.Vector3();
+      const targetPosition = new THREE.Vector3(lateralPull.x, height, lateralPull.z + 0.001);
       const focus = new THREE.Vector3(0, TABLE_HEIGHT, 0);
-      camera.lookAt(focus);
-      camera.updateMatrixWorld();
-      const baseForward = new THREE.Vector3(0, -1, 0);
-      const baseUp = new THREE.Vector3(0, 0, 1);
-      const baseRight = new THREE.Vector3(1, 0, 0);
+      const lookMatrix = new THREE.Matrix4();
+      lookMatrix.lookAt(targetPosition, focus, new THREE.Vector3(0, 0, 1));
+      const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
+      const alignedQuaternion = targetQuaternion.clone();
+      const rollAdjust = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, -1, 0), 0);
+      alignedQuaternion.multiply(rollAdjust);
+      const rotatedQuaternion = alignedQuaternion.multiply(
+        new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI)
+      );
+      const baseForward = focus.clone().sub(targetPosition).normalize();
+      const baseUp = new THREE.Vector3(0, 0, 1).applyQuaternion(rotatedQuaternion).normalize();
+      const baseRight = new THREE.Vector3().crossVectors(baseForward, baseUp).normalize();
       cameraBasisRef.current = {
-        position: camera.position.clone(),
+        position: targetPosition.clone(),
         baseForward,
         baseUp,
         baseRight,
@@ -2239,7 +2282,18 @@ function TexasHoldemArena({ search }) {
       headAnglesRef.current.yaw = 0;
       headAnglesRef.current.pitch = 0;
       cameraAutoTargetRef.current = null;
-      applyHeadOrientation();
+      const finalize = () => {
+        camera.position.copy(targetPosition);
+        camera.quaternion.copy(rotatedQuaternion);
+        camera.up.set(0, 0, 1);
+        camera.updateMatrixWorld();
+        applyHeadOrientation();
+      };
+      if (animate) {
+        smoothCameraTransition(targetPosition, rotatedQuaternion, finalize, 220);
+      } else {
+        finalize();
+      }
     };
 
     viewControlsRef.current = { applySeatedCamera, applyOverheadCamera };
@@ -3309,6 +3363,8 @@ function TexasHoldemArena({ search }) {
     const mount = mountRef.current;
     const three = threeRef.current;
     if (!three?.camera) return;
+    const animate = lastViewRef.current !== overheadView;
+    lastViewRef.current = overheadView;
     if (Array.isArray(three.seatGroups)) {
       three.seatGroups.forEach((seat) => {
         if (seat?.group) {
@@ -3317,11 +3373,11 @@ function TexasHoldemArena({ search }) {
       });
     }
     if (overheadView) {
-      controls.applyOverheadCamera?.();
+      controls.applyOverheadCamera?.({ animate });
     } else {
       const width = mount?.clientWidth ?? window.innerWidth;
       const height = mount?.clientHeight ?? window.innerHeight;
-      controls.applySeatedCamera?.(width, height);
+      controls.applySeatedCamera?.(width, height, { animate });
     }
   }, [overheadView]);
 
