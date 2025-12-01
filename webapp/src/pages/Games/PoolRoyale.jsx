@@ -848,9 +848,9 @@ const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
 const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
-  clearcoatMax: 0.016,
-  clearcoatRoughnessMin: 0.62,
-  envMapIntensityMax: 0.14
+  clearcoatMax: 0.028,
+  clearcoatRoughnessMin: 0.48,
+  envMapIntensityMax: 0.22
 });
 const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
