@@ -14681,15 +14681,16 @@ function PoolRoyaleGame({
                 };
               }
             }
-              if (cueBallPotted) {
-                cue.active = false;
-                pocketDropRef.current.delete(cue.id);
+            if (cueBallPotted) {
+              cue.active = false;
+              pocketDropRef.current.delete(cue.id);
               const fallback = defaultInHandPosition();
-                if (fallback) {
-                  updateCuePlacement(fallback);
-                } else {
+              if (fallback) {
+                updateCuePlacement(fallback);
+              } else {
                 cue.mesh.visible = true;
               }
+              cue.active = true;
               cue.vel.set(0, 0);
               cue.spin?.set(0, 0);
               cue.pendingSpin?.set(0, 0);
