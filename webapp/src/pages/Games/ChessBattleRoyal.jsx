@@ -1010,6 +1010,36 @@ function makeSmoothMaterial(color, options = {}) {
   });
 }
 
+function pieceTypeFromName(name = '') {
+  const lower = name.toLowerCase();
+  if (lower.includes('king')) return 'K';
+  if (lower.includes('queen')) return 'Q';
+  if (lower.includes('rook')) return 'R';
+  if (lower.includes('bishop')) return 'B';
+  if (lower.includes('knight')) return 'N';
+  if (lower.includes('pawn')) return 'P';
+  return null;
+}
+
+function ascendWhile(node, predicate) {
+  let current = node;
+  while (current?.parent && predicate(current.parent)) {
+    current = current.parent;
+  }
+  return current;
+}
+
+function detectPieceColor(node) {
+  let current = node;
+  for (let i = 0; i < 4 && current; i += 1) {
+    const name = current.name?.toLowerCase?.() ?? '';
+    if (name.includes('white')) return 'white';
+    if (name.includes('black')) return 'black';
+    current = current.parent;
+  }
+  return null;
+}
+
 function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
   const baseRadius = 0.38 * scale;
   const baseHeight = 0.18 * scale;
@@ -1311,13 +1341,8 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
   };
 
   const detectColor = (node) => {
-    let current = node;
-    while (current) {
-      const name = current.name || '';
-      if (/white/i.test(name)) return 'white';
-      if (/black/i.test(name)) return 'black';
-      current = current.parent;
-    }
+    const named = detectPieceColor(node);
+    if (named) return named;
 
     const color = pickMaterialColor(node);
     if (color) {
@@ -1342,6 +1367,8 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
       for (const [key, regex] of Object.entries(typeRegex)) {
         if (regex.test(name)) return key;
       }
+      const fromSimpleName = pieceTypeFromName(name);
+      if (fromSimpleName) return fromSimpleName;
       current = current.parent;
     }
     return null;
@@ -1355,9 +1382,13 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
   };
 
   const registerPrototype = (node) => {
+    const roughType = pieceTypeFromName(node.name);
+    if (!roughType) return;
     const color = detectColor(node);
-    const type = detectType(node);
-    setPrototype(node, color, type);
+    const type = detectType(node) || roughType;
+    if (!color || !type) return;
+    const ascended = ascendWhile(node, (parent) => pieceTypeFromName(parent.name) === type);
+    setPrototype(ascended || node, color, type);
   };
 
   const meshEntries = [];
@@ -1424,7 +1455,7 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
   boardModel.traverse((node) => {
     if (!node) return;
     const flaggedAsPiece = node.userData?.__beautifulGameSourcePiece;
-    const type = detectType(node);
+    const type = detectType(node) || pieceTypeFromName(node.name);
     if (flaggedAsPiece || type) {
       nodesToCull.push(node);
     }
@@ -1444,6 +1475,31 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
   const center = new THREE.Vector3();
   centeredBox.getCenter(center);
   boardModel.position.set(-center.x, -centeredBox.min.y + (BOARD.baseH + 0.02), -center.z);
+
+  const fallbackTile = Math.max(0.001, targetBoardSize / 8);
+  const fallbackAccent = BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472';
+  const buildMissingPrototype = (colorKey, type) => {
+    const pieceColor = BEAUTIFUL_GAME_PIECE_STYLE[colorKey]?.color ?? '#ffffff';
+    const accent =
+      colorKey === 'black'
+        ? BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? fallbackAccent
+        : fallbackAccent;
+    const proto = buildBeautifulGamePiece(type, pieceColor, accent, fallbackTile / 0.9);
+    proto.userData = { ...(proto.userData || {}), __beautifulGameSourcePiece: true };
+    proto.traverse((child) => {
+      if (!child.isMesh) return;
+      child.userData = { ...(child.userData || {}), __beautifulGameSourcePiece: true };
+    });
+    piecePrototypes[colorKey][type] = proto;
+  };
+
+  ['white', 'black'].forEach((colorKey) => {
+    Object.keys(typeRegex).forEach((type) => {
+      if (!piecePrototypes[colorKey][type]) {
+        buildMissingPrototype(colorKey, type);
+      }
+    });
+  });
 
   Object.values(piecePrototypes).forEach((byColor) => {
     Object.keys(byColor).forEach((key) => {
@@ -3476,21 +3532,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         beautifulPiecePrototypes = piecePrototypes || null;
         if (boardModel) {
           boardGroup.add(boardModel);
-          base.material.transparent = true;
-          base.material.opacity = 0.001;
-          base.material.depthWrite = false;
-          top.material.transparent = true;
-          top.material.opacity = 0.001;
-          top.material.depthWrite = false;
+          base.visible = false;
+          top.visible = false;
           if (coordMat) {
-            coordMat.transparent = true;
-            coordMat.opacity = 0.001;
-            coordMat.depthWrite = false;
+            coordMat.visible = false;
           }
           tiles.forEach((tileMesh) => {
-            tileMesh.material.transparent = true;
-            tileMesh.material.opacity = 0.001;
-            tileMesh.material.depthWrite = false;
+            tileMesh.visible = false;
           });
           if (arenaRef.current) {
             arenaRef.current.boardModel = boardModel;
