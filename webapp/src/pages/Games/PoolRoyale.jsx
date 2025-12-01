@@ -8650,6 +8650,7 @@ function PoolRoyaleGame({
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
+  const inHandCameraRestoreRef = useRef(null);
   const initialHudInHand = useMemo(
     () => deriveInHandFromFrame(initialFrame),
     [initialFrame]
@@ -9408,6 +9409,35 @@ function PoolRoyaleGame({
       startAiThinkingRef.current?.();
     }
   }, [frameState, hud.turn, hud.over]);
+
+  useEffect(() => {
+    const sph = sphRef.current;
+    if (!sph || !cameraRef.current) return;
+    const restore = inHandCameraRestoreRef.current;
+    if (hud.inHand) {
+      if (!restore) {
+        inHandCameraRestoreRef.current = {
+          radius: sph.radius,
+          phi: sph.phi,
+          theta: sph.theta,
+          blend: cameraBlendRef.current ?? 0
+        };
+      }
+      const radiusLimit = orbitRadiusLimitRef.current ?? CAMERA.maxR;
+      const expandedRadius = Math.max(radiusLimit, CAMERA.maxR * 0.92);
+      sph.radius = THREE.MathUtils.clamp(expandedRadius, CAMERA.minR, CAMERA.maxR);
+      sph.phi = Math.max(sph.phi, STANDING_VIEW.phi);
+      cameraBlendRef.current = 1;
+      cameraUpdateRef.current?.();
+    } else if (restore) {
+      sph.radius = restore.radius;
+      sph.phi = restore.phi;
+      sph.theta = restore.theta;
+      cameraBlendRef.current = restore.blend ?? cameraBlendRef.current;
+      inHandCameraRestoreRef.current = null;
+      cameraUpdateRef.current?.();
+    }
+  }, [hud.inHand]);
 
   useEffect(() => {
     const host = mountRef.current;
@@ -13918,6 +13948,8 @@ function PoolRoyaleGame({
         const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
+          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
+          const activeBalls = balls.filter((b) => b.active);
           const legalTargetsRaw = Array.isArray(state?.ballOn)
             ? state.ballOn
             : ['RED'];
@@ -13928,9 +13960,19 @@ function PoolRoyaleGame({
               )
               .filter(Boolean)
           );
-          if (legalTargets.size === 0) legalTargets.add('RED');
-          const activeVariantId = activeVariantRef.current?.id ?? variantKey;
-          const activeBalls = balls.filter((b) => b.active);
+          if (legalTargets.size === 0) {
+            if (activeVariantId === 'american' || activeVariantId === '9ball') {
+              const lowestActive = activeBalls
+                .filter((b) => b.id !== 0)
+                .reduce(
+                  (best, ball) => (best == null || ball.id < best.id ? ball : best),
+                  null
+                );
+              const mapped = lowestActive ? toBallColorId(lowestActive.id) : null;
+              if (mapped) legalTargets.add(mapped);
+            }
+            if (legalTargets.size === 0) legalTargets.add('RED');
+          }
           const cuePos = cue.pos.clone();
           const clearance = BALL_R * (activeVariantId === 'uk' ? 1.2 : 1.45);
           const clearanceSq = clearance * clearance;
