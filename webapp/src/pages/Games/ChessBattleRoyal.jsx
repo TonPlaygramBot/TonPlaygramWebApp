@@ -209,6 +209,8 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '50%', top: '16%' }
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
+const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
+const CAMERA_TOPDOWN_POLAR = THREE.MathUtils.degToRad(8);
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -2215,6 +2217,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const fitRef = useRef(() => {});
   const arenaRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
+  const cameraViewRef = useRef(null);
+  const viewModeRef = useRef('3d');
+  const cameraTweenRef = useRef(0);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true });
   const [appearance] = useState({ ...DEFAULT_APPEARANCE });
   const appearanceRef = useRef(appearance);
@@ -2264,6 +2269,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
   const [seatAnchors, setSeatAnchors] = useState([]);
+  const [viewMode, setViewMode] = useState('3d');
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -2282,6 +2288,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     blackTimeRef.current = blackTime;
   }, [blackTime]);
+
+  useEffect(() => {
+    viewModeRef.current = viewMode;
+    cameraViewRef.current?.setMode(viewMode);
+  }, [viewMode]);
 
   const seatAnchorMap = useMemo(() => {
     const map = new Map();
@@ -2998,11 +3009,81 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     controls.enableZoom = true;
     controls.minDistance = CAM.minR;
     controls.maxDistance = CAM.maxR;
-    controls.minPolarAngle = CAM.phiMin;
+    controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
     controls.update();
     controlsRef.current = controls;
+
+    const stopCameraTween = () => {
+      if (cameraTweenRef.current) {
+        cancelAnimationFrame(cameraTweenRef.current);
+        cameraTweenRef.current = 0;
+      }
+    };
+
+    const applyCameraSpherical = (spherical) => {
+      const pos = new THREE.Vector3().setFromSpherical(spherical);
+      camera.position.copy(boardLookTarget).add(pos);
+      camera.lookAt(boardLookTarget);
+      controls.update();
+    };
+
+    const animateCameraTo = (targetSpherical, duration = 420) => {
+      stopCameraTween();
+      const start = performance.now();
+      const from = new THREE.Spherical().setFromVector3(
+        camera.position.clone().sub(boardLookTarget)
+      );
+      const tick = (now) => {
+        const t = clamp01((now - start) / duration);
+        const eased = t * t * (3 - 2 * t);
+        const current = new THREE.Spherical(
+          THREE.MathUtils.lerp(from.radius, targetSpherical.radius, eased),
+          THREE.MathUtils.lerp(from.phi, targetSpherical.phi, eased),
+          THREE.MathUtils.lerp(from.theta, targetSpherical.theta, eased)
+        );
+        applyCameraSpherical(current);
+        if (t < 1) {
+          cameraTweenRef.current = requestAnimationFrame(tick);
+        } else {
+          cameraTweenRef.current = 0;
+        }
+      };
+      cameraTweenRef.current = requestAnimationFrame(tick);
+    };
+
+    const cameraMemory = { last3d: null };
+
+    const setViewModeInternal = (mode) => {
+      if (!controls) return;
+      const current = new THREE.Spherical().setFromVector3(
+        camera.position.clone().sub(boardLookTarget)
+      );
+      const theta = current.theta;
+
+      if (mode === '2d') {
+        cameraMemory.last3d = current;
+        controls.minPolarAngle = CAMERA_TOPDOWN_POLAR;
+        controls.maxPolarAngle = Math.max(CAMERA_TOPDOWN_POLAR, CAMERA_PULL_FORWARD_MIN);
+        const radius = clamp(current.radius, CAM.minR * 0.9, CAM.maxR * 0.9);
+        const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_POLAR, theta);
+        animateCameraTo(target);
+      } else {
+        controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
+        controls.maxPolarAngle = CAM.phiMax;
+        const restore = cameraMemory.last3d || current;
+        const target = new THREE.Spherical(
+          clamp(restore.radius, CAM.minR, CAM.maxR),
+          clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
+          restore.theta
+        );
+        animateCameraTo(target);
+      }
+    };
+
+    cameraViewRef.current = { setMode: setViewModeInternal };
+    setViewModeInternal(viewModeRef.current);
 
     const fit = () => {
       const w = host.clientWidth;
@@ -3655,6 +3736,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
+      stopCameraTween();
       window.removeEventListener('resize', onResize);
       clearInterval(timerRef.current);
       disposers.forEach((fn) => {
@@ -3669,6 +3751,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       } catch {}
       renderer.domElement.removeEventListener('click', onClick);
       renderer.domElement.removeEventListener('touchend', onClick);
+      cameraViewRef.current = null;
       controlsRef.current = null;
       controls?.dispose();
       controls = null;
@@ -3692,32 +3775,41 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
           </div>
-          <button
-            type="button"
-            onClick={() => setConfigOpen((open) => !open)}
-            aria-expanded={configOpen}
-            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-            }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
+          <div className="pointer-events-auto flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfigOpen((open) => !open)}
+              aria-expanded={configOpen}
+              className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                configOpen ? 'bg-black/60' : 'hover:bg-black/60'
+              }`}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-              />
-            </svg>
-            <span className="sr-only">Open chess settings</span>
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-6 w-6"
+                aria-hidden="true"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
+                />
+              </svg>
+              <span className="sr-only">Open chess settings</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              className="h-12 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              {viewMode === '3d' ? '2D view' : '3D view'}
+            </button>
+          </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
               <div className="flex items-center justify-between gap-3">
