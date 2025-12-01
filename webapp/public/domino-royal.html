@@ -113,102 +113,119 @@ import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/D
 
 /* ---------- Audio (SFX) ---------- */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-let audioPrimed = false;
 
-function primeAudio() {
-  if (audioPrimed) return;
-  audioPrimed = true;
-  audioCtx?.resume?.().catch(() => {});
-}
-
-function playEnvelope({ frequency = 440, duration = 0.18, type = "sine", gain = 0.2, attack = 0.01, decay = 0.12, detune = 0, pan = 0 }) {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime + 0.01;
-  const osc = audioCtx.createOscillator();
-  osc.type = type;
-  osc.frequency.value = frequency;
-  osc.detune.value = detune;
-  const gainNode = audioCtx.createGain();
-  gainNode.gain.setValueAtTime(0.0001, now);
-  gainNode.gain.linearRampToValueAtTime(gain, now + attack);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration + decay);
-  const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
-  if (panNode) {
-    panNode.pan.value = pan;
-    osc.connect(gainNode).connect(panNode).connect(audioCtx.destination);
-  } else {
-    osc.connect(gainNode).connect(audioCtx.destination);
+function ensureAudioContext() {
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume();
   }
-  osc.start(now);
-  osc.stop(now + duration + decay + 0.02);
+  return audioCtx;
 }
 
-function playNoise({ duration = 0.32, gain = 0.16, filterType = "lowpass", frequency = 900, pan = 0 }) {
-  if (!audioCtx) return;
-  const now = audioCtx.currentTime + 0.01;
-  const bufferSize = Math.max(128, Math.floor(audioCtx.sampleRate * duration));
-  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+function createBuffer(durationSeconds, sampleFn) {
+  const ctx = ensureAudioContext();
+  const length = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
   const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i += 1) {
-    data[i] = Math.random() * 2 - 1;
+  for (let i = 0; i < length; i++) {
+    const t = i / ctx.sampleRate;
+    data[i] = sampleFn(t, i, length);
   }
-  const source = audioCtx.createBufferSource();
-  source.buffer = buffer;
-  const filter = audioCtx.createBiquadFilter();
-  filter.type = filterType;
-  filter.frequency.value = frequency;
-  const gainNode = audioCtx.createGain();
-  gainNode.gain.setValueAtTime(gain, now);
-  gainNode.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-  const panNode = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
-  if (panNode) {
-    panNode.pan.value = pan;
-    source.connect(filter).connect(gainNode).connect(panNode).connect(audioCtx.destination);
-  } else {
-    source.connect(filter).connect(gainNode).connect(audioCtx.destination);
-  }
-  source.start(now);
-  source.stop(now + duration + 0.05);
+  return buffer;
 }
 
-function playDominoClick() {
-  const pan = (Math.random() - 0.5) * 0.25;
-  playNoise({ duration: 0.08, gain: 0.2, filterType: "bandpass", frequency: 1820, pan });
-  playEnvelope({ frequency: 210, type: "sine", gain: 0.14, duration: 0.08, attack: 0.002, decay: 0.08, detune: -8, pan: pan * 0.4 });
-  playEnvelope({ frequency: 480, type: "triangle", gain: 0.12, duration: 0.05, attack: 0.001, decay: 0.06, detune: 9, pan });
+function playBuffer(buffer, { gain = 0.5, playbackRate = 1 } = {}) {
+  const ctx = ensureAudioContext();
+  const src = ctx.createBufferSource();
+  src.buffer = buffer;
+  src.playbackRate.value = playbackRate;
+  const g = ctx.createGain();
+  g.gain.value = gain;
+  src.connect(g).connect(ctx.destination);
+  src.start();
 }
+
+function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.28 }) {
+  const ctx = ensureAudioContext();
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(startFreq, now);
+  osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
+  g.gain.setValueAtTime(0.001, now);
+  g.gain.exponentialRampToValueAtTime(gain, now + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.connect(g).connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration + 0.05);
+}
+
+function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
+  const ctx = ensureAudioContext();
+  const now = ctx.currentTime;
+  notes.forEach(({ time, freq, length = 0.18 }) => {
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, now + time);
+    g.gain.setValueAtTime(0.0001, now + time);
+    g.gain.linearRampToValueAtTime(gain, now + time + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + time + length);
+    osc.connect(g).connect(ctx.destination);
+    osc.start(now + time);
+    osc.stop(now + time + length + 0.05);
+  });
+}
+
+const sfxBuffers = {
+  place: createBuffer(0.14, (t) => {
+    const env = Math.exp(-t * 38);
+    const click = Math.sin(2 * Math.PI * 2300 * t) * 0.55;
+    const thump = Math.sin(2 * Math.PI * 160 * t) * 0.4;
+    return (click + thump) * env;
+  }),
+  draw: createBuffer(0.22, (t) => {
+    const env = Math.exp(-t * 18);
+    const body = Math.sin(2 * Math.PI * (420 + 180 * Math.sin(t * 6)) * t) * 0.5;
+    return body * env;
+  }),
+  block: createBuffer(0.28, (t) => {
+    const env = Math.exp(-t * 9);
+    const wobble = Math.sin(2 * Math.PI * 92 * t) + Math.sin(2 * Math.PI * 64 * t) * 0.6;
+    return wobble * env * 0.4;
+  })
+};
 
 const SFX = {
   place() {
-    playDominoClick();
+    playBuffer(sfxBuffers.place, { gain: 0.55, playbackRate: 1.05 });
   },
-  draw() {
-    playEnvelope({ frequency: 360, type: "sawtooth", gain: 0.18, duration: 0.12, attack: 0.006, decay: 0.12, detune: -4, pan: -0.08 });
-    playEnvelope({ frequency: 540, type: "triangle", gain: 0.16, duration: 0.14, attack: 0.004, decay: 0.14, detune: 3, pan: 0.08 });
+  drawTile() {
+    playBuffer(sfxBuffers.draw, { gain: 0.5, playbackRate: 1.08 });
   },
   pass() {
-    playNoise({ duration: 0.24, gain: 0.16, filterType: "bandpass", frequency: 780, pan: -0.05 });
-    playEnvelope({ frequency: 220, type: "sine", gain: 0.12, duration: 0.22, attack: 0.01, decay: 0.16, pan: 0.1 });
+    playGlide({ startFreq: 420, endFreq: 170, duration: 0.42, gain: 0.32 });
   },
   win() {
-    playEnvelope({ frequency: 580, type: "triangle", gain: 0.24, duration: 0.14, attack: 0.008, decay: 0.18 });
-    playEnvelope({ frequency: 760, type: "triangle", gain: 0.22, duration: 0.16, attack: 0.008, decay: 0.2, detune: 5 });
-    playEnvelope({ frequency: 980, type: "square", gain: 0.18, duration: 0.2, attack: 0.01, decay: 0.24, detune: 8 });
+    playChimeSequence(
+      [
+        { time: 0, freq: 880 },
+        { time: 0.12, freq: 1175 },
+        { time: 0.24, freq: 1568 },
+        { time: 0.34, freq: 1760 }
+      ],
+      { gain: 0.3, type: 'sine' }
+    );
   },
   drawGame() {
-    playEnvelope({ frequency: 420, type: "triangle", gain: 0.16, duration: 0.16, attack: 0.01, decay: 0.16 });
-    playEnvelope({ frequency: 310, type: "sine", gain: 0.14, duration: 0.22, attack: 0.012, decay: 0.18, detune: -6, pan: -0.04 });
+    playBuffer(sfxBuffers.block, { gain: 0.36, playbackRate: 0.92 });
   }
 };
-
-function playPassSfx() {
-  SFX.pass();
-}
 
 /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
-const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.1, 2.4));
+const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.25, 3));
 renderer.setPixelRatio(devicePixelRatioTarget);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
@@ -216,16 +233,14 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.85;
+renderer.toneMappingExposure = 1.12;
 function setRendererSize(){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
-renderer.setSize(w, h, false);
+  renderer.setSize(w, h, false);
 }
 setRendererSize();
 app.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = 'none';
-renderer.domElement.addEventListener('pointerdown', primeAudio, { once: true });
-window.addEventListener('keydown', primeAudio, { once: true });
 
 const scene = new THREE.Scene();
 const textureLoader = new THREE.TextureLoader();
@@ -262,16 +277,16 @@ const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
 const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const HUMAN_SEAT_INDEX = 0;
 const CHAIR_SEAT_ANGLES = Object.freeze([
-  Math.PI / 2,
-  0,
-  (3 * Math.PI) / 2,
-  Math.PI
+  THREE.MathUtils.degToRad(90),
+  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(270),
+  THREE.MathUtils.degToRad(225)
 ]);
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS,
-  CHAIR_RADIUS * 0.98,
+  CHAIR_RADIUS * 0.94,
   CHAIR_RADIUS * 1.02,
-  CHAIR_RADIUS * 0.98
+  CHAIR_RADIUS * 0.94
 ]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -499,10 +514,10 @@ function toggleCameraViewMode() {
 
 
 /* ---------- Lights ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.32));
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.42));
-const key = new THREE.DirectionalLight(0xffffff, 1.1); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
-const rimLight = new THREE.DirectionalLight(0xffffff, 0.42); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.55));
+const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.55); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
 
 const getPoolCarpetTextures = (() => {
   let cache = null;
@@ -629,20 +644,20 @@ const getPoolCarpetTextures = (() => {
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
-  id: "moss",
-  label: "Moss",
-  seatColor: "#4f6650",
-  legColor: "#2c2a25",
-  highlight: "#c2b68a"
+  id: "walnut",
+  label: "Walnut",
+  seatColor: "#7b5a3a",
+  legColor: "#2d2216",
+  highlight: "#d6b48b"
 });
 
 const CHAIR_THEME_OPTIONS = Object.freeze([
   DEFAULT_CHAIR_THEME,
-  { id: "spruce", label: "Spruce", seatColor: "#3f5645", legColor: "#1f241d", highlight: "#a7c49c" },
-  { id: "riverstone", label: "Riverstone", seatColor: "#4b4f55", legColor: "#25282c", highlight: "#c1c7d0" },
-  { id: "sand", label: "Sand", seatColor: "#b59773", legColor: "#3f3528", highlight: "#e8d7b3" },
-  { id: "clay", label: "Clay", seatColor: "#7b5a46", legColor: "#2e241d", highlight: "#d8b79a" },
-  { id: "deepsea", label: "Deep Sea", seatColor: "#36595b", legColor: "#1d2c2c", highlight: "#9ac2c4" }
+  { id: "stone", label: "Stone", seatColor: "#5e5b53", legColor: "#2f2d28", highlight: "#c8c2b5" },
+  { id: "forest", label: "Forest", seatColor: "#4a5f3c", legColor: "#1d2b18", highlight: "#adc48a" },
+  { id: "navyCanvas", label: "Navy Canvas", seatColor: "#2f3d52", legColor: "#131a26", highlight: "#9ab0c9" },
+  { id: "sand", label: "Sand", seatColor: "#c3a375", legColor: "#4c3721", highlight: "#f2d7a4" },
+  { id: "slate", label: "Slate", seatColor: "#47515a", legColor: "#1f252a", highlight: "#b8c4ce" }
 ]);
 
 const CHAIR_MODEL_URLS = [
@@ -1130,11 +1145,12 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
-  { id: "meadow", label: "Meadow", feltTop: "#3a6b4b", feltBottom: "#264233", border: "#12241b", emissive: "#2f5840", emissiveIntensity: 0.46 },
-  { id: "harbor", label: "Harbor", feltTop: "#3a5664", feltBottom: "#243642", border: "#111d26", emissive: "#2f4a58", emissiveIntensity: 0.42 },
-  { id: "cedar", label: "Cedar", feltTop: "#7a5a3e", feltBottom: "#4c3522", border: "#26170e", emissive: "#5f452f", emissiveIntensity: 0.4 },
-  { id: "slate", label: "Slate", feltTop: "#4b545f", feltBottom: "#2f343d", border: "#171920", emissive: "#3b444f", emissiveIntensity: 0.36 },
-  { id: "dune", label: "Dune", feltTop: "#c0ac86", feltBottom: "#9b886b", border: "#493825", emissive: "#b19c76", emissiveIntensity: 0.32 }
+  { id: "crimson", label: "Crimson Cloth", feltTop: "#b0122d", feltBottom: "#650a1b", border: "#2b050c", emissive: "#6c101f", emissiveIntensity: 0.5 },
+  { id: "emerald", label: "Emerald Cloth", feltTop: "#1fa44d", feltBottom: "#0b7030", border: "#043018", emissive: "#0f6a2f", emissiveIntensity: 0.72 },
+  { id: "arctic", label: "Arctic Cloth", feltTop: "#3b82f6", feltBottom: "#1d4ed8", border: "#0a1c4d", emissive: "#2563eb", emissiveIntensity: 0.62 },
+  { id: "sunset", label: "Sunset Cloth", feltTop: "#f97316", feltBottom: "#c2410c", border: "#3b1203", emissive: "#e2580f", emissiveIntensity: 0.58 },
+  { id: "violet", label: "Violet Cloth", feltTop: "#8b5cf6", feltBottom: "#5b21b6", border: "#241055", emissive: "#6d28d9", emissiveIntensity: 0.58 },
+  { id: "amber", label: "Amber Cloth", feltTop: "#f59e0b", feltBottom: "#b45309", border: "#3b1a02", emissive: "#d97706", emissiveIntensity: 0.54 }
 ]);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
@@ -1460,9 +1476,9 @@ function createChairClothTexture(option, renderer) {
   if (typeof document === "undefined") {
     return null;
   }
-  const primary = option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor;
-  const accent = adjustHexColor(primary, -0.22);
-  const highlight = option?.highlight ?? adjustHexColor(primary, 0.16);
+  const primary = option?.seatColor ?? "#8b0000";
+  const accent = adjustHexColor(primary, -0.28);
+  const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = CHAIR_CLOTH_TEXTURE_SIZE;
   const ctx = canvas.getContext("2d");
@@ -1561,7 +1577,7 @@ function createChairClothTexture(option, renderer) {
 
 function createChairFabricMaterial(option, renderer) {
   const texture = createChairClothTexture(option, renderer);
-  const primary = option?.seatColor ?? DEFAULT_CHAIR_THEME.seatColor;
+  const primary = option?.seatColor ?? "#8b0000";
   const sheenColor = option?.highlight ?? adjustHexColor(primary, 0.2);
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(adjustHexColor(primary, 0.04)),
@@ -2233,7 +2249,7 @@ function createRegularPolygonShape(sides = 8, radius = 1) {
   return shape;
 }
 
-function makeClothTexture({ top = "#325a3d", bottom = "#233a29", border = "#0f1f14" } = {}) {
+function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f10" } = {}) {
   const size = 512;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = size;
@@ -2289,7 +2305,7 @@ function makeClothTexture({ top = "#325a3d", bottom = "#233a29", border = "#0f1f
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(18 * 15, 18 * 15);
+  texture.repeat.set(18 * 5, 18 * 5);
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -2530,7 +2546,7 @@ const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
-const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.05;
+const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
 const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.25;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
@@ -2685,7 +2701,7 @@ let boneyardStackTopLocal = 0;
 const drawAnimations = [];
 const DRAW_ANIM_DURATION = 480;
 const placementAnimations = [];
-const PLACE_ANIM_DURATION = 480;
+const PLACE_ANIM_DURATION = 640;
 const PLACE_ANIM_ARC = 0.05;
 const CPU_PLAY_DELAY = 2000;
 
@@ -3209,6 +3225,8 @@ let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0; let human = 0;
 let markers = {L:null, R:null}; let selectedTile = null;
+let selectedHighlight = null;
+let selectedHighlightHost = null;
 let flipDir = false; // alternate chain direction after each game
 const usedTileKeys = new Set();
 let gameFinished = false;
@@ -3217,34 +3235,6 @@ let revealAllHands = false;
 let winnerHighlight = null;
 let winnerHighlightStart = 0;
 let cpuMoveTimeout = null;
-
-function applyDominoSelectionHighlight(domino) {
-  if (!domino) return;
-  const accentColor = new THREE.Color('#f6d860');
-  domino.traverse((child) => {
-    if (child.isMesh && child.material) {
-      const mat = child.material.clone();
-      if ('emissive' in mat && mat.emissive) {
-        mat.emissive = mat.emissive.clone();
-        mat.emissive.lerp(accentColor, 0.5);
-        mat.emissiveIntensity = (mat.emissiveIntensity ?? 0) + 0.35;
-      }
-      mat.transparent = true;
-      mat.opacity = 0.97;
-      child.material = mat;
-    }
-  });
-  const box = new THREE.Box3().setFromObject(domino);
-  const size = box.getSize(new THREE.Vector3());
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(size.x * 0.58, size.x * 0.86, 48),
-    new THREE.MeshBasicMaterial({ color: '#f6d860', transparent: true, opacity: 0.6, side: THREE.DoubleSide })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = -size.y * 0.52;
-  ring.renderOrder = 12;
-  domino.add(ring);
-}
 
 function tileKey(tile){
   const ct = canonTile(tile);
@@ -3280,6 +3270,7 @@ function layoutSeat(idx){
 
 function renderHands(){
   players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
+  clearSelectedHighlight();
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
   const BASE_GAP = DOMINO_HAND_GAP;
@@ -3325,7 +3316,6 @@ function renderHands(){
 
     p.hand.forEach((h,hi)=>{
       const m = makeDomino(h.a,h.b,{flat: openFlat, faceUp});
-      const isSelected = selectedTile === h;
       const offset = count>1 ? start + gap*hi : 0;
       if(isSide){
         m.position.set(x0, handY, z0 + offset);
@@ -3340,10 +3330,10 @@ function renderHands(){
         m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
         m.rotation.z += (Math.random()*0.006-0.003);
       }
-      if(isSelected){
-        applyDominoSelectionHighlight(m);
-      }
       h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
+      if(selectedTile === h){
+        applySelectedHighlight(m);
+      }
     });
   });
 }
@@ -3760,6 +3750,7 @@ function startGame(){
   clearMarkers();
   clearExistingDominoMeshes();
   selectedTile=null;
+  clearSelectedHighlight();
   chain=[];
   ends=null;
   usedTileKeys.clear();
@@ -3976,8 +3967,42 @@ function nextCandidate(end){
 }
 
 /* ---------- Markers for manual placement ---------- */
+function clearSelectedHighlight(){
+  if(selectedHighlightHost && selectedHighlightHost.userData?.baseScale){
+    selectedHighlightHost.scale.copy(selectedHighlightHost.userData.baseScale);
+  }
+  if(selectedHighlight && selectedHighlight.parent){
+    selectedHighlight.parent.remove(selectedHighlight);
+  }
+  try{ selectedHighlight?.geometry?.dispose?.(); }catch{}
+  try{ selectedHighlight?.material?.dispose?.(); }catch{}
+  selectedHighlight = null;
+  selectedHighlightHost = null;
+}
+
+function applySelectedHighlight(mesh){
+  if(!mesh){
+    return;
+  }
+  clearSelectedHighlight();
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.62, 0.82, 64),
+    new THREE.MeshBasicMaterial({ color: 0xffe9b1, transparent: true, opacity: 0.82, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(0, -0.12, 0);
+  ring.renderOrder = 9;
+  if(!mesh.userData.baseScale){
+    mesh.userData.baseScale = mesh.scale.clone();
+  }
+  mesh.scale.multiplyScalar(1.04);
+  mesh.add(ring);
+  selectedHighlight = ring;
+  selectedHighlightHost = mesh;
+}
+
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.13, .028, 28, 96); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.013; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.14, .034, 28, 96); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -3987,13 +4012,13 @@ function showMarkersFor(tile){
 
 /* ---------- Interactivity ---------- */
 const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
-raycaster.params.Line = { threshold: 0.08 };
-raycaster.params.Points = { threshold: 0.12 };
+raycaster.params.Mesh = raycaster.params.Mesh || {};
+raycaster.params.Mesh.threshold = 0.06;
 const activePointers = new Set();
 function findPickRoot(o){
   let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
 }
-function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
+function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; applySelectedHighlight(obj); showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
 
 renderer.domElement.addEventListener('pointerdown',ev=>{
   activePointers.add(ev.pointerId);
@@ -4046,13 +4071,13 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
     const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
     if(canL||canR) break;
   }
-  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw(); }
+  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
 });
 btnPass.addEventListener('click',()=>{
   if(current===human && !gameFinished){
     clearMarkers();
     selectedTile=null;
-    playPassSfx();
+    SFX.pass();
     nextTurn();
   }
 });
@@ -4110,18 +4135,21 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
   }
   clearMarkers();
   selectedTile = null;
+  clearSelectedHighlight();
   renderHands();
   renderChain();
   if(reason){
     setStatus(reason);
-    if(reason.toLowerCase().includes('blocked')){
-      SFX.drawGame();
-    }
   } else if(winnerIndex !== null){
     setStatus(winnerIndex === human ? 'You won!' : `Player ${winnerIndex+1} won!`);
-    SFX.win();
   } else {
     setStatus('Game over');
+  }
+
+  if(winnerIndex !== null){
+    SFX.win();
+  } else {
+    SFX.drawGame();
   }
 }
 
@@ -4184,15 +4212,15 @@ function cpuPlay(){
     const drew = cpuDrawUntilPlayable(player);
     if(drew){
       renderHands();
-      SFX.draw();
+      SFX.drawTile();
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
-        playPassSfx();
+        SFX.pass();
         nextTurn();
       }
     } else {
-      playPassSfx();
+      SFX.pass();
       nextTurn();
     }
     return;
@@ -4219,15 +4247,15 @@ function cpuPlay(){
   const drew = cpuDrawUntilPlayable(player);
   if(drew){
     renderHands();
-    SFX.draw();
+    SFX.drawTile();
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
-      playPassSfx();
+      SFX.pass();
       nextTurn();
     }
   } else {
-    playPassSfx();
+    SFX.pass();
     nextTurn();
   }
 }
