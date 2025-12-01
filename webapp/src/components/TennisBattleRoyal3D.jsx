@@ -1897,6 +1897,11 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       return THREE.MathUtils.clamp(z, minZ, maxZ);
     }
 
+    function getViewportScale() {
+      const rect = renderer.domElement.getBoundingClientRect();
+      return THREE.MathUtils.clamp(Math.min(rect.width || 1, rect.height || 1) / 900, 0.72, 1.18);
+    }
+
     function screenToCourt(clientX) {
       const rect = renderer.domElement.getBoundingClientRect();
       const normX = (clientX - rect.left) / rect.width;
@@ -1915,27 +1920,29 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     function swipeToShot(distX, distY, swipeTime, towardsEnemy = true) {
       const touchProfile = touchProfileRef.current;
-      const minSwipe = MIN_SWIPE_SPEED * (touchProfile.minSwipeScale ?? 1);
-      const maxSwipe = MAX_SWIPE_SPEED * (touchProfile.maxSwipeScale ?? 1);
+      const viewScale = getViewportScale();
+      const depthScale = THREE.MathUtils.clamp((playerCourtMaxZ - playerCourtMinZ) / halfL, 0.82, 1.18);
+      const minSwipe = MIN_SWIPE_SPEED * (touchProfile.minSwipeScale ?? 1) * THREE.MathUtils.lerp(0.9, 1.08, viewScale - 0.72);
+      const maxSwipe = MAX_SWIPE_SPEED * (touchProfile.maxSwipeScale ?? 1) * THREE.MathUtils.lerp(0.92, 1.12, viewScale - 0.72);
       const swipeT = Math.max(swipeTime, 0.08);
       const swipeLength = Math.hypot(distX, distY);
       const sensitivity = touchProfile.swipeSensitivity ?? 1;
-      const speed = (swipeLength / swipeT) * sensitivity;
+      const speed = (swipeLength / swipeT) * sensitivity * viewScale;
       const low = minSwipe * 0.5;
-      const high = maxSwipe * 1.1;
+      const high = maxSwipe * 1.08;
       const clampedSpeed = THREE.MathUtils.clamp(speed, low, high);
       const normalized = Math.min(THREE.MathUtils.clamp((clampedSpeed - low) / (high - low), 0, 1), 0.9);
 
-      const forward = THREE.MathUtils.lerp(6.6, 18.5, normalized * (touchProfile.forceAssist ?? 1));
-      const lift = THREE.MathUtils.lerp(1.8, 7.4, normalized * (touchProfile.liftBias ?? 1));
+      const forward = THREE.MathUtils.lerp(6.2, 18.5 * depthScale, normalized * (touchProfile.forceAssist ?? 1));
+      const lift = THREE.MathUtils.lerp(1.6, 7.2 * depthScale, normalized * (touchProfile.liftBias ?? 1));
       const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 120), -1.2, 1.2);
       const lateral = THREE.MathUtils.clamp(
-        lateralInfluence * forward * 0.18 * (touchProfile.lateralAssist ?? 1),
+        lateralInfluence * forward * 0.18 * (touchProfile.lateralAssist ?? 1) * THREE.MathUtils.lerp(0.92, 1.08, viewScale - 0.72),
         -2.4,
         2.4
       );
       const curveIntent = THREE.MathUtils.clamp(distX / Math.max(swipeLength, 180), -1, 1) * (touchProfile.curveBias ?? 1);
-      const curveSpin = THREE.MathUtils.lerp(3, 9, normalized) * curveIntent * (physics.spinBias ?? 1);
+      const curveSpin = THREE.MathUtils.lerp(3, 9.5, normalized) * curveIntent * (physics.spinBias ?? 1) * depthScale;
 
       const direction = towardsEnemy ? -1 : 1;
       return {
@@ -1950,20 +1957,22 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     function shotToSwing(shot) {
       const touchProfile = touchProfileRef.current;
-      const dir = new THREE.Vector3(shot.lateral, shot.lift, shot.forward);
+      const depthScale = THREE.MathUtils.clamp((playerCourtMaxZ - playerCourtMinZ) / halfL, 0.82, 1.18);
+      const courtScale = THREE.MathUtils.clamp(courtL / 23.77, 0.86, 1.16);
+      const dir = new THREE.Vector3(shot.lateral, shot.lift, shot.forward * depthScale);
       const speed = dir.length();
       const normal = dir.normalize();
       const sideCurve = shot.curve ?? 0;
-      const topspin = THREE.MathUtils.lerp(6, 20, shot.normalized) * (touchProfile.topspinBias ?? 1) * (physics.spinBias ?? 1);
+      const topspin = THREE.MathUtils.lerp(6, 20, shot.normalized) * (touchProfile.topspinBias ?? 1) * (physics.spinBias ?? 1) * depthScale;
       const curveAim = normal.clone();
       curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01 * (touchProfile.aimAssist ?? 1), -0.24, 0.24);
       curveAim.x = THREE.MathUtils.clamp(curveAim.x, -0.42, 0.42);
-      curveAim.z = Math.sign(curveAim.z || -1) * Math.max(Math.abs(curveAim.z), 0.62);
-      const forceAssist = (touchProfile.forceAssist ?? 1) * (physics.forceScale ?? 1);
-      const liftBoost = -0.08 + ((touchProfile.liftBias ?? 1) - 1) * 0.35;
+      curveAim.z = Math.sign(curveAim.z || -1) * Math.max(Math.abs(curveAim.z), 0.62 + (depthScale - 1) * 0.18);
+      const forceAssist = (touchProfile.forceAssist ?? 1) * (physics.forceScale ?? 1) * courtScale;
+      const liftBoost = -0.08 + ((touchProfile.liftBias ?? 1) - 1) * 0.35 + (depthScale - 1) * 0.12;
       return {
         normal,
-        speed,
+        speed: speed * THREE.MathUtils.clamp(courtScale, 0.9, 1.14),
         ttl: 0.34,
         extraSpin: new THREE.Vector3(sideCurve * 0.2, sideCurve * 0.55, topspin * Math.sign(shot.forward || -1)),
         friction: 0.2,
@@ -1971,7 +1980,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         reach: ballR + 0.8,
         force: Math.min(
           1.45,
-          shot.normalized * forceAssist * (1.05 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 4.8))
+          shot.normalized * forceAssist * (1.05 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 4.8)) * depthScale
         ),
         power: shot.normalized,
         aimDirection: curveAim.normalize(),
@@ -2002,8 +2011,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const targetZ = screenToCourtZ(e.clientY);
       playerMoveTarget.set(targetX, targetZ);
       const follow = touchProfileRef.current.moveFollow ?? 0.4;
-      player.position.x += (targetX - player.position.x) * follow;
-      player.position.z += (targetZ - player.position.z) * follow;
+      const viewFollow = follow * THREE.MathUtils.lerp(0.92, 1.12, getViewportScale() - 0.72);
+      player.position.x += (targetX - player.position.x) * viewFollow;
+      player.position.z += (targetZ - player.position.z) * viewFollow;
     }
 
     function ensureCrossCourtTrajectory(hitter) {

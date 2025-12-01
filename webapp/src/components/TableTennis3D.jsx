@@ -1136,19 +1136,23 @@ export default function TableTennis3D({ player, ai }){
       const swipeT = Math.max(swipeTime, 0.06);
       const swipeLength = Math.hypot(distX, distY);
       const speed = swipeLength / swipeT;
-      const clampedSpeed = THREE.MathUtils.clamp(speed, MIN_SWIPE_SPEED, MAX_SWIPE_SPEED);
-      const normalized = (clampedSpeed - MIN_SWIPE_SPEED) / (MAX_SWIPE_SPEED - MIN_SWIPE_SPEED);
+      const viewportScale = rect ? THREE.MathUtils.clamp(Math.min(rect.width, rect.height) / 720, 0.76, 1.2) : 1;
+      const scaledMin = MIN_SWIPE_SPEED * THREE.MathUtils.lerp(0.9, 1.08, viewportScale - 0.76);
+      const scaledMax = MAX_SWIPE_SPEED * THREE.MathUtils.lerp(0.92, 1.12, viewportScale - 0.76);
+      const clampedSpeed = THREE.MathUtils.clamp(speed * viewportScale, scaledMin, scaledMax);
+      const normalized = (clampedSpeed - scaledMin) / (scaledMax - scaledMin);
       const forward = towardsEnemy ? -1 : 1;
-      const lateralScale = swipeProfile.lateralScale ?? 1.65;
+      const lateralScale = (swipeProfile.lateralScale ?? 1.65) * THREE.MathUtils.clamp((bounds.x * 2) / T.W, 0.9, 1.12);
       const liftRange = swipeProfile.liftRange ?? [0.32, 1.08];
       const forwardRange = swipeProfile.forwardRange ?? [0.88, 1.52];
+      const depthScale = THREE.MathUtils.clamp(T.L / 2.74, 0.86, 1.18);
       const curveScale = swipeProfile.curveScale ?? 1;
       const chopScale = swipeProfile.chopScale ?? 1;
-      const lateral = THREE.MathUtils.clamp(distX / (rect?.width || 1), -lateralScale, lateralScale) * forward;
+      const lateral = THREE.MathUtils.clamp(distX / Math.max(rect?.width || 1, 1), -lateralScale, lateralScale) * forward;
       const lift = THREE.MathUtils.mapLinear(normalized, 0, 1, liftRange[0], liftRange[1]);
-      const forwardPower = THREE.MathUtils.mapLinear(normalized, 0, 1, forwardRange[0], forwardRange[1]) * forward;
-      const curve = THREE.MathUtils.clamp((distX / 28) * curveScale, -9, 9);
-      const chop = THREE.MathUtils.clamp(((distY - Math.abs(distX) * 0.35) / 240) * chopScale, -0.6, 0.9);
+      const forwardPower = THREE.MathUtils.mapLinear(normalized, 0, 1, forwardRange[0], forwardRange[1]) * forward * depthScale;
+      const curve = THREE.MathUtils.clamp((distX / Math.max(rect?.width || 240, 180)) * 18 * curveScale, -9, 9);
+      const chop = THREE.MathUtils.clamp(((distY - Math.abs(distX) * 0.35) / Math.max(rect?.height || 360, 260)) * chopScale, -0.6, 0.9);
       const topspin = THREE.MathUtils.lerp(12, 34, normalized + chop * 0.25);
       return {
         lateral,
@@ -1163,23 +1167,26 @@ export default function TableTennis3D({ player, ai }){
     }
 
     function shotToSwing(shot) {
-      const dir = new THREE.Vector3(shot.lateral, shot.lift + shot.chop * 0.12, shot.forward);
+      const courtScale = THREE.MathUtils.clamp(T.L / 2.74, 0.86, 1.2);
+      const dir = new THREE.Vector3(shot.lateral, shot.lift + shot.chop * 0.12, shot.forward * courtScale);
       const speed = dir.length();
       const normal = dir.normalize();
       const sideCurve = shot.curve ?? 0;
       const topspin = shot.topspin ?? THREE.MathUtils.lerp(12, 30, shot.normalized);
       const curveAim = normal.clone();
       curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01, -0.32, 0.32);
+      const power = THREE.MathUtils.clamp(shot.normalized * courtScale + Math.abs(shot.chop) * 0.18, 0.12, 1.08);
+      const speedScale = THREE.MathUtils.clamp(courtScale, 0.88, 1.16);
       return {
         normal,
-        speed,
+        speed: speed * speedScale,
         ttl: 0.34,
         extraSpin: new THREE.Vector3(sideCurve * 0.26, sideCurve * 0.72 - shot.chop * 6, topspin * Math.sign(shot.forward || -1)),
         friction: 0.2,
         restitution: 1.08,
         reach: BALL_R + 0.34,
-        force: Math.min(1.15, shot.normalized * (1 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 6))),
-        power: shot.normalized,
+        force: Math.min(1.15, power * (1 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 6))) * speedScale,
+        power,
         aimDirection: curveAim.normalize(),
         liftBoost: shot.chop > 0 ? shot.chop * 0.3 : 0
       };
