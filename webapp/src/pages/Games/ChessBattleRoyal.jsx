@@ -214,9 +214,9 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
@@ -305,7 +305,6 @@ const CAM = {
   phiMax: cameraPhiHardMax
 };
 
-const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const PLAYER_FLAG_STORAGE_KEY = 'chessBattleRoyalPlayerFlag';
 const FALLBACK_FLAG = '🇺🇸';
 const DEFAULT_APPEARANCE = {
@@ -360,13 +359,6 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const CUSTOMIZATION_SECTIONS = [
-  { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
-  { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
-];
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -1020,79 +1012,6 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
   return g;
 }
 
-function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME_THEME) {
-  const boardModel = new THREE.Group();
-  boardModel.name = 'ABeautifulGameLocal';
-  const tile = BOARD.tile;
-  const N = BOARD.N;
-  const half = (N * tile) / 2;
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(
-      targetBoardSize || N * tile + BOARD.rim * 2,
-      BOARD.baseH * 1.05,
-      targetBoardSize || N * tile + BOARD.rim * 2
-    ),
-    new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
-      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
-      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
-      clearcoat: 0.32
-    })
-  );
-  base.position.y = BOARD.baseH * 0.5;
-  boardModel.add(base);
-  const top = new THREE.Mesh(
-    new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
-    new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
-      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
-      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
-      clearcoat: 0.22
-    })
-  );
-  top.position.y = BOARD.baseH + 0.07;
-  boardModel.add(top);
-
-  const tiles = new THREE.Group();
-  boardModel.add(tiles);
-  for (let r = 0; r < N; r += 1) {
-    for (let c = 0; c < N; c += 1) {
-      const isDark = (r + c) % 2 === 1;
-      const mat = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
-        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
-        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
-        clearcoat: 0.08,
-        specularIntensity: 0.32
-      });
-      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
-      tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
-      tiles.add(tileMesh);
-    }
-  }
-
-  const piecePrototypes = { white: {}, black: {} };
-  const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
-  const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
-  const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
-  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
-  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? accentLight;
-  piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
-  piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
-  piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
-  piecePrototypes.white.B = buildBeautifulGamePiece('B', authenticWhite, accentLight, scale);
-  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', authenticWhite, accentLight, scale);
-  piecePrototypes.white.K = buildBeautifulGamePiece('K', authenticWhite, accentLight, scale);
-  piecePrototypes.black.P = buildBeautifulGamePiece('P', authenticBlack, accentDark, scale);
-  piecePrototypes.black.R = buildBeautifulGamePiece('R', authenticBlack, accentDark, scale);
-  piecePrototypes.black.N = buildBeautifulGamePiece('N', authenticBlack, accentDark, scale);
-  piecePrototypes.black.B = buildBeautifulGamePiece('B', authenticBlack, accentDark, scale);
-  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
-  piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
-
-  return { boardModel, piecePrototypes };
-}
-
 async function resolveBeautifulGameAssets(targetBoardSize) {
   const timeoutMs = 7000;
   const withTimeout = (promise) =>
@@ -1107,10 +1026,10 @@ async function resolveBeautifulGameAssets(targetBoardSize) {
     if (gltf?.scene) {
       return extractBeautifulGameAssets(gltf.scene, targetBoardSize);
     }
+    throw new Error('ABeautifulGame scene missing');
   } catch (error) {
-    console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using local fallback', error);
+    throw new Error(`ABeautifulGame load failed: ${error.message}`);
   }
-  return buildBeautifulGameFallback(targetBoardSize, BEAUTIFUL_GAME_THEME);
 }
 
 function cloneWithShadows(object) {
@@ -2225,18 +2144,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const arenaRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true });
-  const [appearance, setAppearance] = useState(() => {
-    if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
-    try {
-      const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
-      if (!stored) return { ...DEFAULT_APPEARANCE };
-      const parsed = JSON.parse(stored);
-      return normalizeAppearance(parsed);
-    } catch (error) {
-      console.warn('Failed to load Chess appearance', error);
-      return { ...DEFAULT_APPEARANCE };
-    }
-  });
+  const appearance = useMemo(() => ({ ...DEFAULT_APPEARANCE }), []);
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
   const seatPositionsRef = useRef([]);
@@ -2280,9 +2188,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const blackTimeRef = useRef(blackTime);
   const initialWhiteTimeRef = useRef(60);
   const initialBlackTimeRef = useRef(5);
-  const [configOpen, setConfigOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showHighlights, setShowHighlights] = useState(true);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [ui, setUi] = useState({
     turnWhite: true,
@@ -2472,10 +2377,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, []);
 
   useEffect(() => {
-    appearanceRef.current = appearance;
-  }, [appearance]);
-
-  useEffect(() => {
     if (!playerFlag && resolvedInitialFlag) {
       setPlayerFlag(resolvedInitialFlag);
     }
@@ -2515,34 +2416,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, [playerFlag]);
 
   useEffect(() => {
-    settingsRef.current.showHighlights = showHighlights;
-    if (!showHighlights && typeof clearHighlightsRef.current === 'function') {
-      clearHighlightsRef.current();
-    }
-  }, [showHighlights]);
-
-  useEffect(() => {
-    settingsRef.current.soundEnabled = soundEnabled;
-    const volume = getGameVolume();
-    if (bombSoundRef.current) {
-      bombSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
-        try {
-          bombSoundRef.current.pause();
-          bombSoundRef.current.currentTime = 0;
-        } catch {}
-      }
-    }
-    if (timerSoundRef.current) {
-      timerSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
-        try {
-          timerSoundRef.current.pause();
-          timerSoundRef.current.currentTime = 0;
-        } catch {}
-      }
-    }
-  }, [soundEnabled]);
+    settingsRef.current.showHighlights = true;
+    settingsRef.current.soundEnabled = true;
+  }, []);
 
   useEffect(() => {
     const handleVolumeChange = () => {
@@ -2560,167 +2436,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
-      } catch (error) {
-        console.warn('Failed to persist Chess appearance', error);
-      }
-    }
-
-    const arena = arenaRef.current;
-    if (!arena) return;
-
-    const normalized = normalizeAppearance(appearance);
-    const palette = createChessPalette(normalized);
-    paletteRef.current = palette;
-    arena.palette = palette;
-    if (arenaRef.current) {
-      arenaRef.current.palette = palette;
-      arenaRef.current.boardMaterials = arena.boardMaterials;
-    }
-    const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
-    const boardTheme = BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces;
-
-    if (shapeOption) {
-      const shapeChanged = shapeOption.id !== arena.tableShapeId;
-      const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
-      if (shapeChanged || rotationChanged) {
-        const { boardGroup } = arena;
-        if (boardGroup && arena.tableInfo?.group) {
-          arena.tableInfo.group.remove(boardGroup);
-        }
-        const nextTable = createMurlanStyleTable({
-          arena: arena.arenaGroup,
-          renderer: arena.renderer,
-          tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT,
-          woodOption,
-          clothOption,
-          baseOption,
-          shapeOption,
-          rotationY
-        });
-        applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
-        if (boardGroup) {
-          boardGroup.position.set(0, nextTable.surfaceY + 0.004, 0);
-          nextTable.group.add(boardGroup);
-        }
-        arena.tableInfo?.dispose?.();
-        arena.tableInfo = nextTable;
-        arena.tableShapeId = nextTable.shapeId;
-        if (arena.boardLookTarget) {
-          const targetY = boardGroup
-            ? boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE
-            : nextTable.surfaceY + (BOARD.baseH + 0.12) * BOARD_SCALE;
-          arena.boardLookTarget.set(0, targetY, 0);
-        }
-        arena.spotTarget?.position.copy(arena.boardLookTarget ?? new THREE.Vector3());
-        arena.spotLight?.target?.updateMatrixWorld?.();
-        arena.studioCameras?.forEach((cam) => cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3()));
-        arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
-        arena.controls?.update();
-        fitRef.current?.();
-      } else if (arena.tableInfo?.materials) {
-        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
-      }
-    }
-
-    if (chairOption) {
-      const currentMaterials = arena.chairMaterials;
-      const currentId = currentMaterials?.fabricMaterial?.userData?.chairId ?? 'default';
-      const nextId = chairOption.id ?? 'default';
-      if (currentId !== nextId) {
-        const nextMaterials = createChessChairMaterials(chairOption);
-        arena.chairs?.forEach((chair) => {
-          chair.seatMeshes.forEach((mesh) => {
-            mesh.material = nextMaterials.fabricMaterial;
-          });
-          chair.legMeshes.forEach((mesh) => {
-            mesh.material = nextMaterials.legMaterial;
-          });
-        });
-        disposeChessChairMaterials(currentMaterials);
-        arena.chairMaterials = nextMaterials;
-      }
-    }
-
-    if (arena.boardMaterials) {
-      const { base: baseMat, top: topMat, coord: coordMat, tiles } = arena.boardMaterials;
-      baseMat?.color?.set?.(boardTheme.frameDark);
-      baseMat.roughness = boardTheme.frameRoughness;
-      baseMat.metalness = boardTheme.frameMetalness;
-      if (arena.boardModel) {
-        baseMat.transparent = true;
-        baseMat.opacity = Math.min(baseMat.opacity ?? 0.02, 0.08);
-        baseMat.depthWrite = false;
-      }
-      topMat?.color?.set?.(boardTheme.frameLight);
-      topMat.roughness = boardTheme.surfaceRoughness;
-      topMat.metalness = boardTheme.surfaceMetalness;
-      if (arena.boardModel) {
-        topMat.transparent = true;
-        topMat.opacity = Math.min(topMat.opacity ?? 0.02, 0.08);
-        topMat.depthWrite = false;
-      }
-      coordMat?.color?.set?.(palette.accent);
-      tiles?.forEach((tileMesh) => {
-        const isDark = (tileMesh.userData?.r + tileMesh.userData?.c) % 2 === 1;
-        tileMesh.material.color.set(isDark ? boardTheme.dark : boardTheme.light);
-        tileMesh.material.roughness = boardTheme.surfaceRoughness;
-        tileMesh.material.metalness = boardTheme.surfaceMetalness;
-        if (arena.boardModel) {
-          tileMesh.material.transparent = true;
-          tileMesh.material.opacity = Math.min(tileMesh.material.opacity ?? 0.08, 0.12);
-          tileMesh.material.depthWrite = false;
-        }
-      });
-    }
-
-    if (arena.allPieceMeshes) {
-      const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
-      arena.allPieceMeshes.forEach((group) => {
-        if (group.userData?.__pieceStyleId === 'beautifulGame') return;
-        const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
-        const materialSet = nextPieceMaterials[colorKey];
-        if (!materialSet) return;
-        group.traverse((child) => {
-          if (!child.isMesh) return;
-          const role = child.userData?.__pieceMaterialRole === 'accent' ? 'accent' : 'base';
-          const mat = role === 'accent' && materialSet.accent ? materialSet.accent : materialSet.base;
-          if (mat) child.material = mat;
-        });
-      });
-      disposePieceMaterials(arena.pieceMaterials);
-      arena.pieceMaterials = nextPieceMaterials;
-    }
-
-    const accentColor = palette.accent ?? '#4ce0c3';
-    const effectivePlayerFlag =
-      playerFlag ||
-      arena.playerFlag ||
-      resolvedInitialFlag ||
-      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
-    const effectiveAiFlag =
-      aiFlag ||
-      arena.aiFlag ||
-      getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
-    arena.playerFlag = effectivePlayerFlag;
-    arena.aiFlag = effectiveAiFlag;
-    arena.sandTimer?.updateAccent?.(accentColor);
-    updateSandTimerPlacement(uiRef.current?.turnWhite ?? ui.turnWhite);
-    if (arenaRef.current) {
-      arenaRef.current.playerFlag = effectivePlayerFlag;
-      arenaRef.current.aiFlag = effectiveAiFlag;
-      arenaRef.current.sandTimer = arena.sandTimer;
-    }
-  }, [appearance]);
 
   useEffect(() => {
     const host = wrapRef.current;
@@ -3196,6 +2911,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       { roughness: boardTheme.frameRoughness, metalness: boardTheme.frameMetalness }
     );
     base.position.set(0, BOARD.baseH / 2, 0);
+    base.material.transparent = true;
+    base.material.opacity = 0.02;
+    base.material.depthWrite = false;
     boardGroup.add(base);
     const top = box(
       N * tile,
@@ -3205,6 +2923,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       { roughness: boardTheme.surfaceRoughness, metalness: boardTheme.surfaceMetalness }
     );
     top.position.set(0, BOARD.baseH + 0.06, 0);
+    top.material.transparent = true;
+    top.material.opacity = 0.02;
+    top.material.depthWrite = false;
     boardGroup.add(top);
 
     // Tiles
@@ -3219,6 +2940,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           metalness: boardTheme.surfaceMetalness,
           roughness: boardTheme.surfaceRoughness
         });
+        m.transparent = true;
+        m.opacity = 0.08;
+        m.depthWrite = false;
         const g = new THREE.BoxGeometry(tile, 0.1, tile);
         const mesh = new THREE.Mesh(g, m);
         mesh.position.set(
@@ -3233,7 +2957,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
 
     // Coordinates (optional minimal markers)
-    const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
+    const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0.06 });
     for (let i = 0; i < N; i++) {
       const mSmall = new THREE.Mesh(
         new THREE.PlaneGeometry(0.08, 0.8),
@@ -3362,6 +3086,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       })
       .catch((error) => {
         console.error('Chess Battle Royal: failed to resolve ABeautifulGame assets', error);
+        setUi((prev) => ({ ...prev, status: 'Failed to load ABeautifulGame assets' }));
       });
 
       arenaRef.current = {
@@ -3818,116 +3543,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
           </div>
-          <button
-            type="button"
-            onClick={() => setConfigOpen((prev) => !prev)}
-            aria-expanded={configOpen}
-            className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-              configOpen ? 'bg-black/60' : 'hover:bg-black/60'
-            }`}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              className="h-6 w-6"
-              aria-hidden="true"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
-              />
-            </svg>
-            <span className="sr-only">Open table customization</span>
-          </button>
-          {configOpen && (
-            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
-                <button
-                  type="button"
-                  onClick={() => setConfigOpen(false)}
-                  className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                  aria-label="Close customization"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
-                  </svg>
-                </button>
-              </div>
-              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option, idx) => {
-                        const selected = appearance[key] === idx;
-                        return (
-                          <button
-                            key={option.id ?? idx}
-                            type="button"
-                            onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
-                            aria-pressed={selected}
-                            className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            }`}
-                          >
-                            {renderPreview(key, option)}
-                            <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 space-y-3">
-                <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Sound effects</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                    checked={soundEnabled}
-                    onChange={(event) => setSoundEnabled(event.target.checked)}
-                  />
-                </label>
-                <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Show legal moves</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                    checked={showHighlights}
-                    onChange={(event) => setShowHighlights(event.target.checked)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    fitRef.current?.();
-                    setConfigOpen(false);
-                  }}
-                  className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
-                >
-                  Center camera
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-                >
-                  Restart match
-                </button>
-              </div>
-            </div>
-          )}
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
