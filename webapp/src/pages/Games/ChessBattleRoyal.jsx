@@ -3,11 +3,12 @@ import { useLocation } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import {
   createArenaCarpetMaterial,
   createArenaWallMaterial
 } from '../../utils/arenaDecor.js';
-import { applyRendererSRGB } from '../../utils/colorSpace.js';
+import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 import {
   createMurlanStyleTable,
   applyTableMaterials,
@@ -221,6 +222,22 @@ const BEAUTIFUL_GAME_URLS = [
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
+const CHAIR_MODEL_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
+];
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
+
+const MOVE_SOUND_URL =
+  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Move.mp3';
+const CHECK_SOUND_URL =
+  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Check.mp3';
+const CHECKMATE_SOUND_URL =
+  'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
+
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
     ...(BOARD_COLOR_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
@@ -388,84 +405,233 @@ function getEffectiveShapeConfig(shapeIndex) {
 
 const DEFAULT_CHAIR_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
-function createChessChairMaterials(chairOption) {
-  const fabricColor = new THREE.Color(chairOption?.primary ?? '#2b314e');
-  const accent = new THREE.Color(chairOption?.highlight ?? '#465086');
-  const fabricMaterial = new THREE.MeshStandardMaterial({
-    color: fabricColor,
-    roughness: 0.6,
-    metalness: 0.15,
-    emissive: accent.clone().multiplyScalar(0.05)
-  });
-  fabricMaterial.userData = { chairId: chairOption?.id ?? 'default' };
+function fitChairModelToFootprint(model) {
+  const box = new THREE.Box3().setFromObject(model);
+  const size = box.getSize(new THREE.Vector3());
+  const targetMax = Math.max(TARGET_CHAIR_SIZE.x, TARGET_CHAIR_SIZE.y, TARGET_CHAIR_SIZE.z);
+  const currentMax = Math.max(size.x, size.y, size.z);
+  if (currentMax > 0) {
+    const scale = targetMax / currentMax;
+    model.scale.multiplyScalar(scale);
+  }
 
-  const legMaterial = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(chairOption?.legColor ?? DEFAULT_CHAIR_THEME.legColor),
-    roughness: 0.68,
-    metalness: 0.22
-  });
-  legMaterial.userData = { chairId: chairOption?.id ?? 'default' };
-
-  return { fabricMaterial, legMaterial };
+  const scaledBox = new THREE.Box3().setFromObject(model);
+  const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
+  const offset = new THREE.Vector3(
+    -scaledCenter.x,
+    TARGET_CHAIR_MIN_Y - scaledBox.min.y,
+    TARGET_CHAIR_CENTER_Z - scaledCenter.z
+  );
+  model.position.add(offset);
 }
 
-function createStraightArmrest(side, material) {
-  const sideSign = side === 'right' ? 1 : -1;
-  const group = new THREE.Group();
-
-  const baseHeight = SEAT_THICKNESS / 2;
-  const supportHeight = ARM_HEIGHT + SEAT_THICKNESS * 0.65;
-  const topLength = ARM_DEPTH * 1.1;
-  const topThickness = ARM_THICKNESS * 0.65;
-
-  const top = new THREE.Mesh(new THREE.BoxGeometry(ARM_THICKNESS * 0.95, topThickness, topLength), material);
-  top.position.set(0, baseHeight + supportHeight, -SEAT_DEPTH * 0.05);
-  top.castShadow = true;
-  top.receiveShadow = true;
-  group.add(top);
-
-  const createSupport = (zOffset) => {
-    const support = new THREE.Mesh(
-      new THREE.BoxGeometry(ARM_THICKNESS * 0.6, supportHeight, ARM_THICKNESS * 0.7),
-      material
-    );
-    support.position.set(0, baseHeight + supportHeight / 2, top.position.z + zOffset);
-    support.castShadow = true;
-    support.receiveShadow = true;
-    return support;
+function extractChairMaterials(model) {
+  const upholstery = new Set();
+  const metal = new Set();
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.map) applySRGBColorSpace(mat.map);
+        if (mat.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+        const bucket = (mat.metalness ?? 0) > 0.35 ? metal : upholstery;
+        bucket.add(mat);
+      });
+    }
+  });
+  const upholsteryArr = Array.from(upholstery);
+  const metalArr = Array.from(metal);
+  return {
+    seat: upholsteryArr[0] ?? metalArr[0] ?? null,
+    leg: metalArr[0] ?? upholsteryArr[0] ?? null,
+    upholstery: upholsteryArr,
+    metal: metalArr
   };
+}
 
-  const frontSupport = createSupport(ARM_DEPTH * 0.4);
-  const rearSupport = createSupport(-ARM_DEPTH * 0.4);
-  group.add(frontSupport, rearSupport);
+function applyChairThemeMaterials(chairAssets, theme) {
+  const mats = chairAssets?.chairMaterials;
+  if (!mats) return;
+  const seatColor = theme.seatColor ?? '#2b314e';
+  const legColor = theme.legColor ?? DEFAULT_CHAIR_THEME.legColor;
+  mats.chairId = theme.chairId ?? 'default';
+  if (mats.seat?.color) {
+    mats.seat.color.set(seatColor);
+    mats.seat.userData = { ...(mats.seat.userData || {}), chairId: mats.chairId };
+    mats.seat.needsUpdate = true;
+  }
+  if (mats.leg?.color) {
+    mats.leg.color.set(legColor);
+    mats.leg.userData = { ...(mats.leg.userData || {}), chairId: mats.chairId };
+    mats.leg.needsUpdate = true;
+  }
+  (mats.upholstery ?? []).forEach((mat) => {
+    if (!mat?.color) return;
+    mat.color.set(seatColor);
+    mat.userData = { ...(mat.userData || {}), chairId: mats.chairId };
+    mat.needsUpdate = true;
+  });
+  (mats.metal ?? []).forEach((mat) => {
+    if (!mat?.color) return;
+    mat.color.set(legColor);
+    mat.userData = { ...(mat.userData || {}), chairId: mats.chairId };
+    mat.needsUpdate = true;
+  });
+}
 
-  const sidePanel = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.45, supportHeight * 0.92, ARM_DEPTH * 0.85),
-    material
+async function loadGltfChair() {
+  const loader = new GLTFLoader();
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
+
+  let gltf = null;
+  let lastError = null;
+  for (const url of CHAIR_MODEL_URLS) {
+    try {
+      gltf = await loader.loadAsync(url);
+      break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  if (!gltf) {
+    throw lastError || new Error('Failed to load chair model');
+  }
+
+  const model = gltf.scene || gltf.scenes?.[0];
+  if (!model) {
+    throw new Error('Chair model missing scene');
+  }
+
+  model.traverse((obj) => {
+    if (obj.isMesh) {
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+      mats.forEach((mat) => {
+        if (mat?.map) applySRGBColorSpace(mat.map);
+        if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+      });
+    }
+  });
+
+  fitChairModelToFootprint(model);
+
+  return {
+    chairTemplate: model,
+    materials: extractChairMaterials(model)
+  };
+}
+
+function mapChairOptionToTheme(chairOption) {
+  return {
+    seatColor: chairOption?.primary ?? '#2b314e',
+    legColor: chairOption?.legColor ?? DEFAULT_CHAIR_THEME.legColor,
+    chairId: chairOption?.id ?? 'default'
+  };
+}
+
+function createProceduralChair(theme) {
+  const seatMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.seatColor || '#7c3aed'),
+    roughness: 0.42,
+    metalness: 0.18
+  });
+  const legMaterial = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(theme?.legColor || '#111827'),
+    roughness: 0.55,
+    metalness: 0.38
+  });
+
+  const chair = new THREE.Group();
+
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), seatMaterial);
+  seatMesh.position.y = SEAT_THICKNESS / 2;
+  seatMesh.castShadow = true;
+  seatMesh.receiveShadow = true;
+  chair.add(seatMesh);
+
+  const backMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(SEAT_WIDTH * 0.96, BACK_HEIGHT, BACK_THICKNESS),
+    seatMaterial
   );
-  sidePanel.position.set(0, baseHeight + supportHeight * 0.46, top.position.z - ARM_DEPTH * 0.02);
-  sidePanel.castShadow = true;
-  sidePanel.receiveShadow = true;
-  group.add(sidePanel);
+  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  backMesh.castShadow = true;
+  backMesh.receiveShadow = true;
+  chair.add(backMesh);
 
-  const handRest = new THREE.Mesh(
-    new THREE.BoxGeometry(ARM_THICKNESS * 0.7, topThickness * 0.7, topLength * 0.8),
-    material
+  const armGeometry = new THREE.BoxGeometry(ARM_THICKNESS, ARM_HEIGHT, ARM_DEPTH);
+  const armOffsetX = SEAT_WIDTH / 2 - ARM_THICKNESS / 2;
+  const armOffsetY = SEAT_THICKNESS / 2 + ARM_HEIGHT / 2;
+  const armOffsetZ = -ARM_DEPTH / 2 + ARM_THICKNESS * 0.2;
+  const leftArm = new THREE.Mesh(armGeometry, seatMaterial);
+  leftArm.position.set(-armOffsetX, armOffsetY, armOffsetZ);
+  leftArm.castShadow = true;
+  leftArm.receiveShadow = true;
+  chair.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeometry, seatMaterial);
+  rightArm.position.set(armOffsetX, armOffsetY, armOffsetZ);
+  rightArm.castShadow = true;
+  rightArm.receiveShadow = true;
+  chair.add(rightArm);
+
+  const legMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 18),
+    legMaterial
   );
-  handRest.position.set(0, top.position.y + topThickness * 0.45, top.position.z);
-  handRest.castShadow = true;
-  handRest.receiveShadow = true;
-  group.add(handRest);
+  legMesh.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
+  legMesh.castShadow = true;
+  legMesh.receiveShadow = true;
+  chair.add(legMesh);
 
-  group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
+  const foot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    legMaterial
+  );
+  foot.position.y = legMesh.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.castShadow = true;
+  foot.receiveShadow = true;
+  chair.add(foot);
 
-  return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
+  return {
+    chairTemplate: chair,
+    materials: {
+      seat: seatMaterial,
+      leg: legMaterial,
+      upholstery: [seatMaterial],
+    metal: [legMaterial]
+    }
+  };
+}
+
+async function buildChessChairTemplate(theme) {
+  try {
+    const gltfChair = await loadGltfChair();
+    applyChairThemeMaterials({ chairMaterials: gltfChair.materials }, theme);
+    gltfChair.materials.chairId = theme.chairId ?? 'default';
+    return gltfChair;
+  } catch (error) {
+    console.error('Falling back to procedural chair', error);
+  }
+  const fallback = createProceduralChair(theme);
+  fallback.materials.chairId = theme.chairId ?? 'default';
+  return fallback;
 }
 
 function disposeChessChairMaterials(materials) {
   if (!materials) return;
-  materials.fabricMaterial?.dispose?.();
-  materials.legMaterial?.dispose?.();
+  const handled = new Set();
+  const disposeMat = (mat) => {
+    if (!mat || handled.has(mat)) return;
+    handled.add(mat);
+    mat.dispose?.();
+  };
+  disposeMat(materials.seat);
+  disposeMat(materials.leg);
+  (materials.upholstery ?? []).forEach(disposeMat);
+  (materials.metal ?? []).forEach(disposeMat);
 }
 
 function createSandTimer(accentColor = '#f4b400') {
@@ -2211,6 +2377,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const timerRef = useRef(null);
   const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
+  const moveSoundRef = useRef(null);
+  const checkSoundRef = useRef(null);
+  const mateSoundRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -2435,6 +2604,33 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         } catch {}
       }
     }
+    if (moveSoundRef.current) {
+      moveSoundRef.current.volume = soundEnabled ? volume : 0;
+      if (!soundEnabled) {
+        try {
+          moveSoundRef.current.pause();
+          moveSoundRef.current.currentTime = 0;
+        } catch {}
+      }
+    }
+    if (checkSoundRef.current) {
+      checkSoundRef.current.volume = soundEnabled ? volume : 0;
+      if (!soundEnabled) {
+        try {
+          checkSoundRef.current.pause();
+          checkSoundRef.current.currentTime = 0;
+        } catch {}
+      }
+    }
+    if (mateSoundRef.current) {
+      mateSoundRef.current.volume = soundEnabled ? volume : 0;
+      if (!soundEnabled) {
+        try {
+          mateSoundRef.current.pause();
+          mateSoundRef.current.currentTime = 0;
+        } catch {}
+      }
+    }
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -2445,6 +2641,15 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (timerSoundRef.current) {
         timerSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+      }
+      if (moveSoundRef.current) {
+        moveSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+      }
+      if (checkSoundRef.current) {
+        checkSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+      }
+      if (mateSoundRef.current) {
+        mateSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
@@ -2518,21 +2723,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
 
     if (chairOption) {
-      const currentMaterials = arena.chairMaterials;
-      const currentId = currentMaterials?.fabricMaterial?.userData?.chairId ?? 'default';
-      const nextId = chairOption.id ?? 'default';
+      const chairTheme = mapChairOptionToTheme(chairOption);
+      const currentId = arena.chairMaterials?.chairId ?? 'default';
+      const nextId = chairTheme.chairId;
       if (currentId !== nextId) {
-        const nextMaterials = createChessChairMaterials(chairOption);
-        arena.chairs?.forEach((chair) => {
-          chair.seatMeshes.forEach((mesh) => {
-            mesh.material = nextMaterials.fabricMaterial;
-          });
-          chair.legMeshes.forEach((mesh) => {
-            mesh.material = nextMaterials.legMaterial;
-          });
-        });
-        disposeChessChairMaterials(currentMaterials);
-        arena.chairMaterials = nextMaterials;
+        applyChairThemeMaterials(arena, chairTheme);
       }
     }
 
@@ -2627,6 +2822,18 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     bombSoundRef.current.volume = baseVolume;
     timerSoundRef.current = new Audio(timerBeep);
     timerSoundRef.current.volume = baseVolume;
+    moveSoundRef.current = new Audio(MOVE_SOUND_URL);
+    moveSoundRef.current.volume = baseVolume;
+    checkSoundRef.current = new Audio(CHECK_SOUND_URL);
+    checkSoundRef.current.volume = baseVolume;
+    mateSoundRef.current = new Audio(CHECKMATE_SOUND_URL);
+    mateSoundRef.current.volume = baseVolume;
+
+    let stopCameraTween = () => {};
+    let onResize = null;
+    let onClick = null;
+
+    const setup = async () => {
 
     const normalizedAppearance = normalizeAppearance(appearanceRef.current);
     const palette = createChessPalette(normalizedAppearance);
@@ -2649,6 +2856,25 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       disposePieceMaterials(pieceMaterials);
     });
     const beautifulGamePromise = resolveBeautifulGameAssets(RAW_BOARD_SIZE);
+    const playAudio = (audioRef) => {
+      if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
+      try {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
+      } catch {}
+    };
+    const playMoveSound = () => playAudio(moveSoundRef);
+    const playCheckSound = () => playAudio(checkSoundRef);
+    const playMateSound = () => playAudio(mateSoundRef);
+    const chairTheme = mapChairOptionToTheme(chairOption);
+    const chairBuild = await buildChessChairTemplate(chairTheme);
+    if (cancelled) return;
+    const chairTemplate = chairBuild?.chairTemplate ?? null;
+    const chairMaterials = chairBuild?.materials ?? null;
+    applyChairThemeMaterials({ chairMaterials }, chairTheme);
+    disposers.push(() => {
+      disposeChessChairMaterials(chairMaterials);
+    });
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -2819,44 +3045,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       });
     }
 
-    const chairMaterials = createChessChairMaterials(chairOption);
-    disposers.push(() => {
-      disposeChessChairMaterials(chairMaterials);
-    });
-
     function makeChair(index) {
       const g = new THREE.Group();
-      const seat = new THREE.Mesh(
-        new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH),
-        chairMaterials.fabricMaterial
-      );
-      seat.position.y = SEAT_THICKNESS / 2;
-      seat.castShadow = true;
-      seat.receiveShadow = true;
-      g.add(seat);
-
-      const back = new THREE.Mesh(
-        new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS),
-        chairMaterials.fabricMaterial
-      );
-      back.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
-      back.castShadow = true;
-      back.receiveShadow = true;
-      g.add(back);
-
-      const armLeft = createStraightArmrest('left', chairMaterials.fabricMaterial);
-      g.add(armLeft.group);
-      const armRight = createStraightArmrest('right', chairMaterials.fabricMaterial);
-      g.add(armRight.group);
-
-      const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
-        chairMaterials.legMaterial
-      );
-      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
-      legBase.castShadow = true;
-      legBase.receiveShadow = true;
-      g.add(legBase);
+      if (chairTemplate) {
+        const chairModel = chairTemplate.clone(true);
+        g.add(chairModel);
+      }
 
       const avatarAnchor = new THREE.Object3D();
       avatarAnchor.position.set(0, AVATAR_ANCHOR_HEIGHT, 0);
@@ -2866,8 +3060,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       g.scale.setScalar(CHAIR_SCALE);
       return {
         group: g,
-        seatMeshes: [seat, back, ...armLeft.meshes, ...armRight.meshes],
-        legMeshes: [legBase],
         anchor: avatarAnchor
       };
     }
@@ -3015,7 +3207,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     controls.update();
     controlsRef.current = controls;
 
-    const stopCameraTween = () => {
+    stopCameraTween = () => {
       if (cameraTweenRef.current) {
         cancelAnimationFrame(cameraTweenRef.current);
         cameraTweenRef.current = 0;
@@ -3594,6 +3786,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         }
       }
 
+      playMoveSound();
+
       // turn switch & status
       const nextWhite = !uiRef.current.turnWhite;
       const king = findKing(board, nextWhite);
@@ -3606,11 +3800,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         if (inCheck) {
           winner = nextWhite ? 'Black' : 'White';
           status = `Checkmate — ${winner} wins`;
+          playMateSound();
         } else {
           status = 'Stalemate';
         }
       } else if (inCheck) {
         status = (nextWhite ? 'White' : 'Black') + ' in check';
+        playCheckSound();
       }
 
       applyStatus(nextWhite, status, winner);
@@ -3626,7 +3822,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       moveSelTo(mv.toR, mv.toC);
     }
 
-    function onClick(e) {
+    onClick = function onClick(e) {
       setPointer(e);
       ray.setFromCamera(pointer, camera);
       const intersects = ray.intersectObjects(boardGroup.children, true);
@@ -3661,7 +3857,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       else if (ud.type === 'tile' && sel) {
         moveSelTo(ud.r, ud.c);
       }
-    }
+    };
 
     renderer.domElement.addEventListener('click', onClick);
     renderer.domElement.addEventListener('touchend', onClick);
@@ -3725,19 +3921,24 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     step();
 
     // Resize
-    const onResize = () => {
+    onResize = () => {
       fit();
     };
     window.addEventListener('resize', onResize);
 
     // Start timer for the human player
     startTimer(true);
+  };
+
+    setup();
 
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
       stopCameraTween();
-      window.removeEventListener('resize', onResize);
+      if (onResize) {
+        window.removeEventListener('resize', onResize);
+      }
       clearInterval(timerRef.current);
       disposers.forEach((fn) => {
         try {
@@ -3749,8 +3950,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       try {
         host.removeChild(renderer.domElement);
       } catch {}
-      renderer.domElement.removeEventListener('click', onClick);
-      renderer.domElement.removeEventListener('touchend', onClick);
+      if (renderer?.domElement && onClick) {
+        renderer.domElement.removeEventListener('click', onClick);
+        renderer.domElement.removeEventListener('touchend', onClick);
+      }
       cameraViewRef.current = null;
       controlsRef.current = null;
       controls?.dispose();
@@ -3765,6 +3968,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       setSeatAnchors([]);
       bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
+      moveSoundRef.current?.pause();
+      checkSoundRef.current?.pause();
+      mateSoundRef.current?.pause();
     };
   }, []);
 
