@@ -39,9 +39,11 @@ import {
   sortHand
 } from '../../../../lib/murlan.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
+const CHAIR_SIZE_SCALE = 1.3;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const CHAIR_COUNT = 4;
@@ -84,9 +86,11 @@ const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/AntiqueChair/glTF-Binary/AntiqueChair.glb'
 ];
-const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715);
-const TARGET_CHAIR_MIN_Y = -0.8570624993294478;
-const TARGET_CHAIR_CENTER_Z = -0.1553906416893005;
+const TARGET_CHAIR_SIZE = new THREE.Vector3(1.3162499970197679, 1.9173749900311232, 1.7001562547683715).multiplyScalar(
+  CHAIR_SIZE_SCALE
+);
+const TARGET_CHAIR_MIN_Y = -0.8570624993294478 * CHAIR_SIZE_SCALE;
+const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 
 const DEFAULT_APPEARANCE = {
   outfit: 0,
@@ -325,7 +329,7 @@ async function buildChairTemplate(theme) {
   return createProceduralChair(theme);
 }
 
-const STOOL_SCALE = 1.5 * 1.3;
+const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
 const CARD_SCALE = 0.95;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
@@ -341,8 +345,8 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85;
-const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85 * CHAIR_SIZE_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE * CHAIR_SIZE_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -491,9 +495,9 @@ export default function MurlanRoyaleArena({ search }) {
     context.textAlign = 'left';
     context.textBaseline = 'alphabetic';
     context.fillStyle = 'rgba(226, 232, 240, 0.82)';
-    context.font = '700 64px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+    context.font = '700 64px "Inter", "Segoe UI", sans-serif';
     context.fillText('Rezultati', padding + 24, 120);
-    context.font = '500 28px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+    context.font = '500 28px "Inter", "Segoe UI", sans-serif';
     context.fillStyle = 'rgba(148, 163, 184, 0.8)';
     context.fillText('Kartat e mbetura', padding + 24, 160);
 
@@ -523,7 +527,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       context.textBaseline = 'middle';
       context.textAlign = 'left';
-      context.font = '700 60px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+      context.font = '700 60px "Inter", "Segoe UI", sans-serif';
       context.fillStyle = '#f8fafc';
       context.fillText(avatar, rowX + 36, rowY + rowHeight / 2);
 
@@ -531,13 +535,13 @@ export default function MurlanRoyaleArena({ search }) {
       context.beginPath();
       context.rect(rowX + 110, rowY + 18, rowWidth - 220, rowHeight - 36);
       context.clip();
-      context.font = '600 40px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+      context.font = '600 40px "Inter", "Segoe UI", sans-serif';
       context.fillStyle = '#e2e8f0';
       context.fillText(displayName, rowX + 110, rowY + rowHeight / 2);
       context.restore();
 
       context.textAlign = 'right';
-      context.font = '700 42px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+      context.font = '700 42px "Inter", "Segoe UI", sans-serif';
       context.fillStyle = finished ? '#4ade80' : '#f1f5f9';
       const scoreLabel = finished ? '🏁' : String(entry?.cardsLeft ?? 0);
       context.fillText(scoreLabel, rowX + rowWidth - 32, rowY + rowHeight / 2);
@@ -1121,9 +1125,6 @@ export default function MurlanRoyaleArena({ search }) {
     let dom = null;
     let cardGeometry = null;
     let labelGeo = null;
-    let torsoGeo = null;
-    let headGeo = null;
-    let collarGeo = null;
     let arenaGroup = null;
     let handlePointerDown = null;
     let disposed = false;
@@ -1277,22 +1278,36 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.chairMaterials = chairBuild.materials;
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
-      const outfitBodyMat = new THREE.MeshStandardMaterial({
+      const outfitBodyMat = new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(outfitTheme.baseColor),
         roughness: 0.55,
         metalness: 0.35,
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.32,
         emissive: new THREE.Color(outfitTheme.glow || '#000000'),
         emissiveIntensity: 0.25
       });
-      const outfitAccentMat = new THREE.MeshStandardMaterial({
+      const outfitAccentMat = new THREE.MeshPhysicalMaterial({
         color: new THREE.Color(outfitTheme.accentColor),
-        roughness: 0.4,
-        metalness: 0.55
+        roughness: 0.42,
+        metalness: 0.62,
+        clearcoat: 0.45,
+        clearcoatRoughness: 0.2
       });
-      const headMat = new THREE.MeshStandardMaterial({ color: '#f9e0d0', roughness: 0.75, metalness: 0.1 });
-      torsoGeo = new THREE.CylinderGeometry(0.22 * MODEL_SCALE, 0.22 * MODEL_SCALE, 0.52 * MODEL_SCALE, 20);
-      headGeo = new THREE.SphereGeometry(0.16 * MODEL_SCALE, 20, 16);
-      collarGeo = new THREE.TorusGeometry(0.23 * MODEL_SCALE, 0.035 * MODEL_SCALE, 16, 32);
+      const headMat = new THREE.MeshPhysicalMaterial({
+        color: '#f9e0d0',
+        roughness: 0.78,
+        metalness: 0.12,
+        clearcoat: 0.15,
+        clearcoatRoughness: 0.35
+      });
+      const avatarRadius = 0.32 * MODEL_SCALE;
+      const avatarHeight = 0.9 * MODEL_SCALE;
+      const baseHeight = avatarHeight * 0.24;
+      const bodyHeight = avatarHeight * 0.46;
+      const leftoverHeight = Math.max(avatarHeight - (baseHeight + bodyHeight), avatarHeight * 0.18);
+      const headHeight = leftoverHeight * 0.65;
+      const crestHeight = Math.max(leftoverHeight - headHeight, avatarHeight * 0.08);
 
       threeStateRef.current.outfitParts = {
         bodyMaterial: outfitBodyMat,
@@ -1316,16 +1331,45 @@ export default function MurlanRoyaleArena({ search }) {
 
         const occupant = new THREE.Group();
         occupant.position.z = -seatDepth * 0.12;
-        const torso = new THREE.Mesh(torsoGeo, outfitBodyMat);
-        torso.position.y = seatThickness / 2 + 0.38 * MODEL_SCALE;
-        occupant.add(torso);
-        const head = new THREE.Mesh(headGeo, headMat);
-        head.position.y = torso.position.y + 0.36 * MODEL_SCALE;
-        occupant.add(head);
-        const collar = new THREE.Mesh(collarGeo, outfitAccentMat);
+        const base = new THREE.Mesh(
+          new THREE.CylinderGeometry(avatarRadius * 1.45, avatarRadius * 1.65, baseHeight, 48),
+          outfitAccentMat
+        );
+        base.position.y = seatThickness / 2 + baseHeight / 2;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        occupant.add(base);
+
+        const body = new THREE.Mesh(
+          new THREE.CylinderGeometry(avatarRadius * 1.05, avatarRadius * 0.82, bodyHeight, 48),
+          outfitBodyMat
+        );
+        body.position.y = base.position.y + baseHeight / 2 + bodyHeight / 2;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        occupant.add(body);
+
+        const collar = new THREE.Mesh(new THREE.TorusGeometry(avatarRadius * 0.95, avatarHeight * 0.06, 24, 48), outfitAccentMat);
         collar.rotation.x = Math.PI / 2;
-        collar.position.y = torso.position.y + 0.26 * MODEL_SCALE;
+        collar.position.y = base.position.y + baseHeight / 2 + bodyHeight * 0.78;
+        collar.castShadow = true;
+        collar.receiveShadow = true;
         occupant.add(collar);
+
+        const head = new THREE.Mesh(new RoundedBoxGeometry(avatarRadius * 1.3, headHeight, avatarRadius * 1.3, 6, avatarRadius * 0.45), headMat);
+        head.position.y = base.position.y + baseHeight / 2 + bodyHeight + headHeight / 2;
+        head.castShadow = true;
+        head.receiveShadow = true;
+        occupant.add(head);
+
+        const crest = new THREE.Mesh(
+          new THREE.CylinderGeometry(avatarRadius * 0.55, avatarRadius * 0.7, crestHeight, 32),
+          outfitAccentMat
+        );
+        crest.position.y = head.position.y + headHeight / 2 + crestHeight / 2;
+        crest.castShadow = true;
+        crest.receiveShadow = true;
+        occupant.add(crest);
         chair.add(occupant);
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
@@ -1589,9 +1633,6 @@ export default function MurlanRoyaleArena({ search }) {
       renderer?.dispose?.();
       cardGeometry?.dispose?.();
       labelGeo?.dispose?.();
-      torsoGeo?.dispose?.();
-      headGeo?.dispose?.();
-      collarGeo?.dispose?.();
       store.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
@@ -2237,14 +2278,14 @@ function makeLabelTexture(name, avatar) {
     img.src = avatar;
   } else {
     g.fillStyle = '#e2e8f0';
-    g.font = 'bold 120px "Inter", system-ui, sans-serif';
+    g.font = 'bold 120px "Inter", "Segoe UI", sans-serif';
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(display, cx, cy + 6);
   }
   g.restore();
 
-  g.font = '700 96px "Inter", system-ui, sans-serif';
+  g.font = '700 96px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'left';
   g.textBaseline = 'middle';
   g.fillStyle = '#e2e8f0';
@@ -2458,23 +2499,23 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   const topSuitY = topRankY + 76;
   const bottomSuitY = h - 92;
   const bottomRankY = bottomSuitY - 76;
-  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'left';
   g.fillText(label, padding, topRankY);
-  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, padding, topSuitY);
-  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
   g.fillText(label, padding, bottomRankY);
-  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, padding, bottomSuitY);
   g.textAlign = 'right';
-  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
   g.fillText(label, w - padding, topRankY);
-  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, w - padding, topSuitY);
-  g.font = 'bold 96px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 96px "Inter", "Segoe UI", sans-serif';
   g.fillText(label, w - padding, bottomRankY);
-  g.font = 'bold 78px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 78px "Inter", "Segoe UI", sans-serif';
   g.fillText(suit, w - padding, bottomSuitY);
 
   if (theme.centerAccent) {
@@ -2484,7 +2525,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
     g.fill();
   }
   g.fillStyle = color;
-  g.font = 'bold 160px "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI"';
+  g.font = 'bold 160px "Inter", "Segoe UI", sans-serif';
   g.textAlign = 'center';
   g.fillText(suit, w / 2, h / 2 + 56);
   const tex = new THREE.CanvasTexture(canvas);
