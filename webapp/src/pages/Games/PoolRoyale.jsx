@@ -5471,8 +5471,8 @@ function Table3D(
   underlayEdgeMat.clearcoatRoughness = 1;
   underlayEdgeMat.envMapIntensity = 0;
   underlayEdgeMat.reflectivity = 0;
-  underlayEdgeMat.emissive.set(0x000000);
-  underlayEdgeMat.emissiveIntensity = 0;
+  underlayEdgeMat.emissive.copy(clothEdgeMat.emissive);
+  underlayEdgeMat.emissiveIntensity = clothEdgeMat.emissiveIntensity;
   underlayEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
