@@ -15,6 +15,9 @@
   #railControls button{background:rgba(12,16,28,.72);color:#ffe8a3;font-size:.95rem;padding:.55rem .9rem;border-radius:999px;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
   #draw{font-size:1rem;padding:.6rem 1rem;background:linear-gradient(135deg, rgba(255,210,74,.95), rgba(255,196,45,.85));color:#3b250f;border:0;}
   #pass{background:rgba(255,210,74,.12);color:#ffe8a3;border:1px solid rgba(255,210,74,.35);}
+  #viewToggle{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(3.6rem + env(safe-area-inset-right,0px));height:2.75rem;padding:0 1rem;border-radius:999px;background:rgba(0,0,0,.7);color:#ffe8a3;border:1px solid rgba(255,255,255,.14);display:grid;place-items:center;font-weight:800;letter-spacing:.02em;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(7px);}
+  #viewToggle[aria-pressed="true"]{background:rgba(255,210,74,.16);border-color:rgba(255,210,74,.5);color:#fef08a;box-shadow:0 0 0 1px rgba(255,210,74,.24),0 10px 18px rgba(0,0,0,.28);}
+  #viewToggle:active{transform:translateY(1px);}
   #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
   #btnRules span{pointer-events:none;}
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
@@ -78,6 +81,7 @@
   <h3 id="configTitle">Table Setup</h3>
   <div id="configSections"></div>
 </div>
+<button id="viewToggle" type="button" aria-label="Switch to 2D view" title="Switch to 2D view">2D</button>
 <button id="btnRules" type="button" aria-label="Rules" title="Rules">
   <span aria-hidden="true">ℹ️</span>
 </button>
@@ -112,115 +116,28 @@ import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GL
 import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
 
 /* ---------- Audio (SFX) ---------- */
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function ensureAudioContext() {
-  if (audioCtx.state === 'suspended') {
-    void audioCtx.resume();
-  }
-  return audioCtx;
+function createSfx(url) {
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  audio.crossOrigin = 'anonymous';
+  return audio;
 }
-
-function createBuffer(durationSeconds, sampleFn) {
-  const ctx = ensureAudioContext();
-  const length = Math.max(1, Math.floor(ctx.sampleRate * durationSeconds));
-  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < length; i++) {
-    const t = i / ctx.sampleRate;
-    data[i] = sampleFn(t, i, length);
-  }
-  return buffer;
-}
-
-function playBuffer(buffer, { gain = 0.5, playbackRate = 1 } = {}) {
-  const ctx = ensureAudioContext();
-  const src = ctx.createBufferSource();
-  src.buffer = buffer;
-  src.playbackRate.value = playbackRate;
-  const g = ctx.createGain();
-  g.gain.value = gain;
-  src.connect(g).connect(ctx.destination);
-  src.start();
-}
-
-function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.28 }) {
-  const ctx = ensureAudioContext();
-  const now = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const g = ctx.createGain();
-  osc.type = 'sine';
-  osc.frequency.setValueAtTime(startFreq, now);
-  osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
-  g.gain.setValueAtTime(0.001, now);
-  g.gain.exponentialRampToValueAtTime(gain, now + 0.04);
-  g.gain.exponentialRampToValueAtTime(0.001, now + duration);
-  osc.connect(g).connect(ctx.destination);
-  osc.start(now);
-  osc.stop(now + duration + 0.05);
-}
-
-function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
-  const ctx = ensureAudioContext();
-  const now = ctx.currentTime;
-  notes.forEach(({ time, freq, length = 0.18 }) => {
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, now + time);
-    g.gain.setValueAtTime(0.0001, now + time);
-    g.gain.linearRampToValueAtTime(gain, now + time + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, now + time + length);
-    osc.connect(g).connect(ctx.destination);
-    osc.start(now + time);
-    osc.stop(now + time + length + 0.05);
-  });
-}
-
-const sfxBuffers = {
-  place: createBuffer(0.14, (t) => {
-    const env = Math.exp(-t * 38);
-    const click = Math.sin(2 * Math.PI * 2300 * t) * 0.55;
-    const thump = Math.sin(2 * Math.PI * 160 * t) * 0.4;
-    return (click + thump) * env;
-  }),
-  draw: createBuffer(0.22, (t) => {
-    const env = Math.exp(-t * 18);
-    const body = Math.sin(2 * Math.PI * (420 + 180 * Math.sin(t * 6)) * t) * 0.5;
-    return body * env;
-  }),
-  block: createBuffer(0.28, (t) => {
-    const env = Math.exp(-t * 9);
-    const wobble = Math.sin(2 * Math.PI * 92 * t) + Math.sin(2 * Math.PI * 64 * t) * 0.6;
-    return wobble * env * 0.4;
-  })
-};
-
 const SFX = {
-  place() {
-    playBuffer(sfxBuffers.place, { gain: 0.55, playbackRate: 1.05 });
-  },
-  drawTile() {
-    playBuffer(sfxBuffers.draw, { gain: 0.5, playbackRate: 1.08 });
-  },
-  pass() {
-    playGlide({ startFreq: 420, endFreq: 170, duration: 0.42, gain: 0.32 });
-  },
-  win() {
-    playChimeSequence(
-      [
-        { time: 0, freq: 880 },
-        { time: 0.12, freq: 1175 },
-        { time: 0.24, freq: 1568 },
-        { time: 0.34, freq: 1760 }
-      ],
-      { gain: 0.3, type: 'sine' }
-    );
-  },
-  drawGame() {
-    playBuffer(sfxBuffers.block, { gain: 0.36, playbackRate: 0.92 });
-  }
+  place: createSfx("https://cdn.pixabay.com/download/audio/2022/03/15/audio_7dc2b2.mp3?filename=click-124467.mp3"),
+  draw: createSfx("https://cdn.pixabay.com/download/audio/2022/03/15/audio_b2f7c5.mp3?filename=pop-124476.mp3"),
+  pass: createSfx("https://cdn.pixabay.com/download/audio/2022/10/11/audio_5b4d94.mp3?filename=airy-whoosh-124467.mp3")
 };
+SFX.place.volume = 0.7;
+SFX.draw.volume = 0.7;
+SFX.pass.volume = 0.55;
+SFX.pass.playbackRate = 0.92;
+
+function playPassSfx() {
+  try {
+    SFX.pass.currentTime = 0;
+    void SFX.pass.play();
+  } catch {}
+}
 
 /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
@@ -642,22 +559,22 @@ const getPoolCarpetTextures = (() => {
 })();
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
-const CHAIR_CLOTH_REPEAT = 12;
+const CHAIR_CLOTH_REPEAT = 4;
 const DEFAULT_CHAIR_THEME = Object.freeze({
-  id: "walnut",
-  label: "Walnut",
-  seatColor: "#7b5a3a",
-  legColor: "#2d2216",
-  highlight: "#d6b48b"
+  id: "ruby",
+  label: "Ruby",
+  seatColor: "#8b0000",
+  legColor: "#1f1f1f",
+  highlight: "#d46a6a"
 });
 
 const CHAIR_THEME_OPTIONS = Object.freeze([
   DEFAULT_CHAIR_THEME,
-  { id: "stone", label: "Stone", seatColor: "#5e5b53", legColor: "#2f2d28", highlight: "#c8c2b5" },
-  { id: "forest", label: "Forest", seatColor: "#4a5f3c", legColor: "#1d2b18", highlight: "#adc48a" },
-  { id: "navyCanvas", label: "Navy Canvas", seatColor: "#2f3d52", legColor: "#131a26", highlight: "#9ab0c9" },
-  { id: "sand", label: "Sand", seatColor: "#c3a375", legColor: "#4c3721", highlight: "#f2d7a4" },
-  { id: "slate", label: "Slate", seatColor: "#47515a", legColor: "#1f252a", highlight: "#b8c4ce" }
+  { id: "slate", label: "Slate", seatColor: "#374151", legColor: "#0f172a", highlight: "#9ca3af" },
+  { id: "teal", label: "Teal", seatColor: "#0f766e", legColor: "#082f2a", highlight: "#34d399" },
+  { id: "amber", label: "Amber", seatColor: "#b45309", legColor: "#2f2410", highlight: "#fbbf24" },
+  { id: "violet", label: "Violet", seatColor: "#7c3aed", legColor: "#2b1059", highlight: "#d8b4fe" },
+  { id: "frost", label: "Frost", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#94a3b8" }
 ]);
 
 const CHAIR_MODEL_URLS = [
@@ -3225,8 +3142,6 @@ let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
 let current = 0; let human = 0;
 let markers = {L:null, R:null}; let selectedTile = null;
-let selectedHighlight = null;
-let selectedHighlightHost = null;
 let flipDir = false; // alternate chain direction after each game
 const usedTileKeys = new Set();
 let gameFinished = false;
@@ -3270,7 +3185,6 @@ function layoutSeat(idx){
 
 function renderHands(){
   players.forEach(p=>p.hand.forEach(h=>{ if(h.mesh){ piecesG.remove(h.mesh); h.mesh=null; } }));
-  clearSelectedHighlight();
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
   const BASE_GAP = DOMINO_HAND_GAP;
@@ -3331,9 +3245,6 @@ function renderHands(){
         m.rotation.z += (Math.random()*0.006-0.003);
       }
       h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
-      if(selectedTile === h){
-        applySelectedHighlight(m);
-      }
     });
   });
 }
@@ -3750,7 +3661,6 @@ function startGame(){
   clearMarkers();
   clearExistingDominoMeshes();
   selectedTile=null;
-  clearSelectedHighlight();
   chain=[];
   ends=null;
   usedTileKeys.clear();
@@ -3926,7 +3836,8 @@ function placeOnBoard(tile, side, options = {}){
   } else {
     renderChain();
   }
-  SFX.place();
+  SFX.place.currentTime = 0;
+  SFX.place.play();
   return { success:true, segment, end: updatedEnd };
 }
 function nextCandidate(end){
@@ -3967,42 +3878,8 @@ function nextCandidate(end){
 }
 
 /* ---------- Markers for manual placement ---------- */
-function clearSelectedHighlight(){
-  if(selectedHighlightHost && selectedHighlightHost.userData?.baseScale){
-    selectedHighlightHost.scale.copy(selectedHighlightHost.userData.baseScale);
-  }
-  if(selectedHighlight && selectedHighlight.parent){
-    selectedHighlight.parent.remove(selectedHighlight);
-  }
-  try{ selectedHighlight?.geometry?.dispose?.(); }catch{}
-  try{ selectedHighlight?.material?.dispose?.(); }catch{}
-  selectedHighlight = null;
-  selectedHighlightHost = null;
-}
-
-function applySelectedHighlight(mesh){
-  if(!mesh){
-    return;
-  }
-  clearSelectedHighlight();
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.62, 0.82, 64),
-    new THREE.MeshBasicMaterial({ color: 0xffe9b1, transparent: true, opacity: 0.82, side: THREE.DoubleSide })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(0, -0.12, 0);
-  ring.renderOrder = 9;
-  if(!mesh.userData.baseScale){
-    mesh.userData.baseScale = mesh.scale.clone();
-  }
-  mesh.scale.multiplyScalar(1.04);
-  mesh.add(ring);
-  selectedHighlight = ring;
-  selectedHighlightHost = mesh;
-}
-
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.14, .034, 28, 96); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
+function makeMarker(){ const g=new THREE.TorusGeometry(.098, .02, 24, 72); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -4012,13 +3889,11 @@ function showMarkersFor(tile){
 
 /* ---------- Interactivity ---------- */
 const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
-raycaster.params.Mesh = raycaster.params.Mesh || {};
-raycaster.params.Mesh.threshold = 0.06;
 const activePointers = new Set();
 function findPickRoot(o){
   let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
 }
-function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; applySelectedHighlight(obj); showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
+function humanPickTile(obj){ const tile = obj.userData.tile; selectedTile = tile; showMarkersFor(tile); setStatus('Pick a side (tap marker)'); }
 
 renderer.domElement.addEventListener('pointerdown',ev=>{
   activePointers.add(ev.pointerId);
@@ -4071,13 +3946,13 @@ btnDraw.addEventListener('click',()=>{ if(current!==human || gameFinished) retur
     const canL=(t.a===ends?.L?.v||t.b===ends?.L?.v); const canR=(t.a===ends?.R?.v||t.b===ends?.R?.v);
     if(canL||canR) break;
   }
-  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.drawTile(); }
+  clearMarkers(); selectedTile=null; renderHands(); if(drewTile){ SFX.draw.currentTime=0; SFX.draw.play(); }
 });
 btnPass.addEventListener('click',()=>{
   if(current===human && !gameFinished){
     clearMarkers();
     selectedTile=null;
-    SFX.pass();
+    playPassSfx();
     nextTurn();
   }
 });
@@ -4135,7 +4010,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
   }
   clearMarkers();
   selectedTile = null;
-  clearSelectedHighlight();
   renderHands();
   renderChain();
   if(reason){
@@ -4144,12 +4018,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
     setStatus(winnerIndex === human ? 'You won!' : `Player ${winnerIndex+1} won!`);
   } else {
     setStatus('Game over');
-  }
-
-  if(winnerIndex !== null){
-    SFX.win();
-  } else {
-    SFX.drawGame();
   }
 }
 
@@ -4212,15 +4080,15 @@ function cpuPlay(){
     const drew = cpuDrawUntilPlayable(player);
     if(drew){
       renderHands();
-      SFX.drawTile();
+      SFX.draw.currentTime = 0; SFX.draw.play();
       if(canPlayAny(player.hand)){
         scheduleCpuPlay();
       } else {
-        SFX.pass();
+        playPassSfx();
         nextTurn();
       }
     } else {
-      SFX.pass();
+      playPassSfx();
       nextTurn();
     }
     return;
@@ -4247,15 +4115,15 @@ function cpuPlay(){
   const drew = cpuDrawUntilPlayable(player);
   if(drew){
     renderHands();
-    SFX.drawTile();
+    SFX.draw.currentTime = 0; SFX.draw.play();
     if(canPlayAny(player.hand)){
       scheduleCpuPlay();
     } else {
-      SFX.pass();
+      playPassSfx();
       nextTurn();
     }
   } else {
-    SFX.pass();
+    playPassSfx();
     nextTurn();
   }
 }
