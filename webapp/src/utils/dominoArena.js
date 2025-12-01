@@ -25,12 +25,12 @@ const CHAIR_DIMENSIONS = Object.freeze({
   seatWidth: 0.72,
   seatDepth: 0.72,
   seatThickness: 0.12,
-  backHeight: 0.62,
+  backHeight: 0.78,
   backThickness: 0.08,
-  armHeight: 0.3,
+  armHeight: 0.36,
   armThickness: 0.1,
   armDepth: 0.76,
-  columnHeight: 0.38,
+  columnHeight: 0.46,
   baseThickness: 0.08,
   columnRadiusTop: 0.11,
   columnRadiusBottom: 0.15,
@@ -40,10 +40,10 @@ const CHAIR_DIMENSIONS = Object.freeze({
 });
 
 const DEFAULT_CHAIR_OPTION = Object.freeze({
-  primary: '#8b1538',
-  accent: '#5c0f26',
-  highlight: '#d35a7a',
-  legColor: '#1f1f1f'
+  primary: '#3b0f1b',
+  accent: '#1f0a10',
+  highlight: '#a13b52',
+  legColor: '#151515'
 });
 
 const CAMERA_CONFIG = Object.freeze({
@@ -57,7 +57,7 @@ const CAMERA_CONFIG = Object.freeze({
 });
 
 let cachedCarpet = null;
-let cachedChairTexture = null;
+let cachedChairTextures = null;
 let cachedEnvTexture = null;
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -200,36 +200,45 @@ function adjustHexColor(hex, amount) {
 }
 
 function ensureChairTexture(option, renderer) {
-  if (cachedChairTexture) return cachedChairTexture;
+  if (cachedChairTextures) return cachedChairTextures;
   if (typeof document === 'undefined') {
-    cachedChairTexture = null;
-    return cachedChairTexture;
+    cachedChairTextures = null;
+    return cachedChairTextures;
   }
   const primary = option?.primary ?? '#0f6a2f';
-  const accent = option?.accent ?? adjustHexColor(primary, -0.28);
-  const highlight = option?.highlight ?? adjustHexColor(primary, 0.22);
+  const accent = option?.accent ?? adjustHexColor(primary, -0.32);
+  const highlight = option?.highlight ?? adjustHexColor(primary, 0.18);
   const size = 512;
+  const prng = (seed) => {
+    let value = seed >>> 0;
+    return () => {
+      value = (value * 1664525 + 1013904223) % 4294967296;
+      return value / 4294967296;
+    };
+  };
+  const rand = prng(314159265);
+
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, size, size);
 
-  const seam = adjustHexColor(accent, -0.35);
+  const seam = adjustHexColor(accent, -0.25);
   const gradient = ctx.createLinearGradient(0, 0, size, size);
-  gradient.addColorStop(0, adjustHexColor(primary, 0.2));
-  gradient.addColorStop(0.5, primary);
-  gradient.addColorStop(1, accent);
+  gradient.addColorStop(0, adjustHexColor(primary, -0.06));
+  gradient.addColorStop(0.4, primary);
+  gradient.addColorStop(1, adjustHexColor(accent, -0.12));
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, size, size);
 
-  const repeat = 4;
+  const repeat = 5;
   const spacing = size / repeat;
   const halfSpacing = spacing / 2;
-  const lineWidth = Math.max(1.6, spacing * 0.06);
+  const lineWidth = Math.max(1.4, spacing * 0.05);
 
   ctx.strokeStyle = seam;
   ctx.lineWidth = lineWidth;
-  ctx.globalAlpha = 0.9;
+  ctx.globalAlpha = 0.95;
   for (let offset = -size; offset <= size * 2; offset += spacing) {
     ctx.beginPath();
     ctx.moveTo(offset, 0);
@@ -242,9 +251,9 @@ function ensureChairTexture(option, renderer) {
   }
   ctx.globalAlpha = 1;
 
-  ctx.strokeStyle = adjustHexColor(highlight, 0.18);
+  ctx.strokeStyle = adjustHexColor(highlight, 0.12);
   ctx.lineWidth = lineWidth * 0.55;
-  ctx.globalAlpha = 0.55;
+  ctx.globalAlpha = 0.65;
   for (let offset = -size; offset <= size * 2; offset += spacing) {
     ctx.beginPath();
     ctx.moveTo(offset + halfSpacing, 0);
@@ -257,74 +266,129 @@ function ensureChairTexture(option, renderer) {
   }
   ctx.globalAlpha = 1;
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
-  const tuftRadius = Math.max(1.8, spacing * 0.08);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+  const tuftRadius = Math.max(1.5, spacing * 0.07);
   for (let y = -spacing; y <= size + spacing; y += spacing) {
     for (let x = -spacing; x <= size + spacing; x += spacing) {
       ctx.beginPath();
-      ctx.ellipse(x + halfSpacing, y + halfSpacing, tuftRadius, tuftRadius * 0.85, 0, 0, Math.PI * 2);
+      ctx.ellipse(x + halfSpacing, y + halfSpacing, tuftRadius, tuftRadius * 0.8, 0, 0, Math.PI * 2);
       ctx.fill();
     }
   }
 
   ctx.save();
+  ctx.globalCompositeOperation = 'soft-light';
+  const grainLayers = 4;
+  for (let i = 0; i < grainLayers; i += 1) {
+    const opacity = 0.18 - i * 0.02;
+    ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+    for (let g = 0; g < 1800; g += 1) {
+      const gx = rand() * size;
+      const gy = rand() * size;
+      const radius = 0.4 + rand() * 1.2;
+      ctx.beginPath();
+      ctx.ellipse(gx, gy, radius * 1.6, radius, rand() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  ctx.save();
   ctx.globalCompositeOperation = 'overlay';
-  const sheenGradient = ctx.createRadialGradient(
-    size * 0.28,
-    size * 0.32,
-    size * 0.05,
-    size * 0.28,
-    size * 0.32,
-    size * 0.75
-  );
-  sheenGradient.addColorStop(0, 'rgba(255,255,255,0.26)');
-  sheenGradient.addColorStop(0.5, 'rgba(255,255,255,0.08)');
-  sheenGradient.addColorStop(1, 'rgba(0,0,0,0.35)');
+  const sheenGradient = ctx.createRadialGradient(size * 0.26, size * 0.34, size * 0.04, size * 0.26, size * 0.34, size * 0.8);
+  sheenGradient.addColorStop(0, 'rgba(255,255,255,0.22)');
+  sheenGradient.addColorStop(0.45, 'rgba(255,255,255,0.09)');
+  sheenGradient.addColorStop(1, 'rgba(0,0,0,0.4)');
   ctx.fillStyle = sheenGradient;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
 
-  ctx.globalAlpha = 0.08;
-  for (let y = 0; y < size; y += 2) {
-    for (let x = 0; x < size; x += 2) {
-      ctx.fillStyle = Math.random() > 0.5 ? highlight : accent;
-      ctx.fillRect(x, y, 1, 1);
+  const bumpCanvas = document.createElement('canvas');
+  bumpCanvas.width = bumpCanvas.height = size;
+  const bumpCtx = bumpCanvas.getContext('2d');
+  const baseHeight = 128;
+  const bumpImage = bumpCtx.createImageData(size, size);
+  const bumpData = bumpImage.data;
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const idx = (y * size + x) * 4;
+      const ripple = Math.sin((x / size) * Math.PI * 4 + rand() * 0.8) * 6;
+      const rippleY = Math.cos((y / size) * Math.PI * 3 + rand() * 0.8) * 6;
+      const grain = (rand() - 0.5) * 26;
+      const value = clamp01((baseHeight + ripple + rippleY + grain) / 255) * 255;
+      bumpData[idx] = bumpData[idx + 1] = bumpData[idx + 2] = value;
+      bumpData[idx + 3] = 255;
     }
   }
-  ctx.globalAlpha = 1;
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 4);
-  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
+  bumpCtx.putImageData(bumpImage, 0, 0);
+  bumpCtx.strokeStyle = `rgba(0,0,0,0.45)`;
+  bumpCtx.lineWidth = lineWidth * 0.8;
+  for (let offset = -size; offset <= size * 2; offset += spacing) {
+    bumpCtx.beginPath();
+    bumpCtx.moveTo(offset, 0);
+    bumpCtx.lineTo(offset - size, size);
+    bumpCtx.stroke();
+    bumpCtx.beginPath();
+    bumpCtx.moveTo(offset, 0);
+    bumpCtx.lineTo(offset + size, size);
+    bumpCtx.stroke();
+  }
+  bumpCtx.lineWidth = lineWidth * 0.5;
+  bumpCtx.strokeStyle = `rgba(255,255,255,0.2)`;
+  for (let offset = -size; offset <= size * 2; offset += spacing) {
+    bumpCtx.beginPath();
+    bumpCtx.moveTo(offset + halfSpacing, 0);
+    bumpCtx.lineTo(offset + halfSpacing - size, size);
+    bumpCtx.stroke();
+    bumpCtx.beginPath();
+    bumpCtx.moveTo(offset + halfSpacing, 0);
+    bumpCtx.lineTo(offset + halfSpacing + size, size);
+    bumpCtx.stroke();
+  }
 
-  cachedChairTexture = texture;
-  return cachedChairTexture;
+  const map = new THREE.CanvasTexture(canvas);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(4, 4);
+  map.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.needsUpdate = true;
+
+  const normalMap = new THREE.CanvasTexture(bumpCanvas);
+  normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+  normalMap.repeat.set(4, 4);
+  normalMap.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 8;
+  normalMap.needsUpdate = true;
+
+  cachedChairTextures = { map, normalMap };
+  return cachedChairTextures;
 }
 
 function createChairFabricMaterial(option, renderer) {
-  const texture = ensureChairTexture(option, renderer);
+  const textures = ensureChairTexture(option, renderer);
   const primary = option?.primary ?? '#0f6a2f';
-  const sheenColor = option?.highlight ?? adjustHexColor(primary, 0.2);
+  const sheenColor = option?.highlight ?? adjustHexColor(primary, 0.18);
   const material = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(adjustHexColor(primary, 0.04)),
-    map: texture ?? null,
-    roughness: 0.28,
-    metalness: 0.08,
-    clearcoat: 0.48,
-    clearcoatRoughness: 0.28,
-    sheen: 0.18
+    color: new THREE.Color(adjustHexColor(primary, -0.02)),
+    map: textures?.map ?? null,
+    normalMap: textures?.normalMap ?? null,
+    roughness: 0.24,
+    metalness: 0.06,
+    clearcoat: 0.62,
+    clearcoatRoughness: 0.2,
+    sheen: 0.14
   });
   if ('sheenColor' in material && material.sheenColor) {
     material.sheenColor.set(sheenColor);
   }
   if ('sheenRoughness' in material) {
-    material.sheenRoughness = 0.32;
+    material.sheenRoughness = 0.28;
   }
   if ('specularIntensity' in material) {
-    material.specularIntensity = 0.65;
+    material.specularIntensity = 0.7;
+  }
+  if (material.normalMap) {
+    material.normalScale = new THREE.Vector2(0.55, 0.55);
   }
   return material;
 }
