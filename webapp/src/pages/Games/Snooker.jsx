@@ -268,10 +268,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.16; // push side chrome arches further from center so the middle pockets sit proud of the rail
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.62; // pull middle wood arches outward so the side pockets flare away from center
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE; // align side chrome arches to the same outward offset as the wood rails
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -295,23 +295,6 @@ const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01;
-const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION;
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085;
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05;
-const POCKET_JAW_CENTER_TAPER_HOLD = 0.46;
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.6;
-const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD;
-const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE;
-const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER;
-const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42;
-const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR;
-const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97;
-const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR;
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.06;
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72;
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82;
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 120;
 
@@ -4460,7 +4443,6 @@ function Table3D(
   const POCKET_TOP_R = POCKET_VIS_R * 0.96 * POCKET_VISUAL_EXPANSION;
   const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
   const pocketSurfaceOffset = TABLE.THICK * 0.06;
-  const pocketTopY = clothPlaneLocal - TABLE.THICK / 2 - pocketSurfaceOffset;
   const pocketGeo = new THREE.CylinderGeometry(
     POCKET_TOP_R,
     POCKET_BOTTOM_R,
@@ -4489,7 +4471,6 @@ function Table3D(
   const railsTopY = frameTopY + railH;
   const longRailW = ORIGINAL_RAIL_WIDTH; // keep the long rail caps as wide as the end rails so side pockets match visually
   const endRailW = ORIGINAL_RAIL_WIDTH;
-  const woodSideCutCenterOutset = TABLE.THICK * WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE;
   const frameExpansion = TABLE.WALL * 0.08;
   const frameWidthLong =
     Math.max(0, ORIGINAL_OUTER_HALF_W - halfW - 2 * longRailW) + frameExpansion;
@@ -4903,9 +4884,11 @@ function Table3D(
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
     const centerZ = 0;
     const notchMP = sideNotchMP(sx);
+    const sidePocketCutCenterPull =
+      TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
     const notchLocalMP = notchMP.map((poly) =>
       poly.map((ring) =>
-        ring.map(([x, z]) => [x - centerX - sx * woodSideCutCenterOutset, -(z - centerZ)])
+        ring.map(([x, z]) => [x - centerX - sx * sidePocketCutCenterPull, -(z - centerZ)])
       )
     );
     const plate = new THREE.Mesh(
@@ -4942,12 +4925,7 @@ function Table3D(
     sideThinFactor,
     middleThinFactor,
     centerEase,
-    clampOuter,
-    outerExpansion = 0,
-    taperHoldOverride,
-    edgeTaperScaleOverride,
-    edgeProfilePowerOverride,
-    edgeTrim
+    clampOuter
   }) => {
     if (!(center instanceof THREE.Vector2)) {
       return null;
@@ -4969,25 +4947,11 @@ function Table3D(
       outerLimit = Math.max(innerBaseRadius + MICRO_EPS, outerLimit);
     }
     const baseThickness = Math.max(MICRO_EPS, outerLimit - innerBaseRadius);
-    const outerExpansionAmount = Number.isFinite(outerExpansion)
-      ? Math.max(0, outerExpansion)
-      : 0;
-
-    const edgeTaperScale = Number.isFinite(edgeTaperScaleOverride)
-      ? edgeTaperScaleOverride
-      : POCKET_JAW_EDGE_TAPER_SCALE;
-    const profilePower = THREE.MathUtils.clamp(
-      Number.isFinite(edgeProfilePowerOverride)
-        ? edgeProfilePowerOverride
-        : POCKET_JAW_EDGE_TAPER_PROFILE_POWER,
-      1,
-      5
-    );
 
     const edgeFactor = THREE.MathUtils.clamp(sideThinFactor ?? 0.32, 0.1, 0.9);
     const edgeThickness = Math.max(
       MICRO_EPS * 12,
-      baseThickness * edgeFactor * edgeTaperScale
+      baseThickness * edgeFactor * POCKET_JAW_EDGE_TAPER_SCALE
     );
     const edgeInnerRadius = Math.max(
       innerBaseRadius + MICRO_EPS * 6,
@@ -5027,39 +4991,16 @@ function Table3D(
     const outerPts = [];
     const innerPts = [];
 
-    const taperHold = THREE.MathUtils.clamp(
-      Number.isFinite(taperHoldOverride) ? taperHoldOverride : POCKET_JAW_CENTER_TAPER_HOLD,
-      0,
-      0.6
-    );
-
     for (let i = 0; i <= segmentCount; i++) {
       const t = i / segmentCount;
       const theta = startAngle + t * (endAngle - startAngle);
       const normalized = Math.abs(theta - midAngle) / halfAngle;
       const clamped = THREE.MathUtils.clamp(normalized, 0, 1);
-      let taperNormalized = clamped;
-      if (taperHold > MICRO_EPS) {
-        if (taperNormalized <= taperHold) {
-          taperNormalized = 0;
-        } else {
-          taperNormalized = THREE.MathUtils.clamp(
-            (taperNormalized - taperHold) / (1 - taperHold),
-            0,
-            1
-          );
-        }
-      }
-      const taperProfile = taperNormalized <= 0
+      const eased = clamped <= 0
         ? 0
-        : taperNormalized >= 1
+        : clamped >= 1
           ? 1
-          : Math.pow(taperNormalized, profilePower);
-      const eased = taperProfile <= 0
-        ? 0
-        : taperProfile >= 1
-          ? 1
-          : THREE.MathUtils.smootherstep(taperProfile, 0, 1);
+          : THREE.MathUtils.smootherstep(clamped, 0, 1);
       const outerWeight = Math.pow(eased, outerPower);
       const innerWeight = Math.pow(eased, innerPower);
 
@@ -5080,28 +5021,6 @@ function Table3D(
         );
       }
       outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
-      if (outerExpansionAmount > MICRO_EPS) {
-        const maxOuterRadius = Number.isFinite(clampOuter) && clampOuter > innerBaseRadius + MICRO_EPS
-          ? clampOuter + outerExpansionAmount
-          : outerLimit + outerExpansionAmount;
-        outerRadius = Math.min(maxOuterRadius, outerRadius + outerExpansionAmount);
-        outerRadius = Math.max(outerRadius, innerBaseRadius + MICRO_EPS * 4);
-      }
-      if (edgeTrim && edgeTrim.scale < 1) {
-        const trimStart = THREE.MathUtils.clamp(edgeTrim.start ?? 0.6, 0, 0.95);
-        if (trimStart < 1 - MICRO_EPS && clamped > trimStart) {
-          const trimCurve = THREE.MathUtils.clamp(edgeTrim.curve ?? 1, 1, 4);
-          const trimT = THREE.MathUtils.clamp(
-            (clamped - trimStart) / (1 - trimStart),
-            0,
-            1
-          );
-          const trimWeight = Math.pow(trimT, trimCurve);
-          const trimFactor = THREE.MathUtils.lerp(1, edgeTrim.scale, trimWeight);
-          const trimmedOuterRadius = innerBaseRadius + (outerRadius - innerBaseRadius) * trimFactor;
-          outerRadius = Math.min(outerRadius, trimmedOuterRadius);
-        }
-      }
 
       let innerRadius = THREE.MathUtils.lerp(
         innerBaseRadius,
@@ -5143,8 +5062,7 @@ function Table3D(
     orientationAngle,
     wide,
     isMiddle,
-    clampOuter,
-    outerExpansion
+    clampOuter
   }) => {
     const baseInnerScale = wide
       ? POCKET_JAW_SIDE_INNER_SCALE
@@ -5156,7 +5074,7 @@ function Table3D(
     let localClampOuter = clampOuter;
     let localJawAngle = jawAngle;
     let depthMultiplier = 1;
-    let steps = wide ? 132 : 104;
+    let steps = wide ? 88 : 68;
 
     if (isMiddle) {
       localJawAngle *= SIDE_POCKET_JAW_LATERAL_EXPANSION;
@@ -5176,23 +5094,12 @@ function Table3D(
       );
     }
 
-    const taperHoldOverride = isMiddle
-      ? POCKET_JAW_SIDE_CENTER_TAPER_HOLD
-      : POCKET_JAW_CENTER_TAPER_HOLD;
-    const edgeTaperScaleOverride = isMiddle
-      ? POCKET_JAW_SIDE_EDGE_TAPER_SCALE
-      : POCKET_JAW_EDGE_TAPER_SCALE;
-    const edgeProfilePowerOverride = isMiddle
-      ? POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER
-      : POCKET_JAW_EDGE_TAPER_PROFILE_POWER;
-    const edgeTrim =
-      wide && SIDE_POCKET_JAW_EDGE_TRIM_SCALE < 1
-        ? {
-            start: SIDE_POCKET_JAW_EDGE_TRIM_START,
-            scale: SIDE_POCKET_JAW_EDGE_TRIM_SCALE,
-            curve: SIDE_POCKET_JAW_EDGE_TRIM_CURVE
-          }
-        : null;
+    let sideThinFactor = wide ? 0.3 : 0.36;
+    let middleThinFactor = wide ? 0.82 : 0.92;
+    if (isMiddle && wide) {
+      sideThinFactor *= SIDE_POCKET_JAW_SIDE_TRIM_SCALE;
+      middleThinFactor *= SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE;
+    }
 
     const jawShape = buildPocketJawShape({
       center,
@@ -5202,32 +5109,18 @@ function Table3D(
       innerScale: baseInnerScale,
       outerScale: baseOuterScale,
       steps,
-      sideThinFactor: wide ? POCKET_JAW_SIDE_EDGE_FACTOR : POCKET_JAW_CORNER_EDGE_FACTOR,
-      middleThinFactor: wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR,
-      centerEase: 0.36,
-      clampOuter: localClampOuter,
-      outerExpansion,
-      taperHoldOverride,
-      edgeTaperScaleOverride,
-      edgeProfilePowerOverride,
-      edgeTrim
+      sideThinFactor,
+      middleThinFactor,
+      centerEase: wide ? 0.28 : 0.36,
+      clampOuter: localClampOuter
     });
     if (!jawShape) {
       return null;
     }
-    const jawVerticalOffset = isMiddle ? SIDE_POCKET_JAW_VERTICAL_TWEAK : 0;
-    const jawTopY = railsTopY + POCKET_JAW_VERTICAL_LIFT + jawVerticalOffset;
-    let jawDepth = Math.max(
+    const jawDepth = Math.max(
       MICRO_EPS,
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
-    const clearance = Math.max(0, POCKET_JAW_BOTTOM_CLEARANCE);
-    const safeBottomY = pocketTopY + clearance;
-    const maxJawDepth = jawTopY - safeBottomY;
-    if (Number.isFinite(maxJawDepth)) {
-      const limitedDepth = Math.max(MICRO_EPS, maxJawDepth - MICRO_EPS * 0.5);
-      jawDepth = Math.min(jawDepth, limitedDepth);
-    }
     const jawGeom = new THREE.ExtrudeGeometry(jawShape, {
       depth: jawDepth,
       bevelEnabled: false,
@@ -5238,7 +5131,7 @@ function Table3D(
     jawGeom.translate(0, -jawDepth, 0);
     jawGeom.computeVertexNormals();
     const jawMesh = new THREE.Mesh(jawGeom, pocketJawMat);
-    jawMesh.position.y = jawTopY;
+    jawMesh.position.y = railsTopY;
     jawMesh.castShadow = false;
     jawMesh.receiveShadow = true;
 
@@ -5328,18 +5221,18 @@ function Table3D(
         orientationAngle,
         wide: false,
         isMiddle: false,
-        clampOuter: cornerJawOuterLimit,
-        outerExpansion: POCKET_JAW_CORNER_OUTER_EXPANSION
+        clampOuter: cornerJawOuterLimit
       });
     });
   }
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
+    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.4;
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
       const center = resolvePocketCenter(baseMP, fallbackCenter.x, fallbackCenter.y);
-      center.x += sx * woodSideCutCenterOutset;
+      center.x += sx * SIDE_POCKET_JAW_OUTWARD_SHIFT;
       const orientationAngle = Math.atan2(0, sx);
       addPocketJaw({
         center,
@@ -5348,8 +5241,7 @@ function Table3D(
         orientationAngle,
         wide: true,
         isMiddle: true,
-        clampOuter: sideJawOuterLimit,
-        outerExpansion: SIDE_POCKET_JAW_OUTER_EXPANSION
+        clampOuter: sideJawOuterLimit
       });
     });
   }
@@ -5366,6 +5258,7 @@ function Table3D(
     }
   }
 
+  const woodSideCutCenterOutset = TABLE.THICK * WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE;
   const woodSideNotches = [-1, 1]
     .map((sx) =>
       translatePocketCutMP(
@@ -6312,12 +6205,6 @@ function SnookerGame() {
     }
   }, [activeChromeOption, activeClothOption, activeWoodTexture]);
   useEffect(() => {
-    const nextFinish = tableFinishRef.current;
-    if (nextFinish) {
-      applyFinishRef.current?.(nextFinish);
-    }
-  }, [tableFinishId]);
-  useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('snookerTableFinish', tableFinishId);
     }
@@ -6889,33 +6776,22 @@ function SnookerGame() {
     const fit = fitRef.current;
     if (!cam || !sph || !fit) return;
     const next = !topViewRef.current;
-    if (next) {
-      last3DRef.current = { phi: sph.phi, theta: sph.theta };
-    }
     const start = {
       radius: sph.radius,
       phi: sph.phi,
       theta: sph.theta
     };
-    const targetMargin = next
-      ? 1.05
-      : window.innerHeight > window.innerWidth
-        ? 1.6
-        : 1.4;
+    if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
+      const targetMargin = next
+        ? 1.05
+        : window.innerHeight > window.innerWidth
+          ? 1.6
+          : 1.4;
     const targetRadius = fitRadius(cam, targetMargin);
-    const targetPhi = next ? CAMERA.minPhi : last3DRef.current.phi;
-    const targetTheta = next ? sph.theta : last3DRef.current.theta;
-    topViewRef.current = next;
-    setTopView(next);
-    if (rendererRef.current) {
-      rendererRef.current.domElement.style.transform = next
-        ? 'scale(0.9)'
-        : 'scale(1)';
-    }
     const target = {
       radius: next ? targetRadius : clampOrbitRadius(targetRadius),
-      phi: targetPhi,
-      theta: targetTheta
+      phi: next ? 0.0001 : last3DRef.current.phi,
+      theta: next ? sph.theta : last3DRef.current.theta
     };
     const duration = 600;
     const t0 = performance.now();
@@ -6937,6 +6813,13 @@ function SnookerGame() {
       cam.lookAt(targetPos);
       if (k < 1) requestAnimationFrame(anim);
       else {
+        topViewRef.current = next;
+        setTopView(next);
+        if (rendererRef.current) {
+          rendererRef.current.domElement.style.transform = next
+            ? 'scale(0.9)'
+            : 'scale(1)';
+        }
         fit(targetMargin);
       }
     }
