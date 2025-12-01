@@ -233,7 +233,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.12;
+renderer.toneMappingExposure = 1.85;
 function setRendererSize(){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
   renderer.setSize(w, h, false);
@@ -514,10 +514,15 @@ function toggleCameraViewMode() {
 
 
 /* ---------- Lights ---------- */
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-scene.add(new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.55));
-const key = new THREE.DirectionalLight(0xffffff, 1.6); key.position.set(3.2,3.6,2.2); key.castShadow=true; key.shadow.mapSize.set(2048,2048); scene.add(key);
-const rimLight = new THREE.DirectionalLight(0xffffff, 0.55); rimLight.position.set(-2.2,2.6,-1.4); scene.add(rimLight);
+const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+scene.add(ambient);
+const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+spot.position.set(3, 7, 3);
+spot.castShadow = true;
+scene.add(spot);
+const rimLight = new THREE.PointLight(0x33ccff, 1.728);
+rimLight.position.set(-4, 3, -4);
+scene.add(rimLight);
 
 const getPoolCarpetTextures = (() => {
   let cache = null;
@@ -644,20 +649,20 @@ const getPoolCarpetTextures = (() => {
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
-  id: "walnut",
-  label: "Walnut",
-  seatColor: "#7b5a3a",
-  legColor: "#2d2216",
-  highlight: "#d6b48b"
+  id: "ruby",
+  label: "Ruby",
+  seatColor: "#8b0000",
+  legColor: "#1f1f1f",
+  highlight: "#b22222"
 });
 
 const CHAIR_THEME_OPTIONS = Object.freeze([
   DEFAULT_CHAIR_THEME,
-  { id: "stone", label: "Stone", seatColor: "#5e5b53", legColor: "#2f2d28", highlight: "#c8c2b5" },
-  { id: "forest", label: "Forest", seatColor: "#4a5f3c", legColor: "#1d2b18", highlight: "#adc48a" },
-  { id: "navyCanvas", label: "Navy Canvas", seatColor: "#2f3d52", legColor: "#131a26", highlight: "#9ab0c9" },
-  { id: "sand", label: "Sand", seatColor: "#c3a375", legColor: "#4c3721", highlight: "#f2d7a4" },
-  { id: "slate", label: "Slate", seatColor: "#47515a", legColor: "#1f252a", highlight: "#b8c4ce" }
+  { id: "slate", label: "Slate", seatColor: "#374151", legColor: "#0f172a", highlight: "#6b7280" },
+  { id: "teal", label: "Teal", seatColor: "#0f766e", legColor: "#082f2a", highlight: "#38b2ac" },
+  { id: "amber", label: "Amber", seatColor: "#b45309", legColor: "#2f2410", highlight: "#f59e0b" },
+  { id: "violet", label: "Violet", seatColor: "#7c3aed", legColor: "#2b1059", highlight: "#c084fc" },
+  { id: "frost", label: "Ice", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#9ca3af" }
 ]);
 
 const CHAIR_MODEL_URLS = [
@@ -1146,12 +1151,12 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
-  { id: "crimson", label: "Crimson Cloth", feltTop: "#b0122d", feltBottom: "#650a1b", border: "#2b050c", emissive: "#6c101f", emissiveIntensity: 0.5 },
-  { id: "emerald", label: "Emerald Cloth", feltTop: "#1fa44d", feltBottom: "#0b7030", border: "#043018", emissive: "#0f6a2f", emissiveIntensity: 0.72 },
-  { id: "arctic", label: "Arctic Cloth", feltTop: "#3b82f6", feltBottom: "#1d4ed8", border: "#0a1c4d", emissive: "#2563eb", emissiveIntensity: 0.62 },
-  { id: "sunset", label: "Sunset Cloth", feltTop: "#f97316", feltBottom: "#c2410c", border: "#3b1203", emissive: "#e2580f", emissiveIntensity: 0.58 },
-  { id: "violet", label: "Violet Cloth", feltTop: "#8b5cf6", feltBottom: "#5b21b6", border: "#241055", emissive: "#6d28d9", emissiveIntensity: 0.58 },
-  { id: "amber", label: "Amber Cloth", feltTop: "#f59e0b", feltBottom: "#b45309", border: "#3b1a02", emissive: "#d97706", emissiveIntensity: 0.54 }
+  { id: "crimson", label: "Crimson Cloth", feltTop: "#960019", feltBottom: "#4a0012", border: "#210308", emissive: "#210308", emissiveIntensity: 0.42 },
+  { id: "emerald", label: "Emerald Cloth", feltTop: "#0f6a2f", feltBottom: "#054d24", border: "#021a0b", emissive: "#021a0b", emissiveIntensity: 0.42 },
+  { id: "arctic", label: "Arctic Cloth", feltTop: "#2563eb", feltBottom: "#1d4ed8", border: "#071a42", emissive: "#071a42", emissiveIntensity: 0.42 },
+  { id: "sunset", label: "Sunset Cloth", feltTop: "#ea580c", feltBottom: "#c2410c", border: "#320e03", emissive: "#320e03", emissiveIntensity: 0.42 },
+  { id: "violet", label: "Violet Cloth", feltTop: "#7c3aed", feltBottom: "#5b21b6", border: "#1f0a47", emissive: "#1f0a47", emissiveIntensity: 0.42 },
+  { id: "amber", label: "Amber Cloth", feltTop: "#b7791f", feltBottom: "#92571a", border: "#2b1402", emissive: "#2b1402", emissiveIntensity: 0.42 }
 ]);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
