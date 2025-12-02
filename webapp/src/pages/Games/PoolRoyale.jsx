@@ -412,7 +412,7 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
-const CHROME_PLATE_THICKNESS_EXPANSION_SCALE = 1; // match fascia depth to the diamond markers on the wooden rails
+const CHROME_PLATE_THICKNESS_EXPANSION_SCALE = 0.25; // slim the fascia depth so the chrome plates sit thinner against the rails
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // keep middle fascias proportionally deeper while following the snooker thickness target
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.12; // raise all chrome fascias slightly so the plates sit prouder above the rails
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
@@ -922,7 +922,7 @@ const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more s
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
-const RAIL_OUTER_EDGE_RADIUS_RATIO = 0; // keep the exterior rail corners crisp with no rounding
+const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // round only the exterior rail corners while leaving the playfield edge crisp
 const POCKET_RECESS_DEPTH =
   BALL_R * 0.24; // keep the pocket throat visible without sinking the rim
 const POCKET_DROP_ANIMATION_MS = 420;
