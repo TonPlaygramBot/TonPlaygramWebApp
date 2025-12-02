@@ -514,13 +514,13 @@ function toggleCameraViewMode() {
 
 
 /* ---------- Lights ---------- */
-const ambient = new THREE.AmbientLight(0xffffff, 1.08);
+const ambient = new THREE.AmbientLight(0xffffff, 0.62);
 scene.add(ambient);
-const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
+const spot = new THREE.SpotLight(0xffffff, 3.24, TABLE_RADIUS * 10, Math.PI / 3, 0.38, 1);
 spot.position.set(3, 7, 3);
 spot.castShadow = true;
 scene.add(spot);
-const rimLight = new THREE.PointLight(0x33ccff, 1.728);
+const rimLight = new THREE.PointLight(0x33ccff, 1.12);
 rimLight.position.set(-4, 3, -4);
 scene.add(rimLight);
 
