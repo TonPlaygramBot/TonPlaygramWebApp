@@ -383,7 +383,7 @@ const POCKET_VISUAL_EXPANSION = 1.018;
 const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
 const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.028; // push the rounded chrome cut farther toward the playing field so the arch hugs the cloth
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
@@ -396,7 +396,7 @@ const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirror
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
 const CHROME_CORNER_WIDTH_SCALE = 0.982; // shave the chrome plate slightly so it ends at the jaw line on the long rail
 const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.008; // pull the corner fascia slightly toward the table centre so the chrome hugs the jaws
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align corner fascia offset with the snooker chrome plates
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
@@ -414,8 +414,8 @@ const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by da
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
 const CHROME_PLATE_THICKNESS_SCALE = 0.034; // match snooker fascia depth scaling so Pool Royale chrome plates read thicker
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08; // align middle fascia depth with the snooker baseline
-const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.12; // raise all chrome fascias slightly so the plates sit prouder above the rails
-const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.42; // push the fascia lower so the chrome blankets the rounded rail edge
+const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
+const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // align fascia reach with snooker so the arch covers the relieved cut without overhang
@@ -6041,11 +6041,6 @@ function Table3D(
 
   const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror snooker fascia thickness using rail height as the driver
   const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // match middle-pocket fascia depth to snooker
-  const chromePlateVerticalLift = chromePlateThickness * CHROME_PLATE_VERTICAL_LIFT_SCALE;
-  const chromePlateDownwardExpansion = chromePlateThickness * CHROME_PLATE_DOWNWARD_EXPANSION_SCALE;
-  const sideChromePlateVerticalLift = sideChromePlateThickness * CHROME_PLATE_VERTICAL_LIFT_SCALE;
-  const sideChromePlateDownwardExpansion =
-    sideChromePlateThickness * CHROME_PLATE_DOWNWARD_EXPANSION_SCALE;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -6440,15 +6435,14 @@ function Table3D(
         thickness: chromePlateThickness,
         corner,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments,
-        flat: true
+        shapeSegments: chromePlateShapeSegments
       }),
       chromePlateMat
     );
     plate.userData.isChromePlate = true;
     plate.position.set(
       centerX,
-      chromePlateY + chromePlateThickness + chromePlateVerticalLift - chromePlateDownwardExpansion,
+      chromePlateY + chromePlateThickness,
       centerZ
     );
     plate.castShadow = false;
@@ -6486,18 +6480,14 @@ function Table3D(
         thickness: sideChromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments,
-        flat: true
+        shapeSegments: chromePlateShapeSegments
       }),
       chromePlateMat
     );
     plate.userData.isChromePlate = true;
     plate.position.set(
       centerX,
-      sideChromePlateY +
-        sideChromePlateThickness +
-        sideChromePlateVerticalLift -
-        sideChromePlateDownwardExpansion,
+      sideChromePlateY + sideChromePlateThickness,
       centerZ
     );
     plate.castShadow = false;
