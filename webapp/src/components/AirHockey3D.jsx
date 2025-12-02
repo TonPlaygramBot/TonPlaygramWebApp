@@ -761,6 +761,72 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     southGoal.position.set(0, 0.055 * SCALE_WIDTH, TABLE.h / 2 + railThickness * 0.7);
     tableGroup.add(southGoal);
 
+    const createGoalLabel = (text, accent) => {
+      const width = 1024;
+      const height = 384;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, 'rgba(0,0,0,0.82)');
+      gradient.addColorStop(1, 'rgba(0,0,0,0.55)');
+      ctx.fillStyle = gradient;
+      const radius = 52;
+      ctx.beginPath();
+      ctx.moveTo(radius, 0);
+      ctx.lineTo(width - radius, 0);
+      ctx.quadraticCurveTo(width, 0, width, radius);
+      ctx.lineTo(width, height - radius);
+      ctx.quadraticCurveTo(width, height, width - radius, height);
+      ctx.lineTo(radius, height);
+      ctx.quadraticCurveTo(0, height, 0, height - radius);
+      ctx.lineTo(0, radius);
+      ctx.quadraticCurveTo(0, 0, radius, 0);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = `${accent}80`;
+      ctx.lineWidth = 18;
+      ctx.stroke();
+
+      ctx.font = '700 220px "Inter", "Helvetica", sans-serif';
+      ctx.fillStyle = accent;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(0,0,0,0.45)';
+      ctx.shadowBlur = 24;
+      ctx.fillText(text, width / 2, height / 2 + 8);
+
+      const map = new THREE.CanvasTexture(canvas);
+      map.colorSpace = THREE.SRGBColorSpace;
+      map.needsUpdate = true;
+      const material = new THREE.SpriteMaterial({
+        map,
+        transparent: true,
+        depthTest: false,
+        depthWrite: false
+      });
+      const sprite = new THREE.Sprite(material);
+      const labelWidth = TABLE.goalW * 1.05;
+      const labelHeight = labelWidth * (height / width);
+      sprite.scale.set(labelWidth, labelHeight, 1);
+      sprite.renderOrder = 15;
+      return sprite;
+    };
+
+    const goalLabels = [];
+
+    const northLabel = createGoalLabel(ai?.name || 'Opponent', '#22d3ee');
+    northLabel.position.set(0, northGoal.position.y + SCALE_WIDTH * 0.12, northGoal.position.z);
+    tableGroup.add(northLabel);
+    goalLabels.push(northLabel);
+
+    const southLabel = createGoalLabel(player?.name || 'You', '#ff5577');
+    southLabel.position.set(0, southGoal.position.y + SCALE_WIDTH * 0.12, southGoal.position.z);
+    tableGroup.add(southLabel);
+    goalLabels.push(southLabel);
+
     const makeMallet = (color) => {
       const mallet = new THREE.Group();
       const baseTexture = createMalletTexture(new THREE.Color(color).getStyle());
@@ -1088,6 +1154,11 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
           audio.pause();
           audioRef.current[key] = null;
         }
+      });
+      goalLabels.forEach((label) => {
+        label.parent?.remove(label);
+        label.material.map?.dispose();
+        label.material.dispose();
       });
       try {
         host.removeChild(renderer.domElement);
