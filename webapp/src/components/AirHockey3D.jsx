@@ -790,7 +790,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       ctx.lineWidth = 14;
       ctx.stroke();
 
-      ctx.font = '700 170px "Inter", "Helvetica", sans-serif';
+      ctx.font = '700 150px "Inter", "Helvetica", sans-serif';
       ctx.fillStyle = accent;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -808,7 +808,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         depthWrite: false
       });
       const sprite = new THREE.Sprite(material);
-      const labelWidth = TABLE.goalW * 0.82;
+      const labelWidth = TABLE.goalW * 0.72;
       const labelHeight = labelWidth * (height / width) * 0.6;
       sprite.scale.set(labelWidth, labelHeight, 1);
       sprite.renderOrder = 15;
@@ -919,7 +919,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     );
     const cameraAnchor = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.h * 0.36,
+      elevatedTableSurfaceY + TABLE.h * 0.32,
       tableCenterZ + playerRailZ + railThickness * 0.35
     );
     const cameraDirection = new THREE.Vector3()
