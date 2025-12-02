@@ -2,36 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { getGameVolume, isGameMuted } from "../utils/sound.js";
 
-const SOUND_PRESETS = {
-  net: {
-    tones: [
-      { type: "sine", freq: 160, attack: 0.01, decay: 0.18, gain: 0.48 },
-      { type: "triangle", freq: 90, attack: 0.01, decay: 0.28, gain: 0.25 }
-    ],
-    noise: { gain: 0.08, decay: 0.16 }
-  },
-  kick: {
-    tones: [
-      { type: "sine", freq: 420, attack: 0.005, decay: 0.12, gain: 0.6 },
-      { type: "square", freq: 180, attack: 0.01, decay: 0.2, gain: 0.2 }
-    ],
-    noise: { gain: 0.05, decay: 0.12 }
-  },
-  score: {
-    tones: [
-      { type: "triangle", freq: 660, attack: 0.01, decay: 0.32, gain: 0.55 },
-      { type: "triangle", freq: 880, attack: 0.01, decay: 0.36, gain: 0.35 },
-      { type: "triangle", freq: 440, attack: 0.02, decay: 0.5, gain: 0.42 }
-    ],
-    noise: { gain: 0.06, decay: 0.24 }
-  },
-  out: {
-    tones: [
-      { type: "sawtooth", freq: 140, attack: 0.02, decay: 0.36, gain: 0.42 },
-      { type: "square", freq: 70, attack: 0.02, decay: 0.5, gain: 0.26 }
-    ],
-    noise: { gain: 0.04, decay: 0.22 }
-  }
+const SOUND_SOURCES = {
+  net: encodeURI("/assets/sounds/goal net origjinal (2).mp3"),
+  kick: encodeURI("/assets/sounds/ball kick .mp3"),
+  score: encodeURI("/assets/sounds/football-crowd-3-69245.mp3"),
+  out: encodeURI("/assets/sounds/crowd-shocked-reaction-352766.mp3")
 };
 
 const BROADCAST_TECHNIQUES = [
@@ -606,97 +581,50 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   );
   const lastTaskToastId = useRef(null);
 
-  const audioEngineRef = useRef({ ctx: null, master: null, noise: null });
-
-  const createNoiseBuffer = useCallback(() => {
-    try {
-      const ctx = audioEngineRef.current.ctx;
-      if (!ctx) return null;
-      const duration = 0.5;
-      const buffer = ctx.createBuffer(1, duration * ctx.sampleRate, ctx.sampleRate);
-      const data = buffer.getChannelData(0);
-      for (let i = 0; i < data.length; i += 1) {
-        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / data.length);
-      }
-      return buffer;
-    } catch (err) {
-      return null;
-    }
-  }, []);
-
-  const ensureAudioEngine = useCallback(() => {
-    if (audioEngineRef.current.ctx) return audioEngineRef.current;
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return audioEngineRef.current;
-    const ctx = new AudioCtx({ latencyHint: 'interactive' });
-    const master = ctx.createGain();
-    master.connect(ctx.destination);
-    master.gain.value = isGameMuted() ? 0 : getGameVolume();
-    audioEngineRef.current = { ctx, master, noise: null };
-    audioEngineRef.current.noise = createNoiseBuffer();
-    return audioEngineRef.current;
-  }, [createNoiseBuffer]);
+  const audioRef = useRef({ net: null, kick: null, score: null, out: null });
 
   const applySoundSettings = useCallback(() => {
-    const engine = ensureAudioEngine();
-    if (!engine.master) return;
-    engine.master.gain.value = isGameMuted() ? 0 : getGameVolume();
-  }, [ensureAudioEngine]);
+    const volume = getGameVolume();
+    const muted = isGameMuted();
+    Object.values(audioRef.current).forEach((audio) => {
+      if (!audio) return;
+      audio.volume = muted ? 0 : volume;
+      audio.muted = muted;
+    });
+  }, []);
 
   useEffect(() => {
-    ensureAudioEngine();
+    const net = new Audio(SOUND_SOURCES.net);
+    const kick = new Audio(SOUND_SOURCES.kick);
+    const score = new Audio(SOUND_SOURCES.score);
+    const out = new Audio(SOUND_SOURCES.out);
+    audioRef.current = { net, kick, score, out };
+    applySoundSettings();
+
     const handleVolume = () => applySoundSettings();
     const handleMute = () => applySoundSettings();
     window.addEventListener('gameVolumeChanged', handleVolume);
     window.addEventListener('gameMuteChanged', handleMute);
+
     return () => {
       window.removeEventListener('gameVolumeChanged', handleVolume);
       window.removeEventListener('gameMuteChanged', handleMute);
-      try {
-        audioEngineRef.current.master?.disconnect();
-      } catch (err) {}
+      Object.values(audioRef.current).forEach((audio) => {
+        try {
+          audio.pause();
+        } catch (err) {}
+      });
+      audioRef.current = { net: null, kick: null, score: null, out: null };
     };
-  }, [applySoundSettings, ensureAudioEngine]);
+  }, [applySoundSettings]);
 
-  const playSound = useCallback(
-    (key) => {
-      const preset = SOUND_PRESETS[key];
-      const engine = ensureAudioEngine();
-      if (!preset || !engine.ctx || !engine.master || isGameMuted()) return;
-      const ctx = engine.ctx;
-      ctx.resume?.();
-      const now = ctx.currentTime;
-      const gainBase = getGameVolume();
-      const playTone = ({ freq, type, attack, decay, gain }) => {
-        const osc = ctx.createOscillator();
-        osc.type = type;
-        osc.frequency.setValueAtTime(freq, now);
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0, now);
-        g.gain.linearRampToValueAtTime(gainBase * gain, now + attack);
-        g.gain.exponentialRampToValueAtTime(1e-4, now + attack + decay);
-        osc.connect(g).connect(engine.master);
-        osc.start(now);
-        osc.stop(now + attack + decay + 0.02);
-      };
-      const playNoise = (definition) => {
-        if (!engine.noise) engine.noise = createNoiseBuffer();
-        if (!engine.noise) return;
-        const src = ctx.createBufferSource();
-        src.buffer = engine.noise;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(gainBase * definition.gain, now);
-        g.gain.exponentialRampToValueAtTime(1e-4, now + definition.decay);
-        src.connect(g).connect(engine.master);
-        src.start(now);
-        src.stop(now + definition.decay + 0.05);
-      };
-
-      preset.tones?.forEach((tone) => playTone(tone));
-      if (preset.noise) playNoise(preset.noise);
-    },
-    [createNoiseBuffer, ensureAudioEngine]
-  );
+  const playSound = useCallback((key) => {
+    const audio = audioRef.current[key];
+    if (!audio || isGameMuted()) return;
+    audio.currentTime = 0;
+    audio.volume = getGameVolume();
+    audio.play().catch(() => {});
+  }, []);
 
   const playKickSound = useCallback(() => playSound('kick'), [playSound]);
   const playNetSound = useCallback(() => playSound('net'), [playSound]);
@@ -760,7 +688,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const smoothCameraLook = new THREE.Vector3(0, 1.1, 0);
     smoothCameraPos.copy(camera.position);
     let orbitYaw = 0;
-    let orbitPitch = 0.1;
+    let orbitPitch = 0.18;
 
     const courtL = 23.77;
     const courtW = 9.2;
@@ -773,10 +701,10 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const playerZ = halfL - 1.35;
     const cpuZ = -halfL + 1.35;
 
-    let camBack = halfL + apron * 1.12 + 0.55;
-    let camHeight = isNarrow ? 3.25 : 3.0;
-    const camBackRange = { min: halfL + apron * 0.94, max: halfL + apron * 1.56 };
-    const camHeightRange = { min: 2.35, max: 5.6 };
+    let camBack = halfL + apron * 1.28 + 0.85;
+    let camHeight = isNarrow ? 5.1 : 4.85;
+    const camBackRange = { min: halfL + apron * 0.98, max: halfL + apron * 1.7 };
+    const camHeightRange = { min: 4.2, max: 6.8 };
     const cameraMinZ = halfL + apron * 0.62;
     const cameraMaxZ = halfL + apron * 2.05;
     const cameraSideLimit = halfW * 0.94;
@@ -1777,14 +1705,14 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         -cameraSideLimit,
         cameraSideLimit
       );
-      const followY = Math.max(activeCamHeight, followBall.y + 0.42 + (broadcastProfile.horizonLift ?? 0));
+      const followY = Math.max(activeCamHeight, followBall.y + 0.6 + (broadcastProfile.horizonLift ?? 0));
       const target = new THREE.Vector3(followX, followY, fromLocalZ(desiredLocalZ));
       const lerpAmt = 1 - Math.exp(-dt * posLerpRate);
       const pivot = new THREE.Vector3(0, 1.05, 0);
       const orbitNormal = new THREE.Vector3(0, 1, 0);
       const targetFromPivot = target.clone().sub(pivot);
       targetFromPivot.applyAxisAngle(orbitNormal, orbitYaw);
-      targetFromPivot.y = THREE.MathUtils.clamp(targetFromPivot.y + orbitPitch * 1.25, 0.85, 7.2);
+      targetFromPivot.y = THREE.MathUtils.clamp(targetFromPivot.y + orbitPitch * 1.25, 1.0, 9);
       const targetWithOrbit = pivot.clone().add(targetFromPivot);
       smoothCameraPos.lerp(targetWithOrbit, lerpAmt);
       camera.position.copy(smoothCameraPos);
@@ -1804,7 +1732,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       );
       const lookFromPivot = look.clone().sub(pivot);
       lookFromPivot.applyAxisAngle(orbitNormal, orbitYaw * 0.95);
-      lookFromPivot.y = THREE.MathUtils.clamp(lookFromPivot.y + orbitPitch, 0.62, 5.4);
+      lookFromPivot.y = THREE.MathUtils.clamp(lookFromPivot.y + orbitPitch, 0.8, 6.4);
       const lookWithOrbit = pivot.clone().add(lookFromPivot);
       smoothCameraLook.lerp(lookWithOrbit, lerpAmt * lookLerpRate);
       camera.lookAt(smoothCameraLook);
@@ -1883,30 +1811,28 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         cpuSrvTO = setTimeout(() => {
           if (state.live || state.matchOver) return;
           const box = serviceBoxFor('cpu');
-          const accuracy = THREE.MathUtils.clamp(0.82 + Math.random() * 0.16, 0.82, 0.98);
-          const widthBias = THREE.MathUtils.lerp(box.minX, box.maxX, 0.5 + THREE.MathUtils.randFloatSpread(0.08));
-          const depthBias = THREE.MathUtils.lerp(box.minZ, box.maxZ, accuracy);
-          const to = new THREE.Vector3(widthBias, ballR + 0.12, depthBias);
-          let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.94, 1.04));
-          v0.y += 0.45;
-          v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 1.05);
-          clampNetSpan(pos.clone(), v0, halfW - 0.22);
-          const serveSpin = craftCpuSpin(v0.z * 1.08, 0.86, THREE.MathUtils.clamp(widthBias / halfW, -0.6, 0.6));
+          const tx = THREE.MathUtils.lerp(box.minX, box.maxX, 0.5 + THREE.MathUtils.randFloatSpread(0.18));
+          const tz = THREE.MathUtils.lerp(box.minZ, box.maxZ, 0.5 + THREE.MathUtils.randFloatSpread(0.12));
+          const to = new THREE.Vector3(tx, ballR + 0.06, tz);
+          let v0 = solveShot(pos.clone(), to, state.gravity, THREE.MathUtils.randFloat(0.92, 1.05));
+          v0 = ensureNetClear(pos.clone(), v0, state.gravity, netH, ballR * 1.08);
+          v0.multiplyScalar(1.04);
+          clampNetSpan(pos.clone(), v0);
           cpuSwing = {
             normal: v0.clone().normalize(),
             speed: v0.length(),
-            ttl: 0.4,
-            extraSpin: serveSpin,
-            friction: 0.18,
+            ttl: 0.38,
+            extraSpin: craftCpuSpin(v0.z, 0.7, tx / halfW),
+            friction: 0.22,
             restitution: 1.08,
-            reach: ballR + 0.38,
-            force: 0.98
+            reach: ballR + 0.34,
+            force: 0.92
           };
           setMsg(formatMsg(`Serve · ${cpuLabel}`));
-          cpu.userData.swing = 1.08;
-          cpu.userData.swingLR = THREE.MathUtils.clamp((widthBias - cpu.position.x) / halfW, -1, 1);
+          cpu.userData.swing = 1.05;
+          cpu.userData.swingLR = THREE.MathUtils.clamp((tx - cpu.position.x) / halfW, -1, 1);
           lastHitter = 'cpu';
-        }, 520);
+        }, 650);
       } else {
         playerSrvTO = setTimeout(() => {
           if (state.live || state.matchOver || state.serveBy !== 'player') return;
@@ -1956,8 +1882,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let sy = 0;
     let lx = 0;
     let ly = 0;
-    let startCourtX = 0;
-    let startCourtZ = 0;
     let st = 0;
     const playerMoveTarget = new THREE.Vector2(0, playerZ);
 
@@ -1995,7 +1919,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     const MIN_SWIPE_SPEED = BASE_MIN_SWIPE;
     const MAX_SWIPE_SPEED = BASE_MAX_SWIPE;
 
-    function swipeToShot(distX, distY, swipeTime, towardsEnemy = true, aim = null) {
+    function swipeToShot(distX, distY, swipeTime, towardsEnemy = true) {
       const touchProfile = touchProfileRef.current;
       const viewScale = getViewportScale();
       const depthScale = THREE.MathUtils.clamp((playerCourtMaxZ - playerCourtMinZ) / halfL, 0.82, 1.18);
@@ -2010,32 +1934,18 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const clampedSpeed = THREE.MathUtils.clamp(speed, low, high);
       const normalized = Math.min(THREE.MathUtils.clamp((clampedSpeed - low) / (high - low), 0, 1), 0.94);
 
-      const forwardBase = THREE.MathUtils.lerp(6.2, 18.5 * depthScale, normalized * (touchProfile.forceAssist ?? 1));
+      const forward = THREE.MathUtils.lerp(6.2, 18.5 * depthScale, normalized * (touchProfile.forceAssist ?? 1));
       const lift = THREE.MathUtils.lerp(1.6, 7.2 * depthScale, normalized * (touchProfile.liftBias ?? 1));
       const rect = renderer.domElement.getBoundingClientRect();
       const swipePlaneWidth = Math.max(rect.width || 1, 320);
       const lateralInfluence = distX / Math.max(Math.abs(distY) * 0.82, swipePlaneWidth * 0.32, 120);
-      const aimVector = aim
-        ? new THREE.Vector2(aim.endX - aim.startX, aim.endZ - aim.startZ)
-        : new THREE.Vector2(Math.sign(distX) || 0, Math.sign(distY) || 1);
-      const aimWeight = THREE.MathUtils.clamp(aimVector.length() / Math.max(1, halfW * 0.45), 0.35, 1.1);
-      const angleAssist = THREE.MathUtils.clamp(Math.abs(distX) / Math.max(1, Math.abs(distY)), 0, 1.4);
-      const forward = forwardBase * THREE.MathUtils.lerp(1, 0.9 + aimWeight * 0.18, angleAssist);
-      const lateralTarget = THREE.MathUtils.clamp(aimVector.x / (halfW || 1), -1, 1);
       const lateral = THREE.MathUtils.clamp(
-        THREE.MathUtils.lerp(lateralInfluence, lateralTarget * 0.6, aimWeight) *
-          forward *
-          0.2 *
-          (touchProfile.lateralAssist ?? 1) *
-          THREE.MathUtils.lerp(0.94, 1.06, viewScale - 0.72),
-        -2.4,
-        2.4
+        lateralInfluence * forward * 0.2 * (touchProfile.lateralAssist ?? 1) * THREE.MathUtils.lerp(0.94, 1.06, viewScale - 0.72),
+        -2.1,
+        2.1
       );
-      const curveIntent = THREE.MathUtils.clamp(
-        THREE.MathUtils.lerp(distX / Math.max(swipeLength, swipePlaneWidth * 0.45), lateralTarget * 0.9, aimWeight * 0.6),
-        -1,
-        1
-      ) * (touchProfile.curveBias ?? 1);
+      const curveIntent =
+        THREE.MathUtils.clamp(distX / Math.max(swipeLength, swipePlaneWidth * 0.45), -1, 1) * (touchProfile.curveBias ?? 1);
       const curveSpin = THREE.MathUtils.lerp(3, 9.5, normalized) * curveIntent * (physics.spinBias ?? 1) * depthScale;
 
       const direction = towardsEnemy ? -1 : 1;
@@ -2065,8 +1975,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       curveAim.z = Math.sign(curveAim.z || -1) * Math.max(Math.abs(curveAim.z), 0.62 + (depthScale - 1) * 0.18);
       const forceAssist = (touchProfile.forceAssist ?? 1) * (physics.forceScale ?? 1) * courtScale * 0.94;
       const liftBoost = -0.08 + ((touchProfile.liftBias ?? 1) - 1) * 0.35 + (depthScale - 1) * 0.12;
-      const precisionBoost = THREE.MathUtils.clamp((shot.swipeSpeed || MIN_SWIPE_SPEED) / (MAX_SWIPE_SPEED * 0.9), 0, 1);
-      const aimBias = THREE.MathUtils.lerp(0.7, 0.98, Math.min(1, shot.normalized * 0.9 + precisionBoost * 0.25));
+      const aimBias = THREE.MathUtils.lerp(0.68, 0.95, Math.min(1, shot.normalized + 0.12));
       return {
         normal,
         speed: speed * THREE.MathUtils.clamp(courtScale, 0.9, 1.14),
@@ -2091,8 +2000,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       touching = true;
       const targetX = screenToCourt(e.clientX);
       const targetZ = screenToCourtZ(e.clientY);
-      startCourtX = targetX;
-      startCourtZ = targetZ;
       playerMoveTarget.set(targetX, targetZ);
       player.position.x = targetX;
       player.position.z = targetZ;
@@ -2223,12 +2130,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const distY = sy - endY;
       if (distY < 18) return;
       const duration = Math.max((performance.now() - st) / 1000, 0.12);
-      const endCourtX = screenToCourt(endX);
-      const endCourtZ = screenToCourtZ(endY);
-      const aimInfo = { startX: startCourtX, startZ: startCourtZ, endX: endCourtX, endZ: endCourtZ };
       if (!state.live) {
         if (state.serveBy === 'player') {
-          const shot = swipeToShot(distX, distY, duration, true, aimInfo);
+          const shot = swipeToShot(distX, distY, duration, true);
           playerSwing = shotToSwing(shot);
           markTrainingStep('swipeServe');
           setMsg(formatMsg(`Serve · ${playerLabel}`));
@@ -2248,7 +2152,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           Math.abs(pos.z - (playerZ - 0.78)) < 4.6 || pos.z > playerZ - 1.4;
         const reachableHeight = pos.y <= 3.6;
         if (ballOnPlayerSide && horizontalReach && reachableHeight) {
-          const shot = swipeToShot(distX, distY, duration, true, aimInfo);
+          const shot = swipeToShot(distX, distY, duration, true);
           playerSwing = shotToSwing(shot);
           player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
           player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
@@ -2377,7 +2281,6 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         const dropShot = landT < 0.36 && player.position.z > halfL - 1.2;
         const netRush = player.position.z < halfL * 0.45;
         const lobShot = netRush && interceptY > 1.65;
-        const strikeTightness = THREE.MathUtils.clamp(1 - Math.abs(predictedX - cpu.position.x) / (halfW * 0.92), 0, 1);
         let tz = dropShot
           ? halfL - 0.42
           : lobShot
@@ -2385,35 +2288,20 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
             : THREE.MathUtils.mapLinear(Math.min(halfW, Math.abs(player.position.x)), 0, halfW, halfL - 1.7, halfL - 0.82);
         if (!dropShot && !lobShot && player.position.z < halfL - 2.4) tz = halfL - 0.7;
         tz = THREE.MathUtils.clamp(tz + THREE.MathUtils.randFloatSpread(lobShot ? 0.08 : 0.14), halfL - 1.75, halfL - 0.45);
-        const pace = THREE.MathUtils.clamp(0.72 + strikeTightness * 0.4 + aggression * 0.26, 0.72, lobShot ? 0.96 : 1.18);
-        cpuPlan = {
-          tx,
-          tz,
-          dropShot,
-          lobShot,
-          aggression,
-          bias: THREE.MathUtils.clamp((tx - player.position.x) / halfW, -1, 1),
-          pace,
-          heightIntent: THREE.MathUtils.clamp(interceptY, ballR * 1.05, 2.6)
-        };
+        cpuPlan = { tx, tz, dropShot, lobShot, aggression, bias: THREE.MathUtils.clamp((tx - player.position.x) / halfW, -1, 1) };
         cpuWind = 0.08 + Math.random() * 0.05;
         cpu.userData.swing = -0.7;
       }
       if (cpuWind > 0) {
         cpuWind -= dt;
         if (cpuWind <= 0 && cpuPlan) {
-          const targetHeight = cpuPlan.heightIntent
-            ? Math.max(ballR + 0.02, Math.min(cpuPlan.heightIntent, 2.2))
-            : ballR + (cpuPlan.dropShot ? 0.02 : cpuPlan.lobShot ? 0.18 : 0.12);
+          const targetHeight = ballR + (cpuPlan.dropShot ? 0.02 : cpuPlan.lobShot ? 0.18 : 0.12);
           const to = new THREE.Vector3(cpuPlan.tx, targetHeight, cpuPlan.tz);
           let v0 = solveShot(
             pos.clone(),
             to,
             state.gravity,
-            THREE.MathUtils.randFloat(
-              cpuPlan.dropShot ? 0.55 : cpuPlan.lobShot ? 0.82 : cpuPlan.pace,
-              cpuPlan.lobShot ? 1.05 : Math.max(0.9, cpuPlan.pace + 0.08)
-            )
+            THREE.MathUtils.randFloat(cpuPlan.dropShot ? 0.55 : cpuPlan.lobShot ? 0.82 : 0.72, cpuPlan.lobShot ? 1.05 : 0.92)
           );
           if (cpuPlan.lobShot) {
             v0.y += 2.1;
