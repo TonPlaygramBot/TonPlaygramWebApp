@@ -2882,11 +2882,6 @@ function TexasHoldemArena({ search }) {
         }
         mesh.visible = true;
         applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
-        if (player.isHuman && !player.folded && !state.showdown) {
-          setCardFace(mesh, 'front');
-          setCardHighlight(mesh, false);
-          return;
-        }
         if (player.folded && !state.showdown) {
           const railBase = seat.cardRailAnchor.clone();
           const lateral = seat.right.clone().multiplyScalar((cardIdx - 0.5) * HOLE_SPACING);
@@ -2908,8 +2903,9 @@ function TexasHoldemArena({ search }) {
           .clone()
           .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY));
-        orientCard(mesh, lookTarget, { face: state.showdown ? 'front' : 'back', flat: false });
-        setCardFace(mesh, state.showdown ? 'front' : 'back');
+        const face = player.isHuman || state.showdown ? 'front' : 'back';
+        orientCard(mesh, lookTarget, { face, flat: false });
+        setCardFace(mesh, face);
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
       });
