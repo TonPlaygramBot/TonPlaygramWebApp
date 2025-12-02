@@ -412,8 +412,8 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
-const CHROME_PLATE_THICKNESS_EXPANSION_SCALE = 0.82; // bulk up the fascia depth so the chrome plates stand out clearly against the rails
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // keep middle fascias proportionally deeper while following the snooker thickness target
+const CHROME_PLATE_THICKNESS_SCALE = 0.034; // match snooker fascia depth scaling so Pool Royale chrome plates read thicker
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08; // align middle fascia depth with the snooker baseline
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.12; // raise all chrome fascias slightly so the plates sit prouder above the rails
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.42; // push the fascia lower so the chrome blankets the rounded rail edge
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
@@ -6039,9 +6039,8 @@ function Table3D(
     verticalCushionLength / 2 +
     SIDE_CUSHION_CORNER_SHIFT;
 
-  const chromePlateThickness =
-    RAIL_MARKER_THICKNESS * CHROME_PLATE_THICKNESS_EXPANSION_SCALE; // keep fascia flush with diamond markers while deepening toward the carpet
-  const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // give the middle-pocket fascias extra depth
+  const chromePlateThickness = railH * CHROME_PLATE_THICKNESS_SCALE; // mirror snooker fascia thickness using rail height as the driver
+  const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // match middle-pocket fascia depth to snooker
   const chromePlateVerticalLift = chromePlateThickness * CHROME_PLATE_VERTICAL_LIFT_SCALE;
   const chromePlateDownwardExpansion = chromePlateThickness * CHROME_PLATE_DOWNWARD_EXPANSION_SCALE;
   const sideChromePlateVerticalLift = sideChromePlateThickness * CHROME_PLATE_VERTICAL_LIFT_SCALE;
