@@ -86,9 +86,9 @@ const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
 const COMMUNITY_SPACING = CARD_W * 0.75;
 const COMMUNITY_CARD_FORWARD_OFFSET = 0;
-const COMMUNITY_CARD_LIFT = CARD_D * 12;
+const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
-const COMMUNITY_CARD_TILT = THREE.MathUtils.degToRad(6);
+const COMMUNITY_CARD_TILT = 0;
 const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
   new THREE.Vector3(
     index * COMMUNITY_SPACING,
@@ -2860,7 +2860,9 @@ function TexasHoldemArena({ search }) {
       const seat = seatGroups[idx];
       if (!seat) return;
       const prevPlayer = previous?.players?.[idx];
-      const baseAnchor = seat.cardAnchor.clone();
+      const baseAnchor = seat.isHuman
+        ? seat.cardAnchor.clone().lerp(seat.chipAnchor, 0.55)
+        : seat.cardAnchor.clone();
       const right = seat.right.clone();
       const forward = seat.forward.clone();
 
@@ -2895,16 +2897,21 @@ function TexasHoldemArena({ search }) {
         }
         const position = baseAnchor
           .clone()
-          .addScaledVector(forward, CARD_FORWARD_OFFSET)
+          .addScaledVector(forward, seat.isHuman ? CARD_FORWARD_OFFSET * -0.6 : CARD_FORWARD_OFFSET)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_SPREAD));
         position.y = TABLE_HEIGHT + CARD_VERTICAL_OFFSET;
         mesh.position.copy(position);
-        const lookTarget = seat.stoolAnchor
+        const lookOrigin = seat.isHuman ? seat.seatPos : seat.stoolAnchor;
+        const lookTarget = lookOrigin
           .clone()
           .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY));
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
+          .addScaledVector(forward, seat.isHuman ? -CARD_LOOK_SPLAY * 0.3 : 0);
         const face = player.isHuman || state.showdown ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: false });
+        if (seat.isHuman) {
+          mesh.rotateY(Math.PI);
+        }
         setCardFace(mesh, face);
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
