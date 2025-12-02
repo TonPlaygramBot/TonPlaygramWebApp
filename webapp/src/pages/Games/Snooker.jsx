@@ -268,10 +268,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.068; // push the side chrome arches outward so the rounded cuts sit further from center
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.024; // align the side chrome arches with the wooden rail cuts like Pool Royale
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.34; // move the middle-pocket rail cuts further outward along the frame
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.264; // match Pool Royale's middle-pocket arch alignment
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -1799,9 +1799,6 @@ const ORIGINAL_PLAY_H = TABLE.H - 2 * TABLE.WALL;
 const ORIGINAL_HALF_H = ORIGINAL_PLAY_H / 2;
 const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
-const TABLE_OUTER_HALF_W = ORIGINAL_OUTER_HALF_W + TABLE.THICK * 0.04;
-const TABLE_OUTER_HALF_H = ORIGINAL_OUTER_HALF_H + TABLE.THICK * 0.04;
-const TOP_VIEW_MARGIN = 1.024;
 
 const CLOTH_TEXTURE_SIZE = 4096;
 const CLOTH_THREAD_PITCH = 12 * 0.8;
@@ -2928,7 +2925,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the cue camera closer so it rides against the rail
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.026; // align orbit distance with Pool Royale framing
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.14;
@@ -3091,21 +3088,6 @@ const fitRadius = (camera, margin = 1.1) => {
   // Keep a little more distance so rails remain visible while fitting the table
   const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
-};
-const fitTopDownRadius = (camera, margin = TOP_VIEW_MARGIN) => {
-  if (!camera) return CAMERA.minR;
-  const aspect = camera.aspect || 1;
-  const f = THREE.MathUtils.degToRad(camera.fov || STANDING_VIEW_FOV);
-  const halfW = TABLE_OUTER_HALF_W * margin;
-  const halfH = TABLE_OUTER_HALF_H * margin;
-  const tanHalfFov = Math.tan(f / 2) || 1e-6;
-  const dzH = halfH / tanHalfFov;
-  const dzW = halfW / (tanHalfFov * aspect);
-  return clamp(
-    Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR,
-    CAMERA.minR,
-    CAMERA.maxR
-  );
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
   const delta = Math.atan2(Math.sin(end - start), Math.cos(end - start));
@@ -5245,7 +5227,7 @@ function Table3D(
   }
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
-    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.32;
+    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236;
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
@@ -6800,14 +6782,12 @@ function SnookerGame() {
       theta: sph.theta
     };
     if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
-    const targetMargin = next
-      ? TOP_VIEW_MARGIN
-      : window.innerHeight > window.innerWidth
-        ? 1.6
-        : 1.4;
-    const targetRadius = next
-      ? fitTopDownRadius(cam, targetMargin)
-      : fitRadius(cam, targetMargin);
+      const targetMargin = next
+        ? 1.05
+        : window.innerHeight > window.innerWidth
+          ? 1.6
+          : 1.4;
+    const targetRadius = fitRadius(cam, targetMargin);
     const target = {
       radius: next ? targetRadius : clampOrbitRadius(targetRadius),
       phi: next ? 0.0001 : last3DRef.current.phi,
@@ -9169,26 +9149,6 @@ function SnookerGame() {
           camera.aspect = host.clientWidth / host.clientHeight;
           const aspect = camera.aspect;
           const zoomProfile = resolveCameraZoomProfile(aspect);
-          const usingTopView = topViewRef.current === true;
-          if (usingTopView) {
-            const overheadRadius = clampOrbitRadius(
-              fitTopDownRadius(camera, TOP_VIEW_MARGIN),
-              CUE_VIEW_MIN_RADIUS
-            );
-            const topPhi = 0.0001;
-            cameraBoundsRef.current = {
-              cueShot: { phi: topPhi, radius: overheadRadius },
-              standing: { phi: topPhi, radius: overheadRadius }
-            };
-            cameraBlendRef.current = 1;
-            sph.radius = overheadRadius;
-            sph.phi = topPhi;
-            sph.theta = Math.PI;
-            orbitRadiusLimitRef.current = overheadRadius;
-            updateCamera();
-            camera.updateProjectionMatrix();
-            return;
-          }
           const standingRadiusRaw = fitRadius(
             camera,
             Math.max(m * zoomProfile.margin, 1e-4)
