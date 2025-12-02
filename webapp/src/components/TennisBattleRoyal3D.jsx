@@ -296,7 +296,7 @@ const RACKET_ORIENTATIONS = [
 
 const BASE_MIN_SWIPE = 220;
 const BASE_MAX_SWIPE = 1600;
-const BASE_HIT_FORCE = 4.6 * 0.7;
+const BASE_HIT_FORCE = 4.6 * 0.35;
 const BASE_SPEED_CAP = 22.5 * BASE_HIT_FORCE;
 
 function buildRoyalGrandstand() {
@@ -1932,17 +1932,20 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const low = minSwipe * 0.5;
       const high = maxSwipe * 1.08;
       const clampedSpeed = THREE.MathUtils.clamp(speed, low, high);
-      const normalized = Math.min(THREE.MathUtils.clamp((clampedSpeed - low) / (high - low), 0, 1), 0.9);
+      const normalized = Math.min(THREE.MathUtils.clamp((clampedSpeed - low) / (high - low), 0, 1), 0.94);
 
       const forward = THREE.MathUtils.lerp(6.2, 18.5 * depthScale, normalized * (touchProfile.forceAssist ?? 1));
       const lift = THREE.MathUtils.lerp(1.6, 7.2 * depthScale, normalized * (touchProfile.liftBias ?? 1));
-      const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY) * 0.85, 110), -1.15, 1.15);
+      const rect = renderer.domElement.getBoundingClientRect();
+      const swipePlaneWidth = Math.max(rect.width || 1, 320);
+      const lateralInfluence = distX / Math.max(Math.abs(distY) * 0.82, swipePlaneWidth * 0.32, 120);
       const lateral = THREE.MathUtils.clamp(
-        lateralInfluence * forward * 0.18 * (touchProfile.lateralAssist ?? 1) * THREE.MathUtils.lerp(0.96, 1.04, viewScale - 0.72),
-        -2.4,
-        2.4
+        lateralInfluence * forward * 0.2 * (touchProfile.lateralAssist ?? 1) * THREE.MathUtils.lerp(0.94, 1.06, viewScale - 0.72),
+        -2.1,
+        2.1
       );
-      const curveIntent = THREE.MathUtils.clamp(distX / Math.max(swipeLength, 180), -1, 1) * (touchProfile.curveBias ?? 1);
+      const curveIntent =
+        THREE.MathUtils.clamp(distX / Math.max(swipeLength, swipePlaneWidth * 0.45), -1, 1) * (touchProfile.curveBias ?? 1);
       const curveSpin = THREE.MathUtils.lerp(3, 9.5, normalized) * curveIntent * (physics.spinBias ?? 1) * depthScale;
 
       const direction = towardsEnemy ? -1 : 1;
@@ -1972,7 +1975,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       curveAim.z = Math.sign(curveAim.z || -1) * Math.max(Math.abs(curveAim.z), 0.62 + (depthScale - 1) * 0.18);
       const forceAssist = (touchProfile.forceAssist ?? 1) * (physics.forceScale ?? 1) * courtScale * 0.94;
       const liftBoost = -0.08 + ((touchProfile.liftBias ?? 1) - 1) * 0.35 + (depthScale - 1) * 0.12;
-      const aimBias = THREE.MathUtils.lerp(0.55, 0.9, Math.min(1, shot.normalized + 0.12));
+      const aimBias = THREE.MathUtils.lerp(0.68, 0.95, Math.min(1, shot.normalized + 0.12));
       return {
         normal,
         speed: speed * THREE.MathUtils.clamp(courtScale, 0.9, 1.14),
@@ -2068,7 +2071,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       if (swing.aimDirection) {
         const currentSpeed = vel.length();
         const aimBlend = THREE.MathUtils.clamp(
-          swing.aimBias ?? THREE.MathUtils.lerp(0.55, 0.9, swing.force || 0.5),
+          swing.aimBias ?? THREE.MathUtils.lerp(0.68, 0.95, swing.force || 0.5),
           0.45,
           0.95
         );
@@ -2263,8 +2266,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       cpu.position.z = THREE.MathUtils.damp(cpu.position.z, targetZ, 6.2, dt);
 
       const interceptY = pos.y + vel.y * t + 0.5 * state.gravity * t * t;
-      const close = t < 0.28 && Math.abs(predictedX - cpu.position.x) < 1.35 && interceptY <= 2.25;
-      if (close && cpuWind <= 0 && !cpuPlan) {
+      const bounceConfirmed = state.bounceSide === 'cpu' || !state.awaitingServeBounce;
+      const planningWindow = bounceConfirmed ? 0.55 : 0.28;
+      const heightAllowance = bounceConfirmed ? 3.05 : 2.35;
+      const close = t < planningWindow && Math.abs(predictedX - cpu.position.x) < 1.6 && interceptY <= heightAllowance;
+      const readyAfterBounce = bounceConfirmed && !cpuPlan && landT < 0.7 && interceptY <= 3.2;
+      if ((close || readyAfterBounce) && cpuWind <= 0 && !cpuPlan) {
         const playerDepth = THREE.MathUtils.clamp(player.position.z / (halfL + apron), 0, 1);
         const aggression = THREE.MathUtils.clamp(Math.max(Math.abs(player.position.x) / halfW, 0.45 + playerDepth * 0.25), 0.35, 0.92);
         const anticipation = THREE.MathUtils.clamp(playerMoveTarget.x - player.position.x, -1.2, 1.2);
