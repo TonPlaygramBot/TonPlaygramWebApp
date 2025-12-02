@@ -178,21 +178,25 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
 }
 
 const sfxBuffers = {
-  place: createBuffer(0.14, (t) => {
-    const env = Math.exp(-t * 38);
-    const click = Math.sin(2 * Math.PI * 2300 * t) * 0.55;
-    const thump = Math.sin(2 * Math.PI * 160 * t) * 0.4;
-    return (click + thump) * env;
+  place: createBuffer(0.18, (t, i) => {
+    const env = Math.exp(-t * 42);
+    const snap = Math.sin(2 * Math.PI * 1800 * t) * 0.55;
+    const wood = (Math.sin((i + 1.5) * 0.37) * 2 - 1) * Math.exp(-t * 24) * 0.28;
+    const body = Math.sin(2 * Math.PI * 92 * t) * 0.32;
+    return (snap + wood + body) * env;
   }),
-  draw: createBuffer(0.22, (t) => {
-    const env = Math.exp(-t * 18);
-    const body = Math.sin(2 * Math.PI * (420 + 180 * Math.sin(t * 6)) * t) * 0.5;
-    return body * env;
+  draw: createBuffer(0.26, (t, i, length) => {
+    const env = Math.exp(-t * 16);
+    const swirl = Math.sin(2 * Math.PI * (240 + 220 * Math.sin(t * 5.8)) * t) * 0.42;
+    const breath = (Math.sin((i + 13) * 0.19) * 0.5 + Math.sin((length - i) * 0.013)) * 0.18;
+    return (swirl + breath) * env;
   }),
-  block: createBuffer(0.28, (t) => {
-    const env = Math.exp(-t * 9);
-    const wobble = Math.sin(2 * Math.PI * 92 * t) + Math.sin(2 * Math.PI * 64 * t) * 0.6;
-    return wobble * env * 0.4;
+  block: createBuffer(0.32, (t, i) => {
+    const env = Math.exp(-t * 8.5);
+    const detune = 1 + Math.sin(t * 7) * 0.18;
+    const rumble = Math.sin(2 * Math.PI * 74 * t * detune) * 0.34;
+    const scrape = Math.sin((i + 5) * 0.091) * Math.exp(-t * 18) * 0.22;
+    return (rumble + scrape) * env;
   })
 };
 
@@ -225,7 +229,7 @@ const SFX = {
 /* ---------- Renderer / Scene ---------- */
 const app = document.getElementById("app");
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
-const devicePixelRatioTarget = Math.max(1, Math.min((window.devicePixelRatio || 1) * 1.25, 3));
+const devicePixelRatioTarget = Math.min(2, window.devicePixelRatio || 1);
 renderer.setPixelRatio(devicePixelRatioTarget);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
@@ -4399,14 +4403,30 @@ function updateWinnerHighlight(now){
 
 /* ---------- Loop & Resize ---------- */
 function tick(now){
-  updateEntrySequence(now);
-  updateDrawAnimations(now);
-  updatePlacementAnimations(now);
-  updateWinnerHighlight(now);
-  controls.update();
+  const current = Number.isFinite(now) ? now : performance.now();
+  const targetMs = 1000 / 60;
+  const minMs = 1000 / 30;
+  const elapsed = lastFrameTime ? current - lastFrameTime : targetMs;
+  frameCarry += elapsed;
+  if (frameCarry < minMs) {
+    requestAnimationFrame(tick);
+    return;
+  }
+  const step = Math.min(frameCarry, targetMs * 2);
+  frameCarry = Math.max(0, frameCarry - targetMs);
+  lastFrameTime = current;
+  const deltaSeconds = Math.min(0.2, Math.max(0, step / 1000));
+
+  updateEntrySequence(current);
+  updateDrawAnimations(current);
+  updatePlacementAnimations(current);
+  updateWinnerHighlight(current);
+  controls.update(deltaSeconds);
   renderer.render(scene,camera);
   requestAnimationFrame(tick);
 }
+let lastFrameTime = 0;
+let frameCarry = 0;
 requestAnimationFrame(tick);
 function onResize(){
   if (entrySequenceActive) {
