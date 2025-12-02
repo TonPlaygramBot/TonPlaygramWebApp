@@ -415,6 +415,7 @@ const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so po
 const CHROME_PLATE_THICKNESS_EXPANSION_SCALE = 0.25; // slim the fascia depth so the chrome plates sit thinner against the rails
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // keep middle fascias proportionally deeper while following the snooker thickness target
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0.12; // raise all chrome fascias slightly so the plates sit prouder above the rails
+const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.42; // push the fascia lower so the chrome blankets the rounded rail edge
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52; // align fascia reach with snooker so the arch covers the relieved cut without overhang
@@ -6042,7 +6043,10 @@ function Table3D(
     RAIL_MARKER_THICKNESS * CHROME_PLATE_THICKNESS_EXPANSION_SCALE; // keep fascia flush with diamond markers while deepening toward the carpet
   const sideChromePlateThickness = chromePlateThickness * CHROME_SIDE_PLATE_THICKNESS_BOOST; // give the middle-pocket fascias extra depth
   const chromePlateVerticalLift = chromePlateThickness * CHROME_PLATE_VERTICAL_LIFT_SCALE;
+  const chromePlateDownwardExpansion = chromePlateThickness * CHROME_PLATE_DOWNWARD_EXPANSION_SCALE;
   const sideChromePlateVerticalLift = sideChromePlateThickness * CHROME_PLATE_VERTICAL_LIFT_SCALE;
+  const sideChromePlateDownwardExpansion =
+    sideChromePlateThickness * CHROME_PLATE_DOWNWARD_EXPANSION_SCALE;
   const chromePlateInset = TABLE.THICK * 0.02;
   const chromeCornerPlateTrim =
     TABLE.THICK * (0.03 + CHROME_CORNER_FIELD_TRIM_SCALE);
@@ -6443,7 +6447,11 @@ function Table3D(
       chromePlateMat
     );
     plate.userData.isChromePlate = true;
-    plate.position.set(centerX, chromePlateY + chromePlateThickness + chromePlateVerticalLift, centerZ);
+    plate.position.set(
+      centerX,
+      chromePlateY + chromePlateThickness + chromePlateVerticalLift - chromePlateDownwardExpansion,
+      centerZ
+    );
     plate.castShadow = false;
     plate.receiveShadow = false;
     plate.renderOrder = CHROME_PLATE_RENDER_ORDER;
@@ -6487,7 +6495,10 @@ function Table3D(
     plate.userData.isChromePlate = true;
     plate.position.set(
       centerX,
-      sideChromePlateY + sideChromePlateThickness + sideChromePlateVerticalLift,
+      sideChromePlateY +
+        sideChromePlateThickness +
+        sideChromePlateVerticalLift -
+        sideChromePlateDownwardExpansion,
       centerZ
     );
     plate.castShadow = false;
