@@ -202,6 +202,7 @@ const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
+const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(1.5);
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -211,7 +212,6 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
-const CAMERA_TOPDOWN_POLAR = THREE.MathUtils.degToRad(8);
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
@@ -354,6 +354,12 @@ const cameraPhiMax = clamp(
   ARENA_CAMERA_DEFAULTS.phiMax + CAMERA_PHI_OFFSET,
   cameraPhiMin + 0.05,
   Math.PI - 0.001
+);
+const CAMERA_DEFAULT_PHI = clamp(
+  THREE.MathUtils.lerp(cameraPhiMin, cameraPhiMax, ARENA_CAMERA_DEFAULTS.initialPhiLerp) +
+    CAMERA_INITIAL_PHI_EXTRA,
+  CAMERA_PULL_FORWARD_MIN,
+  cameraPhiMax
 );
 const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
 const CAM = {
@@ -3466,25 +3472,37 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const current = new THREE.Spherical().setFromVector3(
         camera.position.clone().sub(boardLookTarget)
       );
-      const theta = current.theta;
+      const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
+
+      const default3d = new THREE.Spherical(
+        clamp(CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.initialRadiusFactor, CAM.minR, CAM.maxR),
+        CAMERA_DEFAULT_PHI,
+        theta
+      );
 
       if (mode === '2d') {
         cameraMemory.last3d = current;
-        controls.minPolarAngle = CAMERA_TOPDOWN_POLAR;
-        controls.maxPolarAngle = Math.max(CAMERA_TOPDOWN_POLAR, CAMERA_PULL_FORWARD_MIN);
-        const radius = clamp(current.radius, CAM.minR * 0.9, CAM.maxR * 0.9);
-        const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_POLAR, theta);
-        animateCameraTo(target);
+        controls.enableRotate = false;
+        controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
+        controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
+        const radius = clamp(
+          Math.max(BOARD_DISPLAY_SIZE * 0.9, CAM.minR),
+          CAM.minR,
+          CAM.maxR * 0.92
+        );
+        const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_LOCK, -Math.PI / 4);
+        animateCameraTo(target, 360);
       } else {
+        controls.enableRotate = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
-        const restore = cameraMemory.last3d || current;
+        const restore = cameraMemory.last3d || default3d;
         const target = new THREE.Spherical(
           clamp(restore.radius, CAM.minR, CAM.maxR),
           clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
-          restore.theta
+          Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
-        animateCameraTo(target);
+        animateCameraTo(target, 420);
       }
     };
 
