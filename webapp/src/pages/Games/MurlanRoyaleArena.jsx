@@ -346,8 +346,8 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_SIZE_SCALE;
-const HUMAN_CHAIR_PULLBACK = 0.05 * MODEL_SCALE * CHAIR_SIZE_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 4.8 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_SIZE_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -422,8 +422,6 @@ export default function MurlanRoyaleArena({ search }) {
     cardGeometry: null,
     cardMap: new Map(),
     faceTextureCache: new Map(),
-    labelTextures: [],
-    labelMaterials: [],
     seatConfigs: [],
     selectionTargets: [],
     animations: [],
@@ -951,7 +949,6 @@ export default function MurlanRoyaleArena({ search }) {
     let frameId = null;
     let dom = null;
     let cardGeometry = null;
-    let labelGeo = null;
     let arenaGroup = null;
     let handlePointerDown = null;
     let disposed = false;
@@ -1138,7 +1135,6 @@ export default function MurlanRoyaleArena({ search }) {
       const seatThickness = SEAT_THICKNESS;
 
       cardGeometry = new THREE.BoxGeometry(CARD_W, CARD_H, CARD_D, 1, 1, 1);
-      labelGeo = new THREE.PlaneGeometry(1.7 * MODEL_SCALE, 0.82 * MODEL_SCALE);
 
       const seatConfigs = [];
 
@@ -1243,21 +1239,6 @@ export default function MurlanRoyaleArena({ search }) {
           stoolHeight
         });
 
-        if (player) {
-          const labelTex = makeLabelTexture(player.name, player.avatar);
-          labelTex.wrapS = THREE.RepeatWrapping;
-          labelTex.repeat.x = -1;
-          labelTex.offset.x = 1;
-          const labelMat = new THREE.MeshBasicMaterial({ map: labelTex, transparent: true, side: THREE.DoubleSide });
-          const label = new THREE.Mesh(labelGeo, labelMat);
-          const baseLabelHeight = 0.62 * MODEL_SCALE;
-          const labelForward = player.isHuman ? 0.88 * MODEL_SCALE : 0.98 * MODEL_SCALE;
-          label.position.set(0, baseLabelHeight, labelForward);
-          label.rotation.y = Math.PI;
-          chair.add(label);
-          threeStateRef.current.labelTextures.push(labelTex);
-          threeStateRef.current.labelMaterials.push(labelMat);
-        }
       }
 
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
@@ -1426,7 +1407,6 @@ export default function MurlanRoyaleArena({ search }) {
       }
       renderer?.dispose?.();
       cardGeometry?.dispose?.();
-      labelGeo?.dispose?.();
       store.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
         const mats = new Set(list.filter(Boolean));
@@ -1442,8 +1422,6 @@ export default function MurlanRoyaleArena({ search }) {
         arenaGroup?.remove(mesh);
       });
       store.faceTextureCache.forEach((tex) => tex.dispose());
-      store.labelTextures.forEach((tex) => tex.dispose());
-      store.labelMaterials.forEach((mat) => mat.dispose());
       if (store.scoreboard) {
         const { mesh, geometry, material, texture } = store.scoreboard;
         if (mesh?.parent) {
@@ -1491,8 +1469,6 @@ export default function MurlanRoyaleArena({ search }) {
         cardGeometry: null,
         cardMap: new Map(),
         faceTextureCache: new Map(),
-        labelTextures: [],
-        labelMaterials: [],
         seatConfigs: [],
         selectionTargets: [],
         animations: [],
@@ -2043,79 +2019,6 @@ function flagName(flag) {
   } catch (error) {
     return `Player ${flag}`;
   }
-}
-
-function makeLabelTexture(name, avatar) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 256;
-  const g = canvas.getContext('2d');
-  const w = canvas.width;
-  const h = canvas.height;
-  g.fillStyle = 'rgba(8, 11, 22, 0.95)';
-  g.fillRect(0, 0, w, h);
-  g.strokeStyle = 'rgba(255, 255, 255, 0.18)';
-  g.lineWidth = 12;
-  roundRect(g, 16, 16, w - 32, h - 32, 42);
-  g.stroke();
-
-  const cx = 140;
-  const cy = 128;
-  const outerR = 96;
-  const innerR = 78;
-  const ring = g.createLinearGradient(cx - outerR, cy - outerR, cx + outerR, cy + outerR);
-  ring.addColorStop(0, '#facc15');
-  ring.addColorStop(1, '#22d3ee');
-
-  g.beginPath();
-  g.arc(cx, cy, outerR, 0, Math.PI * 2);
-  g.strokeStyle = ring;
-  g.lineWidth = 16;
-  g.stroke();
-
-  g.beginPath();
-  g.arc(cx, cy, outerR - 10, 0, Math.PI * 2);
-  g.fillStyle = 'rgba(6, 8, 18, 0.92)';
-  g.fill();
-
-  const display = avatar && avatar.startsWith('http') ? '' : avatar || '🂠';
-  g.save();
-  g.beginPath();
-  g.arc(cx, cy, innerR, 0, Math.PI * 2);
-  g.clip();
-  if (avatar && avatar.startsWith('http')) {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      g.save();
-      g.beginPath();
-      g.arc(cx, cy, innerR, 0, Math.PI * 2);
-      g.clip();
-      g.drawImage(img, cx - innerR, cy - innerR, innerR * 2, innerR * 2);
-      g.restore();
-      texture.needsUpdate = true;
-    };
-    img.src = avatar;
-  } else {
-    g.fillStyle = '#e2e8f0';
-    g.font = 'bold 120px "Inter", "Segoe UI", sans-serif';
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(display, cx, cy + 6);
-  }
-  g.restore();
-
-  g.font = '700 96px "Inter", "Segoe UI", sans-serif';
-  g.textAlign = 'left';
-  g.textBaseline = 'middle';
-  g.fillStyle = '#e2e8f0';
-  g.fillText(name, 250, cy + 6);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  applySRGBColorSpace(texture);
-  texture.anisotropy = 8;
-  texture.needsUpdate = true;
-  return texture;
 }
 
 function roundRect(ctx, x, y, width, height, radius) {
