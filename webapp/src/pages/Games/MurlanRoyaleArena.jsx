@@ -330,7 +330,7 @@ async function buildChairTemplate(theme) {
 }
 
 const STOOL_SCALE = 1.5 * 1.3 * CHAIR_SIZE_SCALE;
-const CARD_SCALE = 0.95;
+const CARD_SCALE = 0.92;
 const CARD_W = 0.4 * MODEL_SCALE * CARD_SCALE;
 const CARD_H = 0.56 * MODEL_SCALE * CARD_SCALE;
 const CARD_D = 0.02 * MODEL_SCALE * CARD_SCALE;
@@ -345,8 +345,8 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.85 * CHAIR_SIZE_SCALE;
-const HUMAN_CHAIR_PULLBACK = 0.32 * MODEL_SCALE * CHAIR_SIZE_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.82 * CHAIR_SIZE_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.18 * MODEL_SCALE * CHAIR_SIZE_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -670,23 +670,17 @@ export default function MurlanRoyaleArena({ search }) {
       if (!seatConfigs?.length) return;
       const seat = seatConfigs[playerIndex];
       if (!seat) return;
-      const seatAngle = Math.atan2(seat.forward.z, seat.forward.x);
-      const playerTheta = Math.PI / 2 - seatAngle;
+      const seatAngle = Math.atan2(seat.forward.x, seat.forward.z);
+      const targetTheta = normalizeAngle(seatAngle);
       const baseTheta =
         typeof three.cameraHomeTheta === 'number'
           ? three.cameraHomeTheta
           : typeof three.cameraSpherical?.theta === 'number'
             ? three.cameraSpherical.theta
-            : playerTheta;
-      const forward = seat.forward ?? new THREE.Vector3();
-      const isSideSeat = Math.abs(forward.x) >= CAMERA_SIDE_THRESHOLD;
-      let desiredTheta = baseTheta;
-      if (isSideSeat) {
-        const delta = shortestAngleDifference(baseTheta, playerTheta);
-        const swingLimit = three.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
-        const limited = THREE.MathUtils.clamp(delta, -swingLimit, swingLimit);
-        desiredTheta = baseTheta + limited * CAMERA_SIDE_SWING_FACTOR;
-      }
+            : targetTheta;
+      const swingLimit = three.cameraAzimuthSwing ?? CAMERA_AZIMUTH_SWING;
+      const delta = shortestAngleDifference(baseTheta, targetTheta);
+      const desiredTheta = normalizeAngle(baseTheta + THREE.MathUtils.clamp(delta, -swingLimit, swingLimit));
       const focusTarget = CAMERA_CENTER_TARGET.clone();
       moveCameraToTheta(desiredTheta, { immediate, target: focusTarget });
     },
@@ -771,7 +765,8 @@ export default function MurlanRoyaleArena({ search }) {
 
     const tableAnchor = three.tableAnchor.clone();
     const tableCount = state.tableCards.length;
-    const tableSpacing = tableCount > 1 ? Math.min(CARD_W * 1.45, (CARD_W * 5.6) / (tableCount - 1)) : CARD_W;
+    const tableSpacing =
+      tableCount > 1 ? Math.min(CARD_W * 1.28, (CARD_W * 5.2) / (tableCount - 1)) : CARD_W;
     const tableStartX = tableCount > 1 ? -((tableCount - 1) * tableSpacing) / 2 : 0;
     const humanIndex = state.players.findIndex((player) => player.isHuman);
     const humanSeat = humanIndex >= 0 ? seatConfigs[humanIndex] : null;
@@ -1133,7 +1128,10 @@ export default function MurlanRoyaleArena({ search }) {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.85;
       renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
       renderer.domElement.style.display = 'block';
@@ -1143,14 +1141,25 @@ export default function MurlanRoyaleArena({ search }) {
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#030712');
 
-      const ambient = new THREE.AmbientLight(0xffffff, 1.08);
-      const spot = new THREE.SpotLight(0xffffff, 4.8384, TABLE_RADIUS * 10, Math.PI / 3, 0.35, 1);
-      spot.position.set(3, 7, 3);
-      spot.castShadow = true;
-      const rim = new THREE.PointLight(0x33ccff, 1.728);
-      rim.position.set(-4, 3, -4);
-      scene.add(ambient, spot, rim);
+      const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+      scene.add(ambient);
 
+      const key = new THREE.DirectionalLight(0xffffff, 1.2);
+      key.position.set(6, 8, 5);
+      key.castShadow = true;
+      scene.add(key);
+
+      const fill = new THREE.DirectionalLight(0xffffff, 0.65);
+      fill.position.set(-5, 5.5, 3);
+      scene.add(fill);
+
+      const rim = new THREE.DirectionalLight(0xffffff, 0.9);
+      rim.position.set(0, 6, -6);
+      scene.add(rim);
+
+      const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
+      spot.position.set(0, 4.2, 4.6);
+      scene.add(spot);
       const spotTarget = new THREE.Object3D();
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
       scene.add(spotTarget);
@@ -1373,8 +1382,10 @@ export default function MurlanRoyaleArena({ search }) {
         chair.add(occupant);
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
-        const x = Math.cos(angle) * chairRadius;
-        const z = Math.sin(angle) * chairRadius;
+        const isHumanSeat = Boolean(player?.isHuman);
+        const seatRadius = chairRadius - (isHumanSeat ? 0.55 * MODEL_SCALE : 0.24 * MODEL_SCALE);
+        const x = Math.cos(angle) * seatRadius;
+        const z = Math.sin(angle) * seatRadius;
         const chairBaseHeight = CHAIR_BASE_HEIGHT;
         chair.position.set(x, chairBaseHeight, z);
         chair.lookAt(new THREE.Vector3(0, chairBaseHeight, 0));
@@ -1382,21 +1393,20 @@ export default function MurlanRoyaleArena({ search }) {
 
         const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
         const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
-        const isHumanSeat = Boolean(player?.isHuman);
         const focus = forward
           .clone()
-          .multiplyScalar(chairRadius - (isHumanSeat ? 1.2 * MODEL_SCALE : 0.6 * MODEL_SCALE));
+          .multiplyScalar(seatRadius - (isHumanSeat ? 1.05 * MODEL_SCALE : 0.65 * MODEL_SCALE));
         focus.y = TABLE_HEIGHT + CARD_H * (isHumanSeat ? 0.72 : 0.55);
-        const stoolPosition = forward.clone().multiplyScalar(chairRadius);
+        const stoolPosition = forward.clone().multiplyScalar(seatRadius - 0.08 * MODEL_SCALE);
         stoolPosition.y = CHAIR_BASE_HEIGHT + SEAT_THICKNESS / 2;
         const stoolHeight = STOOL_HEIGHT;
         seatConfigs.push({
           forward,
           right,
           focus,
-          radius: (isHumanSeat ? 2.9 : 3.45) * MODEL_SCALE,
-          spacing: (isHumanSeat ? 0.14 : 0.18) * MODEL_SCALE,
-          maxSpread: (isHumanSeat ? 2.3 : 2.5) * MODEL_SCALE,
+          radius: (isHumanSeat ? 2.7 : 3.25) * MODEL_SCALE,
+          spacing: (isHumanSeat ? 0.12 : 0.16) * MODEL_SCALE,
+          maxSpread: (isHumanSeat ? 2.1 : 2.3) * MODEL_SCALE,
           stoolPosition,
           stoolHeight
         });
