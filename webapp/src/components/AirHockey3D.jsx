@@ -763,7 +763,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
 
     const createGoalLabel = (text, accent) => {
       const width = 1024;
-      const height = 384;
+      const height = 300;
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
@@ -772,7 +772,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       gradient.addColorStop(0, 'rgba(0,0,0,0.82)');
       gradient.addColorStop(1, 'rgba(0,0,0,0.55)');
       ctx.fillStyle = gradient;
-      const radius = 52;
+      const radius = 36;
       ctx.beginPath();
       ctx.moveTo(radius, 0);
       ctx.lineTo(width - radius, 0);
@@ -787,10 +787,10 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       ctx.fill();
 
       ctx.strokeStyle = `${accent}80`;
-      ctx.lineWidth = 18;
+      ctx.lineWidth = 14;
       ctx.stroke();
 
-      ctx.font = '700 220px "Inter", "Helvetica", sans-serif';
+      ctx.font = '700 170px "Inter", "Helvetica", sans-serif';
       ctx.fillStyle = accent;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -808,8 +808,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         depthWrite: false
       });
       const sprite = new THREE.Sprite(material);
-      const labelWidth = TABLE.goalW * 1.05;
-      const labelHeight = labelWidth * (height / width);
+      const labelWidth = TABLE.goalW * 0.82;
+      const labelHeight = labelWidth * (height / width) * 0.6;
       sprite.scale.set(labelWidth, labelHeight, 1);
       sprite.renderOrder = 15;
       return sprite;
