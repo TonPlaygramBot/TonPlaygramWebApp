@@ -4107,7 +4107,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 10; // tighten the weave slightly while keeping detail visible
-  const clothTextureScale = 0.032 * 1.35 * 0.85; // scale the cloth pattern up so the weave reads clearly
+  const clothTextureScale = 0.032 * 1.35 * 0.85 * 3; // make the cloth weave 3x smaller for finer pattern detail
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;

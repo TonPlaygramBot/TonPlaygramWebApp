@@ -5446,7 +5446,7 @@ function Table3D(
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
   const threadsPerBallTarget = 12; // base density before global scaling adjustments
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25; // tighten the weave for a smaller, denser pattern
+  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 3; // tile the weave three times tighter for a much smaller pattern
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping it visually taut
   const baseRepeat =
