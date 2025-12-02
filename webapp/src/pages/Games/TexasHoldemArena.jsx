@@ -27,7 +27,6 @@ import {
 } from '../../utils/tableCustomizationOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import { getGameVolume, isGameMuted } from '../../utils/sound.js';
-import { getAvatarUrl } from '../../utils/avatarUtils.js';
 
 import {
   createDeck,
@@ -99,13 +98,11 @@ const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
 );
 const HOLE_SPACING = CARD_W * 0.7;
 const HUMAN_CARD_SPREAD = HOLE_SPACING * 1.32;
-const HUMAN_CARD_FORWARD_OFFSET = CARD_W * -0.24;
-const AI_CARD_FORWARD_OFFSET = CARD_W * 0.04;
+const HUMAN_CARD_FORWARD_OFFSET = CARD_W * 0.04;
 const HUMAN_CARD_VERTICAL_OFFSET = CARD_H * 0.52;
-const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.28;
-const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.3;
-const HUMAN_CARD_TILT = THREE.MathUtils.degToRad(10);
-const CARD_FORWARD_OFFSET = AI_CARD_FORWARD_OFFSET;
+const HUMAN_CARD_LOOK_LIFT = CARD_H * 0.24;
+const HUMAN_CARD_LOOK_SPLAY = HOLE_SPACING * 0.45;
+const CARD_FORWARD_OFFSET = HUMAN_CARD_FORWARD_OFFSET;
 const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
@@ -162,9 +159,6 @@ const LABEL_SIZE = Object.freeze({ width: 1.24 * MODEL_SCALE, height: 0.58 * MOD
 const LABEL_BASE_HEIGHT = SEAT_THICKNESS + 0.24 * MODEL_SCALE;
 const HUMAN_LABEL_FORWARD = SEAT_DEPTH * 0.12;
 const AI_LABEL_FORWARD = SEAT_DEPTH * 0.16;
-const LABEL_AVATAR_SIZE = 180;
-const LABEL_AVATAR_MARGIN = 48;
-const LABEL_AVATAR_Y = 52;
 const RAIL_ANCHOR_RATIO = 0.98;
 const RAIL_FORWARD_MARGIN = TABLE_RADIUS * (1 - RAIL_ANCHOR_RATIO);
 const RAIL_SURFACE_FORWARD_SHIFT = RAIL_FORWARD_MARGIN * 0.65;
@@ -378,7 +372,7 @@ function buildPlayers(searchOrOptions) {
       flag: humanFlag,
       isHuman: true,
       chips: baseChips,
-      avatar: options.avatar || humanFlag
+      avatar: options.avatar || null
     }
   ];
   for (let i = 0; i < Math.max(0, playerCount - 1); i += 1) {
@@ -389,7 +383,7 @@ function buildPlayers(searchOrOptions) {
       flag,
       isHuman: false,
       chips: baseChips,
-      avatar: flag
+      avatar: null
     });
   }
   return players.slice(0, playerCount);
@@ -435,7 +429,7 @@ function buildClassicOctagonAngles(count) {
     const slotIndex = preferredSlots[i];
     if (slotIndex == null) {
       const fallbackAngle =
-        Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
+        Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
       angles.push(fallbackAngle);
     } else {
       angles.push(slotAngles[slotIndex]);
@@ -927,7 +921,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const classicAngles =
     tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
   for (let i = 0; i < safeCount; i += 1) {
-    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
+    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
@@ -1018,53 +1012,12 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   return layout;
 }
 
-function makeNameplate(name, chips, avatar, renderer) {
+function makeNameplate(name, chips, renderer) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  let texture = null;
-  const avatarState = { src: avatar || '', image: null, loaded: false };
-  const avatarX = canvas.width - LABEL_AVATAR_SIZE - LABEL_AVATAR_MARGIN;
-  const avatarY = LABEL_AVATAR_Y;
-  const avatarCenterX = avatarX + LABEL_AVATAR_SIZE / 2;
-  const avatarCenterY = avatarY + LABEL_AVATAR_SIZE / 2;
-
-  const loadAvatar = (src, onReady) => {
-    if (!src) {
-      avatarState.image = null;
-      avatarState.loaded = false;
-      if (onReady) onReady();
-      return;
-    }
-    const image = new Image();
-    image.crossOrigin = 'anonymous';
-    image.onload = () => {
-      avatarState.image = image;
-      avatarState.loaded = true;
-      if (onReady) onReady();
-    };
-    image.onerror = () => {
-      avatarState.image = null;
-      avatarState.loaded = false;
-      if (onReady) onReady();
-    };
-    image.src = getAvatarUrl(src);
-  };
-
-  const draw = (playerName, stack, highlight, status, avatarSrc = avatarState.src) => {
-    if (avatarSrc !== avatarState.src) {
-      avatarState.src = avatarSrc || '';
-      avatarState.loaded = false;
-      avatarState.image = null;
-      if (avatarState.src) {
-        loadAvatar(avatarState.src, () => {
-          draw(playerName, stack, highlight, status, avatarState.src);
-          texture.needsUpdate = true;
-        });
-      }
-    }
-
+  const draw = (playerName, stack, highlight, status) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = highlight ? 'rgba(59,130,246,0.32)' : 'rgba(15,23,42,0.78)';
     ctx.strokeStyle = highlight ? '#60a5fa' : 'rgba(255,255,255,0.18)';
@@ -1072,34 +1025,6 @@ function makeNameplate(name, chips, avatar, renderer) {
     roundRect(ctx, 16, 16, canvas.width - 32, canvas.height - 32, 36);
     ctx.fill();
     ctx.stroke();
-
-    if (avatarState.src) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(avatarCenterX, avatarCenterY, LABEL_AVATAR_SIZE / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      if (avatarState.loaded && avatarState.image) {
-        ctx.drawImage(avatarState.image, avatarX, avatarY, LABEL_AVATAR_SIZE, LABEL_AVATAR_SIZE);
-      } else {
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(avatarX, avatarY, LABEL_AVATAR_SIZE, LABEL_AVATAR_SIZE);
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = '700 96px "Inter", system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(avatarState.src, avatarCenterX, avatarCenterY + 6);
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'alphabetic';
-      }
-      ctx.restore();
-      ctx.beginPath();
-      ctx.arc(avatarCenterX, avatarCenterY, LABEL_AVATAR_SIZE / 2, 0, Math.PI * 2);
-      ctx.strokeStyle = highlight ? '#bfdbfe' : 'rgba(248,250,252,0.65)';
-      ctx.lineWidth = 8;
-      ctx.stroke();
-    }
-
     ctx.fillStyle = '#f8fafc';
     ctx.font = '700 72px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'top';
@@ -1114,15 +1039,12 @@ function makeNameplate(name, chips, avatar, renderer) {
       ctx.fillText(status, canvas.width - 40, 140);
       ctx.textAlign = 'left';
     }
-    if (texture) {
-      texture.needsUpdate = true;
-    }
   };
-  texture = new THREE.CanvasTexture(canvas);
+  draw(name, chips, false, '');
+  const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
   texture.needsUpdate = true;
-  draw(name, chips, false, '', avatarState.src);
   const material = new THREE.MeshBasicMaterial({
     map: texture,
     transparent: true,
@@ -2389,8 +2311,6 @@ function TexasHoldemArena({ search }) {
         group.position.copy(seat.seatPos);
         group.lookAt(new THREE.Vector3(0, seat.seatPos.y, 0));
 
-        const player = initialPlayers[seatIndex];
-
         const chairModel = chairTemplate.clone(true);
         const chairMeshes = [];
         chairModel.traverse((obj) => {
@@ -2453,12 +2373,7 @@ function TexasHoldemArena({ search }) {
         hoverChip.visible = false;
         arenaGroup.add(hoverChip);
 
-        const nameplate = makeNameplate(
-          player?.name ?? `Player ${seatIndex + 1}`,
-          Math.round(player?.chips ?? 1000) || 0,
-          player?.avatar ?? player?.flag ?? '',
-          renderer
-        );
+        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer);
         nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
         arenaGroup.add(nameplate);
 
@@ -2498,15 +2413,10 @@ function TexasHoldemArena({ search }) {
         const labelOffset = seat.forward.clone().setLength(labelForward).add(new THREE.Vector3(0, labelLift, 0));
         nameplate.position.copy(seat.seatPos.clone().add(labelOffset));
 
+        const { player } = seat;
         if (player) {
           const labelFace = nameplate.material?.map ?? null;
-          labelFace?.userData?.update?.(
-            player.name ?? `Player ${seatIndex + 1}`,
-            Math.round(player.chips) || 0,
-            false,
-            '',
-            player.avatar ?? player.flag ?? ''
-          );
+          labelFace?.userData?.update?.(player.name ?? `Player ${seatIndex + 1}`, Math.round(player.chips) || 0, false, '');
           const cardValues = player.hand?.map?.((card) => cardKey(card));
           const hasCards = cardValues?.length;
           cardMeshes.forEach((mesh, idx) => {
@@ -2608,9 +2518,8 @@ function TexasHoldemArena({ search }) {
             const lookTarget = position
               .clone()
               .add(new THREE.Vector3(0, HUMAN_CARD_LOOK_LIFT, 0))
-              .addScaledVector(forward, -HUMAN_CARD_LOOK_SPLAY);
-            orientCard(mesh, lookTarget, { face: 'front', flat: false });
-            mesh.rotateX(-HUMAN_CARD_TILT);
+              .addScaledVector(forward, HUMAN_CARD_LOOK_SPLAY);
+            orientCard(mesh, lookTarget, { face: 'front', flat: true });
             setCardFace(mesh, 'front');
           });
         };
@@ -2984,25 +2893,18 @@ function TexasHoldemArena({ search }) {
           setCardHighlight(mesh, false);
           return;
         }
-        const forwardOffset = player.isHuman ? HUMAN_CARD_FORWARD_OFFSET : CARD_FORWARD_OFFSET;
         const position = baseAnchor
           .clone()
-          .addScaledVector(forward, forwardOffset)
+          .addScaledVector(forward, CARD_FORWARD_OFFSET)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_SPREAD));
-        position.y = TABLE_HEIGHT + (player.isHuman ? HUMAN_CARD_VERTICAL_OFFSET : CARD_VERTICAL_OFFSET);
+        position.y = TABLE_HEIGHT + CARD_VERTICAL_OFFSET;
         mesh.position.copy(position);
-        const lookLift = player.isHuman ? HUMAN_CARD_LOOK_LIFT : CARD_LOOK_LIFT;
-        const lookSplay = player.isHuman ? -HUMAN_CARD_LOOK_SPLAY : CARD_LOOK_SPLAY;
         const lookTarget = seat.stoolAnchor
           .clone()
-          .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + lookLift, 0))
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * lookSplay))
-          .addScaledVector(forward, player.isHuman ? HUMAN_CARD_FORWARD_OFFSET * -0.25 : 0);
+          .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY));
         const face = player.isHuman || state.showdown ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: false });
-        if (player.isHuman) {
-          mesh.rotateX(-HUMAN_CARD_TILT);
-        }
         setCardFace(mesh, face);
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
@@ -3057,17 +2959,15 @@ function TexasHoldemArena({ search }) {
 
       const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
       if (highlight) {
-        const railAnchor = seat.chipRailAnchor ?? seat.cardRailAnchor;
-        turnTarget = railAnchor
+        turnTarget = seat.cardRailAnchor
           .clone()
-          .add(new THREE.Vector3(0, TURN_TOKEN_LIFT, 0))
-          .addScaledVector(seat.forward, -TURN_TOKEN_FORWARD_OFFSET);
+          .add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET));
         turnForward = seat.forward.clone();
       }
       const label = seat.nameplate;
       if (label?.userData?.update) {
         const status = player.status || '';
-        label.userData.update(player.name, chipsAmount, highlight, status, player.avatar ?? player.flag ?? '');
+        label.userData.update(player.name, chipsAmount, highlight, status);
         label.userData.texture.needsUpdate = true;
       }
 
