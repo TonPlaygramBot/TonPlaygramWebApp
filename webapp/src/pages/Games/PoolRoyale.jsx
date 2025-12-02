@@ -904,18 +904,10 @@ const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without explodin
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // plywood core wrapped in cloth to support the playfield
-const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.02; // thin air gap so the cloth sits cleanly on top of the plywood
-const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.032; // preserve the additional drop for cloth sleeves beneath the plywood edge
-const CLOTH_EXTENDED_DEPTH =
-  CLOTH_THICKNESS + CLOTH_UNDERLAY_GAP + CLOTH_UNDERLAY_EXTRA_DROP + CLOTH_UNDERLAY_THICKNESS; // wrap the cloth down to replace the removed underlay
-const CLOTH_SHADOW_BOARD_THICKNESS = TABLE.THICK * 0.12; // thicker cloth-wrapped support to catch shadows beneath the felt
-const CLOTH_SHADOW_BOARD_GAP = TABLE.THICK * 0.01; // small offset so the board sits just under the cloth without z-fighting
-const CLOTH_SHADOW_BOARD_OVERSCAN = BALL_R * 0.8; // slightly oversize the board so it fully covers the cloth footprint
-const CLOTH_SHADOW_COVER_THICKNESS = TABLE.THICK * 0.14; // concealed wooden cover that blocks direct light spill onto the carpet
-const CLOTH_SHADOW_COVER_GAP = TABLE.THICK * 0.035; // keep a slim air gap so dropped balls pass cleanly into the pockets
-const CLOTH_SHADOW_COVER_EDGE_INSET = TABLE.THICK * 0.02; // tuck the shadow cover inside the cushion line so it remains hidden
-const CLOTH_SHADOW_COVER_HOLE_RADIUS = BALL_R * 1.2; // allow just enough clearance for balls to fall through without exposing light
+const CLOTH_UNDERLAY_THICKNESS = 0; // remove the plywood board beneath the cloth
+const CLOTH_UNDERLAY_GAP = 0; // eliminate the air gap between the cloth and the removed board
+const CLOTH_UNDERLAY_EXTRA_DROP = 0; // keep the cloth wrap tight without extra drop
+const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS; // wrap only the cloth depth now that the underlay is gone
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
@@ -946,9 +938,8 @@ const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
-const POCKET_BOARD_TOUCH_OFFSET = MICRO_EPS * 0.25; // keep a microscopic offset so the pocket rim visibly kisses the cloth wrap without z-fighting
-const SIDE_POCKET_PLYWOOD_LIFT =
-  CLOTH_UNDERLAY_THICKNESS + CLOTH_UNDERLAY_EXTRA_DROP; // raise middle pockets so their rims rest directly against the plywood underlay
+const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
+const SIDE_POCKET_PLYWOOD_LIFT = 0; // remove the underlay lift so pocket rims sit flush on the cloth
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.72 +
   POCKET_VIS_R * 3.15 +
@@ -5500,30 +5491,6 @@ function Table3D(
   clothEdgeMat.sheen = 0;
   clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
-  const underlayTopMat = clothMat.clone();
-  underlayTopMat.color.copy(clothColor);
-  underlayTopMat.metalness = 0;
-  underlayTopMat.roughness = 1;
-  underlayTopMat.sheen = 0;
-  underlayTopMat.clearcoat = 0;
-  underlayTopMat.clearcoatRoughness = 1;
-  underlayTopMat.envMapIntensity = 0;
-  underlayTopMat.reflectivity = 0;
-  underlayTopMat.emissive.set(0x000000);
-  underlayTopMat.emissiveIntensity = 0;
-  underlayTopMat.needsUpdate = true;
-  const underlayEdgeMat = clothEdgeMat.clone();
-  underlayEdgeMat.color.copy(clothColor);
-  underlayEdgeMat.metalness = 0;
-  underlayEdgeMat.roughness = 1;
-  underlayEdgeMat.sheen = 0;
-  underlayEdgeMat.clearcoat = 0;
-  underlayEdgeMat.clearcoatRoughness = 1;
-  underlayEdgeMat.envMapIntensity = 0;
-  underlayEdgeMat.reflectivity = 0;
-  underlayEdgeMat.emissive.copy(clothEdgeMat.emissive);
-  underlayEdgeMat.emissiveIntensity = clothEdgeMat.emissiveIntensity;
-  underlayEdgeMat.needsUpdate = true;
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -5806,52 +5773,6 @@ function Table3D(
     pocketEdgeStopY
   );
   finishParts.clothEdgeMeshes.push(...pocketCutStripes);
-  // Keep the underlay apertures exactly matched to the cloth cutouts so no
-  // reflective wood peeks through around the middle pockets.
-  const plywoodShape = buildSurfaceShape(
-    POCKET_HOLE_R,
-    -CLOTH_SHADOW_BOARD_OVERSCAN
-  );
-  const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
-    depth: CLOTH_UNDERLAY_THICKNESS,
-    bevelEnabled: false,
-    curveSegments: 80,
-    steps: 1
-  });
-  plywoodGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
-  const plywood = new THREE.Mesh(plywoodGeo, [underlayTopMat, underlayEdgeMat]);
-  plywood.rotation.x = -Math.PI / 2;
-  plywood.position.y = cloth.position.y - CLOTH_THICKNESS - CLOTH_UNDERLAY_GAP;
-  plywood.renderOrder = cloth.renderOrder - 2;
-  plywood.receiveShadow = true;
-  table.add(plywood);
-  const shadowBoardShape = buildSurfaceShape(
-    POCKET_HOLE_R,
-    -CLOTH_SHADOW_BOARD_OVERSCAN
-  );
-  const shadowBoardGeo = new THREE.ExtrudeGeometry(shadowBoardShape, {
-    depth: CLOTH_SHADOW_BOARD_THICKNESS,
-    bevelEnabled: false,
-    curveSegments: 80,
-    steps: 1
-  });
-  shadowBoardGeo.translate(0, 0, -CLOTH_SHADOW_BOARD_THICKNESS);
-  const shadowBoardMat = clothMat.clone();
-  shadowBoardMat.color = clothMat.color.clone();
-  shadowBoardMat.roughness = 1;
-  shadowBoardMat.metalness = 0;
-  shadowBoardMat.clearcoat = 0;
-  shadowBoardMat.sheen = 0;
-  shadowBoardMat.envMapIntensity = 0;
-  shadowBoardMat.side = THREE.DoubleSide;
-  shadowBoardMat.needsUpdate = true;
-  const shadowBoard = new THREE.Mesh(shadowBoardGeo, shadowBoardMat);
-  shadowBoard.rotation.x = -Math.PI / 2;
-  shadowBoard.position.y = cloth.position.y - CLOTH_SHADOW_BOARD_GAP;
-  shadowBoard.renderOrder = cloth.renderOrder - 2.5;
-  shadowBoard.receiveShadow = true;
-  shadowBoard.castShadow = false;
-  table.add(shadowBoard);
   // Leave the pocket apertures completely open so the pocket geometry remains visible.
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
   const clothEdgeBottomY = clothBottomY - MICRO_EPS;
@@ -5889,32 +5810,6 @@ function Table3D(
     }
     clothEdgeMat.needsUpdate = true;
   }
-
-  const shadowCoverShape = buildSurfaceShape(
-    CLOTH_SHADOW_COVER_HOLE_RADIUS,
-    CLOTH_SHADOW_COVER_EDGE_INSET
-  );
-  const shadowCoverGeo = new THREE.ExtrudeGeometry(shadowCoverShape, {
-    depth: CLOTH_SHADOW_COVER_THICKNESS,
-    bevelEnabled: false,
-    curveSegments: 64,
-    steps: 1
-  });
-  shadowCoverGeo.translate(0, 0, -CLOTH_SHADOW_COVER_THICKNESS);
-  const shadowCoverMat = railMat.clone();
-  shadowCoverMat.side = THREE.DoubleSide;
-  shadowCoverMat.transparent = true;
-  shadowCoverMat.opacity = 0;
-  shadowCoverMat.depthWrite = true;
-  shadowCoverMat.colorWrite = false;
-  shadowCoverMat.needsUpdate = true;
-  const clothShadowCover = new THREE.Mesh(shadowCoverGeo, shadowCoverMat);
-  clothShadowCover.rotation.x = -Math.PI / 2;
-  clothShadowCover.position.y = clothBottomY - CLOTH_SHADOW_COVER_GAP;
-  clothShadowCover.castShadow = true;
-  clothShadowCover.receiveShadow = true;
-  clothShadowCover.renderOrder = cloth.renderOrder - 3;
-  table.add(clothShadowCover);
 
   const markingsGroup = new THREE.Group();
   const markingMat = new THREE.MeshBasicMaterial({
