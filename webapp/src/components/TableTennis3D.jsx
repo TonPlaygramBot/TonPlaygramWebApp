@@ -766,6 +766,13 @@ export default function TableTennis3D({ player, ai }){
     carpet.receiveShadow = true;
     scene.add(carpet);
 
+    // Arena collision extents (local table space, compensate for scale)
+    const arenaBounds = {
+      halfX: floorSize * 0.5 / S - 0.3,
+      halfZ: floorSize * 0.5 / S - 0.3,
+      floorY: 0,
+    };
+
     // walls (reuse Chess Battle Royal material)
     const wallMat = createArenaWallMaterial();
     if (wallSettings.color !== undefined) {
@@ -1041,6 +1048,12 @@ export default function TableTennis3D({ player, ai }){
       netRest: physicsSettings.netRest ?? 0.36,
       forceScale: physicsSettings.forceScale ?? 0.86,
       spinTransfer: physicsSettings.spinTransfer ?? 0.34,
+      netDrag: physicsSettings.netDrag ?? 0.18,
+      wallRest: physicsSettings.wallRest ?? 0.62,
+      wallFriction: physicsSettings.wallFriction ?? 0.08,
+      floorRest: physicsSettings.floorRest ?? 0.52,
+      floorFriction: physicsSettings.floorFriction ?? 0.14,
+      netKill: physicsSettings.netKill ?? 0.42,
       state: 'serve',
       lastTouch: null,
       bounces: { P: 0, O: 0 },
@@ -1051,6 +1064,7 @@ export default function TableTennis3D({ player, ai }){
       simVel: new THREE.Vector3(),
       tmpV0: new THREE.Vector3(),
       tmpV1: new THREE.Vector3(),
+      pendingFault: false,
     };
     let playerSwing = null;
 
@@ -1061,6 +1075,7 @@ export default function TableTennis3D({ player, ai }){
       Sx.lastTouch=null;
       Sx.bounces.P = 0;
       Sx.bounces.O = 0;
+      Sx.pendingFault = false;
       Sx.serveProgress = 'awaitServeHit';
       Sx.serveTimer = Srv.side === 'P' ? serveTimers.player : serveTimers.opponent;
       const side = Srv.side;
@@ -1330,10 +1345,12 @@ export default function TableTennis3D({ player, ai }){
           0,
           THREE.MathUtils.clamp(ball.position.z, bounds.zFar, bounds.zNear)
         );
+        const clampedBallZ = Math.min(focusVector.z, playerBaseZ + 0.12);
+        const paddleLeadZ = THREE.MathUtils.lerp(depth, playerBaseZ, 0.32);
         followTarget.set(
           THREE.MathUtils.lerp(lateral * 1.08, focusVector.x, rallyBlend),
           0,
-          THREE.MathUtils.lerp(depth, focusVector.z, rallyBlend)
+          THREE.MathUtils.lerp(paddleLeadZ, clampedBallZ, rallyBlend * 0.9)
         );
       }
 
@@ -1549,6 +1566,27 @@ export default function TableTennis3D({ player, ai }){
     }
 
     // ---------- Collisions ----------
+    const resolveSurfaceBounce = (normal, restitution, friction, spinAtten = 0.72) => {
+      const vDot = Sx.v.dot(normal);
+      if (vDot >= 0) return false;
+      const normalImpulse = -(1 + restitution) * vDot;
+      const bounce = Sx.tmpV0.copy(normal).multiplyScalar(normalImpulse);
+      const tangent = Sx.tmpV1.copy(Sx.v).addScaledVector(normal, -vDot);
+      const tangMag = tangent.length();
+      const tangScale = tangMag > 1e-5 ? Math.max(0, 1 - friction) : 1;
+      if (tangMag > 1e-5) tangent.multiplyScalar(tangScale);
+      Sx.v.copy(bounce).add(tangent);
+      Sx.w.multiplyScalar(spinAtten);
+      return true;
+    };
+
+    const queueFault = (winner, delay = 260) => {
+      if (Sx.pendingFault || Sx.state === 'dead') return;
+      Sx.pendingFault = true;
+      Sx.state = 'fault';
+      timers.push(setTimeout(() => pointTo(winner), delay));
+    };
+
     function bounceTable(prev){
       if (Sx.state === 'dead') return false;
       if (prev.y > TABLE_TOP && ball.position.y <= TABLE_TOP){
@@ -1557,20 +1595,15 @@ export default function TableTennis3D({ player, ai }){
         const inBounds = Math.abs(x) <= T.W/2 + BALL_R && Math.abs(z) <= T.L/2 + BALL_R;
         if (!inBounds){
           const side = z >= 0 ? 'P' : 'O';
-          pointTo(side === 'P' ? 'O' : 'P');
+          queueFault(side === 'P' ? 'O' : 'P', 200);
           return true;
         }
 
         const n = Sx.tmpN.set(0, 1, 0);
-        const vDot = Sx.v.dot(n);
-        Sx.v.addScaledVector(n, -(1 + Sx.tableRest) * vDot);
-        const tangent = Sx.tmpV0.copy(Sx.v).addScaledVector(n, -Sx.v.dot(n));
-        const tangentDamp = Math.max(0, 1 - Sx.tableFriction * 0.8);
-        tangent.multiplyScalar(tangentDamp);
-        Sx.v.addScaledVector(n, -Sx.v.dot(n)).add(tangent);
-        const spinSlip = Sx.tmpV1.copy(Sx.w).cross(n).multiplyScalar(BALL_R * 0.12);
+        resolveSurfaceBounce(n, Sx.tableRest, Sx.tableFriction, 0.78);
+        const spinSlip = Sx.tmpV1.copy(Sx.w).cross(n).multiplyScalar(BALL_R * 0.1);
         Sx.v.add(spinSlip);
-        Sx.w.multiplyScalar(0.72);
+        Sx.w.multiplyScalar(0.82);
         ball.position.y = TABLE_TOP;
 
         const side = z >= 0 ? 'P' : 'O';
@@ -1582,7 +1615,7 @@ export default function TableTennis3D({ player, ai }){
             if (side === Srv.side){
               Sx.serveProgress = 'awaitReceiverBounce';
             } else {
-              pointTo(other);
+              queueFault(other, 160);
               return true;
             }
           } else if (Sx.serveProgress === 'awaitReceiverBounce'){
@@ -1591,13 +1624,13 @@ export default function TableTennis3D({ player, ai }){
               Sx.serveProgress = 'live';
               Sx.bounces[other] = 0;
             } else {
-              pointTo(other);
+              queueFault(other, 160);
               return true;
             }
           }
         } else if (Sx.state === 'rally'){
           if (Sx.lastTouch === side){
-            pointTo(other);
+            queueFault(other, 160);
             return true;
           } else {
             Sx.bounces[other] = 0;
@@ -1607,8 +1640,36 @@ export default function TableTennis3D({ player, ai }){
       return false;
     }
 
+    function bounceArenaSurfaces(){
+      let collided = false;
+      if (ball.position.y <= arenaBounds.floorY + BALL_R){
+        ball.position.y = arenaBounds.floorY + BALL_R;
+        resolveSurfaceBounce(Sx.tmpN.set(0, 1, 0), Sx.floorRest, Sx.floorFriction, 0.6);
+        Sx.v.multiplyScalar(0.98);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
+        collided = true;
+      }
+
+      if (Math.abs(ball.position.x) >= arenaBounds.halfX - BALL_R * 0.5){
+        const sign = ball.position.x >= 0 ? 1 : -1;
+        ball.position.x = sign * (arenaBounds.halfX - BALL_R * 0.5);
+        resolveSurfaceBounce(Sx.tmpN.set(sign, 0, 0), Sx.wallRest, Sx.wallFriction, 0.76);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
+        collided = true;
+      }
+
+      if (Math.abs(ball.position.z) >= arenaBounds.halfZ - BALL_R * 0.5){
+        const sign = ball.position.z >= 0 ? 1 : -1;
+        ball.position.z = sign * (arenaBounds.halfZ - BALL_R * 0.5);
+        resolveSurfaceBounce(Sx.tmpN.set(0, 0, sign), Sx.wallRest, Sx.wallFriction, 0.76);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
+        collided = true;
+      }
+      return collided;
+    }
+
     function hitPaddle(paddle, who, paddleVel){
-      if (Sx.state === 'dead') return false;
+      if (Sx.state === 'dead' || Sx.pendingFault || Sx.state === 'fault') return false;
       if (Sx.state === 'serve' && who !== Srv.side && Sx.serveProgress !== 'live') return false;
       const { headAnchor, headRadius = (0.092 * PADDLE_SCALE) } = paddle.userData || {};
       if (!headAnchor) return false;
@@ -1702,6 +1763,7 @@ export default function TableTennis3D({ player, ai }){
     }
 
     function hitNet(prev){
+      if (Sx.pendingFault) return;
       const prevZ = prev.z;
       const currZ = ball.position.z;
       const crossed = (prevZ > 0 && currZ <= 0) || (prevZ < 0 && currZ >= 0);
@@ -1710,15 +1772,18 @@ export default function TableTennis3D({ player, ai }){
       const t = THREE.MathUtils.clamp((0 - prevZ) / denom, 0, 1);
       const yAtNet = THREE.MathUtils.lerp(prev.y, ball.position.y, t);
       const xAtNet = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
-      if (Math.abs(xAtNet) <= T.W / 2 + BALL_R * 0.5 && yAtNet < NET_TOP + BALL_R * 0.35){
+      if (Math.abs(xAtNet) <= T.W / 2 + BALL_R * 0.5 && yAtNet < NET_TOP + BALL_R * 0.4){
         const push = BALL_R * 0.6;
         const sign = prevZ > 0 ? 1 : -1;
         ball.position.z = sign * push;
         ball.position.x = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
         ball.position.y = Math.max(yAtNet, TABLE_TOP);
-        Sx.v.z *= -Sx.netRest;
-        Sx.v.x *= 0.9;
-        Sx.v.y *= 0.7;
+        const n = Sx.tmpN.set(0, 0, sign);
+        resolveSurfaceBounce(n, Sx.netRest * 0.9, 0.42, 0.5);
+        Sx.v.multiplyScalar(1 - Sx.netDrag);
+        Sx.v.y = Math.max(Sx.v.y - Sx.netKill, -Math.abs(Sx.v.y) * 0.6);
+        Sx.w.multiplyScalar(0.4);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 120);
       }
     }
 
@@ -1756,6 +1821,7 @@ export default function TableTennis3D({ player, ai }){
       Sx.state = 'dead';
       Sx.v.set(0,0,0);
       Sx.w.set(0,0,0);
+      Sx.pendingFault = false;
       Sx.lastTouch = null;
       Sx.bounces.P = 0;
       Sx.bounces.O = 0;
@@ -1773,27 +1839,32 @@ export default function TableTennis3D({ player, ai }){
     }
 
     function checkFaults(){
-      if (Sx.state === 'dead') return true;
+      if (Sx.state === 'dead' || Sx.pendingFault) return true;
       const x = ball.position.x;
       const z = ball.position.z;
       const y = ball.position.y;
       if (y < TABLE_TOP - BALL_R * 0.6){
         if (Math.abs(x) > T.W/2 + BALL_R || Math.abs(z) > T.L/2 + BALL_R){
           const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
-          pointTo(winner);
+          queueFault(winner, 200);
+          return true;
+        }
+        if (y <= arenaBounds.floorY + BALL_R * 1.1){
+          const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
+          queueFault(winner, 180);
           return true;
         }
       }
       if (Math.abs(z) < BALL_R * 1.2 && y < TABLE_TOP + BALL_R * 0.1){
         const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
-        pointTo(winner);
+        queueFault(winner, 120);
         return true;
       }
       if (Sx.state === 'serve' && Sx.serveProgress === 'awaitReceiverBounce'){
         const receiver = Srv.side === 'P' ? 'O' : 'P';
         const receiverSign = receiver === 'P' ? 1 : -1;
         if (z * receiverSign > T.L/2 + BALL_R){
-          pointTo(receiver);
+          queueFault(receiver, 200);
           return true;
         }
       }
@@ -1865,6 +1936,7 @@ export default function TableTennis3D({ player, ai }){
       const scored = bounceTable(prevBall);
       if (!scored){
         hitNet(prevBall);
+        bounceArenaSurfaces();
         hitPaddle(player, 'P', playerVel);
         hitPaddle(opp, 'O', oppVel);
         checkFaults();
