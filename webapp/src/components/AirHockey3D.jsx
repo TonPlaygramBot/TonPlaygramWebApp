@@ -919,8 +919,8 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     );
     const cameraAnchor = new THREE.Vector3(
       0,
-      elevatedTableSurfaceY + TABLE.h * 0.28,
-      tableCenterZ + playerRailZ + railThickness * 0.18
+      elevatedTableSurfaceY + TABLE.h * 0.32,
+      tableCenterZ + playerRailZ + railThickness * 0.35
     );
     const cameraDirection = new THREE.Vector3()
       .subVectors(cameraAnchor, cameraFocus)

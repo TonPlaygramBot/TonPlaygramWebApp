@@ -423,7 +423,6 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56; // extend fascia span toward the corners without widening the inner edge
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 0.72; // bias the side chrome growth toward the corner pockets only
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTER_RADIUS_SCALE = 0.92; // mirror the wooden rail curvature on the fascia's exterior edge only
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.136; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
@@ -444,9 +443,7 @@ function buildChromePlateGeometry({
   corner = 'topLeft',
   notchMP = null,
   shapeSegments = 96,
-  flat = false,
-  outerRadius = null,
-  outerRadiusSign = 1
+  flat = false
 }) {
   const shape = new THREE.Shape();
   const hw = width / 2;
@@ -462,66 +459,25 @@ function buildChromePlateGeometry({
     typeof corner === 'string' && corner.toLowerCase().startsWith('side');
 
   if (isSidePlate) {
-    const innerRadius = Math.max(
+    const rectRadius = Math.max(
       0,
       Math.min(r, Math.min(width, height) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE)
     );
-    const targetOuterRadius = Number.isFinite(outerRadius)
-      ? Math.abs(outerRadius)
-      : innerRadius;
-    const resolvedOuterRadius = Math.min(
-      Math.max(innerRadius, targetOuterRadius),
-      Math.min(width, height) / 2
-    );
-    const outerSign = Math.sign(outerRadiusSign) || 1;
-    const leftRadius = outerSign < 0 ? resolvedOuterRadius : innerRadius;
-    const rightRadius = outerSign > 0 ? resolvedOuterRadius : innerRadius;
-
-    const topStartX = -hw + leftRadius;
+    const topStartX = -hw + rectRadius;
     shape.moveTo(topStartX, hh);
-    shape.lineTo(hw - rightRadius, hh);
-    if (rightRadius > MICRO_EPS) {
-      shape.absarc(
-        hw - rightRadius,
-        hh - rightRadius,
-        rightRadius,
-        Math.PI / 2,
-        0,
-        true
-      );
+    shape.lineTo(hw - rectRadius, hh);
+    if (rectRadius > MICRO_EPS) {
+      shape.absarc(hw - rectRadius, hh - rectRadius, rectRadius, Math.PI / 2, 0, true);
+      shape.lineTo(hw, -hh + rectRadius);
+      shape.absarc(hw - rectRadius, -hh + rectRadius, rectRadius, 0, -Math.PI / 2, true);
+      shape.lineTo(-hw + rectRadius, -hh);
+      shape.absarc(-hw + rectRadius, -hh + rectRadius, rectRadius, -Math.PI / 2, -Math.PI, true);
+      shape.lineTo(-hw, hh - rectRadius);
+      shape.absarc(-hw + rectRadius, hh - rectRadius, rectRadius, Math.PI, Math.PI / 2, true);
     } else {
       shape.lineTo(hw, hh);
-    }
-    shape.lineTo(hw, -hh + rightRadius);
-    if (rightRadius > MICRO_EPS) {
-      shape.absarc(
-        hw - rightRadius,
-        -hh + rightRadius,
-        rightRadius,
-        0,
-        -Math.PI / 2,
-        true
-      );
-    } else {
       shape.lineTo(hw, -hh);
-    }
-    shape.lineTo(-hw + leftRadius, -hh);
-    if (leftRadius > MICRO_EPS) {
-      shape.absarc(
-        -hw + leftRadius,
-        -hh + leftRadius,
-        leftRadius,
-        -Math.PI / 2,
-        -Math.PI,
-        true
-      );
-    } else {
       shape.lineTo(-hw, -hh);
-    }
-    shape.lineTo(-hw, hh - leftRadius);
-    if (leftRadius > MICRO_EPS) {
-      shape.absarc(-hw + leftRadius, hh - leftRadius, leftRadius, Math.PI, Math.PI / 2, true);
-    } else {
       shape.lineTo(-hw, hh);
     }
     shape.lineTo(topStartX, hh);
@@ -6175,13 +6131,6 @@ function Table3D(
     chromePlateRadius * 0.3,
     Math.min(sideChromePlateWidth, sideChromePlateHeight) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
   );
-  const sideChromePlateOuterRadius = Math.min(
-    Math.max(
-      sideChromePlateRadius,
-      outerCornerRadius * CHROME_SIDE_PLATE_OUTER_RADIUS_SCALE
-    ),
-    Math.min(sideChromePlateWidth, sideChromePlateHeight) / 2
-  );
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
@@ -6531,9 +6480,7 @@ function Table3D(
         thickness: sideChromePlateThickness,
         corner: id,
         notchMP: notchLocalMP,
-        shapeSegments: chromePlateShapeSegments,
-        outerRadius: sideChromePlateOuterRadius,
-        outerRadiusSign: sx
+        shapeSegments: chromePlateShapeSegments
       }),
       chromePlateMat
     );
