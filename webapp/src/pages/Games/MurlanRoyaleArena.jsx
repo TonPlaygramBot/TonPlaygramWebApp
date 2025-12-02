@@ -346,8 +346,8 @@ const ARM_HEIGHT = 0.3 * MODEL_SCALE * STOOL_SCALE;
 const ARM_DEPTH = SEAT_DEPTH * 0.75;
 const BASE_COLUMN_HEIGHT = 0.5 * MODEL_SCALE * STOOL_SCALE;
 const BASE_TABLE_HEIGHT = 1.08 * MODEL_SCALE;
-const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.82 * CHAIR_SIZE_SCALE;
-const HUMAN_CHAIR_PULLBACK = 0.18 * MODEL_SCALE * CHAIR_SIZE_SCALE;
+const BASE_HUMAN_CHAIR_RADIUS = 5.6 * MODEL_SCALE * ARENA_GROWTH * 0.72 * CHAIR_SIZE_SCALE;
+const HUMAN_CHAIR_PULLBACK = 0.05 * MODEL_SCALE * CHAIR_SIZE_SCALE;
 const CHAIR_RADIUS = BASE_HUMAN_CHAIR_RADIUS + HUMAN_CHAIR_PULLBACK;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -434,7 +434,7 @@ export default function MurlanRoyaleArena({ search }) {
     tableInfo: null,
     chairMaterials: null,
     chairTemplate: null,
-    outfitParts: null,
+    outfitParts: [],
     cardThemeId: '',
     appearance: { ...DEFAULT_APPEARANCE }
   });
@@ -1111,29 +1111,6 @@ export default function MurlanRoyaleArena({ search }) {
       threeStateRef.current.chairMaterials = chairBuild.materials;
       applyChairThemeMaterials(threeStateRef.current, stoolTheme);
 
-      const outfitBodyMat = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(outfitTheme.baseColor),
-        roughness: 0.55,
-        metalness: 0.35,
-        clearcoat: 0.35,
-        clearcoatRoughness: 0.32,
-        emissive: new THREE.Color(outfitTheme.glow || '#000000'),
-        emissiveIntensity: 0.25
-      });
-      const outfitAccentMat = new THREE.MeshPhysicalMaterial({
-        color: new THREE.Color(outfitTheme.accentColor),
-        roughness: 0.42,
-        metalness: 0.62,
-        clearcoat: 0.45,
-        clearcoatRoughness: 0.2
-      });
-      const headMat = new THREE.MeshPhysicalMaterial({
-        color: '#f9e0d0',
-        roughness: 0.78,
-        metalness: 0.12,
-        clearcoat: 0.15,
-        clearcoatRoughness: 0.35
-      });
       const avatarRadius = 0.32 * MODEL_SCALE;
       const avatarHeight = 0.9 * MODEL_SCALE;
       const baseHeight = avatarHeight * 0.24;
@@ -1142,11 +1119,20 @@ export default function MurlanRoyaleArena({ search }) {
       const headHeight = leftoverHeight * 0.65;
       const crestHeight = Math.max(leftoverHeight - headHeight, avatarHeight * 0.08);
 
-      threeStateRef.current.outfitParts = {
-        bodyMaterial: outfitBodyMat,
-        accentMaterial: outfitAccentMat,
-        headMaterial: headMat
-      };
+      const accentTarget = new THREE.Color('#e8f3ff');
+      const sheenBlend = 0.55;
+      const accentBlend = 0.58;
+      const coreRoughness = 0.32;
+      const coreMetalness = 0.45;
+      const coreClearcoat = 0.36;
+      const coreClearcoatRoughness = 0.22;
+      const coreSheen = 0.35;
+      const accentRoughness = 0.24;
+      const accentMetalness = 0.82;
+      const accentClearcoat = 0.18;
+      const accentClearcoatRoughness = 0.25;
+
+      const avatarMaterials = [];
       const chairRadius = CHAIR_RADIUS;
       const seatDepth = SEAT_DEPTH;
       const seatThickness = SEAT_THICKNESS;
@@ -1164,9 +1150,27 @@ export default function MurlanRoyaleArena({ search }) {
 
         const occupant = new THREE.Group();
         occupant.position.z = -seatDepth * 0.12;
+        const playerColor = new THREE.Color(player?.color || PLAYER_COLORS[i % PLAYER_COLORS.length]);
+        const coreMaterial = new THREE.MeshPhysicalMaterial({
+          color: playerColor.clone(),
+          roughness: coreRoughness,
+          metalness: coreMetalness,
+          clearcoat: coreClearcoat,
+          clearcoatRoughness: coreClearcoatRoughness,
+          sheen: coreSheen,
+          sheenColor: playerColor.clone().lerp(accentTarget, sheenBlend)
+        });
+        const accentMaterial = new THREE.MeshPhysicalMaterial({
+          color: playerColor.clone().lerp(accentTarget, accentBlend),
+          roughness: accentRoughness,
+          metalness: accentMetalness,
+          clearcoat: accentClearcoat,
+          clearcoatRoughness: accentClearcoatRoughness
+        });
+
         const base = new THREE.Mesh(
           new THREE.CylinderGeometry(avatarRadius * 1.45, avatarRadius * 1.65, baseHeight, 48),
-          outfitAccentMat
+          accentMaterial
         );
         base.position.y = seatThickness / 2 + baseHeight / 2;
         base.castShadow = true;
@@ -1175,21 +1179,24 @@ export default function MurlanRoyaleArena({ search }) {
 
         const body = new THREE.Mesh(
           new THREE.CylinderGeometry(avatarRadius * 1.05, avatarRadius * 0.82, bodyHeight, 48),
-          outfitBodyMat
+          coreMaterial
         );
         body.position.y = base.position.y + baseHeight / 2 + bodyHeight / 2;
         body.castShadow = true;
         body.receiveShadow = true;
         occupant.add(body);
 
-        const collar = new THREE.Mesh(new THREE.TorusGeometry(avatarRadius * 0.95, avatarHeight * 0.06, 24, 48), outfitAccentMat);
+        const collar = new THREE.Mesh(new THREE.TorusGeometry(avatarRadius * 0.95, avatarHeight * 0.06, 24, 48), accentMaterial);
         collar.rotation.x = Math.PI / 2;
         collar.position.y = base.position.y + baseHeight / 2 + bodyHeight * 0.78;
         collar.castShadow = true;
         collar.receiveShadow = true;
         occupant.add(collar);
 
-        const head = new THREE.Mesh(new RoundedBoxGeometry(avatarRadius * 1.3, headHeight, avatarRadius * 1.3, 6, avatarRadius * 0.45), headMat);
+        const head = new THREE.Mesh(
+          new RoundedBoxGeometry(avatarRadius * 1.3, headHeight, avatarRadius * 1.3, 6, avatarRadius * 0.45),
+          coreMaterial
+        );
         head.position.y = base.position.y + baseHeight / 2 + bodyHeight + headHeight / 2;
         head.castShadow = true;
         head.receiveShadow = true;
@@ -1197,12 +1204,13 @@ export default function MurlanRoyaleArena({ search }) {
 
         const crest = new THREE.Mesh(
           new THREE.CylinderGeometry(avatarRadius * 0.55, avatarRadius * 0.7, crestHeight, 32),
-          outfitAccentMat
+          accentMaterial
         );
         crest.position.y = head.position.y + headHeight / 2 + crestHeight / 2;
         crest.castShadow = true;
         crest.receiveShadow = true;
         occupant.add(crest);
+        avatarMaterials.push(coreMaterial, accentMaterial);
         chair.add(occupant);
 
         const angle = CUSTOM_SEAT_ANGLES[i] ?? Math.PI / 2 - (i / CHAIR_COUNT) * Math.PI * 2;
@@ -1255,6 +1263,7 @@ export default function MurlanRoyaleArena({ search }) {
       const humanSeatIndex = players.findIndex((player) => player?.isHuman);
       const humanSeatConfig = humanSeatIndex >= 0 ? seatConfigs[humanSeatIndex] : null;
 
+      threeStateRef.current.outfitParts = avatarMaterials;
       threeStateRef.current.appearance = { ...currentAppearance };
 
       spotTarget.position.set(0, TABLE_HEIGHT + 0.2 * MODEL_SCALE, 0);
@@ -1469,7 +1478,7 @@ export default function MurlanRoyaleArena({ search }) {
         store.chairTemplate = null;
       }
       if (store.outfitParts) {
-        [store.outfitParts.bodyMaterial, store.outfitParts.accentMaterial, store.outfitParts.headMaterial].forEach((mat) => {
+        store.outfitParts.forEach((mat) => {
           if (mat && typeof mat.dispose === 'function') mat.dispose();
         });
       }
@@ -1494,7 +1503,7 @@ export default function MurlanRoyaleArena({ search }) {
         tableInfo: null,
         chairMaterials: null,
         chairTemplate: null,
-        outfitParts: null,
+        outfitParts: [],
         cardThemeId: '',
         appearance: { ...DEFAULT_APPEARANCE }
       };
@@ -2014,12 +2023,13 @@ function buildPlayers(search) {
   const seedFlags = providedFlags.length
     ? [...providedFlags]
     : [...FLAG_EMOJIS].sort(() => 0.5 - Math.random());
-  return [
+  const basePlayers = [
     { name: username, avatar, isHuman: true },
     seedFlags[0] ? { name: flagName(seedFlags[0]), avatar: seedFlags[0] } : { name: 'Aria', avatar: '🦊' },
     seedFlags[1] ? { name: flagName(seedFlags[1]), avatar: seedFlags[1] } : { name: 'Milo', avatar: '🐻' },
     seedFlags[2] ? { name: flagName(seedFlags[2]), avatar: seedFlags[2] } : { name: 'Sora', avatar: '🐱' }
   ];
+  return basePlayers.map((player, index) => ({ ...player, color: PLAYER_COLORS[index % PLAYER_COLORS.length] }));
 }
 
 function flagName(flag) {
@@ -2347,10 +2357,19 @@ function applyChairThemeMaterials(three, theme) {
 
 function applyOutfitThemeMaterials(three, theme) {
   const parts = three?.outfitParts;
-  if (!parts) return;
-  if (parts.bodyMaterial?.color) parts.bodyMaterial.color.set(theme.baseColor);
-  if (parts.bodyMaterial?.emissive) parts.bodyMaterial.emissive.set(theme.glow || '#000000');
-  if (parts.accentMaterial?.color) parts.accentMaterial.color.set(theme.accentColor);
+  if (!parts?.length) return;
+  const base = theme?.baseColor ? new THREE.Color(theme.baseColor) : null;
+  const accent = theme?.accentColor ? new THREE.Color(theme.accentColor) : null;
+  parts.forEach((mat, index) => {
+    if (!mat?.color) return;
+    if (base) {
+      mat.color.lerp(base, 0.08 + (index % 2) * 0.04);
+    }
+    if (accent && mat.sheenColor) {
+      mat.sheenColor.lerp(accent, 0.12);
+    }
+    mat.needsUpdate = true;
+  });
 }
 
 function applyCardThemeMaterials(three, theme, force = false) {
