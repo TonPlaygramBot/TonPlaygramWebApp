@@ -673,16 +673,23 @@ export function buildDominoArena({ scene, renderer }) {
     scene.environment = envTexture;
   }
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.45);
-  const hemisphere = new THREE.HemisphereLight(0xffffff, 0xb8b19a, 0.55);
-  const key = new THREE.DirectionalLight(0xffffff, 1.6);
-  key.position.set(3.2, 3.6, 2.2);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+  const key = new THREE.DirectionalLight(0xffffff, 1.2);
+  key.position.set(6, 8, 5);
   key.castShadow = true;
   key.shadow.mapSize.set(2048, 2048);
-  const rim = new THREE.DirectionalLight(0xffffff, 0.55);
-  rim.position.set(-2.2, 2.6, -1.4);
+  const fill = new THREE.DirectionalLight(0xffffff, 0.65);
+  fill.position.set(-5, 5.5, 3);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.9);
+  rim.position.set(0, 6, -6);
+  const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
+  spot.position.set(0, 4.2, 4.6);
+  scene.add(spot);
+  const spotTarget = new THREE.Object3D();
+  scene.add(spotTarget);
+  spot.target = spotTarget;
 
-  scene.add(ambient, hemisphere, key, rim);
+  scene.add(ambient, key, fill, rim);
 
   const arena = new THREE.Group();
   scene.add(arena);
@@ -795,11 +802,14 @@ export function buildDominoArena({ scene, renderer }) {
   });
 
   const dispose = () => {
-    [ambient, hemisphere, key, rim].forEach((light) => {
+    [ambient, key, fill, rim, spot].forEach((light) => {
       if (light?.parent) {
         light.parent.remove(light);
       }
     });
+    if (spotTarget?.parent) {
+      spotTarget.parent.remove(spotTarget);
+    }
     const disposables = [
       carpet.geometry,
       carpet.material,
