@@ -248,6 +248,9 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = envTex;
 
+const LIGHT_INTENSITY_FACTOR = 0.78;
+const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
+
 const MODEL_SCALE = 0.75;
 const TABLE_SCALE = 0.85;
 const ARENA_GROWTH = 1.45;
@@ -514,13 +517,20 @@ function toggleCameraViewMode() {
 
 
 /* ---------- Lights ---------- */
-const ambient = new THREE.AmbientLight(0xffffff, 0.62);
+const ambient = new THREE.AmbientLight(0xffffff, dimIntensity(0.62));
 scene.add(ambient);
-const spot = new THREE.SpotLight(0xffffff, 3.24, TABLE_RADIUS * 10, Math.PI / 3, 0.38, 1);
+const spot = new THREE.SpotLight(
+  0xffffff,
+  dimIntensity(3.24),
+  TABLE_RADIUS * 10,
+  Math.PI / 3,
+  0.38,
+  1
+);
 spot.position.set(3, 7, 3);
 spot.castShadow = true;
 scene.add(spot);
-const rimLight = new THREE.PointLight(0x33ccff, 1.12);
+const rimLight = new THREE.PointLight(0x33ccff, dimIntensity(1.12));
 rimLight.position.set(-4, 3, -4);
 scene.add(rimLight);
 
@@ -1151,12 +1161,12 @@ const TABLE_WOOD_OPTIONS = Object.freeze([
 ]);
 
 const TABLE_CLOTH_OPTIONS = Object.freeze([
-  { id: "crimson", label: "Crimson Cloth", feltTop: "#960019", feltBottom: "#4a0012", border: "#210308", emissive: "#210308", emissiveIntensity: 0.42 },
-  { id: "emerald", label: "Emerald Cloth", feltTop: "#0f6a2f", feltBottom: "#054d24", border: "#021a0b", emissive: "#021a0b", emissiveIntensity: 0.42 },
-  { id: "arctic", label: "Arctic Cloth", feltTop: "#2563eb", feltBottom: "#1d4ed8", border: "#071a42", emissive: "#071a42", emissiveIntensity: 0.42 },
-  { id: "sunset", label: "Sunset Cloth", feltTop: "#ea580c", feltBottom: "#c2410c", border: "#320e03", emissive: "#320e03", emissiveIntensity: 0.42 },
-  { id: "violet", label: "Violet Cloth", feltTop: "#7c3aed", feltBottom: "#5b21b6", border: "#1f0a47", emissive: "#1f0a47", emissiveIntensity: 0.42 },
-  { id: "amber", label: "Amber Cloth", feltTop: "#b7791f", feltBottom: "#92571a", border: "#2b1402", emissive: "#2b1402", emissiveIntensity: 0.42 }
+  { id: "crimson", label: "Crimson Cloth", feltTop: "#960019", feltBottom: "#4a0012", border: "#210308", emissive: "#210308", emissiveIntensity: dimIntensity(0.42) },
+  { id: "emerald", label: "Emerald Cloth", feltTop: "#0f6a2f", feltBottom: "#054d24", border: "#021a0b", emissive: "#021a0b", emissiveIntensity: dimIntensity(0.42) },
+  { id: "arctic", label: "Arctic Cloth", feltTop: "#2563eb", feltBottom: "#1d4ed8", border: "#071a42", emissive: "#071a42", emissiveIntensity: dimIntensity(0.42) },
+  { id: "sunset", label: "Sunset Cloth", feltTop: "#ea580c", feltBottom: "#c2410c", border: "#320e03", emissive: "#320e03", emissiveIntensity: dimIntensity(0.42) },
+  { id: "violet", label: "Violet Cloth", feltTop: "#7c3aed", feltBottom: "#5b21b6", border: "#1f0a47", emissive: "#1f0a47", emissiveIntensity: dimIntensity(0.42) },
+  { id: "amber", label: "Amber Cloth", feltTop: "#b7791f", feltBottom: "#92571a", border: "#2b1402", emissive: "#2b1402", emissiveIntensity: dimIntensity(0.42) }
 ]);
 
 const TABLE_BASE_OPTIONS = Object.freeze([
@@ -1190,13 +1200,13 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
       clearcoat: 0.6,
       clearcoatRoughness: 0.05,
       emissive: '#080808',
-      emissiveIntensity: 0.12,
+      emissiveIntensity: dimIntensity(0.12),
       sheen: 0.12
     },
     accent: {
       color: '#d8af37',
       emissive: '#7a5300',
-      emissiveIntensity: 0.52,
+      emissiveIntensity: dimIntensity(0.52),
       metalness: 1.0,
       roughness: 0.22,
       reflectivity: 1.0,
@@ -1225,13 +1235,13 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
       clearcoat: 0.55,
       clearcoatRoughness: 0.03,
       emissive: '#6b87ff',
-      emissiveIntensity: 0.08,
+      emissiveIntensity: dimIntensity(0.08),
       sheen: 0.18
     },
     accent: {
       color: '#d7dce3',
       emissive: '#5b636f',
-      emissiveIntensity: 0.38,
+      emissiveIntensity: dimIntensity(0.38),
       metalness: 1.0,
       roughness: 0.14,
       reflectivity: 1.0,
@@ -1260,13 +1270,13 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
       clearcoat: 0.5,
       clearcoatRoughness: 0.05,
       emissive: '#2a3f63',
-      emissiveIntensity: 0.1,
+      emissiveIntensity: dimIntensity(0.1),
       sheen: 0.2
     },
     accent: {
       color: '#c27c6a',
       emissive: '#5b3126',
-      emissiveIntensity: 0.46,
+      emissiveIntensity: dimIntensity(0.46),
       metalness: 1.0,
       roughness: 0.18,
       reflectivity: 1.0,
@@ -1295,13 +1305,13 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
       clearcoat: 0.55,
       clearcoatRoughness: 0.04,
       emissive: '#215544',
-      emissiveIntensity: 0.08,
+      emissiveIntensity: dimIntensity(0.08),
       sheen: 0.16
     },
     accent: {
       color: '#d0b58f',
       emissive: '#7a5b36',
-      emissiveIntensity: 0.44,
+      emissiveIntensity: dimIntensity(0.44),
       metalness: 0.92,
       roughness: 0.19,
       reflectivity: 0.96,
@@ -1330,13 +1340,13 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
       clearcoat: 0.55,
       clearcoatRoughness: 0.04,
       emissive: '#1c3a6b',
-      emissiveIntensity: 0.09,
+      emissiveIntensity: dimIntensity(0.09),
       sheen: 0.18
     },
     accent: {
       color: '#7a93d2',
       emissive: '#31497a',
-      emissiveIntensity: 0.42,
+      emissiveIntensity: dimIntensity(0.42),
       metalness: 0.95,
       roughness: 0.17,
       reflectivity: 1.0,
@@ -1815,7 +1825,7 @@ const hallwayHandleMaterial = new THREE.MeshStandardMaterial({
   metalness: 1,
   roughness: 0.18,
   emissive: 0xffeab5,
-  emissiveIntensity: 0.28
+  emissiveIntensity: dimIntensity(0.28)
 });
 const hallwayDoorZ = ARENA_WALL_INNER_RADIUS - ARENA_DOOR_DIMENSIONS.thickness * 0.5;
 const hallwayDoorPivot = new THREE.Group();
@@ -1841,7 +1851,7 @@ const hallwayHandlePlate = new THREE.Mesh(
     metalness: 0.95,
     roughness: 0.18,
     emissive: 0xffe6aa,
-    emissiveIntensity: 0.32
+    emissiveIntensity: dimIntensity(0.32)
   })
 );
 hallwayHandlePlate.position.set(
@@ -1871,7 +1881,7 @@ const hallwayDoorFrame = new THREE.Mesh(
     roughness: 0.18,
     metalness: 0.94,
     emissive: 0xffe4b5,
-    emissiveIntensity: 0.4
+    emissiveIntensity: dimIntensity(0.4)
   })
 );
 hallwayDoorFrame.position.set(ARENA_DOOR_DIMENSIONS.width / 2, 0, -ARENA_DOOR_DIMENSIONS.thickness * 0.45);
@@ -1939,7 +1949,7 @@ const walkwayTrimMat = new THREE.MeshStandardMaterial({
   roughness: 0.26,
   metalness: 0.88,
   emissive: 0xffc978,
-  emissiveIntensity: 0.25
+  emissiveIntensity: dimIntensity(0.25)
 });
 const walkwayTrimGeo = new THREE.BoxGeometry(ARENA_WALKWAY_WIDTH + 0.2, 0.12, 0.4);
 const walkwayFrontTrim = new THREE.Mesh(walkwayTrimGeo, walkwayTrimMat);
@@ -1971,7 +1981,7 @@ const walkwaySideAccentMat = new THREE.MeshStandardMaterial({
   roughness: 0.32,
   metalness: 0.58,
   emissive: 0xffb964,
-  emissiveIntensity: 0.4
+  emissiveIntensity: dimIntensity(0.4)
 });
 const walkwaySideCrownGeo = new THREE.BoxGeometry(0.38, 0.1, ARENA_WALKWAY_LENGTH);
 const walkwaySideCrownMat = new THREE.MeshStandardMaterial({
@@ -2003,7 +2013,7 @@ function createWalkwaySide(offsetX) {
   const lightStripMat = new THREE.MeshStandardMaterial({
     color: 0xffd27e,
     emissive: 0xfff1b5,
-    emissiveIntensity: 0.85,
+    emissiveIntensity: dimIntensity(0.85),
     metalness: 0.7,
     roughness: 0.18
   });
@@ -2031,7 +2041,7 @@ const walkwayPortalHeaderMaterialConfig = {
   metalness: 0.68,
   roughness: 0.28,
   emissive: 0x140812,
-  emissiveIntensity: 0.35,
+  emissiveIntensity: dimIntensity(0.35),
   envMapIntensity: 0.9
 };
 if (walkwayPortalHeaderTexture) {
@@ -2050,7 +2060,7 @@ const walkwayPortalCrown = new THREE.Mesh(
   new THREE.MeshStandardMaterial({
     color: 0xf7d891,
     emissive: 0xffeeba,
-    emissiveIntensity: 0.6,
+    emissiveIntensity: dimIntensity(0.6),
     metalness: 0.92,
     roughness: 0.15
   })
@@ -2068,7 +2078,7 @@ const walkwayCeiling = new THREE.Mesh(
     roughness: 0.35,
     metalness: 0.45,
     emissive: 0x1a0a13,
-    emissiveIntensity: 0.28
+    emissiveIntensity: dimIntensity(0.28)
   })
 );
 walkwayCeiling.rotation.x = Math.PI / 2;
@@ -2082,7 +2092,7 @@ const chandelierRing = new THREE.Mesh(
   new THREE.MeshStandardMaterial({
     color: 0xf2d79b,
     emissive: 0xfff0c5,
-    emissiveIntensity: 0.8,
+    emissiveIntensity: dimIntensity(0.8),
     metalness: 0.9,
     roughness: 0.18
   })
@@ -2095,7 +2105,7 @@ const chandelierCore = new THREE.Mesh(
     metalness: 0.65,
     roughness: 0.28,
     emissive: 0x110712,
-    emissiveIntensity: 0.3
+    emissiveIntensity: dimIntensity(0.3)
   })
 );
 chandelierCore.position.y = -0.35;
@@ -2108,7 +2118,7 @@ const walkwayFrontLight = new THREE.Mesh(
   new THREE.MeshStandardMaterial({
     color: 0xffd89a,
     emissive: 0xffecb3,
-    emissiveIntensity: 0.9,
+    emissiveIntensity: dimIntensity(0.9),
     metalness: 0.78,
     roughness: 0.22
   })
@@ -2119,7 +2129,7 @@ const walkwayRearLight = walkwayFrontLight.clone();
 walkwayRearLight.position.z = walkwayFloor.position.z + ARENA_WALKWAY_LENGTH / 2 - 0.25;
 arenaG.add(walkwayRearLight);
 
-const hallwayAmbient = new THREE.PointLight(0xffe2b5, 1.3, 18, 1.8);
+const hallwayAmbient = new THREE.PointLight(0xffe2b5, dimIntensity(1.3), 18, 1.8);
 hallwayAmbient.position.set(0, walkwayCeiling.position.y - 0.05, walkwayFloor.position.z);
 hallwayAmbient.castShadow = true;
 arenaG.add(hallwayAmbient);
@@ -2385,7 +2395,7 @@ function updateTableMaterials() {
   const cloth = TABLE_CLOTH_OPTIONS[appearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
   tableMaterials.felt.color.set(0xffffff);
   tableMaterials.felt.emissive.set(cloth.emissive ?? adjustHexColor(cloth.feltTop, 0.2));
-  tableMaterials.felt.emissiveIntensity = cloth.emissiveIntensity ?? 0.34;
+  tableMaterials.felt.emissiveIntensity = dimIntensity(cloth.emissiveIntensity ?? 0.34);
   if (tableMaterials.felt.map) {
     tableMaterials.felt.map.dispose();
   }
@@ -2613,7 +2623,7 @@ function buildDominoMaterial(options = {}, defaults = {}) {
     material.emissive.set(params.emissive);
   }
   if (typeof params.emissiveIntensity === 'number') {
-    material.emissiveIntensity = params.emissiveIntensity;
+    material.emissiveIntensity = dimIntensity(params.emissiveIntensity);
   }
   if (params.sheenColor) {
     material.sheenColor.set(params.sheenColor);
@@ -2666,7 +2676,7 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
   accentMat = buildDominoMaterial(style.accent, {
     color: '#d7b03b',
     emissive: '#593d00',
-    emissiveIntensity: 0.55,
+    emissiveIntensity: dimIntensity(0.55),
     metalness: 1.0,
     roughness: 0.18,
     reflectivity: 1.0,
@@ -2677,12 +2687,16 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
   accentMat.polygonOffsetFactor = -1;
   accentMat.polygonOffsetUnits = -1;
   SHARED_DOMINO_MATERIALS.add(pipMat);
+  const ringIntensitySource = style.accent?.ringEmissiveIntensity;
   dominoStyleProfile = {
     ringInner: style.accent?.ringInner ?? 0.107,
     ringOuter: style.accent?.ringOuter ?? 0.12,
     midlineDepth: style.accent?.midlineDepth ?? 0.01,
     pipRadius: style.pip?.radius ?? 0.085,
-    ringEmissiveIntensity: style.accent?.ringEmissiveIntensity ?? accentMat.emissiveIntensity ?? 0.55
+    ringEmissiveIntensity:
+      typeof ringIntensitySource === 'number'
+        ? dimIntensity(ringIntensitySource)
+        : accentMat.emissiveIntensity ?? dimIntensity(0.55)
   };
 }
 
