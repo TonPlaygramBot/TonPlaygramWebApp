@@ -2777,7 +2777,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 1.2; // modestly upscale tiles for better readability
+const DOMINO_SCALE = 1.5 * 1.05; // modestly upscale tiles for better readability
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
@@ -3316,8 +3316,8 @@ function placeChairsWithOption(option, chairData, token) {
     const avatarScale = index === HUMAN_SEAT_INDEX ? 0.9 : 1.05;
     const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.95 : -SEAT_THICKNESS * 0.55;
-    const avatarY = avatarHeight - SEAT_THICKNESS * 0.36 + avatarYOffset;
+    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.6 : -SEAT_THICKNESS * 0.3;
+    const avatarY = avatarHeight - SEAT_THICKNESS * 0.32 + avatarYOffset;
     const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.06 : 0.085;
     avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
     if (index === HUMAN_SEAT_INDEX) {
@@ -3328,7 +3328,7 @@ function placeChairsWithOption(option, chairData, token) {
     seatAvatars.push(avatar);
 
     const nameTag = createSeatNameTag(seatNames[index] ?? 'Player');
-    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.16, labelDepth * (avatarDepthFactor + 0.02));
+    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.22, labelDepth * (avatarDepthFactor + 0.02));
     nameTag.lookAt(lookTarget.x, nameTag.position.y, lookTarget.z);
     wrapper.add(nameTag);
     seatNameTags.push(nameTag);
@@ -3617,8 +3617,7 @@ function renderHands(){
       if(openFlat){
         orientDominoFlat(m, 0);
       } else {
-        const sideRotationOffset = isSide ? (pi === 1 ? Math.PI / 2 : -Math.PI / 2) : 0;
-        m.rotation.set(0, (pi===human ? 0 : yawTowardCenter + sideRotationOffset), 0);
+        m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
         m.rotation.z += (Math.random()*0.006-0.003);
       }
       h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
