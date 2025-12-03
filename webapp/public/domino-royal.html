@@ -2435,6 +2435,16 @@ const chairs = [];
 let seatLabelMesh = null;
 let seatLabelShouldDisplay = shouldShowSeatLabel;
 const seatAvatars = [];
+const seatNameTags = [];
+
+const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
+
+function buildSeatNames(count = N) {
+  return Array.from({ length: Math.max(1, count) }, (_, idx) => {
+    if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) return seatAvatarUsername;
+    return DEFAULT_SEAT_NAMES[idx] ?? `Player ${idx + 1}`;
+  });
+}
 
 function isAvatarUrl(str = '') {
   return /^https?:\/\//i.test(str) || str.startsWith('data:');
@@ -2563,6 +2573,19 @@ function disposeSeatAvatars() {
   }
 }
 
+function disposeSeatNameTags() {
+  while (seatNameTags.length) {
+    const tag = seatNameTags.pop();
+    if (!tag) continue;
+    tag.parent?.remove(tag);
+    try {
+      tag.material?.map?.dispose?.();
+      tag.material?.dispose?.();
+      tag.geometry?.dispose?.();
+    } catch {}
+  }
+}
+
 function disposeSeatLabel({ persistPreference = true } = {}) {
   if (seatLabelMesh) {
     seatLabelMesh.parent?.remove(seatLabelMesh);
@@ -2615,6 +2638,32 @@ function createSeatAvatarSprite(source = DEFAULT_AVATAR_EMOJI) {
   sprite.renderOrder = 2;
   applySeatAvatarTexture(sprite, source);
   return sprite;
+}
+
+function createSeatNameTag(label = '') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = '#ffd24a';
+  ctx.lineWidth = 16;
+  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+  ctx.fillStyle = '#ffe8a3';
+  ctx.font = 'bold 136px "Inter", Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label || 'Player', canvas.width / 2, canvas.height / 2);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+  const geometry = new THREE.PlaneGeometry(1.8, 0.75);
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = 3;
+  return mesh;
 }
 
 const TABLE_OUTER_RADIUS = TABLE_RADIUS;
@@ -3198,6 +3247,7 @@ function placeChairsWithOption(option, chairData, token) {
 
   disposeSeatLabel({ persistPreference: false });
   disposeSeatAvatars();
+  disposeSeatNameTags();
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -3232,6 +3282,7 @@ function placeChairsWithOption(option, chairData, token) {
       };
 
   const seatAvatarSources = buildSeatAvatarSources(N);
+  const seatNames = buildSeatNames(N);
 
   CHAIR_SEAT_ANGLES.forEach((angle, index) => {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
@@ -3251,11 +3302,19 @@ function placeChairsWithOption(option, chairData, token) {
     const avatarSource = seatAvatarSources[index] ?? DEFAULT_AVATAR_EMOJI;
     const avatar = createSeatAvatarSprite(avatarSource);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    const avatarY = avatarHeight - SEAT_THICKNESS * 0.35;
-    avatar.position.set(0, avatarY, labelDepth * 0.08);
+    const avatarYOffset = -SEAT_THICKNESS * 0.18 + (index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.12 : 0);
+    const avatarY = avatarHeight - SEAT_THICKNESS * 0.35 + avatarYOffset;
+    const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.18 : 0.1;
+    avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
     avatar.lookAt(lookTarget.x, avatar.position.y, lookTarget.z);
     wrapper.add(avatar);
     seatAvatars.push(avatar);
+
+    const nameTag = createSeatNameTag(seatNames[index] ?? 'Player');
+    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.45, labelDepth * (avatarDepthFactor + 0.05));
+    nameTag.lookAt(lookTarget.x, nameTag.position.y, lookTarget.z);
+    wrapper.add(nameTag);
+    seatNameTags.push(nameTag);
 
     tableG.add(wrapper);
     chairs.push(wrapper);
