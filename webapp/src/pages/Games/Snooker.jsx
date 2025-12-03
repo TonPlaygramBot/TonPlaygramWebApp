@@ -2925,7 +2925,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the orbit camera closer to the rail without clipping
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.015; // pull the orbit camera closer to the rail without clipping
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.08;
@@ -2988,8 +2988,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.04;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.16;
+const CUE_VIEW_RADIUS_RATIO = 0.035;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.1
@@ -3006,7 +3006,9 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const IN_HAND_CAMERA_PULLBACK = 1.38;
-const TOP_VIEW_MARGIN = 1.1;
+const TOP_VIEW_MARGIN = 1.16;
+const TOP_VIEW_PHI = 0.0001;
+const TOP_VIEW_THETA = Math.PI;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -6796,12 +6798,13 @@ function SnookerGame() {
       : window.innerHeight > window.innerWidth
         ? 1.6
         : 1.4;
-    const targetRadius = fitRadius(cam, targetMargin);
+    const targetRadius = clampOrbitRadius(fitRadius(cam, targetMargin));
     const target = {
-      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
-      phi: next ? 0.0001 : last3DRef.current.phi,
-      theta: next ? sph.theta : last3DRef.current.theta
+      radius: targetRadius,
+      phi: next ? TOP_VIEW_PHI : last3DRef.current.phi,
+      theta: next ? TOP_VIEW_THETA : last3DRef.current.theta
     };
+    cam.up.set(0, next ? 0 : 1, next ? 1 : 0);
     const duration = 600;
     const t0 = performance.now();
     function anim(t) {
@@ -6825,9 +6828,10 @@ function SnookerGame() {
         topViewRef.current = next;
         setTopView(next);
         if (rendererRef.current) {
-          rendererRef.current.domElement.style.transform = next
-            ? 'scale(0.9)'
-            : 'scale(1)';
+          rendererRef.current.domElement.style.transform = 'scale(1)';
+          rendererRef.current.domElement.style.transformOrigin = next
+            ? 'center center'
+            : 'top left';
         }
         fit(targetMargin);
       }
@@ -8009,7 +8013,7 @@ function SnookerGame() {
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
           const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
-          const topViewMinPhi = topViewRef.current ? 0.0001 : CAMERA.minPhi;
+          const topViewMinPhi = topViewRef.current ? TOP_VIEW_PHI : CAMERA.minPhi;
           const topViewMaxPhi = topViewRef.current
             ? Math.max(CAMERA.maxPhi, Math.PI / 2)
             : CAMERA.maxPhi;
