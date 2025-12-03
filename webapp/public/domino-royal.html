@@ -28,19 +28,9 @@
   #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
   #configSections::-webkit-scrollbar-track{background:transparent;}
   #seatOverlay{position:fixed;inset:0;pointer-events:none;z-index:4;}
-  .seat-badge{position:absolute;transform:translate(-50%,-50%);width:3.45rem;height:3.45rem;pointer-events:none;}
+  .seat-badge{position:absolute;transform:translate(-50%,-50%);width:3.25rem;height:3.25rem;pointer-events:none;}
   .seat-badge .avatar-timer-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 65%,black 66%);mask:radial-gradient(farthest-side,transparent 65%,black 66%);}
-  .seat-badge-core{position:absolute;inset:0;border-radius:999px;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 2px rgba(255,255,255,.2);}
-  .seat-badge-core img{width:100%;height:100%;object-fit:cover;border-radius:999px;display:block;filter:saturate(1.05);}
-  .seat-name-curve{position:absolute;inset:0;pointer-events:none;width:100%;height:100%;transform:translateY(-14%);}
-  .seat-name-curve text{font-size:12px;font-weight:800;letter-spacing:0.6px;fill:#fef08a;text-shadow:0 0 6px rgba(0,0,0,.45);} 
-  #scoreBoard{position:fixed;top:calc(0.85rem + env(safe-area-inset-top,0px));left:calc(0.8rem + env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:0.4rem;z-index:4;pointer-events:none;}
-  .score-row{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:0.55rem;padding:0.4rem 0.55rem;border-radius:0.95rem;background:rgba(7,10,18,.75);border:1px solid rgba(255,210,74,.25);box-shadow:0 10px 24px rgba(0,0,0,.35);backdrop-filter:blur(8px);min-width:11rem;}
-  .score-avatar{width:2.6rem;height:2.6rem;border-radius:999px;overflow:hidden;position:relative;box-shadow:0 0 0 2px rgba(255,210,74,.55),0 8px 16px rgba(0,0,0,.35);} 
-  .score-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
-  .score-meta{display:flex;flex-direction:column;gap:0.1rem;color:#f8fafc;}
-  .score-name{font-weight:800;font-size:0.9rem;line-height:1.2;}
-  .score-points{font-size:0.85rem;color:#fef08a;}
+  .seat-badge-core{position:absolute;inset:0;border-radius:999px;display:grid;place-items:center;font-size:1.35rem;font-weight:800;color:#0b1224;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 2px rgba(255,255,255,.2);}
   .config-section{display:flex;flex-direction:column;gap:.3rem;}
   .config-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.45rem;}
   .config-option{border-radius:0.85rem;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.4rem .5rem;display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;font-size:clamp(.62rem,1.75vw,.72rem);line-height:1.35;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
@@ -293,7 +283,7 @@ const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
 const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = 0.06 * MODEL_SCALE;
+const CHAIR_GAP = 0.12 * MODEL_SCALE;
 const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_GAP;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -2606,16 +2596,9 @@ let seatLabelShouldDisplay = shouldShowSeatLabel;
 const seatAvatars = [];
 const seatNameTags = [];
 const seatBadges = [];
-const SCOREBOARD_STORAGE_KEY = 'dominoRoyalScores';
-let playerScores = [];
-let seatBadgeEntries = [];
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
-
-const scoreBoard = document.createElement('div');
-scoreBoard.id = 'scoreBoard';
-document.body.appendChild(scoreBoard);
 
 function buildSeatNames(count = N) {
   return getSeatUsernames(count);
@@ -2623,18 +2606,6 @@ function buildSeatNames(count = N) {
 
 function isAvatarUrl(str = '') {
   return /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/');
-}
-
-function emojiToAvatarDataUrl(emoji = DEFAULT_AVATAR_EMOJI) {
-  const safeEmoji = (emoji || DEFAULT_AVATAR_EMOJI).slice(0, 2);
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'><text y='96' font-size='96' text-anchor='middle' x='60'>${safeEmoji}</text></svg>`;
-  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
-}
-
-function normalizeAvatarSource(source = '', fallbackEmoji = DEFAULT_AVATAR_EMOJI) {
-  if (!source) return emojiToAvatarDataUrl(fallbackEmoji);
-  if (isAvatarUrl(source)) return source;
-  return emojiToAvatarDataUrl(source || fallbackEmoji);
 }
 
 function buildSeatAvatarSources(count = N) {
@@ -2651,17 +2622,6 @@ function buildSeatAvatarSources(count = N) {
   });
 }
 
-function buildSeatBadgeEntries(count = N) {
-  const avatars = buildSeatAvatarSources(count);
-  const names = buildSeatNames(count);
-  seatBadgeEntries = avatars.map((avatar, idx) => ({
-    avatar: normalizeAvatarSource(avatar, DEFAULT_AVATAR_EMOJI),
-    icon: avatar || DEFAULT_AVATAR_EMOJI,
-    name: names[idx] || `Player ${idx + 1}`
-  }));
-  return seatBadgeEntries;
-}
-
 async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
   const size = 512;
   const canvas = document.createElement('canvas');
@@ -2675,7 +2635,6 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
   ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  let drewImage = false;
   if (isAvatarUrl(label)) {
     await new Promise((resolve) => {
       const img = new Image();
@@ -2691,14 +2650,9 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
       const w = img.width * ratio;
       const h = img.height * ratio;
       ctx.drawImage(img, center - w / 2, center - h / 2, w, h);
-      drewImage = true;
     });
   } else {
     ctx.fillText(label, center, center);
-  }
-
-  if (!drewImage) {
-    ctx.fillText(label || DEFAULT_AVATAR_EMOJI, center, center);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -2783,7 +2737,7 @@ function disposeSeatBadges() {
   seatOverlay.innerHTML = '';
 }
 
-function createSeatBadge({ icon = '🎯', name = '', avatar = '' } = {}) {
+function createSeatBadge(icon = '🎯') {
   const wrap = document.createElement('div');
   wrap.className = 'seat-badge';
   const ring = document.createElement('div');
@@ -2791,129 +2745,23 @@ function createSeatBadge({ icon = '🎯', name = '', avatar = '' } = {}) {
   wrap.appendChild(ring);
   const core = document.createElement('div');
   core.className = 'seat-badge-core';
-  const img = document.createElement('img');
-  img.src = normalizeAvatarSource(avatar || icon, icon || DEFAULT_AVATAR_EMOJI);
-  img.alt = name || 'avatar';
-  img.referrerPolicy = 'no-referrer';
-  img.onerror = () => {
-    img.onerror = null;
-    img.src = emojiToAvatarDataUrl(icon || DEFAULT_AVATAR_EMOJI);
-  };
-  core.appendChild(img);
+  core.textContent = icon || '🎯';
   wrap.appendChild(core);
-
-  if (name) {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('viewBox', '0 0 100 60');
-    svg.classList.add('seat-name-curve');
-    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    const radius = 45;
-    const start = 50 - radius;
-    const end = 50 + radius;
-    const pathId = `seat-name-${Math.random().toString(36).slice(2)}`;
-    path.setAttribute('id', pathId);
-    path.setAttribute('d', `M${start},50 A${radius},${radius} 0 0 1 ${end},50`);
-    defs.appendChild(path);
-    svg.appendChild(defs);
-
-    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-    const textPath = document.createElementNS('http://www.w3.org/2000/svg', 'textPath');
-    textPath.setAttributeNS('http://www.w3.org/1999/xlink', 'href', `#${pathId}`);
-    textPath.setAttribute('startOffset', '50%');
-    textPath.setAttribute('text-anchor', 'middle');
-    textPath.textContent = name;
-    text.appendChild(textPath);
-    svg.appendChild(text);
-    wrap.appendChild(svg);
-  }
-
   seatOverlay.appendChild(wrap);
   return wrap;
 }
 
-function refreshSeatBadges(entries = buildSeatBadgeEntries(N)) {
+function refreshSeatBadges(icons = []) {
   disposeSeatBadges();
   const gradient = (currentHighlightStyle && currentHighlightStyle.gradient) ||
     'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
-  const list = entries && entries.length ? entries : buildSeatBadgeEntries(N);
-  list.forEach((entry) => {
-    const badge = createSeatBadge(entry);
+  const entries = icons.length ? icons : Array.from({ length: N }, () => '🎯');
+  entries.forEach((icon) => {
+    const badge = createSeatBadge(icon);
     badge.style.setProperty('--timer-gradient', gradient);
     seatBadges.push(badge);
   });
   seatOverlay.style.setProperty('--timer-gradient', gradient);
-}
-
-function ensurePlayerScores(count = N) {
-  const safeCount = Math.max(1, count);
-  const base = Array.isArray(playerScores) ? playerScores : [];
-  playerScores = Array.from({ length: safeCount }, (_, idx) => Number.isFinite(base[idx]) ? base[idx] : 0);
-}
-
-function loadPlayerScores(count = N) {
-  ensurePlayerScores(count);
-  try {
-    const stored = localStorage.getItem(SCOREBOARD_STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        playerScores = Array.from({ length: Math.max(count, parsed.length) }, (_, idx) => {
-          const val = parsed[idx];
-          return Number.isFinite(val) ? val : 0;
-        });
-      }
-    }
-  } catch {}
-  ensurePlayerScores(count);
-}
-
-function savePlayerScores() {
-  try {
-    localStorage.setItem(SCOREBOARD_STORAGE_KEY, JSON.stringify(playerScores));
-  } catch {}
-}
-
-function refreshScoreBoard(entries = seatBadgeEntries.length ? seatBadgeEntries : buildSeatBadgeEntries(N)) {
-  const list = entries && entries.length ? entries : buildSeatBadgeEntries(N);
-  ensurePlayerScores(list.length);
-  scoreBoard.innerHTML = '';
-  list.forEach((entry, idx) => {
-    const row = document.createElement('div');
-    row.className = 'score-row';
-    const av = document.createElement('div');
-    av.className = 'score-avatar';
-    const img = document.createElement('img');
-    img.src = normalizeAvatarSource(entry.avatar || entry.icon, entry.icon || DEFAULT_AVATAR_EMOJI);
-    img.alt = entry.name || `Player ${idx + 1}`;
-    img.referrerPolicy = 'no-referrer';
-    img.onerror = () => {
-      img.onerror = null;
-      img.src = emojiToAvatarDataUrl(entry.icon || DEFAULT_AVATAR_EMOJI);
-    };
-    av.appendChild(img);
-
-    const meta = document.createElement('div');
-    meta.className = 'score-meta';
-    const nameEl = document.createElement('div');
-    nameEl.className = 'score-name';
-    nameEl.textContent = entry.name || `Player ${idx + 1}`;
-    const points = document.createElement('div');
-    points.className = 'score-points';
-    points.textContent = `Score: ${playerScores[idx] || 0}`;
-    meta.appendChild(nameEl);
-    meta.appendChild(points);
-
-    row.appendChild(av);
-    row.appendChild(meta);
-    scoreBoard.appendChild(row);
-  });
-}
-
-function refreshSeatDecor(count = N) {
-  const entries = buildSeatBadgeEntries(count);
-  refreshSeatBadges(entries);
-  refreshScoreBoard(entries);
 }
 
 function disposeSeatLabel({ persistPreference = true } = {}) {
@@ -3397,7 +3245,7 @@ function applyAppearanceChange({ refresh = true } = {}) {
   renderHands();
   renderChain();
   renderBoneyardStack();
-  refreshSeatDecor(N);
+  refreshSeatBadges(buildSeatAvatarSources(N));
   saveAppearance();
   if (refresh) {
     refreshConfigUI();
@@ -3667,7 +3515,7 @@ function placeChairsWithOption(option, chairData, token) {
         })
       };
 
-  const badgeEntries = buildSeatBadgeEntries(N);
+  const seatAvatarSources = buildSeatAvatarSources(N);
 
   CHAIR_SEAT_ANGLES.forEach((angle, index) => {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
@@ -3694,8 +3542,7 @@ function placeChairsWithOption(option, chairData, token) {
     }
   });
 
-  refreshSeatBadges(badgeEntries);
-  refreshScoreBoard(badgeEntries);
+  refreshSeatBadges(seatAvatarSources);
 }
 
 async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
@@ -3895,7 +3742,6 @@ if (Number.isFinite(stakeAmount) && stakeAmount > 0) {
   setStatus('Ready');
 }
 
-loadPlayerScores(N);
 applyAppearanceChange({ refresh: false });
 refreshConfigUI();
 
@@ -4408,8 +4254,6 @@ function startGame(){
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
   refreshSeatAvatars();
-  ensurePlayerScores(N);
-  refreshSeatDecor(N);
   players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
   boneyard=shuffle(genSet());
   renderBoneyardStack();
@@ -4792,11 +4636,6 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
   }
 
   if(winnerIndex !== null){
-    ensurePlayerScores(N);
-    const winPoints = players.reduce((sum, p, idx) => sum + (idx === winnerIndex ? 0 : pipSum(p.hand)), 0);
-    playerScores[winnerIndex] = (playerScores[winnerIndex] || 0) + winPoints;
-    savePlayerScores();
-    refreshScoreBoard();
     SFX.win();
   } else {
     SFX.drawGame();
