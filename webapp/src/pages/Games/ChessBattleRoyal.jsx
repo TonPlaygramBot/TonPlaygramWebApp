@@ -3073,7 +3073,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     }
 
-    if (arena.activePieceSetId && nextPieceSetId !== arena.activePieceSetId) {
+    const shouldSwapPieces = !arena.activePieceSetId || nextPieceSetId !== arena.activePieceSetId;
+    if (shouldSwapPieces) {
       pieceSetLoader(RAW_BOARD_SIZE)
         .then((assets) => {
           if (!arenaRef.current) return;
