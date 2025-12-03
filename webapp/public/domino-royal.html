@@ -2418,6 +2418,20 @@ const tableParts = {};
 const chairs = [];
 let seatLabelMesh = null;
 let seatLabelShouldDisplay = shouldShowSeatLabel;
+const seatAvatars = [];
+
+function disposeSeatAvatars() {
+  while (seatAvatars.length) {
+    const sprite = seatAvatars.pop();
+    if (!sprite) continue;
+    sprite.parent?.remove(sprite);
+    try {
+      sprite.material?.map?.dispose?.();
+      sprite.material?.dispose?.();
+      sprite.geometry?.dispose?.();
+    } catch {}
+  }
+}
 
 function disposeSeatLabel({ persistPreference = true } = {}) {
   if (seatLabelMesh) {
@@ -2461,6 +2475,50 @@ function createSeatLabelMesh() {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 12;
   return mesh;
+}
+
+function createSeatAvatarSprite(label = '🙂') {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+
+  const radius = size * 0.42;
+  const center = size / 2;
+  const gradient = ctx.createRadialGradient(center - radius * 0.2, center - radius * 0.2, radius * 0.35, center, center, radius);
+  gradient.addColorStop(0, '#ffe08a');
+  gradient.addColorStop(1, '#fcb034');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(center, center, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.18)';
+  ctx.beginPath();
+  ctx.arc(center + radius * 0.12, center + radius * 0.2, radius * 0.72, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#fff8e1';
+  ctx.beginPath();
+  ctx.arc(center - radius * 0.2, center - radius * 0.18, radius * 0.32, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = `${radius * 0.95}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, center, center + radius * 0.08);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(material);
+  const diameter = DOMINO_WIDTH * 6.5;
+  sprite.scale.set(diameter, diameter, diameter);
+  sprite.center.set(0.5, 0);
+  sprite.renderOrder = 2;
+  return sprite;
 }
 
 const TABLE_OUTER_RADIUS = TABLE_RADIUS;
@@ -2561,14 +2619,14 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 0.85; // shrink domino tiles by 15% from previous upscale
+const DOMINO_SCALE = 1.5 * 0.95; // modestly upscale tiles for better readability
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
-const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.25;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.1;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -3043,6 +3101,7 @@ function placeChairsWithOption(option, chairData, token) {
   if (token !== chairBuildToken) return;
 
   disposeSeatLabel({ persistPreference: false });
+  disposeSeatAvatars();
   while (chairs.length) {
     const chair = chairs.pop();
     chair.parent?.remove(chair);
@@ -3088,6 +3147,15 @@ function placeChairsWithOption(option, chairData, token) {
       : createDominoChair(option, renderer, sharedMaterials);
     chair.position.y = -seatBottomOffset;
     wrapper.add(chair);
+
+    wrapper.updateWorldMatrix(true, true);
+    const chairBox = new THREE.Box3().setFromObject(chair);
+    const avatar = createSeatAvatarSprite();
+    const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
+    avatar.position.set(0, avatarHeight + 0.1, labelDepth * 0.2);
+    avatar.lookAt(lookTarget.x, avatar.position.y, lookTarget.z);
+    wrapper.add(avatar);
+    seatAvatars.push(avatar);
 
     tableG.add(wrapper);
     chairs.push(wrapper);
