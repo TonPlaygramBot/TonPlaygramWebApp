@@ -2,49 +2,49 @@ import { hslToHexNumber } from '../utils/woodMaterials.js';
 
 export const CUE_STYLE_PRESETS = Object.freeze([
   Object.freeze({
-    id: 'pro-walnut',
-    label: 'Pro Walnut',
-    hue: 22,
-    sat: 0.4,
-    light: 0.44,
-    contrast: 0.64,
-    source: 'Signature house cue finish'
-  }),
-  Object.freeze({
-    id: 'maple-classic',
-    label: 'Maple Classic',
-    hue: 35,
-    sat: 0.22,
-    light: 0.78,
-    contrast: 0.44,
-    source: 'ambientCG Maple Planks 001 (CC0)'
-  }),
-  Object.freeze({
-    id: 'ebony-luxe',
-    label: 'Ebony Luxe',
-    hue: 25,
-    sat: 0.35,
-    light: 0.18,
-    contrast: 0.85,
-    source: 'ambientCG Ebony Wood 002 (CC0)'
-  }),
-  Object.freeze({
-    id: 'cocobolo-flare',
-    label: 'Cocobolo Flare',
+    id: 'redwood-ember',
+    label: 'Redwood Ember',
     hue: 18,
-    sat: 0.52,
+    sat: 0.56,
     light: 0.42,
-    contrast: 0.7,
-    source: 'Poly Haven Cocobolo (CC0)'
+    contrast: 0.72,
+    source: 'ambientCG Redwood 003 (CC0)'
   }),
   Object.freeze({
-    id: 'ash-ice',
-    label: 'Nordic Ash',
-    hue: 32,
-    sat: 0.25,
-    light: 0.7,
-    contrast: 0.55,
-    source: 'ambientCG Ash 004 (CC0)'
+    id: 'birch-frost',
+    label: 'Birch Frost',
+    hue: 33,
+    sat: 0.18,
+    light: 0.8,
+    contrast: 0.46,
+    source: 'ambientCG Birch 002 (CC0)'
+  }),
+  Object.freeze({
+    id: 'wenge-nightfall',
+    label: 'Wenge Nightfall',
+    hue: 24,
+    sat: 0.32,
+    light: 0.2,
+    contrast: 0.88,
+    source: 'ambientCG Wenge 002 (CC0)'
+  }),
+  Object.freeze({
+    id: 'mahogany-heritage',
+    label: 'Mahogany Heritage',
+    hue: 15,
+    sat: 0.44,
+    light: 0.36,
+    contrast: 0.78,
+    source: 'Poly Haven Mahogany 004 (CC0)'
+  }),
+  Object.freeze({
+    id: 'walnut-satin',
+    label: 'Walnut Satin',
+    hue: 21,
+    sat: 0.4,
+    light: 0.5,
+    contrast: 0.68,
+    source: 'ambientCG Walnut 002 (CC0)'
   }),
   Object.freeze({
     id: 'carbon-matrix',

@@ -771,7 +771,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.892; // trim the side jaw radius slightly further so the cut and fascia sit leaner toward centre
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaws level with the corner jaws for consistent vertical alignment
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.215; // pull the middle pocket jaws closer to centre for a tighter cut
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.255; // pull the middle pocket jaws closer to centre for a tighter cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -1034,12 +1034,12 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.03125;
-const SPIN_DECAY = 0.88;
+const SPIN_STRENGTH = BALL_R * 0.0295;
+const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
+const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
@@ -1109,6 +1109,9 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
+const CUE_CLEARANCE_PADDING = BALL_R * 0.25;
+const SPIN_CONTROL_DIAMETER_PX = 96;
+const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
 const DEFAULT_CUSHION_CUT_ANGLE = 35;
 // middle pocket cushion cuts must be shallower at 32°
@@ -5009,8 +5012,24 @@ function reflectRails(ball) {
 function applySpinImpulse(ball, scale = 1) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
-  TMP_SPIN.copy(ball.spin).multiplyScalar(SPIN_STRENGTH * scale);
-  ball.vel.add(TMP_SPIN);
+  const speed = Math.max(ball.vel.length(), 0.25);
+  const forward =
+    speed > 1e-6
+      ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
+      : TMP_VEC2_FORWARD.set(0, 1);
+  const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
+  const sideSpin = ball.spin.x || 0;
+  const verticalSpin = ball.spin.y || 0;
+  const swerveScale = 0.65 + Math.min(speed, 8) * 0.12;
+  const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
+  const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
+  const forwardKick = verticalSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
+  if (Math.abs(lateralKick) > 1e-8) {
+    ball.vel.addScaledVector(lateral, lateralKick);
+  }
+  if (Math.abs(forwardKick) > 1e-8) {
+    ball.vel.addScaledVector(forward, forwardKick);
+  }
   if (ball.id === 'cue' && ball.spinMode === 'swerve') {
     ball.spinMode = 'standard';
   }
@@ -5069,8 +5088,8 @@ function calcTarget(cue, dir, balls) {
   if (dirNorm.y > 1e-8)
     checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
 
-  const diam = BALL_R * 2;
-  const diam2 = diam * diam;
+  const contactRadius = BALL_R * 2 + CUE_CLEARANCE_PADDING;
+  const contactRadius2 = contactRadius * contactRadius;
   const ballList = Array.isArray(balls) ? balls : [];
   ballList.forEach((b) => {
     if (!b.active || b === cue) return;
@@ -5078,8 +5097,8 @@ function calcTarget(cue, dir, balls) {
     const proj = v.dot(dirNorm);
     if (proj <= 0) return;
     const perp2 = v.lengthSq() - proj * proj;
-    if (perp2 > diam2) return;
-    const thc = Math.sqrt(diam2 - perp2);
+    if (perp2 > contactRadius2) return;
+    const thc = Math.sqrt(contactRadius2 - perp2);
     const t = proj - thc;
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -5097,7 +5116,8 @@ function calcTarget(cue, dir, balls) {
   let targetDir = null;
   let cueDir = null;
   if (targetBall) {
-    targetDir = targetBall.pos.clone().sub(impact).normalize();
+    const contactPoint = impact.clone().add(dirNorm.clone().multiplyScalar(BALL_R));
+    targetDir = targetBall.pos.clone().sub(contactPoint).normalize();
     const projected = dirNorm.dot(targetDir);
     cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
     if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
@@ -16594,8 +16614,10 @@ function PoolRoyaleGame({
         >
           <div
             id="spinBox"
-            className="relative w-28 h-28 rounded-full shadow-lg border border-white/70 overflow-hidden"
+            className="relative rounded-full shadow-lg border border-white/70 overflow-hidden"
             style={{
+              width: `${SPIN_CONTROL_DIAMETER_PX}px`,
+              height: `${SPIN_CONTROL_DIAMETER_PX}px`,
               background: `radial-gradient(circle, #f9fafb 0%, #f9fafb ${
                 SWERVE_THRESHOLD * 100
               }%, #facc15 ${SWERVE_THRESHOLD * 100}%, #facc15 100%)`
@@ -16613,8 +16635,13 @@ function PoolRoyaleGame({
             />
             <div
               id="spinDot"
-              className="absolute w-3 h-3 rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
-              style={{ left: '50%', top: '50%' }}
+              className="absolute rounded-full bg-red-600 -translate-x-1/2 -translate-y-1/2"
+              style={{
+                width: `${SPIN_DOT_DIAMETER_PX}px`,
+                height: `${SPIN_DOT_DIAMETER_PX}px`,
+                left: '50%',
+                top: '50%'
+              }}
             ></div>
           </div>
         </div>
