@@ -362,6 +362,9 @@ const CAMERA_DEFAULT_PHI = clamp(
   cameraPhiMax
 );
 const cameraPhiHardMax = Math.min(cameraPhiMax, Math.PI - 0.45);
+const CAMERA_SAFE_MAX_RADIUS = CAMERA_BASE_RADIUS * 2.2;
+const CAMERA_TOPDOWN_MIN_RADIUS = CAMERA_BASE_RADIUS * 1.05;
+const CAMERA_TOPDOWN_MAX_RADIUS = CAMERA_BASE_RADIUS * 1.65;
 const CAM = {
   fov: ARENA_CAMERA_DEFAULTS.fov,
   near: ARENA_CAMERA_DEFAULTS.near,
@@ -2507,7 +2510,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const arenaRef = useRef(null);
   const clearHighlightsRef = useRef(() => {});
   const cameraViewRef = useRef(null);
-  const viewModeRef = useRef('3d');
+  const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true });
   const [appearance, setAppearance] = useState(() => {
@@ -2567,7 +2570,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
   const [seatAnchors, setSeatAnchors] = useState([]);
-  const [viewMode, setViewMode] = useState('3d');
+  const [viewMode, setViewMode] = useState('2d');
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -3420,7 +3423,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     controls.enablePan = false;
     controls.enableZoom = true;
     controls.minDistance = CAM.minR;
-    controls.maxDistance = CAM.maxR;
+    controls.maxDistance = CAMERA_SAFE_MAX_RADIUS;
     controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
     controls.maxPolarAngle = CAM.phiMax;
     controls.target.copy(boardLookTarget);
@@ -3477,7 +3480,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const initialRadius = clamp(
         CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.initialRadiusFactor * 1.24,
         CAM.minR,
-        CAM.maxR
+        CAMERA_SAFE_MAX_RADIUS
       );
       const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
@@ -3486,16 +3489,23 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         controls.enableRotate = false;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
+        controls.minDistance = CAMERA_TOPDOWN_MIN_RADIUS;
+        controls.maxDistance = CAMERA_TOPDOWN_MAX_RADIUS;
         const aspect = (host?.clientWidth ?? 1) / (host?.clientHeight ?? 1) || 1;
         const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE;
-        const desiredSpan = boardSpan * 1.35;
+        const desiredSpan = boardSpan * 1.18;
         const halfFov = THREE.MathUtils.degToRad(CAM.fov) / 2;
         const verticalRadius = desiredSpan / (2 * Math.tan(halfFov));
         const horizontalRadius = verticalRadius / Math.max(aspect, 0.5);
         const radius = clamp(
-          Math.max(verticalRadius, horizontalRadius, CAMERA_BASE_RADIUS * 1.45, CAM.minR * 1.1),
-          CAM.minR,
-          CAM.maxR
+          Math.max(
+            verticalRadius,
+            horizontalRadius,
+            CAMERA_TOPDOWN_MIN_RADIUS,
+            CAM.minR * 1.1
+          ),
+          CAMERA_TOPDOWN_MIN_RADIUS,
+          CAMERA_TOPDOWN_MAX_RADIUS
         );
         const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_LOCK, 0);
         animateCameraTo(target, 360);
@@ -3503,9 +3513,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         controls.enableRotate = true;
         controls.minPolarAngle = CAMERA_PULL_FORWARD_MIN;
         controls.maxPolarAngle = CAM.phiMax;
+        controls.minDistance = CAM.minR;
+        controls.maxDistance = CAMERA_SAFE_MAX_RADIUS;
         const restore = cameraMemory.last3d || default3d;
         const target = new THREE.Spherical(
-          clamp(restore.radius, CAM.minR, CAM.maxR),
+          clamp(restore.radius, CAM.minR, CAMERA_SAFE_MAX_RADIUS),
           clamp(restore.phi, CAMERA_PULL_FORWARD_MIN, CAM.phiMax),
           Number.isFinite(restore.theta) ? restore.theta : default3d.theta
         );
@@ -3527,7 +3539,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const span = Math.max(tableSpan, boardSpan);
       const needed = span / (2 * Math.tan(THREE.MathUtils.degToRad(CAM.fov) / 2));
       const currentRadius = camera.position.distanceTo(boardLookTarget);
-      const radius = clamp(Math.max(needed, currentRadius), CAM.minR, CAM.maxR);
+      const radius = clamp(
+        Math.max(needed, currentRadius),
+        CAM.minR,
+        CAMERA_SAFE_MAX_RADIUS
+      );
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       controls.update();
