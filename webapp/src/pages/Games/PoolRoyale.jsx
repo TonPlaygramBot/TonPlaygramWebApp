@@ -413,8 +413,8 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to th
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
 const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
-const CHROME_PLATE_THICKNESS_SCALE = 0.034; // match snooker fascia depth scaling so Pool Royale chrome plates read thicker
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08; // align middle fascia depth with the snooker baseline
+const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1; // keep middle-pocket fascia depth identical to the rail markers
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
@@ -424,7 +424,7 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56; // extend fascia span toward the corners without widening the inner edge
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 0.72; // bias the side chrome growth toward the corner pockets only
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.136; // pull the side fascias farther toward the wooden rail so the field edge stops at the rail line and the exterior face grows
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = -0.2; // trim the side fascias so their outer edge finishes flush with the wooden rail line
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1; // match the middle chrome arch exactly to the jaw profile so both radii mirror
@@ -772,7 +772,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 1; // expand the middle jaw span so it follows the wider chrome and wood arcs cleanly
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986; // shave the side jaw radius so it sits just inside the circular cuts without touching the cushions
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.06; // raise middle jaws so the side pockets press firmly into the cloth-backed plywood
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaws level with the corner jaws for consistent vertical alignment
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236; // push the middle pocket jaws farther from table centre so they sit flush with the widened chrome cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
@@ -4564,6 +4564,17 @@ const pocketCenters = () => {
     new THREE.Vector2(sidePocketCenterX, 0)
   ];
 };
+const pocketEntranceCenters = () =>
+  pocketCenters().map((center, index) => {
+    const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+    const towardField = center.clone().multiplyScalar(-1);
+    if (towardField.lengthSq() < MICRO_EPS * MICRO_EPS) {
+      return center.clone();
+    }
+    towardField.normalize();
+    const entranceOffset = mouthRadius * 0.6;
+    return center.clone().add(towardField.multiplyScalar(entranceOffset));
+  });
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
@@ -6117,7 +6128,7 @@ function Table3D(
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
   const sideChromePlateWidthExpansion = TABLE.THICK * CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE;
-  const sideChromePlateWidth = Math.max(
+  let sideChromePlateWidth = Math.max(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
@@ -6463,15 +6474,23 @@ function Table3D(
 
   const sideChromePlateOutwardShift =
     TABLE.THICK * CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE;
+  const sideChromeOuterEdgeLimit = Math.max(MICRO_EPS, outerHalfW - chromePlateInset);
 
   [
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX =
+    let plateWidth = sideChromePlateWidth;
+    let centerX =
       sx *
-      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
+      (outerHalfW - plateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
         (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
+    const baseOuterEdge = Math.abs(centerX) + plateWidth / 2;
+    if (baseOuterEdge > sideChromeOuterEdgeLimit) {
+      const overrun = baseOuterEdge - sideChromeOuterEdgeLimit;
+      plateWidth = Math.max(MICRO_EPS, plateWidth - overrun * 2);
+      centerX = Math.sign(centerX) * Math.max(0, Math.abs(centerX) - overrun);
+    }
     const centerZ = 0;
     const notchMP = scaleChromeSidePocketCut(sideNotchMP(sx));
     const sidePocketCutCenterPull =
@@ -6483,7 +6502,7 @@ function Table3D(
     );
     const plate = new THREE.Mesh(
       buildChromePlateGeometry({
-        width: sideChromePlateWidth,
+        width: plateWidth,
         height: sideChromePlateHeight,
         radius: sideChromePlateRadius,
         thickness: sideChromePlateThickness,
@@ -14017,6 +14036,7 @@ function PoolRoyaleGame({
             routes.sort((a, b) => a.totalDist - b.totalDist);
             return routes[0];
           };
+          const centers = pocketEntranceCenters();
           const potShots = [];
           const safetyShots = [];
           let fallbackPlan = null;
