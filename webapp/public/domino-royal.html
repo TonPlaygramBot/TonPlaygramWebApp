@@ -4,12 +4,24 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 <title>Domino Royal 3D</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&display=swap" rel="stylesheet" />
 <style>
   html,body{margin:0;height:100%;background:#ece6dc;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
   #app{position:fixed;inset:0; width:100dvw; height:100dvh;}
   canvas{display:block; width:100dvw !important; height:100dvh !important; touch-action:none}
   button{font-weight:700;border:0;border-radius:999px;padding:.45rem .7rem;background:#ffd24a;color:#333;box-shadow:0 4px 12px rgba(0,0,0,.25);}
   button:active{transform:translateY(1px);}
+  .ui{position:fixed;inset:0;pointer-events:none;}
+  .scoreboard{position:absolute;top:10px;left:0;right:0;display:flex;align-items:center;justify-content:center;}
+  .score{background:rgba(11,18,32,0.85);backdrop-filter:blur(8px);border:1px solid #233050;border-radius:12px;padding:6px 10px;display:flex;align-items:center;gap:8px;box-shadow:0 12px 32px rgba(0,0,0,0.35);font-family:'Luckiest Guy','Comic Sans MS',cursive;}
+  .score-badges{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;}
+  .badge{padding:2px 8px;border-radius:999px;font-weight:800;color:#fff;display:flex;align-items:center;gap:4px;min-width:86px;justify-content:center;font-family:'Luckiest Guy','Comic Sans MS',cursive;}
+  .badge.active{outline:2px solid #fff;outline-offset:2px;}
+  .badge.winner{box-shadow:0 0 0 2px rgba(255,215,64,0.8),0 10px 24px rgba(0,0,0,0.25);}
+  .badge.p1{background:#22c55e;} .badge.p2{background:#f59e0b;} .badge.p3{background:#38bdf8;} .badge.p4{background:#a855f7;}
+  .avatar{width:20px;height:20px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:16px;}
   #status{position:fixed;top:calc(0.65rem + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);padding:.35rem .75rem;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;z-index:2;backdrop-filter:blur(6px);}
   #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(0.8rem, 6vh, 2.4rem));transform:translateX(-50%);display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:.5rem;align-items:center;background:transparent;color:#fff;padding:0;box-shadow:none;z-index:2;pointer-events:auto;}
   #railControls button{background:rgba(12,16,28,.72);color:#ffe8a3;font-size:.95rem;padding:.55rem .9rem;border-radius:999px;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
@@ -84,6 +96,13 @@
 <div id="railControls" aria-label="Game controls">
   <button id="draw" type="button">Draw</button>
   <button id="pass" type="button">Pass</button>
+</div>
+<div class="ui" aria-hidden="true">
+  <div class="scoreboard">
+    <div class="score" aria-live="polite">
+      <div id="scoreBadges" class="score-badges"></div>
+    </div>
+  </div>
 </div>
 <div id="rules">
   <div class="card">
@@ -1430,6 +1449,83 @@ const DOMINO_STYLE_OPTIONS = Object.freeze([
       ringOuter: 0.123
     }
   }
+  ,
+  {
+    id: 'electricCyan',
+    label: 'Electric Cyan',
+    preview: ['#07162a', '#18c0ff'],
+    body: {
+      color: '#0d1b30',
+      roughness: 0.12,
+      metalness: 0.38,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.03,
+      reflectivity: 0.9,
+      sheen: 0.32,
+      sheenColor: '#9ae6ff'
+    },
+    pip: {
+      color: '#e2f3ff',
+      emissive: '#64d8ff',
+      emissiveIntensity: dimIntensity(0.35),
+      roughness: 0.24,
+      metalness: 0.65,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.06,
+      sheen: 0.16
+    },
+    accent: {
+      color: '#18c0ff',
+      emissive: '#0b86c2',
+      emissiveIntensity: dimIntensity(0.62),
+      metalness: 0.94,
+      roughness: 0.16,
+      reflectivity: 1.0,
+      ringInner: 0.104,
+      ringOuter: 0.122
+    }
+  },
+  {
+    id: 'auroraPearl',
+    label: 'Aurora Pearl',
+    preview: ['#f8f7ff', '#ff9cb5'],
+    body: {
+      color: '#f8f7ff',
+      roughness: 0.2,
+      metalness: 0.16,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.04,
+      reflectivity: 0.78,
+      sheen: 0.44,
+      sheenColor: '#ffe6f1'
+    },
+    pip: {
+      color: '#1f1b3a',
+      emissive: '#612e6b',
+      emissiveIntensity: dimIntensity(0.26),
+      roughness: 0.3,
+      metalness: 0.48,
+      clearcoat: 0.65,
+      clearcoatRoughness: 0.04,
+      sheen: 0.2
+    },
+    accent: {
+      color: '#ff9cb5',
+      emissive: '#b24163',
+      emissiveIntensity: dimIntensity(0.58),
+      metalness: 0.9,
+      roughness: 0.2,
+      reflectivity: 1.0,
+      ringInner: 0.106,
+      ringOuter: 0.125
+    }
+  }
+]);
+
+const HIGHLIGHT_STYLE_OPTIONS = Object.freeze([
+  { id: 'ringPulse', label: 'Ring Pulse', type: 'torus', color: '#15d16f', emissive: '#32f793', opacity: 0.6 },
+  { id: 'diamondBeacon', label: 'Diamond Beacon', type: 'diamond', color: '#22c55e', emissive: '#b6f6d2', opacity: 0.65 },
+  { id: 'haloCross', label: 'Halo Crosshair', type: 'halo', color: '#38bdf8', emissive: '#a5e9ff', opacity: 0.58 }
 ]);
 
 const TABLE_SETUP_SECTIONS = [
@@ -1437,10 +1533,11 @@ const TABLE_SETUP_SECTIONS = [
   { key: "tableCloth", label: "Table Cloth", options: TABLE_CLOTH_OPTIONS },
   { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
   { key: "dominoStyle", label: "Domino", options: DOMINO_STYLE_OPTIONS },
+  { key: "highlightStyle", label: "Highlights", options: HIGHLIGHT_STYLE_OPTIONS },
   { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
 ];
 
-const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, dominoStyle: 0, chairTheme: 0 };
+const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, dominoStyle: 0, highlightStyle: 0, chairTheme: 0 };
 const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
 const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
 let appearance = { ...DEFAULT_APPEARANCE };
@@ -1453,6 +1550,7 @@ function normalizeAppearance(raw) {
     ["tableCloth", TABLE_CLOTH_OPTIONS.length],
     ["tableBase", TABLE_BASE_OPTIONS.length],
     ["dominoStyle", DOMINO_STYLE_OPTIONS.length],
+    ["highlightStyle", HIGHLIGHT_STYLE_OPTIONS.length],
     ["chairTheme", CHAIR_THEME_OPTIONS.length]
   ];
   limits.forEach(([key, max]) => {
@@ -2515,6 +2613,51 @@ function buildSeatAvatarSources(count = N) {
   });
 }
 
+function setBadgeAvatar(el, source = DEFAULT_AVATAR_EMOJI) {
+  if (!el) return;
+  if (isAvatarUrl(source)) {
+    el.style.backgroundImage = `url(${source})`;
+    el.textContent = '';
+  } else {
+    el.style.backgroundImage = '';
+    el.textContent = source || DEFAULT_AVATAR_EMOJI;
+  }
+}
+
+function rebuildScoreboardBadges() {
+  if (!scoreboardBadgesEl) return;
+  const avatars = buildSeatAvatarSources(N);
+  const names = buildSeatNames(N);
+  scoreboardBadgesEl.replaceChildren();
+  avatars.forEach((avatar, idx) => {
+    const badge = document.createElement('span');
+    badge.id = `scoreBadge${idx}`;
+    badge.className = `badge p${(idx % 4) + 1}`;
+    const avatarEl = document.createElement('span');
+    avatarEl.className = 'avatar';
+    setBadgeAvatar(avatarEl, avatar);
+    const nameEl = document.createElement('span');
+    nameEl.textContent = names[idx] ?? `Player ${idx + 1}`;
+    badge.appendChild(avatarEl);
+    badge.appendChild(nameEl);
+    scoreboardBadgesEl.appendChild(badge);
+  });
+}
+
+function updateScoreboardTurnHighlight() {
+  if (!scoreboardBadgesEl) return;
+  const badges = scoreboardBadgesEl.querySelectorAll('.badge');
+  badges.forEach((badge, idx) => {
+    badge.classList.toggle('active', idx === current && !gameFinished);
+    badge.classList.toggle('winner', winnerIndex === idx && gameFinished);
+  });
+}
+
+function refreshScoreboard() {
+  rebuildScoreboardBadges();
+  updateScoreboardTurnHighlight();
+}
+
 async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
   const size = 512;
   const canvas = document.createElement('canvas');
@@ -2569,6 +2712,7 @@ async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
 }
 
 function refreshSeatAvatars() {
+  refreshScoreboard();
   const sources = buildSeatAvatarSources(N);
   return Promise.all(
     seatAvatars.map((sprite, idx) => applySeatAvatarTexture(sprite, sources[idx] ?? DEFAULT_AVATAR_EMOJI))
@@ -2757,7 +2901,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableParts.column = column;
 
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 0.86, TABLE_OUTER_RADIUS * 0.96, 0.16, 64),
+    new THREE.CylinderGeometry(TABLE_OUTER_RADIUS * 1.02, TABLE_OUTER_RADIUS * 1.16, 0.2, 64),
     tableMaterials.base
   );
   base.position.y = column.position.y - columnHeight / 2 - 0.08;
@@ -2767,7 +2911,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
   tableParts.base = base;
 
   const trim = new THREE.Mesh(
-    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 0.9, 0.035, 16, 64),
+    new THREE.TorusGeometry(TABLE_OUTER_RADIUS * 1.06, 0.04, 16, 64),
     tableMaterials.trim
   );
   trim.rotation.x = Math.PI / 2;
@@ -2784,7 +2928,7 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
-const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.82;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.68;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -2921,7 +3065,27 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
 }
 
 applyDominoStyle(currentDominoStyleOption);
-const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55 });
+let currentHighlightStyleOption = HIGHLIGHT_STYLE_OPTIONS[DEFAULT_APPEARANCE.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0];
+let markerMaterial = null;
+
+function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
+  currentHighlightStyleOption = option ?? HIGHLIGHT_STYLE_OPTIONS[0];
+  if (markerMaterial) {
+    markerMaterial.dispose?.();
+  }
+  markerMaterial = new THREE.MeshStandardMaterial({
+    color: currentHighlightStyleOption?.color ?? '#15d16f',
+    emissive: currentHighlightStyleOption?.emissive ?? '#32f793',
+    emissiveIntensity: dimIntensity(0.65),
+    roughness: 0.55,
+    metalness: 0.05,
+    transparent: true,
+    opacity: currentHighlightStyleOption?.opacity ?? 0.6
+  });
+  clearMarkers();
+}
+
+applyHighlightStyle(currentHighlightStyleOption);
 
 /* ---------- Game Collections (pre-declare for style refresh) ---------- */
 let N = 4;
@@ -3032,6 +3196,7 @@ function applyAppearanceChange({ refresh = true } = {}) {
   clearExistingDominoMeshes();
   updateTableMaterials();
   applyDominoStyle(DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]);
+  applyHighlightStyle(HIGHLIGHT_STYLE_OPTIONS[appearance.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0]);
   Object.values(tableMaterials).forEach((material) => {
     if (material && typeof material.needsUpdate === 'boolean') {
       material.needsUpdate = true;
@@ -3137,6 +3302,20 @@ function createOptionPreview(key, option) {
       break;
     case 'chairTheme':
       swatch.style.background = option.seatColor;
+      break;
+    case 'highlightStyle':
+      swatch.style.background = 'rgba(15,23,42,0.8)';
+      swatch.style.display = 'grid';
+      swatch.style.placeItems = 'center';
+      { const marker = document.createElement('div');
+        marker.style.width = '1.05rem';
+        marker.style.height = option.type === 'diamond' ? '0.85rem' : '1.05rem';
+        marker.style.borderRadius = option.type === 'diamond' ? '12%' : '999px';
+        marker.style.transform = option.type === 'diamond' ? 'rotate(45deg)' : 'none';
+        marker.style.background = option.color ?? '#22c55e';
+        marker.style.boxShadow = `0 0 0 3px rgba(255,255,255,0.08), 0 0 14px ${option.emissive ?? option.color ?? '#22c55e'}`;
+        swatch.appendChild(marker);
+      }
       break;
     default:
       swatch.style.background = '#1f2937';
@@ -3294,9 +3473,6 @@ function placeChairsWithOption(option, chairData, token) {
         })
       };
 
-  const seatAvatarSources = buildSeatAvatarSources(N);
-  const seatNames = buildSeatNames(N);
-
   CHAIR_SEAT_ANGLES.forEach((angle, index) => {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
     const basis = seatBasisForAngle(angle, radius);
@@ -3311,29 +3487,6 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.add(chair);
 
     wrapper.updateWorldMatrix(true, true);
-    const chairBox = new THREE.Box3().setFromObject(chair);
-    const avatarSource = seatAvatarSources[index] ?? DEFAULT_AVATAR_EMOJI;
-    const avatarScale = index === HUMAN_SEAT_INDEX ? 1.02 : 1.12;
-    const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
-    const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 1.05 : -SEAT_THICKNESS * 0.68;
-    const avatarY = avatarHeight - SEAT_THICKNESS * 0.36 + avatarYOffset;
-    const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.06 : 0.085;
-    avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
-    if (index === HUMAN_SEAT_INDEX) {
-      avatar.visible = false;
-    }
-    avatar.lookAt(lookTarget.x, avatar.position.y, lookTarget.z);
-    wrapper.add(avatar);
-    seatAvatars.push(avatar);
-
-    const nameTag = createSeatNameTag(seatNames[index] ?? 'Player');
-    const nameTagYOffset = SEAT_THICKNESS * 0.28;
-    nameTag.position.set(0, avatarY + nameTagYOffset, labelDepth * (avatarDepthFactor + 0.015));
-    nameTag.lookAt(lookTarget.x, nameTag.position.y, lookTarget.z);
-    wrapper.add(nameTag);
-    seatNameTags.push(nameTag);
-
     tableG.add(wrapper);
     chairs.push(wrapper);
 
@@ -3508,6 +3661,7 @@ const btnRules = document.getElementById('btnRules');
 const viewToggle = document.getElementById('viewToggle');
 const panelRules = document.getElementById('rules');
 const closeRules = document.getElementById('closeRules');
+const scoreboardBadgesEl = document.getElementById('scoreBadges');
 
 let statusPrefix = '';
 let ends = null; // {L:{v,x,z,dir:[dx,dz]}, R:{...}}
@@ -3565,7 +3719,7 @@ function renderHands(){
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
   const BASE_GAP = DOMINO_HAND_GAP;
-  const MIN_GAP = DOMINO_LENGTH * 1.05;
+  const MIN_GAP = DOMINO_LENGTH * 0.92;
   const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
 
   const isTopDown = cameraViewMode === VIEW_MODES.twoD;
@@ -4294,7 +4448,29 @@ function applySelectedHighlight(mesh){
 }
 
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.14, .034, 28, 96); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.011; m.renderOrder=10; return m; }
+function createMarkerGeometry() {
+  const style = currentHighlightStyleOption ?? {};
+  if (style.type === 'diamond') {
+    return new THREE.CylinderGeometry(style.radius ?? 0.2, style.radius ?? 0.2, 0.022, 4);
+  }
+  if (style.type === 'halo') {
+    return new THREE.RingGeometry(style.inner ?? 0.16, style.outer ?? 0.3, 64);
+  }
+  return new THREE.TorusGeometry(style.inner ?? 0.16, style.tube ?? 0.04, 32, 96);
+}
+function makeMarker(){
+  const g = createMarkerGeometry();
+  const material = markerMaterial?.clone?.() ?? new THREE.MeshStandardMaterial({ color: '#15d16f', transparent: true, opacity: 0.62 });
+  const m=new THREE.Mesh(g, material);
+  m.rotation.x=-Math.PI/2;
+  if ((currentHighlightStyleOption?.type ?? 'torus') === 'diamond') {
+    m.rotation.x = Math.PI / 2;
+    m.rotation.z = Math.PI / 4;
+  }
+  m.position.y=CLOTH_TOP+0.012;
+  m.renderOrder=10;
+  return m;
+}
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -4305,7 +4481,7 @@ function showMarkersFor(tile){
 /* ---------- Interactivity ---------- */
 const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
 raycaster.params.Mesh = raycaster.params.Mesh || {};
-raycaster.params.Mesh.threshold = 0.06;
+raycaster.params.Mesh.threshold = 0.12;
 const activePointers = new Set();
 function findPickRoot(o){
   let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
@@ -4438,6 +4614,8 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
     setStatus('Game over');
   }
 
+  updateScoreboardTurnHighlight();
+
   if(winnerIndex !== null){
     SFX.win();
   } else {
@@ -4464,6 +4642,7 @@ function updateInteractivity(){
     return;
   }
   setStatus(`Turn: Player ${current+1}`);
+  updateScoreboardTurnHighlight();
   renderHands(); renderChain();
 }
 function nextTurn(){
