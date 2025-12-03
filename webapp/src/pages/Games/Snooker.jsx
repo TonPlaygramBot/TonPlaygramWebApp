@@ -2918,13 +2918,13 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.83; // lift the standing orbit slightly higher above the cloth
+const STANDING_VIEW_PHI = 0.95; // lower the standing orbit closer to the cloth while keeping clearance
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0018;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14; // allow a lower sweep so the player camera sits nearer the rail
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.015; // pull the orbit camera closer to the rail without clipping
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
