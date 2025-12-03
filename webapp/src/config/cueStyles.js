@@ -54,6 +54,24 @@ export const CUE_STYLE_PRESETS = Object.freeze([
     light: 0.16,
     contrast: 0.75,
     source: 'ambientCG Carbon Fiber 002 (CC0)'
+  }),
+  Object.freeze({
+    id: 'maple-horizon',
+    label: 'Maple Horizon',
+    hue: 35,
+    sat: 0.3,
+    light: 0.72,
+    contrast: 0.52,
+    source: 'ambientCG Maple 003 (CC0)'
+  }),
+  Object.freeze({
+    id: 'graphite-aurora',
+    label: 'Graphite Aurora',
+    hue: 250,
+    sat: 0.22,
+    light: 0.24,
+    contrast: 0.82,
+    source: 'Poly Haven Graphite Fiber 001 (CC0)'
   })
 ]);
 
