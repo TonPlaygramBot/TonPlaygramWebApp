@@ -2917,7 +2917,7 @@ function applySnookerScaling({
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.86; // bring the orbit slightly higher above the cloth
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0024;
+const STANDING_VIEW_MARGIN = 0.0018;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
@@ -2928,8 +2928,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.08;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0018;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0014;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
@@ -3003,11 +3003,8 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
-const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38;
-const TOP_VIEW_MARGIN = 0.42;
-const TOP_VIEW_RADIUS_SCALE = 0.4;
-const TOP_VIEW_MIN_RADIUS_SCALE = 0.95;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.04, CAMERA.minPhi * 0.62);
+const IN_HAND_CAMERA_PULLBACK = 1.38;
+const TOP_VIEW_MARGIN = 1.1;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -6297,7 +6294,7 @@ function SnookerGame() {
     if (!sph || !bounds) return;
     const standingRadius = bounds.standing?.radius ?? sph.radius;
     const targetRadius = THREE.MathUtils.clamp(
-      standingRadius * (hud.inHand ? IN_HAND_CAMERA_RADIUS_MULTIPLIER : 1),
+      standingRadius * (hud.inHand ? IN_HAND_CAMERA_PULLBACK : 1),
       CAMERA.minR,
       CAMERA.maxR
     );
@@ -6792,26 +6789,15 @@ function SnookerGame() {
     if (!last3DRef.current) {
       last3DRef.current = { phi: sph.phi, theta: sph.theta };
     }
-    const zoomProfile = resolveCameraZoomProfile(cam.aspect);
-    const standingMargin =
-      window.innerHeight > window.innerWidth
-        ? STANDING_VIEW_MARGIN_PORTRAIT
-        : STANDING_VIEW_MARGIN_LANDSCAPE;
-    const targetMargin = next ? TOP_VIEW_MARGIN : standingMargin;
-    const targetRadius = next
-      ? clampOrbitRadius(
-          Math.max(
-            getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
-            CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE,
-            fitRadius(cam, TOP_VIEW_MARGIN)
-          )
-        )
-      : clampOrbitRadius(
-          fitRadius(cam, targetMargin * (zoomProfile?.margin ?? 1))
-        );
+    const targetMargin = next
+      ? TOP_VIEW_MARGIN
+      : window.innerHeight > window.innerWidth
+        ? 1.6
+        : 1.4;
+    const targetRadius = fitRadius(cam, targetMargin);
     const target = {
-      radius: targetRadius,
-      phi: next ? Math.max(TOP_VIEW_PHI, CAMERA.minPhi) : last3DRef.current.phi,
+      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
+      phi: next ? 0.0001 : last3DRef.current.phi,
       theta: next ? sph.theta : last3DRef.current.theta
     };
     const duration = 600;
@@ -8021,9 +8007,7 @@ function SnookerGame() {
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
           const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
-          const topViewMinPhi = topViewRef.current
-            ? Math.max(TOP_VIEW_PHI, CAMERA.minPhi)
-            : CAMERA.minPhi;
+          const topViewMinPhi = topViewRef.current ? 0.0001 : CAMERA.minPhi;
           const topViewMaxPhi = topViewRef.current
             ? Math.max(CAMERA.maxPhi, Math.PI / 2)
             : CAMERA.maxPhi;
@@ -8183,23 +8167,12 @@ function SnookerGame() {
             lookTarget = getDefaultOrbitTarget().multiplyScalar(
               worldScaleFactor
             );
-            const topRadius = clampOrbitRadius(
-              Math.max(
-                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
-                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-              )
-            );
-            const topTheta = sph.theta;
-            const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
-            TMP_SPH.set(topRadius, topPhi, topTheta);
-            camera.up.set(0, 1, 0);
-            camera.position.setFromSpherical(TMP_SPH);
-            camera.position.add(lookTarget);
+            camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
             camera.lookAt(lookTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
               broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-            broadcastArgs.targetWorld = lookTarget.clone();
+            broadcastArgs.targetWorld = null;
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -8727,29 +8700,11 @@ function SnookerGame() {
                   setOrbitFocusToDefault();
                 }
               }
-              focusTarget = store.target.clone();
-            }
+            focusTarget = store.target.clone();
           }
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
           TMP_SPH.copy(sph);
-          const hudState = hudRef.current ?? null;
-          if (
-            IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1 &&
-            hudState?.inHand &&
-            !shooting &&
-            !topViewRef.current
-          ) {
-            TMP_SPH.radius = clampOrbitRadius(
-              TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
-            );
-          }
-          const topViewMinPhi = topViewRef.current
-            ? Math.max(TOP_VIEW_PHI, CAMERA.minPhi)
-            : CAMERA.minPhi;
-          const topViewMaxPhi = topViewRef.current
-            ? Math.max(CAMERA.maxPhi, Math.PI / 2)
-            : CAMERA.maxPhi;
           if (TMP_SPH.radius > 1e-6) {
             const aimLineWorldY =
               (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
