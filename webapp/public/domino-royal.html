@@ -3317,7 +3317,7 @@ function placeChairsWithOption(option, chairData, token) {
     const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
     const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 1.05 : -SEAT_THICKNESS * 0.68;
-    const avatarY = avatarHeight - SEAT_THICKNESS * 0.32 + avatarYOffset;
+    const avatarY = avatarHeight - SEAT_THICKNESS * 0.36 + avatarYOffset;
     const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.06 : 0.085;
     avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
     if (index === HUMAN_SEAT_INDEX) {
@@ -3328,7 +3328,8 @@ function placeChairsWithOption(option, chairData, token) {
     seatAvatars.push(avatar);
 
     const nameTag = createSeatNameTag(seatNames[index] ?? 'Player');
-    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.12, labelDepth * (avatarDepthFactor + 0.015));
+    const nameTagYOffset = SEAT_THICKNESS * 0.28;
+    nameTag.position.set(0, avatarY + nameTagYOffset, labelDepth * (avatarDepthFactor + 0.015));
     nameTag.lookAt(lookTarget.x, nameTag.position.y, lookTarget.z);
     wrapper.add(nameTag);
     seatNameTags.push(nameTag);
