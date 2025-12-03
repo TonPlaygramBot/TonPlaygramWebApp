@@ -1,16 +1,14 @@
 import {
-  WOOD_FINISH_PRESETS,
   createWoodMaterial,
   disposeMaterialWithWood,
   hslToHexNumber,
   shiftLightness,
   shiftSaturation
 } from './woodMaterials.js';
+import { CUE_STYLE_PRESETS, CUE_RACK_PALETTE } from '../config/cueStyles.js';
 import { applySRGBColorSpace } from './colorSpace.js';
 
-export const CUE_RACK_PALETTE = WOOD_FINISH_PRESETS.map((preset) =>
-  hslToHexNumber(preset.hue, preset.sat, preset.light)
-);
+export { CUE_RACK_PALETTE } from '../config/cueStyles.js';
 
 /**
  * Build a wall-mounted cue rack display consisting of a wooden frame,
@@ -30,7 +28,7 @@ export function createCueRackDisplay({
   ballRadius,
   cueLengthMultiplier,
   cueTipRadius,
-  cueCount = WOOD_FINISH_PRESETS.length
+  cueCount = CUE_STYLE_PRESETS.length
 } = {}) {
   if (!THREE) {
     throw new Error('THREE is required to create the cue rack display.');
@@ -69,9 +67,7 @@ export function createCueRackDisplay({
   const group = new THREE.Group();
   const disposables = [];
 
-  const framePreset =
-    WOOD_FINISH_PRESETS.find((preset) => preset.id === 'walnut') ??
-    WOOD_FINISH_PRESETS[WOOD_FINISH_PRESETS.length - 2];
+  const framePreset = CUE_STYLE_PRESETS[0];
   const frameMat = createWoodMaterial({
     hue: framePreset.hue,
     sat: framePreset.sat,
@@ -337,7 +333,7 @@ export function createCueRackDisplay({
   const cueTop = clothHeight / 2 - cueTopMargin;
 
   for (let i = 0; i < cueCount; i += 1) {
-    const preset = WOOD_FINISH_PRESETS[i % WOOD_FINISH_PRESETS.length];
+    const preset = CUE_STYLE_PRESETS[i % CUE_STYLE_PRESETS.length];
     const cue = makeCue(preset, i);
     cue.position.set(startX + i * stepX, cueTop, cueDepth);
     group.add(cue);

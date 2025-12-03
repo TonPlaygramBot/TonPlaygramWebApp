@@ -20,10 +20,8 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { useIsMobile } from '../../hooks/useIsMobile.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
-import {
-  createCueRackDisplay,
-  CUE_RACK_PALETTE
-} from '../../utils/createCueRackDisplay.js';
+import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
+import { CUE_RACK_PALETTE, CUE_STYLE_PRESETS } from '../../config/cueStyles.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -12421,7 +12419,7 @@ function SnookerGame() {
                   Cue Styles
                 </h3>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {WOOD_FINISH_PRESETS.map((preset, index) => {
+                  {CUE_STYLE_PRESETS.map((preset, index) => {
                     const active = cueStyleIndex === index;
                     return (
                       <button
