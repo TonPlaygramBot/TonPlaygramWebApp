@@ -771,7 +771,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.892; // trim the side jaw radius slightly further so the cut and fascia sit leaner toward centre
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaws level with the corner jaws for consistent vertical alignment
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.255; // pull the middle pocket jaws closer to centre for a tighter cut
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.29; // pull the middle pocket jaws closer to centre for a tighter cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -8320,6 +8320,96 @@ function PoolRoyaleGame({
     return CUE_RACK_PALETTE[normalized];
   }, []);
 
+  const createCueStripeTexture = useCallback((hexColor) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const base = new THREE.Color(hexColor ?? 0xffffff);
+    const accent = base.clone().offsetHSL(0.04, 0.08, 0.12);
+    const shadow = base.clone().lerp(new THREE.Color(0x111111), 0.4);
+    const bandTop = canvas.height * 0.34;
+    const bandBottom = canvas.height * 0.92;
+    const fade = canvas.height * 0.06;
+
+    const bandMask = ctx.createLinearGradient(0, bandTop - fade, 0, bandTop + fade);
+    bandMask.addColorStop(0, 'rgba(0,0,0,0)');
+    bandMask.addColorStop(0.5, 'rgba(0,0,0,1)');
+    bandMask.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = bandMask;
+    ctx.fillRect(0, bandTop - fade, canvas.width, fade * 2);
+
+    const bandMaskBottom = ctx.createLinearGradient(0, bandBottom - fade, 0, bandBottom + fade);
+    bandMaskBottom.addColorStop(0, 'rgba(0,0,0,1)');
+    bandMaskBottom.addColorStop(0.5, 'rgba(0,0,0,1)');
+    bandMaskBottom.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = bandMaskBottom;
+    ctx.fillRect(0, bandBottom - fade, canvas.width, fade * 2);
+
+    ctx.fillStyle = '#000';
+    ctx.globalCompositeOperation = 'source-in';
+    ctx.fillRect(0, bandTop, canvas.width, bandBottom - bandTop);
+    ctx.globalCompositeOperation = 'source-over';
+
+    const stripeCount = 18;
+    const stripeWidth = canvas.width / stripeCount;
+    for (let i = 0; i < stripeCount; i += 1) {
+      const x = i * stripeWidth;
+      const stripeGradient = ctx.createLinearGradient(x, bandTop, x + stripeWidth, bandBottom);
+      const c1 = i % 2 === 0 ? accent : base;
+      const c2 = i % 2 === 0 ? base : shadow;
+      stripeGradient.addColorStop(0, c1.getStyle());
+      stripeGradient.addColorStop(1, c2.getStyle());
+      ctx.fillStyle = stripeGradient;
+      ctx.fillRect(x, bandTop, stripeWidth * 0.9, bandBottom - bandTop);
+    }
+
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 42; i += 1) {
+      const x = Math.random() * canvas.width;
+      const y = bandTop + Math.random() * (bandBottom - bandTop);
+      const w = stripeWidth * 0.25 + Math.random() * stripeWidth * 0.5;
+      const h = Math.random() * fade * 0.8;
+      ctx.beginPath();
+      ctx.ellipse(x, y, w, h, Math.random() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+
+    const texture = new THREE.CanvasTexture(canvas);
+    applySRGBColorSpace(texture);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.anisotropy = 8;
+    texture.needsUpdate = true;
+    return texture;
+  }, []);
+
+  const updateCueStripeMaterial = useCallback(
+    (index) => {
+      const materials = cueMaterialsRef.current ?? {};
+      const stripeMaterial = materials.stripe;
+      if (!stripeMaterial) return;
+      const color = getCueColorFromIndex(index);
+      const nextTexture = createCueStripeTexture(color);
+      const prevMap = stripeMaterial.map;
+      stripeMaterial.map = nextTexture;
+      stripeMaterial.color.set(0xffffff);
+      stripeMaterial.roughness = 0.32;
+      stripeMaterial.metalness = 0.1;
+      stripeMaterial.clearcoat = 0.12;
+      stripeMaterial.transparent = true;
+      stripeMaterial.depthWrite = false;
+      stripeMaterial.side = THREE.DoubleSide;
+      stripeMaterial.needsUpdate = true;
+      if (prevMap && prevMap.dispose) prevMap.dispose();
+    },
+    [createCueStripeTexture, getCueColorFromIndex]
+  );
+
   const updateCueRackHighlights = useCallback(() => {
     const selectedIndex = cueStyleIndexRef.current ?? 0;
     const groups = cueOptionGroupsRef.current;
@@ -8385,8 +8475,9 @@ function PoolRoyaleGame({
         shaftMaterial.needsUpdate = true;
       }
       updateCueRackHighlights();
+      updateCueStripeMaterial(normalized);
     },
-    [getCueColorFromIndex, updateCueRackHighlights]
+    [getCueColorFromIndex, updateCueRackHighlights, updateCueStripeMaterial]
   );
 
   useEffect(() => {
@@ -12831,19 +12922,32 @@ function PoolRoyaleGame({
       buttCap.position.z = cueLen / 2;
       cueBody.add(buttCap);
 
-      const stripeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
-      for (let i = 0; i < 12; i++) {
-        const stripe = new THREE.Mesh(
-          new THREE.BoxGeometry(0.01 * SCALE, 0.001 * SCALE, 0.35 * SCALE),
-          stripeMat
-        );
-        const angle = (i / 12) * Math.PI * 2;
-        stripe.position.x = Math.cos(angle) * 0.02 * SCALE;
-        stripe.position.y = Math.sin(angle) * 0.02 * SCALE;
-        stripe.position.z = 0.55 * SCALE;
-        stripe.rotation.z = angle;
-        cueBody.add(stripe);
-      }
+      const stripeOverlay = new THREE.Mesh(
+        new THREE.CylinderGeometry(
+          buttShaftRadius * 1.001,
+          buttShaftRadius * 1.001,
+          rearLength * 0.42,
+          64,
+          1,
+          true
+        ),
+        new THREE.MeshPhysicalMaterial({
+          transparent: true,
+          roughness: 0.32,
+          metalness: 0.1,
+          clearcoat: 0.12,
+          depthWrite: false,
+          side: THREE.DoubleSide,
+          polygonOffset: true,
+          polygonOffsetFactor: -0.5,
+          polygonOffsetUnits: -0.5
+        })
+      );
+      stripeOverlay.rotation.x = -Math.PI / 2;
+      stripeOverlay.position.z = frontLength / 2 + rearLength * 0.32;
+      stripeOverlay.userData.isCueStripe = true;
+      cueMaterialsRef.current.stripe = stripeOverlay.material;
+      cueBody.add(stripeOverlay);
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
       applyCueButtTilt(cueStick);
