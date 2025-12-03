@@ -414,15 +414,15 @@ const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so po
 const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
 const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
-const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0.012; // sink fascia just below the rail surface so side plates mirror the corner drop
+const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.05; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.94; // extend the fascia farther toward each pocket end so the side plate mirrors the rail span
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.9; // align fascia reach with snooker so the arch covers the relieved cut without overhang
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.21; // stretch fascia span farther along the side rails without pushing toward the field
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 0.804; // bias the side chrome growth toward the corner pockets only
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.052; // push the side fascias farther outward so they finish where the wooden rails stop
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.04; // push the side fascias slightly farther from centre so their outer edge stays flush while widening the reveal
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.058; // trim the middle chrome arch so the rounded cut sits even smaller against the fascia
@@ -431,7 +431,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.042; // ease the middle rail arches so the rounded cut opens slightly wider beside the pockets
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.024; // pinch the middle rail arches slightly tighter so the rounded cut radius comes in further toward the jaws
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
 
 function buildChromePlateGeometry({
@@ -6130,15 +6130,9 @@ function Table3D(
     chromePlateHeight / 2
   );
   const chromePlateY =
-    railsTopY -
-    chromePlateThickness +
-    MICRO_EPS * 2 -
-    TABLE.THICK * CHROME_PLATE_DOWNWARD_EXPANSION_SCALE;
+    railsTopY - chromePlateThickness + MICRO_EPS * 2;
   const sideChromePlateY =
-    railsTopY -
-    sideChromePlateThickness +
-    MICRO_EPS * 2 -
-    TABLE.THICK * CHROME_PLATE_DOWNWARD_EXPANSION_SCALE;
+    railsTopY - sideChromePlateThickness + MICRO_EPS * 2;
   const chromeCornerCenterOutset =
     TABLE.THICK * CHROME_CORNER_CENTER_OUTSET_SCALE;
   const chromeCornerShortRailShift =
