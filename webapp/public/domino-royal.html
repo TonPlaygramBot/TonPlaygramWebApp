@@ -2664,7 +2664,7 @@ function createSeatNameTag(label = '') {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#ffe8a3';
-  ctx.font = 'bold 38px "Inter", Arial, sans-serif';
+  ctx.font = 'bold 46px "Inter", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label || 'Player', canvas.width / 2, canvas.height / 2);
@@ -2673,7 +2673,7 @@ function createSeatNameTag(label = '') {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
-  const geometry = new THREE.PlaneGeometry(1.5, 0.48);
+  const geometry = new THREE.PlaneGeometry(1.65, 0.52);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 3;
   return mesh;
@@ -3313,12 +3313,12 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.updateWorldMatrix(true, true);
     const chairBox = new THREE.Box3().setFromObject(chair);
     const avatarSource = seatAvatarSources[index] ?? DEFAULT_AVATAR_EMOJI;
-    const avatarScale = index === HUMAN_SEAT_INDEX ? 0.78 : 0.92;
+    const avatarScale = index === HUMAN_SEAT_INDEX ? 0.9 : 1.05;
     const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.85 : -SEAT_THICKNESS * 0.45;
-    const avatarY = avatarHeight - SEAT_THICKNESS * 0.35 + avatarYOffset;
-    const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.08 : 0.1;
+    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.6 : -SEAT_THICKNESS * 0.3;
+    const avatarY = avatarHeight - SEAT_THICKNESS * 0.32 + avatarYOffset;
+    const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.06 : 0.085;
     avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
     if (index === HUMAN_SEAT_INDEX) {
       avatar.visible = false;
@@ -3328,7 +3328,7 @@ function placeChairsWithOption(option, chairData, token) {
     seatAvatars.push(avatar);
 
     const nameTag = createSeatNameTag(seatNames[index] ?? 'Player');
-    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.45, labelDepth * (avatarDepthFactor + 0.05));
+    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.22, labelDepth * (avatarDepthFactor + 0.02));
     nameTag.lookAt(lookTarget.x, nameTag.position.y, lookTarget.z);
     wrapper.add(nameTag);
     seatNameTags.push(nameTag);
