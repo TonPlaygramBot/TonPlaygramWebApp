@@ -2636,7 +2636,9 @@ function createSeatLabelMesh() {
 }
 
 function createSeatAvatarSprite(source = DEFAULT_AVATAR_EMOJI, scaleMultiplier = 1) {
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ transparent: true, depthWrite: false, alphaTest: 0.4 })
+  );
   const diameter = DOMINO_WIDTH * 6.5 * scaleMultiplier;
   sprite.scale.set(diameter, diameter, diameter);
   sprite.center.set(0.5, 0);
@@ -3308,10 +3310,13 @@ function placeChairsWithOption(option, chairData, token) {
     const avatarScale = index === HUMAN_SEAT_INDEX ? 0.78 : 0.92;
     const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.55 : -SEAT_THICKNESS * 0.25;
+    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.85 : -SEAT_THICKNESS * 0.45;
     const avatarY = avatarHeight - SEAT_THICKNESS * 0.35 + avatarYOffset;
     const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.08 : 0.1;
     avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
+    if (index === HUMAN_SEAT_INDEX) {
+      avatar.visible = false;
+    }
     avatar.lookAt(lookTarget.x, avatar.position.y, lookTarget.z);
     wrapper.add(avatar);
     seatAvatars.push(avatar);
