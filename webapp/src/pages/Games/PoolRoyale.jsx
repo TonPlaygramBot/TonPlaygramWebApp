@@ -431,8 +431,8 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.944; // tighten the middle rail arches so the rounded cut leans smaller toward the side jaws
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.062; // pull the wooden middle-pocket arches slightly toward table centre for a tighter cut alignment
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.974; // open the middle rail arches slightly so the rounded cut reads wider toward the side jaws
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.05; // ease the wooden middle-pocket arches back toward neutral so the larger cut stays centred
 
 function buildChromePlateGeometry({
   width,
@@ -771,7 +771,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.892; // trim the side jaw radius slightly further so the cut and fascia sit leaner toward centre
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaws level with the corner jaws for consistent vertical alignment
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.2; // pull the middle pocket jaws closer to centre for a tighter cut
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.26; // pull the middle pocket jaws farther toward centre for a slightly tighter cut
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
