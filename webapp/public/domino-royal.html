@@ -331,21 +331,20 @@ const entryMode = (urlParams.get('entry') || '').toLowerCase();
 const shouldRunHallwayEntry = entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
-const FLAG_EMOJIS = ["🇦🇫","🇦🇽","🇦🇱","🇩🇿","🇦🇸","🇦🇩","🇦🇴","🇦🇮","🇦🇶","🇦🇬","🇦🇷","🇦🇲","🇦🇼","🇦🇺","🇦🇹","🇦🇿","🇧🇸","🇧🇭","🇧🇩","🇧🇧","🇧🇾","🇧🇪","🇧🇿","🇧🇯","🇧🇲","🇧🇹","🇧🇴","🇧🇦","🇧🇼","🇧🇻","🇧🇷","🇮🇴","🇻🇬","🇧🇳","🇧🇬","🇧🇫","🇧🇮","🇰🇭","🇨🇲","🇨🇦","🇨🇻","🇧🇶","🇰🇾","🇨🇫","🇹🇩","🇨🇱","🇨🇳","🇨🇽","🇨🇨","🇨🇴","🇰🇲","🇨🇬","🇨🇩","🇨🇰","🇨🇷","🇨🇮","🇭🇷","🇨🇺","🇨🇼","🇨🇾","🇨🇿","🇩🇰","🇩🇯","🇩🇲","🇩🇴","🇪🇨","🇪🇬","🇸🇻","🇬🇶","🇪🇷","🇪🇪","🇸🇿","🇪🇹","🇫🇰","🇫🇴","🇫🇯","🇫🇮","🇫🇷","🇬🇫","🇵🇫","🇹🇫","🇬🇦","🇬🇲","🇬🇪","🇩🇪","🇬🇭","🇬🇮","🇬🇷","🇬🇱","🇬🇩","🇬🇵","🇬🇺","🇬🇹","🇬🇬","🇬🇳","🇬🇼","🇬🇾","🇭🇹","🇭🇲","🇭🇳","🇭🇰","🇭🇺","🇮🇸","🇮🇳","🇮🇩","🇮🇷","🇮🇶","🇮🇪","🇮🇲","🇮🇱","🇮🇹","🇯🇲","🇯🇵","🇯🇪","🇯🇴","🇰🇿","🇰🇪","🇰🇮","🇰🇼","🇰🇬","🇱🇦","🇱🇻","🇱🇧","🇱🇸","🇱🇷","🇱🇾","🇱🇮","🇱🇹","🇱🇺","🇲🇴","🇲🇬","🇲🇼","🇲🇾","🇲🇻","🇲🇱","🇲🇹","🇲🇭","🇲🇶","🇲🇷","🇲🇺","🇾🇹","🇲🇽","🇫🇲","🇲🇩","🇲🇨","🇲🇳","🇲🇪","🇲🇸","🇲🇦","🇲🇿","🇲🇲","🇳🇦","🇳🇷","🇳🇵","🇳🇱","🇳🇨","🇳🇿","🇳🇮","🇳🇪","🇳🇬","🇳🇺","🇳🇫","🇰🇵","🇲🇰","🇲🇵","🇳🇴","🇴🇲","🇵🇰","🇵🇼","🇵🇸","🇵🇦","🇵🇬","🇵🇾","🇵🇪","🇵🇭","🇵🇳","🇵🇱","🇵🇹","🇵🇷","🇶🇦","🇷🇪","🇷🇴","🇷🇺","🇷🇼","🇼🇸","🇸🇲","🇸🇹","🇸🇦","🇸🇳","🇷🇸","🇸🇨","🇸🇱","🇸🇬","🇸🇽","🇸🇰","🇸🇮","🇸🇧","🇸🇴","🇿🇦","🇬🇸","🇰🇷","🇸🇸","🇪🇸","🇱🇰","🇧🇱","🇸🇭","🇰🇳","🇱🇨","🇲🇫","🇵🇲","🇻🇨","🇸🇩","🇸🇷","🇸🇯","🇸🇪","🇨🇭","🇸🇾","🇹🇼","🇹🇯","🇹🇿","🇹🇭","🇹🇱","🇹🇬","🇹🇰","🇹🇴","🇹🇹","🇹🇳","🇹🇷","🇹🇲","🇹🇨","🇹🇻","🇺🇲","🇻🇮","🇺🇬","🇺🇦","🇦🇪","🇬🇧","🇺🇸","🇺🇾","🇺🇿","🇻🇺","🇻🇦","🇻🇪","🇻🇳","🇼🇫","🇪🇭","🇾🇪","🇿🇲","🇿🇼"];
-const seatAvatarMode = (urlParams.get('avatars') || '').toLowerCase();
 const seatAvatarPhoto = (urlParams.get('avatar') || '').trim();
 const seatAvatarUsername = (urlParams.get('username') || '').trim();
 const DEFAULT_AVATAR_EMOJI = '🌐';
+const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
 
-function parseFlagParam(rawFlags = '') {
-  return rawFlags
-    .split(',')
-    .map((v) => Number.parseInt(v, 10))
-    .filter((v) => Number.isFinite(v) && v >= 0 && v < FLAG_EMOJIS.length)
-    .map((idx) => FLAG_EMOJIS[idx]);
+function getSeatUsernames(count = N) {
+  const maxSeats = Math.max(1, count);
+  return Array.from({ length: maxSeats }, (_, idx) => {
+    if (idx === 0) {
+      return seatAvatarUsername || DEFAULT_SEAT_NAMES[idx];
+    }
+    return DEFAULT_SEAT_NAMES[idx] || `Player ${idx + 1}`;
+  });
 }
-
-const seatAvatarFlags = parseFlagParam(urlParams.get('flags') || '');
 
 function seatBasisForAngle(angle, radius = CHAIR_RADIUS) {
   const useAngle = Number.isFinite(angle) ? angle : CAMERA_DEFAULT_AZIMUTH;
@@ -2438,23 +2437,9 @@ let seatLabelShouldDisplay = shouldShowSeatLabel;
 const seatAvatars = [];
 const seatNameTags = [];
 
-const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
-
 function buildSeatNames(count = N) {
-  const sources = buildSeatAvatarSources(count);
-  return sources.map((src, idx) => {
-    const flagLabel = seatAvatarFlags[idx] || seatAvatarFlags[0];
-    if (isAvatarUrl(src)) {
-      const fallbackFlag = flagLabel || DEFAULT_AVATAR_EMOJI;
-      return fallbackFlag;
-    }
-    const label = typeof flagLabel === 'string' && flagLabel.trim()
-      ? flagLabel.trim()
-      : typeof src === 'string' && src.trim()
-        ? src.trim()
-        : DEFAULT_AVATAR_EMOJI;
-    return label;
-  });
+  const usernames = getSeatUsernames(count);
+  return usernames.map((name, idx) => name || `Player ${idx + 1}`);
 }
 
 function isAvatarUrl(str = '') {
@@ -2462,15 +2447,13 @@ function isAvatarUrl(str = '') {
 }
 
 function buildSeatAvatarSources(count = N) {
-  const resolvedFlags = seatAvatarFlags.length ? seatAvatarFlags : [DEFAULT_AVATAR_EMOJI];
+  const usernames = getSeatUsernames(count);
   const sources = Array.from({ length: Math.max(1, count) }, (_, idx) => {
-    if (idx === HUMAN_SEAT_INDEX) {
-      if (seatAvatarMode === 'flags' && resolvedFlags.length) return resolvedFlags[0];
-      if (seatAvatarPhoto) return seatAvatarPhoto;
-      return seatAvatarUsername || resolvedFlags[0] || DEFAULT_AVATAR_EMOJI;
+    const name = usernames[idx] || `Player ${idx + 1}`;
+    if (idx === HUMAN_SEAT_INDEX && seatAvatarPhoto) {
+      return seatAvatarPhoto;
     }
-    const flagIndex = (idx - 1) % resolvedFlags.length;
-    return resolvedFlags[flagIndex < 0 ? 0 : flagIndex];
+    return name;
   });
   return sources;
 }
