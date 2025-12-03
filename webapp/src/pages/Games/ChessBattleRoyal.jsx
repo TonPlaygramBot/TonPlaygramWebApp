@@ -3474,11 +3474,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       );
       const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
 
-      const default3d = new THREE.Spherical(
-        clamp(CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.initialRadiusFactor, CAM.minR, CAM.maxR),
-        CAMERA_DEFAULT_PHI,
-        theta
+      const initialRadius = clamp(
+        CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.initialRadiusFactor * 1.15,
+        CAM.minR,
+        CAM.maxR
       );
+      const default3d = new THREE.Spherical(initialRadius, CAMERA_DEFAULT_PHI, theta);
 
       if (mode === '2d') {
         cameraMemory.last3d = current;
@@ -3486,9 +3487,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
         const radius = clamp(
-          Math.max(BOARD_DISPLAY_SIZE * 1.3, CAMERA_BASE_RADIUS * 1.15, CAM.minR * 1.1),
+          Math.max(BOARD_DISPLAY_SIZE * 1.5, CAMERA_BASE_RADIUS * 1.3, CAM.minR * 1.1),
           CAM.minR,
-          CAM.maxR * 0.88
+          CAM.maxR * 0.95
         );
         const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_LOCK, 0);
         animateCameraTo(target, 360);
