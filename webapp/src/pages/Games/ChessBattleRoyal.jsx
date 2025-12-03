@@ -1104,9 +1104,17 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   };
 }
 
-async function loadBeautifulGameSet() {
+function createConfiguredGLTFLoader() {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
+  const draco = new DRACOLoader();
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  loader.setDRACOLoader(draco);
+  return loader;
+}
+
+async function loadBeautifulGameSet() {
+  const loader = createConfiguredGLTFLoader();
   let lastError = null;
   for (const url of BEAUTIFUL_GAME_URLS) {
     try {
@@ -1128,8 +1136,7 @@ async function loadBeautifulGameSet() {
 }
 
 async function loadPieceSetFromUrls(urls = [], options = {}) {
-  const loader = new GLTFLoader();
-  loader.setCrossOrigin('anonymous');
+  const loader = createConfiguredGLTFLoader();
   let lastError = null;
   for (const url of urls) {
     try {
@@ -3086,34 +3093,29 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
 
     if (arena.boardMaterials) {
+      const usingExternalBoard = Boolean(arena.boardModel && !arena.usingProceduralBoard);
       const { base: baseMat, top: topMat, coord: coordMat, tiles } = arena.boardMaterials;
       baseMat?.color?.set?.(boardTheme.frameDark);
       baseMat.roughness = boardTheme.frameRoughness;
       baseMat.metalness = boardTheme.frameMetalness;
-      if (arena.boardModel) {
-        baseMat.transparent = true;
-        baseMat.opacity = Math.min(baseMat.opacity ?? 0.02, 0.08);
-        baseMat.depthWrite = false;
-      }
+      baseMat.transparent = usingExternalBoard;
+      baseMat.opacity = usingExternalBoard ? Math.min(baseMat.opacity ?? 0.02, 0.08) : 1;
+      baseMat.depthWrite = !usingExternalBoard;
       topMat?.color?.set?.(boardTheme.frameLight);
       topMat.roughness = boardTheme.surfaceRoughness;
       topMat.metalness = boardTheme.surfaceMetalness;
-      if (arena.boardModel) {
-        topMat.transparent = true;
-        topMat.opacity = Math.min(topMat.opacity ?? 0.02, 0.08);
-        topMat.depthWrite = false;
-      }
+      topMat.transparent = usingExternalBoard;
+      topMat.opacity = usingExternalBoard ? Math.min(topMat.opacity ?? 0.02, 0.08) : 1;
+      topMat.depthWrite = !usingExternalBoard;
       coordMat?.color?.set?.(palette.accent);
       tiles?.forEach((tileMesh) => {
         const isDark = (tileMesh.userData?.r + tileMesh.userData?.c) % 2 === 1;
         tileMesh.material.color.set(isDark ? boardTheme.dark : boardTheme.light);
         tileMesh.material.roughness = boardTheme.surfaceRoughness;
         tileMesh.material.metalness = boardTheme.surfaceMetalness;
-        if (arena.boardModel) {
-          tileMesh.material.transparent = true;
-          tileMesh.material.opacity = Math.min(tileMesh.material.opacity ?? 0.08, 0.12);
-          tileMesh.material.depthWrite = false;
-        }
+        tileMesh.material.transparent = usingExternalBoard;
+        tileMesh.material.opacity = usingExternalBoard ? Math.min(tileMesh.material.opacity ?? 0.08, 0.12) : 1;
+        tileMesh.material.depthWrite = !usingExternalBoard;
       });
     }
 
@@ -3798,7 +3800,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       boardGroup.add(nSmall);
     }
 
+    let proceduralBoardVisible = true;
     const setProceduralBoardVisible = (visible) => {
+      proceduralBoardVisible = visible;
       base.visible = visible;
       top.visible = visible;
       tileGroup.visible = visible;
@@ -3806,6 +3810,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       tiles.forEach((tileMesh) => {
         tileMesh.visible = visible;
       });
+      arena.usingProceduralBoard = visible;
+      if (arenaRef.current) {
+        arenaRef.current.usingProceduralBoard = visible;
+      }
     };
 
     arena.setProceduralBoardVisible = setProceduralBoardVisible;
@@ -3882,6 +3890,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         currentBoardCleanup = null;
       }
       if (boardModel) {
+        boardModel.visible = true;
         boardGroup.add(boardModel);
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
@@ -3951,7 +3960,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         piecePrototypes: currentPiecePrototypes,
         activePieceSetId: currentPieceSetId,
         applyPieceSetAssets,
-        setProceduralBoardVisible
+        setProceduralBoardVisible,
+        usingProceduralBoard: proceduralBoardVisible
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
