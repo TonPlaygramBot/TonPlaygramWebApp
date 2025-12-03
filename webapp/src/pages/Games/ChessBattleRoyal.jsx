@@ -390,6 +390,24 @@ const MARBLE_ONYX_STYLE = Object.freeze({
   accent: '#b1c4cf'
 });
 
+const KENNEY_WOOD_STYLE = Object.freeze({
+  id: 'kenneyWood',
+  label: 'Kenney Woodcut',
+  white: { color: '#f2e0c5', roughness: 0.48, metalness: 0.08, clearcoat: 0.12 },
+  black: { color: '#2c2016', roughness: 0.56, metalness: 0.12, clearcoat: 0.12 },
+  accent: '#d7b07a',
+  blackAccent: '#b98a52'
+});
+
+const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
+  id: 'polygonalGraphite',
+  label: 'Polygonal Graphite',
+  white: { color: '#e7e8ef', roughness: 0.34, metalness: 0.24, sheen: 0.12 },
+  black: { color: '#1c2430', roughness: 0.3, metalness: 0.32, sheen: 0.16 },
+  accent: '#7ce3ff',
+  blackAccent: '#50b8d8'
+});
+
 const PIECE_STYLE_OPTIONS = Object.freeze([
   {
     id: 'beautifulGame',
@@ -409,6 +427,19 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     label: 'Marble & Onyx Tournament',
     style: MARBLE_ONYX_STYLE,
     loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
+  },
+  {
+    id: 'kenneyWood',
+    label: 'Kenney Woodcut Low-Poly',
+    style: KENNEY_WOOD_STYLE,
+    preserveMaterials: true,
+    loader: (targetBoardSize) => loadKenneyAssets(targetBoardSize)
+  },
+  {
+    id: 'polygonalGraphite',
+    label: 'Polygonal Graphite Low-Poly',
+    style: POLYGONAL_GRAPHITE_STYLE,
+    loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
   }
 ]);
 
@@ -1284,6 +1315,26 @@ async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
     black: EBONY_POLISH_TEXTURES,
     whiteTint: '#f5f5f5',
     blackTint: '#0f1012'
+  });
+}
+
+async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  return loadPieceSetFromUrls(KENNEY_SET_URLS, {
+    targetBoardSize,
+    styleId: 'kenneyWood',
+    pieceStyle: KENNEY_WOOD_STYLE,
+    assetScale: 0.9,
+    fallbackBuilder: buildKenneyFallbackAssets
+  });
+}
+
+async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  return loadPieceSetFromUrls(POLYGONAL_SET_URLS, {
+    targetBoardSize,
+    styleId: 'polygonalGraphite',
+    pieceStyle: POLYGONAL_GRAPHITE_STYLE,
+    assetScale: 0.98,
+    fallbackBuilder: buildPolygonalFallbackAssets
   });
 }
 
