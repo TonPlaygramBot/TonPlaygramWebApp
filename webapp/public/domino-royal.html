@@ -288,15 +288,15 @@ const TABLE_HEIGHT = STOOL_HEIGHT + TABLE_HEIGHT_LIFT;
 const HUMAN_SEAT_INDEX = 0;
 const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(90),
-  THREE.MathUtils.degToRad(315),
+  THREE.MathUtils.degToRad(0),
   THREE.MathUtils.degToRad(270),
-  THREE.MathUtils.degToRad(225)
+  THREE.MathUtils.degToRad(180)
 ]);
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS,
-  CHAIR_RADIUS * 0.88,
-  CHAIR_RADIUS * 1.02,
-  CHAIR_RADIUS * 0.88
+  CHAIR_RADIUS,
+  CHAIR_RADIUS,
+  CHAIR_RADIUS
 ]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -2777,14 +2777,14 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 1.05; // modestly upscale tiles for better readability
+const DOMINO_SCALE = 1.5 * 1.18; // upscale tiles for stronger readability
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
-const DOMINO_HAND_GAP = DOMINO_LENGTH * 1.1;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.9;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -3316,7 +3316,7 @@ function placeChairsWithOption(option, chairData, token) {
     const avatarScale = index === HUMAN_SEAT_INDEX ? 0.9 : 1.05;
     const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.6 : -SEAT_THICKNESS * 0.3;
+    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.9 : -SEAT_THICKNESS * 0.55;
     const avatarY = avatarHeight - SEAT_THICKNESS * 0.32 + avatarYOffset;
     const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.06 : 0.085;
     avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
@@ -3328,7 +3328,7 @@ function placeChairsWithOption(option, chairData, token) {
     seatAvatars.push(avatar);
 
     const nameTag = createSeatNameTag(seatNames[index] ?? 'Player');
-    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.22, labelDepth * (avatarDepthFactor + 0.02));
+    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.12, labelDepth * (avatarDepthFactor + 0.015));
     nameTag.lookAt(lookTarget.x, nameTag.position.y, lookTarget.z);
     wrapper.add(nameTag);
     seatNameTags.push(nameTag);
