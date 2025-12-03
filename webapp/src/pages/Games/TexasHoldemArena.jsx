@@ -2601,26 +2601,25 @@ function TexasHoldemArena({ search }) {
         const orientHumanCards = () => {
           const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
           if (!humanSeatGroup) return;
-          const baseAnchor = humanSeatGroup.cardRailAnchor
+
+          const baseAnchor = humanSeatGroup.chipAnchor
             .clone()
-            .lerp(humanSeatGroup.chipRailAnchor, HUMAN_CARD_CHIP_BLEND);
+            .add(humanSeatGroup.right.clone().setLength(HUMAN_CARD_LATERAL_SHIFT * 0.6))
+            .add(humanSeatGroup.forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT * 0.2));
           const right = humanSeatGroup.right.clone();
           const forward = humanSeatGroup.forward.clone();
+
           humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
-            const lateral = right.clone().setLength((idx - 0.5) * HUMAN_CARD_SPREAD + HUMAN_CARD_LATERAL_SHIFT);
-            const inward = forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT * 0.25);
-            const forwardOffset = forward.clone().setLength(HUMAN_CARD_FORWARD_OFFSET * 0.6);
-            const position = baseAnchor.clone().add(lateral).add(inward).add(forwardOffset);
-            position.y = humanSeatGroup.cardRailAnchor.y + CARD_D * 0.6;
+            const lateral = right.clone().setLength((idx - 0.5) * HUMAN_CARD_SPREAD * 0.92);
+            const forwardOffset = forward.clone().setLength(HUMAN_CARD_FORWARD_OFFSET * 0.2);
+            const position = baseAnchor.clone().add(lateral).add(forwardOffset);
+            position.y = humanSeatGroup.chipAnchor.y + CARD_SURFACE_OFFSET;
             mesh.position.copy(position);
-            const cameraDirection = camera.position.clone().setY(position.y).sub(position);
-            if (cameraDirection.lengthSq() < 1e-4) {
-              cameraDirection.copy(forward);
-            }
+
             const lookTarget = position
               .clone()
-              .add(cameraDirection.setLength(Math.max(HUMAN_CARD_LOOK_SPLAY, 0.001)))
-              .add(new THREE.Vector3(0, HUMAN_CARD_LOOK_LIFT, 0));
+              .add(forward.clone().setLength(Math.max(HUMAN_CARD_LOOK_SPLAY, 0.001)))
+              .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0));
             orientCard(mesh, lookTarget, { face: 'front', flat: true });
             setCardFace(mesh, 'front');
           });
