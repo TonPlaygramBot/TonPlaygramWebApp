@@ -73,7 +73,7 @@ const BASE_BOARD_THEME = Object.freeze({
   frameMetalness: 0.12
 });
 
-const BOARD_COLOR_OPTIONS = Object.freeze([
+const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
   {
     id: 'royaleNight',
     label: 'Royale Nightfall',
@@ -255,7 +255,7 @@ const CHECKMATE_SOUND_URL =
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
-    ...(BOARD_COLOR_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
+    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
     light: '#f0d9b5',
     dark: '#8b5a2b',
     frameLight: '#b88a55',
@@ -269,6 +269,17 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
     frameMetalness: 0.18
   })
 );
+
+const BEAUTIFUL_GAME_BOARD_OPTION = Object.freeze({
+  id: 'beautifulGameBoard',
+  label: 'A Beautiful Game Board',
+  ...BEAUTIFUL_GAME_THEME
+});
+
+const BOARD_COLOR_OPTIONS = Object.freeze([
+  BEAUTIFUL_GAME_BOARD_OPTION,
+  ...BOARD_COLOR_BASE_OPTIONS
+]);
 
 const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
@@ -440,6 +451,13 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     label: 'Polygonal Graphite Low-Poly',
     style: POLYGONAL_GRAPHITE_STYLE,
     loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
+  },
+  {
+    id: 'beautifulGameTouch',
+    label: 'A Beautiful Game (Touch Edition)',
+    style: BEAUTIFUL_GAME_PIECE_STYLE,
+    preserveMaterials: true,
+    loader: (targetBoardSize) => resolveBeautifulGameTouchAssets(targetBoardSize)
   }
 ]);
 
@@ -2013,7 +2031,7 @@ function buildPolygonalFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-async function resolveBeautifulGameAssets(targetBoardSize) {
+async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
   const timeoutMs = 7000;
   const withTimeout = (promise) =>
     Promise.race([
@@ -2025,12 +2043,20 @@ async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
     const gltf = await withTimeout(loadBeautifulGameSet());
     if (gltf?.scene) {
-      return extractBeautifulGameAssets(gltf.scene, targetBoardSize);
+      const extractorFn = extractor || extractBeautifulGameAssets;
+      return extractorFn(gltf.scene, targetBoardSize);
     }
   } catch (error) {
     console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using local fallback', error);
   }
   return buildBeautifulGameFallback(targetBoardSize, BEAUTIFUL_GAME_THEME);
+}
+
+async function resolveBeautifulGameTouchAssets(targetBoardSize) {
+  return resolveBeautifulGameAssets(
+    targetBoardSize,
+    (scene, size) => extractBeautifulGameTouchAssets(scene, size)
+  );
 }
 
 function cloneWithShadows(object) {
@@ -2261,6 +2287,16 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
     styleId: 'beautifulGame',
     assetScale: BEAUTIFUL_GAME_ASSET_SCALE,
     name: 'ABeautifulGame'
+  });
+}
+
+function extractBeautifulGameTouchAssets(scene, targetBoardSize) {
+  return extractChessSetAssets(scene, {
+    targetBoardSize,
+    pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
+    styleId: 'beautifulGameTouch',
+    assetScale: BEAUTIFUL_GAME_ASSET_SCALE,
+    name: 'ABeautifulGameTouch'
   });
 }
 
