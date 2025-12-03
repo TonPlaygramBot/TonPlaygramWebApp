@@ -5,19 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
 <title>Domino Royal 3D</title>
 <style>
-  :root{
-    --avatar-ring-size:2.35rem;
-    --avatar-core-size:2.35rem;
-    --avatar-frame-radius:1.05rem;
-    --avatar-name-size:.88rem;
-    --avatar-name-padding:.18rem .58rem;
-    --avatar-frame-border:rgba(255,255,255,.16);
-    --avatar-frame-shadow:0 12px 26px rgba(0,0,0,.35);
-    --avatar-offset-y:-42%;
-    --avatar-core-gradient:radial-gradient(circle at 30% 30%,rgba(255,255,255,.24),rgba(0,0,0,.1)),linear-gradient(135deg,#0ea5e9,#22c55e);
-    --avatar-name-bg:rgba(255,255,255,.08);
-    --avatar-name-color:#e8eef7;
-  }
   html,body{margin:0;height:100%;background:#ece6dc;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
   #app{position:fixed;inset:0; width:100dvw; height:100dvh;}
   canvas{display:block; width:100dvw !important; height:100dvh !important; touch-action:none}
@@ -41,17 +28,17 @@
   #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
   #configSections::-webkit-scrollbar-track{background:transparent;}
   #seatOverlay{position:fixed;inset:0;pointer-events:none;z-index:4;}
-  .seat-badge{position:absolute;transform:translate(-50%,var(--avatar-offset-y));pointer-events:none;min-width:3.6rem;max-width:14rem;display:flex;align-items:center;justify-content:center;gap:.45rem;padding:.28rem .6rem;border-radius:calc(var(--avatar-frame-radius) + .35rem);background:rgba(7,11,22,.82);backdrop-filter:blur(10px);border:1px solid var(--avatar-frame-border);box-shadow:var(--avatar-frame-shadow);}
-  .seat-badge .avatar-timer-ring{position:absolute;left:.28rem;top:.28rem;width:var(--avatar-ring-size);height:var(--avatar-ring-size);border-radius:var(--avatar-frame-radius);pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 65%,black 66%);mask:radial-gradient(farthest-side,transparent 65%,black 66%);box-shadow:0 0 0 2px var(--avatar-frame-border);}
-  .seat-badge-core{position:relative;width:var(--avatar-core-size);height:var(--avatar-core-size);border-radius:var(--avatar-frame-radius);display:grid;place-items:center;font-size:1.2rem;font-weight:800;color:#0b1224;background:var(--avatar-core-gradient);overflow:hidden;}
+  .seat-badge{position:absolute;transform:translate(-50%,-50%);pointer-events:none;min-width:3.75rem;max-width:14rem;display:flex;align-items:center;justify-content:center;gap:.55rem;padding:.32rem .65rem;border-radius:999px;background:rgba(7,11,22,.82);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.16);box-shadow:0 14px 32px rgba(0,0,0,.35);}
+  .seat-badge .avatar-timer-ring{position:absolute;left:.32rem;top:.32rem;width:2.6rem;height:2.6rem;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 65%,black 66%);mask:radial-gradient(farthest-side,transparent 65%,black 66%);box-shadow:0 0 0 2px rgba(255,255,255,.2);}
+  .seat-badge-core{position:relative;width:2.6rem;height:2.6rem;border-radius:999px;display:grid;place-items:center;font-size:1.35rem;font-weight:800;color:#0b1224;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);overflow:hidden;}
   .seat-badge-core.has-photo{background-size:cover;background-position:center;color:transparent;text-indent:-9999px;}
-  .seat-badge-name{position:relative;font-size:var(--avatar-name-size);font-weight:800;letter-spacing:.01em;color:var(--avatar-name-color);text-shadow:0 2px 8px rgba(0,0,0,.35);padding:var(--avatar-name-padding);border-radius:999px;background:var(--avatar-name-bg);border:1px solid rgba(255,255,255,.12);}
-  #playerBadges{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 0.75rem);transform:translateX(-50%);display:none;flex-wrap:wrap;justify-content:center;gap:.55rem;z-index:5;pointer-events:none;}
+  .seat-badge-name{position:relative;font-size:.95rem;font-weight:800;letter-spacing:.01em;color:#e8eef7;text-shadow:0 2px 8px rgba(0,0,0,.35);padding:.2rem .55rem;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);}
+  #playerBadges{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 0.75rem);transform:translateX(-50%);display:flex;flex-wrap:wrap;justify-content:center;gap:.55rem;z-index:5;pointer-events:none;}
   .player-badge{display:flex;align-items:center;gap:.55rem;padding:.4rem .75rem;border-radius:999px;background:rgba(7,11,22,.9);border:1px solid rgba(255,255,255,.14);box-shadow:0 14px 32px rgba(0,0,0,.35);backdrop-filter:blur(10px);pointer-events:auto;}
   .player-avatar{width:2.65rem;height:2.65rem;border-radius:999px;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);display:grid;place-items:center;font-weight:800;font-size:1.35rem;color:#0b1224;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.12);}
   .player-avatar.has-photo{background-size:cover;background-position:center;color:transparent;text-indent:-9999px;}
   .player-name{font-size:1rem;font-weight:800;letter-spacing:.01em;color:#e5e7eb;text-shadow:0 2px 10px rgba(0,0,0,.36);}
-  #viewToggle{position:fixed;top:calc(4.5rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));padding:.65rem 1rem;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(12,16,28,.78);color:#ffe8a3;font-weight:800;font-size:.98rem;box-shadow:0 10px 24px rgba(0,0,0,.32);backdrop-filter:blur(10px);pointer-events:auto;z-index:4;}
+  #viewToggle{position:fixed;right:calc(0.75rem + env(safe-area-inset-right,0px));bottom:calc(env(safe-area-inset-bottom,0px) + clamp(0.8rem, 6vh, 2.4rem));padding:.65rem 1rem;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(12,16,28,.78);color:#ffe8a3;font-weight:800;font-size:.98rem;box-shadow:0 10px 24px rgba(0,0,0,.32);backdrop-filter:blur(10px);pointer-events:auto;z-index:4;}
   .config-section{display:flex;flex-direction:column;gap:.3rem;}
   .config-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.45rem;}
   .config-option{border-radius:0.85rem;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.4rem .5rem;display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;font-size:clamp(.62rem,1.75vw,.72rem);line-height:1.35;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
@@ -362,14 +349,7 @@ const entryMode = (urlParams.get('entry') || '').toLowerCase();
 const shouldRunHallwayEntry = entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
-const seatProfilePhoto = (() => {
-  try {
-    return window.localStorage?.getItem('profilePhoto')?.trim() || '';
-  } catch {
-    return '';
-  }
-})();
-const seatAvatarPhoto = (urlParams.get('avatar') || '').trim() || seatProfilePhoto;
+const seatAvatarPhoto = (urlParams.get('avatar') || '').trim();
 const seatAvatarUsername = (urlParams.get('username') || '').trim();
 const DEFAULT_AVATAR_EMOJI = '🌐';
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
@@ -1316,45 +1296,6 @@ const HIGHLIGHT_STYLE_OPTIONS = Object.freeze([
   }
 ]);
 
-const AVATAR_FRAME_OPTIONS = Object.freeze([
-  {
-    id: 'royalGold',
-    label: 'Royal Gold',
-    ringSize: '2.35rem',
-    coreSize: '2.35rem',
-    radius: '1.05rem',
-    frameBorder: 'rgba(255,210,74,.4)',
-    shadow: '0 14px 28px rgba(0,0,0,.38)',
-    coreGradient: 'radial-gradient(circle at 30% 30%,rgba(255,255,255,.24),rgba(0,0,0,.08)),linear-gradient(135deg,#facc15,#fb923c)',
-    nameBg: 'rgba(255,210,74,.14)',
-    nameColor: '#fef9c3'
-  },
-  {
-    id: 'neonAqua',
-    label: 'Neon Aqua',
-    ringSize: '2.25rem',
-    coreSize: '2.25rem',
-    radius: '0.95rem',
-    frameBorder: 'rgba(56,189,248,.55)',
-    shadow: '0 10px 22px rgba(8,145,178,.36)',
-    coreGradient: 'radial-gradient(circle at 30% 30%,rgba(255,255,255,.22),rgba(8,145,178,.12)),linear-gradient(135deg,#22d3ee,#0ea5e9)',
-    nameBg: 'rgba(34,211,238,.16)',
-    nameColor: '#e0f2fe'
-  },
-  {
-    id: 'violetEdge',
-    label: 'Violet Edge',
-    ringSize: '2.3rem',
-    coreSize: '2.3rem',
-    radius: '1.15rem',
-    frameBorder: 'rgba(192,132,252,.5)',
-    shadow: '0 12px 24px rgba(109,40,217,.32)',
-    coreGradient: 'radial-gradient(circle at 30% 30%,rgba(255,255,255,.2),rgba(94,92,255,.18)),linear-gradient(135deg,#a855f7,#6366f1)',
-    nameBg: 'rgba(168,85,247,.16)',
-    nameColor: '#ede9fe'
-  }
-]);
-
 const DOMINO_STYLE_OPTIONS = Object.freeze([
   {
     id: 'imperialIvory',
@@ -1609,13 +1550,12 @@ const TABLE_SETUP_SECTIONS = [
   { key: "tableBase", label: "Bazamenti", options: TABLE_BASE_OPTIONS },
   { key: "dominoStyle", label: "Domino", options: DOMINO_STYLE_OPTIONS },
   { key: "highlightStyle", label: "Highlights", options: HIGHLIGHT_STYLE_OPTIONS },
-  { key: "avatarFrame", label: "Avatar Frame", options: AVATAR_FRAME_OPTIONS },
   { key: "chairTheme", label: "Stolat", options: CHAIR_THEME_OPTIONS }
 ];
 
-const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, dominoStyle: 0, highlightStyle: 0, avatarFrame: 0, chairTheme: 0 };
-const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV3";
-const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearanceV2", "dominoRoyalArenaAppearance"];
+const DEFAULT_APPEARANCE = { tableWood: 0, tableCloth: 1, tableBase: 0, dominoStyle: 0, highlightStyle: 0, chairTheme: 0 };
+const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
+const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
 let appearance = { ...DEFAULT_APPEARANCE };
 
 function normalizeAppearance(raw) {
@@ -1627,7 +1567,6 @@ function normalizeAppearance(raw) {
     ["tableBase", TABLE_BASE_OPTIONS.length],
     ["dominoStyle", DOMINO_STYLE_OPTIONS.length],
     ["highlightStyle", HIGHLIGHT_STYLE_OPTIONS.length],
-    ["avatarFrame", AVATAR_FRAME_OPTIONS.length],
     ["chairTheme", CHAIR_THEME_OPTIONS.length]
   ];
   limits.forEach(([key, max]) => {
@@ -3097,7 +3036,6 @@ let dominoStyleProfile = {
   ringEmissiveIntensity: currentDominoStyleOption?.accent?.ringEmissiveIntensity ?? 0.55
 };
 let currentHighlightStyle = HIGHLIGHT_STYLE_OPTIONS[DEFAULT_APPEARANCE.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0];
-let currentAvatarFrame = AVATAR_FRAME_OPTIONS[DEFAULT_APPEARANCE.avatarFrame] ?? AVATAR_FRAME_OPTIONS[0];
 let markers = { L: null, R: null };
 
 function disposeDominoBaseMaterials() {
@@ -3249,22 +3187,6 @@ function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
   seatOverlay.style.setProperty('--timer-gradient', gradient);
 }
 
-function applyAvatarFrameStyle(option = AVATAR_FRAME_OPTIONS[0]) {
-  currentAvatarFrame = option ?? AVATAR_FRAME_OPTIONS[0];
-  const rootStyle = document.documentElement?.style;
-  if (!rootStyle) return;
-  const ringSize = currentAvatarFrame.ringSize ?? '2.35rem';
-  const coreSize = currentAvatarFrame.coreSize ?? ringSize;
-  rootStyle.setProperty('--avatar-ring-size', ringSize);
-  rootStyle.setProperty('--avatar-core-size', coreSize);
-  rootStyle.setProperty('--avatar-frame-radius', currentAvatarFrame.radius ?? '1.05rem');
-  rootStyle.setProperty('--avatar-frame-border', currentAvatarFrame.frameBorder ?? 'rgba(255,255,255,.16)');
-  rootStyle.setProperty('--avatar-frame-shadow', currentAvatarFrame.shadow ?? '0 12px 26px rgba(0,0,0,.35)');
-  rootStyle.setProperty('--avatar-core-gradient', currentAvatarFrame.coreGradient ?? rootStyle.getPropertyValue('--avatar-core-gradient'));
-  rootStyle.setProperty('--avatar-name-bg', currentAvatarFrame.nameBg ?? 'rgba(255,255,255,.08)');
-  rootStyle.setProperty('--avatar-name-color', currentAvatarFrame.nameColor ?? '#e8eef7');
-}
-
 /* ---------- Game Collections (pre-declare for style refresh) ---------- */
 let N = 4;
 let players = [];
@@ -3375,7 +3297,6 @@ function applyAppearanceChange({ refresh = true } = {}) {
   updateTableMaterials();
   applyDominoStyle(DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]);
   applyHighlightStyle(HIGHLIGHT_STYLE_OPTIONS[appearance.highlightStyle] ?? HIGHLIGHT_STYLE_OPTIONS[0]);
-  applyAvatarFrameStyle(AVATAR_FRAME_OPTIONS[appearance.avatarFrame] ?? AVATAR_FRAME_OPTIONS[0]);
   Object.values(tableMaterials).forEach((material) => {
     if (material && typeof material.needsUpdate === 'boolean') {
       material.needsUpdate = true;
@@ -3499,50 +3420,6 @@ function createOptionPreview(key, option) {
       icon.style.fontWeight = '800';
       icon.textContent = option.icon || '🎯';
       swatch.appendChild(icon);
-      break;
-    }
-    case 'avatarFrame': {
-      swatch.style.position = 'relative';
-      swatch.style.overflow = 'hidden';
-      swatch.style.background = '#0f172a';
-      const ring = document.createElement('div');
-      ring.style.position = 'absolute';
-      ring.style.width = option.ringSize ?? '2.35rem';
-      ring.style.height = option.ringSize ?? '2.35rem';
-      ring.style.left = '0.45rem';
-      ring.style.top = '0.35rem';
-      ring.style.borderRadius = option.radius ?? '1.05rem';
-      ring.style.background = 'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
-      ring.style.webkitMask = 'radial-gradient(farthest-side,transparent 65%,black 66%)';
-      ring.style.mask = 'radial-gradient(farthest-side,transparent 65%,black 66%)';
-      ring.style.boxShadow = `0 0 0 2px ${option.frameBorder ?? 'rgba(255,255,255,.16)'}`;
-      swatch.appendChild(ring);
-      const core = document.createElement('div');
-      core.style.position = 'absolute';
-      core.style.width = option.coreSize ?? option.ringSize ?? '2.35rem';
-      core.style.height = option.coreSize ?? option.ringSize ?? '2.35rem';
-      core.style.left = '0.45rem';
-      core.style.top = '0.35rem';
-      core.style.borderRadius = option.radius ?? '1.05rem';
-      core.style.background = option.coreGradient ?? 'linear-gradient(135deg,#0ea5e9,#22c55e)';
-      core.style.display = 'grid';
-      core.style.placeItems = 'center';
-      core.style.color = '#0b1224';
-      core.style.fontWeight = '800';
-      core.textContent = '👤';
-      swatch.appendChild(core);
-      const label = document.createElement('div');
-      label.style.position = 'absolute';
-      label.style.right = '0.45rem';
-      label.style.bottom = '0.35rem';
-      label.style.fontSize = '0.6rem';
-      label.style.padding = '0.14rem 0.4rem';
-      label.style.borderRadius = '999px';
-      label.style.background = option.nameBg ?? 'rgba(255,255,255,.08)';
-      label.style.color = option.nameColor ?? '#e8eef7';
-      label.style.fontWeight = '800';
-      label.textContent = 'AA';
-      swatch.appendChild(label);
       break;
     }
     case 'chairTheme':
@@ -4006,8 +3883,7 @@ function renderHands(){
       if(openFlat){
         orientDominoFlat(m, 0);
       } else {
-        const facing = pi === human ? yawTowardCenter : yawTowardCenter;
-        m.rotation.set(0, facing, 0);
+        m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
         m.rotation.z += (Math.random()*0.006-0.003);
       }
       h.mesh = m; m.userData = {tile:h, owner:pi}; piecesG.add(m);
