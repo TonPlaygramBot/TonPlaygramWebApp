@@ -25,10 +25,8 @@ import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
-import {
-  createCueRackDisplay,
-  CUE_RACK_PALETTE
-} from '../../utils/createCueRackDisplay.js';
+import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
+import { CUE_RACK_PALETTE, CUE_STYLE_PRESETS } from '../../config/cueStyles.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -8331,9 +8329,9 @@ function PoolRoyaleGame({
 
   const applySelectedCueStyle = useCallback(
     (index) => {
-      const paletteLength = CUE_RACK_PALETTE.length || WOOD_FINISH_PRESETS.length || 1;
+      const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
       const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
-      const preset = WOOD_FINISH_PRESETS[normalized % WOOD_FINISH_PRESETS.length];
+      const preset = CUE_STYLE_PRESETS[normalized % CUE_STYLE_PRESETS.length];
       const color = getCueColorFromIndex(normalized);
       cueStyleIndexRef.current = normalized;
       const materials = cueMaterialsRef.current ?? {};
@@ -12681,13 +12679,13 @@ function PoolRoyaleGame({
         length: cueLen
       };
 
-      const paletteLength = CUE_RACK_PALETTE.length || WOOD_FINISH_PRESETS.length || 1;
+      const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
       const initialIndexRaw = cueStyleIndexRef.current ?? cueStyleIndex ?? 0;
       const initialIndex =
         ((initialIndexRaw % paletteLength) + paletteLength) % paletteLength;
       const initialPreset =
-        WOOD_FINISH_PRESETS[initialIndex % WOOD_FINISH_PRESETS.length] ??
-        WOOD_FINISH_PRESETS[0];
+        CUE_STYLE_PRESETS[initialIndex % CUE_STYLE_PRESETS.length] ??
+        CUE_STYLE_PRESETS[0];
       const sharedCueKey = `pool-wood-${initialPreset.id}`;
       const shaftMaterial = createWoodMaterial({
         hue: initialPreset.hue,
@@ -16230,7 +16228,7 @@ function PoolRoyaleGame({
                   Cue Styles
                 </h3>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {WOOD_FINISH_PRESETS.map((preset, index) => {
+                  {CUE_STYLE_PRESETS.map((preset, index) => {
                     const active = cueStyleIndex === index;
                     return (
                       <button
