@@ -431,7 +431,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.024; // ease the middle rail arches so the rounded cut shrinks further toward the jaws
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.052; // ease the middle rail arches so the rounded cut shrinks toward the jaws
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.088; // draw the middle-pocket wood arch further toward centre to mirror the chrome pull
 
 function buildChromePlateGeometry({
@@ -768,10 +768,10 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.88; // further tighten the middle jaw span so the wooden rail cut reads smaller
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.94; // ease the side jaw radius a touch larger so the middle arcs read fuller toward centre
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.892; // trim the side jaw radius slightly further so the cut and fascia sit leaner toward centre
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.024; // lower the middle jaws slightly less so the fascia trims down from the top
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.186; // pull the middle pocket jaws closer to table centre so the lips sit farther from the side rails
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.214; // pull the middle pocket jaws closer to table centre so the lips sit farther from the side rails
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
