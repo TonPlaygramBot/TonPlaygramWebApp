@@ -362,7 +362,8 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
         targetBoardSize,
         styleId: 'stauntonClassic',
         pieceStyle: STAUNTON_CLASSIC_STYLE,
-        assetScale: STAUNTON_ASSET_SCALE
+        assetScale: STAUNTON_ASSET_SCALE,
+        fallbackBuilder: buildStauntonFallbackAssets
       })
   },
   {
@@ -374,7 +375,8 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
         targetBoardSize,
         styleId: 'kenneyWood',
         pieceStyle: KENNEY_WOOD_STYLE,
-        assetScale: KENNEY_ASSET_SCALE
+        assetScale: KENNEY_ASSET_SCALE,
+        fallbackBuilder: buildKenneyFallbackAssets
       })
   },
   {
@@ -386,7 +388,8 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
         targetBoardSize,
         styleId: 'polygonalGraphite',
         pieceStyle: POLYGONAL_GRAPHITE_STYLE,
-        assetScale: POLYGONAL_ASSET_SCALE
+        assetScale: POLYGONAL_ASSET_SCALE,
+        fallbackBuilder: buildPolygonalFallbackAssets
       })
   }
 ]);
@@ -1179,6 +1182,21 @@ function makeSmoothMaterial(color, options = {}) {
   });
 }
 
+function makePieceMaterialFromStyle(style = {}, { color, flatShading = false } = {}) {
+  const material = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(color ?? style.color ?? '#ffffff'),
+    roughness: clamp01(style.roughness ?? 0.35),
+    metalness: clamp01(style.metalness ?? 0.2),
+    sheen: clamp01(style.sheen ?? 0),
+    sheenColor: new THREE.Color(style.sheenColor ?? style.color ?? '#ffffff'),
+    clearcoat: clamp01(style.clearcoat ?? 0),
+    clearcoatRoughness: clamp01(style.clearcoatRoughness ?? 0.35),
+    specularIntensity: clamp01(style.specularIntensity ?? 0.6),
+    flatShading
+  });
+  return material;
+}
+
 function pieceTypeFromName(name = '') {
   const lower = name.toLowerCase();
   if (lower.includes('king')) return 'K';
@@ -1449,6 +1467,377 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
 
   return { boardModel, piecePrototypes };
+}
+
+function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
+  const box = new THREE.Box3().setFromObject(group);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  group.position.sub(center);
+  group.position.y -= box.min.y;
+  group.scale.multiplyScalar(scale);
+  group.userData = { ...(group.userData || {}), __pieceStyleId: styleId };
+  group.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+      child.userData = { ...(child.userData || {}), __pieceStyleId: styleId };
+    }
+  });
+  return group;
+}
+
+function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'stauntonClassic') {
+  const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(
+    buildLathe(
+      [
+        new THREE.Vector2(0, 0),
+        new THREE.Vector2(0.52, 0),
+        new THREE.Vector2(0.55, 0.12),
+        new THREE.Vector2(0.48, 0.22),
+        new THREE.Vector2(0.6, 0.28),
+        new THREE.Vector2(0.5, 0.34),
+        new THREE.Vector2(0.46, 0.38),
+        new THREE.Vector2(0.2, 0.4),
+        new THREE.Vector2(0, 0.42)
+      ],
+      42
+    ),
+    baseMat
+  );
+  g.add(base);
+
+  const body = new THREE.Mesh(
+    buildLathe(
+      [
+        new THREE.Vector2(0.24, 0),
+        new THREE.Vector2(0.55, 0.12),
+        new THREE.Vector2(0.6, 0.4),
+        new THREE.Vector2(0.4, 0.9),
+        new THREE.Vector2(0.32, 1.25),
+        new THREE.Vector2(0.28, 1.5)
+      ],
+      42
+    ),
+    baseMat
+  );
+  body.position.y = 0.42;
+
+  if (type === 'P') {
+    g.add(body);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 28, 24), accentMat);
+    head.position.y = 1.72;
+    g.add(head);
+  } else if (type === 'R') {
+    g.add(body);
+    const crenel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.34, 0.36, 0.28, 36, 1, false),
+      accentMat
+    );
+    crenel.position.y = 1.75;
+    const grooves = new THREE.Group();
+    for (let i = 0; i < 4; i += 1) {
+      const notch = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.26, 0.18), baseMat);
+      const angle = (i * Math.PI) / 2;
+      notch.position.set(Math.cos(angle) * 0.28, 1.9, Math.sin(angle) * 0.28);
+      grooves.add(notch);
+    }
+    g.add(crenel, grooves);
+  } else if (type === 'N') {
+    const torso = body.clone();
+    torso.scale.set(1.05, 0.9, 1.05);
+    g.add(torso);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.28, 0.26, 24), baseMat);
+    neck.position.y = 1.6;
+    const headShape = new THREE.Shape();
+    headShape.moveTo(0, 0);
+    headShape.quadraticCurveTo(0.12, 0.36, -0.04, 0.52);
+    headShape.quadraticCurveTo(-0.18, 0.8, 0.16, 1.0);
+    headShape.quadraticCurveTo(0.36, 1.18, 0.2, 1.32);
+    headShape.quadraticCurveTo(-0.08, 1.2, -0.18, 0.88);
+    headShape.quadraticCurveTo(-0.28, 0.54, -0.08, 0.2);
+    const head = new THREE.Mesh(
+      new THREE.ExtrudeGeometry(headShape, {
+        depth: 0.36,
+        bevelEnabled: true,
+        bevelThickness: 0.06,
+        bevelSize: 0.05,
+        bevelSegments: 3
+      }),
+      baseMat
+    );
+    head.rotation.y = Math.PI / 2;
+    head.position.set(-0.12, 1.68, -0.18);
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.16, 12), accentMat);
+    ear.position.set(-0.02, 2.05, 0.0);
+    g.add(torso, neck, head, ear);
+  } else if (type === 'B') {
+    const mid = body.clone();
+    mid.scale.set(0.96, 1.08, 0.96);
+    g.add(mid);
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.06, 14, 32), accentMat);
+    collar.rotation.x = Math.PI / 2;
+    collar.position.y = 1.58;
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 26, 22), baseMat);
+    cap.position.y = 1.78;
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.38, 0.12), accentMat);
+    slit.position.y = 1.9;
+    g.add(mid, collar, cap, slit);
+  } else if (type === 'Q') {
+    const tall = body.clone();
+    tall.scale.set(1.08, 1.2, 1.08);
+    g.add(tall);
+    const crownRing = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.06, 12, 28), accentMat);
+    crownRing.rotation.x = Math.PI / 2;
+    crownRing.position.y = 1.9;
+    const spikes = new THREE.Group();
+    for (let i = 0; i < 6; i += 1) {
+      const spike = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.32, 10), accentMat);
+      const angle = (i * Math.PI * 2) / 6;
+      spike.position.set(Math.cos(angle) * 0.38, 2.06, Math.sin(angle) * 0.38);
+      spikes.add(spike);
+    }
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.12, 18, 14), accentMat);
+    orb.position.y = 2.25;
+    g.add(tall, crownRing, spikes, orb);
+  } else if (type === 'K') {
+    const pillar = body.clone();
+    pillar.scale.set(1.12, 1.25, 1.12);
+    g.add(pillar);
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.06, 16, 32), accentMat);
+    collar.rotation.x = Math.PI / 2;
+    collar.position.y = 1.9;
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), accentMat);
+    orb.position.y = 2.18;
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.08), accentMat);
+    crossV.position.y = 2.42;
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.08, 0.08), accentMat);
+    crossH.position.y = 2.42;
+    g.add(pillar, collar, orb, crossV, crossH);
+  }
+
+  return finalizePrototype(g, scale, styleId);
+}
+
+function buildStauntonFallbackAssets(
+  targetBoardSize = RAW_BOARD_SIZE,
+  pieceStyle = STAUNTON_CLASSIC_STYLE,
+  styleId = 'stauntonClassic'
+) {
+  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const scale = tile / 1.08;
+  const accentLight = pieceStyle.accent ?? '#d8b07a';
+  const accentDark = pieceStyle.blackAccent ?? accentLight;
+
+  const piecePrototypes = { white: {}, black: {} };
+
+  const buildForColor = (colorKey, accentHex) => {
+    const colorStyle = pieceStyle[colorKey] ?? {};
+    const materials = {
+      base: makePieceMaterialFromStyle(colorStyle),
+      accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex })
+    };
+    piecePrototypes[colorKey].P = buildStauntonPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildStauntonPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildStauntonPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildStauntonPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildStauntonPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildStauntonPiece('K', materials, scale, styleId);
+  };
+
+  buildForColor('white', accentLight);
+  buildForColor('black', accentDark);
+
+  return { boardModel: null, piecePrototypes };
+}
+
+function buildKenneyPiece(type, materials = {}, scale = 1, styleId = 'kenneyWood') {
+  const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
+  const g = new THREE.Group();
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.28, 1.25), baseMat);
+  slab.position.y = 0.14;
+  g.add(slab);
+
+  const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 1.15, 14, 1), baseMat);
+  pillar.position.y = 0.86;
+
+  if (type === 'P') {
+    g.add(pillar);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 10), accentMat);
+    head.position.y = 1.52;
+    g.add(head);
+  } else if (type === 'R') {
+    g.add(pillar);
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.36, 0.9), accentMat);
+    crown.position.y = 1.54;
+    const teeth = new THREE.Group();
+    for (let i = 0; i < 4; i += 1) {
+      const tooth = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.18, 0.2), baseMat);
+      const angle = (i * Math.PI) / 2;
+      tooth.position.set(Math.cos(angle) * 0.32, 1.74, Math.sin(angle) * 0.32);
+      teeth.add(tooth);
+    }
+    g.add(crown, teeth);
+  } else if (type === 'N') {
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.36, 0.38, 6, 12), baseMat);
+    body.position.set(0, 1.25, 0);
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.26, 0.66), accentMat);
+    jaw.position.set(-0.1, 1.62, 0.1);
+    jaw.rotation.y = Math.PI / 8;
+    const mane = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.72, 0.22), baseMat);
+    mane.position.set(-0.28, 1.36, 0);
+    g.add(pillar, body, jaw, mane);
+  } else if (type === 'B') {
+    const taper = new THREE.Mesh(new THREE.ConeGeometry(0.52, 1.18, 16), baseMat);
+    taper.position.y = 1.1;
+    const cut = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.16), accentMat);
+    cut.position.y = 1.56;
+    g.add(pillar, taper, cut);
+  } else if (type === 'Q') {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.62, 1.35, 18), baseMat);
+    body.position.y = 1.16;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.08, 10, 18), accentMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 1.72;
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12), accentMat);
+    orb.position.y = 2.04;
+    g.add(body, ring, orb);
+  } else if (type === 'K') {
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.66, 1.45, 16), baseMat);
+    tower.position.y = 1.22;
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, 0.14), accentMat);
+    crossV.position.y = 2.04;
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.14), accentMat);
+    crossH.position.y = 2.04;
+    g.add(tower, crossV, crossH);
+  }
+
+  return finalizePrototype(g, scale, styleId);
+}
+
+function buildKenneyFallbackAssets(
+  targetBoardSize = RAW_BOARD_SIZE,
+  pieceStyle = KENNEY_WOOD_STYLE,
+  styleId = 'kenneyWood'
+) {
+  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const scale = tile / 1.22;
+  const accentLight = pieceStyle.accent ?? '#d0a472';
+  const accentDark = pieceStyle.blackAccent ?? accentLight;
+  const piecePrototypes = { white: {}, black: {} };
+
+  const buildForColor = (colorKey, accentHex) => {
+    const colorStyle = pieceStyle[colorKey] ?? {};
+    const materials = {
+      base: makePieceMaterialFromStyle(colorStyle, { flatShading: true }),
+      accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex, flatShading: true })
+    };
+    piecePrototypes[colorKey].P = buildKenneyPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildKenneyPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildKenneyPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildKenneyPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildKenneyPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildKenneyPiece('K', materials, scale, styleId);
+  };
+
+  buildForColor('white', accentLight);
+  buildForColor('black', accentDark);
+
+  return { boardModel: null, piecePrototypes };
+}
+
+function buildPolygonalPiece(type, materials = {}, scale = 1, styleId = 'polygonalGraphite') {
+  const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.72, 0.32, 10), baseMat);
+  base.position.y = 0.16;
+  g.add(base);
+
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.48, 0.98, 9), baseMat);
+  stalk.position.y = 0.98;
+
+  if (type === 'P') {
+    g.add(stalk);
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.3, 10, 8), accentMat);
+    cap.position.y = 1.42;
+    g.add(cap);
+  } else if (type === 'R') {
+    g.add(stalk);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.58, 0.62, 0.26, 8), accentMat);
+    rim.position.y = 1.44;
+    g.add(rim);
+  } else if (type === 'N') {
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 0.4, 6, 10), baseMat);
+    body.position.y = 1.22;
+    body.rotation.z = -0.18;
+    const crest = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.44, 8), accentMat);
+    crest.position.set(-0.06, 1.6, 0);
+    g.add(stalk, body, crest);
+  } else if (type === 'B') {
+    const taper = new THREE.Mesh(new THREE.ConeGeometry(0.48, 1.2, 9), baseMat);
+    taper.position.y = 1.08;
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.32, 0.12), accentMat);
+    slit.position.y = 1.42;
+    g.add(stalk, taper, slit);
+  } else if (type === 'Q') {
+    const column = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.66, 1.24, 10), baseMat);
+    column.position.y = 1.08;
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.08, 8, 16), accentMat);
+    halo.rotation.x = Math.PI / 2;
+    halo.position.y = 1.6;
+    const orb = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), accentMat);
+    orb.position.y = 1.92;
+    g.add(column, halo, orb);
+  } else if (type === 'K') {
+    const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.64, 0.7, 1.32, 10), baseMat);
+    tower.position.y = 1.12;
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.46, 0.12), accentMat);
+    crossV.position.y = 1.86;
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.12, 0.12), accentMat);
+    crossH.position.y = 1.86;
+    g.add(tower, crossV, crossH);
+  }
+
+  return finalizePrototype(g, scale, styleId);
+}
+
+function buildPolygonalFallbackAssets(
+  targetBoardSize = RAW_BOARD_SIZE,
+  pieceStyle = POLYGONAL_GRAPHITE_STYLE,
+  styleId = 'polygonalGraphite'
+) {
+  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const scale = tile / 1.18;
+  const accentLight = pieceStyle.accent ?? '#7ce3ff';
+  const accentDark = pieceStyle.blackAccent ?? accentLight;
+  const piecePrototypes = { white: {}, black: {} };
+
+  const buildForColor = (colorKey, accentHex) => {
+    const colorStyle = pieceStyle[colorKey] ?? {};
+    const materials = {
+      base: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, { flatShading: true }),
+      accent: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, {
+        color: accentHex,
+        flatShading: true
+      })
+    };
+    piecePrototypes[colorKey].P = buildPolygonalPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildPolygonalPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildPolygonalPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildPolygonalPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildPolygonalPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildPolygonalPiece('K', materials, scale, styleId);
+  };
+
+  buildForColor('white', accentLight);
+  buildForColor('black', accentDark);
+
+  return { boardModel: null, piecePrototypes };
 }
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
