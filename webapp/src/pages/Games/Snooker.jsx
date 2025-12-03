@@ -266,11 +266,11 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.25;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.026; // pull the chrome arches closer to centre so the middle pocket jaws tuck in
+const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.3;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.038; // pull the chrome arches closer to centre so the middle pocket jaws tuck in
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.082; // pull the middle pocket wood cuts further inward toward centre
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.107; // pull the middle pocket wood cuts further inward toward centre
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -591,6 +591,8 @@ const CORNER_RAIL_CUT_INSET =
   POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // preserve the existing chrome/wood cut positioning for jaws and fascia
 const MIDDLE_POCKET_LONGITUDINAL_OFFSET = POCKET_VIS_R * 0.082; // push middle pockets and rail cuts farther from the table centre
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
+const MIDDLE_POCKET_LATERAL_INSET =
+  SIDE_POCKET_RADIUS * 0.92 * POCKET_VISUAL_EXPANSION; // pull middle pockets further off the rails toward centre
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -3356,8 +3358,14 @@ const pocketCenters = () => [
     PLAY_W / 2 - CORNER_POCKET_CENTER_INSET,
     PLAY_H / 2 - CORNER_POCKET_CENTER_INSET
   ),
-  new THREE.Vector2(-PLAY_W / 2, -MIDDLE_POCKET_LONGITUDINAL_OFFSET),
-  new THREE.Vector2(PLAY_W / 2, MIDDLE_POCKET_LONGITUDINAL_OFFSET)
+  new THREE.Vector2(
+    -PLAY_W / 2 + MIDDLE_POCKET_LATERAL_INSET,
+    -MIDDLE_POCKET_LONGITUDINAL_OFFSET
+  ),
+  new THREE.Vector2(
+    PLAY_W / 2 - MIDDLE_POCKET_LATERAL_INSET,
+    MIDDLE_POCKET_LONGITUDINAL_OFFSET
+  )
 ];
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
@@ -4629,7 +4637,7 @@ function Table3D(
   const cornerPocketRadius = POCKET_VIS_R * 1.1 * POCKET_VISUAL_EXPANSION;
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerCutInset = CORNER_RAIL_CUT_INSET;
-  const sideInset = SIDE_POCKET_RADIUS * 0.82 * POCKET_VISUAL_EXPANSION;
+  const sideInset = MIDDLE_POCKET_LATERAL_INSET;
 
   const circlePoly = (cx, cz, r, seg = 96) => {
     const pts = [];
