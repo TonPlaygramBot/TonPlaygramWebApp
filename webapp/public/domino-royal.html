@@ -206,15 +206,17 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
 }
 
 const sfxBuffers = {
-  place: createBuffer(0.36, (t, i) => {
-    const strikeEnv = Math.exp(-t * 72);
-    const bodyEnv = Math.exp(-t * 14);
-    const click = Math.sin((i + 11) * 0.22) * strikeEnv * 0.52;
-    const rasp = ((Math.sin(i * 12.9898) * 43758.5453) % 1 - 0.5) * strikeEnv * 0.24;
-    const knock = Math.sin(2 * Math.PI * 128 * t) * bodyEnv * 0.46;
-    const woodBody = Math.sin(2 * Math.PI * 188 * t) * Math.exp(-t * 9.5) * 0.28;
-    const lowThump = Math.sin(2 * Math.PI * 64 * t) * Math.exp(-t * 7.5) * 0.32;
-    return (click + rasp + knock + woodBody + lowThump) * 0.88;
+  place: createBuffer(0.42, (t, i, length) => {
+    const impactEnv = Math.exp(-t * 120);
+    const bodyEnv = Math.exp(-t * 12);
+    const dustEnv = Math.exp(-t * 28);
+    const grit = (((Math.sin((i + 17) * 0.41) * 100000) % 1) - 0.5) * impactEnv * 0.6;
+    const click = Math.sin(2 * Math.PI * 420 * t) * impactEnv * 0.55;
+    const wood1 = Math.sin(2 * Math.PI * 118 * t) * bodyEnv * 0.52;
+    const wood2 = Math.sin(2 * Math.PI * 86 * t) * bodyEnv * 0.44;
+    const air = Math.sin(2 * Math.PI * 312 * t) * dustEnv * 0.24;
+    const doubleTap = Math.exp(-Math.abs(i - length * 0.08) * 0.006) * 0.35;
+    return (grit + click + wood1 + wood2 + air + doubleTap) * 0.82;
   }),
   draw: createBuffer(0.26, (t, i, length) => {
     const env = Math.exp(-t * 16);
@@ -1658,6 +1660,13 @@ try {
   console.warn("Failed to load Domino Royal appearance", error);
   appearance = normalizeAppearance(appearance);
 }
+
+function resetUserDominoDefaults() {
+  appearance.dominoStyle = DEFAULT_APPEARANCE.dominoStyle;
+  appearance.avatarFrame = DEFAULT_APPEARANCE.avatarFrame;
+}
+
+resetUserDominoDefaults();
 
 function adjustHexColor(hex, amount) {
   const base = new THREE.Color(hex);
