@@ -2918,7 +2918,7 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86; // bring the orbit slightly higher above the cloth
+const STANDING_VIEW_PHI = 0.83; // lift the standing orbit slightly higher above the cloth
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0018;
 const STANDING_VIEW_FOV = 66;
@@ -2926,10 +2926,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the orbit camera closer to the rail without clipping
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.015; // pull the orbit camera closer to the rail without clipping
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.08;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0018;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.0014;
@@ -3007,7 +3007,10 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const IN_HAND_CAMERA_PULLBACK = 1.38;
-const TOP_VIEW_MARGIN = 1.1;
+const TOP_VIEW_MARGIN = 0.54; // scaled to the snooker footprint so the overhead view hugs the rails
+const TOP_VIEW_RADIUS_SCALE = 0.44;
+const TOP_VIEW_MIN_RADIUS_SCALE = 0.92;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.04, CAMERA.minPhi * 0.64);
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -3088,7 +3091,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzH = halfH / Math.tan(f / 2);
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Keep a little more distance so rails remain visible while fitting the table
-  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * 0.58 * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
@@ -6804,35 +6807,42 @@ function SnookerGame() {
     if (!last3DRef.current) {
       last3DRef.current = { phi: sph.phi, theta: sph.theta };
     }
-    const targetMargin = next
-      ? TOP_VIEW_MARGIN
-      : window.innerHeight > window.innerWidth
-        ? 1.6
-        : 1.4;
-    const targetRadius = fitRadius(cam, targetMargin);
-    const target = {
-      radius: next ? targetRadius : clampOrbitRadius(targetRadius),
-      phi: next ? 0.0001 : last3DRef.current.phi,
-      theta: next ? sph.theta : last3DRef.current.theta
-    };
-    const duration = 600;
+    const aspect = cam.aspect || cam.parent?.clientWidth / cam.parent?.clientHeight || 1;
+    const zoomProfile = resolveCameraZoomProfile(aspect);
+    const standingMargin = window.innerHeight > window.innerWidth
+      ? STANDING_VIEW_MARGIN_PORTRAIT
+      : STANDING_VIEW_MARGIN_LANDSCAPE;
+    const targetMargin = Math.max(
+      STANDING_VIEW.margin,
+      (next ? TOP_VIEW_MARGIN : standingMargin) * (zoomProfile?.margin ?? 1)
+    );
+    const focusTarget = new THREE.Vector3(
+      playerOffsetRef.current,
+      ORBIT_FOCUS_BASE_Y,
+      0
+    ).multiplyScalar(worldScaleFactor);
+    const fittedRadius = fitRadius(cam, targetMargin);
+    const targetRadius = next
+      ? Math.max(
+          clampOrbitRadius(fittedRadius) * TOP_VIEW_RADIUS_SCALE,
+          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+        )
+      : clampOrbitRadius(fittedRadius);
+    const targetPhi = next ? Math.max(TOP_VIEW_PHI, CAMERA.minPhi) : last3DRef.current.phi;
+    const targetTheta = next ? sph.theta : last3DRef.current.theta;
+    const duration = 520;
     const t0 = performance.now();
     function anim(t) {
       const k = Math.min(1, (t - t0) / duration);
       const ease = k * (2 - k);
-      sph.radius = start.radius + (target.radius - start.radius) * ease;
-      sph.phi = start.phi + (target.phi - start.phi) * ease;
-      sph.theta = start.theta + (target.theta - start.theta) * ease;
-      const targetPos = new THREE.Vector3(
-        playerOffsetRef.current,
-        ORBIT_FOCUS_BASE_Y,
-        0
-      ).multiplyScalar(worldScaleFactor);
+      sph.radius = start.radius + (targetRadius - start.radius) * ease;
+      sph.phi = start.phi + (targetPhi - start.phi) * ease;
+      sph.theta = start.theta + (targetTheta - start.theta) * ease;
       const tmpSphAnim = sph.clone
         ? sph.clone()
         : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
-      cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
-      cam.lookAt(targetPos);
+      cam.position.setFromSpherical(tmpSphAnim).add(focusTarget);
+      cam.lookAt(focusTarget);
       if (k < 1) requestAnimationFrame(anim);
       else {
         topViewRef.current = next;
