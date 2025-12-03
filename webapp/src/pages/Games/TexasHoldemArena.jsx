@@ -1020,10 +1020,12 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
 
 function getHumanCardAnchor(seatGroup) {
   if (!seatGroup) return null;
-  return seatGroup.chipAnchor
-    .clone()
-    .add(seatGroup.right.clone().setLength(HUMAN_CARD_LATERAL_SHIFT * 0.6))
-    .add(seatGroup.forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT * 0.2));
+  const anchor = seatGroup.chipAnchor.clone();
+  const lateral = seatGroup.right.clone().setLength(-HUMAN_CARD_LATERAL_SHIFT * 0.65);
+  const inward = seatGroup.forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT * 0.25);
+  anchor.add(lateral).add(inward);
+  anchor.y = seatGroup.chipAnchor.y;
+  return anchor;
 }
 
 function computeCommunitySlotPosition(index, options = {}) {
@@ -3013,7 +3015,7 @@ function TexasHoldemArena({ search }) {
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
           .addScaledVector(forward, seat.isHuman ? 0 : 0);
         const face = seat.isHuman || state.showdown ? 'front' : 'back';
-        orientCard(mesh, lookTarget, { face, flat: false });
+        orientCard(mesh, lookTarget, { face, flat: seat.isHuman });
         setCardFace(mesh, face);
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
