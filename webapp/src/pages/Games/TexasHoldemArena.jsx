@@ -1018,6 +1018,14 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   return layout;
 }
 
+function getHumanCardAnchor(seatGroup) {
+  if (!seatGroup) return null;
+  return seatGroup.chipAnchor
+    .clone()
+    .add(seatGroup.right.clone().setLength(HUMAN_CARD_LATERAL_SHIFT * 0.6))
+    .add(seatGroup.forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT * 0.2));
+}
+
 function computeCommunitySlotPosition(index, options = {}) {
   const rotationY = options.rotationY ?? 0;
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
@@ -2602,16 +2610,13 @@ function TexasHoldemArena({ search }) {
           const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
           if (!humanSeatGroup) return;
 
-          const baseAnchor = humanSeatGroup.chipAnchor
-            .clone()
-            .add(humanSeatGroup.right.clone().setLength(HUMAN_CARD_LATERAL_SHIFT * 0.6))
-            .add(humanSeatGroup.forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT * 0.2));
+          const baseAnchor = getHumanCardAnchor(humanSeatGroup) ?? humanSeatGroup.chipAnchor.clone();
           const right = humanSeatGroup.right.clone();
           const forward = humanSeatGroup.forward.clone();
 
           humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
             const lateral = right.clone().setLength((idx - 0.5) * HUMAN_CARD_SPREAD * 0.92);
-            const forwardOffset = forward.clone().setLength(HUMAN_CARD_FORWARD_OFFSET * 0.2);
+            const forwardOffset = forward.clone().setLength(0);
             const position = baseAnchor.clone().add(lateral).add(forwardOffset);
             position.y = humanSeatGroup.chipAnchor.y + CARD_SURFACE_OFFSET;
             mesh.position.copy(position);
@@ -2961,9 +2966,8 @@ function TexasHoldemArena({ search }) {
       const seat = seatGroups[idx];
       if (!seat) return;
       const prevPlayer = previous?.players?.[idx];
-      const baseAnchor = seat.isHuman
-        ? seat.cardRailAnchor.clone().lerp(seat.chipRailAnchor, HUMAN_CARD_CHIP_BLEND)
-        : seat.cardAnchor.clone();
+      const humanAnchor = getHumanCardAnchor(seat);
+      const baseAnchor = seat.isHuman ? humanAnchor ?? seat.chipAnchor.clone() : seat.cardAnchor.clone();
       const right = seat.right.clone();
       const forward = seat.forward.clone();
 
@@ -2998,16 +3002,16 @@ function TexasHoldemArena({ search }) {
         }
         const position = baseAnchor
           .clone()
-          .addScaledVector(forward, seat.isHuman ? CARD_FORWARD_OFFSET * -0.35 : CARD_FORWARD_OFFSET)
+          .addScaledVector(forward, seat.isHuman ? 0 : CARD_FORWARD_OFFSET)
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_SPREAD));
-        position.y = seat.cardRailAnchor.y + CARD_D * 0.6;
+        position.y = (seat.isHuman ? baseAnchor.y : seat.cardRailAnchor.y) + CARD_D * 0.6;
         mesh.position.copy(position);
-        const lookOrigin = seat.isHuman ? seat.cardRailAnchor : seat.stoolAnchor;
+        const lookOrigin = seat.isHuman ? baseAnchor : seat.stoolAnchor;
         const lookTarget = lookOrigin
           .clone()
           .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
           .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
-          .addScaledVector(forward, seat.isHuman ? -CARD_LOOK_SPLAY * 0.45 : 0);
+          .addScaledVector(forward, seat.isHuman ? 0 : 0);
         const face = seat.isHuman || state.showdown ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: false });
         setCardFace(mesh, face);
