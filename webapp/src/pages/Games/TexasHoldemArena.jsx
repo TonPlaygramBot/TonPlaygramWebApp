@@ -2909,9 +2909,6 @@ function TexasHoldemArena({ search }) {
           .addScaledVector(forward, seat.isHuman ? -CARD_LOOK_SPLAY * 0.3 : 0);
         const face = player.isHuman || state.showdown ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: false });
-        if (seat.isHuman) {
-          mesh.rotateY(Math.PI);
-        }
         setCardFace(mesh, face);
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
