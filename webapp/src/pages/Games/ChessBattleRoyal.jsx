@@ -202,7 +202,7 @@ const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
-const CAMERA_TOPDOWN_LOCK = 0;
+const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -3403,9 +3403,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = isPortrait ? 2.25 : 1.55;
-    const cameraForwardOffset = isPortrait ? 0.1 : 0.24;
-    const cameraHeightOffset = isPortrait ? 1.6 : 1.22;
+    const cameraBackOffset = isPortrait ? 2.55 : 1.78;
+    const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
+    const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius,
@@ -3475,7 +3475,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const theta = Number.isFinite(current.theta) ? current.theta : -Math.PI / 4;
 
       const initialRadius = clamp(
-        CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.initialRadiusFactor * 1.15,
+        CAMERA_BASE_RADIUS * ARENA_CAMERA_DEFAULTS.initialRadiusFactor * 1.24,
         CAM.minR,
         CAM.maxR
       );
@@ -3486,10 +3486,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         controls.enableRotate = false;
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
+        const aspect = (host?.clientWidth ?? 1) / (host?.clientHeight ?? 1) || 1;
+        const boardSpan = RAW_BOARD_SIZE * BOARD_SCALE;
+        const desiredSpan = boardSpan * 1.35;
+        const halfFov = THREE.MathUtils.degToRad(CAM.fov) / 2;
+        const verticalRadius = desiredSpan / (2 * Math.tan(halfFov));
+        const horizontalRadius = verticalRadius / Math.max(aspect, 0.5);
         const radius = clamp(
-          Math.max(BOARD_DISPLAY_SIZE * 1.5, CAMERA_BASE_RADIUS * 1.3, CAM.minR * 1.1),
+          Math.max(verticalRadius, horizontalRadius, CAMERA_BASE_RADIUS * 1.45, CAM.minR * 1.1),
           CAM.minR,
-          CAM.maxR * 0.95
+          CAM.maxR
         );
         const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_LOCK, 0);
         animateCameraTo(target, 360);
