@@ -20,17 +20,29 @@
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
   #configButton:hover{background:rgba(0,0,0,.6);border-color:rgba(148,197,255,.45);}
   #configButton svg{width:1.4rem;height:1.4rem;}
-  #configPanel{position:fixed;top:calc(4.4rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));max-width:min(320px, 84vw);max-height:min(72dvh, 480px);background:rgba(3,7,18,.92);color:#fff;border-radius:1.25rem;box-shadow:0 24px 40px rgba(2,6,23,.55);padding:0.85rem 1rem;border:1px solid rgba(148,197,255,.2);z-index:3;backdrop-filter:blur(10px);display:none;flex-direction:column;gap:0.65rem;overflow:hidden;}
-  #configPanel.active{display:flex;}
-  #configPanel h3{margin:0;font-size:.62rem;text-transform:uppercase;letter-spacing:.28rem;color:rgba(148,197,255,.75);}
-  #configSections{display:flex;flex-direction:column;gap:.55rem;overflow-y:auto;padding-right:.3rem;margin-right:-.3rem;scrollbar-gutter:stable both-edges;overscroll-behavior:contain;}
-  #configSections::-webkit-scrollbar{width:.35rem;}
-  #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
+  #configPanel{position:fixed;top:calc(4.4rem + env(safe-area-inset-top,0px));left:calc(0.85rem + env(safe-area-inset-left,0px));width:min(440px,92vw);max-width:540px;max-height:min(80dvh,560px);background:rgba(3,7,18,.92);color:#fff;border-radius:1.35rem;box-shadow:0 24px 40px rgba(2,6,23,.55);padding:1rem 1.1rem;border:1px solid rgba(148,197,255,.28);z-index:3;backdrop-filter:blur(12px);display:none;flex-direction:column;gap:0.75rem;overflow:hidden;transition:transform .18s ease, opacity .18s ease;transform-origin:top left;}
+  #configPanel.active{display:flex;transform:translateY(0);opacity:1;}
+  #configPanel h3{margin:0;font-size:.66rem;text-transform:uppercase;letter-spacing:.28rem;color:rgba(148,197,255,.75);}
+  #configSections{display:flex;flex-direction:column;gap:.6rem;overflow-y:auto;padding-right:.35rem;margin-right:-.35rem;scrollbar-gutter:stable both-edges;overscroll-behavior:contain;}
+  #configSections::-webkit-scrollbar{width:.4rem;}
+  #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.45);border-radius:999px;}
   #configSections::-webkit-scrollbar-track{background:transparent;}
+  #configPanel .config-option{min-height:3.2rem;}
   #seatOverlay{position:fixed;inset:0;pointer-events:none;z-index:4;}
-  .seat-badge{position:absolute;transform:translate(-50%,-50%);width:3.25rem;height:3.25rem;pointer-events:none;}
-  .seat-badge .avatar-timer-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 65%,black 66%);mask:radial-gradient(farthest-side,transparent 65%,black 66%);}
-  .seat-badge-core{position:absolute;inset:0;border-radius:999px;display:grid;place-items:center;font-size:1.35rem;font-weight:800;color:#0b1224;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 2px rgba(255,255,255,.2);}
+  .seat-badge{position:absolute;transform:translate(-50%,-50%);width:4rem;height:4rem;pointer-events:none;display:flex;align-items:center;justify-content:center;}
+  .seat-badge .avatar-timer-ring{position:absolute;inset:-6%;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 60%,black 61%);mask:radial-gradient(farthest-side,transparent 60%,black 61%);box-shadow:0 6px 18px rgba(0,0,0,.35);}
+  .seat-avatar{position:absolute;inset:0;border-radius:999px;object-fit:cover;border:2px solid rgba(255,255,255,.4);box-shadow:0 10px 22px rgba(0,0,0,.38);background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.35),rgba(17,24,39,.7));}
+  .seat-badge .seat-name-arc{position:absolute;inset:2px;}
+  .seat-badge .seat-name-arc text{text-anchor:middle;font-size:10px;font-weight:700;fill:#fef9c3;letter-spacing:1px;text-transform:uppercase;}
+  .seat-badge .seat-name-arc path{fill:none;}
+  #scoreboard{position:fixed;top:calc(5rem + env(safe-area-inset-top,0px));left:calc(1rem + env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:.5rem;padding:.65rem .75rem;width:min(320px, 92vw);background:rgba(12,16,28,.82);border:1px solid rgba(255,210,74,.35);border-radius:1rem;backdrop-filter:blur(10px);box-shadow:0 18px 30px rgba(0,0,0,.35);color:#fff;z-index:3;}
+  #scoreboard h4{margin:0;font-size:.9rem;letter-spacing:.08em;text-transform:uppercase;color:#fde68a;display:flex;align-items:center;gap:.4rem;}
+  .scoreboard-rows{display:flex;flex-direction:column;gap:.45rem;max-height:40vh;overflow-y:auto;}
+  .score-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:.55rem;padding:.45rem .55rem;border-radius:.8rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);box-shadow:0 4px 12px rgba(0,0,0,.2);}
+  .score-row .score-avatar{width:2.35rem;height:2.35rem;border-radius:50%;object-fit:cover;border:2px solid rgba(253,232,140,.8);box-shadow:0 6px 16px rgba(0,0,0,.22);background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.36),rgba(15,23,42,.7));}
+  .score-row .score-name{font-weight:700;font-size:.9rem;line-height:1.2;}
+  .score-row .score-points{font-weight:800;font-size:.95rem;color:#fde047;}
+  .score-row .score-label{display:block;font-size:.68rem;color:rgba(255,255,255,.7);}
   .config-section{display:flex;flex-direction:column;gap:.3rem;}
   .config-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.45rem;}
   .config-option{border-radius:0.85rem;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.4rem .5rem;display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;font-size:clamp(.62rem,1.75vw,.72rem);line-height:1.35;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
@@ -42,7 +54,7 @@
   .config-close button{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.12);color:#f1f5f9;border-radius:999px;padding:.35rem;display:grid;place-items:center;transition:background .2s ease, border-color .2s ease;}
   .config-close button:hover{background:rgba(248,250,252,.16);border-color:rgba(248,250,252,.38);}
   @media (max-width:640px){
-    #configPanel{left:50%;transform:translateX(-50%);top:calc(4.75rem + env(safe-area-inset-top,0px));}
+    #configPanel{left:calc(0.75rem + env(safe-area-inset-left,0px));transform:none;top:calc(4.75rem + env(safe-area-inset-top,0px));width:92vw;max-width:92vw;}
   }
   #rules{position:fixed;top:0;left:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:3}
   #rules .card{max-width:720px;background:#fff;color:#222;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,.25);padding:16px 18px}
@@ -283,8 +295,8 @@ const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
 const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = 0.12 * MODEL_SCALE;
-const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_GAP;
+const CHAIR_GAP = 0.035 * MODEL_SCALE;
+const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_GAP - SEAT_DEPTH * 0.12;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT_LIFT = 0.05 * MODEL_SCALE * TABLE_SCALE;
@@ -297,10 +309,10 @@ const CHAIR_SEAT_ANGLES = Object.freeze([
   THREE.MathUtils.degToRad(180)
 ]);
 const CHAIR_SEAT_RADII = Object.freeze([
-  CHAIR_RADIUS,
-  CHAIR_RADIUS,
-  CHAIR_RADIUS,
-  CHAIR_RADIUS
+  CHAIR_RADIUS - SEAT_DEPTH * 0.08,
+  CHAIR_RADIUS - SEAT_DEPTH * 0.02,
+  CHAIR_RADIUS - SEAT_DEPTH * 0.08,
+  CHAIR_RADIUS - SEAT_DEPTH * 0.02
 ]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -2599,6 +2611,18 @@ const seatBadges = [];
 const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
+const avatarCanvasCache = new Map();
+const avatarDataUrlCache = new Map();
+const scoreboard = document.createElement('div');
+scoreboard.id = 'scoreboard';
+const scoreboardTitle = document.createElement('h4');
+scoreboardTitle.textContent = 'Scoreboard';
+const scoreboardRows = document.createElement('div');
+scoreboardRows.className = 'scoreboard-rows';
+scoreboard.appendChild(scoreboardTitle);
+scoreboard.appendChild(scoreboardRows);
+document.body.appendChild(scoreboard);
+const seatScores = [];
 
 function buildSeatNames(count = N) {
   return getSeatUsernames(count);
@@ -2622,44 +2646,125 @@ function buildSeatAvatarSources(count = N) {
   });
 }
 
-async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, size, size);
-
-  const center = size / 2;
-  const label = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
-  ctx.fillStyle = '#fffbe6';
-  ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  if (isAvatarUrl(label)) {
-    await new Promise((resolve) => {
-      const img = new Image();
-      img.crossOrigin = 'anonymous';
-      img.onload = () => resolve(img);
-      img.onerror = () => resolve(null);
-      img.src = label;
-    }).then((img) => {
-      if (!img) return;
-      const maxSide = Math.max(img.width, img.height) || 1;
-      const drawSize = size * 0.44;
-      const ratio = drawSize / maxSide;
-      const w = img.width * ratio;
-      const h = img.height * ratio;
-      ctx.drawImage(img, center - w / 2, center - h / 2, w, h);
-    });
-  } else {
-    ctx.fillText(label, center, center);
+async function renderSeatAvatarCanvas(source = DEFAULT_AVATAR_EMOJI) {
+  const key = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  if (avatarCanvasCache.has(key)) {
+    const cached = avatarCanvasCache.get(key);
+    if (cached instanceof HTMLCanvasElement) return cached;
+    return cached;
   }
 
+  const task = (async () => {
+    const size = 512;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    const center = size / 2;
+    const label = key;
+    ctx.fillStyle = '#0b1224';
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = '#fffbe6';
+    ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    let drewImage = false;
+    if (isAvatarUrl(label)) {
+      await new Promise((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.referrerPolicy = 'no-referrer';
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = label;
+      }).then((img) => {
+        if (!img) return;
+        const maxSide = Math.max(img.width, img.height) || 1;
+        const drawSize = size * 0.72;
+        const ratio = drawSize / maxSide;
+        const w = img.width * ratio;
+        const h = img.height * ratio;
+        ctx.drawImage(img, center - w / 2, center - h / 2, w, h);
+        drewImage = true;
+      });
+    }
+
+    if (!drewImage) {
+      ctx.fillText(label, center, center);
+    }
+    return canvas;
+  })();
+
+  avatarCanvasCache.set(key, task);
+  const result = await task;
+  avatarCanvasCache.set(key, result);
+  return result;
+}
+
+async function resolveSeatAvatarDataUrl(source = DEFAULT_AVATAR_EMOJI) {
+  const key = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  if (avatarDataUrlCache.has(key)) return avatarDataUrlCache.get(key);
+  const canvas = await renderSeatAvatarCanvas(key);
+  const url = canvas.toDataURL('image/png');
+  avatarDataUrlCache.set(key, url);
+  return url;
+}
+
+async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
+  const canvas = await renderSeatAvatarCanvas(source);
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
   texture.needsUpdate = true;
   return texture;
+}
+
+function ensureSeatScores(count = N) {
+  const target = Math.max(2, Number.isFinite(count) ? count : N);
+  if (seatScores.length < target) {
+    while (seatScores.length < target) seatScores.push(0);
+  } else if (seatScores.length > target) {
+    seatScores.length = target;
+  }
+}
+
+async function renderScoreboard() {
+  ensureSeatScores(N);
+  scoreboardRows.innerHTML = '';
+  const avatars = buildSeatAvatarSources(N);
+  const names = buildSeatNames(N);
+  const urls = await Promise.all(avatars.map((avatar) => resolveSeatAvatarDataUrl(avatar)));
+  names.forEach((name, idx) => {
+    const row = document.createElement('div');
+    row.className = 'score-row';
+
+    const img = document.createElement('img');
+    img.className = 'score-avatar';
+    img.alt = name || `Player ${idx + 1}`;
+    img.src = urls[idx] || urls[0];
+    row.appendChild(img);
+
+    const label = document.createElement('div');
+    label.className = 'score-name';
+    label.textContent = name || `Player ${idx + 1}`;
+    row.appendChild(label);
+
+    const points = document.createElement('div');
+    points.className = 'score-points';
+    const total = seatScores[idx] ?? 0;
+    points.innerHTML = `<span class="score-label">Points</span>${total}`;
+    row.appendChild(points);
+
+    scoreboardRows.appendChild(row);
+  });
+}
+
+function recordSeatWin(winner) {
+  ensureSeatScores(N);
+  if (Number.isInteger(winner) && winner >= 0 && winner < seatScores.length) {
+    seatScores[winner] = (seatScores[winner] ?? 0) + 1;
+  }
+  renderScoreboard().catch((error) => console.warn('Failed to render scoreboard', error));
 }
 
 async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
@@ -2683,6 +2788,7 @@ function refreshSeatAvatars() {
 }
 
 const projectedSeatTarget = new THREE.Vector3();
+const badgeDepthHelper = new THREE.Vector3();
 function updateSeatBadgePositions() {
   if (!seatBadges.length || !chairs.length || !renderer?.domElement) return;
   const rect = renderer.domElement.getBoundingClientRect();
@@ -2699,6 +2805,9 @@ function updateSeatBadgePositions() {
     const y = (1 - (world.y * 0.5 + 0.5)) * rect.height + rect.top;
     badge.style.left = `${x}px`;
     badge.style.top = `${y}px`;
+    const depth = camera.position.distanceTo(wrapper.getWorldPosition(badgeDepthHelper));
+    const scale = Math.max(0.7, Math.min(1.2, 1.4 - depth * 0.14));
+    badge.style.transform = `translate(-50%, -50%) scale(${scale})`;
     badge.style.opacity = world.z > 1 || world.z < -1 ? '0' : '1';
   });
 }
@@ -2737,31 +2846,69 @@ function disposeSeatBadges() {
   seatOverlay.innerHTML = '';
 }
 
-function createSeatBadge(icon = '🎯') {
+async function createSeatBadge({ source = DEFAULT_AVATAR_EMOJI, name = 'Player', index = 0, gradient }) {
   const wrap = document.createElement('div');
   wrap.className = 'seat-badge';
+  if (gradient) {
+    wrap.style.setProperty('--timer-gradient', gradient);
+  }
+
   const ring = document.createElement('div');
   ring.className = 'avatar-timer-ring';
   wrap.appendChild(ring);
-  const core = document.createElement('div');
-  core.className = 'seat-badge-core';
-  core.textContent = icon || '🎯';
-  wrap.appendChild(core);
+
+  const avatarImg = document.createElement('img');
+  avatarImg.className = 'seat-avatar';
+  avatarImg.alt = name || 'player';
+  avatarImg.src = await resolveSeatAvatarDataUrl(source);
+  wrap.appendChild(avatarImg);
+
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const arc = document.createElementNS(svgNS, 'svg');
+  arc.setAttribute('class', 'seat-name-arc');
+  arc.setAttribute('viewBox', '0 0 100 100');
+  const radius = 42;
+  const pathId = `seat-name-path-${index}`;
+  const path = document.createElementNS(svgNS, 'path');
+  path.setAttribute('id', pathId);
+  path.setAttribute('d', `M${50 - radius},62 A${radius},${radius} 0 0 1 ${50 + radius},62`);
+  const text = document.createElementNS(svgNS, 'text');
+  const textPath = document.createElementNS(svgNS, 'textPath');
+  textPath.setAttribute('href', `#${pathId}`);
+  textPath.setAttribute('startOffset', '50%');
+  textPath.textContent = name || 'Player';
+  text.appendChild(textPath);
+  arc.appendChild(path);
+  arc.appendChild(text);
+  wrap.appendChild(arc);
+
   seatOverlay.appendChild(wrap);
   return wrap;
 }
 
-function refreshSeatBadges(icons = []) {
+async function refreshSeatBadges(icons = []) {
   disposeSeatBadges();
   const gradient = (currentHighlightStyle && currentHighlightStyle.gradient) ||
     'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
-  const entries = icons.length ? icons : Array.from({ length: N }, () => '🎯');
-  entries.forEach((icon) => {
-    const badge = createSeatBadge(icon);
-    badge.style.setProperty('--timer-gradient', gradient);
-    seatBadges.push(badge);
+  const avatarSources = icons.length ? icons : buildSeatAvatarSources(N);
+  const names = buildSeatNames(N);
+  const badgePromises = avatarSources.map((icon, idx) =>
+    createSeatBadge({
+      source: icon,
+      name: names[idx] || `Player ${idx + 1}`,
+      index: idx,
+      gradient
+    })
+  );
+  const badges = await Promise.all(badgePromises);
+  badges.forEach((badge) => {
+    if (badge) {
+      seatBadges.push(badge);
+    }
   });
   seatOverlay.style.setProperty('--timer-gradient', gradient);
+  updateSeatBadgePositions();
+  renderScoreboard().catch((error) => console.warn('Failed to sync scoreboard avatars', error));
 }
 
 function disposeSeatLabel({ persistPreference = true } = {}) {
@@ -3112,10 +3259,6 @@ function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
   }
   seatBadges.forEach((badge) => {
     badge?.style?.setProperty?.('--timer-gradient', gradient);
-    const core = badge?.querySelector?.('.seat-badge-core');
-    if (core) {
-      core.textContent = currentHighlightStyle.icon || core.textContent || '🎯';
-    }
   });
   seatOverlay.style.setProperty('--timer-gradient', gradient);
 }
@@ -3542,7 +3685,7 @@ function placeChairsWithOption(option, chairData, token) {
     }
   });
 
-  refreshSeatBadges(seatAvatarSources);
+  refreshSeatBadges(seatAvatarSources).catch((error) => console.warn('Failed to refresh seat badges', error));
 }
 
 async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
@@ -4253,7 +4396,8 @@ function startGame(){
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
-  refreshSeatAvatars();
+  refreshSeatAvatars().catch((error) => console.warn('Failed to refresh seat avatars', error));
+  renderScoreboard().catch((error) => console.warn('Failed to render scoreboard', error));
   players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
   boneyard=shuffle(genSet());
   renderBoneyardStack();
@@ -4633,6 +4777,12 @@ function finishGame({ winner = null, reason = '', revealAll = false } = {}){
     setStatus(winnerIndex === human ? 'You won!' : `Player ${winnerIndex+1} won!`);
   } else {
     setStatus('Game over');
+  }
+
+  if(winnerIndex !== null){
+    recordSeatWin(winnerIndex);
+  } else {
+    renderScoreboard().catch((error) => console.warn('Failed to refresh scoreboard', error));
   }
 
   if(winnerIndex !== null){
