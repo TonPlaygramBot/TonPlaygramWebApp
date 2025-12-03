@@ -590,7 +590,7 @@ const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner pocket offset so the cuts sit farther toward each pocket mouth
 const CORNER_RAIL_CUT_INSET =
   POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // preserve the existing chrome/wood cut positioning for jaws and fascia
-const MIDDLE_POCKET_LONGITUDINAL_OFFSET = 0; // align side pocket cuts and pockets flush with Pool Royale's centred middle pockets
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET = POCKET_VIS_R * 0.12; // push middle pockets and rail cuts slightly away from table centre
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
@@ -2925,7 +2925,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.02; // pull the orbit camera closer to the rail without clipping
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the orbit camera closer to the rail without clipping
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.08;
@@ -2988,13 +2988,13 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.044;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.18;
+const CUE_VIEW_RADIUS_RATIO = 0.04;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.16;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.14
+  STANDING_VIEW_PHI + 0.1
 );
-const CUE_VIEW_PHI_LIFT = 0.075;
+const CUE_VIEW_PHI_LIFT = 0.11;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -3005,7 +3005,8 @@ const CAMERA_MIN_HORIZONTAL =
   CAMERA_RAIL_SAFETY;
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
-const IN_HAND_CAMERA_PULLBACK = 1.48;
+const IN_HAND_CAMERA_PULLBACK = 1.38;
+const TOP_VIEW_MARGIN = 1.1;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -4882,7 +4883,7 @@ function Table3D(
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
     const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
-    const centerZ = 0;
+    const centerZ = sx * MIDDLE_POCKET_LONGITUDINAL_OFFSET;
     const notchMP = sideNotchMP(sx);
     const sidePocketCutCenterPull =
       TABLE.THICK * CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE;
@@ -5262,10 +5263,15 @@ function Table3D(
   const woodSideNotches = [-1, 1]
     .map((sx) =>
       translatePocketCutMP(
-        scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE),
-        sx,
+        translatePocketCutMP(
+          scaleMultiPolygonBy(sideNotchMP(sx), WOOD_SIDE_CUT_SCALE),
+          sx,
+          0,
+          woodSideCutCenterOutset
+        ),
         0,
-        woodSideCutCenterOutset
+        sx,
+        MIDDLE_POCKET_LONGITUDINAL_OFFSET
       )
     )
     .filter((mp) => Array.isArray(mp) && mp.length);
@@ -6782,11 +6788,14 @@ function SnookerGame() {
       theta: sph.theta
     };
     if (next) last3DRef.current = { phi: sph.phi, theta: sph.theta };
-      const targetMargin = next
-        ? 1.05
-        : window.innerHeight > window.innerWidth
-          ? 1.6
-          : 1.4;
+    if (!last3DRef.current) {
+      last3DRef.current = { phi: sph.phi, theta: sph.theta };
+    }
+    const targetMargin = next
+      ? TOP_VIEW_MARGIN
+      : window.innerHeight > window.innerWidth
+        ? 1.6
+        : 1.4;
     const targetRadius = fitRadius(cam, targetMargin);
     const target = {
       radius: next ? targetRadius : clampOrbitRadius(targetRadius),
