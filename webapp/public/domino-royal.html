@@ -252,7 +252,7 @@ const pmrem = new THREE.PMREMGenerator(renderer);
 const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environment = envTex;
 
-const LIGHT_INTENSITY_FACTOR = 0.78;
+const LIGHT_INTENSITY_FACTOR = 1;
 const dimIntensity = (value = 1) => value * LIGHT_INTENSITY_FACTOR;
 
 const MODEL_SCALE = 0.75;
@@ -537,22 +537,24 @@ function toggleCameraViewMode() {
 
 
 /* ---------- Lights ---------- */
-const ambient = new THREE.AmbientLight(0xffffff, dimIntensity(0.62));
+const ambient = new THREE.AmbientLight(0xffffff, 0.35);
 scene.add(ambient);
-const spot = new THREE.SpotLight(
-  0xffffff,
-  dimIntensity(3.24),
-  TABLE_RADIUS * 10,
-  Math.PI / 3,
-  0.38,
-  1
-);
-spot.position.set(3, 7, 3);
-spot.castShadow = true;
-scene.add(spot);
-const rimLight = new THREE.PointLight(0x33ccff, dimIntensity(1.12));
-rimLight.position.set(-4, 3, -4);
+const keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+keyLight.position.set(6, 8, 5);
+keyLight.castShadow = true;
+scene.add(keyLight);
+const fillLight = new THREE.DirectionalLight(0xffffff, 0.65);
+fillLight.position.set(-5, 5.5, 3);
+scene.add(fillLight);
+const rimLight = new THREE.DirectionalLight(0xffffff, 0.9);
+rimLight.position.set(0, 6, -6);
 scene.add(rimLight);
+const spot = new THREE.SpotLight(0xffffff, 0.8, TABLE_RADIUS * 10, Math.PI / 3, 0.38, 1);
+spot.position.set(0, 4.2, 4.6);
+scene.add(spot);
+const spotTarget = new THREE.Object3D();
+scene.add(spotTarget);
+spot.target = spotTarget;
 
 const getPoolCarpetTextures = (() => {
   let cache = null;
@@ -679,20 +681,19 @@ const getPoolCarpetTextures = (() => {
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 12;
 const DEFAULT_CHAIR_THEME = Object.freeze({
-  id: "ruby",
-  label: "Ruby",
-  seatColor: "#8b0000",
+  id: "crimsonVelvet",
+  label: "Crimson Velvet",
+  seatColor: "#8b1538",
   legColor: "#1f1f1f",
-  highlight: "#b22222"
+  highlight: "#d35a7a"
 });
 
 const CHAIR_THEME_OPTIONS = Object.freeze([
   DEFAULT_CHAIR_THEME,
-  { id: "slate", label: "Slate", seatColor: "#374151", legColor: "#0f172a", highlight: "#6b7280" },
-  { id: "teal", label: "Teal", seatColor: "#0f766e", legColor: "#082f2a", highlight: "#38b2ac" },
-  { id: "amber", label: "Amber", seatColor: "#b45309", legColor: "#2f2410", highlight: "#f59e0b" },
-  { id: "violet", label: "Violet", seatColor: "#7c3aed", legColor: "#2b1059", highlight: "#c084fc" },
-  { id: "frost", label: "Ice", seatColor: "#1f2937", legColor: "#0f172a", highlight: "#9ca3af" }
+  { id: "midnightNavy", label: "Midnight Blue", seatColor: "#153a8b", legColor: "#10131c", highlight: "#4d74d8" },
+  { id: "emeraldWave", label: "Emerald Wave", seatColor: "#0f6a2f", legColor: "#142318", highlight: "#48b26a" },
+  { id: "onyxShadow", label: "Onyx Shadow", seatColor: "#202020", legColor: "#080808", highlight: "#6f6f6f" },
+  { id: "royalPlum", label: "Royal Chestnut", seatColor: "#3f1f5b", legColor: "#140a24", highlight: "#7c4ae0" }
 ]);
 
 const CHAIR_MODEL_URLS = [
@@ -2341,7 +2342,7 @@ function makeClothTexture({ top = "#155c2a", bottom = "#0b3a1d", border = "#041f
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(18 * 5, 18 * 5);
+  texture.repeat.set(18 * 5 * 3, 18 * 5 * 3);
   texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
   texture.colorSpace = THREE.SRGBColorSpace;
   return texture;
@@ -2440,11 +2441,19 @@ const seatNameTags = [];
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
 
 function buildSeatNames(count = N) {
-  return Array.from({ length: Math.max(1, count) }, (_, idx) => {
-    if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) {
-      return seatAvatarUsername;
+  const sources = buildSeatAvatarSources(count);
+  return sources.map((src, idx) => {
+    const flagLabel = seatAvatarFlags[idx] || seatAvatarFlags[0];
+    if (isAvatarUrl(src)) {
+      const fallbackFlag = flagLabel || DEFAULT_AVATAR_EMOJI;
+      return fallbackFlag;
     }
-    return DEFAULT_SEAT_NAMES[idx] || `Player ${idx + 1}`;
+    const label = typeof flagLabel === 'string' && flagLabel.trim()
+      ? flagLabel.trim()
+      : typeof src === 'string' && src.trim()
+        ? src.trim()
+        : DEFAULT_AVATAR_EMOJI;
+    return label;
   });
 }
 
@@ -2473,36 +2482,12 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, size, size);
 
-  const radius = size * 0.42;
   const center = size / 2;
-
-  const rimGradient = ctx.createRadialGradient(
-    center - radius * 0.3,
-    center - radius * 0.28,
-    radius * 0.3,
-    center,
-    center,
-    radius
-  );
-  rimGradient.addColorStop(0, '#fff0a3');
-  rimGradient.addColorStop(1, '#f7b820');
-  ctx.fillStyle = rimGradient;
-  ctx.beginPath();
-  ctx.arc(center, center, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  const innerRadius = radius * 0.82;
-  ctx.fillStyle = 'rgba(0,0,0,0.15)';
-  ctx.beginPath();
-  ctx.arc(center, center, innerRadius, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(center, center, innerRadius, 0, Math.PI * 2);
-  ctx.clip();
-
   const label = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  ctx.fillStyle = '#fffbe6';
+  ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
   if (isAvatarUrl(label)) {
     await new Promise((resolve) => {
       const img = new Image();
@@ -2512,28 +2497,16 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
       img.src = label;
     }).then((img) => {
       if (!img) return;
-      const scale = Math.max(img.width, img.height) || 1;
-      const drawSize = innerRadius * 2;
-      const ratio = drawSize / scale;
+      const maxSide = Math.max(img.width, img.height) || 1;
+      const drawSize = size * 0.44;
+      const ratio = drawSize / maxSide;
       const w = img.width * ratio;
       const h = img.height * ratio;
       ctx.drawImage(img, center - w / 2, center - h / 2, w, h);
     });
   } else {
-    ctx.fillStyle = '#fffbe6';
-    ctx.font = `${innerRadius * 1.1}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(label, center, center + innerRadius * 0.04);
+    ctx.fillText(label, center, center);
   }
-
-  ctx.restore();
-
-  ctx.strokeStyle = '#1e293b40';
-  ctx.lineWidth = radius * 0.08;
-  ctx.beginPath();
-  ctx.arc(center, center, innerRadius, 0, Math.PI * 2);
-  ctx.stroke();
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -2649,13 +2622,9 @@ function createSeatNameTag(label = '') {
   canvas.width = 512;
   canvas.height = 256;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.strokeStyle = '#ffd24a';
-  ctx.lineWidth = 12;
-  ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#ffe8a3';
-  ctx.font = 'bold 76px "Inter", Arial, sans-serif';
+  ctx.font = 'bold 38px "Inter", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label || 'Player', canvas.width / 2, canvas.height / 2);
@@ -2768,7 +2737,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 0.95; // modestly upscale tiles for better readability
+const DOMINO_SCALE = 1.5 * 1.05; // modestly upscale tiles for better readability
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
