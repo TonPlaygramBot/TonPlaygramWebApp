@@ -11,7 +11,7 @@
   button{font-weight:700;border:0;border-radius:999px;padding:.45rem .7rem;background:#ffd24a;color:#333;box-shadow:0 4px 12px rgba(0,0,0,.25);}
   button:active{transform:translateY(1px);}
   #status{position:fixed;top:calc(0.65rem + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);padding:.35rem .75rem;border-radius:999px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;z-index:2;backdrop-filter:blur(6px);}
-  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(2.4rem, 14vh, 6.4rem));transform:translateX(-50%);display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:.5rem;align-items:center;background:transparent;color:#fff;padding:0;box-shadow:none;z-index:2;pointer-events:auto;}
+  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(0.8rem, 6vh, 2.4rem));transform:translateX(-50%);display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:.5rem;align-items:center;background:transparent;color:#fff;padding:0;box-shadow:none;z-index:2;pointer-events:auto;}
   #railControls button{background:rgba(12,16,28,.72);color:#ffe8a3;font-size:.95rem;padding:.55rem .9rem;border-radius:999px;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
   #draw{font-size:1rem;padding:.6rem 1rem;background:linear-gradient(135deg, rgba(255,210,74,.95), rgba(255,196,45,.85));color:#3b250f;border:0;}
   #pass{background:rgba(255,210,74,.12);color:#ffe8a3;border:1px solid rgba(255,210,74,.35);}
@@ -110,6 +110,7 @@ import { RoomEnvironment } from "https://esm.sh/three@0.160.0/examples/jsm/envir
 import { RoundedBoxGeometry } from "https://esm.sh/three@0.160.0/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { GLTFLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js";
+import "./flag-emojis.js";
 
 /* ---------- Audio (SFX) ---------- */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -178,12 +179,14 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
 }
 
 const sfxBuffers = {
-  place: createBuffer(0.18, (t, i) => {
-    const env = Math.exp(-t * 42);
-    const snap = Math.sin(2 * Math.PI * 1800 * t) * 0.55;
-    const wood = (Math.sin((i + 1.5) * 0.37) * 2 - 1) * Math.exp(-t * 24) * 0.28;
-    const body = Math.sin(2 * Math.PI * 92 * t) * 0.32;
-    return (snap + wood + body) * env;
+  place: createBuffer(0.28, (t, i) => {
+    const strikeEnv = Math.exp(-t * 52);
+    const bodyEnv = Math.exp(-t * 18);
+    const grain = Math.sin((i + 3) * 0.42) * strikeEnv * 0.34;
+    const rim = Math.sin(2 * Math.PI * (210 + Math.sin(t * 18) * 22) * t) * strikeEnv * 0.18;
+    const knock = Math.sin(2 * Math.PI * 162 * t) * bodyEnv * 0.45;
+    const thump = Math.sin(2 * Math.PI * 84 * t) * Math.exp(-t * 10) * 0.26;
+    return (grain + rim + knock + thump) * 0.95;
   }),
   draw: createBuffer(0.26, (t, i, length) => {
     const env = Math.exp(-t * 16);
@@ -291,9 +294,9 @@ const CHAIR_SEAT_ANGLES = Object.freeze([
 ]);
 const CHAIR_SEAT_RADII = Object.freeze([
   CHAIR_RADIUS,
-  CHAIR_RADIUS * 0.94,
+  CHAIR_RADIUS * 0.88,
   CHAIR_RADIUS * 1.02,
-  CHAIR_RADIUS * 0.94
+  CHAIR_RADIUS * 0.88
 ]);
 const ARENA_WALL_HEIGHT = 3.6 * 1.3;
 const ARENA_WALL_CENTER_Y = ARENA_WALL_HEIGHT / 2;
@@ -335,13 +338,66 @@ const seatAvatarPhoto = (urlParams.get('avatar') || '').trim();
 const seatAvatarUsername = (urlParams.get('username') || '').trim();
 const DEFAULT_AVATAR_EMOJI = '🌐';
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
+const FLAG_EMOJI_POOL = Array.isArray(window.FLAG_EMOJIS) ? window.FLAG_EMOJIS : [];
+const aiAvatarMode = (urlParams.get('avatars') || 'flags').toLowerCase();
+const selectedFlagAvatars = (urlParams.get('flags') || '')
+  .split(',')
+  .map((n) => Number.parseInt(n, 10))
+  .filter(Number.isFinite)
+  .map((idx) => FLAG_EMOJI_POOL[idx])
+  .filter((flag) => typeof flag === 'string' && flag.trim().length);
+const regionNames =
+  typeof Intl !== 'undefined' && typeof Intl.DisplayNames !== 'undefined'
+    ? new Intl.DisplayNames(['en'], { type: 'region' })
+    : null;
+
+function emojiToRegionCode(flag = '') {
+  const chars = Array.from(flag);
+  if (chars.length !== 2) return '';
+  const codePoints = chars.map((c) => (c.codePointAt(0) ?? 0) - 0x1f1e6 + 65);
+  if (codePoints.some((cp) => cp < 65 || cp > 90)) return '';
+  return String.fromCharCode(codePoints[0], codePoints[1]);
+}
+
+function avatarToName(source = '') {
+  if (!source) return '';
+  if (!source.startsWith('/') && !source.startsWith('http') && !source.startsWith('data:')) {
+    const region = emojiToRegionCode(source.trim());
+    if (region) {
+      try {
+        const display = regionNames?.of(region);
+        if (display) return display;
+      } catch {}
+      return region;
+    }
+    return '';
+  }
+  const filename = source.split('/').pop() || '';
+  const base = filename.replace(/\.[^.]+$/, '').replace(/[-_]/g, ' ').trim();
+  if (!base) return '';
+  return base.replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function pickFlagForSeat(index = 0) {
+  if (aiAvatarMode === 'flags') {
+    const explicit = selectedFlagAvatars[index] ?? selectedFlagAvatars[index - 1];
+    if (explicit) return explicit;
+  }
+  if (FLAG_EMOJI_POOL.length) {
+    const jitter = Math.abs((index + 1) * 13) % FLAG_EMOJI_POOL.length;
+    return FLAG_EMOJI_POOL[jitter];
+  }
+  return DEFAULT_AVATAR_EMOJI;
+}
 
 function getSeatUsernames(count = N) {
-  const maxSeats = Math.max(1, count);
-  return Array.from({ length: maxSeats }, (_, idx) => {
-    if (idx === 0) {
-      return seatAvatarUsername || DEFAULT_SEAT_NAMES[idx];
+  const avatars = buildSeatAvatarSources(count);
+  return avatars.map((avatar, idx) => {
+    if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) {
+      return seatAvatarUsername;
     }
+    const derived = avatarToName(avatar);
+    if (derived) return derived;
     return DEFAULT_SEAT_NAMES[idx] || `Player ${idx + 1}`;
   });
 }
@@ -2438,24 +2494,25 @@ const seatAvatars = [];
 const seatNameTags = [];
 
 function buildSeatNames(count = N) {
-  const usernames = getSeatUsernames(count);
-  return usernames.map((name, idx) => name || `Player ${idx + 1}`);
+  return getSeatUsernames(count);
 }
 
 function isAvatarUrl(str = '') {
-  return /^https?:\/\//i.test(str) || str.startsWith('data:');
+  return /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/');
 }
 
 function buildSeatAvatarSources(count = N) {
-  const usernames = getSeatUsernames(count);
-  const sources = Array.from({ length: Math.max(1, count) }, (_, idx) => {
-    const name = usernames[idx] || `Player ${idx + 1}`;
-    if (idx === HUMAN_SEAT_INDEX && seatAvatarPhoto) {
-      return seatAvatarPhoto;
+  const total = Math.max(1, count);
+  return Array.from({ length: total }, (_, idx) => {
+    if (idx === HUMAN_SEAT_INDEX) {
+      const preferred = seatAvatarPhoto || (aiAvatarMode === 'flags' ? selectedFlagAvatars[idx] : '');
+      return preferred || pickFlagForSeat(idx);
     }
-    return name;
+    if (aiAvatarMode === 'flags') {
+      return pickFlagForSeat(idx);
+    }
+    return pickFlagForSeat(idx);
   });
-  return sources;
 }
 
 async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
