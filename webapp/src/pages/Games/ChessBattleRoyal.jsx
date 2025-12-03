@@ -202,7 +202,7 @@ const PLAYER_CHAIR_EXTRA_CLEARANCE = 0;
 const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
-const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(1.5);
+const CAMERA_TOPDOWN_LOCK = 0;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -3403,9 +3403,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = isPortrait ? 1.65 : 1.05;
-    const cameraForwardOffset = isPortrait ? 0.18 : 0.35;
-    const cameraHeightOffset = isPortrait ? 1.46 : 1.12;
+    const cameraBackOffset = isPortrait ? 2.25 : 1.55;
+    const cameraForwardOffset = isPortrait ? 0.1 : 0.24;
+    const cameraHeightOffset = isPortrait ? 1.6 : 1.22;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
     camera.position.set(
       Math.cos(cameraSeatAngle) * cameraRadius,
@@ -3486,11 +3486,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         controls.minPolarAngle = CAMERA_TOPDOWN_LOCK;
         controls.maxPolarAngle = CAMERA_TOPDOWN_LOCK;
         const radius = clamp(
-          Math.max(BOARD_DISPLAY_SIZE * 0.9, CAM.minR),
+          Math.max(BOARD_DISPLAY_SIZE * 1.3, CAMERA_BASE_RADIUS * 1.15, CAM.minR * 1.1),
           CAM.minR,
-          CAM.maxR * 0.92
+          CAM.maxR * 0.88
         );
-        const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_LOCK, -Math.PI / 4);
+        const target = new THREE.Spherical(radius, CAMERA_TOPDOWN_LOCK, 0);
         animateCameraTo(target, 360);
       } else {
         controls.enableRotate = true;
