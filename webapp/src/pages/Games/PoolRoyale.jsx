@@ -425,7 +425,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.04; // push the side fascias slightly farther from centre so their outer edge stays flush while widening the reveal
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.074; // trim the middle chrome arch so the rounded cut sits smaller against the fascia
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.058; // trim the middle chrome arch so the rounded cut sits even smaller against the fascia
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.11; // pull the middle chrome arch farther toward centre so the rounded fascia cut tracks the shifted pocket
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -744,7 +744,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.085; // lift the visible rim higher so the pocket lips sit closer to the cloth
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.072; // lift the visible rim slightly less so the pocket lips sit lower into the cloth
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -770,8 +770,8 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.88; // further tighten the middle jaw span so the wooden rail cut reads smaller
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.892; // trim the side jaw radius slightly further so the cut and fascia sit leaner toward centre
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.056; // lower the middle jaws further so their top surface sits beneath the wooden rails
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.236; // push the middle pocket jaws further toward table centre so the lips align with the inward cuts
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.042; // lower the middle jaws slightly less so the fascia trims down from the top
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.188; // pull the middle pocket jaws closer to table centre so the lips sit farther from the side rails
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -840,7 +840,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.984; // further shrink the middle cloth/rail cutouts while keeping the pocket mouth ratio stable
+const SIDE_POCKET_CUT_SCALE = 0.972; // shrink the middle cloth/rail cutouts a bit more while keeping the pocket mouth ratio stable
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
