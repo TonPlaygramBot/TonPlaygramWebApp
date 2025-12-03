@@ -331,6 +331,22 @@ const entryMode = (urlParams.get('entry') || '').toLowerCase();
 const shouldRunHallwayEntry = entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
+const FLAG_EMOJIS = ["🇦🇫","🇦🇽","🇦🇱","🇩🇿","🇦🇸","🇦🇩","🇦🇴","🇦🇮","🇦🇶","🇦🇬","🇦🇷","🇦🇲","🇦🇼","🇦🇺","🇦🇹","🇦🇿","🇧🇸","🇧🇭","🇧🇩","🇧🇧","🇧🇾","🇧🇪","🇧🇿","🇧🇯","🇧🇲","🇧🇹","🇧🇴","🇧🇦","🇧🇼","🇧🇻","🇧🇷","🇮🇴","🇻🇬","🇧🇳","🇧🇬","🇧🇫","🇧🇮","🇰🇭","🇨🇲","🇨🇦","🇨🇻","🇧🇶","🇰🇾","🇨🇫","🇹🇩","🇨🇱","🇨🇳","🇨🇽","🇨🇨","🇨🇴","🇰🇲","🇨🇬","🇨🇩","🇨🇰","🇨🇷","🇨🇮","🇭🇷","🇨🇺","🇨🇼","🇨🇾","🇨🇿","🇩🇰","🇩🇯","🇩🇲","🇩🇴","🇪🇨","🇪🇬","🇸🇻","🇬🇶","🇪🇷","🇪🇪","🇸🇿","🇪🇹","🇫🇰","🇫🇴","🇫🇯","🇫🇮","🇫🇷","🇬🇫","🇵🇫","🇹🇫","🇬🇦","🇬🇲","🇬🇪","🇩🇪","🇬🇭","🇬🇮","🇬🇷","🇬🇱","🇬🇩","🇬🇵","🇬🇺","🇬🇹","🇬🇬","🇬🇳","🇬🇼","🇬🇾","🇭🇹","🇭🇲","🇭🇳","🇭🇰","🇭🇺","🇮🇸","🇮🇳","🇮🇩","🇮🇷","🇮🇶","🇮🇪","🇮🇲","🇮🇱","🇮🇹","🇯🇲","🇯🇵","🇯🇪","🇯🇴","🇰🇿","🇰🇪","🇰🇮","🇰🇼","🇰🇬","🇱🇦","🇱🇻","🇱🇧","🇱🇸","🇱🇷","🇱🇾","🇱🇮","🇱🇹","🇱🇺","🇲🇴","🇲🇬","🇲🇼","🇲🇾","🇲🇻","🇲🇱","🇲🇹","🇲🇭","🇲🇶","🇲🇷","🇲🇺","🇾🇹","🇲🇽","🇫🇲","🇲🇩","🇲🇨","🇲🇳","🇲🇪","🇲🇸","🇲🇦","🇲🇿","🇲🇲","🇳🇦","🇳🇷","🇳🇵","🇳🇱","🇳🇨","🇳🇿","🇳🇮","🇳🇪","🇳🇬","🇳🇺","🇳🇫","🇰🇵","🇲🇰","🇲🇵","🇳🇴","🇴🇲","🇵🇰","🇵🇼","🇵🇸","🇵🇦","🇵🇬","🇵🇾","🇵🇪","🇵🇭","🇵🇳","🇵🇱","🇵🇹","🇵🇷","🇶🇦","🇷🇪","🇷🇴","🇷🇺","🇷🇼","🇼🇸","🇸🇲","🇸🇹","🇸🇦","🇸🇳","🇷🇸","🇸🇨","🇸🇱","🇸🇬","🇸🇽","🇸🇰","🇸🇮","🇸🇧","🇸🇴","🇿🇦","🇬🇸","🇰🇷","🇸🇸","🇪🇸","🇱🇰","🇧🇱","🇸🇭","🇰🇳","🇱🇨","🇲🇫","🇵🇲","🇻🇨","🇸🇩","🇸🇷","🇸🇯","🇸🇪","🇨🇭","🇸🇾","🇹🇼","🇹🇯","🇹🇿","🇹🇭","🇹🇱","🇹🇬","🇹🇰","🇹🇴","🇹🇹","🇹🇳","🇹🇷","🇹🇲","🇹🇨","🇹🇻","🇺🇲","🇻🇮","🇺🇬","🇺🇦","🇦🇪","🇬🇧","🇺🇸","🇺🇾","🇺🇿","🇻🇺","🇻🇦","🇻🇪","🇻🇳","🇼🇫","🇪🇭","🇾🇪","🇿🇲","🇿🇼"];
+const seatAvatarMode = (urlParams.get('avatars') || '').toLowerCase();
+const seatAvatarPhoto = (urlParams.get('avatar') || '').trim();
+const seatAvatarUsername = (urlParams.get('username') || '').trim();
+const DEFAULT_AVATAR_EMOJI = '🌐';
+
+function parseFlagParam(rawFlags = '') {
+  return rawFlags
+    .split(',')
+    .map((v) => Number.parseInt(v, 10))
+    .filter((v) => Number.isFinite(v) && v >= 0 && v < FLAG_EMOJIS.length)
+    .map((idx) => FLAG_EMOJIS[idx]);
+}
+
+const seatAvatarFlags = parseFlagParam(urlParams.get('flags') || '');
+
 function seatBasisForAngle(angle, radius = CHAIR_RADIUS) {
   const useAngle = Number.isFinite(angle) ? angle : CAMERA_DEFAULT_AZIMUTH;
   const useRadius = Number.isFinite(radius) ? radius : CHAIR_RADIUS;
@@ -2420,6 +2436,120 @@ let seatLabelMesh = null;
 let seatLabelShouldDisplay = shouldShowSeatLabel;
 const seatAvatars = [];
 
+function isAvatarUrl(str = '') {
+  return /^https?:\/\//i.test(str) || str.startsWith('data:');
+}
+
+function buildSeatAvatarSources(count = N) {
+  const resolvedFlags = seatAvatarFlags.length ? seatAvatarFlags : [DEFAULT_AVATAR_EMOJI];
+  const sources = Array.from({ length: Math.max(1, count) }, (_, idx) => {
+    if (idx === HUMAN_SEAT_INDEX) {
+      if (seatAvatarMode === 'flags' && resolvedFlags.length) return resolvedFlags[0];
+      if (seatAvatarPhoto) return seatAvatarPhoto;
+      return seatAvatarUsername || resolvedFlags[0] || DEFAULT_AVATAR_EMOJI;
+    }
+    const flagIndex = (idx - 1) % resolvedFlags.length;
+    return resolvedFlags[flagIndex < 0 ? 0 : flagIndex];
+  });
+  return sources;
+}
+
+async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
+  const size = 512;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, size, size);
+
+  const radius = size * 0.42;
+  const center = size / 2;
+
+  const rimGradient = ctx.createRadialGradient(
+    center - radius * 0.3,
+    center - radius * 0.28,
+    radius * 0.3,
+    center,
+    center,
+    radius
+  );
+  rimGradient.addColorStop(0, '#fff0a3');
+  rimGradient.addColorStop(1, '#f7b820');
+  ctx.fillStyle = rimGradient;
+  ctx.beginPath();
+  ctx.arc(center, center, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  const innerRadius = radius * 0.82;
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.arc(center, center, innerRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(center, center, innerRadius, 0, Math.PI * 2);
+  ctx.clip();
+
+  const label = typeof source === 'string' && source.trim() ? source.trim() : DEFAULT_AVATAR_EMOJI;
+  if (isAvatarUrl(label)) {
+    await new Promise((resolve) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = label;
+    }).then((img) => {
+      if (!img) return;
+      const scale = Math.max(img.width, img.height) || 1;
+      const drawSize = innerRadius * 2;
+      const ratio = drawSize / scale;
+      const w = img.width * ratio;
+      const h = img.height * ratio;
+      ctx.drawImage(img, center - w / 2, center - h / 2, w, h);
+    });
+  } else {
+    ctx.fillStyle = '#fffbe6';
+    ctx.font = `${innerRadius * 1.1}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(label, center, center + innerRadius * 0.04);
+  }
+
+  ctx.restore();
+
+  ctx.strokeStyle = '#1e293b40';
+  ctx.lineWidth = radius * 0.08;
+  ctx.beginPath();
+  ctx.arc(center, center, innerRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
+  if (!sprite) return null;
+  const texture = await createSeatAvatarTexture(source);
+  if (!sprite.material) {
+    sprite.material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
+  } else {
+    sprite.material.map?.dispose?.();
+    sprite.material.map = texture;
+    sprite.material.needsUpdate = true;
+  }
+  return sprite;
+}
+
+function refreshSeatAvatars() {
+  const sources = buildSeatAvatarSources(N);
+  return Promise.all(
+    seatAvatars.map((sprite, idx) => applySeatAvatarTexture(sprite, sources[idx] ?? DEFAULT_AVATAR_EMOJI))
+  ).catch((error) => console.warn('Failed to refresh seat avatars', error));
+}
+
 function disposeSeatAvatars() {
   while (seatAvatars.length) {
     const sprite = seatAvatars.pop();
@@ -2477,47 +2607,13 @@ function createSeatLabelMesh() {
   return mesh;
 }
 
-function createSeatAvatarSprite(label = '🙂') {
-  const size = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = size;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, size, size);
-
-  const radius = size * 0.42;
-  const center = size / 2;
-  const gradient = ctx.createRadialGradient(center - radius * 0.2, center - radius * 0.2, radius * 0.35, center, center, radius);
-  gradient.addColorStop(0, '#ffe08a');
-  gradient.addColorStop(1, '#fcb034');
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(center, center, radius, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = 'rgba(0,0,0,0.18)';
-  ctx.beginPath();
-  ctx.arc(center + radius * 0.12, center + radius * 0.2, radius * 0.72, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.fillStyle = '#fff8e1';
-  ctx.beginPath();
-  ctx.arc(center - radius * 0.2, center - radius * 0.18, radius * 0.32, 0, Math.PI * 2);
-  ctx.fill();
-
-  ctx.font = `${radius * 0.95}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(label, center, center + radius * 0.08);
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.needsUpdate = true;
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
-  const sprite = new THREE.Sprite(material);
+function createSeatAvatarSprite(source = DEFAULT_AVATAR_EMOJI) {
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
   const diameter = DOMINO_WIDTH * 6.5;
   sprite.scale.set(diameter, diameter, diameter);
   sprite.center.set(0.5, 0);
   sprite.renderOrder = 2;
+  applySeatAvatarTexture(sprite, source);
   return sprite;
 }
 
@@ -3135,6 +3231,8 @@ function placeChairsWithOption(option, chairData, token) {
         })
       };
 
+  const seatAvatarSources = buildSeatAvatarSources(N);
+
   CHAIR_SEAT_ANGLES.forEach((angle, index) => {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
     const basis = seatBasisForAngle(angle, radius);
@@ -3150,9 +3248,11 @@ function placeChairsWithOption(option, chairData, token) {
 
     wrapper.updateWorldMatrix(true, true);
     const chairBox = new THREE.Box3().setFromObject(chair);
-    const avatar = createSeatAvatarSprite();
+    const avatarSource = seatAvatarSources[index] ?? DEFAULT_AVATAR_EMOJI;
+    const avatar = createSeatAvatarSprite(avatarSource);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    avatar.position.set(0, avatarHeight + 0.1, labelDepth * 0.2);
+    const avatarY = avatarHeight - SEAT_THICKNESS * 0.35;
+    avatar.position.set(0, avatarY, labelDepth * 0.08);
     avatar.lookAt(lookTarget.x, avatar.position.y, lookTarget.z);
     wrapper.add(avatar);
     seatAvatars.push(avatar);
@@ -3167,6 +3267,8 @@ function placeChairsWithOption(option, chairData, token) {
       wrapper.add(seatLabelMesh);
     }
   });
+
+  refreshSeatAvatars();
 }
 
 async function buildChairs(option = CHAIR_THEME_OPTIONS[appearance.chairTheme] ?? DEFAULT_CHAIR_THEME) {
@@ -3877,6 +3979,7 @@ function startGame(){
   flipDir = !flipDir;
   const numericN = Number.isFinite(N) ? Math.round(N) : 4;
   N = Math.max(2, Math.min(4, numericN));
+  refreshSeatAvatars();
   players=Array.from({length:N},(_,i)=>({id:i,hand:[]}));
   boneyard=shuffle(genSet());
   renderBoneyardStack();
