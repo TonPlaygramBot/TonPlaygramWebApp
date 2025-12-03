@@ -4011,9 +4011,9 @@ function renderHands(){
       else{
         m.position.set(x0 + offset, handY, z0);
       }
-      const yawTowardCenter = Math.atan2(-x0, -z0);
+      const yawTowardCenter = Math.atan2(-z0, -x0);
       if(openFlat){
-        orientDominoFlat(m, 0);
+        orientDominoFlat(m, Math.PI / 2);
       } else {
         const facing = pi === human ? yawTowardCenter : yawTowardCenter;
         m.rotation.set(0, facing, 0);
