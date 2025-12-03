@@ -334,6 +334,44 @@ const STAUNTON_TEXTURED_ASSET_SCALE = 1.02;
 
 const TEXTURE_CACHE = new Map();
 
+function createGraniteTexture(color = '#d9d7d1', seed = 1, repeat = 2.4) {
+  if (typeof document === 'undefined') return null;
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, size, size);
+
+  let s = seed;
+  const rand = () => {
+    s ^= s << 13;
+    s ^= s >> 17;
+    s ^= s << 5;
+    return ((s < 0 ? ~s + 1 : s) % 1000) / 1000;
+  };
+
+  for (let i = 0; i < 26000; i += 1) {
+    const x = rand() * size;
+    const y = rand() * size;
+    const alpha = 0.06 + rand() * 0.22;
+    const shade = 30 + Math.floor(rand() * 90);
+    ctx.fillStyle = `rgba(${shade},${shade},${shade},${alpha})`;
+    const radius = 0.5 + rand() * 1.6;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeat, repeat);
+  applySRGBColorSpace(texture);
+  return texture;
+}
+
 function loadTexture(url) {
   const cached = TEXTURE_CACHE.get(url);
   if (cached) return cached;
@@ -1188,6 +1226,7 @@ async function loadBeautifulGameSet() {
   let lastError = null;
   for (const url of BEAUTIFUL_GAME_URLS) {
     try {
+      const isLocal = url.startsWith('/') || url.startsWith('./');
       const resolvedUrl = new URL(url, window.location.href).href;
       const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
       loader.setPath(resourcePath);
@@ -1196,6 +1235,10 @@ async function loadBeautifulGameSet() {
       const gltf = await new Promise((resolve, reject) => {
         loader.load(resolvedUrl, resolve, undefined, reject);
       });
+      if (gltf?.scene) {
+        gltf.userData = { ...(gltf.userData || {}), beautifulGameSource: isLocal ? 'local' : 'remote' };
+        gltf.scene.userData = { ...(gltf.scene.userData || {}), beautifulGameSource: gltf.userData.beautifulGameSource };
+      }
       return gltf;
     } catch (error) {
       lastError = error;
@@ -1299,6 +1342,119 @@ async function applyTextureProfileToAssets(assets, profile) {
   );
   Object.values(assets.piecePrototypes.black || {}).forEach((piece) =>
     applyToPiece(piece, blackTextures, profile.blackTint || null)
+  );
+
+  return assets;
+}
+
+function applyLocalBeautifulGameMaterials(assets) {
+  if (!assets) return assets;
+  const { boardModel, piecePrototypes } = assets;
+  if (typeof document === 'undefined') return assets;
+
+  const graniteLight = createGraniteTexture('#d9d7d1', 17, 2.1);
+  const graniteDark = createGraniteTexture('#6c6963', 29, 2.1);
+  const graniteEdge = createGraniteTexture('#2b2a32', 47, 1.6);
+
+  const makeGlassMaterial = (colorHex) =>
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(colorHex),
+      roughness: 0.08,
+      metalness: 0.08,
+      transparent: true,
+      opacity: 1,
+      transmission: 0.94,
+      thickness: 0.65,
+      attenuationColor: new THREE.Color(colorHex),
+      attenuationDistance: 0.5,
+      ior: 1.52,
+      clearcoat: 0.82,
+      clearcoatRoughness: 0.1,
+      reflectivity: 0.82
+    });
+
+  const makeAccentMaterial = (colorHex) =>
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(colorHex),
+      roughness: 0.2,
+      metalness: 0.52,
+      clearcoat: 0.48,
+      clearcoatRoughness: 0.14,
+      sheen: 0.24,
+      sheenColor: new THREE.Color('#fdf6e3'),
+      specularIntensity: 0.76
+    });
+
+  if (boardModel) {
+    const frameMat = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color('#111118'),
+      roughness: 0.42,
+      metalness: 0.16,
+      clearcoat: 0.34,
+      clearcoatRoughness: 0.2,
+      map: graniteEdge,
+      normalMap: graniteEdge,
+      normalScale: new THREE.Vector2(0.46, 0.46)
+    });
+    const topMat = frameMat.clone();
+    topMat.color = new THREE.Color('#1c1c23');
+    topMat.roughness = 0.32;
+    topMat.metalness = 0.12;
+    topMat.clearcoatRoughness = 0.16;
+
+    boardModel.traverse((node) => {
+      if (!node?.isMesh) return;
+      if (node.name === 'BoardFrame') {
+        node.material = frameMat.clone();
+      } else if (node.name === 'BoardTop') {
+        node.material = topMat.clone();
+      } else if (node.name?.startsWith?.('Tile_')) {
+        const [, r, c] = node.name.split('_');
+        const isDark = (Number(r) + Number(c)) % 2 === 1;
+        const tileMat = new THREE.MeshPhysicalMaterial({
+          color: new THREE.Color(isDark ? '#5b5a5e' : '#f2efe8'),
+          roughness: 0.32,
+          metalness: 0.18,
+          clearcoat: 0.22,
+          clearcoatRoughness: 0.12,
+          sheen: 0.18,
+          sheenColor: new THREE.Color('#ffffff'),
+          specularIntensity: 0.56,
+          map: isDark ? graniteDark : graniteLight,
+          normalMap: isDark ? graniteDark : graniteLight,
+          normalScale: new THREE.Vector2(0.34, 0.34)
+        });
+        node.material = tileMat;
+      }
+      node.castShadow = true;
+      node.receiveShadow = true;
+    });
+  }
+
+  const applyPieces = (group, baseColor, accentColor) => {
+    Object.values(group || {}).forEach((piece) => {
+      if (!piece) return;
+      piece.traverse((child) => {
+        if (!child?.isMesh) return;
+        const name = child.name?.toLowerCase?.() ?? '';
+        const useAccent =
+          name.includes('collar') || name.includes('crown') || name.includes('cross') || name.includes('ring');
+        child.material = (useAccent ? makeAccentMaterial(accentColor) : makeGlassMaterial(baseColor)).clone();
+        child.castShadow = true;
+        child.receiveShadow = true;
+      });
+    });
+  };
+
+  applyPieces(
+    piecePrototypes?.white,
+    BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
+    BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
+  );
+  applyPieces(
+    piecePrototypes?.black,
+    BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f',
+    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#b58f4f'
   );
 
   return assets;
@@ -2032,7 +2188,7 @@ function buildPolygonalFallbackAssets(
 }
 
 async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
-  const timeoutMs = 7000;
+  const timeoutMs = 15000;
   const withTimeout = (promise) =>
     Promise.race([
       promise,
@@ -2044,18 +2200,45 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     const gltf = await withTimeout(loadBeautifulGameSet());
     if (gltf?.scene) {
       const extractorFn = extractor || extractBeautifulGameAssets;
-      return extractorFn(gltf.scene, targetBoardSize);
+      const source = gltf.scene.userData?.beautifulGameSource;
+      return extractorFn(gltf.scene, targetBoardSize, { source });
     }
   } catch (error) {
-    console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using local fallback', error);
+    console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using textured fallbacks', error);
   }
-  return buildBeautifulGameFallback(targetBoardSize, BEAUTIFUL_GAME_THEME);
+
+  const fallbackOptions = {
+    targetBoardSize,
+    pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
+    assetScale: 1
+  };
+
+  const texturedFallbacks = [
+    { urls: STAUNTON_SET_URLS, name: 'Staunton', styleId: 'stauntonFallback' },
+    { urls: KENNEY_SET_URLS, name: 'BoardGameKit', styleId: 'kenneyFallback' },
+    { urls: POLYGONAL_SET_URLS, name: 'Polygonal', styleId: 'polygonalFallback' }
+  ];
+
+  for (const set of texturedFallbacks) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      return await loadPieceSetFromUrls(set.urls, {
+        ...fallbackOptions,
+        styleId: set.styleId,
+        name: set.name
+      });
+    } catch (error) {
+      console.warn(`Chess Battle Royal: ${set.name} fallback failed`, error);
+    }
+  }
+
+  throw new Error('No textured chess set could be loaded');
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
   return resolveBeautifulGameAssets(
     targetBoardSize,
-    (scene, size) => extractBeautifulGameTouchAssets(scene, size)
+    (scene, size, options) => extractBeautifulGameTouchAssets(scene, size, options)
   );
 }
 
@@ -2299,17 +2482,21 @@ function extractChessSetAssets(scene, options = {}) {
   return { boardModel, piecePrototypes };
 }
 
-function extractBeautifulGameAssets(scene, targetBoardSize) {
-  return extractChessSetAssets(scene, {
+function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
+  const assets = extractChessSetAssets(scene, {
     targetBoardSize,
     pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
     styleId: 'beautifulGame',
     assetScale: BEAUTIFUL_GAME_ASSET_SCALE,
     name: 'ABeautifulGame'
   });
+  if (options?.source === 'local') {
+    return applyLocalBeautifulGameMaterials(assets);
+  }
+  return assets;
 }
 
-function extractBeautifulGameTouchAssets(scene, targetBoardSize) {
+function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
   if (!scene) return { boardModel: null, piecePrototypes: null };
 
   const root = scene.clone(true);
@@ -2386,7 +2573,11 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize) {
     piecePrototypes.black[type] = buildPrototype('black', type);
   });
 
-  return { boardModel, piecePrototypes };
+  const assets = { boardModel, piecePrototypes };
+  if (options?.source === 'local') {
+    return applyLocalBeautifulGameMaterials(assets);
+  }
+  return assets;
 }
 
 function disposeObject3D(object) {

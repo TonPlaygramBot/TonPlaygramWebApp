@@ -4,6 +4,59 @@ import * as THREE from '../webapp/node_modules/three/build/three.module.js';
 import { GLTFExporter } from '../webapp/node_modules/three/examples/jsm/exporters/GLTFExporter.js';
 import { Blob } from 'buffer';
 
+class SimpleOffscreenCanvas {
+  constructor(width, height) {
+    this.width = width;
+    this.height = height;
+    this._ctx = {
+      canvas: this,
+      drawImage() {},
+      putImageData() {},
+      translate() {},
+      scale() {},
+      getImageData: () => ({ data: new Uint8ClampedArray(width * height * 4) })
+    };
+  }
+
+  getContext() {
+    return this._ctx;
+  }
+
+  convertToBlob() {
+    return Promise.resolve(new Blob());
+  }
+
+  toBlob(cb) {
+    cb(new Blob());
+  }
+
+  toDataURL() {
+    return 'data:image/png;base64,';
+  }
+}
+
+globalThis.OffscreenCanvas = globalThis.OffscreenCanvas || SimpleOffscreenCanvas;
+globalThis.ImageData =
+  globalThis.ImageData ||
+  class ImageData {
+    constructor(data, width, height) {
+      this.data = data;
+      this.width = width;
+      this.height = height;
+    }
+  };
+
+if (typeof globalThis.document === 'undefined') {
+  globalThis.document = {
+    createElement: (type) => {
+      if (type === 'canvas') {
+        return new globalThis.OffscreenCanvas(1, 1);
+      }
+      return {};
+    }
+  };
+}
+
 globalThis.Blob = globalThis.Blob || Blob;
 globalThis.FileReader =
   globalThis.FileReader ||
@@ -44,6 +97,43 @@ globalThis.FileReader =
 
 const scene = new THREE.Scene();
 scene.name = 'ABeautifulGameRoot';
+scene.userData = { source: 'ABeautifulGameLocal' };
+
+function makeNoiseTexture(colorHex, seed = 1) {
+  const size = 512;
+  const base = new THREE.Color(colorHex);
+  const data = new Uint8Array(size * size * 4);
+
+  let s = seed;
+  const rand = () => {
+    s ^= s << 13;
+    s ^= s >> 17;
+    s ^= s << 5;
+    return ((s < 0 ? ~s + 1 : s) % 1000) / 1000;
+  };
+
+  for (let i = 0; i < size * size; i += 1) {
+    const stride = i * 4;
+    const noise = 0.06 + rand() * 0.18;
+    const jitter = (rand() * 0.18 - 0.09) * 255;
+    data[stride] = clampChannel(base.r * 255 + jitter);
+    data[stride + 1] = clampChannel(base.g * 255 + jitter);
+    data[stride + 2] = clampChannel(base.b * 255 + jitter);
+    data[stride + 3] = clampChannel(220 + noise * 35);
+  }
+
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(2.4, 2.4);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function clampChannel(value) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
 
 const PIECE_HEIGHT = {
   Pawn: 1.1,
@@ -56,20 +146,37 @@ const PIECE_HEIGHT = {
 
 const createLathe = (profile, segments = 24) => new THREE.LatheGeometry(profile, segments);
 
-const smoothMaterial = (color, metalness = 0.2, roughness = 0.35) =>
+const glassMaterial = (tint, transmission = 0.94) =>
+  new THREE.MeshPhysicalMaterial({
+    color: tint,
+    roughness: 0.06,
+    metalness: 0.06,
+    transparent: true,
+    opacity: 1,
+    transmission,
+    thickness: 0.65,
+    attenuationColor: tint,
+    attenuationDistance: 0.42,
+    ior: 1.5,
+    clearcoat: 0.8,
+    clearcoatRoughness: 0.08,
+    reflectivity: 0.8
+  });
+
+const accentMaterial = (color, metalness = 0.52, roughness = 0.18) =>
   new THREE.MeshPhysicalMaterial({
     color,
     metalness,
     roughness,
-    clearcoat: 0.35,
-    clearcoatRoughness: 0.2,
-    sheen: 0.35,
-    sheenColor: new THREE.Color('#ffffff'),
-    specularIntensity: 0.65
+    clearcoat: 0.42,
+    clearcoatRoughness: 0.1,
+    sheen: 0.26,
+    sheenColor: new THREE.Color('#fdf6e3'),
+    specularIntensity: 0.78
   });
 
 function buildBase(color, radius = 0.4, height = 0.2) {
-  const mat = smoothMaterial(color, 0.22, 0.28);
+  const mat = glassMaterial(color, 0.9);
   const geo = createLathe([
     new THREE.Vector2(0, 0),
     new THREE.Vector2(radius, 0),
@@ -82,7 +189,7 @@ function buildBase(color, radius = 0.4, height = 0.2) {
 }
 
 function buildCollar(color, radius, height, accentColor) {
-  const mat = smoothMaterial(accentColor ?? color, 0.24, 0.24);
+  const mat = accentMaterial(accentColor ?? color, 0.28, 0.24);
   const geo = createLathe([
     new THREE.Vector2(0, 0),
     new THREE.Vector2(radius * 1.1, 0),
@@ -94,7 +201,7 @@ function buildCollar(color, radius, height, accentColor) {
 }
 
 function buildBody(color, radius = 0.3, height = 0.7) {
-  const mat = smoothMaterial(color, 0.18, 0.25);
+  const mat = glassMaterial(color, 0.94);
   const geo = createLathe([
     new THREE.Vector2(radius * 0.55, 0),
     new THREE.Vector2(radius, height * 0.12),
@@ -107,20 +214,17 @@ function buildBody(color, radius = 0.3, height = 0.7) {
 
 function makeCrown(color, accentColor) {
   const group = new THREE.Group();
-  const inner = new THREE.Mesh(
-    new THREE.TorusGeometry(0.2, 0.05, 12, 32),
-    smoothMaterial(accentColor ?? color, 0.28, 0.22)
-  );
+  const inner = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 12, 32), accentMaterial(accentColor ?? color));
   inner.rotation.x = Math.PI / 2;
   group.add(inner);
-  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 16), smoothMaterial(accentColor ?? color, 0.3, 0.2));
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.09, 24, 16), accentMaterial(accentColor ?? color, 0.45, 0.16));
   orb.position.y = 0.15;
   group.add(orb);
   return group;
 }
 
 function makeCross(color) {
-  const mat = smoothMaterial(color, 0.26, 0.24);
+  const mat = accentMaterial(color, 0.48, 0.22);
   const group = new THREE.Group();
   const vert = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.35, 0.08), mat);
   vert.position.y = 0.17;
@@ -131,7 +235,7 @@ function makeCross(color) {
 }
 
 function buildKnightHead(color) {
-  const mat = smoothMaterial(color, 0.24, 0.3);
+  const mat = glassMaterial(color, 0.88);
   const shape = new THREE.Shape();
   shape.moveTo(0, 0);
   shape.quadraticCurveTo(0.05, 0.1, -0.02, 0.22);
@@ -157,7 +261,7 @@ function createPiece(type, colorName, color, accentColor) {
     const body = buildBody(color, 0.25, 0.55);
     body.position.y = cursorY;
     g.add(body);
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 16), smoothMaterial(color, 0.28, 0.25));
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 16), glassMaterial(color, 0.9));
     head.position.y = cursorY + 0.6;
     g.add(head);
   } else if (type === 'Rook') {
@@ -165,7 +269,7 @@ function createPiece(type, colorName, color, accentColor) {
     body.position.y = cursorY;
     g.add(body);
     cursorY += 0.7;
-    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.2, 32, 1, false, 0, Math.PI * 2), smoothMaterial(accentColor ?? color, 0.28, 0.28));
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.26, 0.2, 32, 1, false, 0, Math.PI * 2), accentMaterial(accentColor ?? color, 0.52, 0.24));
     crown.position.y = cursorY + 0.12;
     g.add(crown);
   } else if (type === 'Knight') {
@@ -184,7 +288,7 @@ function createPiece(type, colorName, color, accentColor) {
     const collar = buildCollar(color, 0.24, 0.16, accentColor);
     collar.position.y = cursorY;
     g.add(collar);
-    const top = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 16), smoothMaterial(color, 0.26, 0.24));
+    const top = new THREE.Mesh(new THREE.SphereGeometry(0.18, 24, 16), glassMaterial(color, 0.92));
     top.position.y = cursorY + 0.22;
     g.add(top);
   } else if (type === 'Queen') {
@@ -222,29 +326,62 @@ function makeBoard() {
   boardGroup.name = 'BoardModel';
   const size = 8;
   const tile = 0.9;
+
+  const graniteLight = makeNoiseTexture('#d9d7d1', 17);
+  const graniteDark = makeNoiseTexture('#6c6963', 29);
+  const graniteEdge = makeNoiseTexture('#2b2a32', 47);
+
   const frame = new THREE.Mesh(
     new THREE.BoxGeometry(size * tile + 0.6, 0.28, size * tile + 0.6),
-    new THREE.MeshPhysicalMaterial({ color: '#1c1b22', roughness: 0.32, metalness: 0.08, clearcoat: 0.3 })
+    new THREE.MeshPhysicalMaterial({
+      color: '#111118',
+      roughness: 0.42,
+      metalness: 0.16,
+      clearcoat: 0.34,
+      clearcoatRoughness: 0.2,
+      map: graniteEdge,
+      normalMap: graniteEdge,
+      normalScale: new THREE.Vector2(0.45, 0.45)
+    })
   );
+  frame.name = 'BoardFrame';
   frame.position.y = 0.1;
   boardGroup.add(frame);
+
   const top = new THREE.Mesh(
     new THREE.BoxGeometry(size * tile + 0.4, 0.08, size * tile + 0.4),
-    new THREE.MeshPhysicalMaterial({ color: '#2f2e3b', roughness: 0.28, metalness: 0.12 })
+    new THREE.MeshPhysicalMaterial({
+      color: '#1c1c23',
+      roughness: 0.32,
+      metalness: 0.12,
+      clearcoat: 0.28,
+      clearcoatRoughness: 0.16,
+      map: graniteEdge,
+      normalMap: graniteEdge,
+      normalScale: new THREE.Vector2(0.42, 0.42)
+    })
   );
+  top.name = 'BoardTop';
   top.position.y = 0.2;
   boardGroup.add(top);
-  const light = '#e8e1d2';
-  const dark = '#6b5640';
+
+  const light = '#f2efe8';
+  const dark = '#5b5a5e';
   for (let r = 0; r < size; r += 1) {
     for (let c = 0; c < size; c += 1) {
       const isDark = (r + c) % 2 === 1;
       const mat = new THREE.MeshPhysicalMaterial({
         color: isDark ? dark : light,
-        roughness: 0.42,
-        metalness: 0.08,
-        clearcoat: 0.08,
-        specularIntensity: 0.28
+        roughness: 0.34,
+        metalness: 0.18,
+        clearcoat: 0.24,
+        clearcoatRoughness: 0.12,
+        sheen: 0.18,
+        sheenColor: new THREE.Color('#ffffff'),
+        specularIntensity: 0.56,
+        map: isDark ? graniteDark : graniteLight,
+        normalMap: isDark ? graniteDark : graniteLight,
+        normalScale: new THREE.Vector2(0.35, 0.35)
       });
       const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.04, tile), mat);
       tileMesh.position.set(c * tile - (size * tile) / 2 + tile / 2, 0.24, r * tile - (size * tile) / 2 + tile / 2);
@@ -311,7 +448,7 @@ const exporter = new GLTFExporter();
 try {
   const arrayBuffer = await exporter.parseAsync(scene, { binary: true });
   const buffer = Buffer.from(Array.isArray(arrayBuffer) ? arrayBuffer[0] : arrayBuffer);
-  const outputPath = path.join(process.cwd(), 'webapp/public/assets/ABeautifulGame.glb');
+  const outputPath = path.join(process.cwd(), 'webapp/public/assets/chess/ABeautifulGame.glb');
   fs.mkdirSync(path.dirname(outputPath), { recursive: true });
   fs.writeFileSync(outputPath, buffer);
   // eslint-disable-next-line no-console
