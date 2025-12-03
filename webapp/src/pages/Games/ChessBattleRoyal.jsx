@@ -217,6 +217,8 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
@@ -1813,6 +1815,18 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
   piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
 
+  Object.values(piecePrototypes).forEach((byColor) => {
+    Object.values(byColor).forEach((proto) => {
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame' };
+      proto.traverse((child) => {
+        if (!child.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame' };
+      });
+    });
+  });
+
   return { boardModel, piecePrototypes };
 }
 
@@ -2205,6 +2219,14 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     }
   } catch (error) {
     console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using textured fallbacks', error);
+  }
+
+  try {
+    return applyLocalBeautifulGameMaterials(
+      buildBeautifulGameFallback(targetBoardSize, BEAUTIFUL_GAME_THEME)
+    );
+  } catch (error) {
+    console.warn('Chess Battle Royal: local ABeautifulGame fallback failed', error);
   }
 
   const fallbackOptions = {
