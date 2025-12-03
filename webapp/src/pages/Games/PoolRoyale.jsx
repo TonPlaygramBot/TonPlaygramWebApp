@@ -767,10 +767,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.936; // tighten the middle jaw span so the wooden rail cut reads smaller
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.91; // tighten the middle jaw span so the wooden rail cut reads smaller
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.892; // trim the side jaw radius slightly further so the cut and fascia sit leaner toward centre
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // keep middle jaws level with the corner jaws for consistent vertical alignment
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.062; // lift the middle jaws slightly higher to deepen the lip
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.148; // move the middle pocket jaws closer to table centre for a fuller middle-mouth capture
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
@@ -840,7 +840,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 1.062; // gently shrink the middle cloth/rail cutouts while keeping the pocket mouth ratio stable
+const SIDE_POCKET_CUT_SCALE = 1.028; // gently shrink the middle cloth/rail cutouts while keeping the pocket mouth ratio stable
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -943,25 +943,25 @@ const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = 0; // remove the underlay lift so pocket rims sit flush on the cloth
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.72 +
-  POCKET_VIS_R * 3.15 +
-  BALL_R * 2.2;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.58 +
+  POCKET_VIS_R * 2.9 +
+  BALL_R * 2.02;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.04 +
-  POCKET_VIS_R * 3.1 +
-  BALL_R * 2.1;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.88 +
+  POCKET_VIS_R * 2.82 +
+  BALL_R * 1.92;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 9.6,
+  heightOffset: BALL_R * 8.8,
   heightOffsetShortMultiplier: 1.05,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
-  heightDrop: BALL_R * 1.2,
-  distanceScale: 0.96,
+  heightDrop: BALL_R * 1.6,
+  distanceScale: 0.9,
   heightScale: 1.2,
   focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
@@ -4099,9 +4099,9 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 0.42;
-const TOP_VIEW_RADIUS_SCALE = 0.4;
-const TOP_VIEW_MIN_RADIUS_SCALE = 0.95;
+const TOP_VIEW_MARGIN = 0.36;
+const TOP_VIEW_RADIUS_SCALE = 0.32;
+const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.04, CAMERA.minPhi * 0.62);
 const CUE_VIEW_RADIUS_RATIO = 0.045;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.19;
@@ -14440,7 +14440,7 @@ function PoolRoyaleGame({
           const width = PLAY_W;
           const height = PLAY_H;
           const toAi = (vec) => ({ x: vec.x + width / 2, y: vec.y + height / 2 });
-          const pocketPositions = pocketCenters();
+          const pocketPositions = pocketEntranceCenters();
           const pockets = pocketPositions.map((center, idx) => {
             const aiPos = toAi(center);
             const localId = POCKET_IDS[idx] ?? `P${idx}`;
