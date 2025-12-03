@@ -133,6 +133,7 @@ const HUMAN_CARD_CHIP_BLEND = 0.08;
 const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1;
 const HUMAN_CHIP_SCALE = 1;
+const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const TURN_TOKEN_RADIUS = 0.14 * MODEL_SCALE;
 const TURN_TOKEN_HEIGHT = 0.05 * MODEL_SCALE;
 const TURN_TOKEN_FORWARD_OFFSET = 0.18 * MODEL_SCALE;
@@ -1020,12 +1021,11 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
 
 function getHumanCardAnchor(seatGroup) {
   if (!seatGroup) return null;
-  const anchor = seatGroup.chipAnchor.clone();
-  const lateral = seatGroup.right.clone().setLength(-HUMAN_CARD_LATERAL_SHIFT * 0.65);
-  const inward = seatGroup.forward.clone().setLength(HUMAN_CARD_INWARD_SHIFT * 0.25);
-  anchor.add(lateral).add(inward);
-  anchor.y = seatGroup.chipAnchor.y;
-  return anchor;
+  const cardBase = (seatGroup.cardRailAnchor ?? seatGroup.cardAnchor ?? seatGroup.chipAnchor).clone();
+  const chipBase = (seatGroup.chipRailAnchor ?? seatGroup.chipAnchor ?? cardBase).clone();
+  const blended = cardBase.lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
+  blended.y = seatGroup.cardRailAnchor?.y ?? seatGroup.chipRailAnchor?.y ?? seatGroup.chipAnchor.y;
+  return blended;
 }
 
 function computeCommunitySlotPosition(index, options = {}) {
@@ -2612,7 +2612,10 @@ function TexasHoldemArena({ search }) {
           const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
           if (!humanSeatGroup) return;
 
-          const baseAnchor = getHumanCardAnchor(humanSeatGroup) ?? humanSeatGroup.chipAnchor.clone();
+          const baseAnchor = getHumanCardAnchor(humanSeatGroup)
+            ?? humanSeatGroup.cardRailAnchor?.clone()
+            ?? humanSeatGroup.chipRailAnchor?.clone()
+            ?? humanSeatGroup.chipAnchor.clone();
           const right = humanSeatGroup.right.clone();
           const forward = humanSeatGroup.forward.clone();
 
@@ -2620,7 +2623,7 @@ function TexasHoldemArena({ search }) {
             const lateral = right.clone().setLength((idx - 0.5) * HUMAN_CARD_SPREAD * 0.92);
             const forwardOffset = forward.clone().setLength(0);
             const position = baseAnchor.clone().add(lateral).add(forwardOffset);
-            position.y = humanSeatGroup.chipAnchor.y + CARD_SURFACE_OFFSET;
+            position.y = baseAnchor.y + CARD_D * 0.6;
             mesh.position.copy(position);
 
             const lookTarget = position
@@ -2629,6 +2632,7 @@ function TexasHoldemArena({ search }) {
               .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0));
             orientCard(mesh, lookTarget, { face: 'front', flat: true });
             setCardFace(mesh, 'front');
+            mesh.rotateX(HUMAN_CARD_FACE_TILT);
           });
         };
 
@@ -2969,7 +2973,12 @@ function TexasHoldemArena({ search }) {
       if (!seat) return;
       const prevPlayer = previous?.players?.[idx];
       const humanAnchor = getHumanCardAnchor(seat);
-      const baseAnchor = seat.isHuman ? humanAnchor ?? seat.chipAnchor.clone() : seat.cardAnchor.clone();
+      const baseAnchor = seat.isHuman
+        ? humanAnchor
+          ?? seat.cardRailAnchor?.clone()
+          ?? seat.chipRailAnchor?.clone()
+          ?? seat.chipAnchor.clone()
+        : seat.cardAnchor.clone();
       const right = seat.right.clone();
       const forward = seat.forward.clone();
 
@@ -3009,14 +3018,22 @@ function TexasHoldemArena({ search }) {
         position.y = (seat.isHuman ? baseAnchor.y : seat.cardRailAnchor.y) + CARD_D * 0.6;
         mesh.position.copy(position);
         const lookOrigin = seat.isHuman ? baseAnchor : seat.stoolAnchor;
-        const lookTarget = lookOrigin
-          .clone()
-          .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
-          .addScaledVector(forward, seat.isHuman ? 0 : 0);
+        const lookTarget = seat.isHuman
+          ? position
+              .clone()
+              .add(forward.clone().setLength(Math.max(HUMAN_CARD_LOOK_SPLAY, 0.001)))
+              .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
+          : lookOrigin
+              .clone()
+              .add(new THREE.Vector3(0, seat.stoolHeight * 0.5 + CARD_LOOK_LIFT, 0))
+              .add(right.clone().multiplyScalar((cardIdx - 0.5) * CARD_LOOK_SPLAY))
+              .addScaledVector(forward, 0);
         const face = seat.isHuman || state.showdown ? 'front' : 'back';
         orientCard(mesh, lookTarget, { face, flat: seat.isHuman });
         setCardFace(mesh, face);
+        if (seat.isHuman) {
+          mesh.rotateX(HUMAN_CARD_FACE_TILT);
+        }
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
       });
