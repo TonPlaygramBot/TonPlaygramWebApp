@@ -3005,6 +3005,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arenaRef.current.palette = palette;
       arenaRef.current.boardMaterials = arena.boardMaterials;
     }
+    if (arena.boardModel) {
+      arena.boardModel.visible = false;
+      arena.setProceduralBoardVisible?.(true);
+    }
     const pieceSetOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? 'beautifulGame';
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
@@ -3803,6 +3807,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       });
     };
 
+    arena.setProceduralBoardVisible = setProceduralBoardVisible;
+
     arena.boardMaterials = {
       base: base.material,
       top: top.material,
@@ -3898,6 +3904,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         arenaRef.current.activePieceSetId = currentPieceSetId;
         arenaRef.current.allPieceMeshes = allPieceMeshes;
         arenaRef.current.applyPieceSetAssets = applyPieceSetAssets;
+        arenaRef.current.setProceduralBoardVisible = setProceduralBoardVisible;
       }
     };
 
@@ -3942,7 +3949,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         boardModel: currentBoardModel,
         piecePrototypes: currentPiecePrototypes,
         activePieceSetId: currentPieceSetId,
-        applyPieceSetAssets
+        applyPieceSetAssets,
+        setProceduralBoardVisible
       };
       arenaRef.current.sandTimer = sandTimer;
       arenaRef.current.palette = palette;
