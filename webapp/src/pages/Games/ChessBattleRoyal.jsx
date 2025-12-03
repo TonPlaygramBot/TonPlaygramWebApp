@@ -217,9 +217,9 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
 ];
 
 const STAUNTON_SET_URLS = [
@@ -2070,6 +2070,24 @@ function cloneWithShadows(object) {
   return clone;
 }
 
+function applyMaterialSettingsWithSRGB(node) {
+  if (!node?.isMesh) return;
+  node.castShadow = true;
+  node.receiveShadow = true;
+  const materials = Array.isArray(node.material) ? node.material : [node.material];
+  materials.forEach((mat, index) => {
+    if (!mat) return;
+    const cloned = mat.clone ? mat.clone() : mat;
+    if (Array.isArray(node.material)) {
+      node.material[index] = cloned;
+    } else {
+      node.material = cloned;
+    }
+    if (cloned.map) applySRGBColorSpace(cloned.map);
+    if (cloned.emissiveMap) applySRGBColorSpace(cloned.emissiveMap);
+  });
+}
+
 function extractChessSetAssets(scene, options = {}) {
   const {
     targetBoardSize,
@@ -2080,6 +2098,7 @@ function extractChessSetAssets(scene, options = {}) {
   } = options;
   if (!scene) return { boardModel: null, piecePrototypes: null };
   const root = scene.clone(true);
+  root.traverse(applyMaterialSettingsWithSRGB);
   root.updateMatrixWorld(true);
 
   const piecePrototypes = { white: {}, black: {} };
@@ -2293,26 +2312,8 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
 function extractBeautifulGameTouchAssets(scene, targetBoardSize) {
   if (!scene) return { boardModel: null, piecePrototypes: null };
 
-  const applyMaterialSettings = (node) => {
-    if (!node?.isMesh) return;
-    node.castShadow = true;
-    node.receiveShadow = true;
-    const materials = Array.isArray(node.material) ? node.material : [node.material];
-    materials.forEach((mat, index) => {
-      if (!mat) return;
-      const cloned = mat.clone ? mat.clone() : mat;
-      if (Array.isArray(node.material)) {
-        node.material[index] = cloned;
-      } else {
-        node.material = cloned;
-      }
-      if (cloned.map) applySRGBColorSpace(cloned.map);
-      if (cloned.emissiveMap) applySRGBColorSpace(cloned.emissiveMap);
-    });
-  };
-
   const root = scene.clone(true);
-  root.traverse(applyMaterialSettings);
+  root.traverse(applyMaterialSettingsWithSRGB);
 
   const pool = {
     white: { P: null, R: null, N: null, B: null, Q: null, K: null },
@@ -2332,7 +2333,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize) {
   });
 
   const boardModel = root.clone(true);
-  boardModel.traverse(applyMaterialSettings);
+  boardModel.traverse(applyMaterialSettingsWithSRGB);
   const nodesToCull = [];
   boardModel.traverse((node) => {
     if (pieceTypeFromName(node.name)) {
@@ -2361,7 +2362,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize) {
     const source = colorKey === 'black' ? pool.black[type] : pool.white[type];
     if (source) {
       const proto = source.clone(true);
-      proto.traverse(applyMaterialSettings);
+      proto.traverse(applyMaterialSettingsWithSRGB);
       proto.scale.multiplyScalar(totalScale);
       const protoBox = new THREE.Box3().setFromObject(proto);
       const protoCenter = protoBox.getCenter(new THREE.Vector3());
