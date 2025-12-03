@@ -382,6 +382,7 @@ function adjustSideNotchDepth(mp) {
 const POCKET_VISUAL_EXPANSION = 1.018;
 const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
 const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
+const CORNER_POCKET_EXTRA_SCALE = 1.01; // further relax the corner mouth while leaving side pockets unchanged
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
@@ -819,6 +820,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.96; // ease the middle pockets closer to centre while keeping them snug against the chrome hook
+const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.32; // push middle pocket centres farther from table centre without moving the rail cut arcs
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // keep the centres tucked while letting the shift reach the fascia without leaving a gap
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -834,7 +836,7 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST;
+const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
@@ -4100,8 +4102,8 @@ const TOP_VIEW_MARGIN = 0.42;
 const TOP_VIEW_RADIUS_SCALE = 0.4;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.95;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.04, CAMERA.minPhi * 0.62);
-const CUE_VIEW_RADIUS_RATIO = 0.05;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.22;
+const CUE_VIEW_RADIUS_RATIO = 0.045;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.19;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
@@ -4120,7 +4122,7 @@ const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
-const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.32; // pull the orbit back while the cue ball is in-hand for a wider placement view
+const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
 const CUE_VIEW_FORWARD_SLIDE_BLEND_FADE = 0.32;
@@ -5629,7 +5631,14 @@ function Table3D(
     SIDE_POCKET_FIELD_PULL,
     baseSidePocketShift + extraSidePocketShift
   );
-  sidePocketShift = Math.max(0, baseSidePocketShift + extraSidePocketShift - fieldPull);
+  const rawSidePocketShift = Math.max(
+    0,
+    baseSidePocketShift + extraSidePocketShift - fieldPull
+  );
+  sidePocketShift = Math.min(
+    maxSidePocketShift,
+    rawSidePocketShift + SIDE_POCKET_OUTWARD_BIAS
+  );
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
