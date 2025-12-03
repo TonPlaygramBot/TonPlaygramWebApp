@@ -318,32 +318,77 @@ const STAUNTON_CLASSIC_STYLE = Object.freeze({
   blackAccent: '#b98950'
 });
 
-const KENNEY_WOOD_STYLE = Object.freeze({
-  id: 'kenneyWood',
-  label: 'Kenney Woodcut',
-  white: { color: '#e7dac1', roughness: 0.55, metalness: 0.12, sheen: 0.16 },
-  black: { color: '#3c2a1f', roughness: 0.48, metalness: 0.16, sheen: 0.12 },
-  accent: '#d0a472'
-});
-
-const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
-  id: 'polygonalGraphite',
-  label: 'Polygonal Graphite',
-  white: { color: '#dce7ef', roughness: 0.28, metalness: 0.44, clearcoat: 0.32 },
-  black: {
-    color: '#1f252f',
-    roughness: 0.26,
-    metalness: 0.52,
-    clearcoat: 0.3,
-    emissive: '#0c1018',
-    emissiveIntensity: 0.22
-  },
-  accent: '#7ce3ff'
-});
-
 const STAUNTON_ASSET_SCALE = 1.02;
-const KENNEY_ASSET_SCALE = 0.85;
-const POLYGONAL_ASSET_SCALE = 0.9;
+const STAUNTON_TEXTURED_ASSET_SCALE = 1.02;
+
+const TEXTURE_CACHE = new Map();
+
+function loadTexture(url) {
+  const cached = TEXTURE_CACHE.get(url);
+  if (cached) return cached;
+  const loader = new THREE.TextureLoader();
+  loader.setCrossOrigin('anonymous');
+  const promise = new Promise((resolve, reject) => {
+    loader.load(url, (texture) => {
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      resolve(texture);
+    }, undefined, reject);
+  });
+  TEXTURE_CACHE.set(url, promise);
+  return promise;
+}
+
+const MAPLE_WOOD_TEXTURES = Object.freeze({
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg',
+  repeat: 2.2
+});
+
+const WALNUT_WOOD_TEXTURES = Object.freeze({
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg',
+  repeat: 2
+});
+
+const MARBLE_WHITE_TEXTURES = Object.freeze({
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg',
+  repeat: 1.4
+});
+
+const MARBLE_BLACK_TEXTURES = Object.freeze({
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
+  repeat: 1.3
+});
+
+const EBONY_POLISH_TEXTURES = Object.freeze({
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
+  repeat: 1.8
+});
+
+const HERITAGE_WALNUT_STYLE = Object.freeze({
+  id: 'heritageWalnut',
+  label: 'Heritage Walnut Staunton',
+  white: { color: '#f2e8d8', roughness: 0.32, metalness: 0.08, sheen: 0.18 },
+  black: { color: '#2b1b10', roughness: 0.42, metalness: 0.06, sheen: 0.16 },
+  accent: '#c49b6b'
+});
+
+const MARBLE_ONYX_STYLE = Object.freeze({
+  id: 'marbleOnyx',
+  label: 'Marble & Onyx Tournament',
+  white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.08, clearcoat: 0.24 },
+  black: { color: '#0f1012', roughness: 0.22, metalness: 0.1, clearcoat: 0.28 },
+  accent: '#b1c4cf'
+});
 
 const PIECE_STYLE_OPTIONS = Object.freeze([
   {
@@ -354,43 +399,16 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
   },
   {
-    id: 'stauntonClassic',
-    label: 'Staunton Classics (gltf-test)',
-    style: STAUNTON_CLASSIC_STYLE,
-    loader: (targetBoardSize) =>
-      loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-        targetBoardSize,
-        styleId: 'stauntonClassic',
-        pieceStyle: STAUNTON_CLASSIC_STYLE,
-        assetScale: STAUNTON_ASSET_SCALE,
-        fallbackBuilder: buildStauntonFallbackAssets
-      })
+    id: 'heritageWalnut',
+    label: 'Heritage Walnut Staunton',
+    style: HERITAGE_WALNUT_STYLE,
+    loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
   },
   {
-    id: 'kenneyWood',
-    label: 'Kenney Woodcut (CC0)',
-    style: KENNEY_WOOD_STYLE,
-    loader: (targetBoardSize) =>
-      loadPieceSetFromUrls(KENNEY_SET_URLS, {
-        targetBoardSize,
-        styleId: 'kenneyWood',
-        pieceStyle: KENNEY_WOOD_STYLE,
-        assetScale: KENNEY_ASSET_SCALE,
-        fallbackBuilder: buildKenneyFallbackAssets
-      })
-  },
-  {
-    id: 'polygonalGraphite',
-    label: 'Polygonal Graphite (Quaternius)',
-    style: POLYGONAL_GRAPHITE_STYLE,
-    loader: (targetBoardSize) =>
-      loadPieceSetFromUrls(POLYGONAL_SET_URLS, {
-        targetBoardSize,
-        styleId: 'polygonalGraphite',
-        pieceStyle: POLYGONAL_GRAPHITE_STYLE,
-        assetScale: POLYGONAL_ASSET_SCALE,
-        fallbackBuilder: buildPolygonalFallbackAssets
-      })
+    id: 'marbleOnyx',
+    label: 'Marble & Onyx Tournament',
+    style: MARBLE_ONYX_STYLE,
+    loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
   }
 ]);
 
@@ -1163,6 +1181,110 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
   }
   if (lastError) throw lastError;
   throw new Error('Chess set model failed to load');
+}
+
+async function resolveTextureSet(definition = {}) {
+  const [map, roughnessMap, normalMap] = await Promise.all([
+    definition.colorMap ? loadTexture(definition.colorMap) : Promise.resolve(null),
+    definition.roughnessMap ? loadTexture(definition.roughnessMap) : Promise.resolve(null),
+    definition.normalMap ? loadTexture(definition.normalMap) : Promise.resolve(null)
+  ]);
+  return {
+    map,
+    roughnessMap,
+    normalMap,
+    repeat: definition.repeat ?? 1
+  };
+}
+
+function applyTextureSetToMaterial(baseMaterial, textureSet, { tint, roughness, metalness } = {}) {
+  const material = baseMaterial?.clone ? baseMaterial.clone() : new THREE.MeshPhysicalMaterial();
+  if (textureSet.map) {
+    material.map = textureSet.map;
+    material.map.repeat.set(textureSet.repeat, textureSet.repeat);
+    material.map.needsUpdate = true;
+  }
+  if (textureSet.roughnessMap) {
+    material.roughnessMap = textureSet.roughnessMap;
+    material.roughnessMap.repeat.set(textureSet.repeat, textureSet.repeat);
+    material.roughnessMap.needsUpdate = true;
+  }
+  if (textureSet.normalMap) {
+    material.normalMap = textureSet.normalMap;
+    material.normalScale = new THREE.Vector2(0.65, 0.65);
+    material.normalMap.repeat.set(textureSet.repeat, textureSet.repeat);
+    material.normalMap.needsUpdate = true;
+  }
+  if (Number.isFinite(roughness)) material.roughness = clamp01(roughness);
+  if (Number.isFinite(metalness)) material.metalness = clamp01(metalness);
+  if (tint) material.color = new THREE.Color(tint);
+  material.needsUpdate = true;
+  return material;
+}
+
+async function applyTextureProfileToAssets(assets, profile) {
+  if (!assets?.piecePrototypes) return assets;
+  const [whiteTextures, blackTextures] = await Promise.all([
+    resolveTextureSet(profile.white),
+    resolveTextureSet(profile.black)
+  ]);
+
+  const applyToPiece = (piece, textureSet, tintColor) => {
+    if (!piece) return;
+    piece.traverse((child) => {
+      if (!child.isMesh) return;
+      if (Array.isArray(child.material)) {
+        child.material = child.material.map((mat) =>
+          applyTextureSetToMaterial(mat, textureSet, { tint: tintColor })
+        );
+      } else {
+        child.material = applyTextureSetToMaterial(child.material, textureSet, { tint: tintColor });
+      }
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+  };
+
+  Object.values(assets.piecePrototypes.white || {}).forEach((piece) =>
+    applyToPiece(piece, whiteTextures, profile.whiteTint || null)
+  );
+  Object.values(assets.piecePrototypes.black || {}).forEach((piece) =>
+    applyToPiece(piece, blackTextures, profile.blackTint || null)
+  );
+
+  return assets;
+}
+
+async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
+    targetBoardSize,
+    styleId: 'heritageWalnut',
+    pieceStyle: HERITAGE_WALNUT_STYLE,
+    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
+    fallbackBuilder: buildStauntonFallbackAssets
+  });
+  return applyTextureProfileToAssets(assets, {
+    white: MAPLE_WOOD_TEXTURES,
+    black: WALNUT_WOOD_TEXTURES,
+    whiteTint: '#f4ebd8',
+    blackTint: '#2b1b10'
+  });
+}
+
+async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
+    targetBoardSize,
+    styleId: 'marbleOnyx',
+    pieceStyle: MARBLE_ONYX_STYLE,
+    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
+    fallbackBuilder: buildStauntonFallbackAssets
+  });
+  return applyTextureProfileToAssets(assets, {
+    white: MARBLE_WHITE_TEXTURES,
+    black: EBONY_POLISH_TEXTURES,
+    whiteTint: '#f5f5f5',
+    blackTint: '#0f1012'
+  });
 }
 
 function buildLathe(profile, segments = 32) {
