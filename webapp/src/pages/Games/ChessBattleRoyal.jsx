@@ -227,16 +227,6 @@ const STAUNTON_SET_URLS = [
   'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb'
 ];
 
-const KENNEY_SET_URLS = [
-  'https://raw.githubusercontent.com/KenneyNL/boardgame-kit/main/Models/GLTF/boardgame-kit.glb',
-  'https://cdn.jsdelivr.net/gh/KenneyNL/boardgame-kit@main/Models/GLTF/boardgame-kit.glb'
-];
-
-const POLYGONAL_SET_URLS = [
-  'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
-  'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
-];
-
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
@@ -360,52 +350,67 @@ const MARBLE_WHITE_TEXTURES = Object.freeze({
   repeat: 1.4
 });
 
-const MARBLE_BLACK_TEXTURES = Object.freeze({
+const BLACK_MARBLE_TEXTURES = Object.freeze({
   colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
   roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
   normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
-  repeat: 1.3
+  repeat: 1.2
 });
 
 const EBONY_POLISH_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
-  repeat: 1.8
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble016/Marble016_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble016/Marble016_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble016/Marble016_2K_NormalGL.jpg',
+  repeat: 1.4
 });
 
-const HERITAGE_WALNUT_STYLE = Object.freeze({
-  id: 'heritageWalnut',
-  label: 'Heritage Walnut Staunton',
-  white: { color: '#f2e8d8', roughness: 0.32, metalness: 0.08, sheen: 0.18 },
-  black: { color: '#2b1b10', roughness: 0.42, metalness: 0.06, sheen: 0.16 },
+const SATIN_STEEL_TEXTURES = Object.freeze({
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Metal043/Metal043_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Metal043/Metal043_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Metal043/Metal043_2K_NormalGL.jpg',
+  repeat: 2.4
+});
+
+const GUNMETAL_TEXTURES = Object.freeze({
+  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Metal030/Metal030_2K_Color.jpg',
+  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Metal030/Metal030_2K_Roughness.jpg',
+  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Metal030/Metal030_2K_NormalGL.jpg',
+  repeat: 2.8
+});
+
+const HEIRLOOM_WALNUT_STYLE = Object.freeze({
+  id: 'heirloomWalnut',
+  label: 'Heirloom Walnut Staunton',
+  white: { color: '#f4ead6', roughness: 0.3, metalness: 0.08, sheen: 0.18 },
+  black: { color: '#24160d', roughness: 0.36, metalness: 0.08, sheen: 0.14 },
   accent: '#c49b6b'
 });
 
-const MARBLE_ONYX_STYLE = Object.freeze({
-  id: 'marbleOnyx',
-  label: 'Marble & Onyx Tournament',
-  white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.08, clearcoat: 0.24 },
-  black: { color: '#0f1012', roughness: 0.22, metalness: 0.1, clearcoat: 0.28 },
-  accent: '#b1c4cf'
+const IMPERIAL_MARBLE_STYLE = Object.freeze({
+  id: 'imperialMarble',
+  label: 'Imperial Marble & Obsidian',
+  white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.06, clearcoat: 0.32 },
+  black: { color: '#0b0c10', roughness: 0.22, metalness: 0.08, clearcoat: 0.35 },
+  accent: '#c7d2db',
+  blackAccent: '#7b8c98'
 });
 
-const KENNEY_WOOD_STYLE = Object.freeze({
-  id: 'kenneyWood',
-  label: 'Kenney Woodcut',
-  white: { color: '#f2e0c5', roughness: 0.48, metalness: 0.08, clearcoat: 0.12 },
-  black: { color: '#2c2016', roughness: 0.56, metalness: 0.12, clearcoat: 0.12 },
-  accent: '#d7b07a',
-  blackAccent: '#b98a52'
+const STEEL_TOURNAMENT_STYLE = Object.freeze({
+  id: 'steelTournament',
+  label: 'Forged Steel Tournament',
+  white: { color: '#cbd2da', roughness: 0.32, metalness: 0.78, clearcoat: 0.18 },
+  black: { color: '#1a1d26', roughness: 0.28, metalness: 0.82, clearcoat: 0.14 },
+  accent: '#9fb6cc',
+  blackAccent: '#7c93a7'
 });
 
-const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
-  id: 'polygonalGraphite',
-  label: 'Polygonal Graphite',
-  white: { color: '#e7e8ef', roughness: 0.34, metalness: 0.24, sheen: 0.12 },
-  black: { color: '#1c2430', roughness: 0.3, metalness: 0.32, sheen: 0.16 },
-  accent: '#7ce3ff',
-  blackAccent: '#50b8d8'
+const CRYSTAL_GLASS_STYLE = Object.freeze({
+  id: 'crystalGlass',
+  label: 'Crystal Glass Atelier',
+  white: { color: '#d6f0ff', roughness: 0.04, metalness: 0.02, clearcoat: 0.24, sheen: 0.08 },
+  black: { color: '#6ba3ff', roughness: 0.06, metalness: 0.08, clearcoat: 0.3, sheen: 0.12 },
+  accent: '#b7d8ff',
+  blackAccent: '#4f7cc6'
 });
 
 const PIECE_STYLE_OPTIONS = Object.freeze([
@@ -417,29 +422,28 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
   },
   {
-    id: 'heritageWalnut',
-    label: 'Heritage Walnut Staunton',
-    style: HERITAGE_WALNUT_STYLE,
-    loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
+    id: 'heirloomWalnut',
+    label: 'Heirloom Walnut Staunton',
+    style: HEIRLOOM_WALNUT_STYLE,
+    loader: (targetBoardSize) => loadHeirloomStauntonAssets(targetBoardSize)
   },
   {
-    id: 'marbleOnyx',
-    label: 'Marble & Onyx Tournament',
-    style: MARBLE_ONYX_STYLE,
-    loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
+    id: 'imperialMarble',
+    label: 'Imperial Marble & Obsidian',
+    style: IMPERIAL_MARBLE_STYLE,
+    loader: (targetBoardSize) => loadImperialMarbleStauntonAssets(targetBoardSize)
   },
   {
-    id: 'kenneyWood',
-    label: 'Kenney Woodcut Low-Poly',
-    style: KENNEY_WOOD_STYLE,
-    preserveMaterials: true,
-    loader: (targetBoardSize) => loadKenneyAssets(targetBoardSize)
+    id: 'steelTournament',
+    label: 'Forged Steel Tournament',
+    style: STEEL_TOURNAMENT_STYLE,
+    loader: (targetBoardSize) => loadSteelStauntonAssets(targetBoardSize)
   },
   {
-    id: 'polygonalGraphite',
-    label: 'Polygonal Graphite Low-Poly',
-    style: POLYGONAL_GRAPHITE_STYLE,
-    loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
+    id: 'crystalGlass',
+    label: 'Crystal Glass Atelier',
+    style: CRYSTAL_GLASS_STYLE,
+    loader: (targetBoardSize) => loadCrystalStauntonAssets(targetBoardSize)
   }
 ]);
 
@@ -1286,11 +1290,50 @@ async function applyTextureProfileToAssets(assets, profile) {
   return assets;
 }
 
-async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
+function applyGlassProfileToAssets(assets, profile) {
+  if (!assets?.piecePrototypes) return assets;
+
+  const applyGlassMaterial = (piece, materialOptions) => {
+    if (!piece) return;
+    const baseMaterial = new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(materialOptions.color || '#ffffff'),
+      roughness: clamp01(materialOptions.roughness ?? 0.04),
+      metalness: clamp01(materialOptions.metalness ?? 0.04),
+      transmission: clamp01(materialOptions.transmission ?? 0.92),
+      ior: materialOptions.ior ?? 1.46,
+      thickness: materialOptions.thickness ?? 0.32,
+      attenuationColor: new THREE.Color(materialOptions.attenuationColor ?? materialOptions.color || '#ffffff'),
+      attenuationDistance: materialOptions.attenuationDistance ?? 2.4,
+      clearcoat: clamp01(materialOptions.clearcoat ?? 0.25),
+      clearcoatRoughness: clamp01(materialOptions.clearcoatRoughness ?? 0.08),
+      sheen: clamp01(materialOptions.sheen ?? 0.12),
+      sheenColor: new THREE.Color(materialOptions.sheenColor ?? materialOptions.color || '#ffffff'),
+      envMapIntensity: clamp01(materialOptions.envMapIntensity ?? 1.2)
+    });
+
+    piece.traverse((child) => {
+      if (!child.isMesh) return;
+      child.material = baseMaterial.clone();
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+  };
+
+  Object.values(assets.piecePrototypes.white || {}).forEach((piece) =>
+    applyGlassMaterial(piece, profile.white || {})
+  );
+  Object.values(assets.piecePrototypes.black || {}).forEach((piece) =>
+    applyGlassMaterial(piece, profile.black || {})
+  );
+
+  return assets;
+}
+
+async function loadHeirloomStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
     targetBoardSize,
-    styleId: 'heritageWalnut',
-    pieceStyle: HERITAGE_WALNUT_STYLE,
+    styleId: 'heirloomWalnut',
+    pieceStyle: HEIRLOOM_WALNUT_STYLE,
     assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
     fallbackBuilder: buildStauntonFallbackAssets
   });
@@ -1302,39 +1345,61 @@ async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
   });
 }
 
-async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
+async function loadImperialMarbleStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
     targetBoardSize,
-    styleId: 'marbleOnyx',
-    pieceStyle: MARBLE_ONYX_STYLE,
+    styleId: 'imperialMarble',
+    pieceStyle: IMPERIAL_MARBLE_STYLE,
     assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
     fallbackBuilder: buildStauntonFallbackAssets
   });
   return applyTextureProfileToAssets(assets, {
     white: MARBLE_WHITE_TEXTURES,
-    black: EBONY_POLISH_TEXTURES,
+    black: BLACK_MARBLE_TEXTURES,
     whiteTint: '#f5f5f5',
-    blackTint: '#0f1012'
+    blackTint: '#0b0c10'
   });
 }
 
-async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  return loadPieceSetFromUrls(KENNEY_SET_URLS, {
+async function loadSteelStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
     targetBoardSize,
-    styleId: 'kenneyWood',
-    pieceStyle: KENNEY_WOOD_STYLE,
-    assetScale: 0.9,
-    fallbackBuilder: buildKenneyFallbackAssets
+    styleId: 'steelTournament',
+    pieceStyle: STEEL_TOURNAMENT_STYLE,
+    assetScale: STAUNTON_ASSET_SCALE,
+    fallbackBuilder: buildStauntonFallbackAssets
+  });
+  return applyTextureProfileToAssets(assets, {
+    white: SATIN_STEEL_TEXTURES,
+    black: GUNMETAL_TEXTURES,
+    whiteTint: '#cdd6e0',
+    blackTint: '#141722'
   });
 }
 
-async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  return loadPieceSetFromUrls(POLYGONAL_SET_URLS, {
+async function loadCrystalStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
     targetBoardSize,
-    styleId: 'polygonalGraphite',
-    pieceStyle: POLYGONAL_GRAPHITE_STYLE,
-    assetScale: 0.98,
-    fallbackBuilder: buildPolygonalFallbackAssets
+    styleId: 'crystalGlass',
+    pieceStyle: CRYSTAL_GLASS_STYLE,
+    assetScale: STAUNTON_ASSET_SCALE,
+    fallbackBuilder: buildStauntonFallbackAssets
+  });
+  return applyGlassProfileToAssets(assets, {
+    white: {
+      color: '#d7f4ff',
+      attenuationColor: '#d7f4ff',
+      attenuationDistance: 3.2,
+      transmission: 0.94,
+      thickness: 0.42
+    },
+    black: {
+      color: '#6ba3ff',
+      attenuationColor: '#4067a8',
+      attenuationDistance: 2.6,
+      transmission: 0.9,
+      thickness: 0.46
+    }
   });
 }
 
