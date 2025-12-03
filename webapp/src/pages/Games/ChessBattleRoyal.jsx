@@ -59,6 +59,135 @@ const clamp01 = (value, fallback = 0) => {
   return Math.min(1, Math.max(0, value));
 };
 
+const PROCEDURAL_TEXTURE_CACHE = new Map();
+
+function createCanvasTexture(key, painter, size = 1024) {
+  if (PROCEDURAL_TEXTURE_CACHE.has(key)) return PROCEDURAL_TEXTURE_CACHE.get(key);
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  painter(ctx, size);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 8;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.colorSpace = THREE.SRGBColorSpace;
+  PROCEDURAL_TEXTURE_CACHE.set(key, texture);
+  return texture;
+}
+
+function seededRandom(seed = 1) {
+  let t = seed + 0x6d2b79f5;
+  return () => {
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function paintWoodTexture(ctx, size, { base, grain, accent, noise = 0.12, seed = 1 } = {}) {
+  const rand = seededRandom(seed);
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, base);
+  grad.addColorStop(1, accent);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.lineWidth = size * 0.005;
+  for (let i = 0; i < 220; i += 1) {
+    const y = rand() * size;
+    const amplitude = size * 0.04 * (0.4 + rand());
+    const wavelength = size * (0.06 + rand() * 0.08);
+    ctx.strokeStyle = grain;
+    ctx.globalAlpha = 0.2 + rand() * 0.2;
+    ctx.beginPath();
+    for (let x = -size * 0.1; x < size * 1.1; x += size / 160) {
+      const yOffset = Math.sin((x + seed * 13) / wavelength) * amplitude;
+      ctx.lineTo(x, y + yOffset);
+    }
+    ctx.stroke();
+  }
+
+  const noiseData = ctx.createImageData(size, size);
+  for (let i = 0; i < noiseData.data.length; i += 4) {
+    const n = rand();
+    const v = 255 * (0.5 + (n - 0.5) * noise);
+    noiseData.data[i] = v;
+    noiseData.data[i + 1] = v;
+    noiseData.data[i + 2] = v;
+    noiseData.data[i + 3] = 32;
+  }
+  ctx.putImageData(noiseData, 0, 0);
+}
+
+function paintMarbleTexture(ctx, size, { base, vein, seed = 3 } = {}) {
+  ctx.fillStyle = base;
+  ctx.fillRect(0, 0, size, size);
+  const rand = seededRandom(seed);
+  ctx.lineWidth = size * 0.012;
+  ctx.strokeStyle = vein;
+  ctx.globalAlpha = 0.34;
+  for (let i = 0; i < 90; i += 1) {
+    const startX = rand() * size;
+    const startY = rand() * size;
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    const segments = 8 + Math.floor(rand() * 12);
+    for (let s = 0; s < segments; s += 1) {
+      const angle = rand() * Math.PI * 2;
+      const radius = size * 0.08 * (0.4 + rand());
+      const nextX = startX + Math.cos(angle) * radius * (1 + s * 0.04);
+      const nextY = startY + Math.sin(angle) * radius * (1 + s * 0.04);
+      ctx.lineTo(nextX, nextY);
+    }
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.18;
+  ctx.lineWidth = size * 0.008;
+  for (let i = 0; i < 36; i += 1) {
+    ctx.beginPath();
+    const y = (i / 36) * size;
+    for (let x = 0; x <= size; x += size / 80) {
+      const offset = Math.sin((x / size) * Math.PI * 2 * (1 + rand())) * size * 0.02;
+      ctx.lineTo(x, y + offset);
+    }
+    ctx.stroke();
+  }
+}
+
+function paintMetalTexture(ctx, size, { base, highlight, seed = 5 } = {}) {
+  const rand = seededRandom(seed);
+  const grad = ctx.createLinearGradient(0, 0, size, size);
+  grad.addColorStop(0, base);
+  grad.addColorStop(0.5, highlight);
+  grad.addColorStop(1, base);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.strokeStyle = '#ffffff';
+  ctx.globalAlpha = 0.15;
+  ctx.lineWidth = size * 0.004;
+  for (let i = 0; i < size; i += size / 60) {
+    ctx.beginPath();
+    ctx.moveTo(0, i + rand() * size * 0.01);
+    ctx.lineTo(size, i + rand() * size * 0.01);
+    ctx.stroke();
+  }
+}
+
+function getWoodTexture(key, palette) {
+  return createCanvasTexture(`wood-${key}`, (ctx, size) => paintWoodTexture(ctx, size, palette));
+}
+
+function getMarbleTexture(key, palette) {
+  return createCanvasTexture(`marble-${key}`, (ctx, size) => paintMarbleTexture(ctx, size, palette));
+}
+
+function getMetalTexture(key, palette) {
+  return createCanvasTexture(`metal-${key}`, (ctx, size) => paintMetalTexture(ctx, size, palette));
+}
+
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
   dark: '#776a5a',
@@ -222,21 +351,6 @@ const BEAUTIFUL_GAME_URLS = [
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
-const STAUNTON_SET_URLS = [
-  'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
-  'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb'
-];
-
-const KENNEY_SET_URLS = [
-  'https://raw.githubusercontent.com/KenneyNL/boardgame-kit/main/Models/GLTF/boardgame-kit.glb',
-  'https://cdn.jsdelivr.net/gh/KenneyNL/boardgame-kit@main/Models/GLTF/boardgame-kit.glb'
-];
-
-const POLYGONAL_SET_URLS = [
-  'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
-  'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
-];
-
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
@@ -302,110 +416,106 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 0.94;
 
-const STAUNTON_CLASSIC_STYLE = Object.freeze({
-  id: 'stauntonClassic',
-  label: 'Staunton Classics',
-  white: { color: '#f3ede0', roughness: 0.38, metalness: 0.18, sheen: 0.24 },
-  black: {
-    color: '#1c1b1f',
-    roughness: 0.32,
-    metalness: 0.26,
-    sheen: 0.18,
-    emissive: '#0a0a0f',
-    emissiveIntensity: 0.18
+const ARTISAN_WALNUT_STYLE = Object.freeze({
+  id: 'artisanWalnut',
+  label: 'Artisan Walnut Carve',
+  white: {
+    color: '#f4e8d6',
+    roughness: 0.42,
+    metalness: 0.12,
+    sheen: 0.2,
+    map: getWoodTexture('walnutLight', {
+      base: '#f6ead6',
+      grain: '#c7a370',
+      accent: '#d7b07c',
+      seed: 4
+    }),
+    repeat: 1.6
   },
-  accent: '#d8b07a',
-  blackAccent: '#b98950'
+  black: {
+    color: '#1d140d',
+    roughness: 0.36,
+    metalness: 0.14,
+    sheen: 0.16,
+    map: getWoodTexture('walnutDark', {
+      base: '#2a1910',
+      grain: '#5a3a22',
+      accent: '#3b2316',
+      seed: 7
+    }),
+    repeat: 1.6
+  },
+  accent: '#d0a46a',
+  blackAccent: '#b17b3c'
 });
 
-const STAUNTON_ASSET_SCALE = 1.02;
-const STAUNTON_TEXTURED_ASSET_SCALE = 1.02;
-
-const TEXTURE_CACHE = new Map();
-
-function loadTexture(url) {
-  const cached = TEXTURE_CACHE.get(url);
-  if (cached) return cached;
-  const loader = new THREE.TextureLoader();
-  loader.setCrossOrigin('anonymous');
-  const promise = new Promise((resolve, reject) => {
-    loader.load(url, (texture) => {
-      texture.wrapS = THREE.RepeatWrapping;
-      texture.wrapT = THREE.RepeatWrapping;
-      resolve(texture);
-    }, undefined, reject);
-  });
-  TEXTURE_CACHE.set(url, promise);
-  return promise;
-}
-
-const MAPLE_WOOD_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood067/Wood067_2K_NormalGL.jpg',
-  repeat: 2.2
+const ALABASTER_ONYX_STYLE = Object.freeze({
+  id: 'alabasterOnyx',
+  label: 'Alabaster & Onyx Marble',
+  white: {
+    color: '#f6f5f2',
+    roughness: 0.28,
+    metalness: 0.1,
+    clearcoat: 0.34,
+    map: getMarbleTexture('alabaster', { base: '#f5f5f5', vein: '#d9dfe9' }),
+    repeat: 1.2
+  },
+  black: {
+    color: '#0f1116',
+    roughness: 0.24,
+    metalness: 0.12,
+    clearcoat: 0.28,
+    map: getMarbleTexture('onyxDark', { base: '#0b0c10', vein: '#2a2f3a' }),
+    repeat: 1.2
+  },
+  accent: '#c6d5e7',
+  blackAccent: '#9fb2c9'
 });
 
-const WALNUT_WOOD_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood049/Wood049_2K_NormalGL.jpg',
-  repeat: 2
+const BRUSHED_STEEL_STYLE = Object.freeze({
+  id: 'brushedSteel',
+  label: 'Brushed Steel Tournament',
+  white: {
+    color: '#dfe7f2',
+    roughness: 0.28,
+    metalness: 0.82,
+    sheen: 0.22,
+    map: getMetalTexture('steelBright', { base: '#cfd7e0', highlight: '#f1f4f8' }),
+    repeat: 2.4
+  },
+  black: {
+    color: '#1a1f2a',
+    roughness: 0.32,
+    metalness: 0.88,
+    sheen: 0.18,
+    map: getMetalTexture('steelGraphite', { base: '#1c222f', highlight: '#3a465a' }),
+    repeat: 2.4
+  },
+  accent: '#8fb4ff',
+  blackAccent: '#f0d16b'
 });
 
-const MARBLE_WHITE_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble020/Marble020_2K_NormalGL.jpg',
-  repeat: 1.4
-});
-
-const MARBLE_BLACK_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Marble008/Marble008_2K_NormalGL.jpg',
-  repeat: 1.3
-});
-
-const EBONY_POLISH_TEXTURES = Object.freeze({
-  colorMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Color.jpg',
-  roughnessMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_Roughness.jpg',
-  normalMap: 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/Wood059/Wood059_2K_NormalGL.jpg',
-  repeat: 1.8
-});
-
-const HERITAGE_WALNUT_STYLE = Object.freeze({
-  id: 'heritageWalnut',
-  label: 'Heritage Walnut Staunton',
-  white: { color: '#f2e8d8', roughness: 0.32, metalness: 0.08, sheen: 0.18 },
-  black: { color: '#2b1b10', roughness: 0.42, metalness: 0.06, sheen: 0.16 },
-  accent: '#c49b6b'
-});
-
-const MARBLE_ONYX_STYLE = Object.freeze({
-  id: 'marbleOnyx',
-  label: 'Marble & Onyx Tournament',
-  white: { color: '#f3f3f3', roughness: 0.18, metalness: 0.08, clearcoat: 0.24 },
-  black: { color: '#0f1012', roughness: 0.22, metalness: 0.1, clearcoat: 0.28 },
-  accent: '#b1c4cf'
-});
-
-const KENNEY_WOOD_STYLE = Object.freeze({
-  id: 'kenneyWood',
-  label: 'Kenney Woodcut',
-  white: { color: '#f2e0c5', roughness: 0.48, metalness: 0.08, clearcoat: 0.12 },
-  black: { color: '#2c2016', roughness: 0.56, metalness: 0.12, clearcoat: 0.12 },
-  accent: '#d7b07a',
-  blackAccent: '#b98a52'
-});
-
-const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
-  id: 'polygonalGraphite',
-  label: 'Polygonal Graphite',
-  white: { color: '#e7e8ef', roughness: 0.34, metalness: 0.24, sheen: 0.12 },
-  black: { color: '#1c2430', roughness: 0.3, metalness: 0.32, sheen: 0.16 },
-  accent: '#7ce3ff',
-  blackAccent: '#50b8d8'
+const OBSIDIAN_GOLD_STYLE = Object.freeze({
+  id: 'obsidianGold',
+  label: 'Obsidian & Gold Luxe',
+  white: {
+    color: '#f1ede4',
+    roughness: 0.34,
+    metalness: 0.24,
+    sheen: 0.26,
+    map: getMarbleTexture('travertine', { base: '#ede7db', vein: '#c8b99c' }),
+    repeat: 1.4
+  },
+  black: {
+    color: '#0b0b0f',
+    roughness: 0.26,
+    metalness: 0.3,
+    sheen: 0.22,
+    map: getMarbleTexture('obsidianVelvet', { base: '#0b0d11', vein: '#2b1c16' }),
+    repeat: 1.4
+  },
+  accent: '#e3b964',
+  blackAccent: '#f7d76a'
 });
 
 const PIECE_STYLE_OPTIONS = Object.freeze([
@@ -417,29 +527,32 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
   },
   {
-    id: 'heritageWalnut',
-    label: 'Heritage Walnut Staunton',
-    style: HERITAGE_WALNUT_STYLE,
-    loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
+    id: 'artisanWalnut',
+    label: 'Artisan Walnut Carve',
+    style: ARTISAN_WALNUT_STYLE,
+    loader: (targetBoardSize) =>
+      buildStauntonFallbackAssets(targetBoardSize, ARTISAN_WALNUT_STYLE, 'artisanWalnut')
   },
   {
-    id: 'marbleOnyx',
-    label: 'Marble & Onyx Tournament',
-    style: MARBLE_ONYX_STYLE,
-    loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
+    id: 'alabasterOnyx',
+    label: 'Alabaster & Onyx Marble',
+    style: ALABASTER_ONYX_STYLE,
+    loader: (targetBoardSize) =>
+      buildStauntonFallbackAssets(targetBoardSize, ALABASTER_ONYX_STYLE, 'alabasterOnyx')
   },
   {
-    id: 'kenneyWood',
-    label: 'Kenney Woodcut Low-Poly',
-    style: KENNEY_WOOD_STYLE,
-    preserveMaterials: true,
-    loader: (targetBoardSize) => loadKenneyAssets(targetBoardSize)
+    id: 'brushedSteel',
+    label: 'Brushed Steel Tournament',
+    style: BRUSHED_STEEL_STYLE,
+    loader: (targetBoardSize) =>
+      buildPolygonalFallbackAssets(targetBoardSize, BRUSHED_STEEL_STYLE, 'brushedSteel')
   },
   {
-    id: 'polygonalGraphite',
-    label: 'Polygonal Graphite Low-Poly',
-    style: POLYGONAL_GRAPHITE_STYLE,
-    loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
+    id: 'obsidianGold',
+    label: 'Obsidian & Gold Luxe',
+    style: OBSIDIAN_GOLD_STYLE,
+    loader: (targetBoardSize) =>
+      buildStauntonFallbackAssets(targetBoardSize, OBSIDIAN_GOLD_STYLE, 'obsidianGold')
   }
 ]);
 
@@ -1187,157 +1300,6 @@ async function loadBeautifulGameSet() {
   throw new Error('ABeautifulGame model failed to load');
 }
 
-async function loadPieceSetFromUrls(urls = [], options = {}) {
-  const loader = createConfiguredGLTFLoader();
-  let lastError = null;
-  for (const url of urls) {
-    try {
-      const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-      loader.setPath(resourcePath);
-      loader.setResourcePath(resourcePath);
-      // eslint-disable-next-line no-await-in-loop
-      const gltf = await new Promise((resolve, reject) => {
-        loader.load(resolvedUrl, resolve, undefined, reject);
-      });
-      if (gltf?.scene) {
-        return extractChessSetAssets(gltf.scene, options);
-      }
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  if (options?.fallbackBuilder) {
-    return options.fallbackBuilder(options.targetBoardSize || RAW_BOARD_SIZE, options.pieceStyle);
-  }
-  if (lastError) throw lastError;
-  throw new Error('Chess set model failed to load');
-}
-
-async function resolveTextureSet(definition = {}) {
-  const [map, roughnessMap, normalMap] = await Promise.all([
-    definition.colorMap ? loadTexture(definition.colorMap) : Promise.resolve(null),
-    definition.roughnessMap ? loadTexture(definition.roughnessMap) : Promise.resolve(null),
-    definition.normalMap ? loadTexture(definition.normalMap) : Promise.resolve(null)
-  ]);
-  return {
-    map,
-    roughnessMap,
-    normalMap,
-    repeat: definition.repeat ?? 1
-  };
-}
-
-function applyTextureSetToMaterial(baseMaterial, textureSet, { tint, roughness, metalness } = {}) {
-  const material = baseMaterial?.clone ? baseMaterial.clone() : new THREE.MeshPhysicalMaterial();
-  if (textureSet.map) {
-    material.map = textureSet.map;
-    material.map.repeat.set(textureSet.repeat, textureSet.repeat);
-    material.map.needsUpdate = true;
-  }
-  if (textureSet.roughnessMap) {
-    material.roughnessMap = textureSet.roughnessMap;
-    material.roughnessMap.repeat.set(textureSet.repeat, textureSet.repeat);
-    material.roughnessMap.needsUpdate = true;
-  }
-  if (textureSet.normalMap) {
-    material.normalMap = textureSet.normalMap;
-    material.normalScale = new THREE.Vector2(0.65, 0.65);
-    material.normalMap.repeat.set(textureSet.repeat, textureSet.repeat);
-    material.normalMap.needsUpdate = true;
-  }
-  if (Number.isFinite(roughness)) material.roughness = clamp01(roughness);
-  if (Number.isFinite(metalness)) material.metalness = clamp01(metalness);
-  if (tint) material.color = new THREE.Color(tint);
-  material.needsUpdate = true;
-  return material;
-}
-
-async function applyTextureProfileToAssets(assets, profile) {
-  if (!assets?.piecePrototypes) return assets;
-  const [whiteTextures, blackTextures] = await Promise.all([
-    resolveTextureSet(profile.white),
-    resolveTextureSet(profile.black)
-  ]);
-
-  const applyToPiece = (piece, textureSet, tintColor) => {
-    if (!piece) return;
-    piece.traverse((child) => {
-      if (!child.isMesh) return;
-      if (Array.isArray(child.material)) {
-        child.material = child.material.map((mat) =>
-          applyTextureSetToMaterial(mat, textureSet, { tint: tintColor })
-        );
-      } else {
-        child.material = applyTextureSetToMaterial(child.material, textureSet, { tint: tintColor });
-      }
-      child.castShadow = true;
-      child.receiveShadow = true;
-    });
-  };
-
-  Object.values(assets.piecePrototypes.white || {}).forEach((piece) =>
-    applyToPiece(piece, whiteTextures, profile.whiteTint || null)
-  );
-  Object.values(assets.piecePrototypes.black || {}).forEach((piece) =>
-    applyToPiece(piece, blackTextures, profile.blackTint || null)
-  );
-
-  return assets;
-}
-
-async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-    targetBoardSize,
-    styleId: 'heritageWalnut',
-    pieceStyle: HERITAGE_WALNUT_STYLE,
-    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
-    fallbackBuilder: buildStauntonFallbackAssets
-  });
-  return applyTextureProfileToAssets(assets, {
-    white: MAPLE_WOOD_TEXTURES,
-    black: WALNUT_WOOD_TEXTURES,
-    whiteTint: '#f4ebd8',
-    blackTint: '#2b1b10'
-  });
-}
-
-async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
-    targetBoardSize,
-    styleId: 'marbleOnyx',
-    pieceStyle: MARBLE_ONYX_STYLE,
-    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
-    fallbackBuilder: buildStauntonFallbackAssets
-  });
-  return applyTextureProfileToAssets(assets, {
-    white: MARBLE_WHITE_TEXTURES,
-    black: EBONY_POLISH_TEXTURES,
-    whiteTint: '#f5f5f5',
-    blackTint: '#0f1012'
-  });
-}
-
-async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  return loadPieceSetFromUrls(KENNEY_SET_URLS, {
-    targetBoardSize,
-    styleId: 'kenneyWood',
-    pieceStyle: KENNEY_WOOD_STYLE,
-    assetScale: 0.9,
-    fallbackBuilder: buildKenneyFallbackAssets
-  });
-}
-
-async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  return loadPieceSetFromUrls(POLYGONAL_SET_URLS, {
-    targetBoardSize,
-    styleId: 'polygonalGraphite',
-    pieceStyle: POLYGONAL_GRAPHITE_STYLE,
-    assetScale: 0.98,
-    fallbackBuilder: buildPolygonalFallbackAssets
-  });
-}
-
 function buildLathe(profile, segments = 32) {
   return new THREE.LatheGeometry(profile, segments);
 }
@@ -1356,6 +1318,8 @@ function makeSmoothMaterial(color, options = {}) {
 }
 
 function makePieceMaterialFromStyle(style = {}, { color, flatShading = false } = {}) {
+  const repeat = style.repeat ?? 1;
+  const resolvedFlat = style.flatShading ?? flatShading;
   const material = new THREE.MeshPhysicalMaterial({
     color: new THREE.Color(color ?? style.color ?? '#ffffff'),
     roughness: clamp01(style.roughness ?? 0.35),
@@ -1365,8 +1329,36 @@ function makePieceMaterialFromStyle(style = {}, { color, flatShading = false } =
     clearcoat: clamp01(style.clearcoat ?? 0),
     clearcoatRoughness: clamp01(style.clearcoatRoughness ?? 0.35),
     specularIntensity: clamp01(style.specularIntensity ?? 0.6),
-    flatShading
+    flatShading: resolvedFlat
   });
+
+  const applyTexture = (key, setter) => {
+    const tex = style[key];
+    if (tex) {
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(repeat, repeat);
+      tex.needsUpdate = true;
+      setter(tex);
+    }
+  };
+
+  applyTexture('map', (tex) => {
+    material.map = tex;
+    material.map.colorSpace = THREE.SRGBColorSpace;
+  });
+  applyTexture('roughnessMap', (tex) => {
+    material.roughnessMap = tex;
+  });
+  applyTexture('metalnessMap', (tex) => {
+    material.metalnessMap = tex;
+  });
+  applyTexture('normalMap', (tex) => {
+    material.normalMap = tex;
+    material.normalScale = style.normalScale ?? new THREE.Vector2(0.85, 0.85);
+  });
+
+  material.needsUpdate = true;
   return material;
 }
 
@@ -1797,8 +1789,8 @@ function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'staunton
 
 function buildStauntonFallbackAssets(
   targetBoardSize = RAW_BOARD_SIZE,
-  pieceStyle = STAUNTON_CLASSIC_STYLE,
-  styleId = 'stauntonClassic'
+  pieceStyle = ARTISAN_WALNUT_STYLE,
+  styleId = 'artisanWalnut'
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.08;
@@ -1827,7 +1819,7 @@ function buildStauntonFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildKenneyPiece(type, materials = {}, scale = 1, styleId = 'kenneyWood') {
+function buildKenneyPiece(type, materials = {}, scale = 1, styleId = 'kenneySculpt') {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
@@ -1894,8 +1886,8 @@ function buildKenneyPiece(type, materials = {}, scale = 1, styleId = 'kenneyWood
 
 function buildKenneyFallbackAssets(
   targetBoardSize = RAW_BOARD_SIZE,
-  pieceStyle = KENNEY_WOOD_STYLE,
-  styleId = 'kenneyWood'
+  pieceStyle = ARTISAN_WALNUT_STYLE,
+  styleId = 'kenneySculpt'
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.22;
@@ -1923,7 +1915,7 @@ function buildKenneyFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildPolygonalPiece(type, materials = {}, scale = 1, styleId = 'polygonalGraphite') {
+function buildPolygonalPiece(type, materials = {}, scale = 1, styleId = 'brushedSteel') {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
   const g = new THREE.Group();
@@ -1981,8 +1973,8 @@ function buildPolygonalPiece(type, materials = {}, scale = 1, styleId = 'polygon
 
 function buildPolygonalFallbackAssets(
   targetBoardSize = RAW_BOARD_SIZE,
-  pieceStyle = POLYGONAL_GRAPHITE_STYLE,
-  styleId = 'polygonalGraphite'
+  pieceStyle = BRUSHED_STEEL_STYLE,
+  styleId = 'brushedSteel'
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.18;
@@ -1992,11 +1984,12 @@ function buildPolygonalFallbackAssets(
 
   const buildForColor = (colorKey, accentHex) => {
     const colorStyle = pieceStyle[colorKey] ?? {};
+    const flatShading = pieceStyle.flatShading ?? false;
     const materials = {
-      base: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, { flatShading: true }),
-      accent: makePieceMaterialFromStyle({ ...colorStyle, flatShading: true }, {
+      base: makePieceMaterialFromStyle({ ...colorStyle, flatShading }, { flatShading }),
+      accent: makePieceMaterialFromStyle({ ...colorStyle, flatShading }, {
         color: accentHex,
-        flatShading: true
+        flatShading
       })
     };
     piecePrototypes[colorKey].P = buildPolygonalPiece('P', materials, scale, styleId);
