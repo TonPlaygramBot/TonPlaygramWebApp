@@ -234,7 +234,7 @@ function createDefaultPocketJawMaterial() {
 
 const POCKET_VISUAL_EXPANSION = 1.018;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.12; // pull corner reliefs further into the rail
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
@@ -252,7 +252,7 @@ const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 0.992; // tighten the middle pocket arches and pull their curve inward
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.022; // tighten the middle pocket arches and pull their curve inward
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
@@ -267,10 +267,10 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.3;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.072; // pull the chrome arches closer to centre so the middle pocket jaws tuck in
-const WOOD_CORNER_CUT_SCALE = 0.962; // pull wood reliefs inward so the rounded cuts tuck toward centre
-const WOOD_SIDE_CUT_SCALE = 0.972; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.14; // pull the middle pocket wood cuts further inward toward centre
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.038; // pull the chrome arches closer to centre so the middle pocket jaws tuck in
+const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
+const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.107; // pull the middle pocket wood cuts further inward toward centre
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -2926,7 +2926,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14; // allow a lower sweep so the player camera sits nearer the rail
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.019; // push the orbit camera back from the rail for a wider player view
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.015; // pull the orbit camera closer to the rail without clipping
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
@@ -5244,7 +5244,7 @@ function Table3D(
   }
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
-    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.16;
+    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.26;
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
