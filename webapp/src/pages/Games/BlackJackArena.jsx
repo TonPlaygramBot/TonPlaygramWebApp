@@ -97,6 +97,23 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
+const TURN_DURATION = 30;
+const DEAL_DURATION = 420;
+const DEAL_STAGGER = 110;
+
+function easeOutCubic(t) {
+  const clamped = Math.min(1, Math.max(0, t));
+  const inv = 1 - clamped;
+  return 1 - inv * inv * inv;
+}
+
+function createAudio(src, volume = 0.9) {
+  if (typeof Audio === 'undefined') return null;
+  const audio = new Audio(src);
+  audio.preload = 'auto';
+  audio.volume = volume;
+  return audio;
+}
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
@@ -916,10 +933,10 @@ function dealInitialCards(state) {
   state.players.forEach((player, idx) => {
     player.hand = hands[idx];
     player.bust = false;
-    player.revealed = !player.isHuman;
-    player.viewed = !player.isHuman;
+    player.revealed = true;
+    player.viewed = true;
     if (player.isHuman) {
-      player.result = 'Preview hand';
+      player.result = 'In play';
     }
   });
   state.stage = 'player-turns';
@@ -1012,6 +1029,10 @@ function BlackJackArena({ search }) {
     baseUp: new THREE.Vector3(0, 1, 0),
     baseRight: new THREE.Vector3(1, 0, 0)
   });
+  const stageForDealRef = useRef(null);
+  const audioRef = useRef({ deal: null, knock: null });
+  const dealAnimationRef = useRef({ queue: [], active: false, activeMeshes: new Set() });
+  const turnIntervalRef = useRef(null);
   const pointerStateRef = useRef({
     active: false,
     pointerId: null,
@@ -1038,6 +1059,7 @@ function BlackJackArena({ search }) {
   const [uiState, setUiState] = useState({ actions: [], requiresPreview: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
+  const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -1059,6 +1081,69 @@ function BlackJackArena({ search }) {
   useEffect(() => {
     appearanceRef.current = appearance;
   }, [appearance]);
+
+  useEffect(() => {
+    audioRef.current = {
+      deal: createAudio('/assets/sounds/flipcard-91468.mp3', 0.7),
+      knock: createAudio('/assets/sounds/wooden-door-knock-102902.mp3', 0.9)
+    };
+  }, []);
+
+  const playSound = useCallback((name) => {
+    const audio = audioRef.current?.[name];
+    if (!audio) return;
+    try {
+      audio.currentTime = 0;
+      audio.play();
+    } catch (error) {}
+  }, []);
+
+  const startDealAnimation = useCallback(() => {
+    const three = threeRef.current;
+    if (!three || !gameState?.players?.length) return;
+    const queue = [];
+    const activeMeshes = new Set();
+    const deckStart = DECK_POSITION.clone();
+    const now = performance.now();
+
+    for (let cardIdx = 0; cardIdx < 2; cardIdx += 1) {
+      gameState.players.forEach((player, idx) => {
+        const seat = three.seatGroups?.[idx];
+        const mesh = seat?.cardMeshes?.[cardIdx];
+        if (!seat || !mesh) return;
+        const base = seat.cardAnchor.clone();
+        const right = seat.right.clone();
+        const forward = seat.forward.clone();
+        const target = base
+          .clone()
+          .add(right.clone().multiplyScalar((cardIdx - (player.hand.length - 1) / 2) * HOLE_SPACING));
+        const look = target.clone().add(forward.clone().multiplyScalar(player.isDealer ? -1 : 1));
+        const hideCard = (!player.revealed && !player.isDealer) || (player.isDealer && cardIdx === 1 && !player.revealed);
+        const face = hideCard ? 'back' : 'front';
+        mesh.visible = true;
+        mesh.position.copy(deckStart);
+        mesh.userData.dealTarget = { position: target, look, face };
+        const stepStart = now + queue.length * DEAL_STAGGER;
+        queue.push({
+          mesh,
+          start: stepStart,
+          duration: DEAL_DURATION,
+          startPosition: deckStart.clone(),
+          target,
+          look,
+          face,
+          played: false
+        });
+        activeMeshes.add(mesh);
+      });
+    }
+
+    dealAnimationRef.current = {
+      queue,
+      activeMeshes,
+      active: queue.length > 0
+    };
+  }, [gameState]);
 
   const renderPreview = useCallback((type, option) => {
     switch (type) {
@@ -1668,6 +1753,39 @@ function BlackJackArena({ search }) {
     const animate = () => {
       const three = threeRef.current;
       if (!three) return;
+      const anim = dealAnimationRef.current;
+      if (anim?.active && anim.queue?.length) {
+        const now = performance.now();
+        let allDone = true;
+        anim.queue.forEach((step) => {
+          const elapsed = now - step.start;
+          if (elapsed < 0) {
+            allDone = false;
+            return;
+          }
+          const progress = Math.min(1, elapsed / step.duration);
+          if (!step.played && progress >= 0) {
+            playSound('deal');
+            step.played = true;
+          }
+          const eased = easeOutCubic(progress);
+          const position = step.startPosition.clone().lerp(step.target, eased);
+          step.mesh.position.copy(position);
+          step.mesh.lookAt(step.look);
+          if (progress >= 1) {
+            orientCard(step.mesh, step.look, { face: step.face, flat: true });
+            setCardFace(step.mesh, step.face);
+            anim.activeMeshes.delete(step.mesh);
+          } else {
+            allDone = false;
+          }
+        });
+        if (allDone) {
+          anim.active = false;
+          anim.queue = [];
+          anim.activeMeshes.clear();
+        }
+      }
       three.renderer.render(three.scene, three.camera);
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -1825,6 +1943,7 @@ function BlackJackArena({ search }) {
     const { seatGroups, chipFactory, potStack, cardGeometry, faceCache } = three;
     const state = gameState;
     if (!state) return;
+    const animating = dealAnimationRef.current?.activeMeshes ?? new Set();
 
     seatGroups.forEach((seat, idx) => {
       const player = state.players[idx];
@@ -1843,12 +1962,15 @@ function BlackJackArena({ search }) {
         const target = base
           .clone()
           .add(right.clone().multiplyScalar((cardIdx - (player.hand.length - 1) / 2) * HOLE_SPACING));
-        mesh.position.copy(target);
         const look = target.clone().add(forward.clone().multiplyScalar(player.isDealer ? -1 : 1));
         const hideCard = (!player.revealed && !player.isDealer) || (player.isDealer && cardIdx === 1 && !player.revealed);
         const face = hideCard ? 'back' : 'front';
-        orientCard(mesh, look, { face, flat: true });
-        setCardFace(mesh, face);
+        mesh.userData.dealTarget = { position: target, look, face };
+        if (!animating.has(mesh)) {
+          mesh.position.copy(target);
+          orientCard(mesh, look, { face, flat: true });
+          setCardFace(mesh, face);
+        }
       });
       chipFactory.setAmount(seat.chipStack, player.chips);
       chipFactory.setAmount(seat.betStack, player.bet);
@@ -1919,6 +2041,55 @@ function BlackJackArena({ search }) {
     };
   }, [gameState]);
 
+  useEffect(() => {
+    const prevStage = stageForDealRef.current;
+    if (prevStage !== 'player-turns' && gameState.stage === 'player-turns') {
+      startDealAnimation();
+    }
+    stageForDealRef.current = gameState.stage;
+  }, [gameState.stage, startDealAnimation]);
+
+  useEffect(() => {
+    if (turnIntervalRef.current) {
+      clearInterval(turnIntervalRef.current);
+      turnIntervalRef.current = null;
+    }
+    if (gameState.stage !== 'player-turns') {
+      setTurnCountdown(TURN_DURATION);
+      return;
+    }
+    const activeIndex = gameState.currentIndex;
+    const actor = gameState.players[activeIndex];
+    const startedAt = Date.now();
+    setTurnCountdown(TURN_DURATION);
+    turnIntervalRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const remaining = Math.max(0, TURN_DURATION - elapsed);
+      setTurnCountdown(remaining);
+      if (remaining === 15) {
+        playSound('knock');
+      }
+      if (remaining <= 0) {
+        clearInterval(turnIntervalRef.current);
+        turnIntervalRef.current = null;
+        if (actor?.isHuman) {
+          setGameState((prev) => {
+            const next = cloneState(prev);
+            if (next.stage !== 'player-turns' || next.currentIndex !== activeIndex) return prev;
+            applyPlayerAction(next, 'stand');
+            return next;
+          });
+        }
+      }
+    }, 1000);
+    return () => {
+      if (turnIntervalRef.current) {
+        clearInterval(turnIntervalRef.current);
+        turnIntervalRef.current = null;
+      }
+    };
+  }, [gameState.stage, gameState.currentIndex, gameState.players, playSound]);
+
   const handlePreview = useCallback(() => {
     setGameState((prev) => {
       const next = cloneState(prev);
@@ -1958,6 +2129,11 @@ function BlackJackArena({ search }) {
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const activePlayer = gameState.players[gameState.currentIndex] || null;
   const previewRequired = uiState.requiresPreview && Boolean(activePlayer?.isHuman);
+  const suitSymbols = { S: '♠', H: '♥', D: '♦', C: '♣' };
+  const humanHand = humanPlayer?.hand ?? [];
+  const humanChips = Math.max(0, Math.round(humanPlayer?.chips ?? 0));
+  const humanBet = Math.max(0, Math.round(humanPlayer?.bet ?? 0));
+  const timerProgress = Math.max(0, Math.min(1, turnCountdown / TURN_DURATION));
 
   const handleChipClick = useCallback(
     (value) => {
@@ -2083,6 +2259,43 @@ function BlackJackArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
+      <div className="pointer-events-none absolute top-4 left-1/2 z-30 flex w-[360px] -translate-x-1/2 flex-col gap-2 rounded-2xl bg-black/55 p-3 text-white shadow-xl backdrop-blur">
+        <div className="flex items-center justify-between text-sm font-semibold tracking-wide">
+          <span className="uppercase text-white/80">Turn</span>
+          <span className="text-base">{activePlayer?.name || '...'}</span>
+          <span className="text-emerald-300">{turnCountdown}s</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400"
+            style={{ width: `${timerProgress * 100}%` }}
+          />
+        </div>
+      </div>
+      <div className="pointer-events-none absolute bottom-4 left-4 z-30 flex flex-col gap-3 text-white">
+        <div className="flex items-center gap-3 rounded-2xl bg-black/60 px-4 py-3 shadow-lg backdrop-blur">
+          <div className="text-sm uppercase tracking-wide text-white/60">Your chips</div>
+          <div className="text-lg font-bold text-emerald-300">{humanChips}</div>
+          <div className="text-sm text-white/70">Bet {humanBet}</div>
+        </div>
+        <div className="flex items-center gap-2 rounded-2xl bg-black/60 px-3 py-2 shadow-lg backdrop-blur">
+          {humanHand.map((card, idx) => {
+            const symbol = suitSymbols[card.suit] || '?';
+            const isRed = card.suit === 'H' || card.suit === 'D';
+            return (
+              <div
+                key={`${card.rank}${card.suit}${idx}`}
+                className={`min-w-[60px] rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-center text-lg font-extrabold shadow-md ${
+                  isRed ? 'text-rose-300' : 'text-white'
+                }`}
+              >
+                <div className="text-xl leading-tight">{card.rank}</div>
+                <div className="text-sm leading-tight">{symbol}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
         <button
           type="button"
