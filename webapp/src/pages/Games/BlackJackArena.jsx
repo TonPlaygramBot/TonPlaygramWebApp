@@ -859,6 +859,7 @@ function buildInitialState(players, token, stake) {
       bet: 0,
       result: '',
       revealed: false,
+      viewed: false,
       bust: false
     })),
     deck: [],
@@ -886,6 +887,7 @@ function resetForNextRound(state) {
     bet: 0,
     result: '',
     revealed: false,
+    viewed: false,
     bust: false
   }));
   return next;
@@ -914,7 +916,11 @@ function dealInitialCards(state) {
   state.players.forEach((player, idx) => {
     player.hand = hands[idx];
     player.bust = false;
-    player.revealed = true;
+    player.revealed = !player.isHuman;
+    player.viewed = !player.isHuman;
+    if (player.isHuman) {
+      player.result = 'Preview hand';
+    }
   });
   state.stage = 'player-turns';
   state.currentIndex = getNextPlayerIndex(state.players, -1);
@@ -943,6 +949,7 @@ function resolveRound(state) {
   state.players.forEach((player) => {
     const isWinner = winnerSeats.includes(player.seatIndex);
     player.revealed = true;
+    player.viewed = true;
     if (isWinner) {
       player.chips += payout;
       player.result = `Win ${payout}`;
@@ -964,12 +971,15 @@ function applyPlayerAction(state, action) {
     state.deck = deck;
     player.hand.push(card);
     player.revealed = true;
+    player.viewed = true;
     if (isBust(player.hand)) {
       player.bust = true;
       player.result = 'Bust';
       advancePlayer(state);
     }
   } else if (action === 'stand') {
+    player.viewed = true;
+    player.revealed = true;
     player.result = `Stand ${handValue(player.hand)}`;
     advancePlayer(state);
   }
@@ -1025,7 +1035,7 @@ function BlackJackArena({ search }) {
     const base = buildInitialState(players, searchOptions.token, searchOptions.stake);
     return resetForNextRound(base);
   });
-  const [uiState, setUiState] = useState({ actions: [] });
+  const [uiState, setUiState] = useState({ actions: [], requiresPreview: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
   const [appearance, setAppearance] = useState(() => {
@@ -1835,7 +1845,8 @@ function BlackJackArena({ search }) {
           .add(right.clone().multiplyScalar((cardIdx - (player.hand.length - 1) / 2) * HOLE_SPACING));
         mesh.position.copy(target);
         const look = target.clone().add(forward.clone().multiplyScalar(player.isDealer ? -1 : 1));
-        const face = player.isDealer && cardIdx === 1 && !player.revealed ? 'back' : 'front';
+        const hideCard = (!player.revealed && !player.isDealer) || (player.isDealer && cardIdx === 1 && !player.revealed);
+        const face = hideCard ? 'back' : 'front';
         orientCard(mesh, look, { face, flat: true });
         setCardFace(mesh, face);
       });
@@ -1862,7 +1873,7 @@ function BlackJackArena({ search }) {
           return resetForNextRound(cloneState(prev));
         });
       }, 3000);
-      setUiState({ actions: [] });
+      setUiState({ actions: [], requiresPreview: false });
       return () => {
         if (timerRef.current) {
           clearTimeout(timerRef.current);
@@ -1873,18 +1884,20 @@ function BlackJackArena({ search }) {
     if (gameState.stage === 'player-turns') {
       const actor = gameState.players[gameState.currentIndex];
       if (!actor) {
-        setUiState({ actions: [] });
+        setUiState({ actions: [], requiresPreview: false });
         return;
       }
       if (actor.isHuman) {
+        const requiresPreview = !actor.viewed;
         setUiState({
           actions: [
             { id: 'hit', label: 'Hit' },
             { id: 'stand', label: 'Stand' }
-          ]
+          ],
+          requiresPreview
         });
       } else {
-        setUiState({ actions: [] });
+        setUiState({ actions: [], requiresPreview: false });
         timerRef.current = setTimeout(() => {
           setGameState((prev) => {
             const next = cloneState(prev);
@@ -1896,7 +1909,7 @@ function BlackJackArena({ search }) {
         }, 900);
       }
     } else {
-      setUiState({ actions: [] });
+      setUiState({ actions: [], requiresPreview: false });
     }
     return () => {
       if (timerRef.current) {
@@ -1906,10 +1919,25 @@ function BlackJackArena({ search }) {
     };
   }, [gameState]);
 
+  const handlePreview = useCallback(() => {
+    setGameState((prev) => {
+      const next = cloneState(prev);
+      if (next.stage !== 'player-turns') return next;
+      const actor = next.players[next.currentIndex];
+      if (!actor?.isHuman) return next;
+      actor.revealed = true;
+      actor.viewed = true;
+      actor.result = `Ready ${handValue(actor.hand)}`;
+      return next;
+    });
+  }, []);
+
   const handleAction = (id) => {
     setGameState((prev) => {
       const next = cloneState(prev);
       if (next.stage !== 'player-turns') return next;
+      const actor = next.players[next.currentIndex];
+      if (!actor?.viewed) return next;
       applyPlayerAction(next, id);
       return next;
     });
@@ -1928,6 +1956,8 @@ function BlackJackArena({ search }) {
   const undoDisabled = !sliderEnabled || chipSelection.length === 0;
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalBet <= 0);
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
+  const activePlayer = gameState.players[gameState.currentIndex] || null;
+  const previewRequired = uiState.requiresPreview && Boolean(activePlayer?.isHuman);
 
   const handleChipClick = useCallback(
     (value) => {
@@ -2207,13 +2237,30 @@ function BlackJackArena({ search }) {
           </button>
         </div>
       )}
-      {gameState.stage === 'player-turns' && gameState.players[gameState.currentIndex]?.isHuman && (
+      {previewRequired && (
+        <div className="pointer-events-auto absolute bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white drop-shadow-lg">
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="rounded-xl bg-white/90 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-black shadow-xl transition hover:bg-white"
+          >
+            Preview Cards
+          </button>
+          <p className="text-[0.7rem] text-white/70">Reveal your hand before acting.</p>
+        </div>
+      )}
+      {gameState.stage === 'player-turns' && activePlayer?.isHuman && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
           {uiState.actions.map((action) => (
             <button
               key={action.id}
               onClick={() => handleAction(action.id)}
-              className="px-5 py-2 rounded-lg bg-green-600/90 text-white font-semibold shadow-lg"
+              disabled={previewRequired}
+              className={`px-5 py-2 rounded-lg font-semibold text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 ${
+                previewRequired
+                  ? 'cursor-not-allowed bg-green-900/50 text-white/50 shadow-none'
+                  : 'bg-green-600/90 hover:bg-green-500'
+              }`}
             >
               {action.label}
             </button>
