@@ -266,10 +266,10 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.06; // pull the chrome arches toward centre for tighter middle pocket alignment
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.02; // ease the chrome arches away from centre so middle pocket jaws sit farther out
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 1; // keep side rail apertures identical to chrome plate cuts
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.16; // pull the side wood cuts inward so the middle pocket cuts sit closer to centre
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.08; // relax the inward pull so the middle pocket wood cuts sit farther from centre
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -588,7 +588,7 @@ const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner pocket offset so the cuts sit farther toward each pocket mouth
 const CORNER_RAIL_CUT_INSET =
   POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // preserve the existing chrome/wood cut positioning for jaws and fascia
-const MIDDLE_POCKET_LONGITUDINAL_OFFSET = POCKET_VIS_R * 0.06; // bring middle pockets and rail cuts closer to the table centre
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET = POCKET_VIS_R * 0.12; // push middle pockets and rail cuts farther from the table centre
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
