@@ -2291,13 +2291,101 @@ function extractBeautifulGameAssets(scene, targetBoardSize) {
 }
 
 function extractBeautifulGameTouchAssets(scene, targetBoardSize) {
-  return extractChessSetAssets(scene, {
-    targetBoardSize,
-    pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
-    styleId: 'beautifulGameTouch',
-    assetScale: BEAUTIFUL_GAME_ASSET_SCALE,
-    name: 'ABeautifulGameTouch'
+  if (!scene) return { boardModel: null, piecePrototypes: null };
+
+  const applyMaterialSettings = (node) => {
+    if (!node?.isMesh) return;
+    node.castShadow = true;
+    node.receiveShadow = true;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.forEach((mat, index) => {
+      if (!mat) return;
+      const cloned = mat.clone ? mat.clone() : mat;
+      if (Array.isArray(node.material)) {
+        node.material[index] = cloned;
+      } else {
+        node.material = cloned;
+      }
+      if (cloned.map) applySRGBColorSpace(cloned.map);
+      if (cloned.emissiveMap) applySRGBColorSpace(cloned.emissiveMap);
+    });
+  };
+
+  const root = scene.clone(true);
+  root.traverse(applyMaterialSettings);
+
+  const pool = {
+    white: { P: null, R: null, N: null, B: null, Q: null, K: null },
+    black: { P: null, R: null, N: null, B: null, Q: null, K: null }
+  };
+
+  root.traverse((node) => {
+    const type = pieceTypeFromName(node.name);
+    if (!type) return;
+    const color = detectPieceColor(node);
+    if (!color) return;
+    const ascended = ascendWhile(node, (parent) => pieceTypeFromName(parent.name) === type);
+    const bucket = color === 'black' ? pool.black : pool.white;
+    if (!bucket[type]) {
+      bucket[type] = ascended;
+    }
   });
+
+  const boardModel = root.clone(true);
+  boardModel.traverse(applyMaterialSettings);
+  const nodesToCull = [];
+  boardModel.traverse((node) => {
+    if (pieceTypeFromName(node.name)) {
+      nodesToCull.push(node);
+    }
+  });
+  nodesToCull.forEach((node) => {
+    if (node?.parent) node.parent.remove(node);
+  });
+
+  const boardBox = new THREE.Box3().setFromObject(boardModel);
+  const boardSize = boardBox.getSize(new THREE.Vector3());
+  const largest = Math.max(boardSize.x || 1, boardSize.z || 1);
+  const targetSize = Math.max(targetBoardSize || RAW_BOARD_SIZE, 0.001);
+  const totalScale = targetSize / largest;
+  boardModel.scale.multiplyScalar(totalScale);
+  const scaledBox = new THREE.Box3().setFromObject(boardModel);
+  const boardCenter = new THREE.Vector3();
+  scaledBox.getCenter(boardCenter);
+  boardModel.position.set(-boardCenter.x, -scaledBox.min.y + (BOARD.baseH + 0.02), -boardCenter.z);
+  boardModel.name = 'ABeautifulGameTouch';
+
+  const piecePrototypes = { white: {}, black: {} };
+  const fallbackTile = Math.max(0.001, targetSize / 8);
+  const buildPrototype = (colorKey, type) => {
+    const source = colorKey === 'black' ? pool.black[type] : pool.white[type];
+    if (source) {
+      const proto = source.clone(true);
+      proto.traverse(applyMaterialSettings);
+      proto.scale.multiplyScalar(totalScale);
+      const protoBox = new THREE.Box3().setFromObject(proto);
+      const protoCenter = protoBox.getCenter(new THREE.Vector3());
+      proto.position.sub(protoCenter);
+      proto.position.y -= protoBox.min.y;
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGameTouch', __pieceColor: colorKey };
+      return proto;
+    }
+    const pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE[colorKey] || BEAUTIFUL_GAME_PIECE_STYLE.white;
+    const accent =
+      colorKey === 'black'
+        ? BEAUTIFUL_GAME_PIECE_STYLE.blackAccent || BEAUTIFUL_GAME_PIECE_STYLE.accent
+        : BEAUTIFUL_GAME_PIECE_STYLE.accent;
+    const fallback = buildBeautifulGamePiece(type, pieceStyle.color, accent, fallbackTile / 0.9);
+    fallback.userData = { ...(fallback.userData || {}), __pieceStyleId: 'beautifulGameTouch', __pieceColor: colorKey };
+    return fallback;
+  };
+
+  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+    piecePrototypes.white[type] = buildPrototype('white', type);
+    piecePrototypes.black[type] = buildPrototype('black', type);
+  });
+
+  return { boardModel, piecePrototypes };
 }
 
 function disposeObject3D(object) {
