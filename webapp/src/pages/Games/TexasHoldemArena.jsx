@@ -1044,23 +1044,35 @@ function makeNameplate(name, chips, renderer, avatar) {
     lastHighlight = highlight;
     lastStatus = status;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = highlight ? 'rgba(59,130,246,0.32)' : 'rgba(15,23,42,0.78)';
-    ctx.strokeStyle = highlight ? '#60a5fa' : 'rgba(255,255,255,0.18)';
-    ctx.lineWidth = 12;
-    roundRect(ctx, 16, 16, canvas.width - 32, canvas.height - 32, 36);
+    const panelRadius = 44;
+    const panelX = 12;
+    const panelY = 18;
+    const panelW = canvas.width - panelX * 2;
+    const panelH = canvas.height - panelY * 2;
+    const panelGradient = ctx.createLinearGradient(panelX, panelY, panelX, panelY + panelH);
+    panelGradient.addColorStop(0, 'rgba(10,14,24,0.9)');
+    panelGradient.addColorStop(1, 'rgba(7,10,18,0.75)');
+    ctx.fillStyle = panelGradient;
+    ctx.strokeStyle = highlight ? 'rgba(96,165,250,0.75)' : 'rgba(255,215,0,0.38)';
+    ctx.lineWidth = 10;
+    roundRect(ctx, panelX, panelY, panelW, panelH, panelRadius);
     ctx.fill();
     ctx.stroke();
-    const avatarSize = 140;
-    const avatarX = 36;
-    const avatarY = (canvas.height - avatarSize) / 2;
+
+    const avatarSize = 148;
+    const avatarX = panelX + 20;
+    const avatarY = panelY + (panelH - avatarSize) / 2;
+    const ringGradient = ctx.createLinearGradient(avatarX, avatarY, avatarX + avatarSize, avatarY + avatarSize);
+    ringGradient.addColorStop(0, 'rgba(255,215,0,0.65)');
+    ringGradient.addColorStop(1, 'rgba(255,255,255,0.5)');
     ctx.save();
     ctx.beginPath();
     ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
     ctx.closePath();
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.fillStyle = 'rgba(255,255,255,0.09)';
     ctx.fill();
-    ctx.strokeStyle = highlight ? '#60a5fa' : 'rgba(255,255,255,0.25)';
-    ctx.lineWidth = 8;
+    ctx.lineWidth = highlight ? 10 : 8;
+    ctx.strokeStyle = ringGradient;
     ctx.stroke();
     if (avatarReady) {
       ctx.save();
@@ -1070,19 +1082,18 @@ function makeNameplate(name, chips, renderer, avatar) {
     }
     ctx.restore();
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 72px "Inter", system-ui, sans-serif';
+    ctx.font = '700 68px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'top';
-    const textX = avatarX + avatarSize + 28;
-    ctx.fillText(playerName, textX, 48);
+    const textX = avatarX + avatarSize + 32;
+    const textY = panelY + 32;
+    ctx.fillText(playerName, textX, textY);
     ctx.font = '600 54px "Inter", system-ui, sans-serif';
-    ctx.fillStyle = '#e0f2fe';
-    ctx.fillText(`${stack} chips`, textX, 140);
+    ctx.fillStyle = '#f7e7a4';
+    ctx.fillText(`${stack} chips`, textX, textY + 86);
     if (status) {
-      ctx.fillStyle = '#facc15';
-      ctx.font = '600 50px "Inter", system-ui, sans-serif';
-      ctx.textAlign = 'right';
-      ctx.fillText(status, canvas.width - 40, 140);
-      ctx.textAlign = 'left';
+      ctx.font = '600 44px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#c7d2fe';
+      ctx.fillText(status, textX, textY + 150);
     }
   };
   draw(name, chips, false, '');
@@ -2578,10 +2589,14 @@ function TexasHoldemArena({ search }) {
             const position = baseAnchor.clone().add(lateral).add(inward).add(forwardOffset);
             position.y += HUMAN_CARD_VERTICAL_OFFSET;
             mesh.position.copy(position);
+            const cameraDirection = camera.position.clone().setY(position.y).sub(position);
+            if (cameraDirection.lengthSq() < 1e-4) {
+              cameraDirection.copy(forward);
+            }
             const lookTarget = position
               .clone()
-              .add(new THREE.Vector3(0, HUMAN_CARD_LOOK_LIFT, 0))
-              .addScaledVector(forward, HUMAN_CARD_LOOK_SPLAY);
+              .add(cameraDirection.setLength(Math.max(HUMAN_CARD_LOOK_SPLAY, 0.001)))
+              .add(new THREE.Vector3(0, HUMAN_CARD_LOOK_LIFT, 0));
             orientCard(mesh, lookTarget, { face: 'front', flat: true });
             setCardFace(mesh, 'front');
           });
@@ -3352,6 +3367,13 @@ function TexasHoldemArena({ search }) {
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const undoDisabled = !sliderEnabled || chipSelection.length === 0;
 
+  const turnLabel = useMemo(() => {
+    if (!actor || gameState.stage === 'showdown') return '';
+    if (actor.isHuman) return 'Your turn';
+    const name = actor.name || 'Opponent';
+    return `${name} is acting`;
+  }, [actor, gameState.stage]);
+
   useEffect(() => {
     if (!actor?.isHuman || gameState.stage === 'showdown') {
       setChipSelection([]);
@@ -3548,6 +3570,13 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
+      {turnLabel && (
+        <div className="pointer-events-none fixed bottom-20 inset-x-0 z-20 flex justify-center">
+          <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
+            {turnLabel}
+          </div>
+        </div>
+      )}
       {actor?.isHuman && sliderEnabled && sliderMax > 0 && (
         <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
           <div className="flex flex-col items-center gap-1 text-center">
