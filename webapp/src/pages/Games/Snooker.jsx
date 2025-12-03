@@ -259,13 +259,14 @@ const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.034;
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.08;
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.24;
 const CHROME_PLATE_RENDER_ORDER = 3.5;
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
+const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.25;
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.026; // pull the chrome arches closer to centre so the middle pocket jaws tuck in
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
@@ -289,7 +290,7 @@ const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.66;
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.98;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.9;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
@@ -4592,7 +4593,7 @@ function Table3D(
     MICRO_EPS,
     outerHalfW - chromePlateInset - chromePlateInnerLimitX - TABLE.THICK * 0.08
   );
-  const sideChromePlateWidth = Math.max(
+  const sideChromePlateWidthBase = Math.max(
     MICRO_EPS,
     Math.min(sidePlatePocketWidth, sidePlateMaxWidth) -
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
@@ -4607,17 +4608,21 @@ function Table3D(
     MICRO_EPS,
     Math.min(sidePlateHalfHeightLimit, sideChromeMeetZ) * 2
   );
-  const sideChromePlateHeight = Math.min(
+  const sideChromePlateHeightBase = Math.min(
     Math.max(
       MICRO_EPS,
       chromePlateHeight * CHROME_SIDE_PLATE_HEIGHT_SCALE - chromeOuterFlushTrim * 2
     ),
     Math.max(MICRO_EPS, sidePlateHeightByCushion)
   );
+  const sideChromeExpansionFactor = 1 + CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION;
+  const sideChromePlateWidth = sideChromePlateWidthBase * sideChromeExpansionFactor;
+  const sideChromePlateHeight = sideChromePlateHeightBase * sideChromeExpansionFactor;
   const sideChromePlateRadius = Math.min(
     chromePlateRadius * 0.3,
     Math.min(sideChromePlateWidth, sideChromePlateHeight) * CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE
   );
+  const sideChromeWidthDelta = sideChromePlateWidth - sideChromePlateWidthBase;
 
   const innerHalfW = halfWext;
   const innerHalfH = halfHext;
@@ -4880,7 +4885,9 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    const centerX = sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset);
+    const centerX =
+      sx * (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset) +
+      sx * sideChromeWidthDelta;
     const centerZ = sx * MIDDLE_POCKET_LONGITUDINAL_OFFSET;
     const notchMP = sideNotchMP(sx);
     const sidePocketCutCenterPull =
@@ -5226,7 +5233,7 @@ function Table3D(
   }
 
   if (sideBaseRadius && sideBaseRadius > MICRO_EPS) {
-    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.32;
+    const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.26;
     [-1, 1].forEach((sx) => {
       const baseMP = sideNotchMP(sx);
       const fallbackCenter = new THREE.Vector2(sx * (innerHalfW - sideInset), 0);
