@@ -28,9 +28,23 @@
   #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
   #configSections::-webkit-scrollbar-track{background:transparent;}
   #seatOverlay{position:fixed;inset:0;pointer-events:none;z-index:4;}
-  .seat-badge{position:absolute;transform:translate(-50%,-50%);width:3.25rem;height:3.25rem;pointer-events:none;}
-  .seat-badge .avatar-timer-ring{position:absolute;inset:0;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 65%,black 66%);mask:radial-gradient(farthest-side,transparent 65%,black 66%);}
-  .seat-badge-core{position:absolute;inset:0;border-radius:999px;display:grid;place-items:center;font-size:1.35rem;font-weight:800;color:#0b1224;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 2px rgba(255,255,255,.2);}
+  .seat-badge{position:absolute;transform:translate(-50%,-50%);width:3.6rem;height:3.6rem;pointer-events:none;}
+  .seat-badge .avatar-timer-ring{position:absolute;inset:-0.25rem;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 68%,black 69%);mask:radial-gradient(farthest-side,transparent 68%,black 69%);filter:drop-shadow(0 6px 16px rgba(0,0,0,.35));}
+  .seat-avatar-img{position:absolute;inset:0.32rem;border-radius:50%;object-fit:cover;border:2px solid rgba(255,232,163,.9);box-shadow:0 10px 26px rgba(0,0,0,.38),0 0 0 2px rgba(12,16,24,.55);background:#0b1224;}
+  .seat-name-arc{position:absolute;left:50%;top:-0.65rem;transform:translateX(-50%);width:4.4rem;height:2.3rem;pointer-events:none;}
+  .seat-name-text{text-transform:uppercase;font-size:0.56rem;font-weight:800;letter-spacing:0.12em;fill:#ffe8a3;text-shadow:0 2px 4px rgba(0,0,0,.5);}
+  .seat-badge-icon{position:absolute;right:-0.2rem;bottom:-0.2rem;width:1.35rem;height:1.35rem;border-radius:50%;display:grid;place-items:center;font-size:0.9rem;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.25),rgba(0,0,0,.25)),linear-gradient(135deg,#0ea5e9,#22c55e);color:#0b1224;border:2px solid rgba(255,255,255,.35);box-shadow:0 6px 16px rgba(0,0,0,.35);}
+  #scoreBoard{position:fixed;top:calc(3.1rem + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:5;display:flex;flex-direction:column;align-items:center;gap:0.35rem;pointer-events:none;width:min(92vw,960px);}
+  #scoreBoard .score-shell{width:100%;display:flex;flex-direction:column;gap:0.35rem;padding:0.35rem 0.55rem;background:rgba(3,7,18,.82);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(10px);border-radius:1.1rem;box-shadow:0 14px 38px rgba(0,0,0,.35);pointer-events:auto;}
+  #scoreBoard .score-header{display:flex;justify-content:space-between;align-items:center;gap:0.5rem;font-size:0.72rem;color:#e2e8f0;text-transform:uppercase;letter-spacing:0.16em;font-weight:800;}
+  #scoreBoard .score-mode{display:inline-flex;align-items:center;gap:0.35rem;border-radius:999px;border:1px solid rgba(255,255,255,.2);padding:0.35rem 0.65rem;background:rgba(255,255,255,.06);color:#fefce8;font-weight:700;font-size:0.68rem;cursor:pointer;}
+  #scoreBoard .score-mode span{font-size:0.72rem;}
+  #scoreBoard .score-rows{display:flex;flex-wrap:wrap;gap:0.45rem;align-items:center;justify-content:center;}
+  #scoreBoard .score-pill{display:flex;align-items:center;gap:0.5rem;padding:0.45rem 0.65rem;border-radius:0.95rem;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);box-shadow:0 10px 18px rgba(0,0,0,.25);color:#f8fafc;min-width:12rem;}
+  #scoreBoard .score-pill img{width:2rem;height:2rem;border-radius:999px;object-fit:cover;border:1px solid rgba(255,255,255,.2);background:#0b1224;}
+  #scoreBoard .score-name{font-weight:800;font-size:0.82rem;line-height:1;letter-spacing:0.02em;}
+  #scoreBoard .score-meta{display:flex;flex-direction:column;font-size:0.7rem;line-height:1.35;color:#e5e7eb;}
+  #scoreBoard .score-meta .primary{font-weight:800;color:#fde047;}
   .config-section{display:flex;flex-direction:column;gap:.3rem;}
   .config-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.45rem;}
   .config-option{border-radius:0.85rem;border:1px solid rgba(255,255,255,.12);background:rgba(15,23,42,.55);color:#e2e8f0;padding:.4rem .5rem;display:flex;flex-direction:column;align-items:flex-start;gap:.3rem;font-size:clamp(.62rem,1.75vw,.72rem);line-height:1.35;font-weight:600;transition:border-color .2s ease, box-shadow .2s ease, transform .2s ease;}
@@ -283,7 +297,7 @@ const COLUMN_RADIUS_BOTTOM = 0.26 * MODEL_SCALE;
 const BASE_RADIUS = 0.72 * MODEL_SCALE;
 const FOOT_RING_RADIUS = 0.52 * MODEL_SCALE;
 const FOOT_RING_TUBE = 0.04 * MODEL_SCALE;
-const CHAIR_GAP = 0.12 * MODEL_SCALE;
+const CHAIR_GAP = 0.05 * MODEL_SCALE;
 const CHAIR_RADIUS = TABLE_RADIUS + SEAT_DEPTH / 2 + CHAIR_GAP;
 const CHAIR_BASE_HEIGHT = BASE_TABLE_HEIGHT - SEAT_THICKNESS * 0.85;
 const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -344,6 +358,8 @@ const DEFAULT_AVATAR_EMOJI = '🌐';
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
 const FLAG_EMOJI_POOL = Array.isArray(window.FLAG_EMOJIS) ? window.FLAG_EMOJIS : [];
 const aiAvatarMode = (urlParams.get('avatars') || 'flags').toLowerCase();
+const scoreModeParam = (urlParams.get('scoring') || urlParams.get('scoreMode') || '').toLowerCase();
+let scoreMode = scoreModeParam === 'points' ? 'points' : 'tiles';
 const selectedFlagAvatars = (urlParams.get('flags') || '')
   .split(',')
   .map((n) => Number.parseInt(n, 10))
@@ -2600,12 +2616,46 @@ const seatOverlay = document.createElement('div');
 seatOverlay.id = 'seatOverlay';
 document.body.appendChild(seatOverlay);
 
+const scoreBoard = document.createElement('div');
+scoreBoard.id = 'scoreBoard';
+const scoreShell = document.createElement('div');
+scoreShell.className = 'score-shell';
+const scoreHeader = document.createElement('div');
+scoreHeader.className = 'score-header';
+const scoreTitle = document.createElement('span');
+scoreTitle.textContent = 'Domino Royal Scores';
+const scoreModeToggle = document.createElement('button');
+scoreModeToggle.type = 'button';
+scoreModeToggle.className = 'score-mode';
+scoreModeToggle.setAttribute('aria-label', 'Toggle score view');
+const scoreModeLabel = document.createElement('span');
+scoreModeToggle.appendChild(scoreModeLabel);
+scoreHeader.appendChild(scoreTitle);
+scoreHeader.appendChild(scoreModeToggle);
+const scoreRows = document.createElement('div');
+scoreRows.className = 'score-rows';
+scoreShell.appendChild(scoreHeader);
+scoreShell.appendChild(scoreRows);
+scoreBoard.appendChild(scoreShell);
+document.body.appendChild(scoreBoard);
+
 function buildSeatNames(count = N) {
   return getSeatUsernames(count);
 }
 
 function isAvatarUrl(str = '') {
-  return /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/');
+  return /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/') || str.startsWith('blob:');
+}
+
+function emojiToDataUrl(emoji) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><text y="96" font-size="96">${emoji}</text></svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+function resolveAvatarSource(src = DEFAULT_AVATAR_EMOJI) {
+  if (!src) return emojiToDataUrl(DEFAULT_AVATAR_EMOJI);
+  if (isAvatarUrl(src)) return src;
+  return emojiToDataUrl(src);
 }
 
 function buildSeatAvatarSources(count = N) {
@@ -2622,6 +2672,15 @@ function buildSeatAvatarSources(count = N) {
   });
 }
 
+function buildSeatBadgeData(count = N) {
+  const avatars = buildSeatAvatarSources(count);
+  const names = buildSeatNames(count);
+  return avatars.map((avatar, idx) => ({
+    avatar,
+    name: names[idx] || DEFAULT_SEAT_NAMES[idx] || `Player ${idx + 1}`
+  }));
+}
+
 async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
   const size = 512;
   const canvas = document.createElement('canvas');
@@ -2635,13 +2694,15 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
   ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  if (isAvatarUrl(label)) {
+  const resolvedSrc = resolveAvatarSource(label);
+  if (isAvatarUrl(resolvedSrc)) {
     await new Promise((resolve) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
+      img.referrerPolicy = 'no-referrer';
       img.onload = () => resolve(img);
       img.onerror = () => resolve(null);
-      img.src = label;
+      img.src = resolvedSrc;
     }).then((img) => {
       if (!img) return;
       const maxSide = Math.max(img.width, img.height) || 1;
@@ -2737,16 +2798,51 @@ function disposeSeatBadges() {
   seatOverlay.innerHTML = '';
 }
 
-function createSeatBadge(icon = '🎯') {
+function createSeatBadge(entry = {}, index = 0) {
+  const { avatar = DEFAULT_AVATAR_EMOJI, name = '' } = entry || {};
   const wrap = document.createElement('div');
   wrap.className = 'seat-badge';
   const ring = document.createElement('div');
   ring.className = 'avatar-timer-ring';
   wrap.appendChild(ring);
-  const core = document.createElement('div');
-  core.className = 'seat-badge-core';
-  core.textContent = icon || '🎯';
-  wrap.appendChild(core);
+  const img = document.createElement('img');
+  img.className = 'seat-avatar-img';
+  img.alt = name || 'Seat avatar';
+  img.loading = 'lazy';
+  img.decoding = 'async';
+  img.referrerPolicy = 'no-referrer';
+  img.src = resolveAvatarSource(avatar);
+  img.onerror = () => {
+    if (img.dataset.fallback) return;
+    img.dataset.fallback = '1';
+    img.src = emojiToDataUrl(DEFAULT_AVATAR_EMOJI);
+  };
+  wrap.appendChild(img);
+  const icon = document.createElement('div');
+  icon.className = 'seat-badge-icon';
+  icon.textContent = currentHighlightStyle?.icon || '🎯';
+  wrap.appendChild(icon);
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 100 60');
+  svg.setAttribute('class', 'seat-name-arc');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  const radius = 38;
+  const start = 50 - radius;
+  const end = 50 + radius;
+  path.setAttribute('id', `seat-name-path-${index}`);
+  path.setAttribute('d', `M${start},58 A${radius},${radius} 0 0 1 ${end},58`);
+  path.setAttribute('fill', 'none');
+  svg.appendChild(path);
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('class', 'seat-name-text');
+  const textPath = document.createElementNS('http://www.w3.org/2000/svg', 'textPath');
+  textPath.setAttributeNS('http://www.w3.org/1999/xlink', 'href', `#seat-name-path-${index}`);
+  textPath.setAttribute('startOffset', '50%');
+  textPath.setAttribute('text-anchor', 'middle');
+  textPath.textContent = (name || '').toUpperCase();
+  text.appendChild(textPath);
+  svg.appendChild(text);
+  wrap.appendChild(svg);
   seatOverlay.appendChild(wrap);
   return wrap;
 }
@@ -2755,14 +2851,72 @@ function refreshSeatBadges(icons = []) {
   disposeSeatBadges();
   const gradient = (currentHighlightStyle && currentHighlightStyle.gradient) ||
     'conic-gradient(#fbbf24 360deg, #22c55e 0deg)';
-  const entries = icons.length ? icons : Array.from({ length: N }, () => '🎯');
-  entries.forEach((icon) => {
-    const badge = createSeatBadge(icon);
+  const entries = icons.length ? icons : buildSeatBadgeData(N);
+  entries.forEach((entry, idx) => {
+    const badge = createSeatBadge(entry, idx);
     badge.style.setProperty('--timer-gradient', gradient);
     seatBadges.push(badge);
   });
   seatOverlay.style.setProperty('--timer-gradient', gradient);
+  renderScoreBoard();
 }
+
+function buildScoreEntries() {
+  const seats = buildSeatBadgeData(N);
+  return seats.map((entry, idx) => {
+    const hand = players[idx]?.hand || [];
+    return {
+      ...entry,
+      tileCount: hand.length,
+      pipTotal: pipSum(hand)
+    };
+  });
+}
+
+function renderScoreBoard() {
+  if (!scoreRows) return;
+  const entries = buildScoreEntries();
+  scoreRows.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  entries.forEach((entry, idx) => {
+    const pill = document.createElement('div');
+    pill.className = 'score-pill';
+    const img = document.createElement('img');
+    img.src = resolveAvatarSource(entry.avatar);
+    img.alt = entry.name || `Player ${idx + 1}`;
+    img.referrerPolicy = 'no-referrer';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.onerror = () => {
+      if (img.dataset.fallback) return;
+      img.dataset.fallback = '1';
+      img.src = emojiToDataUrl(DEFAULT_AVATAR_EMOJI);
+    };
+    pill.appendChild(img);
+    const textWrap = document.createElement('div');
+    textWrap.className = 'score-meta';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'score-name';
+    nameEl.textContent = entry.name || `Player ${idx + 1}`;
+    const primary = document.createElement('div');
+    primary.className = 'primary';
+    primary.textContent = scoreMode === 'points' ? `${entry.pipTotal} pts` : `${entry.tileCount} tiles`;
+    const secondary = document.createElement('div');
+    secondary.textContent = scoreMode === 'points' ? `${entry.tileCount} tiles` : `${entry.pipTotal} pts`;
+    textWrap.appendChild(nameEl);
+    textWrap.appendChild(primary);
+    textWrap.appendChild(secondary);
+    pill.appendChild(textWrap);
+    frag.appendChild(pill);
+  });
+  scoreRows.appendChild(frag);
+  scoreModeLabel.textContent = scoreMode === 'points' ? 'Points' : 'Tiles';
+}
+
+scoreModeToggle.addEventListener('click', () => {
+  scoreMode = scoreMode === 'points' ? 'tiles' : 'points';
+  renderScoreBoard();
+});
 
 function disposeSeatLabel({ persistPreference = true } = {}) {
   if (seatLabelMesh) {
@@ -3112,7 +3266,7 @@ function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
   }
   seatBadges.forEach((badge) => {
     badge?.style?.setProperty?.('--timer-gradient', gradient);
-    const core = badge?.querySelector?.('.seat-badge-core');
+    const core = badge?.querySelector?.('.seat-badge-icon');
     if (core) {
       core.textContent = currentHighlightStyle.icon || core.textContent || '🎯';
     }
@@ -3245,7 +3399,7 @@ function applyAppearanceChange({ refresh = true } = {}) {
   renderHands();
   renderChain();
   renderBoneyardStack();
-  refreshSeatBadges(buildSeatAvatarSources(N));
+  refreshSeatBadges(buildSeatBadgeData(N));
   saveAppearance();
   if (refresh) {
     refreshConfigUI();
@@ -3515,7 +3669,7 @@ function placeChairsWithOption(option, chairData, token) {
         })
       };
 
-  const seatAvatarSources = buildSeatAvatarSources(N);
+  const seatAvatarSources = buildSeatBadgeData(N);
 
   CHAIR_SEAT_ANGLES.forEach((angle, index) => {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
@@ -3824,6 +3978,7 @@ function renderHands(){
       }
     });
   });
+  renderScoreBoard();
 }
 
 /* ---------- Chain Rendering ---------- */
