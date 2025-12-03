@@ -427,7 +427,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.04; // push the side fascias slightly farther from centre so their outer edge stays flush while widening the reveal
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.088; // open the middle chrome arch wider so the rounded cut reads larger
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.102; // open the middle chrome arch wider so the rounded cut reads larger
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.052; // pull the middle chrome arch farther toward table centre for a tighter cut alignment
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -842,7 +842,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 1.048; // gently shrink the middle cloth/rail cutouts while keeping the pocket mouth ratio stable
+const SIDE_POCKET_CUT_SCALE = 1.062; // gently shrink the middle cloth/rail cutouts while keeping the pocket mouth ratio stable
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
