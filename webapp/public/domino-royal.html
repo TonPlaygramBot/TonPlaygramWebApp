@@ -15,11 +15,6 @@
   #railControls button{background:rgba(12,16,28,.72);color:#ffe8a3;font-size:.95rem;padding:.55rem .9rem;border-radius:999px;border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
   #draw{font-size:1rem;padding:.6rem 1rem;background:linear-gradient(135deg, rgba(255,210,74,.95), rgba(255,196,45,.85));color:#3b250f;border:0;}
   #pass{background:rgba(255,210,74,.12);color:#ffe8a3;border:1px solid rgba(255,210,74,.35);}
-  .domino-ui{position:fixed;inset:0;pointer-events:none;z-index:2;}
-  .domino-scoreboard{position:absolute;top:calc(0.65rem + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:.45rem;background:rgba(11,18,32,0.85);backdrop-filter:blur(8px);border:1px solid #1f2937;border-radius:14px;padding:6px 10px;box-shadow:0 12px 32px rgba(0,0,0,0.35);}
-  .domino-badge{padding:3px 9px;border-radius:999px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px;font-family:'Luckiest Guy','Comic Sans MS',cursive;letter-spacing:0.2px;}
-  .domino-avatar{width:22px;height:22px;border-radius:50%;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center;font-size:17px;line-height:1;box-shadow:0 0 0 2px rgba(0,0,0,0.35);background-color:#0b1220;}
-  .domino-name{font-size:15px;white-space:nowrap;}
   #btnRules{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));right:calc(0.75rem + env(safe-area-inset-right,0px));width:2.75rem;height:2.75rem;border-radius:999px;background:rgba(0,0,0,.58);color:#fff;display:grid;place-items:center;font-size:1.3rem;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(6px);padding:0;}
   #btnRules span{pointer-events:none;}
   #configButton{position:fixed;top:calc(0.75rem + env(safe-area-inset-top,0px));left:calc(0.75rem + env(safe-area-inset-left,0px));width:3rem;height:3rem;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35);z-index:3;backdrop-filter:blur(8px);padding:0;transition:background .2s ease, border-color .2s ease;}
@@ -55,9 +50,6 @@
 <body>
 <div id="app"></div>
 <div id="status" role="status">Ready</div>
-<div class="domino-ui" aria-live="polite" aria-label="Players">
-  <div id="dominoScoreboard" class="domino-scoreboard"></div>
-</div>
 <button id="configButton" type="button" aria-label="Table setup">
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
     <path stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
@@ -2447,7 +2439,6 @@ const seatAvatars = [];
 const seatNameTags = [];
 
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
-const DOMINO_BADGE_COLORS = ['#22c55e', '#f59e0b', '#3b82f6', '#ef4444'];
 
 function buildSeatNames(count = N) {
   const sources = buildSeatAvatarSources(count);
@@ -2482,37 +2473,6 @@ function buildSeatAvatarSources(count = N) {
     return resolvedFlags[flagIndex < 0 ? 0 : flagIndex];
   });
   return sources;
-}
-
-function renderDominoScoreboard(sources = [], names = []) {
-  const scoreboard = document.getElementById('dominoScoreboard');
-  if (!scoreboard) return;
-
-  scoreboard.innerHTML = '';
-  const total = Math.max(sources.length, names.length);
-  const safeTotal = total || 1;
-
-  for (let i = 0; i < safeTotal; i++) {
-    const badge = document.createElement('span');
-    badge.className = 'domino-badge';
-    badge.style.background = DOMINO_BADGE_COLORS[i % DOMINO_BADGE_COLORS.length];
-
-    const avatar = document.createElement('span');
-    avatar.className = 'domino-avatar';
-    const src = sources[i] ?? DEFAULT_AVATAR_EMOJI;
-    if (isAvatarUrl(src)) {
-      avatar.style.backgroundImage = `url('${src}')`;
-    } else {
-      avatar.textContent = src;
-    }
-
-    const name = document.createElement('span');
-    name.className = 'domino-name';
-    name.textContent = names[i] ?? 'Player';
-
-    badge.append(avatar, name);
-    scoreboard.appendChild(badge);
-  }
 }
 
 async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
@@ -2570,8 +2530,6 @@ async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
 
 function refreshSeatAvatars() {
   const sources = buildSeatAvatarSources(N);
-  const names = buildSeatNames(N);
-  renderDominoScoreboard(sources, names);
   return Promise.all(
     seatAvatars.map((sprite, idx) => applySeatAvatarTexture(sprite, sources[idx] ?? DEFAULT_AVATAR_EMOJI))
   ).catch((error) => console.warn('Failed to refresh seat avatars', error));
@@ -2779,7 +2737,7 @@ const RAIL_TOP = CLOTH_TOP + 0.04 * MODEL_SCALE;
 })();
 
 const SCALE = MODEL_SCALE * 0.92;
-const DOMINO_SCALE = 1.5 * 1.12; // modestly upscale tiles for better readability
+const DOMINO_SCALE = 1.5 * 1.05; // modestly upscale tiles for better readability
 const DOMINO_WORLD_SCALE = SCALE * DOMINO_SCALE;
 const DOMINO_WIDTH = DOMINO_WORLD_SCALE * 0.10;
 const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
@@ -3299,24 +3257,12 @@ function placeChairsWithOption(option, chairData, token) {
   const seatAvatarSources = buildSeatAvatarSources(N);
   const seatNames = buildSeatNames(N);
 
-  renderDominoScoreboard(seatAvatarSources, seatNames);
-
   CHAIR_SEAT_ANGLES.forEach((angle, index) => {
     const radius = CHAIR_SEAT_RADII[index] ?? CHAIR_RADIUS;
     const basis = seatBasisForAngle(angle, radius);
     const wrapper = new THREE.Group();
-    const lateralSeatOffsetY = index === 1 || index === 3 ? -SEAT_THICKNESS * 0.35 : 0;
-    const forwardNudge = basis.forward.clone().multiplyScalar(0.08);
-    wrapper.position.set(
-      basis.position.x + forwardNudge.x,
-      CHAIR_BASE_HEIGHT + lateralSeatOffsetY,
-      basis.position.z + forwardNudge.z
-    );
-    const seatLookTarget = wrapper.position.clone().add(
-      basis.forward.clone().setY(0).normalize().multiplyScalar(DOMINO_LENGTH * 0.4)
-    );
-    seatLookTarget.y = TABLE_HEIGHT - SEAT_THICKNESS * 0.35;
-    wrapper.lookAt(seatLookTarget);
+    wrapper.position.set(basis.position.x, CHAIR_BASE_HEIGHT, basis.position.z);
+    wrapper.lookAt(lookTarget);
 
     const chair = chairData
       ? cloneChairWithTheme(chairData, option)
@@ -3325,6 +3271,27 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.add(chair);
 
     wrapper.updateWorldMatrix(true, true);
+    const chairBox = new THREE.Box3().setFromObject(chair);
+    const avatarSource = seatAvatarSources[index] ?? DEFAULT_AVATAR_EMOJI;
+    const avatarScale = index === HUMAN_SEAT_INDEX ? 0.78 : 0.92;
+    const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
+    const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
+    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.85 : -SEAT_THICKNESS * 0.45;
+    const avatarY = avatarHeight - SEAT_THICKNESS * 0.35 + avatarYOffset;
+    const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.08 : 0.1;
+    avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
+    if (index === HUMAN_SEAT_INDEX) {
+      avatar.visible = false;
+    }
+    avatar.lookAt(lookTarget.x, avatar.position.y, lookTarget.z);
+    wrapper.add(avatar);
+    seatAvatars.push(avatar);
+
+    const nameTag = createSeatNameTag(seatNames[index] ?? 'Player');
+    nameTag.position.set(0, avatarY - SEAT_THICKNESS * 0.45, labelDepth * (avatarDepthFactor + 0.05));
+    nameTag.lookAt(lookTarget.x, nameTag.position.y, lookTarget.z);
+    wrapper.add(nameTag);
+    seatNameTags.push(nameTag);
 
     tableG.add(wrapper);
     chairs.push(wrapper);
