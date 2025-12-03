@@ -2440,9 +2440,14 @@ const seatNameTags = [];
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
 
 function buildSeatNames(count = N) {
+  const resolvedFlags = seatAvatarFlags.length ? seatAvatarFlags : [DEFAULT_AVATAR_EMOJI];
   return Array.from({ length: Math.max(1, count) }, (_, idx) => {
-    if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) return seatAvatarUsername;
-    return DEFAULT_SEAT_NAMES[idx] ?? `Player ${idx + 1}`;
+    const flagIndex = idx === HUMAN_SEAT_INDEX ? 0 : (idx - 1 < 0 ? 0 : (idx - 1) % resolvedFlags.length);
+    const flagLabel = resolvedFlags[flagIndex] ?? DEFAULT_AVATAR_EMOJI;
+    if (idx === HUMAN_SEAT_INDEX && seatAvatarUsername) {
+      return `${flagLabel} ${seatAvatarUsername}`.trim();
+    }
+    return flagLabel || DEFAULT_SEAT_NAMES[idx] || `Player ${idx + 1}`;
   });
 }
 
@@ -2630,9 +2635,9 @@ function createSeatLabelMesh() {
   return mesh;
 }
 
-function createSeatAvatarSprite(source = DEFAULT_AVATAR_EMOJI) {
+function createSeatAvatarSprite(source = DEFAULT_AVATAR_EMOJI, scaleMultiplier = 1) {
   const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
-  const diameter = DOMINO_WIDTH * 6.5;
+  const diameter = DOMINO_WIDTH * 6.5 * scaleMultiplier;
   sprite.scale.set(diameter, diameter, diameter);
   sprite.center.set(0.5, 0);
   sprite.renderOrder = 2;
@@ -2648,10 +2653,10 @@ function createSeatNameTag(label = '') {
   ctx.fillStyle = 'rgba(0, 0, 0, 0.68)';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.strokeStyle = '#ffd24a';
-  ctx.lineWidth = 16;
-  ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
+  ctx.lineWidth = 12;
+  ctx.strokeRect(12, 12, canvas.width - 24, canvas.height - 24);
   ctx.fillStyle = '#ffe8a3';
-  ctx.font = 'bold 136px "Inter", Arial, sans-serif';
+  ctx.font = 'bold 96px "Inter", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label || 'Player', canvas.width / 2, canvas.height / 2);
@@ -2660,7 +2665,7 @@ function createSeatNameTag(label = '') {
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy?.() || 4, 8);
   const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
-  const geometry = new THREE.PlaneGeometry(1.8, 0.75);
+  const geometry = new THREE.PlaneGeometry(1.6, 0.62);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = 3;
   return mesh;
@@ -3300,11 +3305,12 @@ function placeChairsWithOption(option, chairData, token) {
     wrapper.updateWorldMatrix(true, true);
     const chairBox = new THREE.Box3().setFromObject(chair);
     const avatarSource = seatAvatarSources[index] ?? DEFAULT_AVATAR_EMOJI;
-    const avatar = createSeatAvatarSprite(avatarSource);
+    const avatarScale = index === HUMAN_SEAT_INDEX ? 0.78 : 0.92;
+    const avatar = createSeatAvatarSprite(avatarSource, avatarScale);
     const avatarHeight = Math.max(chairBox.max.y - wrapper.position.y, CHAIR_BASE_HEIGHT + SEAT_THICKNESS * 1.2);
-    const avatarYOffset = -SEAT_THICKNESS * 0.18 + (index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.12 : 0);
+    const avatarYOffset = index === HUMAN_SEAT_INDEX ? -SEAT_THICKNESS * 0.55 : -SEAT_THICKNESS * 0.25;
     const avatarY = avatarHeight - SEAT_THICKNESS * 0.35 + avatarYOffset;
-    const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.18 : 0.1;
+    const avatarDepthFactor = index === HUMAN_SEAT_INDEX ? 0.08 : 0.1;
     avatar.position.set(0, avatarY, labelDepth * avatarDepthFactor);
     avatar.lookAt(lookTarget.x, avatar.position.y, lookTarget.z);
     wrapper.add(avatar);
