@@ -2925,7 +2925,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // match Pool Royale lower sweep limit
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the orbit camera closer to the rail without clipping
+  const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the orbit camera closer to the rail without clipping
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.08;
@@ -2988,14 +2988,14 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const CUE_VIEW_RADIUS_RATIO = 0.04;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.16;
-const CUE_VIEW_MIN_PHI = Math.min(
-  CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.1
-);
-const CUE_VIEW_PHI_LIFT = 0.11;
-const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
+  const CUE_VIEW_RADIUS_RATIO = 0.032;
+  const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.14;
+  const CUE_VIEW_MIN_PHI = Math.min(
+    CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
+    STANDING_VIEW_PHI + 0.18
+  );
+  const CUE_VIEW_PHI_LIFT = 0.16;
+  const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
   CAMERA_MAX_PHI - 0.02
@@ -3006,7 +3006,12 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const IN_HAND_CAMERA_PULLBACK = 1.38;
-const TOP_VIEW_MARGIN = 1.1;
+  const TOP_VIEW_MARGIN = 1.1;
+  const TOP_VIEW_PADDING = 0.95;
+  const TOP_VIEW_PHI = 0.0012;
+  const TOP_VIEW_THETA = Math.PI;
+  const TOP_VIEW_UP = new THREE.Vector3(0, 0, 1);
+  const DEFAULT_CAMERA_UP = new THREE.Vector3(0, 1, 0);
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -3065,11 +3070,11 @@ const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
 const TMP_VEC2_FORWARD = new THREE.Vector2();
-const TMP_VEC2_LATERAL = new THREE.Vector2();
-const TMP_VEC2_LIMIT = new THREE.Vector2();
-const TMP_VEC2_AXIS = new THREE.Vector2();
-const TMP_VEC2_VIEW = new THREE.Vector2();
-const TMP_VEC3_A = new THREE.Vector3();
+  const TMP_VEC2_LATERAL = new THREE.Vector2();
+  const TMP_VEC2_LIMIT = new THREE.Vector2();
+  const TMP_VEC2_AXIS = new THREE.Vector2();
+  const TMP_VEC2_VIEW = new THREE.Vector2();
+  const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
@@ -3079,21 +3084,31 @@ const CORNER_SIGNS = [
   { sx: -1, sy: 1 },
   { sx: 1, sy: 1 }
 ];
-const fitRadius = (camera, margin = 1.1) => {
-  const a = camera.aspect,
-    f = THREE.MathUtils.degToRad(camera.fov);
-  const halfW = (TABLE.W / 2) * margin,
-    halfH = (TABLE.H / 2) * margin;
-  const dzH = halfH / Math.tan(f / 2);
-  const dzW = halfW / (Math.tan(f / 2) * a);
-  // Keep a little more distance so rails remain visible while fitting the table
-  const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
-  return clamp(r, CAMERA.minR, CAMERA.maxR);
-};
-const lerpAngle = (start = 0, end = 0, t = 0.5) => {
-  const delta = Math.atan2(Math.sin(end - start), Math.cos(end - start));
-  return start + delta * THREE.MathUtils.clamp(t ?? 0, 0, 1);
-};
+  const fitRadius = (camera, margin = 1.1) => {
+    const a = camera.aspect,
+      f = THREE.MathUtils.degToRad(camera.fov);
+    const halfW = (TABLE.W / 2) * margin,
+      halfH = (TABLE.H / 2) * margin;
+    const dzH = halfH / Math.tan(f / 2);
+    const dzW = halfW / (Math.tan(f / 2) * a);
+    // Keep a little more distance so rails remain visible while fitting the table
+    const r = Math.max(dzH, dzW) * 0.62 * GLOBAL_SIZE_FACTOR;
+    return clamp(r, CAMERA.minR, CAMERA.maxR);
+  };
+  const computeTopViewRadius = (camera, padding = TOP_VIEW_PADDING) => {
+    const aspect = camera.aspect;
+    const fovRad = THREE.MathUtils.degToRad(camera.fov);
+    const halfW = (TABLE.W / 2) / Math.max(padding, 1e-3);
+    const halfH = (TABLE.H / 2) / Math.max(padding, 1e-3);
+    const dzH = halfH / Math.tan(fovRad / 2);
+    const dzW = halfW / (Math.tan(fovRad / 2) * aspect);
+    const r = Math.max(dzH, dzW) * 1.02 * GLOBAL_SIZE_FACTOR;
+    return clamp(r, CAMERA.minR, CAMERA.maxR);
+  };
+  const lerpAngle = (start = 0, end = 0, t = 0.5) => {
+    const delta = Math.atan2(Math.sin(end - start), Math.cos(end - start));
+    return start + delta * THREE.MathUtils.clamp(t ?? 0, 0, 1);
+  };
 
 
 // --------------------------------------------------
@@ -6792,15 +6807,17 @@ function SnookerGame() {
       last3DRef.current = { phi: sph.phi, theta: sph.theta };
     }
     const targetMargin = next
-      ? TOP_VIEW_MARGIN
+      ? TOP_VIEW_PADDING
       : window.innerHeight > window.innerWidth
         ? 1.6
         : 1.4;
-    const targetRadius = fitRadius(cam, targetMargin);
+    const targetRadius = next
+      ? computeTopViewRadius(cam, TOP_VIEW_PADDING)
+      : fitRadius(cam, targetMargin);
     const target = {
       radius: next ? targetRadius : clampOrbitRadius(targetRadius),
-      phi: next ? 0.0001 : last3DRef.current.phi,
-      theta: next ? sph.theta : last3DRef.current.theta
+      phi: next ? TOP_VIEW_PHI : last3DRef.current.phi,
+      theta: next ? TOP_VIEW_THETA : last3DRef.current.theta
     };
     const duration = 600;
     const t0 = performance.now();
@@ -6819,11 +6836,13 @@ function SnookerGame() {
         ? sph.clone()
         : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
       cam.position.setFromSpherical(tmpSphAnim).add(targetPos);
+      cam.up.copy(next ? TOP_VIEW_UP : DEFAULT_CAMERA_UP);
       cam.lookAt(targetPos);
       if (k < 1) requestAnimationFrame(anim);
       else {
         topViewRef.current = next;
         setTopView(next);
+        cam.up.copy(next ? TOP_VIEW_UP : DEFAULT_CAMERA_UP);
         if (rendererRef.current) {
           rendererRef.current.domElement.style.transform = next
             ? 'scale(0.9)'
@@ -9154,14 +9173,30 @@ function SnookerGame() {
             forcedEarly
           };
         };
-        const fit = (m = STANDING_VIEW.margin) => {
-          camera.aspect = host.clientWidth / host.clientHeight;
-          const aspect = camera.aspect;
-          const zoomProfile = resolveCameraZoomProfile(aspect);
-          const standingRadiusRaw = fitRadius(
-            camera,
-            Math.max(m * zoomProfile.margin, 1e-4)
-          );
+          const fit = (m = STANDING_VIEW.margin) => {
+            camera.aspect = host.clientWidth / host.clientHeight;
+            const aspect = camera.aspect;
+            if (topViewRef.current) {
+              const radius = computeTopViewRadius(camera, TOP_VIEW_PADDING);
+              const target =
+                orbitFocusRef.current?.target ?? getDefaultOrbitTarget();
+              sph.radius = clamp(radius, CAMERA.minR, CAMERA.maxR);
+              sph.phi = TOP_VIEW_PHI;
+              sph.theta = TOP_VIEW_THETA;
+              camera.up.copy(TOP_VIEW_UP);
+              const tmp = sph.clone
+                ? sph.clone()
+                : new THREE.Spherical(sph.radius, sph.phi, sph.theta);
+              camera.position.setFromSpherical(tmp).add(target);
+              camera.lookAt(target);
+              return;
+            }
+            camera.up.copy(DEFAULT_CAMERA_UP);
+            const zoomProfile = resolveCameraZoomProfile(aspect);
+            const standingRadiusRaw = fitRadius(
+              camera,
+              Math.max(m * zoomProfile.margin, 1e-4)
+            );
           const cueBase = clampOrbitRadius(BREAK_VIEW.radius);
           const playerRadiusBase = Math.max(standingRadiusRaw, cueBase);
           const shouldApplyBroadcastPullIn = aspect >= 1;
