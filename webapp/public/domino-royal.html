@@ -347,6 +347,14 @@ const accountId = (urlParams.get('accountId') || '').trim();
 const telegramId = (urlParams.get('tgId') || urlParams.get('telegramId') || '').trim();
 let seatAvatarPhoto = (urlParams.get('avatar') || '').trim();
 let seatAvatarUsername = (urlParams.get('username') || '').trim();
+const lobbyAvatarFallback = (() => {
+  try {
+    return localStorage.getItem('profilePhoto') || '';
+  } catch (error) {
+    console.warn('Unable to read lobby avatar fallback', error);
+    return '';
+  }
+})();
 const DEFAULT_AVATAR_EMOJI = '🌐';
 const DEFAULT_SEAT_NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
 const FLAG_EMOJI_POOL = Array.isArray(window.FLAG_EMOJIS) ? window.FLAG_EMOJIS : [];
@@ -414,7 +422,12 @@ function getSeatUsernames(count = N) {
 }
 
 async function loadHumanProfileFromApi() {
-  if ((!accountId && !telegramId) || !window?.fbApi?.getUserInfo) return null;
+  if ((!accountId && !telegramId) || !window?.fbApi?.getUserInfo) {
+    if (!seatAvatarPhoto && lobbyAvatarFallback) {
+      seatAvatarPhoto = lobbyAvatarFallback;
+    }
+    return null;
+  }
   try {
     const user = await window.fbApi.getUserInfo({ accountId, tgId: telegramId });
     if (user) {
@@ -427,6 +440,9 @@ async function loadHumanProfileFromApi() {
     }
   } catch (error) {
     console.warn('Failed to load Domino player profile', error);
+  }
+  if (!seatAvatarPhoto && lobbyAvatarFallback) {
+    seatAvatarPhoto = lobbyAvatarFallback;
   }
   return { photo: seatAvatarPhoto, name: seatAvatarUsername };
 }
@@ -608,6 +624,7 @@ function setCameraViewMode(mode = VIEW_MODES.threeD) {
 
   cameraViewMode = mode;
   cameraHasUserControl = false;
+  updateRaycasterThreshold();
   applyCameraConstraints();
   positionCameraForViewport({ force: true });
   updateViewToggleLabel();
@@ -2637,7 +2654,7 @@ function buildSeatAvatarSources(count = N) {
   const total = Math.max(1, count);
   return Array.from({ length: total }, (_, idx) => {
     if (idx === HUMAN_SEAT_INDEX) {
-      const preferred = seatAvatarPhoto || (aiAvatarMode === 'flags' ? selectedFlagAvatars[idx] : '');
+      const preferred = seatAvatarPhoto || lobbyAvatarFallback || (aiAvatarMode === 'flags' ? selectedFlagAvatars[idx] : '');
       return preferred || pickFlagForSeat(idx);
     }
     if (aiAvatarMode === 'flags') {
@@ -2647,7 +2664,7 @@ function buildSeatAvatarSources(count = N) {
   });
 }
 
-async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
+async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI, fallback = DEFAULT_AVATAR_EMOJI) {
   const size = 512;
   const canvas = document.createElement('canvas');
   canvas.width = canvas.height = size;
@@ -2660,6 +2677,7 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
   ctx.font = `${size * 0.22}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  let imageLoaded = false;
   if (isAvatarUrl(label)) {
     await new Promise((resolve) => {
       const img = new Image();
@@ -2669,6 +2687,7 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
       img.src = label;
     }).then((img) => {
       if (!img) return;
+      imageLoaded = true;
       const maxSide = Math.max(img.width, img.height) || 1;
       const drawSize = size * 0.44;
       const ratio = drawSize / maxSide;
@@ -2678,6 +2697,12 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
     });
   } else {
     ctx.fillText(label, center, center);
+    imageLoaded = true;
+  }
+
+  if (!imageLoaded && fallback && fallback !== label) {
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillText(fallback, center, center);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -2689,7 +2714,7 @@ async function createSeatAvatarTexture(source = DEFAULT_AVATAR_EMOJI) {
 
 async function applySeatAvatarTexture(sprite, source = DEFAULT_AVATAR_EMOJI) {
   if (!sprite) return null;
-  const texture = await createSeatAvatarTexture(source);
+  const texture = await createSeatAvatarTexture(source, pickFlagForSeat(HUMAN_SEAT_INDEX));
   if (!sprite.material) {
     sprite.material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false });
   } else {
@@ -3001,7 +3026,7 @@ const DOMINO_LENGTH = DOMINO_WORLD_SCALE * (0.016 / 0.22) * 2;
 const DOUBLE_END_SHIFT = Math.max(0, (DOMINO_LENGTH - DOMINO_WIDTH) / 2);
 const DOMINO_CHAIN_GAP = DOMINO_LENGTH * 0.03;
 const STEP = DOMINO_LENGTH + DOMINO_CHAIN_GAP;
-const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.7;
+const DOMINO_HAND_GAP = DOMINO_LENGTH * 0.58;
 const TILE_UP_H = 0.2 * DOMINO_WORLD_SCALE;
 const TILE_UP_HALF = TILE_UP_H / 2;
 const XMAX = CLOTH_RADIUS - 0.32 - DOMINO_CHAIN_GAP * 0.5;
@@ -3816,7 +3841,7 @@ function renderHands(){
 
   const EDGE_SPAN = CLOTH_RADIUS - 0.28;
   const BASE_GAP = DOMINO_HAND_GAP;
-  const MIN_GAP = DOMINO_LENGTH * 1.05;
+  const MIN_GAP = DOMINO_LENGTH * 0.95;
   const MAX_SPAN = Math.max(0, EDGE_SPAN * 2 - DOMINO_LENGTH * 0.6);
 
   const isTopDown = cameraViewMode === VIEW_MODES.twoD;
@@ -4556,7 +4581,11 @@ function showMarkersFor(tile){
 /* ---------- Interactivity ---------- */
 const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
 raycaster.params.Mesh = raycaster.params.Mesh || {};
-raycaster.params.Mesh.threshold = 0.2;
+const RAYCAST_THRESHOLD = { normal: 0.22, topdown: 0.45 };
+const updateRaycasterThreshold = () => {
+  raycaster.params.Mesh.threshold = cameraViewMode === VIEW_MODES.twoD ? RAYCAST_THRESHOLD.topdown : RAYCAST_THRESHOLD.normal;
+};
+updateRaycasterThreshold();
 const activePointers = new Set();
 function findPickRoot(o){
   let n=o; while(n){ if(n.userData && (n.userData.owner!==undefined || n.userData.marker)) return n; n=n.parent; } return o;
@@ -4568,6 +4597,7 @@ renderer.domElement.addEventListener('pointerdown',ev=>{
   if(gameFinished){
     return;
   }
+  updateRaycasterThreshold();
   if(ev.pointerType==='touch' && activePointers.size>1){
     return;
   }
