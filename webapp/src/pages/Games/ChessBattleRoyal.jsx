@@ -217,16 +217,15 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
+  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/refs/heads/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_TOUCH_URLS = [
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const STAUNTON_SET_URLS = [
@@ -552,10 +551,10 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
   },
   {
     id: 'beautifulGameTouch',
-    label: 'A Beautiful Game (Touch Edition)',
+    label: 'A Beautiful Game',
     style: BEAUTIFUL_GAME_PIECE_STYLE,
     preserveMaterials: true,
-    loader: (targetBoardSize) => resolveBeautifulGameTouchAssets(targetBoardSize)
+    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
   }
 ]);
 
@@ -2503,7 +2502,7 @@ function buildPolygonalFallbackAssets(
 }
 
 async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
-  const timeoutMs = 15000;
+  const timeoutMs = 35000;
   const withTimeout = (promise) =>
     Promise.race([
       promise,
