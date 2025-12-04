@@ -287,6 +287,32 @@ const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
 
+const lastActionBySocket = new Map();
+const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
+
+function isRateLimited(socket, key, cooldownMs) {
+  const now = Date.now();
+  const last = lastActionBySocket.get(socket.id)?.[key] || 0;
+  if (now - last < cooldownMs) return true;
+  const map = lastActionBySocket.get(socket.id) || {};
+  map[key] = now;
+  lastActionBySocket.set(socket.id, map);
+  return false;
+}
+
+function ensureRegistered(socket, accountId) {
+  const registered = socket.data?.playerId;
+  if (!registered) {
+    socket.emit('errorMessage', 'register_required');
+    return false;
+  }
+  if (accountId && String(accountId) !== String(registered)) {
+    socket.emit('errorMessage', 'identity_mismatch');
+    return false;
+  }
+  return true;
+}
+
 function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
@@ -791,6 +817,7 @@ io.on('connection', (socket) => {
       },
       cb
     ) => {
+      if (!ensureRegistered(socket, accountId)) return cb && cb({ success: false, error: 'register_required' });
       let table;
       if (tableId) {
         const [gt, capStr] = tableId.split('-');
@@ -840,6 +867,7 @@ io.on('connection', (socket) => {
       socket.emit('errorMessage', 'table_not_found');
       return;
     }
+    if (!ensureRegistered(socket, accountId)) return;
     if (!table.ready) table.ready = new Set();
     table.ready.add(String(accountId));
     io.to(tableId).emit('lobbyUpdate', {
@@ -859,6 +887,7 @@ io.on('connection', (socket) => {
       socket.emit('error', 'waiting_for_players');
       return;
     }
+    if (!ensureRegistered(socket, pid)) return;
     // When a player connects to the actual game room we should keep their
     // lobby seat so that lobby endpoints continue to reflect the occupied
     // seat. Previously this function removed the player's seat from
@@ -925,6 +954,10 @@ io.on('connection', (socket) => {
   socket.on('rollDice', async (payload = {}) => {
     const { accountId, tableId } = payload;
     if (accountId && tableId && tableMap.has(tableId)) {
+      if (!ensureRegistered(socket, accountId)) return;
+      if (isRateLimited(socket, 'rollDice', rollRateLimitMs)) {
+        return socket.emit('errorMessage', 'roll_rate_limited');
+      }
       const table = tableMap.get(tableId);
       if (table.currentTurn !== accountId) {
         return socket.emit('errorMessage', 'Not your turn');
@@ -947,6 +980,9 @@ io.on('connection', (socket) => {
 
     const room = gameManager.findRoomBySocket(socket.id);
     if (!room) return;
+    if (isRateLimited(socket, 'rollDice', rollRateLimitMs)) {
+      return socket.emit('errorMessage', 'roll_rate_limited');
+    }
     const current = room.players[room.currentTurn];
     if (!current || current.socketId !== socket.id) {
       return socket.emit('errorMessage', 'Not your turn');
@@ -1037,6 +1073,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     await gameManager.handleDisconnect(socket);
+    lastActionBySocket.delete(socket.id);
     const pid = socket.data.playerId;
     if (pid) {
       const set = userSockets.get(String(pid));
