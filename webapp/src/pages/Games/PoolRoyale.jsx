@@ -424,6 +424,7 @@ const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.8; // trim the straight fascia
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.072; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.1005; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
+const CHROME_SIDE_PLATE_STRAIGHT_EXTENSION_SCALE = 0.18; // extend the middle chrome fascias outward along the wooden rails until the rail arch begins, mirroring the stop point used by the corner plates
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.052; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
@@ -6157,6 +6158,13 @@ function Table3D(
   sideChromePlateWidth = Math.max(
     MICRO_EPS,
     sideChromePlateWidth * CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE
+  );
+  const sideChromePlateStraightExtension =
+    TABLE.THICK * CHROME_SIDE_PLATE_STRAIGHT_EXTENSION_SCALE;
+  const sidePlateArchGuard = Math.max(MICRO_EPS, sideChromeMeetZ * 2 - chromeOuterFlushTrim * 2);
+  sideChromePlateWidth = Math.max(
+    MICRO_EPS,
+    Math.min(sidePlateArchGuard, sideChromePlateWidth + sideChromePlateStraightExtension * 2)
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
