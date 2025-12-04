@@ -283,6 +283,33 @@ const BOARD_COLOR_OPTIONS = Object.freeze([
   ...BOARD_COLOR_BASE_OPTIONS
 ]);
 
+const SCULPTED_DRAG_STYLE = Object.freeze({
+  id: 'sculptedDrag',
+  label: 'Ivory & Onyx Sculpted',
+  white: {
+    color: '#f6f1e6',
+    roughness: 0.45,
+    metalness: 0.05,
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.6,
+    sheen: 1,
+    sheenRoughness: 0.85
+  },
+  black: {
+    color: '#0f1217',
+    roughness: 0.32,
+    metalness: 0.5,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.4,
+    sheen: 1,
+    sheenRoughness: 0.9
+  },
+  accent: '#60a5fa'
+});
+
+const DEFAULT_PIECE_STYLE = SCULPTED_DRAG_STYLE;
+const DEFAULT_PIECE_SET_ID = 'sculptedDrag';
+
 const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
   label: 'A Beautiful Game',
@@ -461,11 +488,11 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 
 const PIECE_STYLE_OPTIONS = Object.freeze([
   {
-    id: 'beautifulGame',
-    label: 'A Beautiful Game (Khronos)',
-    style: BEAUTIFUL_GAME_PIECE_STYLE,
-    preserveMaterials: true,
-    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+    id: DEFAULT_PIECE_SET_ID,
+    label: 'Ivory & Onyx Sculpted',
+    style: SCULPTED_DRAG_STYLE,
+    loader: (targetBoardSize) =>
+      buildSculptedAssets(targetBoardSize, SCULPTED_DRAG_STYLE, DEFAULT_PIECE_SET_ID)
   },
   {
     id: 'heritageWalnut',
@@ -557,6 +584,11 @@ const DEFAULT_APPEARANCE = {
   pieceStyle: 0
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
+const MOVE_MODE_STORAGE_KEY = 'chessBattleRoyalMoveMode';
+const MOVE_MODE_OPTIONS = [
+  { id: 'click', label: 'Click to move' },
+  { id: 'drag', label: 'Drag & drop' }
+];
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
@@ -1201,7 +1233,7 @@ function buildBoardTheme(option) {
 
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
-  const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.style ?? BEAUTIFUL_GAME_PIECE_STYLE;
+  const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
   return {
@@ -1210,7 +1242,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
     highlight: boardTheme.highlight,
     capture: boardTheme.capture,
     accent: boardTheme.accent,
-    pieceSetId: PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.id ?? 'beautifulGame'
+    pieceSetId: PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.id ?? DEFAULT_PIECE_SET_ID
   };
 }
 
@@ -1846,6 +1878,197 @@ function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
     }
   });
   return group;
+}
+
+function sculptProfile(points = []) {
+  return points.map(([x, y]) => new THREE.Vector2(x, y));
+}
+
+function sculptLathe(points = [], segments = 96) {
+  return new THREE.LatheGeometry(points, segments);
+}
+
+function buildSculptedPiece(type, materials = {}, scale = 1, styleId = DEFAULT_PIECE_SET_ID) {
+  const baseMat = materials.base;
+  const accentMat = materials.accent ?? baseMat;
+  const g = new THREE.Group();
+
+  const addMesh = (geometry, material = baseMat, position = null, rotation = null) => {
+    const mesh = new THREE.Mesh(geometry, material);
+    if (position) mesh.position.copy(position);
+    if (rotation) mesh.rotation.set(rotation.x, rotation.y, rotation.z);
+    g.add(mesh);
+    return mesh;
+  };
+
+  if (type === 'P') {
+    const profile = sculptProfile([
+      [0.0, 0.0],
+      [0.36, 0.0],
+      [0.44, 0.06],
+      [0.52, 0.12],
+      [0.58, 0.18],
+      [0.54, 0.24],
+      [0.46, 0.32],
+      [0.36, 0.46],
+      [0.3, 0.62],
+      [0.28, 0.74],
+      [0.0, 0.74]
+    ]);
+    addMesh(sculptLathe(profile, 96), baseMat);
+    addMesh(new THREE.SphereGeometry(0.26, 28, 24), accentMat, new THREE.Vector3(0, 1.02, 0));
+  } else if (type === 'R') {
+    const profile = sculptProfile([
+      [0, 0],
+      [0.58, 0],
+      [0.62, 0.06],
+      [0.62, 0.1],
+      [0.54, 0.2],
+      [0.46, 0.3],
+      [0.42, 0.54],
+      [0.46, 0.74],
+      [0.56, 0.86],
+      [0.6, 0.94],
+      [0, 0.94]
+    ]);
+    addMesh(sculptLathe(profile, 96), baseMat);
+    addMesh(new THREE.CylinderGeometry(0.54, 0.54, 0.08, 28), accentMat, new THREE.Vector3(0, 1.02, 0));
+    addMesh(new THREE.CylinderGeometry(0.62, 0.62, 0.1, 20, 1, true), accentMat, new THREE.Vector3(0, 1.1, 0));
+  } else if (type === 'N') {
+    const profile = sculptProfile([
+      [0, 0],
+      [0.58, 0],
+      [0.62, 0.06],
+      [0.62, 0.1],
+      [0.52, 0.18],
+      [0.48, 0.28],
+      [0.4, 0.42],
+      [0.34, 0.56],
+      [0, 0.56]
+    ]);
+    addMesh(sculptLathe(profile, 96), baseMat);
+    const shape = new THREE.Shape();
+    const pts = [
+      [-0.3, 0.0],
+      [-0.08, 0.06],
+      [0.1, 0.38],
+      [0.26, 0.5],
+      [0.38, 0.64],
+      [0.22, 0.7],
+      [0.1, 0.66],
+      [0.02, 0.8],
+      [0.1, 1.0],
+      [0.02, 1.06],
+      [-0.08, 0.92],
+      [-0.22, 0.82],
+      [-0.28, 0.66],
+      [-0.36, 0.54],
+      [-0.34, 0.42],
+      [-0.24, 0.34],
+      [-0.28, 0.2],
+      [-0.36, 0.1]
+    ];
+    shape.moveTo(pts[0][0], pts[0][1]);
+    pts.slice(1).forEach(([x, y]) => shape.lineTo(x, y));
+    shape.lineTo(-0.3, 0.0);
+    const extrude = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.3,
+      bevelEnabled: true,
+      bevelSize: 0.02,
+      bevelThickness: 0.02
+    });
+    extrude.rotateY(Math.PI / 2);
+    extrude.translate(0, 0.92, 0);
+    addMesh(extrude, baseMat);
+  } else if (type === 'B') {
+    const profile = sculptProfile([
+      [0, 0],
+      [0.58, 0],
+      [0.62, 0.06],
+      [0.62, 0.1],
+      [0.52, 0.2],
+      [0.42, 0.36],
+      [0.34, 0.72],
+      [0.3, 0.98],
+      [0.24, 1.1],
+      [0, 1.1]
+    ]);
+    addMesh(sculptLathe(profile, 96), baseMat);
+    addMesh(new THREE.SphereGeometry(0.22, 28, 22), accentMat, new THREE.Vector3(0, 1.28, 0));
+  } else if (type === 'Q') {
+    const profile = sculptProfile([
+      [0, 0],
+      [0.62, 0],
+      [0.66, 0.06],
+      [0.68, 0.1],
+      [0.58, 0.22],
+      [0.48, 0.36],
+      [0.42, 0.76],
+      [0.38, 1.0],
+      [0.34, 1.16],
+      [0.3, 1.26],
+      [0, 1.26]
+    ]);
+    addMesh(sculptLathe(profile, 96), baseMat);
+    const crown = addMesh(new THREE.TorusGeometry(0.34, 0.05, 12, 36), accentMat);
+    crown.rotation.x = Math.PI / 2;
+    crown.position.y = 1.34;
+    addMesh(new THREE.SphereGeometry(0.18, 24, 20), accentMat, new THREE.Vector3(0, 1.52, 0));
+  } else if (type === 'K') {
+    const profile = sculptProfile([
+      [0, 0],
+      [0.64, 0],
+      [0.7, 0.06],
+      [0.72, 0.1],
+      [0.6, 0.22],
+      [0.5, 0.38],
+      [0.44, 0.82],
+      [0.42, 1.08],
+      [0.38, 1.26],
+      [0.36, 1.38],
+      [0, 1.38]
+    ]);
+    addMesh(sculptLathe(profile, 96), baseMat);
+    const rim = addMesh(new THREE.TorusGeometry(0.36, 0.05, 12, 36), accentMat);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = 1.44;
+    addMesh(new THREE.BoxGeometry(0.06, 0.32, 0.06), accentMat, new THREE.Vector3(0, 1.66, 0));
+    addMesh(new THREE.BoxGeometry(0.22, 0.06, 0.06), accentMat, new THREE.Vector3(0, 1.66, 0));
+  }
+
+  return finalizePrototype(g, scale, styleId);
+}
+
+function buildSculptedAssets(
+  targetBoardSize = RAW_BOARD_SIZE,
+  pieceStyle = SCULPTED_DRAG_STYLE,
+  styleId = DEFAULT_PIECE_SET_ID
+) {
+  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const scale = tile / 1.6;
+  const accentLight = pieceStyle.accent ?? '#60a5fa';
+  const accentDark = pieceStyle.blackAccent ?? accentLight;
+
+  const piecePrototypes = { white: {}, black: {} };
+
+  const buildForColor = (colorKey, accentHex) => {
+    const colorStyle = pieceStyle[colorKey] ?? {};
+    const materials = {
+      base: makePieceMaterialFromStyle(colorStyle),
+      accent: makePieceMaterialFromStyle(colorStyle, { color: accentHex })
+    };
+    piecePrototypes[colorKey].P = buildSculptedPiece('P', materials, scale, styleId);
+    piecePrototypes[colorKey].R = buildSculptedPiece('R', materials, scale, styleId);
+    piecePrototypes[colorKey].N = buildSculptedPiece('N', materials, scale, styleId);
+    piecePrototypes[colorKey].B = buildSculptedPiece('B', materials, scale, styleId);
+    piecePrototypes[colorKey].Q = buildSculptedPiece('Q', materials, scale, styleId);
+    piecePrototypes[colorKey].K = buildSculptedPiece('K', materials, scale, styleId);
+  };
+
+  buildForColor('white', accentLight);
+  buildForColor('black', accentDark);
+
+  return { boardModel: null, piecePrototypes };
 }
 
 function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'stauntonClassic') {
@@ -3531,7 +3754,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
-  const settingsRef = useRef({ showHighlights: true, soundEnabled: true });
+  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -3588,6 +3811,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
+  const [moveMode, setMoveMode] = useState(() => {
+    if (typeof window === 'undefined') return 'click';
+    try {
+      const stored = window.localStorage?.getItem(MOVE_MODE_STORAGE_KEY);
+      if (stored === 'drag' || stored === 'click') return stored;
+    } catch {}
+    return 'click';
+  });
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
   const [ui, setUi] = useState({
@@ -3826,6 +4057,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, [showHighlights]);
 
   useEffect(() => {
+    settingsRef.current.moveMode = moveMode;
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(MOVE_MODE_STORAGE_KEY, moveMode);
+    } catch {}
+  }, [moveMode]);
+
+  useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
     const volume = getGameVolume();
     if (bombSoundRef.current) {
@@ -3917,15 +4156,17 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arena.setProceduralBoardVisible?.(true);
     }
     const pieceSetOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? 'beautifulGame';
+    const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces ?? BEAUTIFUL_GAME_PIECE_STYLE;
-    const pieceSetLoader = pieceSetOption?.loader ?? ((size) => resolveBeautifulGameAssets(size));
+    const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
+    const pieceSetLoader =
+      pieceSetOption?.loader ??
+      ((size) => buildSculptedAssets(size, SCULPTED_DRAG_STYLE, DEFAULT_PIECE_SET_ID));
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -4096,10 +4337,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const palette = createChessPalette(normalizedAppearance);
     paletteRef.current = palette;
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces ?? BEAUTIFUL_GAME_PIECE_STYLE;
+    const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const pieceSetOption = PIECE_STYLE_OPTIONS[normalizedAppearance.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const initialPieceSetId = pieceSetOption?.id ?? 'beautifulGame';
-    const pieceSetLoader = pieceSetOption?.loader ?? ((size) => resolveBeautifulGameAssets(size));
+    const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
+    const pieceSetLoader =
+      pieceSetOption?.loader ??
+      ((size) => buildSculptedAssets(size, SCULPTED_DRAG_STYLE, DEFAULT_PIECE_SET_ID));
     const initialPlayerFlag =
       playerFlag ||
       resolvedInitialFlag ||
@@ -5138,6 +5381,87 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       clearHighlights();
     }
 
+    const dragState = {
+      active: false,
+      mesh: null,
+      from: null
+    };
+
+    const piecePosition = (r, c, y = 0) =>
+      new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
+
+    const pickTileFromPointer = (event) => {
+      setPointer(event);
+      ray.setFromCamera(pointer, camera);
+      const hit = ray.intersectObjects(tiles, false)[0];
+      if (!hit) return null;
+      const { r, c } = hit.object.userData || {};
+      if (r == null || c == null) return null;
+      return { r, c };
+    };
+
+    const pickBoardObject = (event) => {
+      setPointer(event);
+      ray.setFromCamera(pointer, camera);
+      const intersects = ray.intersectObjects(boardGroup.children, true);
+      for (const i of intersects) {
+        let o = i.object;
+        while (o) {
+          if (o.userData && (o.userData.type === 'piece' || o.userData.type === 'tile')) {
+            return { object: o, point: i.point };
+          }
+          o = o.parent;
+        }
+      }
+      return null;
+    };
+
+    const onPointerDown = (event) => {
+      if (settingsRef.current.moveMode !== 'drag') return;
+      const hit = pickBoardObject(event);
+      if (!hit || hit.object.userData.type !== 'piece') return;
+      const { r, c } = hit.object.userData;
+      selectAt(r, c);
+      if (!sel) return;
+      dragState.active = true;
+      dragState.mesh = pieceMeshes[r][c];
+      dragState.from = { r, c };
+      if (dragState.mesh) {
+        dragState.mesh.position.y = Math.max(dragState.mesh.position.y, 0.18);
+      }
+      if (controls) controls.enabled = false;
+    };
+
+    const onPointerMove = (event) => {
+      if (!dragState.active || !dragState.mesh) return;
+      const tileHit = pickTileFromPointer(event);
+      if (!tileHit) return;
+      const target = piecePosition(tileHit.r, tileHit.c, 0.18);
+      dragState.mesh.position.lerp(target, 0.35);
+    };
+
+    const onPointerUp = (event) => {
+      if (!dragState.active) return;
+      const tileHit = pickTileFromPointer(event);
+      const mesh = dragState.mesh;
+      const from = dragState.from;
+      dragState.active = false;
+      dragState.mesh = null;
+      dragState.from = null;
+      if (controls) controls.enabled = true;
+      if (tileHit && sel && legal.some(([r, c]) => r === tileHit.r && c === tileHit.c)) {
+        moveSelTo(tileHit.r, tileHit.c);
+        return;
+      }
+      if (mesh && from) {
+        mesh.position.copy(piecePosition(from.r, from.c, 0));
+        selectAt(from.r, from.c);
+        return;
+      }
+      clearHighlights();
+      sel = null;
+    };
+
     function aiMove() {
       const mv = bestBlackMove(board, 4);
       if (!mv) return;
@@ -5147,6 +5471,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
 
     onClick = function onClick(e) {
+      if (settingsRef.current.moveMode !== 'click') return;
       setPointer(e);
       ray.setFromCamera(pointer, camera);
       const intersects = ray.intersectObjects(boardGroup.children, true);
@@ -5185,6 +5510,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     renderer.domElement.addEventListener('click', onClick);
     renderer.domElement.addEventListener('touchend', onClick);
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    renderer.domElement.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
 
     // Loop
     let lastTime = performance.now();
@@ -5277,6 +5605,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (renderer?.domElement && onClick) {
         renderer.domElement.removeEventListener('click', onClick);
         renderer.domElement.removeEventListener('touchend', onClick);
+        renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+        renderer.domElement.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
       }
       cameraViewRef.current = null;
       controlsRef.current = null;
@@ -5379,6 +5710,28 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     onChange={(event) => setShowHighlights(event.target.checked)}
                   />
                 </label>
+                <div className="space-y-2 text-[0.7rem] text-gray-200">
+                  <p>Piece control</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {MOVE_MODE_OPTIONS.map((option) => {
+                      const active = moveMode === option.id;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setMoveMode(option.id)}
+                          className={`rounded-lg border px-2 py-2 text-left font-semibold transition ${
+                            active
+                              ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-100'
+                              : 'border-white/10 bg-white/5 text-white/80 hover:border-white/30'
+                          }`}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
