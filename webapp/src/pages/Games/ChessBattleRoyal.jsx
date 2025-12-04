@@ -224,6 +224,11 @@ const BEAUTIFUL_GAME_URLS = [
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
 ];
 
+const BEAUTIFUL_GAME_TOUCH_URLS = [
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+];
+
 const STAUNTON_SET_URLS = [
   'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
   'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb'
@@ -1276,10 +1281,10 @@ function createConfiguredGLTFLoader() {
   return loader;
 }
 
-async function loadBeautifulGameSet() {
+async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
   const loader = createConfiguredGLTFLoader();
   let lastError = null;
-  for (const url of BEAUTIFUL_GAME_URLS) {
+  for (const url of urls) {
     try {
       const isLocal = url.startsWith('/') || url.startsWith('./');
       const resolvedUrl = new URL(url, window.location.href).href;
@@ -1301,6 +1306,10 @@ async function loadBeautifulGameSet() {
   }
   if (lastError) throw lastError;
   throw new Error('ABeautifulGame model failed to load');
+}
+
+async function loadBeautifulGameTouchSet() {
+  return loadBeautifulGameSet([...BEAUTIFUL_GAME_TOUCH_URLS, ...BEAUTIFUL_GAME_URLS]);
 }
 
 async function loadPieceSetFromUrlsStrict(urls = [], options = {}) {
@@ -2540,10 +2549,22 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
-  return resolveBeautifulGameAssets(
-    targetBoardSize,
-    (scene, size, options) => extractBeautifulGameTouchAssets(scene, size, options)
-  );
+  const timeoutMs = 15000;
+  const withTimeout = (promise) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('ABeautifulGame touch load timed out')), timeoutMs)
+      )
+    ]);
+
+  const gltf = await withTimeout(loadBeautifulGameTouchSet());
+  if (!gltf?.scene) {
+    throw new Error('ABeautifulGame touch edition failed to load');
+  }
+
+  const source = gltf.scene.userData?.beautifulGameSource;
+  return extractBeautifulGameTouchAssets(gltf.scene, targetBoardSize, { source });
 }
 
 function cloneWithShadows(object) {
