@@ -27,21 +27,21 @@ public class CameraController : MonoBehaviour
     // Minimum distance the camera should maintain when hugging the table so the
     // framing ends up closer to the cue ball without drifting toward the butt of
     // the cue stick.
-    public float minimumCueViewDistance = 1.34125f;
+    public float minimumCueViewDistance = 1.25f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 2.05f;
     // Default distance of the camera from the table centre when fully raised to
     // provide a broad overview of the action.
-    public float distanceFromCenter = 3.18f;
+    public float distanceFromCenter = 2.85f;
     // Minimum distance from the table centre allowed when the camera is pulled
     // down toward the rails for a closer look.
-    public float minDistanceFromCenter = 1.85f;
+    public float minDistanceFromCenter = 1.65f;
     // Extra distance the camera is allowed to shed as it hugs the table so the
     // cue ball fills more of the view during low-angle aiming.
-    public float lowHeightDistanceReduction = 0.465f;
+    public float lowHeightDistanceReduction = 0.75f;
     // Extra pullback applied when the camera is raised to its maximum height so
     // the player gets a slightly wider view while aiming.
-    public float zoomOutWhenRaised = 0.23125f;
+    public float zoomOutWhenRaised = 0.12f;
     // Buffer that keeps the camera just outside the rails even at the closest
     // zoom level.
     public float railBuffer = 0.0185f;
