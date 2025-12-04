@@ -4673,6 +4673,7 @@ btnPass.addEventListener('click',()=>{
 
 async function bootstrapDominoRoyal() {
   await loadHumanProfileFromApi();
+  refreshSeatBadges(buildSeatAvatarSources(N), buildSeatNames(N));
   startGame();
 }
 
