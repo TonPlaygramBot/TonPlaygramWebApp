@@ -420,6 +420,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.05; // push the side fascia farthe
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.47; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.046; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.8; // trim the straight fascia span beside middle pockets by 20% without touching the rounded cut or outer edge
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.072; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.067; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal
@@ -6152,6 +6153,10 @@ function Table3D(
       TABLE.THICK * CHROME_SIDE_PLATE_CENTER_TRIM_SCALE +
       sideChromePlateWidthExpansion -
       chromeOuterFlushTrim * 2
+  );
+  sideChromePlateWidth = Math.max(
+    MICRO_EPS,
+    sideChromePlateWidth * CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE
   );
   const sidePlateHalfHeightLimit = Math.max(
     0,
