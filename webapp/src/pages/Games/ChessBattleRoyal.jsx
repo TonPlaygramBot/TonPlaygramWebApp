@@ -1303,6 +1303,12 @@ async function loadBeautifulGameSet() {
   throw new Error('ABeautifulGame model failed to load');
 }
 
+async function loadPieceSetFromUrlsStrict(urls = [], options = {}) {
+  const assets = await loadPieceSetFromUrls(urls, options);
+  if (assets?.piecePrototypes) return assets;
+  throw new Error(`${options?.name ?? 'Chess set'} failed to load`);
+}
+
 async function loadPieceSetFromUrls(urls = [], options = {}) {
   const loader = createConfiguredGLTFLoader();
   let lastError = null;
@@ -1559,30 +1565,32 @@ async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
   });
 }
 
+async function resolveBeautifulGameBoardStrict(targetBoardSize) {
+  const gltf = await loadBeautifulGameSet();
+  if (!gltf?.scene) throw new Error('A Beautiful Game board failed to load');
+  return extractBeautifulGameAssets(gltf.scene, targetBoardSize, {
+    source: 'remote',
+    assetScale: 1
+  });
+}
+
 async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const [kenneyResult, beautifulBoardResult] = await Promise.allSettled([
-    loadPieceSetFromUrls(KENNEY_SET_URLS, {
+  const [kenneyPieces, beautifulBoard] = await Promise.all([
+    loadPieceSetFromUrlsStrict(KENNEY_SET_URLS, {
       targetBoardSize,
       styleId: 'kenneyWood',
       pieceStyle: KENNEY_WOOD_STYLE,
-      assetScale: BEAUTIFUL_GAME_ASSET_SCALE,
-      fallbackBuilder: buildKenneyFallbackAssets
+      assetScale: 1,
+      name: 'Kenney chess set'
     }),
-    resolveBeautifulGameAssets(targetBoardSize)
+    resolveBeautifulGameBoardStrict(targetBoardSize)
   ]);
 
-  const kenneyAssets = kenneyResult.status === 'fulfilled' ? kenneyResult.value : null;
-  const beautifulBoard =
-    beautifulBoardResult.status === 'fulfilled' ? beautifulBoardResult.value : null;
+  const boardModel = beautifulBoard?.boardModel || null;
+  if (!boardModel) throw new Error('A Beautiful Game board failed to load');
 
-  const boardModel = beautifulBoard?.boardModel || kenneyAssets?.boardModel || null;
-  const piecePrototypes = kenneyAssets?.piecePrototypes || null;
-
-  if (!piecePrototypes) {
-    throw kenneyResult.status === 'rejected'
-      ? kenneyResult.reason
-      : new Error('Kenney chess pieces failed to load');
-  }
+  const piecePrototypes = kenneyPieces?.piecePrototypes || null;
+  if (!piecePrototypes) throw new Error('Kenney chess pieces failed to load');
 
   return { boardModel, piecePrototypes };
 }
@@ -2779,11 +2787,12 @@ function extractChessSetAssets(scene, options = {}) {
 }
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
+  const assetScale = options?.assetScale ?? BEAUTIFUL_GAME_ASSET_SCALE;
   const assets = extractChessSetAssets(scene, {
     targetBoardSize,
     pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
     styleId: 'beautifulGame',
-    assetScale: BEAUTIFUL_GAME_ASSET_SCALE,
+    assetScale,
     name: 'ABeautifulGame'
   });
   if (options?.source === 'local') {
