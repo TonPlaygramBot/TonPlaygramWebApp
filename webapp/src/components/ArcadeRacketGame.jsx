@@ -107,16 +107,19 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     net.position.y = config.tableHeight + config.netHeight / 2;
     scene.add(net);
 
-    const racketGeo = new THREE.BoxGeometry(1, 0.15, 0.4);
-    const racketBaseY = config.tableHeight + (mode === 'tabletennis' ? 0.92 : 1);
+    const racketGeo = new THREE.BoxGeometry(0.42, 1.1, 0.18);
+    const racketBaseY = config.tableHeight + (mode === 'tabletennis' ? 0.98 : 1.08);
     const playerBaseZ = halfL - config.playerZOffset;
     const enemyBaseZ = -halfL + config.playerZOffset;
     const player = new THREE.Mesh(racketGeo, new THREE.MeshStandardMaterial({ color: config.playerColor }));
     player.position.set(0, racketBaseY, playerBaseZ);
+    player.rotation.z = -0.06;
     scene.add(player);
 
     const enemy = new THREE.Mesh(racketGeo, new THREE.MeshStandardMaterial({ color: config.enemyColor }));
     enemy.position.set(0, racketBaseY, enemyBaseZ);
+    enemy.rotation.z = 0.06;
+    enemy.rotation.y = Math.PI;
     scene.add(enemy);
 
     const ball = new THREE.Mesh(
@@ -161,7 +164,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
     function screenToCourt(clientX) {
       const rect = renderer.domElement.getBoundingClientRect();
-      const normX = (clientX - rect.left) / rect.width;
+      const normX = THREE.MathUtils.clamp((clientX - rect.left) / rect.width, 0.02, 0.98);
       return clampX((normX - 0.5) * config.courtW);
     }
 
@@ -220,16 +223,18 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       enemyServeTimer = setTimeout(() => {
         const lateralScale = config.courtW / BASE_CONFIG.courtW;
         const forwardScale = config.courtL / BASE_CONFIG.courtL;
-        const targetX = clampX((Math.random() - 0.5) * halfW * 0.8);
-        const servePower = 12 + Math.random() * 6;
+        const cornerBias = Math.random() > 0.5 ? 1 : -1;
+        const targetX = clampX((cornerBias * 0.45 + (Math.random() - 0.5) * 0.25) * halfW);
+        const servePower = 14 + Math.random() * 6;
         const powerScale = servePower / BASE_POWER;
         const forward = THREE.MathUtils.clamp(
-          THREE.MathUtils.mapLinear(servePower, 8, 20, 4 * forwardScale, 12.4 * forwardScale),
-          4 * forwardScale,
-          12.4 * forwardScale
+          THREE.MathUtils.mapLinear(servePower, 10, 22, 6.4 * forwardScale, 13.6 * forwardScale),
+          6 * forwardScale,
+          13.6 * forwardScale
         );
-        const lateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 0.9, -2.4 * lateralScale, 2.4 * lateralScale);
-        const lift = THREE.MathUtils.clamp(3 + powerScale * 1.1, 3, 7.6);
+        const lateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.05, -2.6 * lateralScale, 2.6 * lateralScale);
+        const lift = THREE.MathUtils.clamp(3.6 + powerScale * 1.35, 3.4, 8.2);
+        ball.position.x = targetX * 0.35;
         velocity.set(lateral, lift, forward);
         started = true;
         setToast('AI serving · defend!');
@@ -320,7 +325,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       lastX = t.clientX;
       lastY = t.clientY;
       const targetX = screenToCourt(t.clientX);
-      player.position.x += (targetX - player.position.x) * 0.28;
+      const lerpFactor = mode === 'tabletennis' ? 0.42 : 0.34;
+      player.position.x += (targetX - player.position.x) * lerpFactor;
     }
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
@@ -382,18 +388,18 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       if (!started) return;
 
       const travel = Math.abs((enemy.position.z - ball.position.z) / Math.max(Math.abs(velocity.z), 0.001));
-      const predictedX = clampX(ball.position.x + velocity.x * travel * 0.85);
-      enemy.position.x += (predictedX - enemy.position.x) * blend(0.16, dt);
+      const predictedX = clampX(ball.position.x + velocity.x * travel * 0.9);
+      enemy.position.x += (predictedX - enemy.position.x) * blend(0.2, dt);
 
       const hitWindow = Math.max(halfW * 0.08, config.ballRadius * 8);
       const approachingEnemy = velocity.z < 0 && ball.position.z < enemy.position.z + hitWindow;
       if (approachingEnemy && ball.position.distanceTo(enemy.position) < hitWindow) {
-        const targetX = clampX(player.position.x + (Math.random() - 0.5) * halfW * 0.35);
-        const aiPower = THREE.MathUtils.clamp(10 + Math.abs(velocity.z) * 0.35, 8, 20);
+        const targetX = clampX(player.position.x + (Math.random() - 0.5) * halfW * 0.28);
+        const aiPower = THREE.MathUtils.clamp(11.5 + Math.abs(velocity.z) * 0.42, 10, 22);
         const powerScale = aiPower / BASE_POWER;
-        const aimForward = THREE.MathUtils.clamp((Math.abs(velocity.z) + 3.4) * powerScale, 4 * (config.courtL / BASE_CONFIG.courtL), 12 * (config.courtL / BASE_CONFIG.courtL));
-        const aimLateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 0.95, -2.4, 2.4);
-        const lift = THREE.MathUtils.clamp(3.2 + powerScale * 1.2 + Math.random() * 0.9, 3, 9);
+        const aimForward = THREE.MathUtils.clamp((Math.abs(velocity.z) + 4) * powerScale, 6 * (config.courtL / BASE_CONFIG.courtL), 13.2 * (config.courtL / BASE_CONFIG.courtL));
+        const aimLateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.05, -2.8, 2.8);
+        const lift = THREE.MathUtils.clamp(3.6 + powerScale * 1.25 + Math.random() * 1.1, 3.2, 9.2);
         velocity.set(aimLateral, lift, Math.abs(aimForward));
         enemySwing = 1.05;
       }
@@ -419,16 +425,17 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     }
 
     function updateCamera(dt) {
-      const followStrength = mode === 'tabletennis' ? 0.2 : 0.1;
+      const followStrength = mode === 'tabletennis' ? 0.24 : 0.14;
       const yLift = config.tableHeight + THREE.MathUtils.lerp(
         config.cameraHeight,
         config.cameraHeight * 0.65,
         Math.min((ball.position.y - config.tableHeight) * 0.4, 1)
       );
-      const cameraDepth = Math.max(ball.position.z, 0) + config.cameraOffset * (mode === 'tabletennis' ? 0.72 : 0.95);
+      const depthLead = started ? THREE.MathUtils.clamp(velocity.z * 0.22, -2.4, 3.6) : 0;
+      const cameraDepth = Math.max(ball.position.z + depthLead, 0) + config.cameraOffset * (mode === 'tabletennis' ? 0.72 : 0.95);
       const maxDepth = halfL - config.playerZOffset + config.cameraOffset * 0.35;
       cameraTarget.set(
-        THREE.MathUtils.clamp(ball.position.x * 0.85, -halfW, halfW),
+        THREE.MathUtils.clamp(ball.position.x * 0.9, -halfW, halfW),
         yLift,
         THREE.MathUtils.clamp(cameraDepth, config.tableHeight + config.ballRadius + 0.12, maxDepth)
       );
