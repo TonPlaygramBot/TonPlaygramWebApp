@@ -602,7 +602,7 @@ const DEFAULT_APPEARANCE = {
   chairColor: 0,
   tableShape: 0,
   boardColor: 0,
-  pieceStyle: 0
+  pieceStyle: Math.max(0, PIECE_STYLE_OPTIONS.findIndex((option) => option.id === 'kenneyWood'))
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const MOVE_MODE_STORAGE_KEY = 'chessBattleRoyalMoveMode';
@@ -1560,13 +1560,31 @@ async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
 }
 
 async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  return loadPieceSetFromUrls(KENNEY_SET_URLS, {
-    targetBoardSize,
-    styleId: 'kenneyWood',
-    pieceStyle: KENNEY_WOOD_STYLE,
-    assetScale: 0.9,
-    fallbackBuilder: buildKenneyFallbackAssets
-  });
+  const [kenneyResult, beautifulBoardResult] = await Promise.allSettled([
+    loadPieceSetFromUrls(KENNEY_SET_URLS, {
+      targetBoardSize,
+      styleId: 'kenneyWood',
+      pieceStyle: KENNEY_WOOD_STYLE,
+      assetScale: BEAUTIFUL_GAME_ASSET_SCALE,
+      fallbackBuilder: buildKenneyFallbackAssets
+    }),
+    resolveBeautifulGameAssets(targetBoardSize)
+  ]);
+
+  const kenneyAssets = kenneyResult.status === 'fulfilled' ? kenneyResult.value : null;
+  const beautifulBoard =
+    beautifulBoardResult.status === 'fulfilled' ? beautifulBoardResult.value : null;
+
+  const boardModel = beautifulBoard?.boardModel || kenneyAssets?.boardModel || null;
+  const piecePrototypes = kenneyAssets?.piecePrototypes || null;
+
+  if (!piecePrototypes) {
+    throw kenneyResult.status === 'rejected'
+      ? kenneyResult.reason
+      : new Error('Kenney chess pieces failed to load');
+  }
+
+  return { boardModel, piecePrototypes };
 }
 
 async function loadPolygonalAssets(targetBoardSize = RAW_BOARD_SIZE) {
