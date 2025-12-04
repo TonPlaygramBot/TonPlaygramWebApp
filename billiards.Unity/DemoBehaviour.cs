@@ -17,7 +17,7 @@ public class DemoBehaviour : MonoBehaviour
     // smaller adjustments for more precise shots so the player can line up
     // accurate shots without the aim jumping in large steps.
     public float aimSmoothing = 4f;
-    public float previewSpeed = 2.0f;
+    public float previewSpeed = 3.0f;
     // Toggle whether the aiming guide should be visible. Defaults to off for broadcast play.
     public bool showAimingLine = false;
 
