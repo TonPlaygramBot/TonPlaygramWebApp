@@ -224,9 +224,6 @@ const BEAUTIFUL_GAME_URLS = [
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
 ];
 
-const BEAUTIFUL_GAME_MODEL_VIEW_URL =
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf';
-
 const BEAUTIFUL_GAME_TOUCH_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
@@ -290,6 +287,11 @@ const BOARD_COLOR_OPTIONS = Object.freeze([
   BEAUTIFUL_GAME_BOARD_OPTION,
   ...BOARD_COLOR_BASE_OPTIONS
 ]);
+
+const BEAUTIFUL_GAME_BOARD_INDEX = Math.max(
+  0,
+  BOARD_COLOR_OPTIONS.findIndex((option) => option.id === BEAUTIFUL_GAME_BOARD_OPTION.id)
+);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -556,6 +558,11 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     loader: (targetBoardSize) => resolveBeautifulGameTouchAssets(targetBoardSize)
   }
 ]);
+
+const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
+  0,
+  PIECE_STYLE_OPTIONS.findIndex((option) => option.id === 'beautifulGameTouch')
+);
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -3819,82 +3826,6 @@ function bestBlackMove(board, depth = 4) {
 const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
-function BeautifulGameModelViewer({ onClose }) {
-  const [viewerReady, setViewerReady] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-
-    const markReady = () => setViewerReady(true);
-    if (window.customElements?.get?.('model-viewer')) {
-      markReady();
-      return undefined;
-    }
-
-    const existing = document.querySelector('script[data-model-viewer-script]');
-    if (existing) {
-      existing.addEventListener('load', markReady, { once: true });
-      existing.addEventListener('error', () => setViewerReady(false), { once: true });
-      return () => {
-        existing.removeEventListener('load', markReady);
-      };
-    }
-
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = 'https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js';
-    script.dataset.modelViewerScript = 'true';
-    script.onload = markReady;
-    script.onerror = () => setViewerReady(false);
-    document.head.appendChild(script);
-
-    return () => {
-      script.onload = null;
-      script.onerror = null;
-    };
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 px-3 py-6 backdrop-blur-md">
-      <div className="relative h-[70vh] w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-[#1c1f2a] via-[#0b0d16] to-black shadow-2xl">
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute right-3 top-3 z-10 rounded-full bg-black/60 p-2 text-white/80 shadow-lg ring-1 ring-white/10 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-          aria-label="Close A Beautiful Game viewer"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-4 w-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
-          </svg>
-        </button>
-        <div className="h-full w-full">
-          {viewerReady ? (
-            <model-viewer
-              src={BEAUTIFUL_GAME_MODEL_VIEW_URL}
-              alt="A Beautiful Game - open source chess set"
-              camera-controls
-              auto-rotate
-              autoplay
-              exposure="1.0"
-              shadow-intensity="1"
-              style={{
-                width: '100%',
-                height: '100%',
-                background: 'radial-gradient(circle at top, #333 0, #050509 55%, #000 100%)',
-                borderRadius: '18px'
-              }}
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,_#333_0,_#050509_55%,_#000_100%)] text-center text-sm text-white/80">
-              Po ngarkohet fusha dhe gurët 3D ABeautifulGame.gltf...
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ======================= Main Component =======================
 function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const wrapRef = useRef(null);
@@ -3969,7 +3900,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const initialWhiteTimeRef = useRef(60);
   const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
-  const [showModelViewer, setShowModelViewer] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
   const [moveMode, setMoveMode] = useState(() => {
@@ -4082,6 +4012,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     return null;
   }, []);
+
+  const applyBeautifulGameSet = useCallback(() => {
+    setAppearance((prev) =>
+      normalizeAppearance({
+        ...prev,
+        boardColor: BEAUTIFUL_GAME_BOARD_INDEX,
+        pieceStyle: BEAUTIFUL_GAME_PIECE_INDEX
+      })
+    );
+  }, [setAppearance]);
 
   const resetAppearance = useCallback(() => {
     setAppearance({ ...DEFAULT_APPEARANCE });
@@ -5800,7 +5740,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
-      {showModelViewer && <BeautifulGameModelViewer onClose={() => setShowModelViewer(false)} />}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
@@ -5924,15 +5863,15 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">A Beautiful Game</p>
                       <p className="mt-1 text-[0.7rem] text-white/60">
-                        Opsionale: hap pamjen e plotë glTF si te demonstrimi zyrtar, prit pak sekonda për t'u shkarkuar.
+                        Zgjidh tabelën dhe gurët origjinalë nga opsionet e personalizimit më poshtë për t’i përdorur në lojë.
                       </p>
                     </div>
                     <button
                       type="button"
-                      onClick={() => setShowModelViewer(true)}
-                      className="rounded-lg border border-sky-400/60 bg-sky-400/10 px-2 py-1 text-[0.65rem] font-semibold text-sky-100 transition hover:bg-sky-400/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                      onClick={applyBeautifulGameSet}
+                      className="rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-2 py-1 text-[0.65rem] font-semibold text-emerald-100 transition hover:bg-emerald-400/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                     >
-                      Hap viewer
+                      Përdor setin
                     </button>
                   </div>
                 </div>
