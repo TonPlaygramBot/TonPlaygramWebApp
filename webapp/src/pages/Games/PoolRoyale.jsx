@@ -416,11 +416,11 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.76; // push the side fascia farther along the arch so it blankets the larger chrome reveal and visibly wraps the pocket cut on both flanks
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.08; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~50% boost)
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.3; // push the side fascia farther along the arch so it blankets the larger chrome reveal
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.58; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.18; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1.14; // expand the straight fascia span beside middle pockets so the plates visibly widen around the chrome cut
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1.05; // expand the straight fascia span beside middle pockets so the plates visibly widen around the chrome cut
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.072; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.1005; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
@@ -10817,11 +10817,6 @@ function PoolRoyaleGame({
             focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
             lerp: 0.18
           };
-          const topViewActive = topViewRef.current === true;
-          if (topViewActive && activeShotView?.mode === 'action') {
-            suspendedActionView = null;
-            activeShotView = null;
-          }
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
           if (broadcastSystem?.smoothing != null) {
