@@ -619,12 +619,6 @@ const DEFAULT_APPEARANCE = {
   pieceStyle: Math.max(0, PIECE_STYLE_OPTIONS.findIndex((option) => option.id === 'kenneyWood'))
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
-const MOVE_MODE_STORAGE_KEY = 'chessBattleRoyalMoveMode';
-const MOVE_MODE_OPTIONS = [
-  { id: 'click', label: 'Click to move' },
-  { id: 'drag', label: 'Drag & drop' }
-];
-
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
     id: 'crimsonVelvet',
@@ -3844,7 +3838,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
-  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
+  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'drag' });
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -3901,14 +3895,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
-  const [moveMode, setMoveMode] = useState(() => {
-    if (typeof window === 'undefined') return 'click';
-    try {
-      const stored = window.localStorage?.getItem(MOVE_MODE_STORAGE_KEY);
-      if (stored === 'drag' || stored === 'click') return stored;
-    } catch {}
-    return 'click';
-  });
+  const [moveMode, setMoveMode] = useState('drag');
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
   const [ui, setUi] = useState({
@@ -3933,6 +3920,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     viewModeRef.current = viewMode;
     cameraViewRef.current?.setMode(viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    setMoveMode(viewMode === '3d' ? 'click' : 'drag');
   }, [viewMode]);
 
   const renderCustomizationPreview = useCallback((key, option) => {
@@ -4158,10 +4149,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   useEffect(() => {
     settingsRef.current.moveMode = moveMode;
-    if (typeof window === 'undefined') return;
-    try {
-      window.localStorage?.setItem(MOVE_MODE_STORAGE_KEY, moveMode);
-    } catch {}
   }, [moveMode]);
 
   useEffect(() => {
@@ -5818,45 +5805,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     onChange={(event) => setShowHighlights(event.target.checked)}
                   />
                 </label>
-                <div className="space-y-2 text-[0.7rem] text-gray-200">
-                  <p>Piece control</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {MOVE_MODE_OPTIONS.map((option) => {
-                      const active = moveMode === option.id;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setMoveMode(option.id)}
-                          className={`rounded-lg border px-2 py-2 text-left font-semibold transition ${
-                            active
-                              ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-100'
-                              : 'border-white/10 bg-white/5 text-white/80 hover:border-white/30'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    fitRef.current?.();
-                    setConfigOpen(false);
-                  }}
-                  className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
-                >
-                  Center camera
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-                >
-                  Restart match
-                </button>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
