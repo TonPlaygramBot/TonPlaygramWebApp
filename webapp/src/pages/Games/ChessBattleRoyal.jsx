@@ -401,17 +401,38 @@ function createGraniteTexture(color = '#d9d7d1', seed = 1, repeat = 2.4) {
   return texture;
 }
 
-function loadTexture(url) {
+function createFallbackTexture(color = '#888888') {
+  const size = 2;
+  const data = new Uint8Array(size * size * 3);
+  const col = new THREE.Color(color);
+  for (let i = 0; i < size * size; i += 1) {
+    const idx = i * 3;
+    data[idx] = Math.round(col.r * 255);
+    data[idx + 1] = Math.round(col.g * 255);
+    data[idx + 2] = Math.round(col.b * 255);
+  }
+  const texture = new THREE.DataTexture(data, size, size, THREE.RGBFormat);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.needsUpdate = true;
+  applySRGBColorSpace(texture);
+  return texture;
+}
+
+function loadTexture(url, fallbackColor = '#888888') {
   const cached = TEXTURE_CACHE.get(url);
   if (cached) return cached;
   const loader = new THREE.TextureLoader();
   loader.setCrossOrigin('anonymous');
-  const promise = new Promise((resolve, reject) => {
+  const promise = new Promise((resolve) => {
     loader.load(url, (texture) => {
       texture.wrapS = THREE.RepeatWrapping;
       texture.wrapT = THREE.RepeatWrapping;
       resolve(texture);
-    }, undefined, reject);
+    }, undefined, (error) => {
+      console.warn(`Chess Battle Royal: failed to load texture ${url}, using fallback`, error);
+      resolve(createFallbackTexture(fallbackColor));
+    });
   });
   TEXTURE_CACHE.set(url, promise);
   return promise;
@@ -1303,7 +1324,18 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
     }
   }
   if (options?.fallbackBuilder) {
-    return options.fallbackBuilder(options.targetBoardSize || RAW_BOARD_SIZE, options.pieceStyle);
+    const fallbackAssets = await options.fallbackBuilder(
+      options.targetBoardSize || RAW_BOARD_SIZE,
+      options.pieceStyle
+    );
+    if (fallbackAssets && typeof fallbackAssets === 'object') {
+      fallbackAssets.userData = {
+        ...(fallbackAssets.userData || {}),
+        proceduralAssets: true,
+        styleId: options.styleId || options.name || 'fallbackProcedural'
+      };
+    }
+    return fallbackAssets;
   }
   if (lastError) throw lastError;
   throw new Error('Chess set model failed to load');
@@ -1350,6 +1382,7 @@ function applyTextureSetToMaterial(baseMaterial, textureSet, { tint, roughness, 
 
 async function applyTextureProfileToAssets(assets, profile) {
   if (!assets?.piecePrototypes) return assets;
+  if (assets?.userData?.proceduralAssets) return assets;
   const [whiteTextures, blackTextures] = await Promise.all([
     resolveTextureSet(profile.white),
     resolveTextureSet(profile.black)
@@ -4167,6 +4200,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const pieceSetLoader =
       pieceSetOption?.loader ??
       ((size) => buildSculptedAssets(size, SCULPTED_DRAG_STYLE, DEFAULT_PIECE_SET_ID));
+    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -4223,7 +4257,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     const shouldSwapPieces = !arena.activePieceSetId || nextPieceSetId !== arena.activePieceSetId;
     if (shouldSwapPieces) {
-      pieceSetLoader(RAW_BOARD_SIZE)
+      loadPieceSet(RAW_BOARD_SIZE)
         .then((assets) => {
           if (!arenaRef.current) return;
           arenaRef.current.applyPieceSetAssets?.(assets, nextPieceSetId);
@@ -4343,6 +4377,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const pieceSetLoader =
       pieceSetOption?.loader ??
       ((size) => buildSculptedAssets(size, SCULPTED_DRAG_STYLE, DEFAULT_PIECE_SET_ID));
+    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
     const initialPlayerFlag =
       playerFlag ||
       resolvedInitialFlag ||
@@ -4358,7 +4393,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     disposers.push(() => {
       disposePieceMaterials(pieceMaterials);
     });
-    const pieceSetPromise = pieceSetLoader(RAW_BOARD_SIZE);
+    const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
     const playAudio = (audioRef) => {
       if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
       try {
@@ -5074,6 +5109,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         console.error('Chess Battle Royal: failed to resolve chess set', error);
       });
 
+    if (typeof window !== 'undefined' && import.meta?.env?.DEV) {
+      window.__CHESS_DEBUG__ = { renderer, scene, camera, controls };
+    }
+
       arenaRef.current = {
         renderer,
         scene,
@@ -5582,7 +5621,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     startTimer(true);
   };
 
-    setup();
+    setup().catch((error) => {
+      console.error('Chess Battle Royal: scene setup failed', error);
+    });
 
     return () => {
       cancelled = true;
