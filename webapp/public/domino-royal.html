@@ -339,30 +339,17 @@ const VIEW_MODES = Object.freeze({ threeD: '3d', twoD: '2d' });
 let cameraViewMode = VIEW_MODES.threeD;
 
 const urlParams = new URLSearchParams(window.location.search);
-
-function normalizeAvatarSource(src = '') {
-  const trimmed = src.trim();
-  if (!trimmed) return '';
-  if (trimmed.startsWith('http') || trimmed.startsWith('data:') || trimmed.startsWith('/')) {
-    return trimmed;
-  }
-  if (trimmed.startsWith('assets/')) {
-    return `/${trimmed}`;
-  }
-  return trimmed;
-}
-
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
 const shouldRunHallwayEntry = entryMode === 'hallway';
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
 const accountId = (urlParams.get('accountId') || '').trim();
 const telegramId = (urlParams.get('tgId') || urlParams.get('telegramId') || '').trim();
-let seatAvatarPhoto = normalizeAvatarSource(urlParams.get('avatar') || '');
+let seatAvatarPhoto = (urlParams.get('avatar') || '').trim();
 let seatAvatarUsername = (urlParams.get('username') || '').trim();
 const lobbyAvatarFallback = (() => {
   try {
-    return normalizeAvatarSource(localStorage.getItem('profilePhoto') || '');
+    return localStorage.getItem('profilePhoto') || '';
   } catch (error) {
     console.warn('Unable to read lobby avatar fallback', error);
     return '';
@@ -445,7 +432,7 @@ async function loadHumanProfileFromApi() {
     const user = await window.fbApi.getUserInfo({ accountId, tgId: telegramId });
     if (user) {
       if (!seatAvatarPhoto) {
-        seatAvatarPhoto = normalizeAvatarSource(user.photo_url || '');
+        seatAvatarPhoto = (user.photo_url || '').trim();
       }
       if (!seatAvatarUsername) {
         seatAvatarUsername = (user.username || user.first_name || user.last_name || '').trim();
@@ -2667,10 +2654,7 @@ function buildSeatAvatarSources(count = N) {
   const total = Math.max(1, count);
   return Array.from({ length: total }, (_, idx) => {
     if (idx === HUMAN_SEAT_INDEX) {
-      const preferred =
-        normalizeAvatarSource(seatAvatarPhoto) ||
-        lobbyAvatarFallback ||
-        (aiAvatarMode === 'flags' ? selectedFlagAvatars[idx] : '');
+      const preferred = seatAvatarPhoto || lobbyAvatarFallback || (aiAvatarMode === 'flags' ? selectedFlagAvatars[idx] : '');
       return preferred || pickFlagForSeat(idx);
     }
     if (aiAvatarMode === 'flags') {
