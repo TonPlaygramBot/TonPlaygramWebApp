@@ -252,7 +252,7 @@ const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.01; // tighten the middle pocket arches and pull their curve inward
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.026; // mirror the Pool Royale middle pocket arch radius so chrome hugs the same curve
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
@@ -267,10 +267,10 @@ const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.34;
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.052; // pull the chrome arches closer to centre so the middle pocket jaws tuck in
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // match Pool Royale by pulling the chrome arches further toward centre
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.107; // pull the middle pocket wood cuts further inward toward centre
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // align middle pocket wood cuts with Pool Royale's centred arches
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
@@ -534,7 +534,7 @@ const BLACK_FROM_TOP_REF = 558.8;
 const CORNER_MOUTH_REF = 114.3;
 const SIDE_MOUTH_REF = 127;
 const CORNER_POCKET_SCALE_BOOST = 0.994;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996;
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002;
 const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -589,10 +589,10 @@ const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // match Pool Royale corner pocket offset so the cuts sit farther toward each pocket mouth
 const CORNER_RAIL_CUT_INSET =
   POCKET_VIS_R * 0.52 * POCKET_VISUAL_EXPANSION; // preserve the existing chrome/wood cut positioning for jaws and fascia
-const MIDDLE_POCKET_LONGITUDINAL_OFFSET = POCKET_VIS_R * 0.082; // push middle pockets and rail cuts farther from the table centre
+const MIDDLE_POCKET_LONGITUDINAL_OFFSET = POCKET_VIS_R * 0.1; // push middle pockets and rail cuts to Pool Royale's centre offset
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const MIDDLE_POCKET_LATERAL_INSET =
-  SIDE_POCKET_RADIUS * 0.92 * POCKET_VISUAL_EXPANSION; // pull middle pockets further off the rails toward centre
+  SIDE_POCKET_RADIUS * 0.9 * POCKET_VISUAL_EXPANSION; // tuck middle pockets inward to align with Pool Royale fascia
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -2920,27 +2920,27 @@ function applySnookerScaling({
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
 const STANDING_VIEW_PHI = 0.95; // lower the standing orbit closer to the cloth while keeping clearance
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0018;
+const STANDING_VIEW_MARGIN = 0.0012;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14; // allow a lower sweep so the player camera sits nearer the rail
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.015; // pull the orbit camera closer to the rail without clipping
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.012; // pull the orbit camera closer to the rail without clipping
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0018;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0014;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0009;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.0006;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
-  nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
-  portrait: Object.freeze({ cue: 0.92, broadcast: 0.95, margin: 0.98 }),
-  ultraPortrait: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.97 })
+  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.97 }),
+  portrait: Object.freeze({ cue: 0.86, broadcast: 0.92, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.95 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -9177,7 +9177,9 @@ function SnookerGame() {
             forcedEarly
           };
         };
-        const fit = (m = STANDING_VIEW.margin) => {
+        const fit = (m = STANDING_VIEW.margin, opts = {}) => {
+          const { skipBlend } = opts;
+          const shouldSkipBlend = skipBlend ?? topViewRef.current;
           camera.aspect = host.clientWidth / host.clientHeight;
           const aspect = camera.aspect;
           const zoomProfile = resolveCameraZoomProfile(aspect);
@@ -9230,27 +9232,29 @@ function SnookerGame() {
             cueShot: { phi: cuePhi, radius: cueRadius },
             standing: { phi: standingPhi, radius: standingRadius }
           };
-          applyCameraBlend();
           orbitRadiusLimitRef.current = standingRadius;
-          const orbitTargetY =
-            orbitFocusRef.current?.target?.y ?? ORBIT_FOCUS_BASE_Y;
-          const cueClearance = Math.max(
-            0,
-            CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
-          );
-          const cushionLimit = Math.max(
-            TABLE.THICK * 0.5,
-            (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE,
-            cueClearance
-          );
-          const phiCap = Math.acos(
-            THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
-          );
-          if (sph.phi > phiCap) {
-            sph.phi = Math.max(CAMERA.minPhi, phiCap);
-            syncBlendToSpherical();
+          if (!shouldSkipBlend) {
+            applyCameraBlend();
+            const orbitTargetY =
+              orbitFocusRef.current?.target?.y ?? ORBIT_FOCUS_BASE_Y;
+            const cueClearance = Math.max(
+              0,
+              CUE_Y + CAMERA_CUE_SURFACE_MARGIN - orbitTargetY
+            );
+            const cushionLimit = Math.max(
+              TABLE.THICK * 0.5,
+              (cushionHeightRef.current ?? TABLE.THICK) + CAMERA_CUSHION_CLEARANCE,
+              cueClearance
+            );
+            const phiCap = Math.acos(
+              THREE.MathUtils.clamp(cushionLimit / sph.radius, -1, 1)
+            );
+            if (sph.phi > phiCap) {
+              sph.phi = Math.max(CAMERA.minPhi, phiCap);
+              syncBlendToSpherical();
+            }
+            updateCamera();
           }
-          updateCamera();
           camera.updateProjectionMatrix();
         };
         cameraRef.current = camera;
