@@ -46,6 +46,7 @@ public class BilliardsSolver
         double cornerCut = cornerMouth / Math.Sqrt(2.0);
         double sideCut = sideMouth / 2.0;
         double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8);
+        double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
 
         // Straight cushion spans (long rails)
         AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut, 0), new Vec2(0, 1));
@@ -66,19 +67,19 @@ public class BilliardsSolver
         AddCornerJaw(new Vec2(cornerCut, height - cornerCut), cornerCut, 0.5 * Math.PI, Math.PI, cornerSegments);
 
         int sideSegments = Math.Max(6, PhysicsConstants.SideJawSegments);
-        AddSidePocketJaw(new Vec2(width / 2, 0), sideCut, sideDepth, true, sideSegments);
-        AddSidePocketJaw(new Vec2(width / 2, height), sideCut, sideDepth, false, sideSegments);
-        AddSidePocketJaw(new Vec2(0, height / 2), sideCut, sideDepth, true, sideSegments, vertical: true);
-        AddSidePocketJaw(new Vec2(width, height / 2), sideCut, sideDepth, false, sideSegments, vertical: true);
+        AddSidePocketJaw(new Vec2(width / 2, 0 - sideOutset), sideCut, sideDepth, true, sideSegments);
+        AddSidePocketJaw(new Vec2(width / 2, height + sideOutset), sideCut, sideDepth, false, sideSegments);
+        AddSidePocketJaw(new Vec2(0 - sideOutset, height / 2), sideCut, sideDepth, true, sideSegments, vertical: true);
+        AddSidePocketJaw(new Vec2(width + sideOutset, height / 2), sideCut, sideDepth, false, sideSegments, vertical: true);
 
         double capture = Math.Max(PhysicsConstants.BallRadius * 1.05, PhysicsConstants.PocketCaptureRadius);
         Pockets.Add(new Pocket { Center = new Vec2(0, 0), Radius = capture });
-        Pockets.Add(new Pocket { Center = new Vec2(width / 2, 0), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width / 2, 0 - sideOutset), Radius = capture });
         Pockets.Add(new Pocket { Center = new Vec2(width, 0), Radius = capture });
-        Pockets.Add(new Pocket { Center = new Vec2(0, height / 2), Radius = capture });
-        Pockets.Add(new Pocket { Center = new Vec2(width, height / 2), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(0 - sideOutset, height / 2), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width + sideOutset, height / 2), Radius = capture });
         Pockets.Add(new Pocket { Center = new Vec2(0, height), Radius = capture });
-        Pockets.Add(new Pocket { Center = new Vec2(width / 2, height), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width / 2, height + sideOutset), Radius = capture });
         Pockets.Add(new Pocket { Center = new Vec2(width, height), Radius = capture });
     }
 
