@@ -76,9 +76,9 @@
     </div>
   </div>
 </div>
-<div class="boardWrap">
+  <div class="boardWrap">
   <div id="mount" aria-label="3D Chess"></div>
-  <div id="badge">Loading ABeautifulGame…</div>
+  <div id="badge">Loading chess set…</div>
 </div>
 <div class="ui">
   <div class="scoreboard">
@@ -92,6 +92,12 @@
     <button id="zoomOut" aria-label="Zoom out">−</button>
     <label>Zoom <input type="range" id="zoom" min="70" max="140" step="1" value="100"></label>
     <button id="zoomIn" aria-label="Zoom in">+</button>
+    <label>Move
+      <select id="moveMode">
+        <option value="drag">Drag</option>
+        <option value="click">Click</option>
+      </select>
+    </label>
   </div>
 </div>
 <script src="/flag-emojis.js"></script>
@@ -118,6 +124,7 @@ const cancelLobby = document.getElementById('cancelLobby');
 const zoomInput = document.getElementById('zoom');
 const zoomOutBtn = document.getElementById('zoomOut');
 const zoomInBtn = document.getElementById('zoomIn');
+const moveModeSelect = document.getElementById('moveMode');
 const badge = document.getElementById('badge');
 let aiMode=false; let zoomLevel=1; let camera,controls,renderer; let ready=false; let aiTimer=null;
 
@@ -192,12 +199,74 @@ hydrateDefaults();
 setMode('online');
 
 // === Three.js + chess visuals ===
-let THREE, scene, ray; let modelRoot=null; let boardY=0; let origin=new Float32Array(2); let vx=new Float32Array(2); let vz=new Float32Array(2); let stepX=1, stepZ=1; let piecesBySquare={}; let proto={w:{},b:{}}; let extraNodes=[]; let initialPositions=null; let baseCameraPos=null;
-let dragging=false, dragNode=null, dragFromSq=null, selectedSq=null; let down={x:0,y:0}; const DRAG_PX=8; const dragLift=0.06; const GLOBAL_SCALE=0.5;
+let THREE, scene, ray; let boardY=0; let origin=new Float32Array(2); let vx=new Float32Array(2); let vz=new Float32Array(2); let stepX=1, stepZ=1; let piecesBySquare={}; let initialPositions=null; let baseCameraPos=null;
+let dragging=false, dragNode=null, dragFromSq=null, selectedSq=null; let down={x:0,y:0}; const DRAG_PX=8; const dragLift=0.06; let moveMode='drag';
 const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js','https://unpkg.com/three@0.159.0/build/three.module.js','https://esm.sh/three@0.159.0','https://cdn.skypack.dev/three@0.159.0'];
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
-const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
-const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
+let pieceGeoms=null; let pieceMaterials=null;
+function mergeG(geos){
+  let totalV=0; const posArrs=[], normArrs=[], uvArrs=[];
+  for(let g of geos){ g=g.toNonIndexed(); const p=g.getAttribute('position'); const n=g.getAttribute('normal'); const u=g.getAttribute('uv');
+    posArrs.push(p.array); normArrs.push(n? n.array: new Float32Array(p.count*3)); uvArrs.push(u? u.array: new Float32Array(p.count*2)); totalV+=p.count; }
+  const pos=new Float32Array(totalV*3), nor=new Float32Array(totalV*3), uv=new Float32Array(totalV*2);
+  let vp=0,np=0,up=0; for(let i=0;i<posArrs.length;i++){ pos.set(posArrs[i],vp); nor.set(normArrs[i],np); uv.set(uvArrs[i],up); vp+=posArrs[i].length; np+=normArrs[i].length; up+=uvArrs[i].length; }
+  const out=new THREE.BufferGeometry(); out.setAttribute('position', new THREE.BufferAttribute(pos,3)); out.setAttribute('normal', new THREE.BufferAttribute(nor,3)); out.setAttribute('uv', new THREE.BufferAttribute(uv,2)); out.computeVertexNormals(); return out;
+}
+function centerGeometryY(g){ g.computeBoundingBox(); const b=g.boundingBox; const off=-b.min.y; g.translate(0,off,0); return g; }
+function lathe(points,r=96){ return new THREE.LatheGeometry(points,r); }
+function prof(...pairs){ return pairs.map(([x,y])=>new THREE.Vector2(x,y)); }
+function pawnGeom(){ const p=prof([0.00,0.0],[0.36,0.0],[0.44,0.06],[0.52,0.12],[0.58,0.18],[0.54,0.24],[0.46,0.32],[0.36,0.46],[0.30,0.62],[0.28,0.74],[0.00,0.74]);
+  const base=lathe(p,128); const head=new THREE.SphereGeometry(0.26,48,36); head.translate(0,1.02,0); return centerGeometryY(mergeG([base,head])); }
+function rookGeom(){ const p=prof([0,0],[0.58,0],[0.62,0.06],[0.62,0.10],[0.54,0.20],[0.46,0.30],[0.42,0.54],[0.46,0.74],[0.56,0.86],[0.60,0.94],[0.00,0.94]); const body=lathe(p,128); const top=new THREE.CylinderGeometry(0.54,0.54,0.08,36); top.translate(0,1.02,0); const cren=new THREE.CylinderGeometry(0.62,0.62,0.10,20,1,true); cren.translate(0,1.10,0); return centerGeometryY(mergeG([body,top,cren])); }
+function bishopGeom(){ const p=prof([0,0],[0.58,0],[0.62,0.06],[0.62,0.10],[0.52,0.20],[0.42,0.36],[0.34,0.72],[0.30,0.98],[0.24,1.10],[0.00,1.10]); const body=lathe(p,128); const head=new THREE.SphereGeometry(0.22,42,32); head.translate(0,1.28,0); return centerGeometryY(mergeG([body,head])); }
+function queenGeom(){ const p=prof([0,0],[0.62,0],[0.66,0.06],[0.68,0.10],[0.58,0.22],[0.48,0.36],[0.42,0.76],[0.38,1.00],[0.34,1.16],[0.30,1.26],[0.00,1.26]); const body=lathe(p,128); const crown=new THREE.TorusGeometry(0.34,0.05,16,48); crown.rotateX(Math.PI/2); crown.translate(0,1.34,0); const pearl=new THREE.SphereGeometry(0.18,36,28); pearl.translate(0,1.52,0); return centerGeometryY(mergeG([body,crown,pearl])); }
+function kingGeom(){ const p=prof([0,0],[0.64,0],[0.70,0.06],[0.72,0.10],[0.60,0.22],[0.50,0.38],[0.44,0.82],[0.42,1.08],[0.38,1.26],[0.36,1.38],[0.00,1.38]); const body=lathe(p,128); const rim=new THREE.TorusGeometry(0.36,0.05,16,48); rim.rotateX(Math.PI/2); rim.translate(0,1.44,0); const crossV=new THREE.BoxGeometry(0.06,0.32,0.06); crossV.translate(0,1.66,0); const crossH=new THREE.BoxGeometry(0.22,0.06,0.06); crossH.translate(0,1.66,0); return centerGeometryY(mergeG([body,rim,crossV,crossH])); }
+function knightGeom(){ const s=new THREE.Shape(); const pts=[[-0.30,0.00],[-0.08,0.06],[0.10,0.38],[0.26,0.50],[0.38,0.64],[0.22,0.70],[0.10,0.66],[0.02,0.80],[0.10,1.00],[0.02,1.06],[-0.08,0.92],[-0.22,0.82],[-0.28,0.66],[-0.36,0.54],[-0.34,0.42],[-0.24,0.34],[-0.28,0.20],[-0.36,0.10]]; s.moveTo(pts[0][0],pts[0][1]); for(let i=1;i<pts.length;i++) s.lineTo(pts[i][0],pts[i][1]); s.lineTo(-0.30,0.00);
+  const ex=new THREE.ExtrudeGeometry(s,{depth:0.30, bevelEnabled:true, bevelSize:0.02, bevelThickness:0.02}); ex.rotateY(Math.PI/2); ex.translate(0,0.92,0);
+  const base=lathe(prof([0,0],[0.58,0],[0.62,0.06],[0.62,0.10],[0.52,0.18],[0.48,0.28],[0.40,0.42],[0.34,0.56],[0.00,0.56]),96);
+  return centerGeometryY(mergeG([base,ex])); }
+
+function woodTex(w=1024,h=1024){
+  const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d');
+  g.fillStyle='#7a4f2a'; g.fillRect(0,0,w,h);
+  for(let y=0;y<h;y++){ const t=y/h; const hue=28; const sat=45; const lum=28+Math.sin(t*20+Math.sin(t*6))*6; g.fillStyle=`hsl(${hue} ${sat}% ${lum}%)`; g.globalAlpha=0.35; g.fillRect(0,y,w,1); }
+  g.globalAlpha=1; const img=g.getImageData(0,0,w,h); const d=img.data; for(let i=0;i<d.length;i+=4){ const n=((Math.random()*2-1)*4)|0; d[i]+=n; d[i+1]+=n; d[i+2]+=n; } g.putImageData(img,0,0);
+  const t=new THREE.CanvasTexture(c); t.anisotropy=8; return t;
+}
+
+function ensureAssets(){
+  if(pieceGeoms && pieceMaterials) return;
+  pieceGeoms={ p:pawnGeom(), r:rookGeom(), n:knightGeom(), b:bishopGeom(), q:queenGeom(), k:kingGeom() };
+  const mIvory=new THREE.MeshPhysicalMaterial({ color:0xf6f1e6, roughness:0.45, metalness:0.05, clearcoat:0.35, clearcoatRoughness:0.5, sheen:1, sheenRoughness:0.9 });
+  const mOnyx=new THREE.MeshPhysicalMaterial({ color:0x0f1217, roughness:0.32, metalness:0.5, clearcoat:0.45, clearcoatRoughness:0.4, sheen:1, sheenRoughness:0.9 });
+  pieceMaterials={ w:mIvory, b:mOnyx };
+}
+
+const BOARD_TILE=1.6, BOARD_SIZE=8, BOARD_THICK=0.26;
+function createBoard(){
+  ensureAssets();
+  stepX=BOARD_TILE; stepZ=BOARD_TILE; origin[0]=-BOARD_TILE*3.5; origin[1]=-BOARD_TILE*3.5; boardY=BOARD_THICK; vx[0]=BOARD_TILE; vx[1]=0; vz[0]=0; vz[1]=BOARD_TILE;
+  const boardGroup=new THREE.Group();
+  const edgeMat=new THREE.MeshStandardMaterial({ color:0x4b2f19, roughness:0.85, metalness:0.05, map:woodTex(1024,1024) });
+  const topMatLight=new THREE.MeshStandardMaterial({ color:0xbfa37a, roughness:0.92, metalness:0.06 });
+  const topMatDark=new THREE.MeshStandardMaterial({ color:0x6b4a2d, roughness:0.96, metalness:0.06 });
+  const base=new THREE.Mesh(new THREE.BoxGeometry(BOARD_SIZE*BOARD_TILE+1.6, BOARD_THICK, BOARD_SIZE*BOARD_TILE+1.6), edgeMat);
+  base.position.y=BOARD_THICK/2; base.receiveShadow=true; base.castShadow=true; boardGroup.add(base);
+  const tileGeo=new THREE.BoxGeometry(BOARD_TILE,0.04,BOARD_TILE);
+  for(let r=0;r<BOARD_SIZE;r++){
+    for(let c=0;c<BOARD_SIZE;c++){
+      const dark=(r+c)%2===1; const mat=(dark?topMatDark:topMatLight).clone();
+      const tile=new THREE.Mesh(tileGeo,mat); tile.receiveShadow=true; tile.castShadow=false;
+      const f=c, rr=7-r; const x=origin[0]+vx[0]*f+vz[0]*rr; const z=origin[1]+vx[1]*f+vz[1]*rr;
+      tile.position.set(x, boardY+0.02, z); boardGroup.add(tile);
+      const halo=new THREE.Mesh(new THREE.CircleGeometry(0.72,24), new THREE.MeshBasicMaterial({color:0x000000, transparent:true, opacity:0.1}));
+      halo.rotation.x=-Math.PI/2; halo.position.set(x, boardY+0.025, z); halo.renderOrder=1; boardGroup.add(halo);
+    }
+  }
+  return boardGroup;
+}
+
+function createPieceMesh(color,code){ ensureAssets(); const m=new THREE.Mesh(pieceGeoms[code], pieceMaterials[color].clone()); m.castShadow=true; m.receiveShadow=true; return m; }
 
 const files='abcdefgh';
 function rcToSq(r,c){ return files[c]+(8-r); }
@@ -264,23 +333,23 @@ function boot(){
   badge.textContent='Importing three…';
   tryUrls(THREE_URLS,u=>import(u))
   .then(NS=>{ THREE=((dst,src)=>{ for(const k in src){ try{ if(Object.prototype.hasOwnProperty.call(src,k)) dst[k]=src[k]; }catch(_){} } return dst; })({},NS); window.THREE=THREE; return tryUrls(ORBIT_URLS,u=>import(u)); })
-  .then(m1=>{ const OrbitControls=m1.OrbitControls; return tryUrls(GLTF_URLS,u=>import(u)).then(m2=>({OrbitControls,GLTFLoader:m2.GLTFLoader})); })
   .then(mod=>{
+    const OrbitControls=mod.OrbitControls;
     const mount=document.getElementById('mount');
     renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.setSize(mount.clientWidth||innerWidth, mount.clientHeight||innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.85; renderer.shadowMap.enabled=true; mount.appendChild(renderer.domElement);
     scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b0f16);
     camera=new THREE.PerspectiveCamera(45,(mount.clientWidth||innerWidth)/(mount.clientHeight||innerHeight),0.1,2000); camera.position.set(10,12,18); baseCameraPos=camera.position.clone();
-    controls=new mod.OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.dampingFactor=.06; controls.minDistance=4; controls.maxDistance=60; controls.target.set(0,2,0); controls.update(); controls.enablePan=false;
+    controls=new OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.dampingFactor=.06; controls.minDistance=4; controls.maxDistance=60; controls.target.set(0,2,0); controls.update(); controls.enablePan=false;
     const amb=new THREE.AmbientLight(0xffffff,.35); scene.add(amb);
     const key=new THREE.DirectionalLight(0xffffff,1.1); key.position.set(12,16,10); key.castShadow=true; scene.add(key);
     const fill=new THREE.DirectionalLight(0xffffff,.7); fill.position.set(-10,8,4); scene.add(fill);
     const rim=new THREE.DirectionalLight(0xffffff,.8); rim.position.set(0,10,-12); scene.add(rim);
     ray=new THREE.Raycaster(); window.addEventListener('resize',onResize);
+    const board=createBoard(); scene.add(board);
+    buildSet();
     startLoopOnce();
-    const loader=new mod.GLTFLoader();
-    badge.textContent='Downloading model…';
-    return tryUrls(MODEL_URLS,u=>new Promise((res,rej)=>{ loader.load(u,()=>res(u),undefined,rej); }))
-      .then(url=>{ loader.load(url, onModel, undefined, err=>{ throw err; }); });
+    const el=renderer.domElement; el.addEventListener('pointerdown',onPointerDown,{passive:false}); window.addEventListener('pointermove',onPointerMove,{passive:false}); window.addEventListener('pointerup',onPointerUp,{passive:false}); window.addEventListener('contextmenu',e=>{e.preventDefault();},{passive:false});
+    badge.textContent='Ready'; ready=true; updateTurn(); applyZoom();
   })
   .catch(e=>{ console.error(e); badge.textContent='Init failed'; badge.classList.add('fail'); startLoopOnce(); });
 }
@@ -288,46 +357,21 @@ function boot(){
 function onResize(){ if(!renderer||!camera) return; const m=document.getElementById('mount'); renderer.setSize(m.clientWidth||innerWidth,m.clientHeight||innerHeight); camera.aspect=(m.clientWidth||innerWidth)/(m.clientHeight||innerHeight); camera.updateProjectionMatrix(); }
 let __animStarted=false; function startLoopOnce(){ if(__animStarted) return; __animStarted=true; requestAnimationFrame(animate);} function animate(){ if(renderer && scene && camera){ if(controls) controls.update(); renderer.render(scene,camera);} requestAnimationFrame(animate);} 
 
-function pieceTypeFromName(name){ const s=(name||'').toLowerCase(); if(/rook/.test(s)) return 'r'; if(/knight/.test(s)) return 'n'; if(/bishop/.test(s)) return 'b'; if(/queen/.test(s)) return 'q'; if(/king/.test(s)) return 'k'; if(/pawn/.test(s)) return 'p'; return null; }
-function colorFromNameOrAnc(node){ let t=node; for(let i=0;i<4 && t; i++, t=t.parent){ const n=(t.name||'').toLowerCase(); if(/white/.test(n)) return 'w'; if(/black/.test(n)) return 'b'; } return null; }
-function ascendWhile(node,pred){ let t=node; while(t.parent && pred(t.parent)) t=t.parent; return t; }
-
-function onModel(gltf){
-  modelRoot=gltf.scene; modelRoot.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
-  const bb0=new THREE.Box3().setFromObject(modelRoot); const ctr0=new THREE.Vector3(); bb0.getCenter(ctr0); const size0=new THREE.Vector3(); bb0.getSize(size0);
-  const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=.02; scene.add(modelRoot);
-  const bb2=new THREE.Box3().setFromObject(modelRoot); boardY=(bb2.min.y+bb2.max.y)/2;
-  const pool={w:{p:[],r:[],n:[],b:[],q:[],k:[]}, b:{p:[],r:[],n:[],b:[],q:[],k:[]}}; const whiteRooks=[], blackRooks=[]; const seen=new Set();
-  modelRoot.traverse(node=>{ const t=pieceTypeFromName(node.name); if(!t) return; const c=colorFromNameOrAnc(node); if(!c) return; const root=ascendWhile(node,p=>pieceTypeFromName(p.name)===t); if(seen.has(root)) return; seen.add(root); pool[c][t].push(root); if(t==='r'){ if(c==='w') whiteRooks.push(root); else blackRooks.push(root);} if(!proto[c][t]) proto[c][t]=root; });
-  function nodeXZ(o){ const b=new THREE.Box3().setFromObject(o); const c=new THREE.Vector3(); b.getCenter(c); return [c.x,c.z]; }
-  let originXZ=[0,0];
-  if(whiteRooks.length>=2 && blackRooks.length>=2){
-    let a1=nodeXZ(whiteRooks[0]), a1b=nodeXZ(whiteRooks[1]);
-    let vxv=[a1b[0]-a1[0], a1b[1]-a1[1]]; let vxLen=Math.hypot(vxv[0],vxv[1]); if(vxLen<1e-6){ const tmp=a1; a1=a1b; a1b=tmp; vxv=[a1b[0]-a1[0], a1b[1]-a1[1]]; vxLen=Math.hypot(vxv[0],vxv[1]); }
-    vxv=[vxv[0]/vxLen, vxv[1]/vxLen]; stepX=vxLen/7;
-    const br1=nodeXZ(blackRooks[0]), br2=nodeXZ(blackRooks[1]);
-    const zcand1=[br1[0]-a1[0], br1[1]-a1[1]], zcand2=[br2[0]-a1[0], br2[1]-a1[1]];
-    const norm=v=>{ const L=Math.hypot(v[0],v[1])||1; return [v[0]/L,v[1]/L]; };
-    const nz1=norm(zcand1), nz2=norm(zcand2); const d1=Math.abs(nz1[0]*vxv[0]+nz1[1]*vxv[1]); const d2=Math.abs(nz2[0]*vxv[0]+nz2[1]*vxv[1]);
-    const vzv = d1<d2 ? nz1 : nz2; const proj=(vzv===nz1?zcand1:zcand2); stepZ=(Math.hypot(proj[0],proj[1]))/7; originXZ=[a1[0],a1[1]]; vx[0]=vxv[0]*stepX; vx[1]=vxv[1]*stepX; vz[0]=vzv[0]*stepZ; vz[1]=vzv[1]*stepZ;
-  }else{
-    const bb=new THREE.Box3().setFromObject(modelRoot); const minX=bb.min.x, maxX=bb.max.x, minZ=bb.min.z, maxZ=bb.max.z; stepX=(maxX-minX)/7; stepZ=(maxZ-minZ)/7; originXZ=[minX+stepX*0.5, minZ+stepZ*0.5]; vx[0]=stepX; vx[1]=0; vz[0]=0; vz[1]=stepZ;
-  }
-  origin[0]=originXZ[0]; origin[1]=originXZ[1];
-  function ensurePieces(color, code, need){ const arr=pool[color][code]; if(arr.length>=need) return; const protoNode=proto[color][code]; if(!protoNode) return; while(arr.length<need){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); arr.push(nn); extraNodes.push(nn); }
-  }
-  ensurePieces('w','p',8); ensurePieces('w','r',2); ensurePieces('w','n',2); ensurePieces('w','b',2); ensurePieces('w','q',1); ensurePieces('w','k',1);
-  ensurePieces('b','p',8); ensurePieces('b','r',2); ensurePieces('b','n',2); ensurePieces('b','b',2); ensurePieces('b','q',1); ensurePieces('b','k',1);
+function detachPool(pool){ for(const color of ['w','b']) for(const code of Object.keys(pool[color])) for(const node of pool[color][code]){ if(node.parent) node.parent.remove(node);} }
+function spawnPromotion(color,code){ const nn=createPieceMesh(color,code); scene.add(nn); if(initialPositions && initialPositions.pool && initialPositions.pool[color] && initialPositions.pool[color][code]) initialPositions.pool[color][code].push(nn); return nn; }
+function buildSet(){
+  ensureAssets();
+  const pool={w:{p:[],r:[],n:[],b:[],q:[],k:[]}, b:{p:[],r:[],n:[],b:[],q:[],k:[]}};
+  const addPieces=(color,code,count)=>{ for(let i=0;i<count;i++){ const mesh=createPieceMesh(color,code); scene.add(mesh); pool[color][code].push(mesh); } };
+  addPieces('w','p',8); addPieces('w','r',2); addPieces('w','n',2); addPieces('w','b',2); addPieces('w','q',1); addPieces('w','k',1);
+  addPieces('b','p',8); addPieces('b','r',2); addPieces('b','n',2); addPieces('b','b',2); addPieces('b','q',1); addPieces('b','k',1);
   const startW={ p:['a2','b2','c2','d2','e2','f2','g2','h2'], r:['a1','h1'], n:['b1','g1'], b:['c1','f1'], q:['d1'], k:['e1'] };
   const startB={ p:['a7','b7','c7','d7','e7','f7','g7','h7'], r:['a8','h8'], n:['b8','g8'], b:['c8','f8'], q:['d8'], k:['e8'] };
   initialPositions={startW,startB,pool};
   piecesBySquare={};
-  const squareCenterVec3=sq=>{ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+.02, z); };
-  function placeGroup(color, code, squares){ const arr=pool[color][code]; for(let i=0;i<squares.length;i++){ const node=arr[i]; if(!node) continue; const sq=squares[i]; const baseY=(typeof node.position.y==='number')?node.position.y:(boardY+.02); node.userData.baseY=baseY; const v=squareCenterVec3(sq); v.y=baseY; node.position.set(v.x, v.y, v.z); piecesBySquare[sq]=node; } }
+  const placeGroup=(color, code, squares)=>{ const arr=pool[color][code]; for(let i=0;i<squares.length;i++){ const node=arr[i]; if(!node) continue; const sq=squares[i]; const baseY=boardY+.02; node.userData.baseY=baseY; const v=squareCenterVec3(sq); v.y=baseY; node.position.set(v.x, v.y, v.z); piecesBySquare[sq]=node; } };
   placeGroup('w','p',startW.p); placeGroup('w','r',startW.r); placeGroup('w','n',startW.n); placeGroup('w','b',startW.b); placeGroup('w','q',startW.q); placeGroup('w','k',startW.k);
   placeGroup('b','p',startB.p); placeGroup('b','r',startB.r); placeGroup('b','n',startB.n); placeGroup('b','b',startB.b); placeGroup('b','q',startB.q); placeGroup('b','k',startB.k);
-  const el=renderer.domElement; el.addEventListener('pointerdown',onPointerDown,{passive:false}); window.addEventListener('pointermove',onPointerMove,{passive:false}); window.addEventListener('pointerup',onPointerUp,{passive:false}); window.addEventListener('contextmenu',e=>{e.preventDefault();},{passive:false});
-  badge.textContent='Ready'; ready=true; updateTurn(); applyZoom();
 }
 
 function getHit(e){ if(!renderer||!camera) return null; const rect=renderer.domElement.getBoundingClientRect(); const cx=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0)); const cy=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0)); const x=(cx-rect.left)/rect.width*2-1; const y=-(cy-rect.top)/rect.height*2+1; const mouse=new THREE.Vector2(x,y); ray.setFromCamera(mouse,camera); const plane=new THREE.Plane(new THREE.Vector3(0,1,0),-boardY); const hit=new THREE.Vector3(); return ray.ray.intersectPlane(plane,hit)?hit:null; }
@@ -336,12 +380,12 @@ function onPointerDown(e){ if(!ready) return; const hit=getHit(e); if(!hit) retu
   down.x=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0));
   down.y=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0));
   const sq=worldToSquareString(hit.x,hit.z); const rc=sqToRC(sq); const p=state.board[rc[0]][rc[1]];
-  if(p && colorOf(p)===state.turn){ selectedSq=sq; dragFromSq=sq; dragNode=piecesBySquare[sq]||null; dragging=false; if(dragNode){ const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:dragNode.position.y; dragNode.userData.baseY=baseY; dragNode.position.y=baseY+dragLift; }
+  if(p && colorOf(p)===state.turn){ selectedSq=sq; dragFromSq=sq; dragNode=moveMode==='drag'? (piecesBySquare[sq]||null): null; dragging=false; if(dragNode){ const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:dragNode.position.y; dragNode.userData.baseY=baseY; dragNode.position.y=baseY+dragLift; }
     if(controls) controls.enabled=false; if(e.cancelable) e.preventDefault(); }
   else if(selectedSq){ tryMoveSelectedTo(sq); if(e.cancelable) e.preventDefault(); }
 }
-function onPointerMove(e){ if(!dragNode) return; const cx=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0)); const cy=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0)); if(!dragging && (Math.abs(cx-down.x)>DRAG_PX || Math.abs(cy-down.y)>DRAG_PX)) dragging=true; const hit=getHit(e); if(!hit) return; const yBase=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+.02; dragNode.position.set(hit.x,yBase+dragLift,hit.z); if(e.cancelable) e.preventDefault(); }
-function onPointerUp(e){ if(controls) controls.enabled=true; if(!selectedSq){ dragNode=null; dragFromSq=null; return; } if(dragging){ const hit=getHit(e); const targetSq = hit?worldToSquareString(hit.x,hit.z):dragFromSq; tryMoveSelectedTo(targetSq); } if(e.cancelable) e.preventDefault(); }
+function onPointerMove(e){ if(moveMode!=='drag' || !dragNode) return; const cx=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0)); const cy=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0)); if(!dragging && (Math.abs(cx-down.x)>DRAG_PX || Math.abs(cy-down.y)>DRAG_PX)) dragging=true; const hit=getHit(e); if(!hit) return; const yBase=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+.02; dragNode.position.set(hit.x,yBase+dragLift,hit.z); if(e.cancelable) e.preventDefault(); }
+function onPointerUp(e){ if(controls) controls.enabled=true; if(!selectedSq){ dragNode=null; dragFromSq=null; return; } if(moveMode==='drag' && dragging){ const hit=getHit(e); const targetSq = hit?worldToSquareString(hit.x,hit.z):dragFromSq; tryMoveSelectedTo(targetSq); } if(e.cancelable) e.preventDefault(); }
 
 function squareCenterVec3(sq){ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+.02, z); }
 
@@ -359,13 +403,12 @@ function removePieceAt(sq){ const n=piecesBySquare[sq]; if(n){ if(n.parent) n.pa
 function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; animateMove(node,v); piecesBySquare[to]=node; delete piecesBySquare[from]; }
   if(m.enpassant){ const dir=(state.turn==='w')?1:-1; const capSq=rcToSq(m.tr+dir,m.tc); removePieceAt(capSq); }
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
-  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
-  }
+  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const nn=spawnPromotion(col,m.promo); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node?.userData?.baseY==='number')?node.userData.baseY:boardY+.02; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   updateTurn();
 }
 
-function resetGame(){ state=makeStart(); if(!initialPositions) return; const {startW,startB,pool}=initialPositions; piecesBySquare={}; extraNodes.forEach(n=>{ if(n.parent) n.parent.remove(n); }); extraNodes=[];
-  const place=(color,code,squares)=>{ const arr=pool[color][code]; squares.forEach((sq,i)=>{ const node=arr[i]; if(!node) return; const v=squareCenterVec3(sq); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02; node.userData.baseY=baseY; v.y=baseY; node.position.copy(v); if(!node.parent) scene.add(node); piecesBySquare[sq]=node; }); };
+function resetGame(){ state=makeStart(); if(!initialPositions) return; const {startW,startB,pool}=initialPositions; piecesBySquare={}; detachPool(pool);
+  const place=(color,code,squares)=>{ const arr=pool[color][code]; squares.forEach((sq,i)=>{ const node=arr[i]; if(!node) return; const v=squareCenterVec3(sq); const baseY=boardY+.02; node.userData.baseY=baseY; v.y=baseY; node.position.copy(v); if(!node.parent) scene.add(node); piecesBySquare[sq]=node; }); };
   place('w','p',startW.p); place('w','r',startW.r); place('w','n',startW.n); place('w','b',startW.b); place('w','q',startW.q); place('w','k',startW.k);
   place('b','p',startB.p); place('b','r',startB.r); place('b','n',startB.n); place('b','b',startB.b); place('b','q',startB.q); place('b','k',startB.k);
   selectedSq=null; dragNode=null; dragFromSq=null; dragging=false;
@@ -376,6 +419,7 @@ function clampZoom(val){ zoomLevel=Math.min(1.4, Math.max(0.7, val)); zoomInput.
 zoomInput.addEventListener('input', e=>clampZoom(Number(e.target.value)/100));
 zoomOutBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 - 8)/100));
 zoomInBtn.addEventListener('click', ()=> clampZoom((zoomLevel*100 + 8)/100));
+moveModeSelect.addEventListener('change', e=>{ const v=(e.target.value||'drag'); moveMode=(v==='click')?'click':'drag'; if(moveMode!=='drag'){ dragNode=null; dragging=false; } });
 
 function makeAiMove(){ if(!aiMode || !ready || state.turn!=='b') return; const moves=genLegal(state); if(!moves.length) return updateTurn(); const captures=moves.filter(m=>{ const t=state.board[m.tr][m.tc]; return t&&colorOf(t)!==state.turn; }); const move=(captures.length?captures:moves)[Math.floor(Math.random()*(captures.length?captures.length:moves.length))]; doMove(move); if(aiMode && state.turn==='b') aiTimer=setTimeout(makeAiMove,260); }
 
