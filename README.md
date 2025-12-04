@@ -1,26 +1,6 @@
 
 
 
-## ⚠️ Calibration – Read First (Mobile Portrait)
-
-If you are viewing this project on a phone in **portrait** orientation, follow these guidance notes before acting on any tasks:
-
-- Interpret on-screen directions literally as you see them: **up/down/left/right** refer to their visual positions on your screen.
-- Do **not** remap these directions to line starts/ends or internal axes; keep them as the visual cues you observe.
-- For 3D actions (closer/farther, lift/lower, expand/shrink), choose the option that produces the matching visual result on your screen.
-- Avoid flipping or rotating directions based on device orientation or coordinate conventions—use the visual-first approach.
-
-KALIBRIM – LEXOJE PARA ÇDO DETYRE
-
-Unë po punoj në TELEFON (MOBILE), me ekran në orientim PORTRAIT.
-Çdo komandë që jap për pozicionim në ekran (“sipër”, “poshtë”, “majtas”, “djathtas”) duhet të merret fiks ashtu siç e shoh unë në ekran, në këtë orientim portrait.
-
-Mos i përmbys, mos i rrotullo dhe mos i riinterpreto këto drejtime sipas koordinatave të brendshme ose orientimit të pajisjes.
-
-Mos supozo se “majtas” nënkupton “në fillim të rreshtit” ose “djathtas” nënkupton “në fund të rreshtit”, etj.
-
-Thjesht zbato drejtpërdrejt drejtimet e mia vizuale në ekran, pa ndryshuar kuptimin.
-
 ## Installation
 
 1. Install **Node.js 18** or later.
