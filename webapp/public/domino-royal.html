@@ -419,7 +419,10 @@ async function loadHumanProfileFromApi() {
     const user = await window.fbApi.getUserInfo({ accountId, tgId: telegramId });
     if (user) {
       if (!seatAvatarPhoto) {
-        seatAvatarPhoto = (user.photo_url || '').trim();
+        const normalizedPhoto = sanitizeSeatAvatarSource(user.photo_url || '');
+        if (normalizedPhoto) {
+          seatAvatarPhoto = normalizedPhoto;
+        }
       }
       if (!seatAvatarUsername) {
         seatAvatarUsername = (user.username || user.first_name || user.last_name || '').trim();
@@ -2632,6 +2635,17 @@ function buildSeatNames(count = N) {
 function isAvatarUrl(str = '') {
   return /^https?:\/\//i.test(str) || str.startsWith('data:') || str.startsWith('/');
 }
+
+const MAX_AVATAR_SOURCE_LENGTH = 2048;
+function sanitizeSeatAvatarSource(source = '') {
+  const value = (source || '').trim();
+  if (!value || value.length > MAX_AVATAR_SOURCE_LENGTH) return '';
+  if (isAvatarUrl(value)) return value;
+  if (value.length <= 10) return value;
+  return '';
+}
+
+seatAvatarPhoto = sanitizeSeatAvatarSource(seatAvatarPhoto);
 
 function buildSeatAvatarSources(count = N) {
   const total = Math.max(1, count);

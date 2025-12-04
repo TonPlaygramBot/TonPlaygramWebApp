@@ -14,6 +14,16 @@ const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
 const PLAYER_OPTIONS = [2, 3, 4];
+const MAX_AVATAR_QUERY_LENGTH = 2048;
+
+function normalizeAvatarSource(value = '') {
+  const trimmed = (value || '').trim();
+  if (!trimmed || trimmed.length > MAX_AVATAR_QUERY_LENGTH) return '';
+  if (trimmed.startsWith('/') || /^https?:\/\//i.test(trimmed) || trimmed.startsWith('data:')) {
+    return trimmed;
+  }
+  return trimmed.length <= 10 ? trimmed : '';
+}
 
 export default function DominoRoyalLobby() {
   const navigate = useNavigate();
@@ -37,8 +47,9 @@ export default function DominoRoyalLobby() {
 
   useEffect(() => {
     try {
-      const saved = loadAvatar();
-      setAvatar(saved || getTelegramPhotoUrl());
+      const saved = normalizeAvatarSource(loadAvatar());
+      const telegramPhoto = normalizeAvatarSource(getTelegramPhotoUrl());
+      setAvatar(saved || telegramPhoto);
     } catch {}
   }, []);
 
@@ -64,7 +75,8 @@ export default function DominoRoyalLobby() {
     params.set('players', String(totalPlayers));
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
-    if (avatar) params.set('avatar', avatar);
+    const safeAvatar = normalizeAvatarSource(avatar);
+    if (safeAvatar) params.set('avatar', safeAvatar);
     const username = getTelegramUsername();
     if (username) params.set('username', username);
     const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
