@@ -1046,8 +1046,10 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
+// Live request: lift striking force by another 20% to make cue hits feel punchier.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
+const SHOT_FORCE_BOOST =
+  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.2;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -15072,10 +15074,30 @@ function PoolRoyaleGame({
             0,
             1
           );
+          const spinInput = spinRequestRef.current || appliedSpin;
+          const previewSpin = spinLegalityRef.current?.blocked
+            ? { x: 0, y: 0 }
+            : {
+                x: THREE.MathUtils.clamp(
+                  spinInput?.x ?? appliedSpin.x ?? 0,
+                  -1,
+                  1
+                ),
+                y: THREE.MathUtils.clamp(
+                  spinInput?.y ?? appliedSpin.y ?? 0,
+                  -1,
+                  1
+                )
+              };
+          const powerSpinBoost = 1 + powerStrength * 0.35;
           const spinSidePreview =
-            (appliedSpin.x || 0) * (AIM_SPIN_PREVIEW_SIDE + powerStrength * 0.25);
+            (previewSpin.x || 0) *
+            (AIM_SPIN_PREVIEW_SIDE + powerStrength * 0.25) *
+            powerSpinBoost;
           const spinForwardPreview =
-            (appliedSpin.y || 0) * (AIM_SPIN_PREVIEW_FORWARD + powerStrength * 0.2);
+            (previewSpin.y || 0) *
+            (AIM_SPIN_PREVIEW_FORWARD + powerStrength * 0.2) *
+            powerSpinBoost;
           const guideDir = baseAimDir
             .clone()
             .add(basePerp.clone().multiplyScalar(spinSidePreview))
@@ -15155,8 +15177,10 @@ function PoolRoyaleGame({
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const spinSideInfluence = (appliedSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (appliedSpin.y || 0) * (0.68 + 0.45 * powerStrength);
+          const spinSideInfluence =
+            (previewSpin.x || 0) * (0.4 + 0.42 * powerStrength) * powerSpinBoost;
+          const spinVerticalInfluence =
+            (previewSpin.y || 0) * (0.68 + 0.45 * powerStrength) * powerSpinBoost;
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
             .add(perp.clone().multiplyScalar(spinSideInfluence))
@@ -15173,15 +15197,8 @@ function PoolRoyaleGame({
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
-          impactRing.visible = true;
-          impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
-          const impactScale = 0.9 + powerStrength * 0.45;
-          impactRing.scale.set(impactScale, impactScale, impactScale);
-          if (impactRing.material) {
-            impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
-            impactRing.material.needsUpdate = true;
-          }
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
+          impactRing.visible = false;
+          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             guideDir2D.clone().multiplyScalar(-1),
@@ -15198,8 +15215,8 @@ function PoolRoyaleGame({
           cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
-          let side = appliedSpin.x * offsetSide;
-          let vert = -appliedSpin.y * offsetVertical;
+          let side = previewSpin.x * offsetSide;
+          let vert = -previewSpin.y * offsetVertical;
           const maxContactOffset = MAX_SPIN_CONTACT_OFFSET;
           if (maxContactOffset > 1e-6) {
             const combined = Math.hypot(side, vert);
@@ -15225,7 +15242,7 @@ function PoolRoyaleGame({
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          const tiltAmount = Math.abs(previewSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
@@ -15330,8 +15347,13 @@ function PoolRoyaleGame({
           cueStick.visible = true;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
-            const targetSpinInfluence = (appliedSpin.x || 0) * (0.42 + 0.35 * powerStrength);
-            const forwardTilt = (appliedSpin.y || 0) * 0.22 * (0.4 + 0.6 * powerStrength);
+            const targetSpinInfluence =
+              (previewSpin.x || 0) * (0.42 + 0.35 * powerStrength) * powerSpinBoost;
+            const forwardTilt =
+              (previewSpin.y || 0) *
+              0.22 *
+              (0.4 + 0.6 * powerStrength) *
+              powerSpinBoost;
             const spinThrow = perp.clone().multiplyScalar(-targetSpinInfluence);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y)
               .normalize()
@@ -15340,7 +15362,8 @@ function PoolRoyaleGame({
             if (tDir.lengthSq() > 1e-8) {
               tDir.normalize();
             }
-            const distanceScale = travelScale * (1 + Math.abs(appliedSpin.y || 0) * 0.35);
+            const distanceScale =
+              travelScale * (1 + Math.abs(previewSpin.y || 0) * 0.35 * powerSpinBoost);
             const tEnd = end.clone().add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([end, tEnd]);
             target.material.color.setHex(0xffd166);
@@ -16118,7 +16141,11 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
+        onChange: (v) => {
+          const normalized = v / 100;
+          powerRef.current = normalized;
+          setHud((s) => ({ ...s, power: normalized }));
+        },
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
