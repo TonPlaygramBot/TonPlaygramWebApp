@@ -416,14 +416,14 @@ const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so 
 const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.05; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.47; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.046; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.24; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.072; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.1005; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.142; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.052; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
@@ -734,18 +734,18 @@ const TABLE = {
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.76; // preserve the playable mouth while matching the longer corner jaw fascia
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.92; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.01; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
+const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.52; // drop the jaws slightly deeper so the underside fills out the pocket throat
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.072; // lift the visible rim slightly less so the pocket lips sit lower into the cloth
+const POCKET_JAW_DEPTH_SCALE = 0.6; // drop the jaws slightly deeper so the underside fills out the pocket throat
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.11; // raise the visible rim so the pocket lips sit prouder above the cloth
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -756,7 +756,7 @@ const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep 
 const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
@@ -770,8 +770,8 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw sprea
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.88; // further tighten the middle jaw span so the wooden rail cut reads smaller
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.862; // shave the side jaw radius a touch more so the middle pocket arc tightens while moving outward
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.06; // deepen the side jaw so it holds the same vertical mass as the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.024; // lower the middle jaws slightly less so the fascia trims down from the top
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.12; // deepen the side jaw so it holds the same vertical mass as the corners
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.036; // lower the middle jaws slightly less so the fascia trims down from the top
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.04; // pull the middle pocket jaws inward so the lips follow the tighter chrome cut without drifting toward the rails
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
@@ -2279,6 +2279,105 @@ const POCKET_LINER_PRESETS = Object.freeze([
       repeatX: 2.3,
       repeatY: 2.3,
       seed: 5123
+    }
+  }),
+  Object.freeze({
+    id: 'sapphirePocket',
+    label: 'Sapphire Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x1e3b59,
+    rimColor: 0x1b334c,
+    sheenColor: 0x7bb2e8,
+    rimSheenColor: 0x6da1d4,
+    sheen: 0.7,
+    sheenRoughness: 0.38,
+    roughness: 0.36,
+    rimRoughness: 0.4,
+    metalness: 0.64,
+    rimMetalness: 0.68,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.26,
+    envMapIntensity: 0.72,
+    bumpScale: 0.22,
+    rimBumpScale: 0.18,
+    texture: {
+      base: 0x24476a,
+      highlight: 0x9ac7f1,
+      shadow: 0x0d1b2d,
+      density: 0.62,
+      grainSize: 0.72,
+      streakAlpha: 0.18,
+      creaseAlpha: 0.14,
+      seamContrast: 0.26,
+      repeatX: 2.2,
+      repeatY: 2.1,
+      seed: 6132
+    }
+  }),
+  Object.freeze({
+    id: 'emeraldPocket',
+    label: 'Emerald Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x1c4f3f,
+    rimColor: 0x1a4436,
+    sheenColor: 0x8ad1b2,
+    rimSheenColor: 0x72bda1,
+    sheen: 0.68,
+    sheenRoughness: 0.42,
+    roughness: 0.42,
+    rimRoughness: 0.46,
+    metalness: 0.62,
+    rimMetalness: 0.66,
+    clearcoat: 0.28,
+    clearcoatRoughness: 0.28,
+    envMapIntensity: 0.7,
+    bumpScale: 0.21,
+    rimBumpScale: 0.17,
+    texture: {
+      base: 0x255f4c,
+      highlight: 0xa0e2c5,
+      shadow: 0x0e2a22,
+      density: 0.64,
+      grainSize: 0.74,
+      streakAlpha: 0.16,
+      creaseAlpha: 0.13,
+      seamContrast: 0.24,
+      repeatX: 2.15,
+      repeatY: 2.08,
+      seed: 7261
+    }
+  }),
+  Object.freeze({
+    id: 'crimsonPocket',
+    label: 'Crimson Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x6d1f26,
+    rimColor: 0x61191f,
+    sheenColor: 0xd88c8e,
+    rimSheenColor: 0xc37b7d,
+    sheen: 0.72,
+    sheenRoughness: 0.36,
+    roughness: 0.38,
+    rimRoughness: 0.42,
+    metalness: 0.66,
+    rimMetalness: 0.7,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.24,
+    envMapIntensity: 0.74,
+    bumpScale: 0.23,
+    rimBumpScale: 0.19,
+    texture: {
+      base: 0x77262d,
+      highlight: 0xe9a4a5,
+      shadow: 0x2a0a0d,
+      density: 0.66,
+      grainSize: 0.76,
+      streakAlpha: 0.19,
+      creaseAlpha: 0.15,
+      seamContrast: 0.28,
+      repeatX: 2.18,
+      repeatY: 2.12,
+      seed: 8345
     }
   })
 ]);
@@ -4034,10 +4133,10 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0245; // pull the orbit noticeably closer so the tighter table still fills the frame
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0215; // pull the orbit noticeably closer so the tighter table still fills the frame
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.12;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
@@ -4046,10 +4145,10 @@ const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.96, broadcast: 0.98, margin: 0.99 }),
-  nearLandscape: Object.freeze({ cue: 0.94, broadcast: 0.97, margin: 0.99 }),
-  portrait: Object.freeze({ cue: 0.92, broadcast: 0.95, margin: 0.98 }),
-  ultraPortrait: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.97 })
+  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
+  portrait: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
+  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -15321,17 +15420,13 @@ function PoolRoyaleGame({
           cueStick.visible = true;
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
-            const targetSpinInfluence = (appliedSpin.x || 0) * (0.42 + 0.35 * powerStrength);
-            const forwardTilt = (appliedSpin.y || 0) * 0.22 * (0.4 + 0.6 * powerStrength);
-            const spinThrow = perp.clone().multiplyScalar(-targetSpinInfluence);
-            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y)
-              .normalize()
-              .add(spinThrow)
-              .add(dir.clone().multiplyScalar(forwardTilt));
+            const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
             if (tDir.lengthSq() > 1e-8) {
               tDir.normalize();
+            } else {
+              tDir.copy(dir);
             }
-            const distanceScale = travelScale * (1 + Math.abs(appliedSpin.y || 0) * 0.35);
+            const distanceScale = travelScale;
             const tEnd = end.clone().add(tDir.clone().multiplyScalar(distanceScale));
             targetGeom.setFromPoints([end, tEnd]);
             target.material.color.setHex(0xffd166);
