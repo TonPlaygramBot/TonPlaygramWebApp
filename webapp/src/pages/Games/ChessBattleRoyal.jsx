@@ -283,21 +283,75 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION = Object.freeze({
-  id: 'authenticBeautifulGameBoard',
-  label: 'Authentic ABeautifulGame Board',
-  ...BEAUTIFUL_GAME_THEME
-});
-
-const BOARD_COLOR_OPTIONS = Object.freeze([
-  AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION,
-  ...BOARD_COLOR_BASE_OPTIONS
+const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
+  buildBoardTheme({
+    id: 'beautifulGameClassicBoard',
+    label: 'Classic Olive Board',
+    ...BEAUTIFUL_GAME_THEME
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameGraphiteBoard',
+    label: 'Graphite Frost Board',
+    light: '#e5e7eb',
+    dark: '#2d323a',
+    frameLight: '#cbd5e1',
+    frameDark: '#1f2933',
+    accent: '#c4ccd8',
+    highlight: '#8fd0ff',
+    capture: '#fca5a5',
+    surfaceRoughness: 0.52,
+    surfaceMetalness: 0.26,
+    frameRoughness: 0.76,
+    frameMetalness: 0.22
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameOnyxBoard',
+    label: 'Onyx Gold Board',
+    light: '#e8e1d4',
+    dark: '#14161c',
+    frameLight: '#b99560',
+    frameDark: '#1c1510',
+    accent: '#b8985e',
+    highlight: '#ffd166',
+    capture: '#f97373',
+    surfaceRoughness: 0.58,
+    surfaceMetalness: 0.32,
+    frameRoughness: 0.7,
+    frameMetalness: 0.34
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameForestBoard',
+    label: 'Forest Jade Board',
+    light: '#e6e1d4',
+    dark: '#10241a',
+    frameLight: '#a8b19d',
+    frameDark: '#1f2f25',
+    accent: '#7fbf8f',
+    highlight: '#7ed3a0',
+    capture: '#e57373',
+    surfaceRoughness: 0.6,
+    surfaceMetalness: 0.24,
+    frameRoughness: 0.8,
+    frameMetalness: 0.2
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameStormBoard',
+    label: 'Storm Slate Board',
+    light: '#e7e6e8',
+    dark: '#1a1f27',
+    frameLight: '#c9ced7',
+    frameDark: '#1f232b',
+    accent: '#b6bbc5',
+    highlight: '#9cc3ff',
+    capture: '#ff8b9b',
+    surfaceRoughness: 0.62,
+    surfaceMetalness: 0.24,
+    frameRoughness: 0.82,
+    frameMetalness: 0.22
+  })
 ]);
 
-const BEAUTIFUL_GAME_BOARD_INDEX = Math.max(
-  0,
-  BOARD_COLOR_OPTIONS.findIndex((option) => option.id === AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION.id)
-);
+const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -325,7 +379,7 @@ const SCULPTED_DRAG_STYLE = Object.freeze({
 
 const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
-  label: 'A Beautiful Game',
+  label: 'Classic Olive',
   white: {
     color: '#d9c6a3',
     roughness: 0.28,
@@ -348,7 +402,8 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissive: '#25291c',
     emissiveIntensity: 0.22
   },
-  accent: '#4f7f5c',
+  accent: '#caa472',
+  whiteAccent: { color: '#d9c6a3' },
   blackAccent: '#4f7f5c'
 });
 
@@ -357,7 +412,7 @@ const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
 const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
   {
     id: BEAUTIFUL_GAME_SET_ID,
-    label: 'Authentic ABeautifulGame',
+    label: 'Classic Olive',
     style: BEAUTIFUL_GAME_PIECE_STYLE
   },
   {
@@ -1609,7 +1664,7 @@ function applyLocalBeautifulGameMaterials(assets) {
   applyPieces(
     piecePrototypes?.white,
     BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
-    BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
+    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
   );
   applyPieces(
     piecePrototypes?.black,
@@ -1624,8 +1679,11 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
   if (!piecePrototypes) return;
   const lightColor = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
-  const accent = BEAUTIFUL_GAME_PIECE_STYLE.accent ?? BEAUTIFUL_GAME_THEME.accent;
-  const darkAccent = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? accent;
+  const accentLight =
+    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ??
+    BEAUTIFUL_GAME_PIECE_STYLE.accent ??
+    BEAUTIFUL_GAME_THEME.accent;
+  const darkAccent = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
 
   const applyColor = (piece, colorHex) => {
     if (!piece) return;
@@ -1665,7 +1723,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
-        const accentColor = colorKey === 'black' ? darkAccent : accent;
+        const accentColor = colorKey === 'black' ? darkAccent : accentLight;
         applied.color = new THREE.Color(accentColor);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
@@ -2141,8 +2199,8 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
   const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
   const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
-  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
-  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? accentLight;
+  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
+  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
   piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
   piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
   piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
@@ -2358,8 +2416,8 @@ function buildSculptedAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.6;
-  const accentLight = pieceStyle.accent ?? '#60a5fa';
-  const accentDark = pieceStyle.blackAccent ?? accentLight;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#60a5fa';
+  const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
 
   const piecePrototypes = { white: {}, black: {} };
 
@@ -2525,8 +2583,8 @@ function buildStauntonFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.08;
-  const accentLight = pieceStyle.accent ?? '#d8b07a';
-  const accentDark = pieceStyle.blackAccent ?? accentLight;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d8b07a';
+  const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
 
   const piecePrototypes = { white: {}, black: {} };
 
@@ -2622,8 +2680,8 @@ function buildKenneyFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.22;
-  const accentLight = pieceStyle.accent ?? '#d0a472';
-  const accentDark = pieceStyle.blackAccent ?? accentLight;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#d0a472';
+  const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const piecePrototypes = { white: {}, black: {} };
 
   const buildForColor = (colorKey, accentHex) => {
@@ -2709,8 +2767,8 @@ function buildPolygonalFallbackAssets(
 ) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const scale = tile / 1.18;
-  const accentLight = pieceStyle.accent ?? '#7ce3ff';
-  const accentDark = pieceStyle.blackAccent ?? accentLight;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? '#7ce3ff';
+  const accentDark = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const piecePrototypes = { white: {}, black: {} };
 
   const buildForColor = (colorKey, accentHex) => {
@@ -3213,20 +3271,9 @@ function createPieceMaterials(styleOption = BEAUTIFUL_GAME_PIECE_STYLE) {
   const option = styleOption || BEAUTIFUL_GAME_PIECE_STYLE || {};
   const whiteConfig = { ...(option.white || {}) };
   const blackConfig = { ...(option.black || {}) };
-  const isDefaultRoyalePalette = option.id === BEAUTIFUL_GAME_PIECE_STYLE.id || option.id === BEAUTIFUL_GAME_SET_ID;
 
-  let whiteAccentColor = option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
-  let blackAccentColor = option.blackAccent?.color ?? option.accent ?? blackConfig.color;
-
-  if (isDefaultRoyalePalette) {
-    const unifiedWhite = whiteConfig.color ?? '#f5f5f7';
-    whiteConfig.color = unifiedWhite;
-    whiteAccentColor = unifiedWhite;
-
-    const topPlayerGreen = blackAccentColor || option.black?.color || option.accent || '#4f7f5c';
-    blackConfig.color = topPlayerGreen;
-    blackAccentColor = topPlayerGreen;
-  }
+  const whiteAccentColor = option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
+  const blackAccentColor = option.blackAccent?.color ?? option.accent ?? blackConfig.color;
 
   const whiteBase = createPhysicalPieceMaterial(whiteConfig, '#f5f5f7');
   const whiteAccent = whiteAccentColor && whiteAccentColor !== whiteConfig.color
@@ -4277,16 +4324,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     return null;
   }, []);
-
-  const applyBeautifulGameSet = useCallback(() => {
-    setAppearance((prev) =>
-      normalizeAppearance({
-        ...prev,
-        boardColor: BEAUTIFUL_GAME_BOARD_INDEX,
-        pieceStyle: BEAUTIFUL_GAME_PIECE_INDEX
-      })
-    );
-  }, [setAppearance]);
 
   const resetAppearance = useCallback(() => {
     setAppearance({ ...DEFAULT_APPEARANCE });
@@ -6141,23 +6178,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   />
                 </label>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">A Beautiful Game</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">
-                        Zgjidh tabelën dhe gurët origjinalë nga opsionet e personalizimit më poshtë për t’i përdorur në lojë.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={applyBeautifulGameSet}
-                      className="rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-2 py-1 text-[0.65rem] font-semibold text-emerald-100 transition hover:bg-emerald-400/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                    >
-                      Përdor setin
-                    </button>
-                  </div>
-                </div>
-                <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
