@@ -877,8 +877,7 @@ function buildInitialState(players, token, stake) {
       result: '',
       revealed: false,
       viewed: false,
-      bust: false,
-      stood: false
+      bust: false
     })),
     deck: [],
     token,
@@ -894,8 +893,9 @@ function buildInitialState(players, token, stake) {
 
 function resetForNextRound(state) {
   const next = { ...state, round: state.round + 1 };
+  next.deck = shuffle(createDeck());
   next.stage = 'betting';
-  next.currentIndex = -1;
+  next.currentIndex = 0;
   next.pot = 0;
   next.winners = [];
   next.players = state.players.map((p) => ({
@@ -905,10 +905,8 @@ function resetForNextRound(state) {
     result: '',
     revealed: false,
     viewed: false,
-    bust: false,
-    stood: false
+    bust: false
   }));
-  dealPreviewHands(next);
   return next;
 }
 
@@ -929,26 +927,19 @@ function placeInitialBets(state, options = {}) {
   });
 }
 
-function dealPreviewHands(state) {
-  const { hands, deck } = dealInitial(shuffle(createDeck()), state.players.length);
+function dealInitialCards(state) {
+  const { hands, deck } = dealInitial(state.deck, state.players.length);
   state.deck = deck;
   state.players.forEach((player, idx) => {
     player.hand = hands[idx];
     player.bust = false;
-    player.stood = false;
     player.revealed = true;
     player.viewed = true;
-    player.result = player.isHuman ? 'Preview & bet' : 'Waiting';
-  });
-}
-
-function startPlayerTurns(state) {
-  state.stage = 'player-turns';
-  state.players.forEach((player) => {
-    if (player.bet > 0 && player.isHuman) {
+    if (player.isHuman) {
       player.result = 'In play';
     }
   });
+  state.stage = 'player-turns';
   state.currentIndex = getNextPlayerIndex(state.players, -1);
 }
 
@@ -2052,7 +2043,7 @@ function BlackJackArena({ search }) {
 
   useEffect(() => {
     const prevStage = stageForDealRef.current;
-    if (prevStage !== 'betting' && gameState.stage === 'betting') {
+    if (prevStage !== 'player-turns' && gameState.stage === 'player-turns') {
       startDealAnimation();
     }
     stageForDealRef.current = gameState.stage;
@@ -2184,7 +2175,7 @@ function BlackJackArena({ search }) {
       const next = cloneState(prev);
       if (next.stage !== 'betting') return next;
       placeInitialBets(next, { humanBet: wager });
-      startPlayerTurns(next);
+      dealInitialCards(next);
       return next;
     });
   }, [sliderEnabled, finalBet]);
@@ -2406,11 +2397,6 @@ function BlackJackArena({ search }) {
               <span className="text-[0.7rem] text-white/60">Min {Math.round(minBet)} {gameState.token}</span>
             )}
             <span className="text-[0.7rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
-            {gameState.stage === 'betting' && (
-              <span className="text-[0.7rem] text-white/70">
-                Cards are dealt — set your bet before play begins.
-              </span>
-            )}
           </div>
           <div className="flex flex-col items-center gap-3">
             <input
