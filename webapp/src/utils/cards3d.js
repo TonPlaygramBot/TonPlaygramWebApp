@@ -92,7 +92,7 @@ function makeCardFace(rank, suit, theme, w = 512, h = 720) {
   ctx.stroke();
   const suitColor = getSuitColor(suit);
   ctx.fillStyle = suitColor;
-  const label = String(rank);
+  const label = rank === 'T' ? 'Q' : String(rank);
   const padding = 36;
   const topRankY = 96;
   const topSuitY = topRankY + 76;
