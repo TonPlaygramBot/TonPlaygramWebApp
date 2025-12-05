@@ -269,17 +269,17 @@ const CHECKMATE_SOUND_URL =
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
     ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
-    light: '#f0d9b5',
-    dark: '#8b5a2b',
-    frameLight: '#b88a55',
-    frameDark: '#3d2a1c',
+    light: '#e4d2b3',
+    dark: '#2f3526',
+    frameLight: '#c7a16c',
+    frameDark: '#3a2c20',
     accent: '#caa472',
     highlight: '#7ef9a1',
     capture: '#ff8975',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.22,
-    frameRoughness: 0.78,
-    frameMetalness: 0.18
+    surfaceRoughness: 0.6,
+    surfaceMetalness: 0.24,
+    frameRoughness: 0.8,
+    frameMetalness: 0.2
   })
 );
 
@@ -328,25 +328,25 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   label: 'A Beautiful Game',
   white: {
     color: BEAUTIFUL_GAME_THEME.light,
-    roughness: 0.3,
-    metalness: 0.28,
-    sheen: 0.28,
+    roughness: 0.28,
+    metalness: 0.3,
+    sheen: 0.3,
     sheenColor: '#ffffff',
-    clearcoat: 0.3,
+    clearcoat: 0.32,
     clearcoatRoughness: 0.22,
     specularIntensity: 0.72
   },
   black: {
     color: BEAUTIFUL_GAME_THEME.dark,
-    roughness: 0.26,
-    metalness: 0.34,
-    sheen: 0.22,
-    sheenColor: '#b08b5e',
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.32,
+    roughness: 0.28,
+    metalness: 0.36,
+    sheen: 0.24,
+    sheenColor: '#d7c49b',
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.28,
     specularIntensity: 0.72,
-    emissive: '#2f2316',
-    emissiveIntensity: 0.18
+    emissive: '#25291c',
+    emissiveIntensity: 0.22
   },
   accent: BEAUTIFUL_GAME_THEME.accent,
   blackAccent: BEAUTIFUL_GAME_THEME.accent
@@ -364,8 +364,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameGraphite',
     label: 'Graphite Frost',
     style: {
-      white: { color: '#e0e4eb', roughness: 0.28, metalness: 0.26, sheen: 0.34, clearcoat: 0.38 },
-      black: { color: '#1e222a', roughness: 0.24, metalness: 0.34, sheen: 0.24, clearcoat: 0.32 },
+      white: { color: '#e1e5ec', roughness: 0.3, metalness: 0.26, sheen: 0.34, clearcoat: 0.4 },
+      black: { color: '#1f252d', roughness: 0.24, metalness: 0.36, sheen: 0.26, clearcoat: 0.34 },
       accent: '#c4ccd8',
       blackAccent: '#9ca7b7'
     }
@@ -374,8 +374,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameObsidian',
     label: 'Onyx Black',
     style: {
-      white: { color: '#d7dadf', roughness: 0.3, metalness: 0.28, sheen: 0.26, clearcoat: 0.34 },
-      black: { color: '#080a0f', roughness: 0.22, metalness: 0.42, sheen: 0.2, clearcoat: 0.36 },
+      white: { color: '#dbdfe6', roughness: 0.3, metalness: 0.28, sheen: 0.28, clearcoat: 0.36 },
+      black: { color: '#0a0c11', roughness: 0.22, metalness: 0.44, sheen: 0.22, clearcoat: 0.38 },
       accent: '#b8985e',
       blackAccent: '#d1b777'
     }
@@ -384,8 +384,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameForest',
     label: 'Dark Forest',
     style: {
-      white: { color: '#e3eadf', roughness: 0.3, metalness: 0.22, sheen: 0.32, clearcoat: 0.36 },
-      black: { color: '#0d291c', roughness: 0.26, metalness: 0.34, sheen: 0.24, clearcoat: 0.28 },
+      white: { color: '#e6e1d4', roughness: 0.28, metalness: 0.24, sheen: 0.32, clearcoat: 0.34 },
+      black: { color: '#11261a', roughness: 0.26, metalness: 0.34, sheen: 0.24, clearcoat: 0.3 },
       accent: '#7fbf8f',
       blackAccent: '#5f9770'
     }
@@ -394,8 +394,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameStorm',
     label: 'Slate Grey',
     style: {
-      white: { color: '#e6e7ea', roughness: 0.29, metalness: 0.24, sheen: 0.3, clearcoat: 0.36 },
-      black: { color: '#1d2027', roughness: 0.24, metalness: 0.32, sheen: 0.24, clearcoat: 0.32 },
+      white: { color: '#e7e6e8', roughness: 0.28, metalness: 0.24, sheen: 0.32, clearcoat: 0.36 },
+      black: { color: '#1a1f27', roughness: 0.24, metalness: 0.34, sheen: 0.26, clearcoat: 0.34 },
       accent: '#b6bbc5',
       blackAccent: '#8c929d'
     }
@@ -406,7 +406,7 @@ const DEFAULT_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
 const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
-const BEAUTIFUL_GAME_ASSET_SCALE = 0.98;
+const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
 const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.72;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
