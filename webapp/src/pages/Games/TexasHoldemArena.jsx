@@ -141,6 +141,7 @@ const TURN_TOKEN_LIFT = 0.08 * MODEL_SCALE;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const TURN_DURATION = 30;
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   { id: 'ruby', label: 'Ruby', primary: '#8b0000', accent: '#8b0000', highlight: '#b22222', legColor: '#1f1f1f' },
@@ -1744,6 +1745,7 @@ function TexasHoldemArena({ search }) {
       return { ...DEFAULT_APPEARANCE };
     }
   });
+  const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const appearanceRef = useRef(appearance);
   useEffect(() => {
     if (effectivePlayerCount > 4) {
@@ -1761,6 +1763,7 @@ function TexasHoldemArena({ search }) {
   }, [effectivePlayerCount, appearance.tableShape]);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
+  const turnIntervalRef = useRef(null);
   const soundsRef = useRef({});
   const potDisplayRef = useRef(0);
   const potTargetRef = useRef(0);
@@ -3383,7 +3386,7 @@ function TexasHoldemArena({ search }) {
     };
   }, [gameState]);
 
-  const handleAction = (id, raiseAmount) => {
+  const handleAction = useCallback((id, raiseAmount) => {
     setGameState((prev) => {
       const next = cloneState(prev);
       if (next.stage === 'showdown') return next;
@@ -3391,7 +3394,7 @@ function TexasHoldemArena({ search }) {
       performPlayerAction(next, id, amount);
       return next;
     });
-  };
+  }, []);
 
   const actor = gameState.players[gameState.actionIndex];
   const toCall = actor ? Math.max(0, gameState.currentBet - actor.bet) : 0;
@@ -3425,6 +3428,39 @@ function TexasHoldemArena({ search }) {
     const name = actor.name || 'Opponent';
     return `${name} is acting`;
   }, [actor, gameState.stage]);
+
+  const timerProgress = Math.max(0, Math.min(1, turnCountdown / TURN_DURATION));
+
+  useEffect(() => {
+    if (turnIntervalRef.current) {
+      clearInterval(turnIntervalRef.current);
+      turnIntervalRef.current = null;
+    }
+    setTurnCountdown(TURN_DURATION);
+    if (gameState.stage === 'showdown') return undefined;
+    const currentActor = gameState.players?.[gameState.actionIndex];
+    if (!currentActor) return undefined;
+    const startedAt = Date.now();
+    turnIntervalRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const remaining = Math.max(0, TURN_DURATION - elapsed);
+      setTurnCountdown(remaining);
+      if (remaining <= 0) {
+        clearInterval(turnIntervalRef.current);
+        turnIntervalRef.current = null;
+        if (currentActor.isHuman) {
+          const fallbackAction = toCall > 0 ? 'fold' : 'check';
+          handleAction(fallbackAction);
+        }
+      }
+    }, 1000);
+    return () => {
+      if (turnIntervalRef.current) {
+        clearInterval(turnIntervalRef.current);
+        turnIntervalRef.current = null;
+      }
+    };
+  }, [gameState.stage, gameState.actionIndex, gameState.players, handleAction, toCall]);
 
   useEffect(() => {
     if (!actor?.isHuman || gameState.stage === 'showdown') {
@@ -3543,14 +3579,31 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
+      <div className="pointer-events-none absolute top-4 left-1/2 z-30 flex w-[360px] -translate-x-1/2 flex-col gap-2 rounded-2xl bg-black/55 p-3 text-white shadow-xl backdrop-blur">
+        <div className="flex items-center justify-between text-sm font-semibold tracking-wide">
+          <span className="uppercase text-white/80">Turn</span>
+          <span className="text-base">{actor?.name || '...'}</span>
+          <span className="text-emerald-300">{turnCountdown}s</span>
+        </div>
+        <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400"
+            style={{ width: `${timerProgress * 100}%` }}
+          />
+        </div>
+      </div>
       {humanPlayer && (
-        <div className="pointer-events-none absolute bottom-4 left-4 z-20 flex flex-col gap-3 text-white">
-          <div className="flex items-center gap-3 rounded-2xl bg-black/60 px-4 py-3 shadow-lg backdrop-blur">
-            <div className="text-sm uppercase tracking-wide text-white/60">Your chips</div>
-            <div className="text-lg font-bold text-emerald-300">{humanChips}</div>
-            <div className="text-sm text-white/70">Bet {humanBet}</div>
+        <div className="pointer-events-none fixed bottom-28 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 text-white">
+          <div className="flex items-center gap-3 rounded-2xl bg-black/70 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="space-y-1">
+              <div className="text-[11px] uppercase tracking-[0.25em] text-white/60">Your chips</div>
+              <div className="flex items-baseline gap-3">
+                <div className="text-2xl font-bold text-emerald-300">{humanChips}</div>
+                <div className="text-sm text-white/70">Bet {humanBet}</div>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl bg-black/60 px-3 py-2 shadow-lg backdrop-blur">
+          <div className="flex items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 shadow-lg backdrop-blur">
             {humanHand.map((card, idx) => {
               const symbol = suitSymbols[card.suit] || '?';
               const isRed = card.suit === 'H' || card.suit === 'D';
