@@ -117,6 +117,7 @@
   </div>
 </div>
 
+<script src="/blackjack-api.js"></script>
 <script type="module">
 import * as THREE from "https://esm.sh/three@0.160.0";
 import { OrbitControls } from "https://esm.sh/three@0.160.0/examples/jsm/controls/OrbitControls.js";
@@ -3974,7 +3975,8 @@ function renderHands(){
       }
       const yawTowardCenter = Math.atan2(-x0, -z0);
       if(openFlat){
-        orientDominoFlat(m, yawTowardCenter);
+        const yaw = isHuman ? 0 : yawTowardCenter;
+        orientDominoFlat(m, yaw);
       } else {
         m.rotation.set(0, (pi===human ? 0 : yawTowardCenter), 0);
         m.rotation.z += (Math.random()*0.006-0.003);
