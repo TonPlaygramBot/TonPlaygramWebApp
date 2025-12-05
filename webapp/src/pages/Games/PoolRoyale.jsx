@@ -1091,6 +1091,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
+const CUE_PULL_SMOOTHING = 0.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.85; // shrink cue ball dots by 15%
@@ -4132,6 +4133,8 @@ const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
+const AIM_SPIN_PREVIEW_SIDE = 0.22;
+const AIM_SPIN_PREVIEW_FORWARD = 0.12;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -9009,6 +9012,8 @@ function PoolRoyaleGame({
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
+  const cuePullTargetRef = useRef(0);
+  const cuePullCurrentRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
@@ -13876,7 +13881,9 @@ function PoolRoyaleGame({
           }
 
           // animate cue stick forward
-          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          if (dir.lengthSq() < 1e-8) dir.set(0, 0, 1);
+          dir.normalize();
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
@@ -13884,7 +13891,13 @@ function PoolRoyaleGame({
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pull = Math.min(maxPull, CUE_PULL_BASE) * clampedPower;
+          cuePullTargetRef.current = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
+          const pull = THREE.MathUtils.clamp(
+            Math.max(cuePullCurrentRef.current ?? 0, cuePullTargetRef.current ?? 0),
+            0,
+            maxPull
+          );
+          cuePullCurrentRef.current = pull;
           cueAnimating = true;
           const startPos = cueStick.position.clone();
           const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
@@ -13910,6 +13923,8 @@ function PoolRoyaleGame({
                 );
                 if (backFrame < animSteps) requestAnimationFrame(animateBack);
                 else {
+                  cuePullCurrentRef.current = 0;
+                  cuePullTargetRef.current = 0;
                   cueStick.visible = false;
                   cueAnimating = false;
                   if (cameraRef.current && sphRef.current) {
@@ -15048,19 +15063,34 @@ function PoolRoyaleGame({
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
-          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
-            cue,
-            aimDir,
-            balls
-          );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
+          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
+          if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
+          const basePerp = new THREE.Vector3(-baseAimDir.z, 0, baseAimDir.x);
+          if (basePerp.lengthSq() > 1e-8) basePerp.normalize();
           const powerStrength = THREE.MathUtils.clamp(
             powerRef.current ?? 0,
             0,
             1
           );
+          const spinSidePreview =
+            (appliedSpin.x || 0) * (AIM_SPIN_PREVIEW_SIDE + powerStrength * 0.25);
+          const spinForwardPreview =
+            (appliedSpin.y || 0) * (AIM_SPIN_PREVIEW_FORWARD + powerStrength * 0.2);
+          const guideDir = baseAimDir
+            .clone()
+            .add(basePerp.clone().multiplyScalar(spinSidePreview))
+            .add(baseAimDir.clone().multiplyScalar(spinForwardPreview));
+          if (guideDir.lengthSq() < 1e-8) guideDir.copy(baseAimDir);
+          guideDir.normalize();
+          const guideDir2D = new THREE.Vector2(guideDir.x, guideDir.z);
+          const { impact, targetDir, cueDir, targetBall, railNormal } = calcTarget(
+            cue,
+            guideDir2D,
+            balls
+          );
+          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          const dir = guideDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
@@ -15143,16 +15173,29 @@ function PoolRoyaleGame({
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
-          impactRing.visible = false;
-          impactRing.scale.set(1, 1, 1);
+          impactRing.visible = true;
+          impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
+          const impactScale = 0.9 + powerStrength * 0.45;
+          impactRing.scale.set(impactScale, impactScale, impactScale);
+          if (impactRing.material) {
+            impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
+            impactRing.material.needsUpdate = true;
+          }
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
-            aimDir.clone().multiplyScalar(-1),
+            guideDir2D.clone().multiplyScalar(-1),
             balls
           );
           const maxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-          const pull = Math.min(desiredPull, maxPull);
+          const pullTarget = Math.min(desiredPull, maxPull);
+          cuePullTargetRef.current = pullTarget;
+          const pull = THREE.MathUtils.lerp(
+            cuePullCurrentRef.current ?? 0,
+            pullTarget,
+            CUE_PULL_SMOOTHING
+          );
+          cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           let side = appliedSpin.x * offsetSide;
@@ -15304,6 +15347,17 @@ function PoolRoyaleGame({
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
             target.computeLineDistances();
+          } else if (railNormal && cueDir) {
+            const bounceDir = new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize();
+            const bounceLength = BALL_R * (12 + powerStrength * 18);
+            const bounceEnd = end
+              .clone()
+              .add(bounceDir.clone().multiplyScalar(bounceLength));
+            targetGeom.setFromPoints([end, bounceEnd]);
+            target.material.color.setHex(0x7ce7ff);
+            target.material.opacity = 0.35 + 0.25 * powerStrength;
+            target.visible = true;
+            target.computeLineDistances();
           } else {
             target.visible = false;
           }
@@ -15334,7 +15388,14 @@ function PoolRoyaleGame({
           );
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-          const pull = Math.min(desiredPull, maxPull);
+          const pullTarget = Math.min(desiredPull, maxPull);
+          cuePullTargetRef.current = pullTarget;
+          const pull = THREE.MathUtils.lerp(
+            cuePullCurrentRef.current ?? 0,
+            pullTarget,
+            CUE_PULL_SMOOTHING
+          );
+          cuePullCurrentRef.current = pull;
           const offsetSide = ranges.offsetSide ?? 0;
           const offsetVertical = ranges.offsetVertical ?? 0;
           const planSpin = activeAiPlan.spin ?? spinRef.current ?? { x: 0, y: 0 };
@@ -15372,6 +15433,12 @@ function PoolRoyaleGame({
           target.visible = false;
           cueAfter.visible = false;
           impactRing.visible = false;
+          cuePullTargetRef.current = 0;
+          cuePullCurrentRef.current = THREE.MathUtils.lerp(
+            cuePullCurrentRef.current ?? 0,
+            0,
+            CUE_PULL_SMOOTHING
+          );
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
