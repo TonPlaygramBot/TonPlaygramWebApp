@@ -8270,12 +8270,6 @@ function PoolRoyaleGame({
   }, [isLookMode]);
 
   useEffect(() => {
-    if (shotActive && isTopDownView) {
-      // Avoid entering the locked overhead view while a shot is still in motion,
-      // which could trap the broadcast camera and block play until the frame resets.
-      setIsTopDownView(false);
-      return;
-    }
     if (isTopDownView) {
       topViewLockedRef.current = true;
       topViewControlsRef.current.enter?.();
@@ -8283,7 +8277,7 @@ function PoolRoyaleGame({
       topViewLockedRef.current = false;
       topViewControlsRef.current.exit?.();
     }
-  }, [isTopDownView, shotActive]);
+  }, [isTopDownView]);
   const [activeChalkIndex, setActiveChalkIndex] = useState(null);
   const activeChalkIndexRef = useRef(null);
   const chalkAssistEnabledRef = useRef(false);
