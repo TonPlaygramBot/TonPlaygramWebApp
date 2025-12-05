@@ -13,6 +13,9 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
+const CHESS_PLAYER_FLAG_KEY = 'chessBattleRoyalPlayerFlag';
+const CHESS_AI_FLAG_KEY = 'chessBattleRoyalAiFlag';
+
 const PLAYER_OPTIONS = [2, 3, 4];
 
 export default function DominoRoyalLobby() {
@@ -25,6 +28,8 @@ export default function DominoRoyalLobby() {
   const [playerCount, setPlayerCount] = useState(4);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
+  const [chessPlayerFlag, setChessPlayerFlag] = useState(null);
+  const [chessAiFlag, setChessAiFlag] = useState(null);
   const startBet = stake.amount / 100;
 
   const maxPlayers = PLAYER_OPTIONS[PLAYER_OPTIONS.length - 1];
@@ -41,6 +46,29 @@ export default function DominoRoyalLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      const storedPlayer = window.localStorage?.getItem(CHESS_PLAYER_FLAG_KEY);
+      const storedAi = window.localStorage?.getItem(CHESS_AI_FLAG_KEY);
+      const playerIdx = FLAG_EMOJIS.indexOf(storedPlayer);
+      const aiIdx = FLAG_EMOJIS.indexOf(storedAi);
+      if (playerIdx >= 0) setChessPlayerFlag(playerIdx);
+      if (aiIdx >= 0) setChessAiFlag(aiIdx);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (mode !== 'local') return;
+    if (flags.length === flagPickerCount) return;
+    const defaultFlagIndex = Math.max(0, FLAG_EMOJIS.indexOf('🌐'));
+    const playerIdx = chessPlayerFlag ?? defaultFlagIndex;
+    const aiIdx = chessAiFlag ?? playerIdx;
+    const seededFlags = Array.from({ length: flagPickerCount }, (_, seat) =>
+      seat === 0 ? playerIdx : aiIdx
+    );
+    setFlags(seededFlags);
+  }, [mode, flagPickerCount, flags.length, chessPlayerFlag, chessAiFlag]);
 
   const startGame = async (flagOverride = flags) => {
     let tgId;
@@ -65,6 +93,7 @@ export default function DominoRoyalLobby() {
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
+    params.set('uhd', '1');
     const username = getTelegramUsername();
     if (username) params.set('username', username);
     const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
@@ -137,7 +166,8 @@ export default function DominoRoyalLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">AI Avatar Flags</h3>
         <p className="text-sm text-subtext text-center">
-          Match the Snake &amp; Ladder lobby by picking worldwide flags for AI opponents and your seat.
+          Match the Snake &amp; Ladder lobby by picking worldwide flags for AI opponents and your seat. We reuse your Chess Battle
+          Royal flag choices when available so avatars stay consistent.
         </p>
         <button
           type="button"
