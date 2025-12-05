@@ -877,7 +877,8 @@ function buildInitialState(players, token, stake) {
       result: '',
       revealed: false,
       viewed: false,
-      bust: false
+      bust: false,
+      stood: false
     })),
     deck: [],
     token,
@@ -887,7 +888,8 @@ function buildInitialState(players, token, stake) {
     pot: 0,
     awaitingInput: false,
     winners: [],
-    round: 0
+    round: 0,
+    initialBetsPlaced: false
   };
 }
 
@@ -898,6 +900,7 @@ function resetForNextRound(state) {
   next.currentIndex = 0;
   next.pot = 0;
   next.winners = [];
+  next.initialBetsPlaced = false;
   next.players = state.players.map((p) => ({
     ...p,
     hand: [],
@@ -905,8 +908,10 @@ function resetForNextRound(state) {
     result: '',
     revealed: false,
     viewed: false,
-    bust: false
+    bust: false,
+    stood: false
   }));
+  dealInitialCards(next);
   return next;
 }
 
@@ -925,6 +930,7 @@ function placeInitialBets(state, options = {}) {
     player.result = `Bet ${wager}`;
     if (player.chips <= 0) player.chips = 0;
   });
+  state.initialBetsPlaced = true;
 }
 
 function dealInitialCards(state) {
@@ -935,6 +941,7 @@ function dealInitialCards(state) {
     player.bust = false;
     player.revealed = true;
     player.viewed = true;
+    player.stood = false;
     if (player.isHuman) {
       player.result = 'In play';
     }
@@ -950,7 +957,7 @@ function getNextPlayerIndex(players, start) {
     const idx = (startIdx + offset) % total;
     const player = players[idx];
     if (!player) continue;
-    if (player.bet > 0 && !player.bust && !player.stood) {
+    if (player.hand.length > 0 && !player.bust && !player.stood) {
       return idx;
     }
   }
@@ -991,12 +998,14 @@ function applyPlayerAction(state, action) {
     player.viewed = true;
     if (isBust(player.hand)) {
       player.bust = true;
+      player.stood = true;
       player.result = 'Bust';
       advancePlayer(state);
     }
   } else if (action === 'stand') {
     player.viewed = true;
     player.revealed = true;
+    player.stood = true;
     player.result = `Stand ${handValue(player.hand)}`;
     advancePlayer(state);
   }
@@ -2114,22 +2123,27 @@ function BlackJackArena({ search }) {
     });
   };
 
+  const activePlayer = gameState.players[gameState.currentIndex] || null;
   const humanPlayer = gameState.players.find((player) => player.isHuman);
   const sliderMax = humanPlayer ? Math.max(0, Math.round(humanPlayer.chips)) : 0;
   const baseBetAmount = humanPlayer ? Math.max(20, Math.round(gameState.stake * 0.2)) : 0;
-  const minBet = sliderMax > 0 ? Math.min(sliderMax, baseBetAmount || sliderMax) : 0;
-  const sliderEnabled = gameState.stage === 'betting' && Boolean(humanPlayer);
+  const hasPlacedBets = Boolean(gameState.initialBetsPlaced);
+  const minBet = sliderMax > 0
+    ? Math.min(sliderMax, (hasPlacedBets ? 1 : baseBetAmount) || sliderMax)
+    : 0;
+  const sliderEnabled =
+    Boolean(humanPlayer) &&
+    Boolean(activePlayer?.isHuman) &&
+    (gameState.stage === 'betting' || gameState.stage === 'player-turns');
   const chipTotal = useMemo(() => chipSelection.reduce((sum, chip) => sum + chip, 0), [chipSelection]);
   const betPreview = sliderEnabled ? Math.min(sliderMax, Math.max(0, chipTotal > 0 ? chipTotal : sliderValue)) : 0;
   const finalBet = sliderEnabled ? Math.min(sliderMax, Math.max(betPreview, minBet)) : 0;
   const sliderDisplayValue = sliderEnabled ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
-  const sliderLabel = 'Bet';
+  const sliderLabel = hasPlacedBets ? 'Raise' : 'Bet';
   const undoDisabled = !sliderEnabled || chipSelection.length === 0;
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalBet <= 0);
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
-  const activePlayer = gameState.players[gameState.currentIndex] || null;
   const previewRequired = uiState.requiresPreview && Boolean(activePlayer?.isHuman);
-  const suitSymbols = { S: '♠', H: '♥', D: '♦', C: '♣' };
   const humanHand = humanPlayer?.hand ?? [];
   const humanChips = Math.max(0, Math.round(humanPlayer?.chips ?? 0));
   const humanBet = Math.max(0, Math.round(humanPlayer?.bet ?? 0));
@@ -2173,9 +2187,22 @@ function BlackJackArena({ search }) {
     if (wager <= 0) return;
     setGameState((prev) => {
       const next = cloneState(prev);
-      if (next.stage !== 'betting') return next;
-      placeInitialBets(next, { humanBet: wager });
-      dealInitialCards(next);
+      const human = next.players.find((player) => player.isHuman);
+      if (!human) return next;
+      if (!next.initialBetsPlaced) {
+        placeInitialBets(next, { humanBet: wager });
+        next.initialBetsPlaced = true;
+      } else {
+        const raise = Math.min(wager, human.chips);
+        if (raise <= 0) return next;
+        human.chips -= raise;
+        human.bet += raise;
+        next.pot += raise;
+        human.result = `Bet ${human.bet}`;
+      }
+      if (next.stage !== 'player-turns') {
+        dealInitialCards(next);
+      }
       return next;
     });
   }, [sliderEnabled, finalBet]);
@@ -2188,17 +2215,18 @@ function BlackJackArena({ search }) {
   }, [handleChipClick, handleUndoChip]);
 
   useEffect(() => {
-    const prevStage = previousStageRef.current;
-    if (gameState.stage === 'betting' && prevStage !== 'betting') {
+    const previous = previousStageRef.current || { enabled: false, handCount: 0 };
+    const handCount = humanHand.length;
+    if (sliderEnabled && (!previous.enabled || previous.handCount !== handCount)) {
       const defaultBet = minBet > 0 ? minBet : 0;
       setChipSelection([]);
       setSliderValue(defaultBet);
-    } else if (gameState.stage !== 'betting' && prevStage === 'betting') {
+    } else if (!sliderEnabled && previous.enabled) {
       setChipSelection([]);
       setSliderValue(0);
     }
-    previousStageRef.current = gameState.stage;
-  }, [gameState.stage, minBet]);
+    previousStageRef.current = { enabled: sliderEnabled, handCount };
+  }, [sliderEnabled, minBet, humanHand.length]);
 
   useEffect(() => {
     if (!sliderEnabled) return;
@@ -2277,23 +2305,6 @@ function BlackJackArena({ search }) {
           <div className="text-sm uppercase tracking-wide text-white/60">Your chips</div>
           <div className="text-lg font-bold text-emerald-300">{humanChips}</div>
           <div className="text-sm text-white/70">Bet {humanBet}</div>
-        </div>
-        <div className="flex items-center gap-2 rounded-2xl bg-black/60 px-3 py-2 shadow-lg backdrop-blur">
-          {humanHand.map((card, idx) => {
-            const symbol = suitSymbols[card.suit] || '?';
-            const isRed = card.suit === 'H' || card.suit === 'D';
-            return (
-              <div
-                key={`${card.rank}${card.suit}${idx}`}
-                className={`min-w-[60px] rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-center text-lg font-extrabold shadow-md ${
-                  isRed ? 'text-rose-300' : 'text-white'
-                }`}
-              >
-                <div className="text-xl leading-tight">{card.rank}</div>
-                <div className="text-sm leading-tight">{symbol}</div>
-              </div>
-            );
-          })}
         </div>
       </div>
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
