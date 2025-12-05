@@ -138,6 +138,7 @@ const TURN_TOKEN_RADIUS = 0.14 * MODEL_SCALE;
 const TURN_TOKEN_HEIGHT = 0.05 * MODEL_SCALE;
 const TURN_TOKEN_FORWARD_OFFSET = 0.18 * MODEL_SCALE;
 const TURN_TOKEN_LIFT = 0.08 * MODEL_SCALE;
+const TURN_DURATION = 30;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -1731,6 +1732,7 @@ function TexasHoldemArena({ search }) {
   });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
+  const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const overheadView = false;
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
@@ -1761,6 +1763,7 @@ function TexasHoldemArena({ search }) {
   }, [effectivePlayerCount, appearance.tableShape]);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
+  const turnIntervalRef = useRef(null);
   const soundsRef = useRef({});
   const potDisplayRef = useRef(0);
   const potTargetRef = useRef(0);
@@ -3383,6 +3386,54 @@ function TexasHoldemArena({ search }) {
     };
   }, [gameState]);
 
+  useEffect(() => {
+    if (turnIntervalRef.current) {
+      clearInterval(turnIntervalRef.current);
+      turnIntervalRef.current = null;
+    }
+
+    if (!actor || gameState.stage === 'showdown') {
+      setTurnCountdown(TURN_DURATION);
+      return;
+    }
+
+    const currentStage = gameState.stage;
+    const currentActionIndex = gameState.actionIndex;
+    const startedAt = Date.now();
+    setTurnCountdown(TURN_DURATION);
+
+    turnIntervalRef.current = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+      const remaining = Math.max(0, TURN_DURATION - elapsed);
+      setTurnCountdown(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(turnIntervalRef.current);
+        turnIntervalRef.current = null;
+
+        if (actor.isHuman) {
+          setGameState((prev) => {
+            if (prev.stage !== currentStage || prev.actionIndex !== currentActionIndex) return prev;
+            const next = cloneState(prev);
+            const currentActor = next.players[currentActionIndex];
+            if (!currentActor) return prev;
+            const toCallAmount = Math.max(0, next.currentBet - currentActor.bet);
+            const timeoutAction = toCallAmount > 0 ? 'fold' : 'check';
+            performPlayerAction(next, timeoutAction);
+            return next;
+          });
+        }
+      }
+    }, 1000);
+
+    return () => {
+      if (turnIntervalRef.current) {
+        clearInterval(turnIntervalRef.current);
+        turnIntervalRef.current = null;
+      }
+    };
+  }, [actor, gameState.actionIndex, gameState.stage]);
+
   const handleAction = (id, raiseAmount) => {
     setGameState((prev) => {
       const next = cloneState(prev);
@@ -3418,13 +3469,8 @@ function TexasHoldemArena({ search }) {
   const humanChips = Math.max(0, Math.round(humanPlayer?.chips ?? 0));
   const humanBet = Math.max(0, Math.round(humanPlayer?.bet ?? 0));
   const suitSymbols = { S: '♠', H: '♥', D: '♦', C: '♣' };
-
-  const turnLabel = useMemo(() => {
-    if (!actor || gameState.stage === 'showdown') return '';
-    if (actor.isHuman) return 'Your turn';
-    const name = actor.name || 'Opponent';
-    return `${name} is acting`;
-  }, [actor, gameState.stage]);
+  const actorName = actor?.isHuman ? 'You' : actor?.name || 'Opponent';
+  const timerProgress = Math.max(0, Math.min(1, turnCountdown / TURN_DURATION));
 
   useEffect(() => {
     if (!actor?.isHuman || gameState.stage === 'showdown') {
@@ -3543,29 +3589,46 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      {humanPlayer && (
-        <div className="pointer-events-none absolute bottom-4 left-4 z-20 flex flex-col gap-3 text-white">
-          <div className="flex items-center gap-3 rounded-2xl bg-black/60 px-4 py-3 shadow-lg backdrop-blur">
-            <div className="text-sm uppercase tracking-wide text-white/60">Your chips</div>
-            <div className="text-lg font-bold text-emerald-300">{humanChips}</div>
-            <div className="text-sm text-white/70">Bet {humanBet}</div>
+      {actor && gameState.stage !== 'showdown' && (
+        <div className="pointer-events-none absolute top-4 left-1/2 z-30 flex w-[360px] -translate-x-1/2 flex-col gap-2 rounded-2xl bg-black/55 p-3 text-white shadow-xl backdrop-blur">
+          <div className="flex items-center justify-between text-sm font-semibold tracking-wide">
+            <span className="uppercase text-white/80">Turn</span>
+            <span className="text-base">{actorName}</span>
+            <span className="text-emerald-300">{turnCountdown}s</span>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl bg-black/60 px-3 py-2 shadow-lg backdrop-blur">
-            {humanHand.map((card, idx) => {
-              const symbol = suitSymbols[card.suit] || '?';
-              const isRed = card.suit === 'H' || card.suit === 'D';
-              return (
-                <div
-                  key={`${card.rank}${card.suit}${idx}`}
-                  className={`min-w-[60px] rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-center text-lg font-extrabold shadow-md ${
-                    isRed ? 'text-rose-300' : 'text-white'
-                  }`}
-                >
-                  <div className="text-xl leading-tight">{card.rank}</div>
-                  <div className="text-sm leading-tight">{symbol}</div>
-                </div>
-              );
-            })}
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400"
+              style={{ width: `${timerProgress * 100}%` }}
+            />
+          </div>
+        </div>
+      )}
+      {humanPlayer && (
+        <div className="pointer-events-none absolute bottom-4 left-4 z-30 flex flex-col gap-3 text-white">
+          <div className="flex items-center gap-4 rounded-2xl bg-black/70 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="flex flex-col gap-1">
+              <div className="text-sm uppercase tracking-wide text-white/60">Your chips</div>
+              <div className="text-lg font-bold text-emerald-300">{humanChips}</div>
+              <div className="text-sm text-white/70">Bet {humanBet}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              {humanHand.map((card, idx) => {
+                const symbol = suitSymbols[card.suit] || '?';
+                const isRed = card.suit === 'H' || card.suit === 'D';
+                return (
+                  <div
+                    key={`${card.rank}${card.suit}${idx}`}
+                    className={`min-w-[60px] rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-center text-lg font-extrabold shadow-md ${
+                      isRed ? 'text-rose-300' : 'text-white'
+                    }`}
+                  >
+                    <div className="text-xl leading-tight">{card.rank}</div>
+                    <div className="text-sm leading-tight">{symbol}</div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -3648,13 +3711,6 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
-      {turnLabel && (
-        <div className="pointer-events-none fixed bottom-20 inset-x-0 z-20 flex justify-center">
-          <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
-            {turnLabel}
-          </div>
-        </div>
-      )}
       {actor?.isHuman && sliderEnabled && sliderMax > 0 && (
         <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
           <div className="flex flex-col items-center gap-1 text-center">
