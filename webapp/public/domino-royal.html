@@ -389,6 +389,13 @@ const accountId = (urlParams.get('accountId') || '').trim();
 const telegramId = (urlParams.get('tgId') || urlParams.get('telegramId') || '').trim();
 let seatAvatarPhoto = normalizeAvatarSource(urlParams.get('avatar') || '');
 let seatAvatarUsername = (urlParams.get('username') || '').trim();
+const telegramUser = window?.Telegram?.WebApp?.initDataUnsafe?.user;
+if (!seatAvatarPhoto && telegramUser?.photo_url) {
+  seatAvatarPhoto = normalizeAvatarSource(telegramUser.photo_url);
+}
+if (!seatAvatarUsername && telegramUser) {
+  seatAvatarUsername = (telegramUser.username || telegramUser.first_name || telegramUser.last_name || '').trim();
+}
 const lobbyAvatarFallback = (() => {
   try {
     return normalizeAvatarSource(localStorage.getItem('profilePhoto') || '');
@@ -4643,18 +4650,23 @@ function applySelectedHighlight(mesh){
 
   mesh.traverse((child)=>{
     if(!child.isMesh || child.userData?.marker) return;
-    if(!child.userData.__origMaterial){
+    const isPip = child.material === pipMat || SHARED_DOMINO_MATERIALS.has(child.material);
+    if(!child.userData.__origMaterial && !isPip){
       child.userData.__origMaterial = child.material;
+    }
+    if(isPip){
+      selectedHighlightMaterials.push(child);
+      return;
     }
     const clonedMat = child.material?.clone ? child.material.clone() : child.material;
     if(clonedMat && clonedMat.color){
       clonedMat.color = clonedMat.color.clone ? clonedMat.color.clone() : new THREE.Color(clonedMat.color);
-      clonedMat.color.lerp(new THREE.Color('#facc15'), 0.72);
+      clonedMat.color.lerp(new THREE.Color('#facc15'), 0.9);
     }
     if(clonedMat && clonedMat.emissive){
       clonedMat.emissive = clonedMat.emissive.clone ? clonedMat.emissive.clone() : new THREE.Color(clonedMat.emissive);
-      clonedMat.emissive.lerp(new THREE.Color('#fef08a'), 0.85);
-      clonedMat.emissiveIntensity = Math.max(0.85, clonedMat.emissiveIntensity ?? 0.45);
+      clonedMat.emissive.lerp(new THREE.Color('#fde047'), 0.92);
+      clonedMat.emissiveIntensity = Math.max(1.05, clonedMat.emissiveIntensity ?? 0.6);
     }
     child.material = clonedMat;
     selectedHighlightMaterials.push(child);
@@ -4663,7 +4675,7 @@ function applySelectedHighlight(mesh){
   const plateGeometry = new THREE.PlaneGeometry(DOMINO_LENGTH * 1.08, DOMINO_WIDTH * 1.18);
   const plate = new THREE.Mesh(
     plateGeometry,
-    new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.52, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
   );
   plate.rotation.x = -Math.PI / 2;
   plate.position.set(0, 0.011, 0);
@@ -4689,43 +4701,25 @@ function makeMarker(){
   const marker = new THREE.Group();
   marker.userData.marker = true;
 
-  const g=new THREE.PlaneGeometry(DOMINO_LENGTH * 1.04, DOMINO_WIDTH * 1.05);
+  const bodyGeo = new RoundedBoxGeometry(DOMINO_LENGTH, DOMINO_WIDTH, DOMINO_WIDTH * 0.3, 6, DOMINO_WIDTH * 0.18);
   const plateMat = markerMat.clone();
   plateMat.color = markerMat.color.clone();
-  const plate=new THREE.Mesh(g, plateMat);
+  plateMat.opacity = 0.68;
+  const plate=new THREE.Mesh(bodyGeo, plateMat);
   plate.rotation.x=-Math.PI/2;
-  plate.position.y=CLOTH_TOP+0.0115;
+  plate.position.y=CLOTH_TOP+DOMINO_WIDTH*0.16;
   plate.renderOrder=10;
   plate.userData.marker = true;
   marker.add(plate);
 
   const outline = new THREE.LineSegments(
-    new THREE.EdgesGeometry(g),
+    new THREE.EdgesGeometry(bodyGeo),
     new THREE.LineBasicMaterial({ color: '#f59e0b', transparent: true, opacity: 0.95, linewidth: 2 })
   );
   outline.rotation.copy(plate.rotation);
-  outline.position.copy(plate.position).add(new THREE.Vector3(0, 0.0006, 0));
+  outline.position.copy(plate.position).add(new THREE.Vector3(0, DOMINO_WIDTH * 0.02, 0));
   outline.renderOrder = 11;
   marker.add(outline);
-
-  const midLine = new THREE.Mesh(
-    new THREE.PlaneGeometry(DOMINO_LENGTH * 0.08, DOMINO_WIDTH * 0.95),
-    new THREE.MeshBasicMaterial({ color: '#fef08a', transparent: true, opacity: 0.95, side: THREE.DoubleSide })
-  );
-  midLine.rotation.x = -Math.PI/2;
-  midLine.position.y = plate.position.y + 0.0008;
-  midLine.renderOrder = 12;
-  marker.add(midLine);
-
-  const arrowGeo = new THREE.ConeGeometry(DOMINO_WIDTH * 0.16, DOMINO_WIDTH * 0.42, 16);
-  const arrowMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#facc15', emissiveIntensity: 0.85, roughness: 0.35, metalness: 0.05, transparent: true, opacity: 0.92 });
-  const leftArrow = new THREE.Mesh(arrowGeo, arrowMat);
-  leftArrow.rotation.x = -Math.PI/2;
-  leftArrow.position.set(-DOMINO_LENGTH * 0.42, plate.position.y + 0.008, 0);
-  leftArrow.renderOrder = 13;
-  const rightArrow = leftArrow.clone();
-  rightArrow.position.x = DOMINO_LENGTH * 0.42;
-  marker.add(leftArrow, rightArrow);
 
   return marker;
 }
