@@ -1588,6 +1588,106 @@ function applyLocalBeautifulGameMaterials(assets) {
   return assets;
 }
 
+function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
+  if (!piecePrototypes) return;
+
+  const rubyGlass = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color('#b10f2e'),
+    roughness: 0.16,
+    metalness: 0.32,
+    transparent: true,
+    opacity: 1,
+    transmission: 0.88,
+    ior: 1.55,
+    thickness: 0.44,
+    attenuationColor: new THREE.Color('#b10f2e'),
+    attenuationDistance: 0.45,
+    clearcoat: 0.54,
+    clearcoatRoughness: 0.18,
+    reflectivity: 0.78
+  });
+
+  const royalGold = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color('#d7b24a'),
+    roughness: 0.24,
+    metalness: 0.96,
+    clearcoat: 0.42,
+    clearcoatRoughness: 0.16,
+    sheen: 0.22,
+    sheenColor: new THREE.Color('#fff6d5'),
+    reflectivity: 0.84
+  });
+
+  const marbleTexture = createGraniteTexture('#d7d2c8', 73, 2.6);
+  const onyxTexture = createGraniteTexture('#1f1e26', 61, 2.2);
+
+  const applyStoneVeins = (mesh, useLight) => {
+    if (!mesh?.isMesh || mesh.userData?.__veined) return;
+    const mat = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    mat.forEach((m) => {
+      if (!m || m.map) return;
+      const texture = useLight ? marbleTexture : onyxTexture;
+      if (texture) {
+        m.map = texture;
+        m.normalMap = texture;
+        m.normalScale = new THREE.Vector2(0.34, 0.34);
+        m.needsUpdate = true;
+      }
+      m.roughness = clamp01((m.roughness ?? 0.36) * 0.82);
+      m.metalness = clamp01((m.metalness ?? 0.18) + 0.08);
+    });
+    mesh.userData = { ...(mesh.userData || {}), __veined: true };
+  };
+
+  const ornament = (proto, colorKey) => {
+    if (!proto || proto.userData?.__ornamented) return;
+    const type = proto.userData?.__pieceType;
+    const box = new THREE.Box3().setFromObject(proto);
+    const height = box.max.y - box.min.y || 1;
+    const topY = box.max.y;
+    const gemRadius = Math.max(tileSize * 0.09, height * 0.08);
+
+    if (type === 'P') {
+      const gem = new THREE.Mesh(new THREE.SphereGeometry(gemRadius, 18, 16), rubyGlass.clone());
+      gem.position.y = topY + gemRadius * 0.5;
+      gem.castShadow = true;
+      gem.receiveShadow = true;
+      proto.add(gem);
+    }
+
+    if (type === 'K' || type === 'Q') {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(tileSize * 0.14, tileSize * 0.035, 14, 32),
+        royalGold.clone()
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.y = topY + tileSize * 0.02;
+      ring.castShadow = true;
+      ring.receiveShadow = true;
+      proto.add(ring);
+
+      const gem = new THREE.Mesh(new THREE.SphereGeometry(tileSize * 0.06, 14, 12), rubyGlass.clone());
+      gem.position.y = topY + tileSize * 0.16;
+      gem.castShadow = true;
+      gem.receiveShadow = true;
+      proto.add(gem);
+    }
+
+    proto.traverse((child) => {
+      if (!child?.isMesh) return;
+      applyStoneVeins(child, colorKey === 'white');
+      child.castShadow = true;
+      child.receiveShadow = true;
+    });
+
+    proto.userData = { ...(proto.userData || {}), __ornamented: true };
+  };
+
+  ['white', 'black'].forEach((colorKey) => {
+    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => ornament(proto, colorKey));
+  });
+}
+
 async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
     targetBoardSize,
@@ -1961,19 +2061,22 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
   piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
 
-  Object.values(piecePrototypes).forEach((byColor) => {
-    Object.values(byColor).forEach((proto) => {
-      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame' };
+  Object.entries(piecePrototypes).forEach(([, byColor]) => {
+    Object.entries(byColor).forEach(([type, proto]) => {
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
       proto.traverse((child) => {
         if (!child.isMesh) return;
         child.castShadow = true;
         child.receiveShadow = true;
-        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame' };
+        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
       });
     });
   });
 
-  return { boardModel, piecePrototypes };
+  const boardBox = new THREE.Box3().setFromObject(boardModel);
+  const boardTop = boardBox.max.y;
+
+  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: boardTop + 0.02 };
 }
 
 function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
@@ -2664,7 +2767,14 @@ function applyMaterialSettingsWithSRGB(node) {
 }
 
 function extractChessSetAssets(scene, options = {}) {
-  const { targetBoardSize, styleId = 'customPieces', assetScale = 1, name = 'ChessSet' } = options;
+  const {
+    targetBoardSize,
+    styleId = 'customPieces',
+    assetScale = 1,
+    name = 'ChessSet',
+    pieceFootprintRatio,
+    pieceYOffset
+  } = options;
   if (!scene) return { boardModel: null, piecePrototypes: null };
 
   const root = scene.clone(true);
@@ -2755,6 +2865,10 @@ function extractChessSetAssets(scene, options = {}) {
   );
 
   const tileSize = Math.max(0.001, targetSize / 8);
+  const footprintRatio = Number.isFinite(pieceFootprintRatio) ? pieceFootprintRatio : 0.82;
+  const preferredPieceYOffset = Number.isFinite(pieceYOffset)
+    ? pieceYOffset
+    : PIECE_PLACEMENT_Y_OFFSET;
   const ensurePrototypes = () => {
     ['white', 'black'].forEach((colorKey) => {
       TYPES.forEach((type) => {
@@ -2786,17 +2900,17 @@ function extractChessSetAssets(scene, options = {}) {
         const box = new THREE.Box3().setFromObject(src);
         const size = box.getSize(new THREE.Vector3());
         const footprint = Math.max(size.x, size.z) || 1;
-        const scale = (tileSize * 0.82) / footprint;
+        const scale = (tileSize * footprintRatio) / footprint;
         src.scale.setScalar(scale);
         const scaledBox = new THREE.Box3().setFromObject(src);
         const center = scaledBox.getCenter(new THREE.Vector3());
         src.position.sub(center);
         src.position.y -= scaledBox.min.y;
-        src.userData = { ...(src.userData || {}), __pieceStyleId: styleId };
+        src.userData = { ...(src.userData || {}), __pieceStyleId: styleId, __pieceType: type };
         src.traverse((child) => {
           if (!child.isMesh) return;
           child.castShadow = true;
-          child.userData = { ...(child.userData || {}), __pieceStyleId: styleId };
+          child.userData = { ...(child.userData || {}), __pieceStyleId: styleId, __pieceType: type };
         });
         proto[colorKey][type] = src;
       });
@@ -2805,7 +2919,8 @@ function extractChessSetAssets(scene, options = {}) {
 
   ensurePrototypes();
 
-  return { boardModel, piecePrototypes: proto };
+  const assets = { boardModel, piecePrototypes: proto, tileSize, pieceYOffset: preferredPieceYOffset };
+  return assets;
 }
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
@@ -2815,8 +2930,14 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
     styleId: 'beautifulGame',
     assetScale,
-    name: 'ABeautifulGame'
+    name: 'ABeautifulGame',
+    pieceFootprintRatio: 0.78
   });
+  if (assets.boardModel) {
+    const finalBox = new THREE.Box3().setFromObject(assets.boardModel);
+    const boardTop = finalBox.max.y;
+    assets.pieceYOffset = Math.max(boardTop + 0.02, PIECE_PLACEMENT_Y_OFFSET);
+  }
   if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
@@ -2862,6 +2983,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
   const boardSize = boardBox.getSize(new THREE.Vector3());
   const largest = Math.max(boardSize.x || 1, boardSize.z || 1);
   const targetSize = Math.max(targetBoardSize || RAW_BOARD_SIZE, 0.001);
+  const tileSize = Math.max(0.001, targetSize / 8);
   const totalScale = targetSize / largest;
   boardModel.scale.multiplyScalar(totalScale);
   const scaledBox = new THREE.Box3().setFromObject(boardModel);
@@ -2873,6 +2995,8 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     -boardCenter.z
   );
   boardModel.name = 'ABeautifulGameTouch';
+  const finalBox = new THREE.Box3().setFromObject(boardModel);
+  const boardTop = finalBox.max.y;
 
   const piecePrototypes = { white: {}, black: {} };
   const fallbackTile = Math.max(0.001, targetSize / 8);
@@ -2893,7 +3017,12 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
       const protoCenter = protoBox.getCenter(new THREE.Vector3());
       proto.position.sub(protoCenter);
       proto.position.y -= protoBox.min.y;
-      proto.userData = { ...(proto.userData || {}), __pieceStyleId: DEFAULT_PIECE_SET_ID, __pieceColor: colorKey };
+      proto.userData = {
+        ...(proto.userData || {}),
+        __pieceStyleId: DEFAULT_PIECE_SET_ID,
+        __pieceColor: colorKey,
+        __pieceType: type
+      };
       return proto;
     }
     const fallback = buildBeautifulGamePiece(
@@ -2902,7 +3031,12 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
       colorKey === 'black' ? '#caa472' : '#caa472',
       fallbackTile / 0.9
     );
-    fallback.userData = { ...(fallback.userData || {}), __pieceStyleId: DEFAULT_PIECE_SET_ID, __pieceColor: colorKey };
+    fallback.userData = {
+      ...(fallback.userData || {}),
+      __pieceStyleId: DEFAULT_PIECE_SET_ID,
+      __pieceColor: colorKey,
+      __pieceType: type
+    };
     return fallback;
   };
 
@@ -2911,7 +3045,12 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     piecePrototypes.black[type] = buildPrototype('black', type);
   });
 
-  const assets = { boardModel, piecePrototypes };
+  const assets = {
+    boardModel,
+    piecePrototypes,
+    tileSize,
+    pieceYOffset: boardTop + 0.02
+  };
   if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
@@ -4975,6 +5114,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const half = (N * tile) / 2;
     let currentBoardModel = null;
     let currentPiecePrototypes = null;
+    let currentPieceYOffset = PIECE_PLACEMENT_Y_OFFSET;
+    let currentTileSize = tile;
     let currentPieceSetId = initialPieceSetId;
     let currentBoardCleanup = null;
     const base = box(
@@ -5083,6 +5224,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!prototypes) return;
       const colorKey = (p) => (p.w ? 'white' : 'black');
       const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
+      const yOffset = Number.isFinite(currentPieceYOffset)
+        ? currentPieceYOffset
+        : PIECE_PLACEMENT_Y_OFFSET;
 
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
@@ -5102,7 +5246,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const clone = cloneWithShadows(proto);
           clone.position.set(
             c * tile - half + tile / 2,
-            PIECE_PLACEMENT_Y_OFFSET,
+            yOffset,
             r * tile - half + tile / 2
           );
           clone.userData = {
@@ -5137,6 +5281,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const applyPieceSetAssets = (assets, setId = currentPieceSetId) => {
       const { boardModel, piecePrototypes } = assets || {};
       currentPieceSetId = setId;
+      currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
+        ? assets.pieceYOffset
+        : PIECE_PLACEMENT_Y_OFFSET;
+      currentTileSize = assets?.tileSize ?? tile;
       if (currentBoardCleanup) {
         currentBoardCleanup();
         currentBoardCleanup = null;
@@ -5158,6 +5306,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
+        adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         paintPiecesFromPrototypes(piecePrototypes, setId);
       }
       if (arenaRef.current) {
