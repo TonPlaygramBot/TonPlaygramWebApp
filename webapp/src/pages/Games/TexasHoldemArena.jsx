@@ -87,7 +87,7 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
 const COMMUNITY_SPACING = CARD_W * 0.62;
-const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * 0.32;
+const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * -0.08;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
@@ -109,7 +109,7 @@ const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_FORWARD_OFFSET = CARD_W * -0.55;
+const POT_FORWARD_OFFSET = COMMUNITY_CARD_FORWARD_OFFSET - CARD_W * 0.7;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, POT_FORWARD_OFFSET);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
@@ -231,6 +231,7 @@ const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
 const ARENA_WALL_INNER_RADIUS = TABLE_RADIUS * ARENA_GROWTH * 2.4;
 const DEFAULT_PITCH_LIMITS = Object.freeze({ min: -CAMERA_HEAD_PITCH_UP, max: CAMERA_HEAD_PITCH_DOWN });
 const HUMAN_SEAT_ROTATION_OFFSET = Math.PI / 8;
+const SEAT_ROTATION_OFFSET = Math.PI;
 
 const STAGE_SEQUENCE = ['preflop', 'flop', 'turn', 'river'];
 
@@ -931,7 +932,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
     tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
   for (let i = 0; i < safeCount; i += 1) {
     const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
-    const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
+    const angle = (classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle) + SEAT_ROTATION_OFFSET;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
     const right = new THREE.Vector3(-Math.sin(angle), 0, Math.cos(angle));
@@ -1748,6 +1749,8 @@ function TexasHoldemArena({ search }) {
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
   const overheadView = false;
+  const playerBadgeName = searchOptions.username || 'You';
+  const playerAvatar = getAvatarUrl(searchOptions.avatar) || '/assets/icons/profile.svg';
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -2326,7 +2329,7 @@ function TexasHoldemArena({ search }) {
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT
         : CAMERA_PLAYER_FOCUS_HEIGHT;
       const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
-      const chipFocus = humanSeat.chipAnchor
+      const chipFocus = (humanSeat.chipRailAnchor ?? humanSeat.chipAnchor)
         .clone()
         .addScaledVector(humanSeat.forward, -focusForwardPull);
       chipFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
@@ -2469,19 +2472,20 @@ function TexasHoldemArena({ search }) {
           forward: seat.forward.clone()
         };
 
-        const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
-        chipStack.position.copy(seat.chipAnchor);
+        const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: railLayout });
+        chipStack.position.copy(seat.chipRailAnchor);
+        chipStack.scale.setScalar(RAIL_CHIP_SCALE);
         arenaGroup.add(chipStack);
 
-        const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
-        betStack.position.copy(seat.betAnchor);
+        const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: railLayout });
+        betStack.position.copy(seat.chipRailAnchor);
         betStack.visible = false;
         arenaGroup.add(betStack);
 
-        const previewStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
-        previewStack.position.copy(seat.previewAnchor);
+        const previewStack = chipFactory.createStack(0, { mode: 'scatter', layout: railLayout });
+        previewStack.position.copy(seat.chipRailAnchor);
         previewStack.visible = false;
-        previewStack.scale.setScalar(HUMAN_CHIP_SCALE);
+        previewStack.scale.setScalar(RAIL_CHIP_SCALE);
         arenaGroup.add(previewStack);
 
         const hoverChip = chipFactory.createStack(0, { mode: 'rail', layout: railLayout });
@@ -2599,10 +2603,12 @@ function TexasHoldemArena({ search }) {
           }
         }
 
+      const tableRotationY = tableInfo?.rotationY ?? 0;
+
       const communityMeshes = COMMUNITY_CARD_POSITIONS.map((pos, idx) => {
         const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
         mesh.position.copy(
-          computeCommunitySlotPosition(idx, { rotationY: tableInfo?.rotationY ?? 0, surfaceY: tableInfo?.surfaceY })
+          computeCommunitySlotPosition(idx, { rotationY: tableRotationY, surfaceY: tableInfo?.surfaceY })
         );
         mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
         mesh.castShadow = true;
@@ -2611,16 +2617,26 @@ function TexasHoldemArena({ search }) {
       });
 
       const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
-      potStack.position.copy(POT_OFFSET);
+      const potPosition = POT_OFFSET.clone();
+      if (tableRotationY) {
+        potPosition.applyAxisAngle(WORLD_UP, tableRotationY);
+      }
+      potStack.position.copy(potPosition);
       arenaGroup.add(potStack);
-      const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
+      const potLayoutRight = new THREE.Vector3(1, 0, 0).applyAxisAngle(WORLD_UP, tableRotationY);
+      const potLayoutForward = new THREE.Vector3(0, 0, 1).applyAxisAngle(WORLD_UP, tableRotationY);
+      const potLayout = { ...CHIP_SCATTER_LAYOUT, right: potLayoutRight, forward: potLayoutForward };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
 
       const turnIndicator = new THREE.Mesh(
         new THREE.CylinderGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_RADIUS * 0.92, TURN_TOKEN_HEIGHT, 24),
         new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#78350f', emissiveIntensity: 0.38, metalness: 0.55 })
       );
-      turnIndicator.position.copy(POT_OFFSET.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
+      const turnOffset = new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET);
+      if (tableRotationY) {
+        turnOffset.applyAxisAngle(WORLD_UP, tableRotationY);
+      }
+      turnIndicator.position.copy(potPosition.clone().add(turnOffset));
       turnIndicator.visible = false;
       turnIndicator.castShadow = true;
       turnIndicator.receiveShadow = true;
@@ -3060,7 +3076,7 @@ function TexasHoldemArena({ search }) {
       const shouldHoldChips =
         state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
       const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
-      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.tableLayout });
+      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
       const prevBet = seat.lastBet ?? 0;
@@ -3079,7 +3095,7 @@ function TexasHoldemArena({ search }) {
           mid: midBase,
           end: endBase,
           startLayout: seat.railLayout,
-          midLayout: seat.tableLayout,
+          midLayout: seat.railLayout,
           endLayout: potLayout,
           pauseDuration: 0.45,
           toMidDuration: 0.35,
@@ -3095,7 +3111,7 @@ function TexasHoldemArena({ search }) {
       seat.lastChips = chipsAmount;
 
       if (seat.betStack) {
-        chipFactory.setAmount(seat.betStack, 0, { mode: 'scatter', layout: seat.tableLayout });
+        chipFactory.setAmount(seat.betStack, 0, { mode: 'scatter', layout: seat.railLayout });
         seat.betStack.visible = false;
       }
 
@@ -3298,7 +3314,7 @@ function TexasHoldemArena({ search }) {
         const seat = seatGroups?.[seatIndex];
         if (!seat) return;
         const start = potStack.position.clone();
-        const end = seat.chipAnchor.clone();
+        const end = (seat.chipRailAnchor ?? seat.chipAnchor).clone();
         const mid = start.clone().lerp(end, 0.5);
         mid.y += CARD_SURFACE_OFFSET * 6;
         const targetChips = seatTargets[seatIndex] ?? Math.max(0, Math.round(gameState.players?.[seatIndex]?.chips ?? 0));
@@ -3308,8 +3324,8 @@ function TexasHoldemArena({ search }) {
           mid,
           end,
           startLayout: potLayout,
-          midLayout: seat.tableLayout,
-          endLayout: seat.tableLayout,
+          midLayout: seat.railLayout,
+          endLayout: seat.railLayout,
           startLift: CARD_SURFACE_OFFSET,
           midLift: CARD_SURFACE_OFFSET * 4,
           endLift: CARD_SURFACE_OFFSET,
@@ -3331,7 +3347,7 @@ function TexasHoldemArena({ search }) {
               if (showdownAnimationRef.current.seatPending[seatIndex] <= 0) {
                 chipFactory.setAmount(seat.chipStack, targetChips, {
                   mode: 'scatter',
-                  layout: seat.tableLayout
+                  layout: seat.railLayout
                 });
               }
             }
@@ -3497,7 +3513,7 @@ function TexasHoldemArena({ search }) {
     const seat = three.seatGroups?.find((s) => s.isHuman);
     if (!seat?.previewStack) return;
     const amount = sliderVisible ? Math.round(raisePreview) : 0;
-    three.chipFactory.setAmount(seat.previewStack, amount, { mode: 'scatter', layout: seat.tableLayout });
+    three.chipFactory.setAmount(seat.previewStack, amount, { mode: 'scatter', layout: seat.railLayout });
     seat.previewStack.visible = amount > 0;
   }, [raisePreview, sliderVisible]);
 
@@ -3588,6 +3604,15 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
+      <div className="absolute top-3 right-3 z-20 flex items-center space-x-3 pointer-events-auto">
+        <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1 text-xs text-white shadow backdrop-blur">
+          {playerAvatar && (
+            <img src={playerAvatar} alt="avatar" className="h-7 w-7 rounded-full object-cover" />
+          )}
+          <span className="font-semibold">{playerBadgeName}</span>
+          <span className="text-[11px] text-white/80">{gameState.token}</span>
+        </div>
+      </div>
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
         <div className="flex items-center gap-2">
           <button
