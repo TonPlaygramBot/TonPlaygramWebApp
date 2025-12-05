@@ -766,6 +766,7 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const POST_IMPACT_PREVIEW_SPIN_SCALE = 0.45; // influence strength for the dashed cue-ball path preview
 // Mirror Pool Royale's tuned shot power and lift it by 30% for a livelier snooker break.
 const SHOT_POWER_REDUCTION = 0.85;
 const POOL_ROYALE_SHOT_FORCE = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
@@ -773,6 +774,7 @@ const SHOT_FORCE_BOOST = POOL_ROYALE_SHOT_FORCE * 1.3;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
+const SHOT_POWER_MULTIPLIER = 1.2; // amplify cue force by 20%
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
 const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
@@ -6427,6 +6429,7 @@ function SnookerGame() {
   const spinAppliedRef = useRef({ x: 0, y: 0, mode: 'standard', magnitude: 0 });
   const spinDotElRef = useRef(null);
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
+  const spinDragActiveRef = useRef(false);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
@@ -9752,21 +9755,7 @@ function SnookerGame() {
       target.visible = false;
       table.add(target);
 
-      const chalkPrecisionArea = new THREE.Mesh(
-        new THREE.CircleGeometry(CHALK_TARGET_RING_RADIUS, 48),
-        new THREE.MeshBasicMaterial({
-          color: CHALK_ACTIVE_COLOR,
-          transparent: true,
-          opacity: CHALK_RING_OPACITY,
-          side: THREE.DoubleSide,
-          depthWrite: false
-        })
-      );
-      chalkPrecisionArea.rotation.x = -Math.PI / 2;
-      chalkPrecisionArea.visible = false;
-      chalkPrecisionArea.renderOrder = 2;
-      table.add(chalkPrecisionArea);
-      chalkAreaRef.current = chalkPrecisionArea;
+      chalkAreaRef.current = null;
 
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
@@ -10442,7 +10431,7 @@ function SnookerGame() {
           const powerScale = SHOT_MIN_FACTOR + SHOT_POWER_RANGE * clampedPower;
           const base = aimDir
             .clone()
-            .multiplyScalar(SHOT_BASE_SPEED * powerScale);
+            .multiplyScalar(SHOT_BASE_SPEED * powerScale * SHOT_POWER_MULTIPLIER);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
           const allowLongShotCameraSwitch =
@@ -11246,7 +11235,7 @@ function SnookerGame() {
         const aimLerpFactor = chalkAssistTargetRef.current
           ? CHALK_AIM_LERP_SLOW
           : 0.2;
-        if (!lookModeRef.current) {
+        if (!lookModeRef.current && !spinDragActiveRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
@@ -11331,7 +11320,8 @@ function SnookerGame() {
           } else {
             aimFocusRef.current = null;
           }
-          const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const desiredPull = clampedPower * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
@@ -11471,11 +11461,32 @@ function SnookerGame() {
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          if (afterDir) {
+          const basePreviewDir = afterDir
+            ? new THREE.Vector2(afterDir.x, afterDir.y)
+            : new THREE.Vector2(dir.x, dir.z);
+          const impactPreviewForward = basePreviewDir.clone().normalize();
+          const impactPreviewPerp = new THREE.Vector2(
+            -impactPreviewForward.y,
+            impactPreviewForward.x
+          );
+          const spinPreview = new THREE.Vector2(
+            perp.x * spinSide + aimDir.x * spinTop,
+            perp.z * spinSide + aimDir.y * spinTop
+          );
+          let previewDir = impactPreviewForward.clone();
+          if (spinPreview.lengthSq() > 1e-8) {
+            const spinPreviewScale = POST_IMPACT_PREVIEW_SPIN_SCALE *
+              (0.6 + clampedPower * 0.4);
+            previewDir
+              .add(spinPreview.multiplyScalar(spinPreviewScale))
+              .normalize();
+          }
+          if (previewDir.lengthSq() < 1e-6) previewDir = impactPreviewPerp;
+          if (previewDir.lengthSq() > 1e-8) {
             const tEnd = new THREE.Vector3(
-              end.x + afterDir.x * 30,
+              end.x + previewDir.x * 30,
               BALL_R,
-              end.z + afterDir.y * 30
+              end.z + previewDir.y * 30
             );
             targetGeom.setFromPoints([end, tEnd]);
             target.visible = true;
@@ -12226,6 +12237,7 @@ function SnookerGame() {
       activePointer = e.pointerId;
       moved = false;
       clearTimer();
+      spinDragActiveRef.current = true;
       scaleBox(1.35);
       updateSpin(e.clientX, e.clientY);
       box.setPointerCapture(activePointer);
@@ -12245,6 +12257,7 @@ function SnookerGame() {
       releasePointer();
       clearTimer();
       revertTimer = window.setTimeout(() => scaleBox(1), restoreDelay);
+      spinDragActiveRef.current = false;
     };
 
     const handlePointerUp = (e) => {
@@ -12257,6 +12270,7 @@ function SnookerGame() {
       releasePointer();
       clearTimer();
       scaleBox(1);
+      spinDragActiveRef.current = false;
     };
 
     box.addEventListener('pointerdown', handlePointerDown);
@@ -12271,6 +12285,7 @@ function SnookerGame() {
       resetSpinRef.current = () => {};
       spinRequestRef.current = { x: 0, y: 0 };
       spinLegalityRef.current = { blocked: false, reason: '' };
+      spinDragActiveRef.current = false;
       box.removeEventListener('pointerdown', handlePointerDown);
       box.removeEventListener('pointermove', handlePointerMove);
       box.removeEventListener('pointerup', handlePointerUp);
