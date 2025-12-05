@@ -272,8 +272,15 @@ const SFX = {
 const app = document.getElementById("app");
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
 const prefersUhd = urlParams.get('uhd') === '1';
-const devicePixelRatioTarget = Math.min(prefersUhd ? 3 : 2, window.devicePixelRatio || 1);
-renderer.setPixelRatio(devicePixelRatioTarget);
+const BASE_PIXEL_RATIO = Math.min(prefersUhd ? 3 : 2, window.devicePixelRatio || 1);
+const MAX_RENDER_WIDTH = 1920;
+const MAX_RENDER_HEIGHT = 1080;
+
+function getBoundedPixelRatio(width, height) {
+  const safeW = Math.max(1, width);
+  const safeH = Math.max(1, height);
+  return Math.min(BASE_PIXEL_RATIO, MAX_RENDER_WIDTH / safeW, MAX_RENDER_HEIGHT / safeH);
+}
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -283,6 +290,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.85;
 function setRendererSize(){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
+  renderer.setPixelRatio(getBoundedPixelRatio(w, h));
   renderer.setSize(w, h, false);
 }
 setRendererSize();
