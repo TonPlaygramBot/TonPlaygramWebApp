@@ -1047,8 +1047,7 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * 1.2;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -9063,32 +9062,6 @@ function PoolRoyaleGame({
   const panelsRef = useRef(null);
   const { mapDelta } = useAimCalibration();
 
-  const syncCuePullToPower = useCallback((powerValue = 0) => {
-    const cue = cueRef.current;
-    const aimVec = aimDirRef.current;
-    if (!cue || !aimVec) return;
-    const dir = new THREE.Vector2(aimVec.x, aimVec.y);
-    if (dir.lengthSq() < 1e-8) dir.set(0, 1);
-    dir.normalize();
-    const balls = ballsRef.current?.length ? ballsRef.current : [];
-    const desiredPull = THREE.MathUtils.clamp(powerValue, 0, 1) * BALL_R * 10 * 0.65 * 1.2;
-    const cueStickLength = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
-    const backInfo = calcTarget(cue, dir.clone().multiplyScalar(-1), balls);
-    const rawMaxPull = Math.max(0, backInfo.tHit - cueStickLength - CUE_TIP_GAP);
-    const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : desiredPull;
-    const pullTarget = Math.min(desiredPull, maxPull);
-    cuePullTargetRef.current = pullTarget;
-    cuePullCurrentRef.current = THREE.MathUtils.lerp(
-      cuePullCurrentRef.current ?? 0,
-      pullTarget,
-      0.6
-    );
-  }, []);
-
-  useEffect(() => {
-    syncCuePullToPower(powerRef.current ?? 0);
-  }, [hud.power, syncCuePullToPower]);
-
   const stopActiveCrowdSound = useCallback(() => {
     const current = activeCrowdSoundRef.current;
     if (current) {
@@ -15182,25 +15155,17 @@ function PoolRoyaleGame({
           const cueFollowDir = cueDir
             ? new THREE.Vector3(cueDir.x, 0, cueDir.y).normalize()
             : dir.clone();
-          const appliedSpinLive =
-            spinAppliedRef.current || appliedSpin || { x: 0, y: 0, magnitude: 0 };
-          const spinSideInfluence =
-            (appliedSpinLive.x ?? appliedSpin.x ?? 0) * (0.55 + powerStrength * 0.55);
-          const spinVerticalInfluence =
-            (appliedSpinLive.y ?? appliedSpin.y ?? 0) * (0.4 + powerStrength * 0.6);
-          const powerCurve = THREE.MathUtils.lerp(0.65, 1.25, powerStrength);
+          const spinSideInfluence = (appliedSpin.x || 0) * (0.4 + 0.42 * powerStrength);
+          const spinVerticalInfluence = (appliedSpin.y || 0) * (0.68 + 0.45 * powerStrength);
           const cueFollowDirSpinAdjusted = cueFollowDir
             .clone()
-            .add(perp.clone().multiplyScalar(spinSideInfluence * powerCurve))
-            .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.35));
+            .add(perp.clone().multiplyScalar(spinSideInfluence))
+            .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
           }
-          const spinEnergy =
-            Math.abs(appliedSpinLive.x ?? appliedSpin.x ?? 0) * 0.35 +
-            Math.abs(appliedSpinLive.y ?? appliedSpin.y ?? 0) * 0.65;
           const cueFollowLength =
-            BALL_R * (12 + powerStrength * 18) * (1 + spinEnergy * powerCurve);
+            BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
           const followEnd = end
             .clone()
             .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
@@ -15208,7 +15173,14 @@ function PoolRoyaleGame({
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
-          impactRing.visible = false;
+          impactRing.visible = true;
+          impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
+          const impactScale = 0.9 + powerStrength * 0.45;
+          impactRing.scale.set(impactScale, impactScale, impactScale);
+          if (impactRing.material) {
+            impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
+            impactRing.material.needsUpdate = true;
+          }
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
@@ -16146,12 +16118,7 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => {
-        const normalized = v / 100;
-        powerRef.current = normalized;
-        syncCuePullToPower(normalized);
-        setHud((s) => ({ ...s, power: normalized }));
-      },
+      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
@@ -16161,12 +16128,11 @@ function PoolRoyaleGame({
     });
     sliderInstanceRef.current = slider;
     applySliderLock();
-    syncCuePullToPower(powerRef.current ?? 0);
     return () => {
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, showPowerSlider, syncCuePullToPower]);
+  }, [applySliderLock, showPowerSlider]);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
