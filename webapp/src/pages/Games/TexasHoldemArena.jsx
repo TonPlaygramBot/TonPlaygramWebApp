@@ -3413,6 +3413,11 @@ function TexasHoldemArena({ search }) {
   const overlayConfirmDisabled = !sliderEnabled || overlayTotal <= 0;
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const undoDisabled = !sliderEnabled || chipSelection.length === 0;
+  const humanPlayer = gameState.players.find((player) => player.isHuman);
+  const humanHand = humanPlayer?.hand?.filter(Boolean) ?? [];
+  const humanChips = Math.max(0, Math.round(humanPlayer?.chips ?? 0));
+  const humanBet = Math.max(0, Math.round(humanPlayer?.bet ?? 0));
+  const suitSymbols = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
   const turnLabel = useMemo(() => {
     if (!actor || gameState.stage === 'showdown') return '';
@@ -3538,6 +3543,32 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
+      {humanPlayer && (
+        <div className="pointer-events-none absolute bottom-4 left-4 z-20 flex flex-col gap-3 text-white">
+          <div className="flex items-center gap-3 rounded-2xl bg-black/60 px-4 py-3 shadow-lg backdrop-blur">
+            <div className="text-sm uppercase tracking-wide text-white/60">Your chips</div>
+            <div className="text-lg font-bold text-emerald-300">{humanChips}</div>
+            <div className="text-sm text-white/70">Bet {humanBet}</div>
+          </div>
+          <div className="flex items-center gap-2 rounded-2xl bg-black/60 px-3 py-2 shadow-lg backdrop-blur">
+            {humanHand.map((card, idx) => {
+              const symbol = suitSymbols[card.suit] || '?';
+              const isRed = card.suit === 'H' || card.suit === 'D';
+              return (
+                <div
+                  key={`${card.rank}${card.suit}${idx}`}
+                  className={`min-w-[60px] rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-center text-lg font-extrabold shadow-md ${
+                    isRed ? 'text-rose-300' : 'text-white'
+                  }`}
+                >
+                  <div className="text-xl leading-tight">{card.rank}</div>
+                  <div className="text-sm leading-tight">{symbol}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
         <div className="flex items-center gap-2">
           <button
