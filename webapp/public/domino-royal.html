@@ -16,7 +16,7 @@
   button{font-weight:800;border:0;border-radius:12px;padding:.6rem 1rem;background:var(--panel);color:var(--fg);border:1px solid var(--panel-border);box-shadow:0 10px 28px rgba(0,0,0,.38);} 
   button:active{transform:translateY(1px);}
   #status{position:fixed;top:calc(0.65rem + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%);padding:.45rem .9rem;border-radius:14px;background:rgba(11,18,32,0.85);color:var(--fg);font-weight:800;z-index:4;backdrop-filter:blur(10px);border:1px solid var(--panel-border);box-shadow:0 12px 32px rgba(0,0,0,.35);}
-  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(0.8rem, 6vh, 2.4rem));transform:translateX(-50%);display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:.65rem;align-items:center;background:var(--glass);color:var(--fg);padding:.6rem .85rem;border-radius:14px;border:1px solid var(--panel-border);box-shadow:0 10px 28px rgba(0,0,0,0.38);z-index:4;pointer-events:auto;backdrop-filter:blur(10px);}
+  #railControls{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + clamp(0.45rem, 5vh, 1.6rem));transform:translateX(-50%);display:flex;flex-direction:row;flex-wrap:wrap;justify-content:center;gap:.65rem;align-items:center;background:var(--glass);color:var(--fg);padding:.6rem .85rem;border-radius:14px;border:1px solid var(--panel-border);box-shadow:0 10px 28px rgba(0,0,0,0.38);z-index:4;pointer-events:auto;backdrop-filter:blur(10px);}
   #railControls button{background:#121d33;color:#fff;font-size:.95rem;padding:.65rem 1rem;border-radius:10px;border:1px solid var(--panel-border);box-shadow:0 8px 18px rgba(0,0,0,.35);backdrop-filter:blur(8px);}
   #draw{font-size:1rem;padding:.7rem 1.15rem;background:linear-gradient(135deg, rgba(34,197,94,.95), rgba(12,180,75,.9));color:#041204;border:1px solid rgba(34,197,94,.6);}
   #pass{background:rgba(37,45,71,.92);color:#e5e7eb;border:1px solid rgba(35,48,80,.85);} 
@@ -33,11 +33,12 @@
   #configSections::-webkit-scrollbar-thumb{background:rgba(148,197,255,.35);border-radius:999px;}
   #configSections::-webkit-scrollbar-track{background:transparent;}
   #seatOverlay{position:fixed;inset:0;pointer-events:none;z-index:4;}
-  .seat-badge{position:absolute;transform:translate(-50%,-50%);pointer-events:none;min-width:3.75rem;max-width:14rem;display:flex;align-items:center;justify-content:center;gap:.55rem;padding:.32rem .65rem;border-radius:999px;background:rgba(7,11,22,.82);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.16);box-shadow:0 14px 32px rgba(0,0,0,.35);}
-  .seat-badge .avatar-timer-ring{position:absolute;left:.32rem;top:.32rem;width:2.6rem;height:2.6rem;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 65%,black 66%);mask:radial-gradient(farthest-side,transparent 65%,black 66%);box-shadow:0 0 0 2px rgba(255,255,255,.2);}
-  .seat-badge-core{position:relative;width:2.6rem;height:2.6rem;border-radius:999px;display:grid;place-items:center;font-size:1.35rem;font-weight:800;color:#0b1224;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.28),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);overflow:hidden;}
+  .seat-badge{position:absolute;transform:translate(-50%,-50%);pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:.35rem;min-width:3.5rem;}
+  .seat-badge-avatar{position:relative;width:3.15rem;height:3.15rem;display:grid;place-items:center;}
+  .seat-badge .avatar-timer-ring{position:absolute;inset:-4%;border-radius:50%;pointer-events:none;background:var(--timer-gradient);-webkit-mask:radial-gradient(farthest-side,transparent 65%,black 66%);mask:radial-gradient(farthest-side,transparent 65%,black 66%);box-shadow:0 0 0 2px rgba(255,255,255,.22);}
+  .seat-badge-core{position:relative;width:100%;height:100%;border-radius:999px;display:grid;place-items:center;font-size:1.3rem;font-weight:800;color:#0b1224;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.2),rgba(0,0,0,.12)),linear-gradient(135deg,#0ea5e9,#22c55e);overflow:hidden;border:2px solid rgba(255,255,255,.32);box-shadow:0 8px 18px rgba(0,0,0,.35),0 0 0 2px rgba(6,12,24,.45);}
   .seat-badge-core.has-photo{background-size:cover;background-position:center;color:transparent;text-indent:-9999px;}
-  .seat-badge-name{position:relative;font-size:.95rem;font-weight:800;letter-spacing:.01em;color:#e8eef7;text-shadow:0 2px 8px rgba(0,0,0,.35);padding:.2rem .55rem;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);}
+  .seat-badge-name{position:relative;font-size:.85rem;font-weight:800;letter-spacing:.01em;color:#e8eef7;text-shadow:0 2px 8px rgba(0,0,0,.42);padding:.2rem .55rem;border-radius:999px;background:rgba(7,12,24,.75);border:1px solid rgba(255,255,255,.16);backdrop-filter:blur(8px);box-shadow:0 8px 16px rgba(0,0,0,.28);}
   #viewToggle{position:fixed;left:calc(0.75rem + env(safe-area-inset-left,0px));top:calc(4.1rem + env(safe-area-inset-top,0px));padding:.65rem 1rem;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(12,16,28,.78);color:#ffe8a3;font-weight:800;font-size:.98rem;box-shadow:0 10px 24px rgba(0,0,0,.32);backdrop-filter:blur(10px);pointer-events:auto;z-index:4;}
   .config-section{display:flex;flex-direction:column;gap:.3rem;}
   .config-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:.45rem;}
@@ -2835,17 +2836,26 @@ function applyBadgeAvatar(target, source = DEFAULT_AVATAR_EMOJI) {
 function createSeatBadge({ avatar = '🎯', name = '' } = {}) {
   const wrap = document.createElement('div');
   wrap.className = 'seat-badge';
+
+  const avatarWrap = document.createElement('div');
+  avatarWrap.className = 'seat-badge-avatar';
+
   const ring = document.createElement('div');
   ring.className = 'avatar-timer-ring';
-  wrap.appendChild(ring);
+  avatarWrap.appendChild(ring);
+
   const core = document.createElement('div');
   core.className = 'seat-badge-core';
   applyBadgeAvatar(core, avatar);
-  wrap.appendChild(core);
+  avatarWrap.appendChild(core);
+
+  wrap.appendChild(avatarWrap);
+
   const label = document.createElement('span');
   label.className = 'seat-badge-name';
   label.textContent = name || '';
   wrap.appendChild(label);
+
   seatOverlay.appendChild(wrap);
   return wrap;
 }
@@ -3186,7 +3196,7 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
 }
 
 applyDominoStyle(currentDominoStyleOption);
-const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55 });
+const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55, side: THREE.DoubleSide });
 
 function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
   currentHighlightStyle = option ?? HIGHLIGHT_STYLE_OPTIONS[0];
@@ -3777,7 +3787,7 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   group.add(body);
 
   // Invisible collider to make touch / pick detection more forgiving on mobile
-  const colliderGeo = new THREE.BoxGeometry(2.05, faceUp ? 0.95 : 1.55, 2.05);
+  const colliderGeo = new THREE.BoxGeometry(1, 1, 1);
   const colliderMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
   const collider = new THREE.Mesh(colliderGeo, colliderMat);
   collider.name = 'touchCollider';
@@ -3791,7 +3801,18 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
 
   // Keep the existing world scale (same as before the change)
   const sx = 0.10 / 1.0, sy = (flat? 0.016/0.22 : 0.20/2.0), sz = (flat? 0.20/2.0 : 0.016/0.22);
-  group.scale.set(DOMINO_WORLD_SCALE * sx, DOMINO_WORLD_SCALE * sy, DOMINO_WORLD_SCALE * sz);
+  const scaleVec = new THREE.Vector3(
+    DOMINO_WORLD_SCALE * sx,
+    DOMINO_WORLD_SCALE * sy,
+    DOMINO_WORLD_SCALE * sz
+  );
+  group.scale.copy(scaleVec);
+
+  collider.scale.set(
+    DOMINO_LENGTH / scaleVec.x,
+    (flat ? DOMINO_WIDTH * 0.38 : TILE_UP_H * 0.92) / scaleVec.y,
+    DOMINO_WIDTH / scaleVec.z
+  );
 
   group.userData.val = [a,b];
   return group;
@@ -3812,6 +3833,7 @@ let current = 0; let human = 0;
 let selectedTile = null;
 let selectedHighlight = null;
 let selectedHighlightHost = null;
+let selectedHighlightMaterials = [];
 let flipDir = false; // alternate chain direction after each game
 const usedTileKeys = new Set();
 let gameFinished = false;
@@ -4557,9 +4579,16 @@ function nextCandidate(end){
 
 /* ---------- Markers for manual placement ---------- */
 function clearSelectedHighlight(){
-  if(selectedHighlightHost && selectedHighlightHost.userData?.baseScale){
-    selectedHighlightHost.scale.copy(selectedHighlightHost.userData.baseScale);
-  }
+  selectedHighlightMaterials.forEach((child)=>{
+    if(child?.userData?.__origMaterial){
+      if(child.material && child.material !== child.userData.__origMaterial && child.material.dispose){
+        try{ child.material.dispose(); }catch{}
+      }
+      child.material = child.userData.__origMaterial;
+      delete child.userData.__origMaterial;
+    }
+  });
+  selectedHighlightMaterials.length = 0;
   if(selectedHighlight && selectedHighlight.parent){
     selectedHighlight.parent.remove(selectedHighlight);
   }
@@ -4574,24 +4603,47 @@ function applySelectedHighlight(mesh){
     return;
   }
   clearSelectedHighlight();
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(0.62, 0.82, 64),
-    new THREE.MeshBasicMaterial({ color: 0xffe9b1, transparent: true, opacity: 0.82, side: THREE.DoubleSide })
+
+  mesh.traverse((child)=>{
+    if(!child.isMesh || child.userData?.marker) return;
+    if(!child.userData.__origMaterial){
+      child.userData.__origMaterial = child.material;
+    }
+    const clonedMat = child.material?.clone ? child.material.clone() : child.material;
+    if(clonedMat && clonedMat.color){
+      clonedMat.color = clonedMat.color.clone ? clonedMat.color.clone() : new THREE.Color(clonedMat.color);
+      clonedMat.color.lerp(new THREE.Color('#ffd54f'), 0.55);
+    }
+    if(clonedMat && clonedMat.emissive){
+      clonedMat.emissive = clonedMat.emissive.clone ? clonedMat.emissive.clone() : new THREE.Color(clonedMat.emissive);
+      clonedMat.emissive.lerp(new THREE.Color('#ffec8b'), 0.7);
+      clonedMat.emissiveIntensity = Math.max(0.6, clonedMat.emissiveIntensity ?? 0.35);
+    }
+    child.material = clonedMat;
+    selectedHighlightMaterials.push(child);
+  });
+
+  const plate = new THREE.Mesh(
+    new THREE.PlaneGeometry(DOMINO_LENGTH * 1.08, DOMINO_WIDTH * 1.18),
+    new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.42, side: THREE.DoubleSide })
   );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.set(0, -0.12, 0);
-  ring.renderOrder = 9;
-  if(!mesh.userData.baseScale){
-    mesh.userData.baseScale = mesh.scale.clone();
-  }
-  mesh.scale.multiplyScalar(1.04);
-  mesh.add(ring);
-  selectedHighlight = ring;
+  plate.rotation.x = -Math.PI / 2;
+  plate.position.set(0, 0.011, 0);
+  plate.renderOrder = 9;
+  mesh.add(plate);
+  selectedHighlight = plate;
   selectedHighlightHost = mesh;
 }
 
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
-function makeMarker(){ const g=new THREE.TorusGeometry(.18, .052, 32, 96); const m=new THREE.Mesh(g, markerMat.clone()); m.rotation.x=-Math.PI/2; m.position.y=CLOTH_TOP+0.013; m.renderOrder=10; return m; }
+function makeMarker(){
+  const g=new THREE.PlaneGeometry(DOMINO_LENGTH * 1.04, DOMINO_WIDTH * 1.05);
+  const m=new THREE.Mesh(g, markerMat.clone());
+  m.rotation.x=-Math.PI/2;
+  m.position.y=CLOTH_TOP+0.0115;
+  m.renderOrder=10;
+  return m;
+}
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
@@ -4602,7 +4654,7 @@ function showMarkersFor(tile){
 /* ---------- Interactivity ---------- */
 const raycaster=new THREE.Raycaster(); const pointer=new THREE.Vector2();
 raycaster.params.Mesh = raycaster.params.Mesh || {};
-const RAYCAST_THRESHOLD = { normal: 0.22, topdown: 0.45 };
+const RAYCAST_THRESHOLD = { normal: 0.14, topdown: 0.18 };
 const updateRaycasterThreshold = () => {
   raycaster.params.Mesh.threshold = cameraViewMode === VIEW_MODES.twoD ? RAYCAST_THRESHOLD.topdown : RAYCAST_THRESHOLD.normal;
 };
