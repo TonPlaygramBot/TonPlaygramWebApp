@@ -751,12 +751,18 @@ async function finish() {
       .map((i) => state.players[i].name)
       .join(', ')}`;
   }
-  setStatus('', text);
-  delay(() => {
-    state.players.forEach((p) => (p.winner = false));
-    setStatus('', '');
-    startNewRound();
-  }, 5000);
+  const showWinnerCountdown = (remaining) => {
+    const sub = remaining > 0 ? `<span class="status-subtext">Next round in ${remaining}s</span>` : '';
+    setStatus('', `${text}${sub}`);
+    if (remaining <= 0) {
+      state.players.forEach((p) => (p.winner = false));
+      setStatus('', '');
+      startNewRound();
+      return;
+    }
+    delay(() => showWinnerCountdown(remaining - 1), 1000);
+  };
+  showWinnerCountdown(5);
 }
 
 function setStatus(action, text) {
