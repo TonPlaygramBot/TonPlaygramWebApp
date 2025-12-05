@@ -419,11 +419,11 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.24; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.48; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.142; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.188; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.052; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
@@ -723,6 +723,7 @@ const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
+const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
@@ -745,7 +746,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.6; // drop the jaws slightly deeper so the underside fills out the pocket throat
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.11; // raise the visible rim so the pocket lips sit prouder above the cloth
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.132; // raise the visible rim further so the pocket lips stand taller above the cloth
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.05; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -2378,6 +2379,39 @@ const POCKET_LINER_PRESETS = Object.freeze([
       repeatX: 2.18,
       repeatY: 2.12,
       seed: 8345
+    }
+  }),
+  Object.freeze({
+    id: 'amethystPocket',
+    label: 'Amethyst Pocket Jaws',
+    type: 'metal',
+    jawColor: 0x4b2f5f,
+    rimColor: 0x422955,
+    sheenColor: 0xac90d6,
+    rimSheenColor: 0x9b82c2,
+    sheen: 0.7,
+    sheenRoughness: 0.4,
+    roughness: 0.4,
+    rimRoughness: 0.46,
+    metalness: 0.64,
+    rimMetalness: 0.68,
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.26,
+    envMapIntensity: 0.76,
+    bumpScale: 0.22,
+    rimBumpScale: 0.18,
+    texture: {
+      base: 0x52376a,
+      highlight: 0xcab3eb,
+      shadow: 0x1f122d,
+      density: 0.64,
+      grainSize: 0.74,
+      streakAlpha: 0.17,
+      creaseAlpha: 0.14,
+      seamContrast: 0.26,
+      repeatX: 2.16,
+      repeatY: 2.08,
+      seed: 9321
     }
   })
 ]);
@@ -8175,6 +8209,15 @@ function PoolRoyaleGame({
     }
     return DEFAULT_CLOTH_COLOR_ID;
   });
+  const [pocketLinerId, setPocketLinerId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(POCKET_LINER_STORAGE_KEY);
+      if (stored && POCKET_LINER_OPTIONS.some((opt) => opt?.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_POCKET_LINER_OPTION_ID;
+  });
   const [railMarkerShapeId, setRailMarkerShapeId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem('poolRailMarkerShape');
@@ -8234,6 +8277,10 @@ function PoolRoyaleGame({
   const activeClothOption = useMemo(
     () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
     [clothColorId]
+  );
+  const activePocketLinerOption = useMemo(
+    () => POCKET_LINER_OPTIONS.find((opt) => opt?.id === pocketLinerId) ?? POCKET_LINER_OPTIONS[0],
+    [pocketLinerId]
   );
   const isTraining = playType === 'training';
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
@@ -8715,7 +8762,7 @@ function PoolRoyaleGame({
         : TABLE_FINISHES[DEFAULT_TABLE_FINISH_ID].createMaterials;
     const chromeSelection = activeChromeOption;
     const clothSelection = activeClothOption;
-    const linerSelection = POCKET_LINER_OPTIONS[0];
+    const linerSelection = activePocketLinerOption;
     const clothTextureKey = clothSelection.textureKey ?? clothSelection.id ?? DEFAULT_CLOTH_TEXTURE_KEY;
     return {
       ...baseFinish,
@@ -8765,7 +8812,7 @@ function PoolRoyaleGame({
         return materials;
       }
     };
-  }, [tableFinishId, activeChromeOption, activeClothOption]);
+  }, [tableFinishId, activeChromeOption, activeClothOption, activePocketLinerOption]);
   const tableFinishRef = useRef(tableFinish);
   useEffect(() => {
     tableFinishRef.current = tableFinish;
@@ -8784,6 +8831,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem(CLOTH_COLOR_STORAGE_KEY, clothColorId);
     }
   }, [clothColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(POCKET_LINER_STORAGE_KEY, pocketLinerId);
+    }
+  }, [pocketLinerId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem('poolChromeColor', chromeColorId);
@@ -16506,6 +16558,38 @@ function PoolRoyaleGame({
                           <span
                             className="h-3.5 w-3.5 rounded-full border border-white/40"
                             style={{ backgroundColor: toHexColor(option.color) }}
+                            aria-hidden="true"
+                          />
+                          {option.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Pocket Jaws
+                </h3>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {POCKET_LINER_OPTIONS.filter(Boolean).map((option) => {
+                    const active = option.id === pocketLinerId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setPocketLinerId(option.id)}
+                        aria-pressed={active}
+                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-center gap-2">
+                          <span
+                            className="h-3.5 w-3.5 rounded-full border border-white/40"
+                            style={{ backgroundColor: toHexColor(option.jawColor) }}
                             aria-hidden="true"
                           />
                           {option.label}
