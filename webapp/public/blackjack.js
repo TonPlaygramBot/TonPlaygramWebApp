@@ -701,6 +701,20 @@ async function finish() {
   const winners = evaluateWinners(state.players);
   const pot = state.pot;
   awardDevShare(pot);
+
+  if (winners.length === 0) {
+    state.players.forEach((p) => (p.revealed = true));
+    state.pot = 0;
+    render();
+    renderPot();
+    setStatus('', 'All players busted. Starting a new round.');
+    delay(() => {
+      setStatus('', '');
+      startNewRound();
+    }, 4000);
+    return;
+  }
+
   const share = Math.floor((pot * 0.9) / winners.length);
   for (const i of winners) {
     const player = state.players[i];
@@ -725,6 +739,7 @@ async function finish() {
   state.players.forEach((p) => (p.revealed = true));
   state.pot = 0;
   render();
+  renderPot();
   const status = document.getElementById('status');
   let text = '';
   if (winners.length === 1) {
