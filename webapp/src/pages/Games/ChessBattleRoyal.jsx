@@ -283,21 +283,7 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION = Object.freeze({
-  id: 'authenticBeautifulGameBoard',
-  label: 'Authentic ABeautifulGame Board',
-  ...BEAUTIFUL_GAME_THEME
-});
-
-const BOARD_COLOR_OPTIONS = Object.freeze([
-  AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION,
-  ...BOARD_COLOR_BASE_OPTIONS
-]);
-
-const BEAUTIFUL_GAME_BOARD_INDEX = Math.max(
-  0,
-  BOARD_COLOR_OPTIONS.findIndex((option) => option.id === AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION.id)
-);
+const BOARD_COLOR_OPTIONS = Object.freeze([...BOARD_COLOR_BASE_OPTIONS]);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -323,90 +309,50 @@ const SCULPTED_DRAG_STYLE = Object.freeze({
   accent: '#60a5fa'
 });
 
-const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
-  id: 'beautifulGameAuthentic',
-  label: 'A Beautiful Game',
-  white: {
-    color: '#f6f7fb',
-    roughness: 0.3,
-    metalness: 0.28,
-    sheen: 0.28,
-    sheenColor: '#ffffff',
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.22,
-    specularIntensity: 0.72
-  },
+const GOLDEN_MARBLE_STYLE = Object.freeze({
+  id: 'goldMarbleRoyals',
+  label: 'Gold Marble Royals',
+  white: { color: '#f5f2ea', roughness: 0.3, metalness: 0.2, sheen: 0.32 },
   black: {
-    color: '#0f131f',
-    roughness: 0.24,
-    metalness: 0.38,
+    color: '#0f1016',
+    roughness: 0.26,
+    metalness: 0.34,
     sheen: 0.22,
-    sheenColor: '#5f799c',
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.34,
-    specularIntensity: 0.72,
-    emissive: '#0b1220',
-    emissiveIntensity: 0.24
+    emissive: '#0b0c10',
+    emissiveIntensity: 0.18
   },
-  accent: '#caa472',
-  blackAccent: '#b58f4f'
+  accent: '#d4af37',
+  blackAccent: '#c08a0b'
 });
 
-const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
+const SILVER_RUBY_STYLE = Object.freeze({
+  id: 'silverRubyGuard',
+  label: 'Silver & Ruby Guard',
+  white: { color: '#e9ecf4', roughness: 0.28, metalness: 0.36, sheen: 0.28, clearcoat: 0.24 },
+  black: {
+    color: '#0c0f18',
+    roughness: 0.24,
+    metalness: 0.42,
+    sheen: 0.24,
+    clearcoat: 0.28,
+    emissive: '#0a0a12',
+    emissiveIntensity: 0.2
+  },
+  accent: '#cfd6e4',
+  blackAccent: '#9b111e'
+});
 
-const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
-  {
-    id: BEAUTIFUL_GAME_SET_ID,
-    label: 'Authentic ABeautifulGame',
-    style: BEAUTIFUL_GAME_PIECE_STYLE
-  },
-  {
-    id: 'beautifulGameGraphite',
-    label: 'Graphite Frost',
-    style: {
-      white: { color: '#e0e4eb', roughness: 0.28, metalness: 0.26, sheen: 0.34, clearcoat: 0.38 },
-      black: { color: '#1e222a', roughness: 0.24, metalness: 0.34, sheen: 0.24, clearcoat: 0.32 },
-      accent: '#c4ccd8',
-      blackAccent: '#9ca7b7'
-    }
-  },
-  {
-    id: 'beautifulGameObsidian',
-    label: 'Onyx Black',
-    style: {
-      white: { color: '#d7dadf', roughness: 0.3, metalness: 0.28, sheen: 0.26, clearcoat: 0.34 },
-      black: { color: '#080a0f', roughness: 0.22, metalness: 0.42, sheen: 0.2, clearcoat: 0.36 },
-      accent: '#b8985e',
-      blackAccent: '#d1b777'
-    }
-  },
-  {
-    id: 'beautifulGameForest',
-    label: 'Dark Forest',
-    style: {
-      white: { color: '#e3eadf', roughness: 0.3, metalness: 0.22, sheen: 0.32, clearcoat: 0.36 },
-      black: { color: '#0d291c', roughness: 0.26, metalness: 0.34, sheen: 0.24, clearcoat: 0.28 },
-      accent: '#7fbf8f',
-      blackAccent: '#5f9770'
-    }
-  },
-  {
-    id: 'beautifulGameStorm',
-    label: 'Slate Grey',
-    style: {
-      white: { color: '#e6e7ea', roughness: 0.29, metalness: 0.24, sheen: 0.3, clearcoat: 0.36 },
-      black: { color: '#1d2027', roughness: 0.24, metalness: 0.32, sheen: 0.24, clearcoat: 0.32 },
-      accent: '#b6bbc5',
-      blackAccent: '#8c929d'
-    }
-  }
-]);
+const EMERALD_IVORY_STYLE = Object.freeze({
+  id: 'emeraldVelvetCourt',
+  label: 'Emerald Velvet Court',
+  white: { color: '#f3f7f0', roughness: 0.32, metalness: 0.18, sheen: 0.34 },
+  black: { color: '#0f2418', roughness: 0.26, metalness: 0.28, sheen: 0.26 },
+  accent: '#d4af37',
+  blackAccent: '#1ea36a'
+});
 
-const DEFAULT_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
-const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SET_ID;
-
-// Sized to the physical ABeautifulGame set while fitting the playable footprint
-const BEAUTIFUL_GAME_ASSET_SCALE = 1.02;
+const DEFAULT_PIECE_STYLE = GOLDEN_MARBLE_STYLE;
+const DEFAULT_PIECE_SET_ID = GOLDEN_MARBLE_STYLE.id;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
   id: 'stauntonClassic',
@@ -573,19 +519,28 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
   blackAccent: '#50b8d8'
 });
 
-const PIECE_STYLE_OPTIONS = Object.freeze(
-  BEAUTIFUL_GAME_COLOR_VARIANTS.map((variant) => ({
-    id: variant.id,
-    label: variant.label,
-    style: variant.style,
-    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-  }))
-);
+const PIECE_STYLE_OPTIONS = Object.freeze([
+  {
+    id: GOLDEN_MARBLE_STYLE.id,
+    label: GOLDEN_MARBLE_STYLE.label,
+    style: GOLDEN_MARBLE_STYLE,
+    loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
+  },
+  {
+    id: SILVER_RUBY_STYLE.id,
+    label: SILVER_RUBY_STYLE.label,
+    style: SILVER_RUBY_STYLE,
+    loader: (targetBoardSize) => loadSilverRubyStauntonAssets(targetBoardSize)
+  },
+  {
+    id: EMERALD_IVORY_STYLE.id,
+    label: EMERALD_IVORY_STYLE.label,
+    style: EMERALD_IVORY_STYLE,
+    loader: (targetBoardSize) => loadEmeraldVelvetAssets(targetBoardSize)
+  }
+]);
 
-const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
-  0,
-  PIECE_STYLE_OPTIONS.findIndex((option) => option.id === DEFAULT_PIECE_SET_ID)
-);
+const DEFAULT_PIECE_STYLE_INDEX = 0;
 
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
@@ -640,7 +595,7 @@ const DEFAULT_APPEARANCE = {
   chairColor: 0,
   tableShape: 0,
   boardColor: 0,
-  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
+  pieceStyle: Math.max(0, DEFAULT_PIECE_STYLE_INDEX)
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -1576,13 +1531,13 @@ function applyLocalBeautifulGameMaterials(assets) {
 
   applyPieces(
     piecePrototypes?.white,
-    BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
-    BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
+    DEFAULT_PIECE_STYLE.white?.color ?? '#f6f7fb',
+    DEFAULT_PIECE_STYLE.accent ?? '#caa472'
   );
   applyPieces(
     piecePrototypes?.black,
-    BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f',
-    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#b58f4f'
+    DEFAULT_PIECE_STYLE.black?.color ?? '#0f131f',
+    DEFAULT_PIECE_STYLE.blackAccent ?? DEFAULT_PIECE_STYLE.accent ?? '#b58f4f'
   );
 
   return assets;
@@ -1617,6 +1572,38 @@ async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
     black: EBONY_POLISH_TEXTURES,
     whiteTint: '#f5f5f5',
     blackTint: '#0f1012'
+  });
+}
+
+async function loadSilverRubyStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
+    targetBoardSize,
+    styleId: SILVER_RUBY_STYLE.id,
+    pieceStyle: SILVER_RUBY_STYLE,
+    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
+    fallbackBuilder: buildStauntonFallbackAssets
+  });
+  return applyTextureProfileToAssets(assets, {
+    white: MARBLE_WHITE_TEXTURES,
+    black: EBONY_POLISH_TEXTURES,
+    whiteTint: '#e9ecf4',
+    blackTint: '#11131b'
+  });
+}
+
+async function loadEmeraldVelvetAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const assets = await loadPieceSetFromUrls(STAUNTON_SET_URLS, {
+    targetBoardSize,
+    styleId: EMERALD_IVORY_STYLE.id,
+    pieceStyle: EMERALD_IVORY_STYLE,
+    assetScale: STAUNTON_TEXTURED_ASSET_SCALE,
+    fallbackBuilder: buildStauntonFallbackAssets
+  });
+  return applyTextureProfileToAssets(assets, {
+    white: MAPLE_WOOD_TEXTURES,
+    black: WALNUT_WOOD_TEXTURES,
+    whiteTint: '#eef7f0',
+    blackTint: '#123523'
   });
 }
 
@@ -1944,10 +1931,10 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
 
   const piecePrototypes = { white: {}, black: {} };
   const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
-  const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
-  const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
-  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
-  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? accentLight;
+  const authenticWhite = DEFAULT_PIECE_STYLE.white?.color ?? '#f6f7fb';
+  const authenticBlack = DEFAULT_PIECE_STYLE.black?.color ?? '#0f131f';
+  const accentLight = DEFAULT_PIECE_STYLE.accent ?? '#d4af78';
+  const accentDark = DEFAULT_PIECE_STYLE.blackAccent ?? accentLight;
   piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
   piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
   piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
@@ -2812,7 +2799,7 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
   const assetScale = options?.assetScale ?? BEAUTIFUL_GAME_ASSET_SCALE;
   const assets = extractChessSetAssets(scene, {
     targetBoardSize,
-    pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
+    pieceStyle: DEFAULT_PIECE_STYLE,
     styleId: 'beautifulGame',
     assetScale,
     name: 'ABeautifulGame'
@@ -2955,8 +2942,8 @@ function createPhysicalPieceMaterial(config = {}, fallbackColor) {
   return material;
 }
 
-function createPieceMaterials(styleOption = BEAUTIFUL_GAME_PIECE_STYLE) {
-  const option = styleOption || BEAUTIFUL_GAME_PIECE_STYLE || {};
+function createPieceMaterials(styleOption = DEFAULT_PIECE_STYLE) {
+  const option = styleOption || DEFAULT_PIECE_STYLE || {};
   const whiteConfig = option.white || {};
   const blackConfig = option.black || {};
 
@@ -4012,16 +3999,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     return null;
   }, []);
 
-  const applyBeautifulGameSet = useCallback(() => {
-    setAppearance((prev) =>
-      normalizeAppearance({
-        ...prev,
-        boardColor: BEAUTIFUL_GAME_BOARD_INDEX,
-        pieceStyle: BEAUTIFUL_GAME_PIECE_INDEX
-      })
-    );
-  }, [setAppearance]);
-
   const resetAppearance = useCallback(() => {
     setAppearance({ ...DEFAULT_APPEARANCE });
     if (typeof window !== 'undefined') {
@@ -4251,7 +4228,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arena.boardModel.visible = false;
       arena.setProceduralBoardVisible?.(true);
     }
-    const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
+    const pieceSetOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -4260,7 +4237,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const pieceSetLoader = pieceSetOption?.loader ?? ((size) => buildStauntonFallbackAssets(size, pieceStyleOption));
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -4433,9 +4410,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     paletteRef.current = palette;
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
+    const pieceSetOption = PIECE_STYLE_OPTIONS[normalizedAppearance.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const pieceSetLoader = pieceSetOption?.loader ?? ((size) => buildStauntonFallbackAssets(size, pieceStyleOption));
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
     const initialPlayerFlag =
       playerFlag ||
@@ -5849,18 +5826,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">A Beautiful Game</p>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Royal Piece Collections</p>
                       <p className="mt-1 text-[0.7rem] text-white/60">
-                        Zgjidh tabelën dhe gurët origjinalë nga opsionet e personalizimit më poshtë për t’i përdorur në lojë.
+                        Tre sete të reja me kurora ari, argjendi dhe rubi janë gati në menynë e personalizimit për t’i zgjedhur sipas dëshirës.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={applyBeautifulGameSet}
-                      className="rounded-lg border border-emerald-400/60 bg-emerald-400/10 px-2 py-1 text-[0.65rem] font-semibold text-emerald-100 transition hover:bg-emerald-400/20 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                    >
-                      Përdor setin
-                    </button>
                   </div>
                 </div>
                 <div className="mt-4 rounded-xl border border-white/10 bg-white/5 p-3">
