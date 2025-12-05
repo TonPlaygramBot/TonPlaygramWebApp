@@ -1022,10 +1022,12 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
 
 function getHumanCardAnchor(seatGroup) {
   if (!seatGroup) return null;
-  const cardBase = (seatGroup.cardRailAnchor ?? seatGroup.cardAnchor ?? seatGroup.chipAnchor).clone();
-  const chipBase = (seatGroup.chipRailAnchor ?? seatGroup.chipAnchor ?? cardBase).clone();
-  const blended = cardBase.lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
-  blended.y = seatGroup.cardRailAnchor?.y ?? seatGroup.chipRailAnchor?.y ?? seatGroup.chipAnchor.y;
+  const cardBase = (seatGroup.cardAnchor ?? seatGroup.chipAnchor).clone();
+  const chipBase = (seatGroup.chipAnchor ?? cardBase).clone();
+  const blended = cardBase
+    .addScaledVector(seatGroup.forward, HUMAN_CARD_FORWARD_OFFSET)
+    .lerp(chipBase, HUMAN_CARD_CHIP_BLEND);
+  blended.y = TABLE_HEIGHT + HUMAN_CARD_VERTICAL_OFFSET;
   return blended;
 }
 
@@ -1745,7 +1747,7 @@ function TexasHoldemArena({ search }) {
       return { ...DEFAULT_APPEARANCE };
     }
   });
-  const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
+  const [, setTurnCountdown] = useState(TURN_DURATION);
   const appearanceRef = useRef(appearance);
   useEffect(() => {
     if (effectivePlayerCount > 4) {
@@ -2615,27 +2617,23 @@ function TexasHoldemArena({ search }) {
           const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
           if (!humanSeatGroup) return;
 
-          const baseAnchor = getHumanCardAnchor(humanSeatGroup)
-            ?? humanSeatGroup.cardRailAnchor?.clone()
-            ?? humanSeatGroup.chipRailAnchor?.clone()
-            ?? humanSeatGroup.chipAnchor.clone();
+          const baseAnchor =
+            getHumanCardAnchor(humanSeatGroup) ??
+            humanSeatGroup.cardRailAnchor?.clone() ??
+            humanSeatGroup.chipRailAnchor?.clone() ??
+            humanSeatGroup.chipAnchor.clone();
           const right = humanSeatGroup.right.clone();
-          const forward = humanSeatGroup.forward.clone();
 
           humanSeatGroup.cardMeshes.forEach((mesh, idx) => {
-            const lateral = right.clone().setLength((idx - 0.5) * HUMAN_CARD_SPREAD * 0.92);
-            const forwardOffset = forward.clone().setLength(0);
-            const position = baseAnchor.clone().add(lateral).add(forwardOffset);
-            position.y = baseAnchor.y + CARD_D * 0.6;
+            const position = baseAnchor.clone().add(right.clone().multiplyScalar((idx - 0.5) * HOLE_SPACING));
             mesh.position.copy(position);
 
-            const lookTarget = position
+            const lookTarget = camera.position
               .clone()
-              .add(forward.clone().setLength(Math.max(HUMAN_CARD_LOOK_SPLAY, 0.001)))
-              .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0));
-            orientCard(mesh, lookTarget, { face: 'front', flat: true });
+              .add(right.clone().multiplyScalar((idx - 0.5) * HUMAN_CARD_LOOK_SPLAY));
+            lookTarget.y = position.y + HUMAN_CARD_LOOK_LIFT;
+            orientCard(mesh, lookTarget, { face: 'front', flat: false });
             setCardFace(mesh, 'front');
-            mesh.rotateX(HUMAN_CARD_FACE_TILT);
           });
         };
 
@@ -3016,15 +3014,15 @@ function TexasHoldemArena({ search }) {
         }
         const position = baseAnchor
           .clone()
-          .addScaledVector(forward, seat.isHuman ? 0 : CARD_FORWARD_OFFSET)
-          .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_SPREAD));
+          .addScaledVector(forward, seat.isHuman ? HUMAN_CARD_FORWARD_OFFSET : CARD_FORWARD_OFFSET)
+          .add(right.clone().multiplyScalar((cardIdx - 0.5) * (seat.isHuman ? HOLE_SPACING : HUMAN_CARD_SPREAD)));
         position.y = (seat.isHuman ? baseAnchor.y : seat.cardRailAnchor.y) + CARD_D * 0.6;
         mesh.position.copy(position);
         const lookOrigin = seat.isHuman ? baseAnchor : seat.stoolAnchor;
         const lookTarget = seat.isHuman
-          ? position
+          ? three.camera.position
               .clone()
-              .add(forward.clone().setLength(Math.max(HUMAN_CARD_LOOK_SPLAY, 0.001)))
+              .add(right.clone().multiplyScalar((cardIdx - 0.5) * HUMAN_CARD_LOOK_SPLAY))
               .add(new THREE.Vector3(0, CARD_LOOK_LIFT, 0))
           : lookOrigin
               .clone()
@@ -3035,7 +3033,7 @@ function TexasHoldemArena({ search }) {
         orientCard(mesh, lookTarget, { face, flat: seat.isHuman });
         setCardFace(mesh, face);
         if (seat.isHuman) {
-          mesh.rotateX(HUMAN_CARD_FACE_TILT);
+          mesh.rotation.x = 0;
         }
         const key = cardKey(card);
         setCardHighlight(mesh, state.showdown && winningCardSet.has(key));
@@ -3407,20 +3405,10 @@ function TexasHoldemArena({ search }) {
   );
   const effectiveRaise = chipTotal > 0 ? chipTotal : sliderValue;
   const finalRaise = sliderMax > 0 ? Math.min(sliderMax, Math.max(effectiveRaise, defaultRaise)) : 0;
-  const totalSpend = toCall + finalRaise;
   const sliderEnabled = Boolean(actor?.isHuman && uiState.canRaise && sliderMax > 0);
-  const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
   const raisePreview = sliderEnabled ? Math.min(sliderMax, effectiveRaise) : 0;
-  const overlaySelected = Math.round(Math.min(sliderMax, Math.max(0, raisePreview)));
-  const overlayTotal = Math.round(totalSpend);
-  const overlayConfirmDisabled = !sliderEnabled || overlayTotal <= 0;
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const undoDisabled = !sliderEnabled || chipSelection.length === 0;
-  const humanPlayer = gameState.players.find((player) => player.isHuman);
-  const humanHand = humanPlayer?.hand?.filter(Boolean) ?? [];
-  const humanChips = Math.max(0, Math.round(humanPlayer?.chips ?? 0));
-  const humanBet = Math.max(0, Math.round(humanPlayer?.bet ?? 0));
-  const suitSymbols = { S: '♠', H: '♥', D: '♦', C: '♣' };
 
   const turnLabel = useMemo(() => {
     if (!actor || gameState.stage === 'showdown') return '';
@@ -3428,8 +3416,6 @@ function TexasHoldemArena({ search }) {
     const name = actor.name || 'Opponent';
     return `${name} is acting`;
   }, [actor, gameState.stage]);
-
-  const timerProgress = Math.max(0, Math.min(1, turnCountdown / TURN_DURATION));
 
   useEffect(() => {
     if (turnIntervalRef.current) {
@@ -3579,49 +3565,6 @@ function TexasHoldemArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="pointer-events-none absolute top-4 left-1/2 z-30 flex w-[360px] -translate-x-1/2 flex-col gap-2 rounded-2xl bg-black/55 p-3 text-white shadow-xl backdrop-blur">
-        <div className="flex items-center justify-between text-sm font-semibold tracking-wide">
-          <span className="uppercase text-white/80">Turn</span>
-          <span className="text-base">{actor?.name || '...'}</span>
-          <span className="text-emerald-300">{turnCountdown}s</span>
-        </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400"
-            style={{ width: `${timerProgress * 100}%` }}
-          />
-        </div>
-      </div>
-      {humanPlayer && (
-        <div className="pointer-events-none fixed bottom-28 left-1/2 z-30 flex -translate-x-1/2 items-center gap-4 text-white">
-          <div className="flex items-center gap-3 rounded-2xl bg-black/70 px-4 py-3 shadow-lg backdrop-blur">
-            <div className="space-y-1">
-              <div className="text-[11px] uppercase tracking-[0.25em] text-white/60">Your chips</div>
-              <div className="flex items-baseline gap-3">
-                <div className="text-2xl font-bold text-emerald-300">{humanChips}</div>
-                <div className="text-sm text-white/70">Bet {humanBet}</div>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 rounded-2xl bg-black/70 px-3 py-2 shadow-lg backdrop-blur">
-            {humanHand.map((card, idx) => {
-              const symbol = suitSymbols[card.suit] || '?';
-              const isRed = card.suit === 'H' || card.suit === 'D';
-              return (
-                <div
-                  key={`${card.rank}${card.suit}${idx}`}
-                  className={`min-w-[60px] rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-center text-lg font-extrabold shadow-md ${
-                    isRed ? 'text-rose-300' : 'text-white'
-                  }`}
-                >
-                  <div className="text-xl leading-tight">{card.rank}</div>
-                  <div className="text-sm leading-tight">{symbol}</div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
         <div className="flex items-center gap-2">
           <button
@@ -3705,48 +3648,6 @@ function TexasHoldemArena({ search }) {
         <div className="pointer-events-none fixed bottom-20 inset-x-0 z-20 flex justify-center">
           <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
             {turnLabel}
-          </div>
-        </div>
-      )}
-      {actor?.isHuman && sliderEnabled && sliderMax > 0 && (
-        <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
-            <span className="text-2xl font-semibold drop-shadow-md">
-              {overlaySelected} {gameState.token}
-            </span>
-            {toCall > 0 && (
-              <span className="text-[0.7rem] text-white/60">Call {Math.round(toCall)} {gameState.token}</span>
-            )}
-            <span className="text-[0.7rem] text-white/70">Total {overlayTotal} {gameState.token}</span>
-          </div>
-          <div className="flex flex-col items-center gap-3">
-            <input
-              type="range"
-              min={0}
-              max={Math.round(sliderMax)}
-              step={1}
-              value={Math.round(sliderValue)}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setChipSelection([]);
-                setSliderValue(next);
-              }}
-              className="h-64 w-10 cursor-pointer appearance-none bg-transparent"
-              style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
-            />
-            <button
-              type="button"
-              onClick={handleRaiseConfirm}
-              disabled={overlayConfirmDisabled}
-              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
-                overlayConfirmDisabled
-                  ? 'bg-blue-900/50 text-white/40 shadow-none'
-                  : 'bg-blue-600/90 hover:bg-blue-500'
-              }`}
-            >
-              {sliderLabel}
-            </button>
           </div>
         </div>
       )}
