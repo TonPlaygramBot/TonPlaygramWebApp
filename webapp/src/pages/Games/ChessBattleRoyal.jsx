@@ -2531,6 +2531,15 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     assetScale: 1
   };
 
+  try {
+    const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
+    if (touchAssets?.boardModel || touchAssets?.piecePrototypes) {
+      return touchAssets;
+    }
+  } catch (error) {
+    console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
+  }
+
   const texturedFallbacks = [
     { urls: STAUNTON_SET_URLS, name: 'Staunton', styleId: 'stauntonFallback' },
     { urls: KENNEY_SET_URLS, name: 'BoardGameKit', styleId: 'kenneyFallback' },
