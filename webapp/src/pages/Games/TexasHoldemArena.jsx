@@ -87,7 +87,7 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
 const COMMUNITY_SPACING = CARD_W * 0.75;
-const COMMUNITY_CARD_FORWARD_OFFSET = 0;
+const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * 0.6;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
@@ -109,7 +109,8 @@ const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
+const POT_FORWARD_OFFSET = CARD_W * -0.35;
+const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, POT_FORWARD_OFFSET);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
@@ -3056,10 +3057,10 @@ function TexasHoldemArena({ search }) {
         const chipHeight = chipFactory.chipHeight;
         const startBase = seat.chipRailAnchor.clone();
         startBase.y -= chipHeight / 2;
-        const midBase = seat.chipAnchor.clone();
-        midBase.y -= chipHeight / 2;
         const endBase = potStack.position.clone();
         endBase.y -= chipHeight / 2;
+        const midBase = startBase.clone().lerp(endBase, 0.65);
+        midBase.y -= chipHeight * 0.1;
         chipFactory.animateTransfer(betDelta, {
           scene: arenaGroup,
           start: startBase,
@@ -3409,6 +3410,9 @@ function TexasHoldemArena({ search }) {
   const raisePreview = sliderEnabled ? Math.min(sliderMax, effectiveRaise) : 0;
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const undoDisabled = !sliderEnabled || chipSelection.length === 0;
+  const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
+  const sliderDisplayValue = sliderEnabled ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
+  const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
 
   const turnLabel = useMemo(() => {
     if (!actor || gameState.stage === 'showdown') return '';
@@ -3648,6 +3652,49 @@ function TexasHoldemArena({ search }) {
         <div className="pointer-events-none fixed bottom-20 inset-x-0 z-20 flex justify-center">
           <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
             {turnLabel}
+          </div>
+        </div>
+      )}
+      {sliderEnabled && (
+        <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
+          <div className="flex flex-col items-center gap-1 text-center">
+            <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
+            <span className="text-2xl font-semibold drop-shadow-md">
+              {Math.round(finalRaise)} {gameState.token}
+            </span>
+            {toCall > 0 && (
+              <span className="text-[0.7rem] text-white/60">To call {Math.round(toCall)} {gameState.token}</span>
+            )}
+            {minRaiseAmount > 0 && (
+              <span className="text-[0.7rem] text-white/60">Min raise {Math.round(minRaiseAmount)} {gameState.token}</span>
+            )}
+            <span className="text-[0.7rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
+          </div>
+          <div className="flex flex-col items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={Math.round(sliderMax)}
+              step={1}
+              value={sliderDisplayValue}
+              onChange={(event) => {
+                const next = Math.max(0, Math.min(sliderMax, Number(event.target.value)));
+                setChipSelection([]);
+                setSliderValue(next);
+              }}
+              className="h-64 w-10 cursor-pointer appearance-none bg-transparent"
+              style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
+            />
+            <button
+              type="button"
+              onClick={handleRaiseConfirm}
+              disabled={overlayConfirmDisabled}
+              className={`w-full rounded-lg px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 ${
+                overlayConfirmDisabled ? 'bg-blue-900/50 text-white/40 shadow-none' : 'bg-blue-600/90 hover:bg-blue-500'
+              }`}
+            >
+              {sliderLabel}
+            </button>
           </div>
         </div>
       )}
