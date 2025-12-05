@@ -377,7 +377,7 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.018;
+const POCKET_VISUAL_EXPANSION = 1.028;
 const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
 const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
 const CORNER_POCKET_EXTRA_SCALE = 1.01; // further relax the corner mouth while leaving side pockets unchanged
@@ -419,11 +419,11 @@ const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually ab
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.48; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.24; // push fascia span farther along the side rails so the middle plates run deeper toward the corners without widening the rounded pocket edge
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.188; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.142; // push the side fascias farther from centre so their outer edge stays flush while widening the reveal (50% more offset)
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.052; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
@@ -842,12 +842,12 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.972; // shrink the middle cloth/rail cutouts a bit more while keeping the pocket mouth ratio stable
+const SIDE_POCKET_CUT_SCALE = 0.99; // enlarge the middle cloth/rail cutouts a touch while keeping the pocket mouth ratio stable
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 0.955; // gently relax the interior diameter at the top of each pocket for a broader opening
+const POCKET_INTERIOR_TOP_SCALE = 0.97; // gently relax the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION; // move the corner pocket centres further toward table centre alongside the deeper cuts
@@ -2240,178 +2240,36 @@ const resolveBroadcastSystem = (id) =>
 
 const POCKET_LINER_PRESETS = Object.freeze([
   Object.freeze({
-    id: 'walnutPocket',
-    label: 'Walnut Pocket Jaws',
-    type: 'wood',
-    finishId: 'walnut',
-    jawMix: 0.185,
-    rimMix: 0.34,
-    textureDensity: 1.32,
-    seed: 2654
-  }),
-  Object.freeze({
-    id: 'graphitePocket',
-    label: 'Dark Grey Pocket Jaws',
+    id: 'blackPocket',
+    label: 'Black Pocket Jaws',
     type: 'metal',
-    jawColor: 0x3f4349,
-    rimColor: 0x3b3f45,
-    sheenColor: 0x757982,
-    rimSheenColor: 0x696d76,
-    sheen: 0.68,
-    sheenRoughness: 0.46,
-    roughness: 0.42,
-    rimRoughness: 0.48,
-    metalness: 0.52,
-    rimMetalness: 0.56,
-    clearcoat: 0.24,
-    clearcoatRoughness: 0.32,
-    envMapIntensity: 0.64,
-    bumpScale: 0.28,
-    rimBumpScale: 0.24,
-    texture: {
-      base: 0x464a51,
-      highlight: 0x828892,
-      shadow: 0x1e2024,
-      density: 0.72,
-      grainSize: 0.78,
-      streakAlpha: 0.22,
-      creaseAlpha: 0.2,
-      seamContrast: 0.28,
-      repeatX: 2.3,
-      repeatY: 2.3,
-      seed: 5123
-    }
-  }),
-  Object.freeze({
-    id: 'sapphirePocket',
-    label: 'Sapphire Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x1e3b59,
-    rimColor: 0x1b334c,
-    sheenColor: 0x7bb2e8,
-    rimSheenColor: 0x6da1d4,
-    sheen: 0.7,
-    sheenRoughness: 0.38,
-    roughness: 0.36,
-    rimRoughness: 0.4,
-    metalness: 0.64,
-    rimMetalness: 0.68,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.26,
-    envMapIntensity: 0.72,
-    bumpScale: 0.22,
-    rimBumpScale: 0.18,
-    texture: {
-      base: 0x24476a,
-      highlight: 0x9ac7f1,
-      shadow: 0x0d1b2d,
-      density: 0.62,
-      grainSize: 0.72,
-      streakAlpha: 0.18,
-      creaseAlpha: 0.14,
-      seamContrast: 0.26,
-      repeatX: 2.2,
-      repeatY: 2.1,
-      seed: 6132
-    }
-  }),
-  Object.freeze({
-    id: 'emeraldPocket',
-    label: 'Emerald Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x1c4f3f,
-    rimColor: 0x1a4436,
-    sheenColor: 0x8ad1b2,
-    rimSheenColor: 0x72bda1,
+    jawColor: 0x000000,
+    rimColor: 0x000000,
+    sheenColor: 0x2a2a2a,
+    rimSheenColor: 0x1f1f1f,
     sheen: 0.68,
     sheenRoughness: 0.42,
-    roughness: 0.42,
-    rimRoughness: 0.46,
-    metalness: 0.62,
-    rimMetalness: 0.66,
-    clearcoat: 0.28,
-    clearcoatRoughness: 0.28,
-    envMapIntensity: 0.7,
-    bumpScale: 0.21,
-    rimBumpScale: 0.17,
-    texture: {
-      base: 0x255f4c,
-      highlight: 0xa0e2c5,
-      shadow: 0x0e2a22,
-      density: 0.64,
-      grainSize: 0.74,
-      streakAlpha: 0.16,
-      creaseAlpha: 0.13,
-      seamContrast: 0.24,
-      repeatX: 2.15,
-      repeatY: 2.08,
-      seed: 7261
-    }
-  }),
-  Object.freeze({
-    id: 'crimsonPocket',
-    label: 'Crimson Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x6d1f26,
-    rimColor: 0x61191f,
-    sheenColor: 0xd88c8e,
-    rimSheenColor: 0xc37b7d,
-    sheen: 0.72,
-    sheenRoughness: 0.36,
     roughness: 0.38,
-    rimRoughness: 0.42,
-    metalness: 0.66,
+    rimRoughness: 0.4,
+    metalness: 0.68,
     rimMetalness: 0.7,
-    clearcoat: 0.3,
-    clearcoatRoughness: 0.24,
-    envMapIntensity: 0.74,
-    bumpScale: 0.23,
-    rimBumpScale: 0.19,
-    texture: {
-      base: 0x77262d,
-      highlight: 0xe9a4a5,
-      shadow: 0x2a0a0d,
-      density: 0.66,
-      grainSize: 0.76,
-      streakAlpha: 0.19,
-      creaseAlpha: 0.15,
-      seamContrast: 0.28,
-      repeatX: 2.18,
-      repeatY: 2.12,
-      seed: 8345
-    }
-  }),
-  Object.freeze({
-    id: 'amethystPocket',
-    label: 'Amethyst Pocket Jaws',
-    type: 'metal',
-    jawColor: 0x4b2f5f,
-    rimColor: 0x422955,
-    sheenColor: 0xac90d6,
-    rimSheenColor: 0x9b82c2,
-    sheen: 0.7,
-    sheenRoughness: 0.4,
-    roughness: 0.4,
-    rimRoughness: 0.46,
-    metalness: 0.64,
-    rimMetalness: 0.68,
-    clearcoat: 0.3,
+    clearcoat: 0.26,
     clearcoatRoughness: 0.26,
-    envMapIntensity: 0.76,
+    envMapIntensity: 0.7,
     bumpScale: 0.22,
     rimBumpScale: 0.18,
     texture: {
-      base: 0x52376a,
-      highlight: 0xcab3eb,
-      shadow: 0x1f122d,
-      density: 0.64,
-      grainSize: 0.74,
-      streakAlpha: 0.17,
-      creaseAlpha: 0.14,
-      seamContrast: 0.26,
-      repeatX: 2.16,
-      repeatY: 2.08,
-      seed: 9321
+      base: 0x0d0d0d,
+      highlight: 0x4a4a4a,
+      shadow: 0x000000,
+      density: 0.6,
+      grainSize: 0.7,
+      streakAlpha: 0.16,
+      creaseAlpha: 0.12,
+      seamContrast: 0.22,
+      repeatX: 2.1,
+      repeatY: 2.1,
+      seed: 4101
     }
   })
 ]);
@@ -12889,6 +12747,7 @@ function PoolRoyaleGame({
       );
       target.visible = false;
       table.add(target);
+      const impactRingEnabled = false;
       const impactRing = new THREE.Mesh(
         new THREE.RingGeometry(BALL_R * 0.7, BALL_R * 1.02, 48),
         new THREE.MeshBasicMaterial({
@@ -15325,13 +15184,17 @@ function PoolRoyaleGame({
           cueAfter.visible = true;
           cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
           cueAfter.computeLineDistances();
-          impactRing.visible = true;
-          impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
-          const impactScale = 0.9 + powerStrength * 0.45;
-          impactRing.scale.set(impactScale, impactScale, impactScale);
-          if (impactRing.material) {
-            impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
-            impactRing.material.needsUpdate = true;
+          if (impactRingEnabled) {
+            impactRing.visible = true;
+            impactRing.position.set(end.x, tableSurfaceY + 0.002, end.z);
+            const impactScale = 0.9 + powerStrength * 0.45;
+            impactRing.scale.set(impactScale, impactScale, impactScale);
+            if (impactRing.material) {
+              impactRing.material.opacity = THREE.MathUtils.lerp(0.35, 0.85, powerStrength);
+              impactRing.material.needsUpdate = true;
+            }
+          } else {
+            impactRing.visible = false;
           }
           const desiredPull = powerRef.current * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
@@ -16558,38 +16421,6 @@ function PoolRoyaleGame({
                           <span
                             className="h-3.5 w-3.5 rounded-full border border-white/40"
                             style={{ backgroundColor: toHexColor(option.color) }}
-                            aria-hidden="true"
-                          />
-                          {option.label}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Pocket Jaws
-                </h3>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {POCKET_LINER_OPTIONS.filter(Boolean).map((option) => {
-                    const active = option.id === pocketLinerId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setPocketLinerId(option.id)}
-                        aria-pressed={active}
-                        className={`flex-1 min-w-[8.5rem] rounded-full border px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.22em] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span
-                            className="h-3.5 w-3.5 rounded-full border border-white/40"
-                            style={{ backgroundColor: toHexColor(option.jawColor) }}
                             aria-hidden="true"
                           />
                           {option.label}
