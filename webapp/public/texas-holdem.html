@@ -9,6 +9,9 @@
     <title>Texas Hold'em Royale</title>
     <style>
       :root {
+        --table-scale: 0.75;
+        --table-bg-scale-x: 0.81;
+        --table-bg-scale-y: 0.79;
         --shadow: rgba(0, 0, 0, 0.45);
         /* Smaller default card scale so non-player seats appear smaller */
         --card-scale: 0.72;
@@ -50,7 +53,6 @@
         display: grid;
         place-items: center;
         perspective: 1400px;
-        transform: scale(0.94);
         transform-origin: center;
         background: radial-gradient(circle at 50% 42%, #0b1428 0, #02060f 52%);
       }
@@ -63,9 +65,15 @@
         right: 0.5vw;
         background: url('assets/icons/de2a24a7-922a-4400-8edc-027a1017224e.webp')
           center/cover no-repeat;
-        transform: scaleX(1.08) scaleY(1.05);
+        transform: scaleX(var(--table-bg-scale-x)) scaleY(var(--table-bg-scale-y));
         transform-origin: center;
         z-index: 0;
+      }
+      .table-layer {
+        position: absolute;
+        inset: 0;
+        transform: scale(var(--table-scale));
+        transform-origin: center;
       }
       /* Community cards slightly larger */
       .center {
@@ -476,6 +484,13 @@
       }
       .seat.bottom .cards {
         gap: 0;
+        justify-content: center;
+      }
+      .seat.bottom .cards .card:first-child {
+        transform: translateX(-6px) rotate(-4deg);
+      }
+      .seat.bottom .cards .card:last-child {
+        transform: translateX(6px) rotate(4deg);
       }
       .timer {
         font-weight: 800;
@@ -836,20 +851,22 @@
   </head>
   <body class="frame-style-1">
     <div class="stage">
-      <div class="center community" id="community"></div>
-      <div class="pot-wrap" id="potWrap">
-        <div class="pot" id="pot"></div>
-        <div class="pot-total" id="potTotal"></div>
-      </div>
-      <div class="folded-area" id="foldedArea">
-        <div id="foldedLabel" class="folded-label" style="display: none">
-          Folded
+      <div class="table-layer">
+        <div class="center community" id="community"></div>
+        <div class="pot-wrap" id="potWrap">
+          <div class="pot" id="pot"></div>
+          <div class="pot-total" id="potTotal"></div>
         </div>
-        <div id="foldedCards" class="folded-cards"></div>
+        <div class="folded-area" id="foldedArea">
+          <div id="foldedLabel" class="folded-label" style="display: none">
+            Folded
+          </div>
+          <div id="foldedCards" class="folded-cards"></div>
+        </div>
+        <div id="status"></div>
+        <div class="seats" id="seats"></div>
+        <div id="turnToken" class="turn-token" aria-hidden="true">▶</div>
       </div>
-      <div id="status"></div>
-      <div class="seats" id="seats"></div>
-      <div id="turnToken" class="turn-token" aria-hidden="true">▶</div>
     </div>
     <audio
       id="sndTimer"
