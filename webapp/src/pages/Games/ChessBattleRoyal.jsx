@@ -3211,17 +3211,29 @@ function createPhysicalPieceMaterial(config = {}, fallbackColor) {
 
 function createPieceMaterials(styleOption = BEAUTIFUL_GAME_PIECE_STYLE) {
   const option = styleOption || BEAUTIFUL_GAME_PIECE_STYLE || {};
-  const whiteConfig = option.white || {};
-  const blackConfig = option.black || {};
+  const whiteConfig = { ...(option.white || {}) };
+  const blackConfig = { ...(option.black || {}) };
+  const isDefaultRoyalePalette = option.id === BEAUTIFUL_GAME_PIECE_STYLE.id || option.id === BEAUTIFUL_GAME_SET_ID;
+
+  let whiteAccentColor = option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
+  let blackAccentColor = option.blackAccent?.color ?? option.accent ?? blackConfig.color;
+
+  if (isDefaultRoyalePalette) {
+    const unifiedWhite = whiteConfig.color ?? '#f5f5f7';
+    whiteConfig.color = unifiedWhite;
+    whiteAccentColor = unifiedWhite;
+
+    const topPlayerGreen = blackAccentColor || option.black?.color || option.accent || '#4f7f5c';
+    blackConfig.color = topPlayerGreen;
+    blackAccentColor = topPlayerGreen;
+  }
 
   const whiteBase = createPhysicalPieceMaterial(whiteConfig, '#f5f5f7');
-  const whiteAccentColor = option.whiteAccent?.color ?? option.accent ?? whiteConfig.color;
   const whiteAccent = whiteAccentColor && whiteAccentColor !== whiteConfig.color
     ? createPhysicalPieceMaterial({ ...whiteConfig, ...option.whiteAccent, color: whiteAccentColor }, whiteConfig.color)
     : whiteBase;
 
   const blackBase = createPhysicalPieceMaterial(blackConfig, '#3c4044');
-  const blackAccentColor = option.blackAccent?.color ?? option.accent ?? blackConfig.color;
   const blackAccent = blackAccentColor && blackAccentColor !== blackConfig.color
     ? createPhysicalPieceMaterial({ ...blackConfig, ...option.blackAccent, color: blackAccentColor }, blackConfig.color)
     : blackBase;
@@ -5708,7 +5720,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           ? half + BOARD.rim + 1 + row * (tile * 0.5)
           : -half - BOARD.rim - 1 - row * (tile * 0.5);
         targetMesh.position.set(capX, 0, capZ);
-        targetMesh.scale.set(0.8, 0.8, 0.8);
         createExplosion(worldPos);
         if (bombSoundRef.current && settingsRef.current.soundEnabled) {
           bombSoundRef.current.currentTime = 0;
