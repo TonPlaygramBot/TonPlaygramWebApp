@@ -3751,7 +3751,6 @@ function addAccentPerimeter(domino){
   frame.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? frame.material.emissiveIntensity;
   frame.position.z = 0.11;
   frame.renderOrder = 5; // sit on top
-  frame.userData.dominoPart = 'accent';
   domino.add(frame);
 }
 
@@ -3764,7 +3763,6 @@ function addPips(dominoFace, count, yOffset){
     const [px, py] = positions[i];
     const sphere = new THREE.Mesh(pipGeo, pipMat);
     sphere.position.set(px, py + yOffset, 0.11);
-    sphere.userData.dominoPart = 'pip';
     dominoFace.add(sphere);
 
     // Luxury accent ring around each pip
@@ -3775,7 +3773,6 @@ function addPips(dominoFace, count, yOffset){
     ring.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? ring.material.emissiveIntensity;
     ring.position.set(px, py + yOffset, 0.11);
     ring.renderOrder = 6; // above porcelain & pip
-    ring.userData.dominoPart = 'accent';
     dominoFace.add(ring);
   });
 }
@@ -3795,7 +3792,6 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   bodyMaterial.envMapIntensity = porcelainMat.envMapIntensity;
   const body = new THREE.Mesh(bodyGeo, bodyMaterial);
   body.castShadow = true; body.receiveShadow = true;
-  body.userData.dominoPart = 'body';
 
   // Center line — accent
   const midW = 1 - 0.08;         // sipas kodit
@@ -3808,7 +3804,6 @@ function makeDomino(a,b,{flat=true, faceUp=true, preserveOrder=false}={}){
   midLine.material.emissiveIntensity = dominoStyleProfile.ringEmissiveIntensity ?? midLine.material.emissiveIntensity;
   midLine.position.z = 0.11;
   midLine.renderOrder = 5;
-  midLine.userData.dominoPart = 'accent';
   body.add(midLine);
 
   // Luxurious surrounding frame — accent
@@ -4646,39 +4641,21 @@ function applySelectedHighlight(mesh){
   }
   clearSelectedHighlight();
 
-  const highlightBodyColor = new THREE.Color('#facc15');
-  const highlightBodyEmissive = new THREE.Color('#f5d742');
-  const highlightGoldColor = new THREE.Color('#d9b24c');
-  const highlightGoldEmissive = new THREE.Color('#8b6b1b');
-  const highlightPipColor = new THREE.Color('#0a0a0a');
-
   mesh.traverse((child)=>{
     if(!child.isMesh || child.userData?.marker) return;
     if(!child.userData.__origMaterial){
       child.userData.__origMaterial = child.material;
     }
-
-    const part = child.userData?.dominoPart;
-    let clonedMat = child.material?.clone ? child.material.clone() : child.material;
-
-    if(part === 'pip'){
-      clonedMat = pipMat.clone();
-      clonedMat.color.copy(highlightPipColor);
-      if(clonedMat.emissive){ clonedMat.emissive.set('#000000'); clonedMat.emissiveIntensity = 0; }
-    } else if(part === 'accent'){
-      clonedMat = accentMat.clone();
-      if(clonedMat.color){ clonedMat.color.copy(highlightGoldColor); }
-      if(clonedMat.emissive){ clonedMat.emissive.copy(highlightGoldEmissive); clonedMat.emissiveIntensity = 0.85; }
-      clonedMat.roughness = 0.2;
-      clonedMat.metalness = 0.98;
-    } else {
-      clonedMat = porcelainMat.clone();
-      clonedMat.color.copy(highlightBodyColor);
-      if(clonedMat.emissive){ clonedMat.emissive.copy(highlightBodyEmissive); clonedMat.emissiveIntensity = 0.45; }
-      clonedMat.roughness = 0.26;
-      clonedMat.metalness = 0.18;
+    const clonedMat = child.material?.clone ? child.material.clone() : child.material;
+    if(clonedMat && clonedMat.color){
+      clonedMat.color = clonedMat.color.clone ? clonedMat.color.clone() : new THREE.Color(clonedMat.color);
+      clonedMat.color.lerp(new THREE.Color('#facc15'), 0.72);
     }
-
+    if(clonedMat && clonedMat.emissive){
+      clonedMat.emissive = clonedMat.emissive.clone ? clonedMat.emissive.clone() : new THREE.Color(clonedMat.emissive);
+      clonedMat.emissive.lerp(new THREE.Color('#fef08a'), 0.85);
+      clonedMat.emissiveIntensity = Math.max(0.85, clonedMat.emissiveIntensity ?? 0.45);
+    }
     child.material = clonedMat;
     selectedHighlightMaterials.push(child);
   });
@@ -4712,45 +4689,43 @@ function makeMarker(){
   const marker = new THREE.Group();
   marker.userData.marker = true;
 
-  const tileThickness = DOMINO_WORLD_SCALE * 0.018;
-  const tileGeo = new RoundedBoxGeometry(DOMINO_LENGTH * 1.02, DOMINO_WIDTH * 1.04, tileThickness, 4, DOMINO_WORLD_SCALE * 0.009);
-  const tileMat = new THREE.MeshStandardMaterial({
-    color: '#facc15',
-    emissive: '#f5d742',
-    emissiveIntensity: 0.25,
-    roughness: 0.34,
-    metalness: 0.16,
-    transparent: true,
-    opacity: 0.9
-  });
-  const tile = new THREE.Mesh(tileGeo, tileMat);
-  tile.position.y = CLOTH_TOP + tileThickness / 2 + 0.0015;
-  tile.renderOrder = 10;
-  marker.add(tile);
+  const g=new THREE.PlaneGeometry(DOMINO_LENGTH * 1.04, DOMINO_WIDTH * 1.05);
+  const plateMat = markerMat.clone();
+  plateMat.color = markerMat.color.clone();
+  const plate=new THREE.Mesh(g, plateMat);
+  plate.rotation.x=-Math.PI/2;
+  plate.position.y=CLOTH_TOP+0.0115;
+  plate.renderOrder=10;
+  plate.userData.marker = true;
+  marker.add(plate);
 
   const outline = new THREE.LineSegments(
-    new THREE.EdgesGeometry(tileGeo),
-    new THREE.LineBasicMaterial({ color: '#d9b24c', transparent: true, opacity: 0.95, linewidth: 2 })
+    new THREE.EdgesGeometry(g),
+    new THREE.LineBasicMaterial({ color: '#f59e0b', transparent: true, opacity: 0.95, linewidth: 2 })
   );
-  outline.position.y = tile.position.y + tileThickness / 2 + 0.0004;
+  outline.rotation.copy(plate.rotation);
+  outline.position.copy(plate.position).add(new THREE.Vector3(0, 0.0006, 0));
   outline.renderOrder = 11;
   marker.add(outline);
 
+  const midLine = new THREE.Mesh(
+    new THREE.PlaneGeometry(DOMINO_LENGTH * 0.08, DOMINO_WIDTH * 0.95),
+    new THREE.MeshBasicMaterial({ color: '#fef08a', transparent: true, opacity: 0.95, side: THREE.DoubleSide })
+  );
+  midLine.rotation.x = -Math.PI/2;
+  midLine.position.y = plate.position.y + 0.0008;
+  midLine.renderOrder = 12;
+  marker.add(midLine);
+
   const arrowGeo = new THREE.ConeGeometry(DOMINO_WIDTH * 0.16, DOMINO_WIDTH * 0.42, 16);
-  const arrowMat = new THREE.MeshStandardMaterial({
-    color: '#0b0b0b',
-    emissive: '#0b0b0b',
-    emissiveIntensity: 0.25,
-    roughness: 0.4,
-    metalness: 0.12,
-    transparent: true,
-    opacity: 0.95
-  });
-  const arrow = new THREE.Mesh(arrowGeo, arrowMat);
-  arrow.rotation.x = -Math.PI/2;
-  arrow.position.set(DOMINO_LENGTH * 0.35, tile.position.y + tileThickness * 0.6, 0);
-  arrow.renderOrder = 13;
-  marker.add(arrow);
+  const arrowMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#facc15', emissiveIntensity: 0.85, roughness: 0.35, metalness: 0.05, transparent: true, opacity: 0.92 });
+  const leftArrow = new THREE.Mesh(arrowGeo, arrowMat);
+  leftArrow.rotation.x = -Math.PI/2;
+  leftArrow.position.set(-DOMINO_LENGTH * 0.42, plate.position.y + 0.008, 0);
+  leftArrow.renderOrder = 13;
+  const rightArrow = leftArrow.clone();
+  rightArrow.position.x = DOMINO_LENGTH * 0.42;
+  marker.add(leftArrow, rightArrow);
 
   return marker;
 }
