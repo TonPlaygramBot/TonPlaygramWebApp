@@ -34,7 +34,6 @@ import {
   DEFAULT_WOOD_GRAIN_ID,
   DEFAULT_WOOD_TEXTURE_SIZE,
   applyWoodTextures,
-  createWoodMaterial,
   disposeMaterialWithWood,
 } from '../../utils/woodMaterials.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
@@ -1306,6 +1305,89 @@ function deriveInHandFromFrame(frame) {
     return Boolean(meta.state.mustPlayFromBaulk);
   }
   return false;
+}
+
+function createCueMapleTextures() {
+  const W = 768;
+  const H = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { map: null, bump: null };
+  const grad = ctx.createLinearGradient(0, 0, W, 0);
+  grad.addColorStop(0, '#e1c79a');
+  grad.addColorStop(0.5, '#d1b27f');
+  grad.addColorStop(1, '#e6d1a7');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.2;
+  ctx.strokeStyle = '#8b6a3c';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 140; i += 1) {
+    const y = Math.random() * H;
+    const amp = 1 + Math.random() * 2.5;
+    const f = 0.003 + Math.random() * 0.005;
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 3) {
+      const yy = y + Math.sin(x * f + i) * amp;
+      if (x === 0) ctx.moveTo(x, yy);
+      else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+  const map = new THREE.CanvasTexture(canvas);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(6, 1);
+  map.anisotropy = 8;
+  applySRGBColorSpace(map);
+  map.needsUpdate = true;
+  const bump = new THREE.CanvasTexture(canvas);
+  bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+  bump.repeat.set(6, 1);
+  bump.anisotropy = 8;
+  bump.needsUpdate = true;
+  return { map, bump };
+}
+
+function createCueEbonyTextures() {
+  const S = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = S;
+  canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return { map: null, bump: null };
+  ctx.fillStyle = '#181818';
+  ctx.fillRect(0, 0, S, S);
+  ctx.globalAlpha = 0.6;
+  ctx.strokeStyle = '#242424';
+  ctx.lineWidth = 2;
+  for (let y = -S; y < S * 2; y += 5) {
+    ctx.beginPath();
+    ctx.moveTo(y, 0);
+    ctx.lineTo(y + S, S);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#1f1f1f';
+  for (let y = -S; y < S * 2; y += 5) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(S, y);
+    ctx.stroke();
+  }
+  const map = new THREE.CanvasTexture(canvas);
+  map.wrapS = map.wrapT = THREE.RepeatWrapping;
+  map.repeat.set(8, 1);
+  map.anisotropy = 8;
+  applySRGBColorSpace(map);
+  map.needsUpdate = true;
+  const bump = new THREE.CanvasTexture(canvas);
+  bump.wrapS = bump.wrapT = THREE.RepeatWrapping;
+  bump.repeat.set(8, 1);
+  bump.anisotropy = 8;
+  bump.needsUpdate = true;
+  return { map, bump };
 }
 
 function useResponsiveTableSize(option) {
@@ -8308,7 +8390,13 @@ function PoolRoyaleGame({
   const cueRackGroupsRef = useRef([]);
   const cueOptionGroupsRef = useRef([]);
   const cueRackMetaRef = useRef(new Map());
-  const cueMaterialsRef = useRef({ shaft: null, styleIndex: null });
+  const cueMaterialsRef = useRef({
+    shaft: null,
+    buttMaterial: null,
+    buttRingMaterial: null,
+    buttCapMaterial: null,
+    styleIndex: null,
+  });
   const cueGalleryStateRef = useRef({
     active: false,
     rackId: null,
@@ -8461,27 +8549,16 @@ function PoolRoyaleGame({
       const materials = cueMaterialsRef.current ?? {};
       const shaftMaterial = materials.shaft;
       if (shaftMaterial && preset) {
-        if (materials.styleIndex !== normalized) {
-          applyWoodTextures(shaftMaterial, {
-            hue: preset.hue,
-            sat: preset.sat,
-            light: preset.light,
-            contrast: preset.contrast,
-            repeat: SHARED_WOOD_REPEAT,
-            roughnessBase: SHARED_WOOD_SURFACE_PROPS.roughnessBase,
-            roughnessVariance: SHARED_WOOD_SURFACE_PROPS.roughnessVariance,
-            sharedKey: `pool-wood-${preset.id}`
-          });
-          shaftMaterial.roughness = SHARED_WOOD_SURFACE_PROPS.roughness;
-          shaftMaterial.metalness = SHARED_WOOD_SURFACE_PROPS.metalness;
-          shaftMaterial.clearcoat = SHARED_WOOD_SURFACE_PROPS.clearcoat;
-          shaftMaterial.clearcoatRoughness =
-            SHARED_WOOD_SURFACE_PROPS.clearcoatRoughness;
-          shaftMaterial.sheen = SHARED_WOOD_SURFACE_PROPS.sheen;
-          shaftMaterial.sheenRoughness = SHARED_WOOD_SURFACE_PROPS.sheenRoughness;
-          shaftMaterial.envMapIntensity = SHARED_WOOD_SURFACE_PROPS.envMapIntensity;
-          materials.styleIndex = normalized;
-        }
+        const tintColor = new THREE.Color(color || 0xffffff);
+        shaftMaterial.color.copy(tintColor).lerp(new THREE.Color(0xffffff), 0.35);
+        shaftMaterial.roughness = 0.34;
+        shaftMaterial.metalness = 0.0;
+        shaftMaterial.clearcoat = 0.6;
+        shaftMaterial.clearcoatRoughness = 0.22;
+        shaftMaterial.sheen = SHARED_WOOD_SURFACE_PROPS.sheen;
+        shaftMaterial.sheenRoughness = SHARED_WOOD_SURFACE_PROPS.sheenRoughness;
+        shaftMaterial.envMapIntensity = SHARED_WOOD_SURFACE_PROPS.envMapIntensity;
+        materials.styleIndex = normalized;
         shaftMaterial.userData = shaftMaterial.userData || {};
         shaftMaterial.userData.isCueWood = true;
         shaftMaterial.userData.cueOptionIndex = normalized;
@@ -12819,21 +12896,26 @@ function PoolRoyaleGame({
       const initialPreset =
         CUE_STYLE_PRESETS[initialIndex % CUE_STYLE_PRESETS.length] ??
         CUE_STYLE_PRESETS[0];
-      const sharedCueKey = `pool-wood-${initialPreset.id}`;
-      const shaftMaterial = createWoodMaterial({
-        hue: initialPreset.hue,
-        sat: initialPreset.sat,
-        light: initialPreset.light,
-        contrast: initialPreset.contrast,
-        repeat: SHARED_WOOD_REPEAT,
-        sharedKey: sharedCueKey,
-        ...SHARED_WOOD_SURFACE_PROPS
+      const { map: mapleMap, bump: mapleBump } = createCueMapleTextures();
+      const { map: ebonyMap, bump: ebonyBump } = createCueEbonyTextures();
+      const shaftMaterial = new THREE.MeshPhysicalMaterial({
+        map: mapleMap,
+        bumpMap: mapleBump,
+        bumpScale: 0.02 * SCALE,
+        roughness: 0.34,
+        metalness: 0.0,
+        clearcoat: 0.6,
+        clearcoatRoughness: 0.22,
       });
       shaftMaterial.userData = shaftMaterial.userData || {};
       shaftMaterial.userData.isCueWood = true;
       shaftMaterial.userData.cueOptionIndex = initialIndex;
       shaftMaterial.userData.cueOptionColor = getCueColorFromIndex(initialIndex);
+      shaftMaterial.userData.textures = { mapleMap, mapleBump, ebonyMap, ebonyBump };
       cueMaterialsRef.current.shaft = shaftMaterial;
+      cueMaterialsRef.current.buttMaterial = null;
+      cueMaterialsRef.current.buttRingMaterial = null;
+      cueMaterialsRef.current.buttCapMaterial = null;
       cueMaterialsRef.current.styleIndex = initialIndex;
       const frontLength = THREE.MathUtils.clamp(
         cueLen * CUE_FRONT_SECTION_RATIO,
@@ -12841,6 +12923,9 @@ function PoolRoyaleGame({
         cueLen * 0.5
       );
       const rearLength = Math.max(cueLen - frontLength, 1e-4);
+      const rearStart = -rearLength / 2 + frontLength / 2;
+      const buttLength = Math.min(rearLength * 0.45, rearLength);
+      const rearShaftLength = Math.max(rearLength - buttLength, 0);
       const tipShaftRadius = 0.008 * SCALE;
       const buttShaftRadius = 0.025 * SCALE;
       const joinRadius = THREE.MathUtils.lerp(
@@ -12849,13 +12934,15 @@ function PoolRoyaleGame({
         THREE.MathUtils.clamp(frontLength / Math.max(cueLen, 1e-4), 0, 1)
       );
 
-      const rearShaft = new THREE.Mesh(
-        new THREE.CylinderGeometry(joinRadius, buttShaftRadius, rearLength, 32),
-        shaftMaterial
-      );
-      rearShaft.rotation.x = -Math.PI / 2;
-      rearShaft.position.z = frontLength / 2;
-      cueBody.add(rearShaft);
+      if (rearShaftLength > 1e-4) {
+        const rearShaft = new THREE.Mesh(
+          new THREE.CylinderGeometry(joinRadius, buttShaftRadius, rearShaftLength, 32),
+          shaftMaterial
+        );
+        rearShaft.rotation.x = -Math.PI / 2;
+        rearShaft.position.z = rearStart + rearShaftLength / 2;
+        cueBody.add(rearShaft);
+      }
 
       // group for tip & front shaft so the whole thin end moves for spin
       const tipGroup = new THREE.Group();
@@ -12937,12 +13024,41 @@ function PoolRoyaleGame({
       connector.position.z = -connectorHeight / 2;
       tipGroup.add(connector);
 
+      const buttMaterial = new THREE.MeshPhysicalMaterial({
+        map: ebonyMap,
+        bumpMap: ebonyBump,
+        bumpScale: 0.015 * SCALE,
+        roughness: 0.28,
+        metalness: 0.25,
+        clearcoat: 0.35,
+        clearcoatRoughness: 0.28,
+      });
+      cueMaterialsRef.current.buttMaterial = buttMaterial;
+      if (buttLength > 1e-4) {
+        const butt = new THREE.Mesh(
+          new THREE.CylinderGeometry(buttShaftRadius, buttShaftRadius, buttLength, 48),
+          buttMaterial
+        );
+        butt.rotation.x = -Math.PI / 2;
+        butt.position.z = rearStart + rearShaftLength + buttLength / 2;
+        cueBody.add(butt);
+      }
+
+      const buttRing = new THREE.Mesh(
+        new THREE.TorusGeometry(buttShaftRadius * 1.05, buttShaftRadius * 0.16, 24, 64),
+        new THREE.MeshPhysicalMaterial({ color: 0xd7b86a, metalness: 1.0, roughness: 0.22 })
+      );
+      buttRing.position.z = rearStart + rearShaftLength + Math.max(buttLength * 0.18, buttShaftRadius * 0.6);
+      cueBody.add(buttRing);
+      cueMaterialsRef.current.buttRingMaterial = buttRing.material;
+
       const buttCap = new THREE.Mesh(
         new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
-        new THREE.MeshPhysicalMaterial({ color: 0x111111, roughness: 0.5 })
+        buttMaterial.clone()
       );
       buttCap.position.z = cueLen / 2;
       cueBody.add(buttCap);
+      cueMaterialsRef.current.buttCapMaterial = buttCap.material;
 
       const stripeOverlay = new THREE.Mesh(
         new THREE.CylinderGeometry(
@@ -16093,9 +16209,25 @@ function PoolRoyaleGame({
           cueOptionGroupsRef.current = [];
           cueRackMetaRef.current = new Map();
           if (cueMaterialsRef.current?.shaft) {
+            const textures = cueMaterialsRef.current.shaft.userData?.textures;
+            if (textures) {
+              Object.values(textures).forEach((tex) => tex?.dispose?.());
+            }
             disposeMaterialWithWood(cueMaterialsRef.current.shaft);
           }
+          if (cueMaterialsRef.current?.buttMaterial) {
+            cueMaterialsRef.current.buttMaterial.dispose?.();
+          }
+          if (cueMaterialsRef.current?.buttRingMaterial) {
+            cueMaterialsRef.current.buttRingMaterial.dispose?.();
+          }
+          if (cueMaterialsRef.current?.buttCapMaterial) {
+            cueMaterialsRef.current.buttCapMaterial.dispose?.();
+          }
           cueMaterialsRef.current.shaft = null;
+          cueMaterialsRef.current.buttMaterial = null;
+          cueMaterialsRef.current.buttRingMaterial = null;
+          cueMaterialsRef.current.buttCapMaterial = null;
           cueMaterialsRef.current.styleIndex = null;
           cueGalleryStateRef.current.active = false;
           cueGalleryStateRef.current.rackId = null;
