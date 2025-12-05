@@ -1315,8 +1315,9 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
       const isLocal = url.startsWith('/') || url.startsWith('./');
       const resolvedUrl = new URL(url, window.location.href).href;
       const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-      loader.setPath(resourcePath);
+      const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
       loader.setResourcePath(resourcePath);
+      loader.setPath(isAbsolute ? '' : resourcePath);
       // eslint-disable-next-line no-await-in-loop
       const gltf = await new Promise((resolve, reject) => {
         loader.load(resolvedUrl, resolve, undefined, reject);
@@ -1351,8 +1352,9 @@ async function loadPieceSetFromUrls(urls = [], options = {}) {
     try {
       const resolvedUrl = new URL(url, window.location.href).href;
       const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-      loader.setPath(resourcePath);
+      const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
       loader.setResourcePath(resourcePath);
+      loader.setPath(isAbsolute ? '' : resourcePath);
       // eslint-disable-next-line no-await-in-loop
       const gltf = await new Promise((resolve, reject) => {
         loader.load(resolvedUrl, resolve, undefined, reject);
@@ -5135,6 +5137,27 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         arenaRef.current.allPieceMeshes = allPieceMeshes;
         arenaRef.current.applyPieceSetAssets = applyPieceSetAssets;
         arenaRef.current.setProceduralBoardVisible = setProceduralBoardVisible;
+      }
+
+      if (typeof window !== 'undefined') {
+        window.__CHESS_DEBUG__ = {
+          renderer,
+          scene,
+          camera,
+          controls,
+          boardModel: currentBoardModel,
+          piecePrototypes: currentPiecePrototypes,
+          usingProceduralBoard: proceduralBoardVisible,
+          pieceCount: allPieceMeshes.length
+        };
+        if (import.meta?.env?.DEV) {
+          console.info('Chess Battle Royal: applied piece set', {
+            boardModel: Boolean(currentBoardModel),
+            piecePrototypes: Boolean(currentPiecePrototypes),
+            pieceCount: allPieceMeshes.length,
+            setId: currentPieceSetId
+          });
+        }
       }
     };
 
