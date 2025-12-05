@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   createArenaCarpetMaterial,
@@ -1276,13 +1277,31 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   };
 }
 
-function createConfiguredGLTFLoader() {
+let sharedKTX2Loader = null;
+
+function createConfiguredGLTFLoader(renderer = null) {
   const loader = new GLTFLoader();
   loader.setCrossOrigin('anonymous');
   const draco = new DRACOLoader();
   draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setDRACOLoader(draco);
   loader.setMeshoptDecoder(MeshoptDecoder);
+
+  if (!sharedKTX2Loader) {
+    sharedKTX2Loader = new KTX2Loader();
+    sharedKTX2Loader.setTranscoderPath(
+      'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
+    );
+    const supportRenderer = renderer || (typeof document !== 'undefined'
+      ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
+      : null);
+    if (supportRenderer) {
+      sharedKTX2Loader.detectSupport(supportRenderer);
+      if (!renderer) supportRenderer.dispose();
+    }
+  }
+
+  loader.setKTX2Loader(sharedKTX2Loader);
   return loader;
 }
 
@@ -4462,6 +4481,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       powerPreference: 'high-performance'
     });
     applyRendererSRGB(renderer);
+    if (sharedKTX2Loader) {
+      try {
+        sharedKTX2Loader.detectSupport(renderer);
+      } catch (error) {
+        console.warn('Chess Battle Royal: KTX2 support detection failed', error);
+      }
+    }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
     renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
