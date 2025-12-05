@@ -277,7 +277,7 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
-const POCKET_JAW_DEPTH_SCALE = 0.52;
+const POCKET_JAW_DEPTH_SCALE = 0.68;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
@@ -290,7 +290,7 @@ const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.66;
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.9;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
@@ -668,26 +668,26 @@ const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
 const POCKET_CLOTH_DEPTH = POCKET_RECESS_DEPTH * 1.05;
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.85 +
-  POCKET_VIS_R * 4.7 +
-  BALL_R * 4.1;
+  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 2.85 +
+    POCKET_VIS_R * 4.7 +
+    BALL_R * 4.1) * 0.9;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
-  POCKET_VIS_R * 5.2 +
-  BALL_R * 3.7;
+  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 3.4 +
+    POCKET_VIS_R * 5.2 +
+    BALL_R * 3.7) * 0.88;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 9.5,
   dotThreshold: 0.3,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 12.6,
-  heightOffsetShortMultiplier: 1.05,
+  heightOffset: BALL_R * 11.2,
+  heightOffsetShortMultiplier: 1.02,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
-  heightDrop: BALL_R * 1.6,
-  distanceScale: 1.22,
-  heightScale: 1.34,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.12,
+  heightDrop: BALL_R * 1.4,
+  distanceScale: 1.18,
+  heightScale: 1.28,
   focusBlend: 0.32,
   lateralFocusShift: POCKET_VIS_R * 0.5,
   railFocusLong: BALL_R * 9,
@@ -758,14 +758,14 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
-const SPIN_STRENGTH = BALL_R * 0.03125;
+const SPIN_STRENGTH = BALL_R * 0.03125 * 1.2;
 const SPIN_DECAY = 0.88;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.2;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_TRAVEL_MULTIPLIER = 0.66; // dampen sideways drift while swerve is active so it stays believable
+const PRE_IMPACT_SPIN_DRIFT = 0.072; // reapply stored sideways swerve once the cue ball is rolling after impact
 const POST_IMPACT_PREVIEW_SPIN_SCALE = 0.45; // influence strength for the dashed cue-ball path preview
 // Mirror Pool Royale's tuned shot power and lift it by 30% for a livelier snooker break.
 const SHOT_POWER_REDUCTION = 0.85;
@@ -2929,12 +2929,13 @@ const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14; // allow a lower sweep so the player camera sits nearer the rail
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.012; // pull the orbit camera closer to the rail without clipping
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.06;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.04;
+const BROADCAST_PULL_IN_SCALE = 0.92;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0009;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.0006;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.9985;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.998;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
@@ -3683,8 +3684,8 @@ function reflectRails(ball) {
   const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
-  const pocketGuard = POCKET_VIS_R * 0.85 * POCKET_VISUAL_EXPANSION;
-  const cornerDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const pocketGuard = POCKET_VIS_R * 0.75 * POCKET_VISUAL_EXPANSION;
+  const cornerDepthLimit = POCKET_VIS_R * 1.55 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cos, -sy * sin);
@@ -3801,6 +3802,11 @@ function calcTarget(cue, dir, balls) {
 
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
+  const chamferRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
+  const chamferCos = Math.cos(chamferRad);
+  const chamferSin = Math.sin(chamferRad);
+  const pocketGuard = POCKET_VIS_R * 0.75 * POCKET_VISUAL_EXPANSION;
+  const cornerDepthLimit = POCKET_VIS_R * 1.55 * POCKET_VISUAL_EXPANSION;
   const checkRail = (t, normal) => {
     if (t >= 0 && t < tHit) {
       tHit = t;
@@ -3808,6 +3814,26 @@ function calcTarget(cue, dir, balls) {
       targetBall = null;
     }
   };
+  const checkChamfer = (sx, sy) => {
+    TMP_VEC2_C.set(sx * limX, sy * limY);
+    TMP_VEC2_B.set(-sx * chamferCos, -sy * chamferSin);
+    const denom = dirNorm.dot(TMP_VEC2_B);
+    if (denom >= -1e-8) return;
+    TMP_VEC2_A.copy(TMP_VEC2_C).sub(cuePos);
+    const t = TMP_VEC2_A.dot(TMP_VEC2_B) / denom;
+    if (t <= 0 || t >= tHit) return;
+    TMP_VEC2_D.copy(dirNorm).multiplyScalar(t).add(cuePos);
+    TMP_VEC2_FORWARD.copy(TMP_VEC2_D).sub(TMP_VEC2_C);
+    const tangent = TMP_VEC2_AXIS.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    const lateral = Math.abs(TMP_VEC2_FORWARD.dot(tangent));
+    const depth = TMP_VEC2_FORWARD.dot(TMP_VEC2_B);
+    if (lateral < pocketGuard) return;
+    if (depth < -cornerDepthLimit) return;
+    tHit = t;
+    railNormal = TMP_VEC2_B.clone();
+    targetBall = null;
+  };
+  CORNER_SIGNS.forEach(({ sx, sy }) => checkChamfer(sx, sy));
   if (dirNorm.x < -1e-8)
     checkRail((-limX - cuePos.x) / dirNorm.x, new THREE.Vector2(1, 0));
   if (dirNorm.x > 1e-8)
@@ -7879,7 +7905,8 @@ function SnookerGame() {
         CAMERA.maxPhi
       );
       const standingRadius = clamp(
-        fitRadius(camera, STANDING_VIEW.margin * zoomProfile.margin),
+        fitRadius(camera, STANDING_VIEW.margin * zoomProfile.margin) *
+          BROADCAST_PULL_IN_SCALE,
         CAMERA.minR,
         CAMERA.maxR
       );
@@ -9195,14 +9222,14 @@ function SnookerGame() {
           const shouldApplyBroadcastPullIn = aspect >= 1;
           const broadcastBaseRadius = shouldApplyBroadcastPullIn
             ? Math.max(
-                standingRadiusRaw,
+                standingRadiusRaw * BROADCAST_PULL_IN_SCALE,
                 playerRadiusBase * BROADCAST_DISTANCE_MULTIPLIER
               )
-            : playerRadiusBase;
+            : playerRadiusBase * BROADCAST_PULL_IN_SCALE;
           const baseBroadcastRadius =
             broadcastBaseRadius + BROADCAST_RADIUS_PADDING;
           const baseStandingRadius = Math.max(
-            standingRadiusRaw,
+            standingRadiusRaw * BROADCAST_PULL_IN_SCALE,
             baseBroadcastRadius
           );
           const standingRadius = clamp(
