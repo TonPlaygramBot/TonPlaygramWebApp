@@ -1685,7 +1685,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
     BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
 
-  const applyColor = (piece, colorHex, { stripMaps = false } = {}) => {
+  const applyColor = (piece, colorHex) => {
     if (!piece) return;
     piece.traverse((child) => {
       if (!child?.isMesh) return;
@@ -1695,13 +1695,6 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
         const applied = mat.clone ? mat.clone() : mat;
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
-        if (stripMaps) {
-          applied.map = null;
-          applied.emissiveMap = null;
-          applied.lightMap = null;
-          applied.vertexColors = false;
-          applied.needsUpdate = true;
-        }
         if (Array.isArray(child.material)) {
           child.material[idx] = applied;
         } else {
@@ -1715,8 +1708,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
 
   ['white', 'black'].forEach((colorKey) => {
     const targetColor = colorKey === 'white' ? lightColor : darkColor;
-    const stripMaps = colorKey === 'white';
-    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor, { stripMaps }));
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
   });
 
   const accentize = (piece, colorKey) => {
