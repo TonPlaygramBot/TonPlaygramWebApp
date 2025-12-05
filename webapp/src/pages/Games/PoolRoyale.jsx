@@ -820,7 +820,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.72; // ease the middle pockets slightly while keeping them snug against the chrome hook
-const SIDE_POCKET_OUTWARD_BIAS = -BALL_R * 0.02; // nudge the middle pocket centres farther toward the cloth field so the inboard pull tracks the new cutouts
+const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.012; // push the middle pocket centres slightly farther toward the rails so the cutouts breathe outward
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.16; // keep the centres tucked while letting the shift reach the fascia without leaving a gap
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -850,13 +850,13 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.01; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION; // move the corner pocket centres further toward table centre alongside the deeper cuts
+  POCKET_VIS_R * 0.328 * POCKET_VISUAL_EXPANSION; // ease the corner pocket centres slightly back toward the rails to shift the cuts outward
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
-  POCKET_VIS_R * 0.085 * POCKET_VISUAL_EXPANSION; // pull the corner rail and chrome cutouts further toward centre to track the pocket inset
+  POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
