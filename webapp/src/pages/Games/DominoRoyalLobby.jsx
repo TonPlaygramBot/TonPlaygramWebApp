@@ -5,13 +5,7 @@ import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import {
-  ensureAccountId,
-  getTelegramId,
-  getTelegramPhotoUrl,
-  getTelegramUsername,
-  isTelegramWebView
-} from '../../utils/telegram.js';
+import { ensureAccountId, getTelegramId, getTelegramPhotoUrl, getTelegramUsername } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 
@@ -99,10 +93,7 @@ export default function DominoRoyalLobby() {
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
-    // UHD rendering increases devicePixelRatio to 3x which crashes Telegram's webview on some devices
-    if (!isTelegramWebView()) {
-      params.set('uhd', '1');
-    }
+    params.set('uhd', '1');
     const username = getTelegramUsername();
     if (username) params.set('username', username);
     const aiFlagSelection = flagOverride && flagOverride.length ? flagOverride : flags;
