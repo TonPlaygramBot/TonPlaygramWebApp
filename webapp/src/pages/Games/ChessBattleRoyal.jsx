@@ -327,7 +327,7 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
   label: 'A Beautiful Game',
   white: {
-    color: '#f6f7fb',
+    color: BEAUTIFUL_GAME_THEME.light,
     roughness: 0.3,
     metalness: 0.28,
     sheen: 0.28,
@@ -337,19 +337,19 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     specularIntensity: 0.72
   },
   black: {
-    color: '#0f131f',
-    roughness: 0.24,
-    metalness: 0.38,
+    color: BEAUTIFUL_GAME_THEME.dark,
+    roughness: 0.26,
+    metalness: 0.34,
     sheen: 0.22,
-    sheenColor: '#5f799c',
+    sheenColor: '#b08b5e',
     clearcoat: 0.26,
-    clearcoatRoughness: 0.34,
+    clearcoatRoughness: 0.32,
     specularIntensity: 0.72,
-    emissive: '#0b1220',
-    emissiveIntensity: 0.24
+    emissive: '#2f2316',
+    emissiveIntensity: 0.18
   },
-  accent: '#caa472',
-  blackAccent: '#b58f4f'
+  accent: BEAUTIFUL_GAME_THEME.accent,
+  blackAccent: BEAUTIFUL_GAME_THEME.accent
 });
 
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
@@ -406,7 +406,8 @@ const DEFAULT_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
 const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
-const BEAUTIFUL_GAME_ASSET_SCALE = 1.02;
+const BEAUTIFUL_GAME_ASSET_SCALE = 0.98;
+const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.72;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
   id: 'stauntonClassic',
@@ -483,6 +484,34 @@ function createFallbackTexture(color = '#888888') {
   texture.needsUpdate = true;
   applySRGBColorSpace(texture);
   return texture;
+}
+
+function colorSeed(hex = '#ffffff') {
+  const normalized = hex.toString().toLowerCase();
+  let hash = 0;
+  for (let i = 0; i < normalized.length; i += 1) {
+    hash = (hash << 5) - hash + normalized.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash % 97) + 1;
+}
+
+function buildVeinedMaterial(colorHex, { roughness, metalness, repeat = 2.5, normalScale = 0.34 } = {}) {
+  const texture = createGraniteTexture(colorHex, colorSeed(colorHex), repeat);
+  const material = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(colorHex),
+    roughness: clamp01(roughness ?? 0.4),
+    metalness: clamp01(metalness ?? 0.22),
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.2,
+    reflectivity: 0.42
+  });
+  if (texture) {
+    material.map = texture;
+    material.normalMap = texture;
+    material.normalScale = new THREE.Vector2(normalScale, normalScale);
+  }
+  return material;
 }
 
 function loadTexture(url, fallbackColor = '#888888') {
@@ -1480,6 +1509,8 @@ function applyLocalBeautifulGameMaterials(assets) {
   const { boardModel, piecePrototypes } = assets;
   if (typeof document === 'undefined') return assets;
 
+  harmonizeBeautifulGamePieces(piecePrototypes);
+
   const graniteLight = createGraniteTexture('#d9d7d1', 17, 2.1);
   const graniteDark = createGraniteTexture('#6c6963', 29, 2.1);
   const graniteEdge = createGraniteTexture('#2b2a32', 47, 1.6);
@@ -1586,6 +1617,67 @@ function applyLocalBeautifulGameMaterials(assets) {
   );
 
   return assets;
+}
+
+function harmonizeBeautifulGamePieces(piecePrototypes) {
+  if (!piecePrototypes) return;
+  const lightColor = BEAUTIFUL_GAME_THEME.light;
+  const darkColor = BEAUTIFUL_GAME_THEME.dark;
+  const accent = BEAUTIFUL_GAME_THEME.accent;
+
+  const applyColor = (piece, colorHex) => {
+    if (!piece) return;
+    piece.traverse((child) => {
+      if (!child?.isMesh) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat, idx) => {
+        if (!mat) return;
+        const applied = mat.clone ? mat.clone() : mat;
+        applied.color = new THREE.Color(colorHex);
+        applied.emissive?.set?.(0x000000);
+        if (Array.isArray(child.material)) {
+          child.material[idx] = applied;
+        } else {
+          child.material = applied;
+        }
+        child.castShadow = true;
+        child.receiveShadow = true;
+      });
+    });
+  };
+
+  ['white', 'black'].forEach((colorKey) => {
+    const targetColor = colorKey === 'white' ? lightColor : darkColor;
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
+  });
+
+  const accentize = (piece) => {
+    if (!piece) return;
+    piece.traverse((child) => {
+      if (!child?.isMesh) return;
+      const name = child.name?.toLowerCase?.() ?? '';
+      const shouldAccent =
+        name.includes('collar') || name.includes('crown') || name.includes('ring') || name.includes('cross');
+      if (!shouldAccent) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat, idx) => {
+        if (!mat) return;
+        const applied = mat.clone ? mat.clone() : mat;
+        applied.color = new THREE.Color(accent);
+        applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
+        applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
+        if (Array.isArray(child.material)) {
+          child.material[idx] = applied;
+        } else {
+          child.material = applied;
+        }
+      });
+    });
+  };
+
+  ['white', 'black'].forEach((colorKey) => {
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece));
+  });
 }
 
 function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
@@ -2849,6 +2941,15 @@ function extractChessSetAssets(scene, options = {}) {
     if (detectType(path)) node.visible = false;
   });
 
+  const nodesToCull = [];
+  boardModel.traverse((node) => {
+    if (detectType(nodePath(node))) nodesToCull.push(node);
+  });
+  nodesToCull.forEach((node) => {
+    if (node?.parent) node.parent.remove(node);
+  });
+  boardModel.updateMatrixWorld(true);
+
   const boardSizeBox = new THREE.Box3().setFromObject(boardModel);
   const boardSize = boardSizeBox.getSize(new THREE.Vector3());
   const largest = Math.max(boardSize.x || 1, boardSize.z || 1);
@@ -2931,13 +3032,14 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     styleId: 'beautifulGame',
     assetScale,
     name: 'ABeautifulGame',
-    pieceFootprintRatio: 0.78
+    pieceFootprintRatio: BEAUTIFUL_GAME_FOOTPRINT_RATIO
   });
   if (assets.boardModel) {
     const finalBox = new THREE.Box3().setFromObject(assets.boardModel);
     const boardTop = finalBox.max.y;
-    assets.pieceYOffset = Math.max(boardTop + 0.02, PIECE_PLACEMENT_Y_OFFSET);
+    assets.pieceYOffset = Math.max(boardTop + 0.04, PIECE_PLACEMENT_Y_OFFSET);
   }
+  harmonizeBeautifulGamePieces(assets.piecePrototypes);
   if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
@@ -3051,6 +3153,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     tileSize,
     pieceYOffset: boardTop + 0.02
   };
+  harmonizeBeautifulGamePieces(assets.piecePrototypes);
   if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
@@ -5118,24 +5221,41 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let currentTileSize = tile;
     let currentPieceSetId = initialPieceSetId;
     let currentBoardCleanup = null;
-    const base = box(
-      N * tile + BOARD.rim * 2,
-      BOARD.baseH,
-      N * tile + BOARD.rim * 2,
-      boardTheme.frameDark,
-      { roughness: boardTheme.frameRoughness, metalness: boardTheme.frameMetalness }
+    const base = new THREE.Mesh(
+      new THREE.BoxGeometry(N * tile + BOARD.rim * 2, BOARD.baseH, N * tile + BOARD.rim * 2),
+      buildVeinedMaterial(boardTheme.frameDark, {
+        roughness: boardTheme.frameRoughness,
+        metalness: boardTheme.frameMetalness,
+        repeat: 2.1,
+        normalScale: 0.28
+      })
     );
     base.position.set(0, BOARD.baseH / 2, 0);
     boardGroup.add(base);
-    const top = box(
-      N * tile,
-      0.12,
-      N * tile,
-      boardTheme.frameLight,
-      { roughness: boardTheme.surfaceRoughness, metalness: boardTheme.surfaceMetalness }
+    const top = new THREE.Mesh(
+      new THREE.BoxGeometry(N * tile, 0.12, N * tile),
+      buildVeinedMaterial(boardTheme.frameLight, {
+        roughness: boardTheme.surfaceRoughness * 0.92,
+        metalness: boardTheme.surfaceMetalness,
+        repeat: 2.8,
+        normalScale: 0.26
+      })
     );
     top.position.set(0, BOARD.baseH + 0.06, 0);
     boardGroup.add(top);
+
+    const inlay = new THREE.Mesh(
+      new THREE.BoxGeometry(N * tile + BOARD.rim * 1.08, 0.02, N * tile + BOARD.rim * 1.08),
+      new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(boardTheme.accent),
+        roughness: 0.22,
+        metalness: 0.74,
+        clearcoat: 0.32,
+        clearcoatRoughness: 0.18
+      })
+    );
+    inlay.position.set(0, BOARD.baseH + 0.11, 0);
+    boardGroup.add(inlay);
 
     // Tiles
     const tiles = [];
@@ -5144,10 +5264,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     for (let r = 0; r < N; r++) {
       for (let c = 0; c < N; c++) {
         const isDark = (r + c) % 2 === 1;
-        const m = new THREE.MeshStandardMaterial({
-          color: isDark ? boardTheme.dark : boardTheme.light,
-          metalness: boardTheme.surfaceMetalness,
-          roughness: boardTheme.surfaceRoughness
+        const m = buildVeinedMaterial(isDark ? boardTheme.dark : boardTheme.light, {
+          metalness: boardTheme.surfaceMetalness + 0.04,
+          roughness: boardTheme.surfaceRoughness * 0.94,
+          repeat: 3.4,
+          normalScale: 0.3
         });
         const g = new THREE.BoxGeometry(tile, 0.1, tile);
         const mesh = new THREE.Mesh(g, m);
@@ -5194,6 +5315,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       proceduralBoardVisible = visible;
       base.visible = visible;
       top.visible = visible;
+      inlay.visible = visible;
       tileGroup.visible = visible;
       coordMat.visible = visible;
       tiles.forEach((tileMesh) => {
