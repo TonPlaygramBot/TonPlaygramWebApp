@@ -4232,6 +4232,7 @@ const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
+const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
 const AIM_SPIN_PREVIEW_SIDE = 0.22;
 const AIM_SPIN_PREVIEW_FORWARD = 0.12;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
@@ -15253,6 +15254,15 @@ function PoolRoyaleGame({
             .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
           if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
             cueFollowDirSpinAdjusted.normalize();
+          }
+          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
+          if (backSpinWeight > 1e-8) {
+            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
+            const drawDir = dir.clone().negate();
+            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
+            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
+              cueFollowDirSpinAdjusted.normalize();
+            }
           }
           const cueFollowLength =
             BALL_R * (12 + powerStrength * 18) * (1 + spinVerticalInfluence * 0.4);
