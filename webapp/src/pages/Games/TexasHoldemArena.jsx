@@ -3073,29 +3073,34 @@ function TexasHoldemArena({ search }) {
       const prevBet = seat.lastBet ?? 0;
       const betDelta = Math.max(0, bet - prevBet);
       if (betDelta > 0 && arenaGroup) {
-        const chipHeight = chipFactory.chipHeight;
-        const startBase = seat.chipRailAnchor.clone();
-        startBase.y -= chipHeight / 2;
-        const endBase = potStack.position.clone();
-        endBase.y -= chipHeight / 2;
-        const midBase = startBase.clone().lerp(endBase, 0.65);
-        midBase.y -= chipHeight * 0.1;
-        chipFactory.animateTransfer(betDelta, {
-          scene: arenaGroup,
-          start: startBase,
-          mid: midBase,
-          end: endBase,
-          startLayout: seat.railLayout,
-          midLayout: seat.tableLayout,
-          endLayout: potLayout,
-          pauseDuration: 0.45,
-          toMidDuration: 0.35,
-          toEndDuration: 0.6,
-          onComplete: (value) => {
-            potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
-            chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
-          }
-        });
+        const applyPotGain = (value) => {
+          potDisplayRef.current = Math.min(potTargetRef.current, potDisplayRef.current + value);
+          chipFactory.setAmount(potStack, potDisplayRef.current, { mode: 'scatter', layout: potLayout });
+        };
+        if (seat.isHuman) {
+          applyPotGain(betDelta);
+        } else {
+          const chipHeight = chipFactory.chipHeight;
+          const startBase = seat.chipRailAnchor.clone();
+          startBase.y -= chipHeight / 2;
+          const endBase = potStack.position.clone();
+          endBase.y -= chipHeight / 2;
+          const midBase = startBase.clone().lerp(endBase, 0.65);
+          midBase.y -= chipHeight * 0.1;
+          chipFactory.animateTransfer(betDelta, {
+            scene: arenaGroup,
+            start: startBase,
+            mid: midBase,
+            end: endBase,
+            startLayout: seat.railLayout,
+            midLayout: seat.tableLayout,
+            endLayout: potLayout,
+            pauseDuration: 0.45,
+            toMidDuration: 0.35,
+            toEndDuration: 0.6,
+            onComplete: applyPotGain
+          });
+        }
       }
 
       seat.lastBet = bet;
@@ -3116,7 +3121,9 @@ function TexasHoldemArena({ search }) {
       const label = seat.nameplate;
       if (label?.userData?.update) {
         const status = player.status || '';
-        label.userData.update(player.name, chipsAmount, highlight, status, player.avatar);
+        const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
+        seat.lastAvatar = labelAvatar;
+        label.userData.update(player.name, chipsAmount, highlight, status, labelAvatar);
         label.userData.texture.needsUpdate = true;
       }
 
@@ -3673,14 +3680,14 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
-      <div className="absolute top-3 right-3 z-20 pointer-events-auto">
-        <div className="flex items-center space-x-3 rounded-full bg-white/10 px-3 py-2 text-xs shadow-lg backdrop-blur">
+      <div className="absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
+        <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar && (
-            <img src={humanPlayer.avatar} alt="player avatar" className="h-9 w-9 rounded-full object-cover" />
+            <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
           )}
-          <div className="flex flex-col leading-tight text-white">
+          <div className="flex flex-col leading-tight text-white text-center">
             <span className="text-sm font-semibold drop-shadow-md">{humanPlayer?.name || 'You'}</span>
-            <span className="text-[0.72rem] text-white/80">
+            <span className="text-[0.74rem] text-white/80">
               {Math.round(humanPlayer?.chips ?? 0)} {gameState.token}
             </span>
           </div>
@@ -3694,7 +3701,7 @@ function TexasHoldemArena({ search }) {
         </div>
       )}
       {sliderVisible && (
-        <div className="pointer-events-auto absolute top-1/2 left-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:left-6">
+        <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
           <div className="flex flex-col items-center gap-1 text-center">
             <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
             <span className="text-2xl font-semibold drop-shadow-md">
