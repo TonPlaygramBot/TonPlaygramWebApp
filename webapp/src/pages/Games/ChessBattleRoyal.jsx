@@ -222,6 +222,8 @@ const BEAUTIFUL_GAME_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/refs/heads/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
@@ -2525,30 +2527,18 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
         setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
       )
     ]);
-  try {
-    const gltf = await withTimeout(loadBeautifulGameSet());
-    if (gltf?.scene) {
-      const extractorFn = extractor || extractBeautifulGameAssets;
-      const source = gltf.scene.userData?.beautifulGameSource;
-      return extractorFn(gltf.scene, targetBoardSize, { source });
-    }
-  } catch (error) {
-    console.warn('Chess Battle Royal: remote ABeautifulGame set failed, using textured fallbacks', error);
-  }
-
-  try {
-    return applyLocalBeautifulGameMaterials(
-      buildBeautifulGameFallback(targetBoardSize, BEAUTIFUL_GAME_THEME)
-    );
-  } catch (error) {
-    console.warn('Chess Battle Royal: local ABeautifulGame fallback failed', error);
-  }
-
-  const fallbackOptions = {
-    targetBoardSize,
-    pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
-    assetScale: 1
+  const tryExtract = async (sceneLoader, sceneExtractor = extractor) => {
+    const gltf = await withTimeout(sceneLoader());
+    if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
+    const source = gltf.scene.userData?.beautifulGameSource;
+    return (sceneExtractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
   };
+
+  try {
+    return await tryExtract(() => loadBeautifulGameSet());
+  } catch (error) {
+    console.warn('Chess Battle Royal: remote ABeautifulGame set failed', error);
+  }
 
   try {
     const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
@@ -2559,26 +2549,7 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
   }
 
-  const texturedFallbacks = [
-    { urls: STAUNTON_SET_URLS, name: 'Staunton', styleId: 'stauntonFallback' },
-    { urls: KENNEY_SET_URLS, name: 'BoardGameKit', styleId: 'kenneyFallback' },
-    { urls: POLYGONAL_SET_URLS, name: 'Polygonal', styleId: 'polygonalFallback' }
-  ];
-
-  for (const set of texturedFallbacks) {
-    try {
-      // eslint-disable-next-line no-await-in-loop
-      return await loadPieceSetFromUrls(set.urls, {
-        ...fallbackOptions,
-        styleId: set.styleId,
-        name: set.name
-      });
-    } catch (error) {
-      console.warn(`Chess Battle Royal: ${set.name} fallback failed`, error);
-    }
-  }
-
-  throw new Error('No textured chess set could be loaded');
+  throw new Error('ABeautifulGame assets are unavailable');
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
