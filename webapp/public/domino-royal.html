@@ -3196,7 +3196,15 @@ function applyDominoStyle(option = DOMINO_STYLE_OPTIONS[0]) {
 }
 
 applyDominoStyle(currentDominoStyleOption);
-const markerMat = new THREE.MeshStandardMaterial({ color:"#15d16f", roughness:.7, metalness:0, transparent:true, opacity:.55, side: THREE.DoubleSide });
+const markerMat = new THREE.MeshStandardMaterial({
+  color: "#facc15",
+  emissive: new THREE.Color('#eab308'),
+  roughness: .6,
+  metalness: 0,
+  transparent: true,
+  opacity: .62,
+  side: THREE.DoubleSide
+});
 
 function applyHighlightStyle(option = HIGHLIGHT_STYLE_OPTIONS[0]) {
   currentHighlightStyle = option ?? HIGHLIGHT_STYLE_OPTIONS[0];
@@ -3834,6 +3842,7 @@ let selectedTile = null;
 let selectedHighlight = null;
 let selectedHighlightHost = null;
 let selectedHighlightMaterials = [];
+let selectedHighlightExtras = [];
 let flipDir = false; // alternate chain direction after each game
 const usedTileKeys = new Set();
 let gameFinished = false;
@@ -4589,11 +4598,16 @@ function clearSelectedHighlight(){
     }
   });
   selectedHighlightMaterials.length = 0;
-  if(selectedHighlight && selectedHighlight.parent){
-    selectedHighlight.parent.remove(selectedHighlight);
-  }
-  try{ selectedHighlight?.geometry?.dispose?.(); }catch{}
-  try{ selectedHighlight?.material?.dispose?.(); }catch{}
+  const disposables = [selectedHighlight, ...selectedHighlightExtras];
+  disposables.forEach((hl)=>{
+    if(!hl) return;
+    if(hl.parent){
+      hl.parent.remove(hl);
+    }
+    try{ hl.geometry?.dispose?.(); }catch{}
+    try{ hl.material?.dispose?.(); }catch{}
+  });
+  selectedHighlightExtras.length = 0;
   selectedHighlight = null;
   selectedHighlightHost = null;
 }
@@ -4612,43 +4626,91 @@ function applySelectedHighlight(mesh){
     const clonedMat = child.material?.clone ? child.material.clone() : child.material;
     if(clonedMat && clonedMat.color){
       clonedMat.color = clonedMat.color.clone ? clonedMat.color.clone() : new THREE.Color(clonedMat.color);
-      clonedMat.color.lerp(new THREE.Color('#ffd54f'), 0.55);
+      clonedMat.color.lerp(new THREE.Color('#facc15'), 0.72);
     }
     if(clonedMat && clonedMat.emissive){
       clonedMat.emissive = clonedMat.emissive.clone ? clonedMat.emissive.clone() : new THREE.Color(clonedMat.emissive);
-      clonedMat.emissive.lerp(new THREE.Color('#ffec8b'), 0.7);
-      clonedMat.emissiveIntensity = Math.max(0.6, clonedMat.emissiveIntensity ?? 0.35);
+      clonedMat.emissive.lerp(new THREE.Color('#fef08a'), 0.85);
+      clonedMat.emissiveIntensity = Math.max(0.85, clonedMat.emissiveIntensity ?? 0.45);
     }
     child.material = clonedMat;
     selectedHighlightMaterials.push(child);
   });
 
+  const plateGeometry = new THREE.PlaneGeometry(DOMINO_LENGTH * 1.08, DOMINO_WIDTH * 1.18);
   const plate = new THREE.Mesh(
-    new THREE.PlaneGeometry(DOMINO_LENGTH * 1.08, DOMINO_WIDTH * 1.18),
-    new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0.42, side: THREE.DoubleSide })
+    plateGeometry,
+    new THREE.MeshBasicMaterial({ color: 0xfacc15, transparent: true, opacity: 0.52, side: THREE.DoubleSide })
   );
   plate.rotation.x = -Math.PI / 2;
   plate.position.set(0, 0.011, 0);
   plate.renderOrder = 9;
   mesh.add(plate);
+
+  const outline = new THREE.LineSegments(
+    new THREE.EdgesGeometry(plateGeometry),
+    new THREE.LineBasicMaterial({ color: '#eab308', transparent: true, opacity: 0.9, linewidth: 2 })
+  );
+  outline.rotation.copy(plate.rotation);
+  outline.position.copy(plate.position).add(new THREE.Vector3(0, 0.0005, 0));
+  outline.renderOrder = 10;
+  mesh.add(outline);
+
   selectedHighlight = plate;
+  selectedHighlightExtras.push(outline);
   selectedHighlightHost = mesh;
 }
 
 function clearMarkers(){ if(markers.L){piecesG.remove(markers.L);markers.L=null;} if(markers.R){piecesG.remove(markers.R);markers.R=null;} }
 function makeMarker(){
+  const marker = new THREE.Group();
+  marker.userData.marker = true;
+
   const g=new THREE.PlaneGeometry(DOMINO_LENGTH * 1.04, DOMINO_WIDTH * 1.05);
-  const m=new THREE.Mesh(g, markerMat.clone());
-  m.rotation.x=-Math.PI/2;
-  m.position.y=CLOTH_TOP+0.0115;
-  m.renderOrder=10;
-  return m;
+  const plateMat = markerMat.clone();
+  plateMat.color = markerMat.color.clone();
+  const plate=new THREE.Mesh(g, plateMat);
+  plate.rotation.x=-Math.PI/2;
+  plate.position.y=CLOTH_TOP+0.0115;
+  plate.renderOrder=10;
+  plate.userData.marker = true;
+  marker.add(plate);
+
+  const outline = new THREE.LineSegments(
+    new THREE.EdgesGeometry(g),
+    new THREE.LineBasicMaterial({ color: '#f59e0b', transparent: true, opacity: 0.95, linewidth: 2 })
+  );
+  outline.rotation.copy(plate.rotation);
+  outline.position.copy(plate.position).add(new THREE.Vector3(0, 0.0006, 0));
+  outline.renderOrder = 11;
+  marker.add(outline);
+
+  const midLine = new THREE.Mesh(
+    new THREE.PlaneGeometry(DOMINO_LENGTH * 0.08, DOMINO_WIDTH * 0.95),
+    new THREE.MeshBasicMaterial({ color: '#fef08a', transparent: true, opacity: 0.95, side: THREE.DoubleSide })
+  );
+  midLine.rotation.x = -Math.PI/2;
+  midLine.position.y = plate.position.y + 0.0008;
+  midLine.renderOrder = 12;
+  marker.add(midLine);
+
+  const arrowGeo = new THREE.ConeGeometry(DOMINO_WIDTH * 0.16, DOMINO_WIDTH * 0.42, 16);
+  const arrowMat = new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#facc15', emissiveIntensity: 0.85, roughness: 0.35, metalness: 0.05, transparent: true, opacity: 0.92 });
+  const leftArrow = new THREE.Mesh(arrowGeo, arrowMat);
+  leftArrow.rotation.x = -Math.PI/2;
+  leftArrow.position.set(-DOMINO_LENGTH * 0.42, plate.position.y + 0.008, 0);
+  leftArrow.renderOrder = 13;
+  const rightArrow = leftArrow.clone();
+  rightArrow.position.x = DOMINO_LENGTH * 0.42;
+  marker.add(leftArrow, rightArrow);
+
+  return marker;
 }
 function showMarkersFor(tile){
   clearMarkers(); if(!ends) return;
   const canL = (tile.a===ends.L.v||tile.b===ends.L.v), canR=(tile.a===ends.R.v||tile.b===ends.R.v);
-  if(canL){ const c=nextCandidate(ends.L); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.userData={marker:true, side:-1}; piecesG.add(mk); markers.L=mk; }
-  if(canR){ const c=nextCandidate(ends.R); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.userData={marker:true, side:1}; piecesG.add(mk); markers.R=mk; }
+  if(canL){ const c=nextCandidate(ends.L); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.rotation.y = c.rot ?? 0; mk.userData={marker:true, side:-1}; piecesG.add(mk); markers.L=mk; }
+  if(canR){ const c=nextCandidate(ends.R); const mk=makeMarker(); mk.position.x=c.nx; mk.position.z=c.nz; mk.rotation.y = c.rot ?? 0; mk.userData={marker:true, side:1}; piecesG.add(mk); markers.R=mk; }
 }
 
 /* ---------- Interactivity ---------- */
