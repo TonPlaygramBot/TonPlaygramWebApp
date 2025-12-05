@@ -87,10 +87,11 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
 const COMMUNITY_SPACING = CARD_W * 0.62;
-const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * 0.32;
+const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * 0.2;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
+const COMMUNITY_ROW_ROTATION = 0;
 const COMMUNITY_CARD_POSITIONS = [-2, -1, 0, 1, 2].map((index) =>
   new THREE.Vector3(
     index * COMMUNITY_SPACING,
@@ -109,8 +110,7 @@ const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_FORWARD_OFFSET = CARD_W * -0.55;
-const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, POT_FORWARD_OFFSET);
+const POT_BELOW_COMMUNITY_OFFSET = CARD_H * 0.85;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
@@ -978,7 +978,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
       .clone()
       .addScaledVector(forward, HUMAN_CHIP_INWARD_SHIFT)
       .addScaledVector(right, HUMAN_CHIP_LATERAL_SHIFT);
-    chipAnchor.y = tableSurfaceY + CARD_SURFACE_OFFSET;
+    chipAnchor.y = railSurfaceY;
     const cardRailAnchor = cardRailCenter
       .clone()
       .addScaledVector(forward, HUMAN_CARD_INWARD_SHIFT)
@@ -1033,7 +1033,7 @@ function getHumanCardAnchor(seatGroup) {
 }
 
 function computeCommunitySlotPosition(index, options = {}) {
-  const rotationY = options.rotationY ?? 0;
+  const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
   const base = new THREE.Vector3(0, surfaceY + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT, COMMUNITY_CARD_FORWARD_OFFSET);
   const offset = new THREE.Vector3((index - 2) * COMMUNITY_SPACING, 0, 0);
@@ -1042,6 +1042,12 @@ function computeCommunitySlotPosition(index, options = {}) {
     offset.applyAxisAngle(WORLD_UP, rotationY);
   }
   return base.add(offset);
+}
+
+function computePotAnchor(options = {}) {
+  const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
+  const center = computeCommunitySlotPosition(2, { rotationY: COMMUNITY_ROW_ROTATION, surfaceY });
+  return new THREE.Vector3(center.x, surfaceY + CARD_SURFACE_OFFSET, center.z + POT_BELOW_COMMUNITY_OFFSET);
 }
 
 function makeNameplate(name, chips, renderer, avatar) {
@@ -2469,8 +2475,8 @@ function TexasHoldemArena({ search }) {
           forward: seat.forward.clone()
         };
 
-        const chipStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
-        chipStack.position.copy(seat.chipAnchor);
+        const chipStack = chipFactory.createStack(0, { mode: 'rail', layout: railLayout });
+        chipStack.position.copy(seat.chipRailAnchor);
         arenaGroup.add(chipStack);
 
         const betStack = chipFactory.createStack(0, { mode: 'scatter', layout: tableLayout });
@@ -2602,7 +2608,7 @@ function TexasHoldemArena({ search }) {
       const communityMeshes = COMMUNITY_CARD_POSITIONS.map((pos, idx) => {
         const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
         mesh.position.copy(
-          computeCommunitySlotPosition(idx, { rotationY: tableInfo?.rotationY ?? 0, surfaceY: tableInfo?.surfaceY })
+          computeCommunitySlotPosition(idx, { rotationY: COMMUNITY_ROW_ROTATION, surfaceY: tableInfo?.surfaceY })
         );
         mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
         mesh.castShadow = true;
@@ -2610,8 +2616,9 @@ function TexasHoldemArena({ search }) {
         return mesh;
       });
 
+      const potAnchor = computePotAnchor({ surfaceY: tableInfo?.surfaceY });
       const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
-      potStack.position.copy(POT_OFFSET);
+      potStack.position.copy(potAnchor);
       arenaGroup.add(potStack);
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
@@ -2620,7 +2627,7 @@ function TexasHoldemArena({ search }) {
         new THREE.CylinderGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_RADIUS * 0.92, TURN_TOKEN_HEIGHT, 24),
         new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#78350f', emissiveIntensity: 0.38, metalness: 0.55 })
       );
-      turnIndicator.position.copy(POT_OFFSET.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
+      turnIndicator.position.copy(potAnchor.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
       turnIndicator.visible = false;
       turnIndicator.castShadow = true;
       turnIndicator.receiveShadow = true;
@@ -3060,7 +3067,7 @@ function TexasHoldemArena({ search }) {
       const shouldHoldChips =
         state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
       const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
-      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'scatter', layout: seat.tableLayout });
+      chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'rail', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
       const prevBet = seat.lastBet ?? 0;
@@ -3165,11 +3172,10 @@ function TexasHoldemArena({ search }) {
       }
       mesh.visible = true;
       applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
-      const rotationY = three.tableInfo?.rotationY ?? 0;
       const surfaceY = three.tableInfo?.surfaceY ?? TABLE_HEIGHT;
-      const slotPosition = computeCommunitySlotPosition(idx, { rotationY, surfaceY });
+      const slotPosition = computeCommunitySlotPosition(idx, { rotationY: COMMUNITY_ROW_ROTATION, surfaceY });
       mesh.position.copy(slotPosition);
-      const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(WORLD_UP, rotationY);
+      const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(WORLD_UP, COMMUNITY_ROW_ROTATION);
       const lookTarget = slotPosition
         .clone()
         .add(new THREE.Vector3(0, COMMUNITY_CARD_LOOK_LIFT, 0))
@@ -3309,7 +3315,7 @@ function TexasHoldemArena({ search }) {
           end,
           startLayout: potLayout,
           midLayout: seat.tableLayout,
-          endLayout: seat.tableLayout,
+          endLayout: seat.railLayout,
           startLift: CARD_SURFACE_OFFSET,
           midLift: CARD_SURFACE_OFFSET * 4,
           endLift: CARD_SURFACE_OFFSET,
@@ -3330,8 +3336,8 @@ function TexasHoldemArena({ search }) {
               );
               if (showdownAnimationRef.current.seatPending[seatIndex] <= 0) {
                 chipFactory.setAmount(seat.chipStack, targetChips, {
-                  mode: 'scatter',
-                  layout: seat.tableLayout
+                  mode: 'rail',
+                  layout: seat.railLayout
                 });
               }
             }
@@ -3667,6 +3673,19 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
+      <div className="absolute top-3 right-3 z-20 pointer-events-auto">
+        <div className="flex items-center space-x-3 rounded-full bg-white/10 px-3 py-2 text-xs shadow-lg backdrop-blur">
+          {humanPlayer?.avatar && (
+            <img src={humanPlayer.avatar} alt="player avatar" className="h-9 w-9 rounded-full object-cover" />
+          )}
+          <div className="flex flex-col leading-tight text-white">
+            <span className="text-sm font-semibold drop-shadow-md">{humanPlayer?.name || 'You'}</span>
+            <span className="text-[0.72rem] text-white/80">
+              {Math.round(humanPlayer?.chips ?? 0)} {gameState.token}
+            </span>
+          </div>
+        </div>
+      </div>
       {turnLabel && (
         <div className="pointer-events-none fixed bottom-20 inset-x-0 z-20 flex justify-center">
           <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
@@ -3675,7 +3694,7 @@ function TexasHoldemArena({ search }) {
         </div>
       )}
       {sliderVisible && (
-        <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
+        <div className="pointer-events-auto absolute top-1/2 left-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:left-6">
           <div className="flex flex-col items-center gap-1 text-center">
             <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
             <span className="text-2xl font-semibold drop-shadow-md">
