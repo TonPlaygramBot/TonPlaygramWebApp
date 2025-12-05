@@ -87,7 +87,7 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
 const COMMUNITY_SPACING = CARD_W * 0.62;
-const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * 0.2;
+const COMMUNITY_CARD_FORWARD_OFFSET = 0;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
@@ -110,7 +110,7 @@ const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_BELOW_COMMUNITY_OFFSET = CARD_H * 0.85;
+const POT_BELOW_COMMUNITY_OFFSET = -CARD_H;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
@@ -135,10 +135,10 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const TURN_TOKEN_RADIUS = 0.14 * MODEL_SCALE;
-const TURN_TOKEN_HEIGHT = 0.05 * MODEL_SCALE;
-const TURN_TOKEN_FORWARD_OFFSET = 0.18 * MODEL_SCALE;
-const TURN_TOKEN_LIFT = 0.08 * MODEL_SCALE;
+const TURN_TOKEN_RADIUS = 0.12 * MODEL_SCALE;
+const TURN_TOKEN_HEIGHT = 0.06 * MODEL_SCALE;
+const TURN_TOKEN_FORWARD_OFFSET = 0.08 * MODEL_SCALE;
+const TURN_TOKEN_LIFT = 0.1 * MODEL_SCALE;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -2561,6 +2561,9 @@ function TexasHoldemArena({ search }) {
               mesh.visible = false;
             }
           });
+          const initialChips = Math.max(0, Math.round(player.chips ?? 0));
+          chipFactory.setAmount(chipStack, initialChips, { mode: 'rail', layout: railLayout });
+          chipStack.visible = true;
           seatGroup.tableLayout = {
             ...tableLayout,
             forward: seat.forward.clone().multiplyScalar(player.isHuman ? 1 : -1),
@@ -2624,9 +2627,10 @@ function TexasHoldemArena({ search }) {
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
 
       const turnIndicator = new THREE.Mesh(
-        new THREE.CylinderGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_RADIUS * 0.92, TURN_TOKEN_HEIGHT, 24),
-        new THREE.MeshStandardMaterial({ color: '#f59e0b', emissive: '#78350f', emissiveIntensity: 0.38, metalness: 0.55 })
+        new THREE.TorusGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_HEIGHT * 0.5, 16, 48),
+        new THREE.MeshStandardMaterial({ color: '#0ea5e9', emissive: '#22d3ee', emissiveIntensity: 0.48, metalness: 0.32 })
       );
+      turnIndicator.rotation.x = Math.PI / 2;
       turnIndicator.position.copy(potAnchor.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
       turnIndicator.visible = false;
       turnIndicator.castShadow = true;
@@ -3113,9 +3117,10 @@ function TexasHoldemArena({ search }) {
 
       const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
       if (highlight) {
-        turnTarget = seat.cardRailAnchor
+        const railAnchor = seat.chipRailAnchor ?? seat.cardRailAnchor ?? seat.chipAnchor;
+        turnTarget = railAnchor
           .clone()
-          .add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET));
+          .add(new THREE.Vector3(0, TURN_TOKEN_LIFT + RAIL_SURFACE_LIFT, TURN_TOKEN_FORWARD_OFFSET));
         turnForward = seat.forward.clone();
       }
       const label = seat.nameplate;
@@ -3680,7 +3685,7 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
-      <div className="absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
+      <div className="absolute bottom-10 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar && (
             <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
@@ -3694,7 +3699,7 @@ function TexasHoldemArena({ search }) {
         </div>
       </div>
       {turnLabel && (
-        <div className="pointer-events-none fixed bottom-20 inset-x-0 z-20 flex justify-center">
+        <div className="pointer-events-none absolute top-4 inset-x-0 z-20 flex justify-center">
           <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
             {turnLabel}
           </div>
