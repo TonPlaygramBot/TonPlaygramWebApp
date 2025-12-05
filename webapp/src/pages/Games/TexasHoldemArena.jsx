@@ -86,8 +86,8 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
-const COMMUNITY_SPACING = CARD_W * 0.75;
-const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * 0.6;
+const COMMUNITY_SPACING = CARD_W * 0.62;
+const COMMUNITY_CARD_FORWARD_OFFSET = CARD_W * 0.32;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
 const COMMUNITY_CARD_TILT = 0;
@@ -109,7 +109,7 @@ const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
-const POT_FORWARD_OFFSET = CARD_W * -0.35;
+const POT_FORWARD_OFFSET = CARD_W * -0.55;
 const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, POT_FORWARD_OFFSET);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const CAMERA_SETTINGS = buildArenaCameraConfig(BOARD_SIZE);
@@ -1651,21 +1651,33 @@ function performAiAction(state) {
   const community = state.community;
   const opponents = state.players.filter((p) => p !== player && !p.folded).length;
   const winRate = estimateWinProbability(player.hand, community, Math.max(1, opponents - 1), 80);
+  const potContribution = Math.max(
+    1,
+    state.pot + state.players.reduce((sum, p) => sum + Math.max(0, p.bet ?? 0), 0)
+  );
+  const potOdds = toCall > 0 ? toCall / (potContribution + toCall) : 0;
+  const aggressionScore = winRate - potOdds;
+  const canRaise = player.chips > toCall && state.minRaise > 0;
   let action = 'check';
   let raiseSize = state.minRaise;
   if (toCall > 0) {
-    if (winRate < 0.28) {
+    if (winRate < 0.22) {
       action = 'fold';
-    } else if (winRate < 0.45) {
+    } else if (aggressionScore < 0.12 || !canRaise) {
       action = 'call';
     } else {
       action = 'raise';
-      raiseSize = Math.min(player.chips, Math.round(state.minRaise * (0.75 + winRate)));
+      const pressure = Math.max(0.35, Math.min(1, aggressionScore + 0.25));
+      raiseSize = Math.min(player.chips, Math.round(state.minRaise * (0.75 + pressure)));
     }
-  } else {
-    if (winRate > 0.55 && player.chips > state.minRaise) {
+  } else if (canRaise) {
+    if (winRate > 0.62) {
       action = 'bet';
-      raiseSize = Math.min(player.chips, Math.round(state.minRaise * (0.5 + winRate)));
+      const pressure = Math.max(0.5, aggressionScore + 0.4);
+      raiseSize = Math.min(player.chips, Math.round(state.minRaise * (0.85 + pressure)));
+    } else if (winRate > 0.48) {
+      action = 'bet';
+      raiseSize = Math.min(player.chips, Math.round(Math.max(state.minRaise, state.minRaise * 0.75)));
     } else {
       action = 'check';
     }
@@ -3352,30 +3364,32 @@ function TexasHoldemArena({ search }) {
       };
     }
     const actor = gameState.players[gameState.actionIndex];
-    if (!actor) return;
-    if (actor.isHuman) {
-      const toCall = Math.max(0, gameState.currentBet - actor.bet);
-      const canCheck = toCall === 0;
-      const maxRaise = Math.max(0, actor.chips - toCall);
-      const minRaise = Math.min(maxRaise, gameState.minRaise);
-      const canRaise = maxRaise > 0;
+    const human = gameState.players.find((p) => p.isHuman);
+    const humanToCall = human ? Math.max(0, gameState.currentBet - human.bet) : 0;
+    const humanMaxRaise = human ? Math.max(0, human.chips - humanToCall) : 0;
+    const humanMinRaise = human ? Math.min(humanMaxRaise, gameState.minRaise) : 0;
+    const humanCanRaise = Boolean(human && humanMaxRaise > 0 && !human.folded && !human.allIn);
+    if (actor?.isHuman) {
+      const canCheck = humanToCall === 0;
       const actions = [];
       actions.push({ id: 'fold', label: 'Fold' });
       if (canCheck) {
         actions.push({ id: 'check', label: 'Check' });
       } else {
-        actions.push({ id: 'call', label: `Call ${Math.round(toCall)} ${gameState.token}` });
+        actions.push({ id: 'call', label: `Call ${Math.round(humanToCall)} ${gameState.token}` });
       }
-      setUiState({ availableActions: actions, toCall, canRaise, maxRaise, minRaise });
+      setUiState({ availableActions: actions, toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
     } else {
-      setUiState({ availableActions: [], toCall: 0, canRaise: false, maxRaise: 0, minRaise: 0 });
-      timerRef.current = setTimeout(() => {
-        setGameState((prev) => {
-          const next = cloneState(prev);
-          performAiAction(next);
-          return next;
-        });
-      }, 3000);
+      setUiState({ availableActions: [], toCall: humanToCall, canRaise: humanCanRaise, maxRaise: humanMaxRaise, minRaise: humanMinRaise });
+      if (!actor?.isHuman) {
+        timerRef.current = setTimeout(() => {
+          setGameState((prev) => {
+            const next = cloneState(prev);
+            performAiAction(next);
+            return next;
+          });
+        }, 3000);
+      }
     }
     return () => {
       if (timerRef.current) {
@@ -3388,7 +3402,8 @@ function TexasHoldemArena({ search }) {
   const handleAction = useCallback((id, raiseAmount) => {
     setGameState((prev) => {
       const next = cloneState(prev);
-      if (next.stage === 'showdown') return next;
+      const actingPlayer = next.players[next.actionIndex];
+      if (next.stage === 'showdown' || !actingPlayer?.isHuman || actingPlayer.folded) return next;
       const amount = raiseAmount ?? next.minRaise;
       performPlayerAction(next, id, amount);
       return next;
@@ -3396,22 +3411,26 @@ function TexasHoldemArena({ search }) {
   }, []);
 
   const actor = gameState.players[gameState.actionIndex];
-  const toCall = actor ? Math.max(0, gameState.currentBet - actor.bet) : 0;
-  const sliderMax = actor ? Math.max(0, actor.chips - toCall) : 0;
-  const minRaiseAmount = actor ? Math.min(sliderMax, gameState.minRaise) : 0;
+  const humanPlayer = useMemo(() => gameState.players.find((p) => p.isHuman), [gameState.players]);
+  const isHumanTurn = actor?.id === humanPlayer?.id;
+  const toCall = humanPlayer ? Math.max(0, gameState.currentBet - humanPlayer.bet) : 0;
+  const sliderMax = humanPlayer ? Math.max(0, humanPlayer.chips - toCall) : 0;
+  const minRaiseAmount = humanPlayer ? Math.min(sliderMax, gameState.minRaise) : 0;
   const defaultRaise = sliderMax <= 0 ? 0 : minRaiseAmount > 0 ? Math.min(sliderMax, minRaiseAmount) : sliderMax;
   const chipTotal = useMemo(
     () => chipSelection.reduce((sum, chip) => sum + chip, 0),
     [chipSelection]
   );
   const effectiveRaise = chipTotal > 0 ? chipTotal : sliderValue;
-  const finalRaise = sliderMax > 0 ? Math.min(sliderMax, Math.max(effectiveRaise, defaultRaise)) : 0;
-  const sliderEnabled = Boolean(actor?.isHuman && uiState.canRaise && sliderMax > 0);
-  const raisePreview = sliderEnabled ? Math.min(sliderMax, effectiveRaise) : 0;
+  const sliderVisible = Boolean(humanPlayer) && gameState.stage !== 'showdown';
+  const sliderInteractive = sliderVisible && sliderMax > 0 && !humanPlayer?.folded && !humanPlayer?.allIn;
+  const sliderEnabled = Boolean(isHumanTurn && sliderInteractive && uiState.canRaise);
+  const raisePreview = sliderVisible ? Math.min(sliderMax, effectiveRaise) : 0;
+  const finalRaise = sliderMax > 0 ? Math.min(sliderMax, Math.max(raisePreview, defaultRaise)) : 0;
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
-  const undoDisabled = !sliderEnabled || chipSelection.length === 0;
+  const undoDisabled = !sliderInteractive || chipSelection.length === 0;
   const sliderLabel = toCall > 0 ? 'Raise' : 'Bet';
-  const sliderDisplayValue = sliderEnabled ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
+  const sliderDisplayValue = sliderVisible ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
 
   const turnLabel = useMemo(() => {
@@ -3453,7 +3472,7 @@ function TexasHoldemArena({ search }) {
   }, [gameState.stage, gameState.actionIndex, gameState.players, handleAction, toCall]);
 
   useEffect(() => {
-    if (!actor?.isHuman || gameState.stage === 'showdown') {
+    if (!sliderVisible) {
       setChipSelection([]);
       setSliderValue(0);
       return;
@@ -3465,29 +3484,29 @@ function TexasHoldemArena({ search }) {
     }
     setChipSelection([]);
     setSliderValue(defaultRaise);
-  }, [actor?.id, sliderMax, minRaiseAmount, gameState.stage, defaultRaise]);
+  }, [humanPlayer?.id, sliderMax, minRaiseAmount, gameState.stage, defaultRaise, sliderVisible]);
 
   useEffect(() => {
-    if (sliderMax <= 0) return;
+    if (sliderMax <= 0 || !sliderVisible) return;
     setSliderValue((prev) => Math.min(prev, sliderMax));
-  }, [sliderMax]);
+  }, [sliderMax, sliderVisible]);
 
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
     const seat = three.seatGroups?.find((s) => s.isHuman);
     if (!seat?.previewStack) return;
-    const amount = sliderEnabled ? Math.round(raisePreview) : 0;
+    const amount = sliderVisible ? Math.round(raisePreview) : 0;
     three.chipFactory.setAmount(seat.previewStack, amount, { mode: 'scatter', layout: seat.tableLayout });
     seat.previewStack.visible = amount > 0;
-  }, [raisePreview, sliderEnabled]);
+  }, [raisePreview, sliderVisible]);
 
 
   useEffect(() => {
     const three = threeRef.current;
     const controls = three?.raiseControls;
     if (!controls) return;
-    const visible = sliderEnabled && sliderMax > 0;
+    const visible = sliderVisible && sliderMax > 0;
     controls.group.visible = visible;
     controls.chipButtons.forEach((chip) => {
       chip.visible = visible;
@@ -3501,10 +3520,10 @@ function TexasHoldemArena({ search }) {
       }
       hoverTargetRef.current = null;
     }
-  }, [sliderEnabled, sliderMax]);
+  }, [sliderVisible, sliderMax]);
 
   const handleChipClick = (value) => {
-    if (!sliderEnabled) return;
+    if (!sliderInteractive) return;
     setChipSelection((prev) => {
       const currentTotal = prev.reduce((sum, chip) => sum + chip, 0);
       const nextTotal = currentTotal + value;
@@ -3655,7 +3674,7 @@ function TexasHoldemArena({ search }) {
           </div>
         </div>
       )}
-      {sliderEnabled && (
+      {sliderVisible && (
         <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
           <div className="flex flex-col items-center gap-1 text-center">
             <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
