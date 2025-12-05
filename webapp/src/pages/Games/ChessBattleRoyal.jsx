@@ -276,20 +276,20 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_BOARD_OPTION = Object.freeze({
-  id: 'beautifulGameBoard',
-  label: 'A Beautiful Game Board',
+const AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION = Object.freeze({
+  id: 'authenticBeautifulGameBoard',
+  label: 'Authentic ABeautifulGame Board',
   ...BEAUTIFUL_GAME_THEME
 });
 
 const BOARD_COLOR_OPTIONS = Object.freeze([
-  BEAUTIFUL_GAME_BOARD_OPTION,
+  AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION,
   ...BOARD_COLOR_BASE_OPTIONS
 ]);
 
 const BEAUTIFUL_GAME_BOARD_INDEX = Math.max(
   0,
-  BOARD_COLOR_OPTIONS.findIndex((option) => option.id === BEAUTIFUL_GAME_BOARD_OPTION.id)
+  BOARD_COLOR_OPTIONS.findIndex((option) => option.id === AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION.id)
 );
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
@@ -550,8 +550,8 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
     loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
   },
   {
-    id: 'beautifulGameTouch',
-    label: 'A Beautiful Game',
+    id: 'authenticBeautifulGame',
+    label: 'Authentic ABeautifulGame Set',
     style: BEAUTIFUL_GAME_PIECE_STYLE,
     preserveMaterials: true,
     loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
@@ -560,7 +560,7 @@ const PIECE_STYLE_OPTIONS = Object.freeze([
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
   0,
-  PIECE_STYLE_OPTIONS.findIndex((option) => option.id === 'beautifulGameTouch')
+  PIECE_STYLE_OPTIONS.findIndex((option) => option.id === 'authenticBeautifulGame')
 );
 
 const SNOOKER_TABLE_SCALE = 1.3;
@@ -2884,7 +2884,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
       const protoCenter = protoBox.getCenter(new THREE.Vector3());
       proto.position.sub(protoCenter);
       proto.position.y -= protoBox.min.y;
-      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGameTouch', __pieceColor: colorKey };
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'authenticBeautifulGame', __pieceColor: colorKey };
       return proto;
     }
     const pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE[colorKey] || BEAUTIFUL_GAME_PIECE_STYLE.white;
@@ -2893,7 +2893,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
         ? BEAUTIFUL_GAME_PIECE_STYLE.blackAccent || BEAUTIFUL_GAME_PIECE_STYLE.accent
         : BEAUTIFUL_GAME_PIECE_STYLE.accent;
     const fallback = buildBeautifulGamePiece(type, pieceStyle.color, accent, fallbackTile / 0.9);
-    fallback.userData = { ...(fallback.userData || {}), __pieceStyleId: 'beautifulGameTouch', __pieceColor: colorKey };
+    fallback.userData = { ...(fallback.userData || {}), __pieceStyleId: 'authenticBeautifulGame', __pieceColor: colorKey };
     return fallback;
   };
 
