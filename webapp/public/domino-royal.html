@@ -382,7 +382,7 @@ function normalizeAvatarSource(src = '') {
 }
 
 const entryMode = (urlParams.get('entry') || '').toLowerCase();
-const shouldRunHallwayEntry = entryMode === 'hallway';
+const shouldRunHallwayEntry = false;
 const shouldShowSeatLabel = shouldRunHallwayEntry;
 
 const accountId = (urlParams.get('accountId') || '').trim();
@@ -2162,6 +2162,7 @@ hallwayDoorPivot.add(hallwayDoorFrame);
 const hallwayDoorGroup = new THREE.Group();
 hallwayDoorGroup.add(hallwayDoorPivot);
 arenaG.add(hallwayDoorGroup);
+hallwayDoorGroup.visible = false;
 
 const ARENA_WALKWAY_LENGTH = 14;
 const ARENA_WALKWAY_WIDTH = 4.2;
