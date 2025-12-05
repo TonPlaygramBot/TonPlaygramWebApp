@@ -273,7 +273,7 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
     dark: '#2f3526',
     frameLight: '#c7a16c',
     frameDark: '#3a2c20',
-    accent: '#caa472',
+    accent: '#4f7f5c',
     highlight: '#7ef9a1',
     capture: '#ff8975',
     surfaceRoughness: 0.6,
@@ -327,7 +327,7 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
   label: 'A Beautiful Game',
   white: {
-    color: BEAUTIFUL_GAME_THEME.light,
+    color: '#d9c6a3',
     roughness: 0.28,
     metalness: 0.3,
     sheen: 0.3,
@@ -337,7 +337,7 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     specularIntensity: 0.72
   },
   black: {
-    color: BEAUTIFUL_GAME_THEME.dark,
+    color: '#3f5f46',
     roughness: 0.28,
     metalness: 0.36,
     sheen: 0.24,
@@ -348,8 +348,8 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissive: '#25291c',
     emissiveIntensity: 0.22
   },
-  accent: BEAUTIFUL_GAME_THEME.accent,
-  blackAccent: BEAUTIFUL_GAME_THEME.accent
+  accent: '#4f7f5c',
+  blackAccent: '#4f7f5c'
 });
 
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
@@ -407,7 +407,7 @@ const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
-const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.08;
+const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.16;
 const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.72;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
