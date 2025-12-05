@@ -74,7 +74,7 @@ const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
-const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.16 });
+const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.38, landscape: 0.98 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 });
 const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
@@ -443,6 +443,51 @@ function createStraightArmrest(side, material) {
   group.position.set(sideSign * (SEAT_WIDTH / 2 + ARM_THICKNESS * 0.7), 0, 0);
 
   return { group, meshes: [top, frontSupport, rearSupport, sidePanel, handRest] };
+}
+
+function buildChessStyleChair(chairMaterial, legMaterial) {
+  const group = new THREE.Group();
+
+  const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), chairMaterial);
+  seatMesh.position.y = SEAT_THICKNESS / 2;
+  seatMesh.castShadow = true;
+  seatMesh.receiveShadow = true;
+  group.add(seatMesh);
+
+  const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), chairMaterial);
+  backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
+  backMesh.castShadow = true;
+  backMesh.receiveShadow = true;
+  group.add(backMesh);
+
+  const armLeft = createStraightArmrest('left', chairMaterial);
+  group.add(armLeft.group);
+  const armRight = createStraightArmrest('right', chairMaterial);
+  group.add(armRight.group);
+
+  const legBase = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
+    legMaterial
+  );
+  legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
+  legBase.castShadow = true;
+  legBase.receiveShadow = true;
+  group.add(legBase);
+
+  const foot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32 * MODEL_SCALE * STOOL_SCALE, 0.32 * MODEL_SCALE * STOOL_SCALE, 0.08 * MODEL_SCALE, 24),
+    legMaterial
+  );
+  foot.position.y = legBase.position.y - BASE_COLUMN_HEIGHT / 2 - 0.04 * MODEL_SCALE;
+  foot.castShadow = true;
+  foot.receiveShadow = true;
+  group.add(foot);
+
+  return {
+    group,
+    chairMeshes: [seatMesh, backMesh, ...armLeft.meshes, ...armRight.meshes],
+    legMeshes: [legBase, foot]
+  };
 }
 
 function computeCameraPitchLimits(position, baseForward, options = {}) {
@@ -1083,6 +1128,7 @@ function BlackJackArena({ search }) {
   const appearanceRef = useRef(appearance);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
+  const [renderResetKey, setRenderResetKey] = useState(0);
   const effectivePlayerCount = clampPlayerCount(
     gameState?.players?.length || searchOptions.playerCount
   );
@@ -1267,7 +1313,7 @@ function BlackJackArena({ search }) {
         });
       }
     }
-  }, [appearance.tableShape, effectivePlayerCount]);
+  }, [appearance.tableShape, effectivePlayerCount, renderResetKey]);
 
   const applyHeadOrientation = useCallback(() => {
     const three = threeRef.current;
@@ -1312,6 +1358,18 @@ function BlackJackArena({ search }) {
     camera.position.set(0, TABLE_HEIGHT * 2.85, TABLE_RADIUS * 3.9);
     renderer.domElement.style.touchAction = 'none';
     renderer.domElement.style.cursor = 'grab';
+
+    const handleContextLost = (event) => {
+      event.preventDefault();
+      setRenderResetKey((key) => key + 1);
+    };
+
+    const handleContextRestored = () => {
+      renderer.compile(scene, camera);
+    };
+
+    renderer.domElement.addEventListener('webglcontextlost', handleContextLost, false);
+    renderer.domElement.addEventListener('webglcontextrestored', handleContextRestored, false);
 
     const ambient = new THREE.AmbientLight(0xffffff, 1.08);
     scene.add(ambient);
@@ -1457,35 +1515,10 @@ function BlackJackArena({ search }) {
     legMaterial.userData = { ...(legMaterial.userData || {}), chairId: initialChair.id ?? 'default' };
 
     seatLayout.forEach((seat) => {
-      const group = new THREE.Group();
+      const chair = buildChessStyleChair(chairMaterial, legMaterial);
+      const group = chair.group;
       group.position.copy(seat.seatPos);
       group.lookAt(new THREE.Vector3(0, seat.seatPos.y, 0));
-
-      const seatMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, SEAT_THICKNESS, SEAT_DEPTH), chairMaterial);
-      seatMesh.position.y = SEAT_THICKNESS / 2;
-      seatMesh.castShadow = true;
-      seatMesh.receiveShadow = true;
-      group.add(seatMesh);
-
-      const backMesh = new THREE.Mesh(new THREE.BoxGeometry(SEAT_WIDTH, BACK_HEIGHT, BACK_THICKNESS), chairMaterial);
-      backMesh.position.set(0, SEAT_THICKNESS / 2 + BACK_HEIGHT / 2, -SEAT_DEPTH / 2 + BACK_THICKNESS / 2);
-      backMesh.castShadow = true;
-      backMesh.receiveShadow = true;
-      group.add(backMesh);
-
-      const armLeft = createStraightArmrest('left', chairMaterial);
-      group.add(armLeft.group);
-      const armRight = createStraightArmrest('right', chairMaterial);
-      group.add(armRight.group);
-
-      const legBase = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.16 * MODEL_SCALE * STOOL_SCALE, 0.2 * MODEL_SCALE * STOOL_SCALE, BASE_COLUMN_HEIGHT, 16),
-        legMaterial
-      );
-      legBase.position.y = -SEAT_THICKNESS / 2 - BASE_COLUMN_HEIGHT / 2;
-      legBase.castShadow = true;
-      legBase.receiveShadow = true;
-      group.add(legBase);
 
       arenaGroup.add(group);
 
@@ -1516,8 +1549,8 @@ function BlackJackArena({ search }) {
 
       seatGroups.push({
         group,
-        chairMeshes: [seatMesh, backMesh, ...armLeft.meshes, ...armRight.meshes],
-        legMesh: legBase,
+        chairMeshes: chair.chairMeshes,
+        legMeshes: chair.legMeshes,
         cardMeshes,
         chipStack,
         betStack,
@@ -1808,6 +1841,8 @@ function BlackJackArena({ search }) {
       element.removeEventListener('pointerup', handlePointerUp);
       element.removeEventListener('pointercancel', handlePointerUp);
       element.removeEventListener('pointerleave', handlePointerUp);
+      renderer.domElement.removeEventListener('webglcontextlost', handleContextLost);
+      renderer.domElement.removeEventListener('webglcontextrestored', handleContextRestored);
       if (threeRef.current) {
         const {
           renderer: r,
@@ -1920,9 +1955,9 @@ function BlackJackArena({ search }) {
         });
         nextLeg.userData = { chairId: chairOption.id ?? 'default' };
         three.seatGroups?.forEach((seat) => {
-          if (seat.legMesh) {
-            seat.legMesh.material = nextLeg;
-          }
+          seat.legMeshes?.forEach((mesh) => {
+            mesh.material = nextLeg;
+          });
         });
         three.sharedMaterials.leg?.dispose?.();
         three.sharedMaterials.leg = nextLeg;
@@ -2145,8 +2180,6 @@ function BlackJackArena({ search }) {
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const previewRequired = uiState.requiresPreview && Boolean(activePlayer?.isHuman);
   const humanHand = humanPlayer?.hand ?? [];
-  const humanChips = Math.max(0, Math.round(humanPlayer?.chips ?? 0));
-  const humanBet = Math.max(0, Math.round(humanPlayer?.bet ?? 0));
   const timerProgress = Math.max(0, Math.min(1, turnCountdown / TURN_DURATION));
 
   const handleChipClick = useCallback(
@@ -2298,13 +2331,6 @@ function BlackJackArena({ search }) {
             className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400"
             style={{ width: `${timerProgress * 100}%` }}
           />
-        </div>
-      </div>
-      <div className="pointer-events-none absolute bottom-4 left-4 z-30 flex flex-col gap-3 text-white">
-        <div className="flex items-center gap-3 rounded-2xl bg-black/60 px-4 py-3 shadow-lg backdrop-blur">
-          <div className="text-sm uppercase tracking-wide text-white/60">Your chips</div>
-          <div className="text-lg font-bold text-emerald-300">{humanChips}</div>
-          <div className="text-sm text-white/70">Bet {humanBet}</div>
         </div>
       </div>
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
@@ -2483,7 +2509,9 @@ function BlackJackArena({ search }) {
               className={`px-5 py-2 rounded-lg font-semibold text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 ${
                 previewRequired
                   ? 'cursor-not-allowed bg-green-900/50 text-white/50 shadow-none'
-                  : 'bg-green-600/90 hover:bg-green-500'
+                  : action.id === 'stand'
+                    ? 'bg-red-600/90 hover:bg-red-500'
+                    : 'bg-green-600/90 hover:bg-green-500'
               }`}
             >
               {action.label}
