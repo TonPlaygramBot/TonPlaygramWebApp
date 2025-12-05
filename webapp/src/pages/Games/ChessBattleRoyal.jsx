@@ -573,12 +573,26 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
   blackAccent: '#50b8d8'
 });
 
+const buildBeautifulGameLoader = (variant) => (targetBoardSize, context = {}) => {
+  const boardTheme = buildBoardTheme(context.boardTheme || AUTHENTIC_BEAUTIFUL_GAME_BOARD_OPTION);
+  return resolveBeautifulGameAssets(targetBoardSize, (scene, size, options) =>
+    applyBeautifulGameMaterialProfile(
+      extractBeautifulGameAssets(scene, size, options),
+      {
+        style: variant.style,
+        boardTheme,
+        styleId: variant.id
+      }
+    )
+  );
+};
+
 const PIECE_STYLE_OPTIONS = Object.freeze(
   BEAUTIFUL_GAME_COLOR_VARIANTS.map((variant) => ({
     id: variant.id,
     label: variant.label,
     style: variant.style,
-    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+    loader: buildBeautifulGameLoader(variant)
   }))
 );
 
@@ -689,7 +703,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const PRESERVE_NATIVE_PIECE_IDS = new Set();
+const PRESERVE_NATIVE_PIECE_IDS = new Set(['beautifulGame']);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'boardColor', label: 'Board Colors', options: BOARD_COLOR_OPTIONS },
@@ -1416,6 +1430,22 @@ async function resolveTextureSet(definition = {}) {
   };
 }
 
+function tagPiecePrototypesWithStyle(piecePrototypes, styleId = 'customPieces') {
+  if (!piecePrototypes || !styleId) return;
+  Object.entries(piecePrototypes).forEach(([colorKey, byType]) => {
+    Object.values(byType || {}).forEach((piece) => {
+      if (!piece) return;
+      piece.userData = { ...(piece.userData || {}), __pieceStyleId: styleId, __pieceColor: colorKey };
+      piece.traverse((child) => {
+        if (!child?.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData = { ...(child.userData || {}), __pieceStyleId: styleId, __pieceColor: colorKey };
+      });
+    });
+  });
+}
+
 function applyTextureSetToMaterial(baseMaterial, textureSet, { tint, roughness, metalness } = {}) {
   const material = baseMaterial?.clone ? baseMaterial.clone() : new THREE.MeshPhysicalMaterial();
   if (textureSet.map) {
@@ -1475,14 +1505,51 @@ async function applyTextureProfileToAssets(assets, profile) {
   return assets;
 }
 
-function applyLocalBeautifulGameMaterials(assets) {
+function mapTileMeshes(boardModel) {
+  if (!boardModel) return [];
+  const tiles = [];
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = node.name?.toLowerCase?.() ?? '';
+    if (name.startsWith('tile') || name.includes('square')) {
+      const box = new THREE.Box3().setFromObject(node);
+      tiles.push({
+        node,
+        center: box.getCenter(new THREE.Vector3()),
+        size: box.getSize(new THREE.Vector3())
+      });
+    }
+  });
+  if (tiles.length === 0) return [];
+
+  const minX = Math.min(...tiles.map((t) => t.center.x));
+  const minZ = Math.min(...tiles.map((t) => t.center.z));
+  const avgSizeX = tiles.reduce((sum, t) => sum + t.size.x, 0) / tiles.length || 1;
+  const avgSizeZ = tiles.reduce((sum, t) => sum + t.size.z, 0) / tiles.length || 1;
+  const tileSize = Math.max(avgSizeX, avgSizeZ, 0.001);
+
+  return tiles.map((entry) => {
+    const r = Math.round((entry.center.z - minZ) / tileSize);
+    const c = Math.round((entry.center.x - minX) / tileSize);
+    entry.node.userData = { ...(entry.node.userData || {}), r, c };
+    return { ...entry, r, c };
+  });
+}
+
+function applyBeautifulGameMaterialProfile(
+  assets,
+  { style = BEAUTIFUL_GAME_PIECE_STYLE, boardTheme = BEAUTIFUL_GAME_THEME, styleId = 'beautifulGame' } = {}
+) {
   if (!assets) return assets;
   const { boardModel, piecePrototypes } = assets;
+  const normalizedBoardTheme = buildBoardTheme(boardTheme);
+
+  tagPiecePrototypesWithStyle(piecePrototypes, styleId);
   if (typeof document === 'undefined') return assets;
 
-  const graniteLight = createGraniteTexture('#d9d7d1', 17, 2.1);
-  const graniteDark = createGraniteTexture('#6c6963', 29, 2.1);
-  const graniteEdge = createGraniteTexture('#2b2a32', 47, 1.6);
+  const graniteLight = createGraniteTexture(normalizedBoardTheme.light ?? '#d9d7d1', 17, 2.1);
+  const graniteDark = createGraniteTexture(normalizedBoardTheme.dark ?? '#6c6963', 29, 2.1);
+  const graniteEdge = createGraniteTexture(normalizedBoardTheme.frameDark ?? '#2b2a32', 47, 1.6);
 
   const makeGlassMaterial = (colorHex) =>
     new THREE.MeshPhysicalMaterial({
@@ -1515,7 +1582,7 @@ function applyLocalBeautifulGameMaterials(assets) {
 
   if (boardModel) {
     const frameMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#111118'),
+      color: new THREE.Color(normalizedBoardTheme.frameDark ?? '#111118'),
       roughness: 0.42,
       metalness: 0.16,
       clearcoat: 0.34,
@@ -1525,10 +1592,12 @@ function applyLocalBeautifulGameMaterials(assets) {
       normalScale: new THREE.Vector2(0.46, 0.46)
     });
     const topMat = frameMat.clone();
-    topMat.color = new THREE.Color('#1c1c23');
-    topMat.roughness = 0.32;
-    topMat.metalness = 0.12;
+    topMat.color = new THREE.Color(normalizedBoardTheme.frameLight ?? '#1c1c23');
+    topMat.roughness = normalizedBoardTheme.surfaceRoughness;
+    topMat.metalness = normalizedBoardTheme.surfaceMetalness;
     topMat.clearcoatRoughness = 0.16;
+
+    const tiles = mapTileMeshes(boardModel);
 
     boardModel.traverse((node) => {
       if (!node?.isMesh) return;
@@ -1536,13 +1605,15 @@ function applyLocalBeautifulGameMaterials(assets) {
         node.material = frameMat.clone();
       } else if (node.name === 'BoardTop') {
         node.material = topMat.clone();
-      } else if (node.name?.startsWith?.('Tile_')) {
-        const [, r, c] = node.name.split('_');
-        const isDark = (Number(r) + Number(c)) % 2 === 1;
+      } else if (node.name?.startsWith?.('Tile_') || tiles.find((t) => t.node === node)) {
+        const tileInfo = tiles.find((t) => t.node === node);
+        const r = tileInfo?.r ?? Number(node.name.split('_')[1]);
+        const c = tileInfo?.c ?? Number(node.name.split('_')[2]);
+        const isDark = Number.isFinite(r) && Number.isFinite(c) ? (r + c) % 2 === 1 : false;
         const tileMat = new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color(isDark ? '#5b5a5e' : '#f2efe8'),
-          roughness: 0.32,
-          metalness: 0.18,
+          color: new THREE.Color(isDark ? normalizedBoardTheme.dark : normalizedBoardTheme.light),
+          roughness: normalizedBoardTheme.surfaceRoughness,
+          metalness: normalizedBoardTheme.surfaceMetalness,
           clearcoat: 0.22,
           clearcoatRoughness: 0.12,
           sheen: 0.18,
@@ -1576,16 +1647,24 @@ function applyLocalBeautifulGameMaterials(assets) {
 
   applyPieces(
     piecePrototypes?.white,
-    BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
-    BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
+    style.white?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
+    style.accent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
   );
   applyPieces(
     piecePrototypes?.black,
-    BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f',
-    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#b58f4f'
+    style.black?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f',
+    style.blackAccent ?? style.accent ?? BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#b58f4f'
   );
 
   return assets;
+}
+
+function applyLocalBeautifulGameMaterials(assets) {
+  return applyBeautifulGameMaterialProfile(assets, {
+    style: BEAUTIFUL_GAME_PIECE_STYLE,
+    boardTheme: BEAUTIFUL_GAME_THEME,
+    styleId: 'beautifulGame'
+  });
 }
 
 async function loadWalnutStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
@@ -2804,6 +2883,8 @@ function extractChessSetAssets(scene, options = {}) {
   };
 
   ensurePrototypes();
+
+  tagPiecePrototypesWithStyle(proto, styleId);
 
   return { boardModel, piecePrototypes: proto };
 }
@@ -4251,7 +4332,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arena.boardModel.visible = false;
       arena.setProceduralBoardVisible?.(true);
     }
-    const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
+    const pieceSetOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -4260,7 +4341,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const pieceSetLoader = pieceSetOption?.loader
+      ? (size) => pieceSetOption.loader(size, { boardTheme })
+      : (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -4433,9 +4516,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     paletteRef.current = palette;
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
+    const pieceSetOption = PIECE_STYLE_OPTIONS[normalizedAppearance.pieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const pieceSetLoader = pieceSetOption?.loader
+      ? (size) => pieceSetOption.loader(size, { boardTheme })
+      : (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
     const initialPlayerFlag =
       playerFlag ||
