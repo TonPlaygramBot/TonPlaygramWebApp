@@ -407,6 +407,7 @@ const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
+const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.08;
 const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.72;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
@@ -1621,9 +1622,10 @@ function applyLocalBeautifulGameMaterials(assets) {
 
 function harmonizeBeautifulGamePieces(piecePrototypes) {
   if (!piecePrototypes) return;
-  const lightColor = BEAUTIFUL_GAME_THEME.light;
-  const darkColor = BEAUTIFUL_GAME_THEME.dark;
-  const accent = BEAUTIFUL_GAME_THEME.accent;
+  const lightColor = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? BEAUTIFUL_GAME_THEME.light;
+  const darkColor = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
+  const accent = BEAUTIFUL_GAME_PIECE_STYLE.accent ?? BEAUTIFUL_GAME_THEME.accent;
+  const darkAccent = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? accent;
 
   const applyColor = (piece, colorHex) => {
     if (!piece) return;
@@ -1651,7 +1653,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
     Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
   });
 
-  const accentize = (piece) => {
+  const accentize = (piece, colorKey) => {
     if (!piece) return;
     piece.traverse((child) => {
       if (!child?.isMesh) return;
@@ -1663,7 +1665,8 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
-        applied.color = new THREE.Color(accent);
+        const accentColor = colorKey === 'black' ? darkAccent : accent;
+        applied.color = new THREE.Color(accentColor);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
         if (Array.isArray(child.material)) {
@@ -1676,7 +1679,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
   };
 
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece));
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece, colorKey));
   });
 }
 
@@ -3035,7 +3038,16 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     pieceFootprintRatio: BEAUTIFUL_GAME_FOOTPRINT_RATIO
   });
   if (assets.boardModel) {
-    const finalBox = new THREE.Box3().setFromObject(assets.boardModel);
+    assets.boardModel.scale.multiplyScalar(BEAUTIFUL_GAME_BOARD_SCALE_BIAS);
+    let finalBox = new THREE.Box3().setFromObject(assets.boardModel);
+    const boardCenter = new THREE.Vector3();
+    finalBox.getCenter(boardCenter);
+    assets.boardModel.position.set(
+      -boardCenter.x,
+      -finalBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET),
+      -boardCenter.z
+    );
+    finalBox = new THREE.Box3().setFromObject(assets.boardModel);
     const boardTop = finalBox.max.y;
     assets.pieceYOffset = Math.max(boardTop + 0.04, PIECE_PLACEMENT_Y_OFFSET);
   }
@@ -3087,7 +3099,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
   const targetSize = Math.max(targetBoardSize || RAW_BOARD_SIZE, 0.001);
   const tileSize = Math.max(0.001, targetSize / 8);
   const totalScale = targetSize / largest;
-  boardModel.scale.multiplyScalar(totalScale);
+  boardModel.scale.multiplyScalar(totalScale * BEAUTIFUL_GAME_BOARD_SCALE_BIAS);
   const scaledBox = new THREE.Box3().setFromObject(boardModel);
   const boardCenter = new THREE.Vector3();
   scaledBox.getCenter(boardCenter);
