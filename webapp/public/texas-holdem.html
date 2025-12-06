@@ -185,25 +185,45 @@
         display: grid;
         place-items: center;
       }
-      .timer-ring {
+      .avatar-timer {
         position: absolute;
-        inset: -6px;
+        inset: auto;
+        top: -12px;
+        left: 50%;
+        width: 36px;
+        height: 36px;
+        transform: translate(-50%, -65%) scale(0.92);
+        border-radius: 50%;
+        background: radial-gradient(circle at 50% 50%, rgba(10, 12, 24, 0.92) 60%, transparent 62%);
+        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .avatar-timer.active {
+        opacity: 1;
+        transform: translate(-50%, -78%) scale(1);
+      }
+      .avatar-timer__fill {
+        position: absolute;
+        inset: 0;
         border-radius: 50%;
         background: conic-gradient(
-          #f5cc4e var(--progress, 0deg),
-          transparent 0
+          #facc15 var(--progress, 0deg),
+          rgba(250, 204, 21, 0.08) 0
         );
-        -webkit-mask: radial-gradient(
-          farthest-side,
-          transparent calc(100% - 6px),
-          #000 calc(100% - 6px)
-        );
-        mask: radial-gradient(
-          farthest-side,
-          transparent calc(100% - 6px),
-          #000 calc(100% - 6px)
-        );
-        pointer-events: none;
+        -webkit-mask: radial-gradient(farthest-side, transparent 62%, #000 63%);
+        mask: radial-gradient(farthest-side, transparent 62%, #000 63%);
+      }
+      .avatar-timer__label {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: #0f172a;
+        text-shadow: 0 0 2px rgba(255, 255, 255, 0.5);
       }
       .cards {
         display: flex;

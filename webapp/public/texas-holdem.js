@@ -499,6 +499,17 @@ function renderSeats() {
     } else {
       avatar.textContent = p.name[0] || '?';
     }
+    const timer = document.createElement('div');
+    timer.className = 'avatar-timer';
+    timer.id = 'timer-' + i;
+    const timerFill = document.createElement('div');
+    timerFill.className = 'avatar-timer__fill';
+    const timerLabel = document.createElement('div');
+    timerLabel.className = 'avatar-timer__label';
+    timer.append(timerFill, timerLabel);
+    const avatarWrap = document.createElement('div');
+    avatarWrap.className = 'avatar-wrap';
+    avatarWrap.append(timer, avatar);
     const cards = document.createElement('div');
     cards.className = 'cards';
     cards.id = 'cards-' + i;
@@ -510,15 +521,9 @@ function renderSeats() {
     name.textContent = p.name;
     adjustNameSize(name);
     if (i === 0) {
-      const wrap = document.createElement('div');
-      wrap.className = 'avatar-wrap';
-      const ring = document.createElement('div');
-      ring.className = 'timer-ring';
-      ring.id = 'timer-' + i;
-      wrap.append(ring, avatar);
       const inner = document.createElement('div');
       inner.className = 'seat-inner';
-      inner.append(wrap, name, cards);
+      inner.append(avatarWrap, name, cards);
       const controls = document.createElement('div');
       controls.className = 'controls';
       controls.id = 'controls';
@@ -528,12 +533,9 @@ function renderSeats() {
       bal.innerHTML = formatAmount(p.balance || 0);
       seat.append(inner, bal, action, controls);
     } else {
-      const timer = document.createElement('div');
-      timer.className = 'timer';
-      timer.id = 'timer-' + i;
       const inner = document.createElement('div');
       inner.className = 'seat-inner';
-      inner.append(avatar, name, cards, timer);
+      inner.append(avatarWrap, name, cards);
       const bal = document.createElement('div');
       bal.className = 'seat-balance';
       bal.id = 'balance-' + i;
@@ -1116,14 +1118,17 @@ function startTurnTimer(onTimeout) {
 }
 
 function updateTimer() {
+  document.querySelectorAll('.avatar-timer').forEach((el) => {
+    el.classList.remove('active');
+  });
   const t = document.getElementById('timer-' + state.turn);
   if (!t) return;
-  if (state.turn === 0) {
-    const pct = (state.turnTime / 15) * 360;
-    t.style.setProperty('--progress', pct);
-  } else {
-    t.textContent = state.turnTime > 0 ? state.turnTime : '';
-  }
+  const label = t.querySelector('.avatar-timer__label');
+  const fill = t.querySelector('.avatar-timer__fill');
+  const pct = Math.max(0, (state.turnTime / 15) * 360);
+  if (fill) fill.style.setProperty('--progress', `${pct}deg`);
+  if (label) label.textContent = state.turnTime > 0 ? state.turnTime : '';
+  t.classList.toggle('active', state.turnTime > 0);
 }
 
 function playerFold() {

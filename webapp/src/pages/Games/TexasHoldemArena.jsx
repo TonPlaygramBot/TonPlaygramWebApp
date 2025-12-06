@@ -912,6 +912,12 @@ function clampValue(value, min, max) {
   return Math.min(Math.max(value, low), high);
 }
 
+function hasSeatAvatar(state, index) {
+  if (!state?.players || typeof index !== 'number' || index < 0) return false;
+  const player = state.players[index];
+  return Boolean(player && player.avatar);
+}
+
 function createSeatLayout(count, tableInfo = null, options = {}) {
   const layout = [];
   const safeCount = Math.max(0, Math.floor(Number(count) || 0));
@@ -1801,7 +1807,7 @@ function TexasHoldemArena({ search }) {
       return;
     }
     const player = gameState?.players?.[activeIndex];
-    if (!player || player.folded || player.chips <= 0) {
+    if (!player || player.folded || player.chips <= 0 || !player.avatar) {
       cameraAutoTargetRef.current = {
         yaw: headAnglesRef.current.yaw,
         activeIndex: null
@@ -1906,6 +1912,8 @@ function TexasHoldemArena({ search }) {
       const three = threeRef.current;
       const basis = cameraBasisRef.current;
       if (!three || !basis) return;
+      const state = gameStateRef.current;
+      if (!hasSeatAvatar(state, seatIndex)) return;
       const seat = three.seatGroups?.[seatIndex];
       if (!seat) return;
       const focusPoint = seat.stoolAnchor.clone();
@@ -1930,6 +1938,19 @@ function TexasHoldemArena({ search }) {
     },
     [applyHeadOrientation]
   );
+
+  const findSeatWithAvatar = useCallback((startIndex = 0) => {
+    const state = gameStateRef.current;
+    const players = state?.players ?? [];
+    if (!players.length) return null;
+    for (let offset = 0; offset < players.length; offset += 1) {
+      const idx = (startIndex + offset) % players.length;
+      if (hasSeatAvatar(state, idx)) {
+        return idx;
+      }
+    }
+    return null;
+  }, []);
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -3047,6 +3068,7 @@ function TexasHoldemArena({ search }) {
       const shouldHoldChips =
         state.stage === 'showdown' && (seatPendingValue > 0 || (player.winnings ?? 0) > 0);
       const displayChips = shouldHoldChips ? Math.max(0, effectiveStarting) : chipsAmount;
+      seat.chipStack.visible = true;
       chipFactory.setAmount(seat.chipStack, displayChips, { mode: 'rail', layout: seat.railLayout });
 
       const bet = Math.max(0, Math.round(player.bet));
@@ -3192,15 +3214,17 @@ function TexasHoldemArena({ search }) {
     if (currentStage === 'showdown') return;
     const three = threeRef.current;
     if (!three) return;
-    const seat = three.seatGroups?.[currentActionIndex];
+    const focusIndex = findSeatWithAvatar(currentActionIndex);
+    if (typeof focusIndex !== 'number') return;
+    const seat = three.seatGroups?.[focusIndex];
     const pointerState = pointerStateRef.current;
     if (!(pointerState?.active && pointerState.mode === 'camera')) {
-      focusCameraOnSeat(currentActionIndex, false);
+      focusCameraOnSeat(focusIndex, false);
     }
     if (seat?.isHuman) {
       playSound('knock');
     }
-  }, [currentActionIndex, currentStage, focusCameraOnSeat, playSound]);
+  }, [currentActionIndex, currentStage, findSeatWithAvatar, focusCameraOnSeat, playSound]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3214,7 +3238,10 @@ function TexasHoldemArena({ search }) {
 
     const focusIndex = gameState.winnerFocusIndex;
     if (typeof focusIndex === 'number') {
-      focusCameraOnSeat(focusIndex, false);
+      const seatIndex = findSeatWithAvatar(focusIndex);
+      if (typeof seatIndex === 'number') {
+        focusCameraOnSeat(seatIndex, false);
+      }
     }
 
     if (previousHandId === handId) {
