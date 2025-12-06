@@ -214,6 +214,8 @@ const CAMERA_PLAYER_FOCUS_BLEND = 0.68;
 const CAMERA_PLAYER_FOCUS_DROP = CARD_H * 0.26;
 const CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.42;
 const CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.12;
+const HUMAN_TURN_RAIL_FOCUS_BLEND = 0.48;
+const HUMAN_TURN_RAIL_FOCUS_DROP = CARD_H * 0.28;
 const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
 const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const CAMERA_TURN_FOCUS_LIFT = 0.6 * MODEL_SCALE;
@@ -1037,8 +1039,12 @@ function getHumanCardAnchor(seatGroup) {
 function computeCommunitySlotPosition(index, options = {}) {
   const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
-  const base = new THREE.Vector3(0, surfaceY + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT, COMMUNITY_CARD_FORWARD_OFFSET);
-  const offset = new THREE.Vector3((index - 2) * COMMUNITY_SPACING, 0, 0);
+  const base = new THREE.Vector3(
+    -2 * COMMUNITY_SPACING,
+    surfaceY + CARD_SURFACE_OFFSET + COMMUNITY_CARD_LIFT,
+    COMMUNITY_CARD_FORWARD_OFFSET
+  );
+  const offset = new THREE.Vector3(index * COMMUNITY_SPACING, 0, 0);
   if (rotationY) {
     base.applyAxisAngle(WORLD_UP, rotationY);
     offset.applyAxisAngle(WORLD_UP, rotationY);
@@ -1048,7 +1054,8 @@ function computeCommunitySlotPosition(index, options = {}) {
 
 function computePotAnchor(options = {}) {
   const surfaceY = options.surfaceY ?? TABLE_HEIGHT;
-  const center = computeCommunitySlotPosition(2, { rotationY: COMMUNITY_ROW_ROTATION, surfaceY });
+  const rotationY = options.rotationY ?? COMMUNITY_ROW_ROTATION;
+  const center = computeCommunitySlotPosition(2, { rotationY, surfaceY });
   return new THREE.Vector3(center.x, surfaceY + CARD_SURFACE_OFFSET, center.z + POT_BELOW_COMMUNITY_OFFSET);
 }
 
@@ -2341,6 +2348,10 @@ function TexasHoldemArena({ search }) {
     const humanSeat = seatLayout.find((seat) => seat.isHuman) ?? seatLayout[0];
     humanSeatRef.current = humanSeat;
     seatTopPointRef.current = seatTopPoint;
+    const communityRowRotation = Math.atan2(humanSeat.right.z, humanSeat.right.x);
+    const resolvedCommunityRowRotation = Number.isFinite(communityRowRotation)
+      ? communityRowRotation
+      : COMMUNITY_ROW_ROTATION;
     const raiseControls = createRaiseControls({ arena: arenaGroup, seat: humanSeat, chipFactory, tableInfo });
     const cameraTarget = new THREE.Vector3(0, TABLE_HEIGHT + CAMERA_TARGET_LIFT, 0);
 
@@ -2386,7 +2397,8 @@ function TexasHoldemArena({ search }) {
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT
         : CAMERA_PLAYER_FOCUS_HEIGHT;
       const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
-      const potFocus = computePotAnchor({ surfaceY: tableInfo?.surfaceY });
+      const rowRotation = threeRef.current?.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
+      const potFocus = computePotAnchor({ surfaceY: tableInfo?.surfaceY, rotationY: rowRotation });
       const chipFocus = humanSeat.chipAnchor
         .clone()
         .addScaledVector(humanSeat.forward, -focusForwardPull);
@@ -2396,6 +2408,11 @@ function TexasHoldemArena({ search }) {
         activeState?.stage !== 'showdown' && activeState?.players?.[activeState.actionIndex]?.isHuman
       );
       const focus = humanActing ? potFocus : focusBase.clone().lerp(chipFocus, focusBlend);
+      if (humanActing) {
+        const railFocus = (humanSeat.chipRailAnchor ?? humanSeat.chipAnchor ?? chipFocus).clone();
+        railFocus.y -= HUMAN_TURN_RAIL_FOCUS_DROP;
+        focus.copy(potFocus.clone().lerp(railFocus, HUMAN_TURN_RAIL_FOCUS_BLEND));
+      }
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(position, focus, WORLD_UP);
       const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
@@ -2678,7 +2695,10 @@ function TexasHoldemArena({ search }) {
       const communityMeshes = COMMUNITY_CARD_POSITIONS.map((pos, idx) => {
         const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
         mesh.position.copy(
-          computeCommunitySlotPosition(idx, { rotationY: COMMUNITY_ROW_ROTATION, surfaceY: tableInfo?.surfaceY })
+          computeCommunitySlotPosition(idx, {
+            rotationY: resolvedCommunityRowRotation,
+            surfaceY: tableInfo?.surfaceY
+          })
         );
         mesh.scale.setScalar(COMMUNITY_CARD_SCALE);
         mesh.castShadow = true;
@@ -2686,7 +2706,10 @@ function TexasHoldemArena({ search }) {
         return mesh;
       });
 
-      const potAnchor = computePotAnchor({ surfaceY: tableInfo?.surfaceY });
+      const potAnchor = computePotAnchor({
+        surfaceY: tableInfo?.surfaceY,
+        rotationY: resolvedCommunityRowRotation
+      });
       const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
       potStack.position.copy(potAnchor);
       potStack.scale.setScalar(1.06);
@@ -2750,7 +2773,8 @@ function TexasHoldemArena({ search }) {
           arenaGroup,
           tableInfo,
           tableShapeId: initialShape.id,
-          cardThemeId: cardTheme.id
+          cardThemeId: cardTheme.id,
+          communityRowRotation: resolvedCommunityRowRotation
         };
 
       potDisplayRef.current = Math.max(0, Math.round(gameState?.pot ?? 0));
@@ -3046,6 +3070,7 @@ function TexasHoldemArena({ search }) {
     const three = threeRef.current;
     if (!three) return;
     const { seatGroups, communityMeshes, chipFactory, potStack, potLabel, potLayout, deckAnchor, arenaGroup } = three;
+    const rowRotation = three.communityRowRotation ?? COMMUNITY_ROW_ROTATION;
     const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
     if (!state) return;
@@ -3227,7 +3252,7 @@ function TexasHoldemArena({ search }) {
       mesh.visible = true;
       applyCardToMesh(mesh, card, three.cardGeometry, three.faceCache, cardTheme);
       const surfaceY = three.tableInfo?.surfaceY ?? TABLE_HEIGHT;
-      const slotPosition = computeCommunitySlotPosition(idx, { rotationY: COMMUNITY_ROW_ROTATION, surfaceY });
+      const slotPosition = computeCommunitySlotPosition(idx, { rotationY: rowRotation, surfaceY });
       mesh.position.copy(slotPosition);
       const forward = new THREE.Vector3(0, 0, 1).applyAxisAngle(WORLD_UP, COMMUNITY_ROW_ROTATION);
       const lookTarget = slotPosition
