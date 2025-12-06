@@ -145,18 +145,14 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     const BASE_POWER = mode === 'tabletennis' ? 9.6 : 12;
 
     let started = false;
-    let startX = 0;
-    let startY = 0;
-    let lastX = 0;
-    let lastY = 0;
-    let startT = 0;
     let queuedSwing = null;
     let server = 'player';
     let enemyServeTimer = null;
     let playerSwing = 0;
     let enemySwing = 0;
-    const cameraLook = new THREE.Vector3();
-    const cameraTarget = new THREE.Vector3();
+
+    const touchControls = createTouchController(player, screenToCourt, mode);
+    const cameraRig = createCameraRig(camera, config, halfW, halfL, mode);
 
     function clampX(x) {
       return THREE.MathUtils.clamp(x, -halfW + config.ballRadius * 2, halfW - config.ballRadius * 2);
@@ -166,6 +162,99 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const rect = renderer.domElement.getBoundingClientRect();
       const normX = THREE.MathUtils.clamp((clientX - rect.left) / rect.width, 0.02, 0.98);
       return clampX((normX - 0.5) * config.courtW);
+    }
+
+    function createTouchController(playerMesh, xConverter, gameplayMode) {
+      const state = {
+        active: false,
+        startX: 0,
+        startY: 0,
+        lastX: 0,
+        lastY: 0,
+        startT: 0,
+        lerpFactor: gameplayMode === 'tabletennis' ? 0.42 : 0.34,
+      };
+
+      function begin(clientX, clientY) {
+        state.active = true;
+        state.startX = clientX;
+        state.startY = clientY;
+        state.lastX = clientX;
+        state.lastY = clientY;
+        state.startT = Date.now();
+        playerMesh.position.x = xConverter(clientX);
+      }
+
+      function track(clientX, clientY) {
+        state.lastX = clientX;
+        state.lastY = clientY;
+        const targetX = xConverter(clientX);
+        playerMesh.position.x += (targetX - playerMesh.position.x) * state.lerpFactor;
+      }
+
+      function swipeMetrics(endX, endY) {
+        const resolvedEndX = endX ?? state.lastX;
+        const resolvedEndY = endY ?? state.lastY;
+        return {
+          distX: resolvedEndX - state.startX,
+          distY: state.startY - resolvedEndY,
+          swipeTime: Math.max((Date.now() - state.startT) / 1000, 0.12),
+        };
+      }
+
+      function finish(endX, endY) {
+        const swipe = swipeMetrics(endX, endY);
+        state.active = false;
+        return swipe;
+      }
+
+      return {
+        state,
+        begin,
+        track,
+        finish,
+        swipeMetrics,
+      };
+    }
+
+    function createCameraRig(cam, cfg, courtHalfW, courtHalfL, gameplayMode) {
+      const cameraLook = new THREE.Vector3();
+      const cameraTarget = new THREE.Vector3();
+      const followStrength = gameplayMode === 'tabletennis' ? 0.24 : 0.14;
+
+      function snap(ballPosition) {
+        cam.position.set(0, cfg.tableHeight + cfg.cameraHeight, ballPosition.z + cfg.cameraOffset);
+        cam.lookAt(ballPosition.x, cfg.tableHeight + cfg.ballRadius, ballPosition.z);
+      }
+
+      function update(dt, ballPosition, ballVelocity, rallyStarted) {
+        const yLift = cfg.tableHeight + THREE.MathUtils.lerp(
+          cfg.cameraHeight,
+          cfg.cameraHeight * 0.65,
+          Math.min((ballPosition.y - cfg.tableHeight) * 0.4, 1)
+        );
+        const depthLead = rallyStarted ? THREE.MathUtils.clamp(ballVelocity.z * 0.22, -2.4, 3.6) : 0;
+        const cameraDepth =
+          Math.max(ballPosition.z + depthLead, 0) + cfg.cameraOffset * (gameplayMode === 'tabletennis' ? 0.72 : 0.95);
+        const maxDepth = courtHalfL - cfg.playerZOffset + cfg.cameraOffset * 0.35;
+        cameraTarget.set(
+          THREE.MathUtils.clamp(ballPosition.x * 0.9, -courtHalfW, courtHalfW),
+          yLift,
+          THREE.MathUtils.clamp(cameraDepth, cfg.tableHeight + cfg.ballRadius + 0.12, maxDepth)
+        );
+        cam.position.lerp(cameraTarget, blend(followStrength, dt));
+        cameraLook.set(
+          ballPosition.x,
+          Math.max(cfg.tableHeight + cfg.ballRadius * 1.5, ballPosition.y),
+          Math.max(ballPosition.z, 0)
+        );
+        cam.lookAt(cameraLook);
+      }
+
+      return {
+        snap,
+        update,
+      };
     }
 
     function clearEnemyServeTimer() {
@@ -250,8 +339,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const serverIsPlayer = server === 'player';
       const zOffset = serverIsPlayer ? halfL - config.playerZOffset - 0.3 : -halfL + config.playerZOffset + 0.3;
       ball.position.set(0, config.tableHeight + config.ballRadius + 0.22, zOffset);
-      camera.position.set(0, config.tableHeight + config.cameraHeight, ball.position.z + config.cameraOffset);
-      camera.lookAt(ball.position.x, config.tableHeight + config.ballRadius, ball.position.z);
+      cameraRig.snap(ball.position);
 
       if (showToast) {
         if (!serverIsPlayer) {
@@ -290,43 +378,34 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
     function onPointerDown(e) {
       const t = e.touches ? e.touches[0] : e;
-      startX = t.clientX;
-      startY = t.clientY;
-      lastX = startX;
-      lastY = startY;
-      startT = Date.now();
-      touchActive = true;
-      player.position.x = screenToCourt(t.clientX);
+      if (!t) return;
+      touchControls.begin(t.clientX, t.clientY);
     }
 
-    function launchFromSwipe(endX, endY) {
-      const distX = endX - startX;
-      const distY = startY - endY;
-      const time = Math.max((Date.now() - startT) / 1000, 0.12);
+    function launchFromSwipe(swipe) {
+      const { distX, distY, swipeTime } = swipe;
       if (distY < 32) return;
 
       if (started) {
-        queuedSwing = swipeToShot(distX, distY, time, ball.position.z >= 0);
+        queuedSwing = swipeToShot(distX, distY, swipeTime, ball.position.z >= 0);
         setToast('Swing i gati · prit topin');
         return;
       }
 
-      applyShotImpulse(distX, distY, time);
+      applyShotImpulse(distX, distY, swipeTime);
     }
 
     function onPointerUp(e) {
       const end = e.changedTouches ? e.changedTouches[0] : e;
-      launchFromSwipe(end.clientX || lastX, end.clientY || lastY);
-      touchActive = false;
+      if (!touchControls.state.active) return;
+      const swipe = touchControls.finish(end?.clientX, end?.clientY);
+      launchFromSwipe(swipe);
     }
 
     function onPointerMove(e) {
       const t = e.touches ? e.touches[0] : e;
-      lastX = t.clientX;
-      lastY = t.clientY;
-      const targetX = screenToCourt(t.clientX);
-      const lerpFactor = mode === 'tabletennis' ? 0.42 : 0.34;
-      player.position.x += (targetX - player.position.x) * lerpFactor;
+      if (!t) return;
+      touchControls.track(t.clientX, t.clientY);
     }
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
@@ -342,24 +421,17 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       return touch.clientX >= rect.left && touch.clientX <= rect.right && touch.clientY >= rect.top && touch.clientY <= rect.bottom;
     }
 
-    let touchActive = false;
     function onDocumentTouchStart(e) {
       const t = e.touches?.[0];
       if (!t || !isInsideCanvas(t)) return;
-      touchActive = true;
-      startX = t.clientX;
-      startY = t.clientY;
-      lastX = startX;
-      lastY = startY;
-      startT = Date.now();
+      touchControls.begin(t.clientX, t.clientY);
     }
 
     function onDocumentTouchEnd(e) {
-      if (!touchActive) return;
-      touchActive = false;
       const t = e.changedTouches?.[0];
-      if (!t) return;
-      launchFromSwipe(t.clientX, t.clientY);
+      if (!touchControls.state.active || !t) return;
+      const swipe = touchControls.finish(t.clientX, t.clientY);
+      launchFromSwipe(swipe);
     }
 
     document.addEventListener('touchstart', onDocumentTouchStart, { passive: true });
@@ -372,7 +444,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const swingDamping = Math.exp(-dt * 8);
       playerSwing *= swingDamping;
       enemySwing *= swingDamping;
-      if (!touchActive) {
+      if (!touchControls.state.active) {
         const autoTrackX = clampX(ball.position.x * 0.9);
         player.position.x += (autoTrackX - player.position.x) * blend(0.32, dt);
       }
@@ -410,7 +482,8 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const approachingPlayer = velocity.z > 0 && ball.position.z > player.position.z - hitWindow;
       if (!approachingPlayer || ball.position.distanceTo(player.position) >= hitWindow) return;
 
-      const swing = queuedSwing || swipeToShot(lastX - startX, startY - lastY, Math.max((Date.now() - startT) / 1000, 0.12), true);
+      const swipe = touchControls.swipeMetrics(touchControls.state.lastX, touchControls.state.lastY);
+      const swing = queuedSwing || swipeToShot(swipe.distX, swipe.distY, swipe.swipeTime, true);
       const correction = THREE.MathUtils.clamp((ball.position.x - player.position.x) * 0.8, -2.6, 2.6);
 
       velocity.set(
@@ -422,30 +495,6 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       setToast('Kthim perfekt!');
       started = true;
       playerSwing = 1.2;
-    }
-
-    function updateCamera(dt) {
-      const followStrength = mode === 'tabletennis' ? 0.24 : 0.14;
-      const yLift = config.tableHeight + THREE.MathUtils.lerp(
-        config.cameraHeight,
-        config.cameraHeight * 0.65,
-        Math.min((ball.position.y - config.tableHeight) * 0.4, 1)
-      );
-      const depthLead = started ? THREE.MathUtils.clamp(velocity.z * 0.22, -2.4, 3.6) : 0;
-      const cameraDepth = Math.max(ball.position.z + depthLead, 0) + config.cameraOffset * (mode === 'tabletennis' ? 0.72 : 0.95);
-      const maxDepth = halfL - config.playerZOffset + config.cameraOffset * 0.35;
-      cameraTarget.set(
-        THREE.MathUtils.clamp(ball.position.x * 0.9, -halfW, halfW),
-        yLift,
-        THREE.MathUtils.clamp(cameraDepth, config.tableHeight + config.ballRadius + 0.12, maxDepth)
-      );
-      camera.position.lerp(cameraTarget, blend(followStrength, dt));
-      cameraLook.set(
-        ball.position.x,
-        Math.max(config.tableHeight + config.ballRadius * 1.5, ball.position.y),
-        Math.max(ball.position.z, 0)
-      );
-      camera.lookAt(cameraLook);
     }
 
     function handleTableBounds(dt) {
@@ -513,7 +562,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
           }
         }
         updateRacketHeight(stepDt);
-        updateCamera(stepDt);
+        cameraRig.update(stepDt, ball.position, velocity, started);
       }
     }
 
