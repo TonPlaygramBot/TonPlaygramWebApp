@@ -826,7 +826,8 @@ const DEFAULT_APPEARANCE = {
   chairColor: 0,
   tableShape: 0,
   boardColor: 0,
-  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
+  whitePieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
+  blackPieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -878,7 +879,8 @@ const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.i
 const PRESERVE_NATIVE_PIECE_IDS = new Set();
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'pieceStyle', label: 'Chess Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'whitePieceStyle', label: 'White Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'blackPieceStyle', label: 'Black Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'boardColor', label: 'Chess Board', options: BOARD_COLOR_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
@@ -889,6 +891,9 @@ const CUSTOMIZATION_SECTIONS = [
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
+  const fallbackPieceStyleIndex = Number.isFinite(value?.pieceStyle)
+    ? Math.min(Math.max(0, Math.round(value.pieceStyle)), PIECE_STYLE_OPTIONS.length - 1)
+    : null;
   const entries = [
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
@@ -896,14 +901,15 @@ function normalizeAppearance(value = {}) {
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
     ['boardColor', BOARD_COLOR_OPTIONS.length],
-    ['pieceStyle', PIECE_STYLE_OPTIONS.length]
+    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
-    if (Number.isFinite(raw)) {
-      const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
-      normalized[key] = clamped;
-    }
+    const source = Number.isFinite(raw) ? raw : fallbackPieceStyleIndex;
+    if (!Number.isFinite(source)) return;
+    const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
+    normalized[key] = clamped;
   });
   return normalized;
 }
@@ -1533,9 +1539,43 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   });
 }
 
+function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = DEFAULT_PIECE_STYLE) {
+  const white = whiteStyle.white ?? DEFAULT_PIECE_STYLE.white;
+  const black = blackStyle.black ?? DEFAULT_PIECE_STYLE.black;
+  const accent = whiteStyle.accent ?? blackStyle.accent ?? DEFAULT_PIECE_STYLE.accent;
+  return {
+    white,
+    black,
+    accent,
+    whiteAccent: whiteStyle.whiteAccent,
+    blackAccent: blackStyle.blackAccent,
+    goldAccent: whiteStyle.goldAccent ?? blackStyle.goldAccent ?? DEFAULT_PIECE_STYLE.goldAccent,
+    preserveOriginalMaterials: Boolean(
+      whiteStyle.preserveOriginalMaterials && blackStyle.preserveOriginalMaterials
+    ),
+    keepTextures: Boolean(
+      whiteStyle.keepTextures ||
+        blackStyle.keepTextures ||
+        whiteStyle.preserveOriginalMaterials ||
+        blackStyle.preserveOriginalMaterials
+    ),
+    roughness: whiteStyle.roughness ?? blackStyle.roughness,
+    metalness: whiteStyle.metalness ?? blackStyle.metalness,
+    clearcoat: whiteStyle.clearcoat ?? blackStyle.clearcoat,
+    clearcoatRoughness: whiteStyle.clearcoatRoughness ?? blackStyle.clearcoatRoughness,
+    sheen: whiteStyle.sheen ?? blackStyle.sheen,
+    sheenColor: whiteStyle.sheenColor ?? blackStyle.sheenColor,
+    specularIntensity: whiteStyle.specularIntensity ?? blackStyle.specularIntensity
+  };
+}
+
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
-  const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
+  const whitePieceOption =
+    PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
+  const blackPieceOption =
+    PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
+  const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
   const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
   return {
@@ -1544,7 +1584,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
     highlight: boardTheme.highlight,
     capture: boardTheme.capture,
     accent: boardTheme.accent,
-    pieceSetId: PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.id ?? DEFAULT_PIECE_SET_ID
+    pieceSetId: PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.id ?? DEFAULT_PIECE_SET_ID
   };
 }
 
@@ -4549,7 +4589,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
       if (stored) {
         const normalized = normalizeAppearance(JSON.parse(stored));
-        normalized.pieceStyle = BEAUTIFUL_GAME_PIECE_INDEX;
         return normalized;
       }
     } catch {}
@@ -4634,7 +4673,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
-    if (key === 'pieceStyle') {
+    if (key === 'whitePieceStyle' || key === 'blackPieceStyle') {
       return (
         <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
           <span
@@ -4932,7 +4971,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arenaRef.current.palette = palette;
       arenaRef.current.boardMaterials = arena.boardMaterials;
     }
-    const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
+    const pieceSetOption =
+      PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
@@ -5144,7 +5184,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     paletteRef.current = palette;
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
+    const pieceSetOption =
+      PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
     const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
