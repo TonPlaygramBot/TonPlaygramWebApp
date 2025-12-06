@@ -1351,6 +1351,7 @@ function BlackJackArena({ search }) {
   const [uiState, setUiState] = useState({ actions: [], requiresPreview: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
+  const [sceneReady, setSceneReady] = useState(false);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -1806,6 +1807,7 @@ function BlackJackArena({ search }) {
         const mesh = createCardMesh({ rank: 'A', suit: 'S' }, cardGeometry, faceCache, cardTheme);
         mesh.position.copy(deckAnchor);
         mesh.castShadow = true;
+        mesh.visible = false;
         arenaGroup.add(mesh);
         return mesh;
       });
@@ -1915,6 +1917,8 @@ function BlackJackArena({ search }) {
         });
       }
     };
+
+    setSceneReady(true);
 
     element = renderer.domElement;
 
@@ -2174,10 +2178,11 @@ function BlackJackArena({ search }) {
         disposeChairMaterials(threeRef.current?.chairMaterials);
         r.dispose();
       }
+      setSceneReady(false);
       mount.removeChild(renderer.domElement);
       threeRef.current = null;
     };
-  }, [applyHeadOrientation]);
+  }, [applyHeadOrientation, renderResetKey]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -2188,7 +2193,7 @@ function BlackJackArena({ search }) {
       }
     }
     const three = threeRef.current;
-    if (!three) return;
+    if (!three || !sceneReady) return;
     const normalized = normalizeAppearance(appearance);
     const seatCount = three.seatGroups?.length || effectivePlayerCount;
     const safe = enforceShapeForPlayers(normalized, seatCount);
@@ -2261,11 +2266,11 @@ function BlackJackArena({ search }) {
       });
       three.cardTheme = cardTheme;
     }
-  }, [appearance, effectivePlayerCount]);
+  }, [appearance, effectivePlayerCount, sceneReady]);
 
   useEffect(() => {
     const three = threeRef.current;
-    if (!three) return;
+    if (!three || !sceneReady) return;
     const { seatGroups, chipFactory, potStack, potLabel, cardGeometry, faceCache } = three;
     const state = gameState;
     if (!state) return;
@@ -2317,7 +2322,7 @@ function BlackJackArena({ search }) {
       potLabel.userData.update(Math.round(state.pot), state.token);
       potLabel.userData.texture.needsUpdate = true;
     }
-  }, [gameState]);
+  }, [gameState, sceneReady]);
 
   const currentStage = gameState?.stage;
   const currentTurnIndex = gameState?.currentIndex;
