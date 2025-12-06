@@ -86,7 +86,7 @@ const DIAMOND_SHAPE_ID = 'diamondEdge';
 // Keep betting units aligned with the 2D classic experience (public/texas-holdem.js uses ANTE = 10).
 const CLASSIC_ANTE = 10;
 const ANTE = CLASSIC_ANTE;
-const COMMUNITY_SPACING = CARD_W * 0.62;
+const COMMUNITY_SPACING = CARD_W * 0.78;
 const COMMUNITY_CARD_FORWARD_OFFSET = 0;
 const COMMUNITY_CARD_LIFT = CARD_D * 3.2;
 const COMMUNITY_CARD_LOOK_LIFT = CARD_H * 0.06;
@@ -137,6 +137,8 @@ const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
+const SUIT_SYMBOLS = Object.freeze({ S: '♠', H: '♥', D: '♦', C: '♣' });
+const SUIT_COLORS = Object.freeze({ S: '#1f2937', C: '#1f2937', H: '#b91c1c', D: '#b91c1c' });
 const TURN_DURATION = 30;
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -1045,6 +1047,13 @@ function computePotAnchor(options = {}) {
   return new THREE.Vector3(center.x, surfaceY + CARD_SURFACE_OFFSET, center.z + POT_BELOW_COMMUNITY_OFFSET);
 }
 
+function formatCardLabel(card) {
+  if (!card || typeof card !== 'object') return '??';
+  const rank = card.rank ?? '?';
+  const suit = card.suit ?? '';
+  return `${rank}${SUIT_SYMBOLS[suit] ?? suit}`;
+}
+
 function makeNameplate(name, chips, renderer, avatar) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
@@ -1420,7 +1429,7 @@ function payChips(player, amount, state) {
 function getNextActiveIndex(players, startIndex) {
   if (!players.length) return 0;
   for (let offset = 1; offset <= players.length; offset += 1) {
-    const idx = (startIndex - offset + players.length) % players.length;
+    const idx = (startIndex + offset) % players.length;
     const p = players[idx];
     if (!p) continue;
     if (!p.folded && p.chips > 0 && !p.allIn) {
@@ -1428,6 +1437,29 @@ function getNextActiveIndex(players, startIndex) {
     }
   }
   return players.findIndex((p) => !p.folded) ?? 0;
+}
+
+function findSeatWithAvatar(players, preferredIndex = null) {
+  if (!Array.isArray(players) || !players.length) {
+    return typeof preferredIndex === 'number' ? preferredIndex : null;
+  }
+  const hasAvatar = (player) => Boolean(player?.avatar || player?.flag);
+  const isValidIndex = (idx) => typeof idx === 'number' && idx >= 0 && idx < players.length && hasAvatar(players[idx]);
+  if (isValidIndex(preferredIndex)) {
+    return preferredIndex;
+  }
+  const avatarIndex = players.findIndex((p) => hasAvatar(p));
+  if (avatarIndex >= 0) {
+    return avatarIndex;
+  }
+  if (typeof preferredIndex === 'number' && preferredIndex >= 0 && preferredIndex < players.length) {
+    return preferredIndex;
+  }
+  const humanIndex = players.findIndex((p) => p?.isHuman);
+  if (humanIndex >= 0) {
+    return humanIndex;
+  }
+  return 0;
 }
 
 function resetActedFlags(state) {
@@ -3192,15 +3224,26 @@ function TexasHoldemArena({ search }) {
     if (currentStage === 'showdown') return;
     const three = threeRef.current;
     if (!three) return;
-    const seat = three.seatGroups?.[currentActionIndex];
+    const focusIndex = findSeatWithAvatar(gameState?.players, currentActionIndex);
+    const seat = typeof focusIndex === 'number' ? three.seatGroups?.[focusIndex] : null;
     const pointerState = pointerStateRef.current;
     if (!(pointerState?.active && pointerState.mode === 'camera')) {
-      focusCameraOnSeat(currentActionIndex, false);
+      focusCameraOnSeat(focusIndex, false);
     }
     if (seat?.isHuman) {
       playSound('knock');
     }
-  }, [currentActionIndex, currentStage, focusCameraOnSeat, playSound]);
+  }, [currentActionIndex, currentStage, focusCameraOnSeat, playSound, gameState?.players]);
+
+  useEffect(() => {
+    if (!gameState || gameState.stage !== 'preflop') return;
+    const pointerState = pointerStateRef.current;
+    if (pointerState?.active && pointerState.mode === 'camera') return;
+    const humanIndex = gameState.players.findIndex((p) => p.isHuman);
+    if (humanIndex < 0) return;
+    const focusIndex = findSeatWithAvatar(gameState.players, humanIndex);
+    focusCameraOnSeat(focusIndex, true);
+  }, [focusCameraOnSeat, gameState?.handId, gameState?.stage, gameState?.players]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3383,7 +3426,34 @@ function TexasHoldemArena({ search }) {
   }, []);
 
   const actor = gameState.players[gameState.actionIndex];
+  const actorAvatarUrl = useMemo(
+    () => getAvatarUrl(actor?.avatar) || actor?.flag || '/assets/icons/profile.svg',
+    [actor?.avatar, actor?.flag]
+  );
   const humanPlayer = useMemo(() => gameState.players.find((p) => p.isHuman), [gameState.players]);
+  const winnerSeatIndex = useMemo(() => {
+    if (!gameState || gameState.stage !== 'showdown') return null;
+    if (typeof gameState.winnerFocusIndex === 'number') return gameState.winnerFocusIndex;
+    const primaryPot = gameState.winners?.find((entry) => Array.isArray(entry?.winners) && entry.winners.length);
+    const firstWinner = primaryPot?.winners?.[0];
+    return typeof firstWinner?.index === 'number' ? firstWinner.index : null;
+  }, [gameState]);
+  const winnerPlayer = useMemo(
+    () => (typeof winnerSeatIndex === 'number' ? gameState.players[winnerSeatIndex] : null),
+    [gameState.players, winnerSeatIndex]
+  );
+  const winnerAvatarUrl = useMemo(
+    () => getAvatarUrl(winnerPlayer?.avatar) || winnerPlayer?.flag || '/assets/icons/profile.svg',
+    [winnerPlayer?.avatar, winnerPlayer?.flag]
+  );
+  const winnerHoleCards = useMemo(() => {
+    if (!winnerPlayer) return [];
+    const cards = Array.isArray(winnerPlayer.hand) ? winnerPlayer.hand.slice(0, 2) : [];
+    while (cards.length < 2) {
+      cards.push(null);
+    }
+    return cards;
+  }, [winnerPlayer]);
   const isHumanTurn = actor?.id === humanPlayer?.id;
   const toCall = humanPlayer ? Math.max(0, gameState.currentBet - humanPlayer.bet) : 0;
   const sliderMax = humanPlayer ? Math.max(0, humanPlayer.chips - toCall) : 0;
@@ -3639,6 +3709,24 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
+      {actor && gameState.stage !== 'showdown' && (
+        <div className="pointer-events-none absolute top-16 inset-x-0 z-20 flex justify-center">
+          <div className="flex items-center gap-3 rounded-full border border-amber-200/40 bg-black/75 px-4 py-2 shadow-lg backdrop-blur">
+            <div className="relative h-14 w-14">
+              <span className="absolute inset-0 animate-pulse rounded-full bg-gradient-to-br from-amber-300/50 to-sky-300/40 blur-sm" />
+              <img
+                src={actorAvatarUrl}
+                alt="Active player avatar"
+                className="relative h-14 w-14 rounded-full border-2 border-white/50 object-cover"
+              />
+            </div>
+            <div className="flex flex-col text-white">
+              <span className="text-sm font-semibold leading-tight">{actor.name || 'Player'}</span>
+              <span className="text-[0.7rem] uppercase tracking-wide text-white/70">Your focus</span>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar && (
@@ -3657,6 +3745,36 @@ function TexasHoldemArena({ search }) {
           <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
             {turnLabel}
           </div>
+        </div>
+      )}
+      {winnerPlayer && gameState.stage === 'showdown' && (
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-30 flex -translate-x-1/2 translate-y-16 flex-col items-center gap-2">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/20 bg-black/75 px-4 py-3 shadow-2xl backdrop-blur">
+            <div className="h-12 w-12 overflow-hidden rounded-full border-2 border-amber-200 shadow-lg">
+              <img src={winnerAvatarUrl} alt="Winning avatar" className="h-full w-full object-cover" />
+            </div>
+            <div className="flex items-center gap-2">
+              {winnerHoleCards.map((card, idx) => {
+                const suit = card?.suit;
+                const color = SUIT_COLORS[suit] ?? '#111827';
+                const label = formatCardLabel(card);
+                return (
+                  <div
+                    key={`${cardKey(card)}-${idx}`}
+                    aria-label={`Winning card ${label}`}
+                    className="flex h-14 w-10 flex-col items-center justify-center rounded-lg bg-white text-lg font-bold shadow-lg"
+                    style={{ color }}
+                  >
+                    <span className="text-base text-gray-900">{card?.rank ?? '?'}</span>
+                    <span className="text-xl" style={{ color }}>
+                      {SUIT_SYMBOLS[suit] ?? '?'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <span className="text-xs font-semibold uppercase tracking-[0.2em] text-white/80">Winning hand</span>
         </div>
       )}
       {sliderVisible && (
