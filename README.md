@@ -1,6 +1,10 @@
 
 
 
+### Game design notes
+
+- [Texas Hold'em game flow](docs/texas-holdem-game.md) – drejtimi clockwise i butonit/dealer-it dhe hapat bazë të një dueli duke përdorur logjikën në `lib/texasHoldem.js`.
+
 ## Installation
 
 1. Install **Node.js 18** or later.
