@@ -1,8 +1,8 @@
-Tirana 2040 preload bundle (tekst)
+London 1990 preload bundle (tekst)
 
-Narrative bundle and asset placeholders for the Tirana 2040 mini-game.
+Narrative bundle and asset placeholders for the London 1990 Baker Street mini-game.
 This text-only package enables prefetching without binaries; it is replaced with the WebGL build once ready.
 
-- City layout, lighting loads, and camera angles for the futuristic corridor.
-- Control hooks for mobile gestures and avatar movement in the 3D corridor.
-- Mission/tutorial descriptions for player onboarding.
+- City layout, lighting loads, and camera angles for the 1990s West End neighbourhood slice.
+- Control hooks for mobile gestures and avatar movement along Baker Street and Oxford Street corridors.
+- Mission/tutorial descriptions for player onboarding with London emergency services still active.

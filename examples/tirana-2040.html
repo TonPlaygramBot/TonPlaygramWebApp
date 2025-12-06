@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>Tirana 2040 • Battle Royale Sandbox</title>
+  <title>London 1990 • Battle Royale Sandbox</title>
   <style>
     html,body{margin:0;height:100%;background:#f3e3c7;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
     body,.hud{touch-action:none}
@@ -98,7 +98,7 @@
   <div class="hud">
     <div class="row top">
       <div style="display:flex;gap:6px;align-items:center">
-        <div class="chip" id="status">Tirana 2040 • Loading…</div>
+        <div class="chip" id="status">London 1990 • Loading…</div>
         <div id="br" class="chip">BR: ON</div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -349,7 +349,7 @@
         for(const [k,keyName] of def){
           try{ const gltf=await loadGLB(URLS[keyName]); const base=(gltf.scene||gltf.scenes?.[0]); base.traverse(o=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; o.material && (o.material.needsUpdate = true); } }); centerXZ(base); scaleToLen(base, keyName==='bus'? 8.5 : keyName==='moto'? 2.0 : REF_LEN); placeOnGround(base,0); depot.refs[k]=base; }catch(e){ console.warn('Vehicle failed', keyName, e); }
         }
-        depot.ready=true; $('status').textContent = 'Tirana 2040 • Ready';
+        depot.ready=true; $('status').textContent = 'London 1990 • Ready';
       }
 
       const city = new THREE.Group(); scene.add(city);

@@ -1,4 +1,5 @@
-document.title = 'Tirana 2040 • Last Man Standing';
+const GAME_NAME = 'London 1990 • Baker Street District';
+document.title = GAME_NAME;
 
 export async function startTirana2040(){
   window.__phase='boot';
@@ -71,9 +72,9 @@ export async function startTirana2040(){
     $('br').textContent = `Entrants: ${entrants} • AI`;
   }
   if(stakeAmount){
-    $('status').textContent = `Tirana 2040 • ${stakeAmount} ${stakeToken}`;
+    $('status').textContent = `${GAME_NAME} • ${stakeAmount} ${stakeToken}`;
   } else {
-    $('status').textContent = 'Tirana 2040 • Last Man Standing';
+    $('status').textContent = GAME_NAME;
   }
 
   window.__phase='dom-wired';
@@ -83,7 +84,7 @@ export async function startTirana2040(){
     if(statusEl) statusEl.textContent = message;
   }
 
-  window.addEventListener('unhandledrejection',(evt)=>{ console.error('Unhandled promise in Tirana 2040', evt.reason); updateStatus('Riprovo pas nderprerjes…'); });
+  window.addEventListener('unhandledrejection',(evt)=>{ console.error('Unhandled promise in London 1990', evt.reason); updateStatus('Retrying after interruption…'); });
 
   async function importWithFallback(label, sources){
     for(const url of sources){
@@ -98,7 +99,7 @@ export async function startTirana2040(){
     throw new Error(`${label} could not be loaded`);
   }
 
-  updateStatus('Tirana 2040 • Loading engine…');
+  updateStatus(`${GAME_NAME} • Loading engine…`);
   const [
     THREE,
     CANNON,
@@ -259,7 +260,7 @@ export async function startTirana2040(){
     dprBase=Math.min(dprBase,1.0);
     dprScale=Math.max(DPR_MIN, dprScale-0.15);
     fit();
-    updateStatus('Tirana 2040 • Performance boost (50fps)');
+    updateStatus(`${GAME_NAME} • Performance boost (50fps)`);
   }
   const muzzleLight = new THREE.PointLight(0xfff1c6, 0.0, 2.0); scene.add(muzzleLight);
 
@@ -424,9 +425,9 @@ export async function startTirana2040(){
   window.bots=bots;
   const mapRoads=[]; const mapBuildings=[]; const mapParks=[]; const mapLandmarks=[];
   const BLOCKS_X=5, BLOCKS_Z=4; const CELL=112; const ROAD=24; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
-  const northSouthStreets=['Kombinat Road','Kavaja Street','Ibrahim Rugova Blvd','Deshmoret e Kombit','Elbasan Street','Unaza e Madhe'];
-  const eastWestStreets=['Zogu I Boulevard','Lana Promenade','Skanderbeg Square','Bajram Curri Boulevard','Elbasan Gateway'];
-  const ringRoadName='Tirana 2040 Ring Road';
+  const northSouthStreets=['Gloucester Place','Baker Street','Marylebone High Street','Harley Street','Park Lane','Edgware Road'];
+  const eastWestStreets=['Marylebone Road','George Street','Oxford Street','Hyde Park Place','Marble Arch'];
+  const ringRoadName='Inner Ring Road (1990)';
 
   const groundGeo = new THREE.PlaneGeometry((CELL)*BLOCKS_X + ROAD*2, (CELL)*BLOCKS_Z + ROAD*2);
   const groundMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.95, metalness:0.08, side:THREE.DoubleSide });
@@ -616,8 +617,12 @@ export async function startTirana2040(){
   buildPerimeterWalls();
   addBusStop(-cityHalfX*0.6, cityHalfZ+ROAD*0.8, 0);
   addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
-  addBikeCorridor(-cityHalfX, startZ + CELL*1.5, cityHalfX, startZ + CELL*1.5, {label:'Lana riverfront cycleway'});
-  addBikeCorridor(startX + CELL*2.0, -cityHalfZ, startX + CELL*2.0, cityHalfZ, {label:'Central boulevard bike spine'});
+  addBikeCorridor(-cityHalfX, startZ + CELL*1.5, cityHalfX, startZ + CELL*1.5, {label:"Oxford Street bus & cycle lane"});
+  addBikeCorridor(startX + CELL*2.0, -cityHalfZ, startX + CELL*2.0, cityHalfZ, {label:"Regent's Park perimeter cycleway"});
+  mapLandmarks.push({x:startX+CELL*1.0, z:startZ+CELL*0.6, label:'🚇 Baker Street Station'});
+  mapLandmarks.push({x:cityHalfX-ROAD*0.6, z:-cityHalfZ+ROAD*0.8, label:'⛰ Marble Arch'});
+  mapLandmarks.push({x:cityHalfX*0.2, z:cityHalfZ-ROAD*0.8, label:'🌳 Hyde Park fringe'});
+  mapLandmarks.push({x:-cityHalfX*0.18, z:startZ+CELL*2.6, label:'🛍 Oxford Street'});
   addBikeCorridor(startX + CELL*3.5, -cityHalfZ, startX + CELL*3.5, cityHalfZ, {label:'Perimeter greenway'});
 
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
@@ -854,11 +859,11 @@ export async function startTirana2040(){
 
   function addBuilding(xc,zc,opts={}){
     if(typeof riverDistance==='function'){ const dist=riverDistance(xc,zc); if(dist && dist.d<=dist.hw+1) return null; }
-    const floors=opts.floors??(6+Math.floor(Math.random()*12)); const height=floors*(SCALE.FLOOR_H); const w=opts.w??(30+Math.random()*20), d=opts.d??(30+Math.random()*20);
-    const kind=opts.kind || (Math.random()<0.5?'bricks':'plaster');
+    const floors=opts.floors??(4+Math.floor(Math.random()*4)); const height=floors*(SCALE.FLOOR_H); const w=opts.w??(22+Math.random()*12), d=opts.d??(22+Math.random()*12);
+    const kind=opts.kind || (Math.random()<0.72?'bricks':'sandstone');
     const baseTex = kind==='bricks'? brickTex : plasterTex;
     const wallMat = makeLambertAngleMat(baseTex);
-    const roofMat = new THREE.MeshStandardMaterial({ color:0x4a4f59, roughness:0.8 });
+    const roofMat = new THREE.MeshStandardMaterial({ color:0x3a4250, roughness:0.82 });
     const rect={x0:xc-w/2,x1:xc+w/2,z0:zc-d/2,z1:zc+d/2};
     if(opts.plot && !reservePlotRect(opts.plot.ix, opts.plot.iz, rect)) return null;
     const shell=makePrefabBox(w,height,d, wallMat);
@@ -1633,9 +1638,15 @@ export async function startTirana2040(){
       'https://raw.githubusercontent.com/MonuYadav05/Astrikos-gc-project/main/public/FireTruck.glb'
     ],
     Bus: [
+      'https://raw.githubusercontent.com/virtualritz/double-decker-bus-assets/main/double-decker-bus.glb',
       'https://raw.githubusercontent.com/jade0815/my-3d-bus-models/main/Bus.glb',
       'https://raw.githubusercontent.com/IHyeonii/PythonStudy/main/free_school_bus_-_low_poly.glb',
       'https://raw.githubusercontent.com/haelimk/project/8c50930d7f283f345c46a0dcdf2a984286c3b4c0/bus.glb'
+    ],
+    Taxi: [
+      'https://assets.babylonjs.com/meshes/car.glb',
+      'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/VC/glTF-Binary/VC.glb',
+      'https://raw.githubusercontent.com/BabylonJS/Assets/master/meshes/car.glb'
     ],
     Motorcycle: [
       'https://raw.githubusercontent.com/shosuz-evangelist/3dObjects4Apps/main/Motorcycle.glb',
@@ -1670,6 +1681,7 @@ export async function startTirana2040(){
     if(normalized==='ambulance'||normalized==='police') urls=URLS.MilkTruck;
     else if(normalized==='fire'||normalized==='firetruck') urls=URLS.FireTruck;
     else if(normalized==='bus') urls=URLS.Bus;
+    else if(normalized==='taxi'||normalized==='cab') urls=URLS.Taxi||URLS.Sedan;
     else if(normalized==='motorcycle'||normalized==='moto'||normalized==='bike') urls=URLS.Motorcycle;
     else if(normalized==='sedan'||normalized==='car') urls=URLS.Sedan;
     else urls=URLS.CarConcept;
@@ -1684,10 +1696,18 @@ export async function startTirana2040(){
       const gltf=await robustLoad(urls);
       const root=(gltf.scene||gltf.scenes?.[0]);
       stripGroundMeshes(root);
+      if(normalized==='bus'){ styleAsLondonBus(root); }
+      if(normalized==='taxi'||normalized==='cab'){ styleAsBlackCab(root); }
       vehicleCache.set(normalized, root);
       window.__phase=`vehicle-done:${normalized}`;
       return root;
     }catch(_){
+      if(normalized==='bus'){
+        const group=makeDoubleDeckerFallback();
+        vehicleCache.set(normalized,group);
+        window.__phase=`vehicle-fallback:${normalized}`;
+        return group;
+      }
       const size = (normalized==='motorcycle'||normalized==='moto'||normalized==='bike')? {w:1.2,h:1.4,l:2.2}:{w:4.4,h:1.4,l:1.9};
       const geom=new THREE.BoxGeometry(size.w,size.h,size.l);
       const mat=new THREE.MeshLambertMaterial({ color:0x8892a6 });
@@ -1695,6 +1715,7 @@ export async function startTirana2040(){
       base.position.y=size.h/2;
       const group=new THREE.Group();
       group.add(base);
+      if(normalized==='taxi'||normalized==='cab'){ styleAsBlackCab(group); }
       vehicleCache.set(normalized,group);
       window.__phase=`vehicle-fallback:${normalized}`;
       return group;
@@ -1703,6 +1724,11 @@ export async function startTirana2040(){
 
   function tintVehicle(root,hex){ const col=new THREE.Color(hex); root.traverse(o=>{ if(o.isMesh&&o.material&&o.material.color){ o.material.color.lerp(col,0.9); o.material.needsUpdate=true; } }); }
   function addSideLabels(root,text){ const b=new THREE.Box3().setFromObject(root); const s=new THREE.Vector3(); b.getSize(s); const y=b.min.y+s.y*0.6; const midZ=(b.min.z+b.max.z)/2; const L=makeLabel(text,0.9); const R=makeLabel(text,0.9); L.rotation.y=Math.PI/2; R.rotation.y=-Math.PI/2; L.position.set(b.min.x-0.02,y,midZ); R.position.set(b.max.x+0.02,y,midZ); root.add(L,R); }
+  function ensureDoubleDeckerSilhouette(root){ const box=new THREE.Box3().setFromObject(root); const height=box.max.y-box.min.y; const width=box.max.x-box.min.x; const depth=box.max.z-box.min.z; if(height>3.6) return; const upper=new THREE.Mesh(new THREE.BoxGeometry(width*0.9, height*0.55, depth*0.88), new THREE.MeshStandardMaterial({ color:0xb91c1c, roughness:0.45, metalness:0.18 })); upper.position.set((box.min.x+box.max.x)/2, box.max.y + height*0.3, (box.min.z+box.max.z)/2); upper.castShadow=allowShadows; upper.receiveShadow=allowShadows; const windows=new THREE.Mesh(new THREE.BoxGeometry(width*0.88, height*0.26, depth*0.8), new THREE.MeshStandardMaterial({ color:0x0f172a, transparent:true, opacity:0.32 })); windows.position.copy(upper.position).setY(upper.position.y+0.12); root.add(upper,windows); }
+  function styleAsLondonBus(root){ tintVehicle(root,'#b91c1c'); addSideLabels(root,'LONDON BUS'); ensureDoubleDeckerSilhouette(root); }
+  function addTaxiLamp(root){ const box=new THREE.Box3().setFromObject(root); const spanX=box.max.x-box.min.x; const beacon=new THREE.Mesh(new THREE.BoxGeometry(spanX*0.26,0.22,0.7), new THREE.MeshStandardMaterial({ color:0xfcd34d, emissive:0xf59e0b, emissiveIntensity:0.9 })); beacon.position.set((box.min.x+box.max.x)/2, box.max.y+0.25, box.min.z + (box.max.z-box.min.z)*0.42); beacon.castShadow=allowShadows; root.add(beacon); }
+  function styleAsBlackCab(root){ tintVehicle(root,'#0b0b0f'); addTaxiLamp(root); addSideLabels(root,'BLACK CAB'); }
+  function makeDoubleDeckerFallback(){ const g=new THREE.Group(); const base=new THREE.Mesh(new THREE.BoxGeometry(9.4,2.3,2.5), new THREE.MeshStandardMaterial({ color:0xb91c1c, roughness:0.42, metalness:0.2 })); base.position.y=1.15; const upper=new THREE.Mesh(new THREE.BoxGeometry(8.8,1.6,2.3), new THREE.MeshStandardMaterial({ color:0xb91c1c, roughness:0.42, metalness:0.2 })); upper.position.y=2.9; const windows=new THREE.Mesh(new THREE.BoxGeometry(8.4,0.8,2.1), new THREE.MeshStandardMaterial({ color:0x0f172a, transparent:true, opacity:0.32 })); windows.position.y=3.0; const wheels=new THREE.Group(); const wheelMat=new THREE.MeshStandardMaterial({ color:0x111, metalness:0.6, roughness:0.5 }); for(let i=0;i<6;i++){ const wheel=new THREE.Mesh(new THREE.CylinderGeometry(0.42,0.42,0.4,16), wheelMat); wheel.rotation.z=Math.PI/2; const offsetX=-3.4 + (i%3)*3.2; const offsetZ=i<3?-1.0:1.0; wheel.position.set(offsetX,0.42,offsetZ); wheels.add(wheel);} g.add(base,upper,windows,wheels); addSideLabels(g,'LONDON BUS'); return g; }
   function attachSiren(root){ const box=new THREE.Box3().setFromObject(root); const spanX=(box.max.x-box.min.x); const top=box.max.y+0.18; const offset=spanX*0.28; const geo=new THREE.SphereGeometry(0.14,14,12); const leftMat=new THREE.MeshBasicMaterial({ color:0xef4444, transparent:true, opacity:0.28 }); const rightMat=new THREE.MeshBasicMaterial({ color:0x3b82f6, transparent:true, opacity:0.28 }); const left=new THREE.Mesh(geo,leftMat); const right=new THREE.Mesh(geo,rightMat); left.position.set(-offset, top, 0); right.position.set(offset, top, 0); const grp=new THREE.Group(); grp.add(left,right); root.add(grp); const light=new THREE.PointLight(0xff6b6b, 0, 18); light.position.set(0, top+0.2, 0); root.add(light); return {group:grp,left,right,light,phase:Math.random()*Math.PI*2}; }
 
   const parked=[]; const trafficCars=[]; const emergencyUnits=[]; const driveableVehicles=[];
@@ -1720,16 +1746,16 @@ export async function startTirana2040(){
   async function spawnParkedCommons(){
     const palette=['#64748b','#9ca3af','#475569','#7f5539','#ef8354','#14b8a6'];
     const spots=[
-      {kind:'sedan', x:startX+CELL*0.9,  z:startZ+CELL*0.9, heading:Math.PI*0.18},
-      {kind:'car',   x:startX+CELL*1.6,  z:startZ+CELL*1.1, heading:-Math.PI*0.22},
+      {kind:'taxi', x:startX+CELL*0.9,  z:startZ+CELL*0.9, heading:Math.PI*0.18},
+      {kind:'car',   x:startX+CELL*1.6,  z:startZ+CELL*1.1, heading:-Math.PI*0.22, color:'#1f2937'},
       {kind:'motorcycle', x:startX+CELL*2.0, z:startZ+CELL*1.6, heading:-Math.PI*0.12, color:'#f97316'},
       {kind:'sedan', x:startX+CELL*2.6,  z:startZ+CELL*2.0, heading:Math.PI*0.36},
-      {kind:'bus',   x:startX+CELL*3.4,  z:startZ+CELL*1.4, heading:-Math.PI*0.48, color:'#facc15'},
-      {kind:'car',   x:startX+CELL*3.2,  z:startZ+CELL*2.4, heading:Math.PI*0.52},
+      {kind:'bus',   x:startX+CELL*3.4,  z:startZ+CELL*1.4, heading:-Math.PI*0.48, color:'#b91c1c'},
+      {kind:'taxi',   x:startX+CELL*3.2,  z:startZ+CELL*2.4, heading:Math.PI*0.52},
       {kind:'motorcycle', x:startX+CELL*1.2, z:startZ+CELL*2.6, heading:Math.PI*0.08, color:'#38bdf8'},
       {kind:'sedan', x:startX+CELL*0.8, z:startZ+CELL*1.8, heading:-Math.PI*0.38, color:'#0ea5e9'},
       {kind:'car', x:startX+CELL*2.4, z:startZ+CELL*0.6, heading:Math.PI*0.72, color:'#22c55e'},
-      {kind:'bus', x:startX+CELL*4.0, z:startZ+CELL*2.8, heading:-Math.PI*0.58, color:'#fde047'}
+      {kind:'bus', x:startX+CELL*4.0, z:startZ+CELL*2.8, heading:-Math.PI*0.58, color:'#b91c1c'}
     ];
     for(let i=0;i<spots.length;i++){
       const spot=spots[i];
@@ -1753,7 +1779,7 @@ export async function startTirana2040(){
       const shuttle=(await getVehicle('bus'))?.clone?.(true);
       if(shuttle){
         centerXZ(shuttle); scaleToLength(shuttle,9.4); placeOnGround(shuttle,0);
-        tintVehicle(shuttle,'#fde047');
+        styleAsLondonBus(shuttle);
         setHeading(shuttle, Math.PI/2);
         shuttle.position.set(mall.pos.x + (mall.dims?.w||32)/2 + 6, 0, mall.pos.z - 6);
         scene.add(shuttle);
@@ -1782,9 +1808,10 @@ export async function startTirana2040(){
     for(let i=0;i<n;i++){
       const r=Math.random();
       let kind;
-      if(r<0.18) kind='bus';
-      else if(r<0.42) kind='motorcycle';
-      else if(r<0.68) kind='car';
+      if(r<0.16) kind='bus';
+      else if(r<0.38) kind='taxi';
+      else if(r<0.56) kind='motorcycle';
+      else if(r<0.78) kind='car';
       else kind='sedan';
       const template=await getVehicle(kind);
       if(!template) continue;
@@ -1793,7 +1820,8 @@ export async function startTirana2040(){
       const len = kind==='bus'?9.2 : kind==='motorcycle'?2.4 : 4.6;
       scaleToLength(v,len);
       placeOnGround(v,0);
-      if(kind==='bus'){ tintVehicle(v,'#facc15'); }
+      if(kind==='bus'){ styleAsLondonBus(v); }
+      else if(kind==='taxi'){ styleAsBlackCab(v); }
       else if(kind==='motorcycle'){ tintVehicle(v,'#ec4899'); }
       else { tintVehicle(v,new THREE.Color().setHSL(Math.random(),0.45,0.5).getHex()); }
       const a=Math.random()*Math.PI*2;
@@ -1866,7 +1894,7 @@ export async function startTirana2040(){
   function startBR(){ for(let i=0;i<8;i++){ const a=(i/8)*Math.PI*2; const r=ringR*0.6; spawnEnemy(Math.cos(a)*r, Math.sin(a)*r, ['Soldier','Xbot','Ybot','RobotExpressive'][i%4]); } }
   scatterCityPickups();
   startBR();
-  updateStatus('Tirana 2040 • Ready');
+  updateStatus(`${GAME_NAME} • Ready`);
   window.__phase='ready';
 
   let inputMode='A';
@@ -2055,9 +2083,9 @@ export async function startTirana2040(){
     console.assert(typeof GLTFLoader==='function', 'GLTFLoader OK');
   }, 800);
   } catch(err){
-    console.error('Tirana 2040 failed to bootstrap', err);
+    console.error('London 1990 failed to bootstrap', err);
     window.__phase = `error:${err?.message||err}`;
-    try { updateStatus('Tirana 2040 • Failed to load'); } catch(_){ }
+    try { updateStatus(`${GAME_NAME} • Failed to load`); } catch(_){ }
     throw err;
   }
 }
