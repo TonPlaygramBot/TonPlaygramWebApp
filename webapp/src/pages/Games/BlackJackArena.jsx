@@ -1186,6 +1186,7 @@ function resetForNextRound(state) {
     bust: false,
     stood: false
   }));
+  placeInitialBets(next);
   dealInitialCards(next);
   return next;
 }
@@ -2776,7 +2777,7 @@ function BlackJackArena({ search }) {
         </div>
       )}
       {(sliderEnabled || showHumanTurn) && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center justify-center gap-3">
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-nowrap items-center justify-center gap-3">
           {showHumanTurn &&
             uiState.actions.map((action) => {
               const isStand = action.id === 'stand';
