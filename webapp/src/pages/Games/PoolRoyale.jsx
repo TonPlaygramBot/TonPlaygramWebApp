@@ -1111,9 +1111,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
-// Tighten the clearance so the preview line better matches the real collision
-// point between the cue ball and the next object ball.
-const CUE_CLEARANCE_PADDING = BALL_R * 0.1;
+const CUE_CLEARANCE_PADDING = BALL_R * 0.25;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
@@ -5189,9 +5187,7 @@ function calcTarget(cue, dir, balls) {
   });
 
   const fallbackDistance = Math.sqrt(PLAY_W * PLAY_W + PLAY_H * PLAY_H);
-  // Pull the preview impact point slightly closer to the cue ball to avoid
-  // overshooting the real collision point due to the clearance padding.
-  let travel = Number.isFinite(tHit) ? Math.max(0, tHit - CUE_CLEARANCE_PADDING) : fallbackDistance;
+  let travel = Number.isFinite(tHit) ? tHit : fallbackDistance;
   if (travel <= 0) {
     travel = fallbackDistance;
   }
