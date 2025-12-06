@@ -38,6 +38,18 @@ const TRAINING_BLUEPRINTS = [
     shotLimit: 4
   },
   {
+    title: 'Pro safe escape',
+    discipline: 'UK 8-Ball',
+    objective: 'Feather a legal contact on your colour and hide the cue ball to avoid giving away two visits.',
+    cue: { x: -0.64, z: -0.52 },
+    balls: [
+      { rackIndex: 5, x: -0.08, z: -0.34 },
+      { rackIndex: 6, x: 0.18, z: -0.06 }
+    ],
+    tip: 'Glance off the object ball with pocket speed and use the blocker as a shield.',
+    shotLimit: 5
+  },
+  {
     title: 'Two-ball pattern',
     discipline: 'American Billiards',
     objective: 'Clear two open balls while floating gently into shape.',
