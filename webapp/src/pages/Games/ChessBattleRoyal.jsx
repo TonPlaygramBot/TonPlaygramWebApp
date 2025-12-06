@@ -308,8 +308,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#EEE8D5',
     dark: '#2B2F36',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGameBlueOrangeBoard',
@@ -317,8 +316,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#93C5FD',
     dark: '#1E293B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGameRedTealBoard',
@@ -326,8 +324,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#FCA5A5',
     dark: '#0F766E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGamePurpleLimeBoard',
@@ -335,8 +332,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#C4B5FD',
     dark: '#365314',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGamePinkCyanBoard',
@@ -344,8 +340,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#F9A8D4',
     dark: '#164E63',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGameGoldSlateBoard',
@@ -353,8 +348,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#FDE68A',
     dark: '#0F172A',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGameEmeraldFuchsiaBoard',
@@ -362,8 +356,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#6EE7B7',
     dark: '#4A044E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGameSilverGraphiteBoard',
@@ -371,8 +364,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#E5E7EB',
     dark: '#111827',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   }),
   buildBoardTheme({
     id: 'beautifulGameForestSandBoard',
@@ -380,8 +372,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#FDEAD7',
     dark: '#064E3B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark
   })
 ]);
 
