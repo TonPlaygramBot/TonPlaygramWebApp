@@ -299,6 +299,9 @@ const BASE_MAX_SWIPE = 1400;
 const BASE_HIT_FORCE = 4.6 * 0.35;
 const BASE_SPEED_CAP = 22.5 * BASE_HIT_FORCE;
 const BASE_TENNIS_DIMENSIONS = { length: 23.77, width: 9.2 };
+const BASE_ARCADE_CAMERA = { height: 9, offset: 16 };
+const BASE_ARCADE_APRON = 4;
+const BASE_PLAYER_DEPTH = 1.5;
 const ARCADE_PHYSICS = {
   baseStep: 1 / 120,
   maxSubsteps: 8,
@@ -708,21 +711,27 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let orbitYaw = 0;
     let orbitPitch = 0.18;
 
-    const courtL = 23.77;
-    const courtW = 9.2;
+    const courtL = BASE_TENNIS_DIMENSIONS.length;
+    const courtW = BASE_TENNIS_DIMENSIONS.width;
+    const lengthScale = courtL / BASE_TENNIS_DIMENSIONS.length;
+    const widthScale = courtW / BASE_TENNIS_DIMENSIONS.width;
+    const courtScale = Math.max(lengthScale, widthScale);
     const halfW = courtW / 2;
     const halfL = courtL / 2;
-    const SERVICE_LINE_Z = 6.4;
-    const SERVICE_BOX_INNER = 0.2;
-    const apron = 2.6;
+    const SERVICE_LINE_Z = 6.4 * lengthScale;
+    const SERVICE_BOX_INNER = 0.2 * widthScale;
+    const apron = BASE_ARCADE_APRON * courtScale;
 
-    const playerZ = halfL - 1.35;
-    const cpuZ = -halfL + 1.35;
+    const playerDepth = BASE_PLAYER_DEPTH * lengthScale;
+    const playerZ = halfL - playerDepth;
+    const cpuZ = -halfL + playerDepth;
 
-    let camBack = halfL + apron * 1.28 + 0.85;
-    let camHeight = isNarrow ? 5.1 : 4.85;
+    const baseCamBack = BASE_ARCADE_CAMERA.offset * lengthScale;
+    const baseCamHeight = BASE_ARCADE_CAMERA.height * lengthScale;
+    let camBack = baseCamBack;
+    let camHeight = isNarrow ? baseCamHeight * 0.92 : baseCamHeight;
     const camBackRange = { min: halfL + apron * 0.98, max: halfL + apron * 1.7 };
-    const camHeightRange = { min: 4.2, max: 6.8 };
+    const camHeightRange = { min: baseCamHeight * 0.8, max: baseCamHeight * 1.1 };
     const cameraMinZ = halfL + apron * 0.62;
     const cameraMaxZ = halfL + apron * 2.05;
     const cameraSideLimit = halfW * 0.94;
