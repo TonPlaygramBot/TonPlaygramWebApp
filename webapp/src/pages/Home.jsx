@@ -53,8 +53,8 @@ export default function Home() {
       href: `${baseUrl}game-preloads/3d-snooker-preload.txt`
     },
     {
-      name: 'Tirana 2040 preload',
-      description: 'Narrative bundle plus asset placeholders for the Tirana 2040 mini-game.',
+      name: 'London 1990 preload',
+      description: 'Narrative bundle plus asset placeholders for the London 1990 Baker Street mini-game.',
       href: `${baseUrl}game-preloads/tirana-2040-preload.txt`
     }
   ];

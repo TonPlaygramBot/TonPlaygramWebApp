@@ -9,7 +9,7 @@ export default function Tirana2040() {
     <div className="relative w-full h-[100dvh]">
       <iframe
         src={`/tirana-2040.html${search}`}
-        title="Tirana 2040"
+        title="London 1990"
         className="w-full h-full border-0"
         allow="accelerometer; gyroscope; fullscreen"
       />

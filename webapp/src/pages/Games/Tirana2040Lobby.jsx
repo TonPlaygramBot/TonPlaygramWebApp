@@ -76,9 +76,9 @@ export default function Tirana2040Lobby() {
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">Tirana 2040 Lobby</h2>
+      <h2 className="text-xl font-bold text-center">London 1990 Lobby</h2>
       <p className="text-sm text-subtext text-center">
-        Last agent standing wins the pot. Choose your stake and the size of the AI survival arena.
+        Battle through Baker Street, Marble Arch, and Oxford Street with 1990s London traffic and services still active.
       </p>
       <div className="space-y-2">
         <h3 className="font-semibold">Opponents</h3>
