@@ -30,8 +30,6 @@ import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 import TableTennis from './pages/Games/TableTennis.jsx';
 import TableTennisLobby from './pages/Games/TableTennisLobby.jsx';
-import FreeKick from './pages/Games/FreeKick.jsx';
-import FreeKickLobby from './pages/Games/FreeKickLobby.jsx';
 import TennisBattleRoyal from './pages/Games/TennisBattleRoyal.jsx';
 import TennisBattleRoyalLobby from './pages/Games/TennisBattleRoyalLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
@@ -91,8 +89,6 @@ export default function App() {
             <Route path="/games/airhockey" element={<AirHockey />} />
             <Route path="/games/tabletennis/lobby" element={<TableTennisLobby />} />
             <Route path="/games/tabletennis" element={<TableTennis />} />
-            <Route path="/games/freekick/lobby" element={<FreeKickLobby />} />
-            <Route path="/games/freekick" element={<FreeKick />} />
             <Route
               path="/games/tennisbattleroyal/lobby"
               element={<TennisBattleRoyalLobby />}

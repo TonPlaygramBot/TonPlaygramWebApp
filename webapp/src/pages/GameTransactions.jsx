@@ -11,7 +11,6 @@ const GAME_NAME_MAP = {
   texas: "Texas Hold'em",
   domino: 'Domino Royal 3D',
   blackjack: 'Black Jack Multiplayer',
-  freekick: 'Football Battle Royale',
   murlan: 'Murlan Royale',
   tirana2040: 'Tirana 2040',
 };
