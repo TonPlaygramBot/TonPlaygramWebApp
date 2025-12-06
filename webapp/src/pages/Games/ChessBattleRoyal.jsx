@@ -300,7 +300,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     id: 'beautifulGameClassicBoard',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
     ...BEAUTIFUL_GAME_THEME,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: true,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGameSwapBoard',
@@ -308,7 +309,9 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#EEE8D5',
     dark: '#2B2F36',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true,
+    swapLightDark: true
   }),
   buildBoardTheme({
     id: 'beautifulGameBlueOrangeBoard',
@@ -316,7 +319,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#93C5FD',
     dark: '#1E293B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGameRedTealBoard',
@@ -324,7 +328,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#FCA5A5',
     dark: '#0F766E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGamePurpleLimeBoard',
@@ -332,7 +337,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#C4B5FD',
     dark: '#365314',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGamePinkCyanBoard',
@@ -340,7 +346,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#F9A8D4',
     dark: '#164E63',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGameGoldSlateBoard',
@@ -348,7 +355,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#FDE68A',
     dark: '#0F172A',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGameEmeraldFuchsiaBoard',
@@ -356,7 +364,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#6EE7B7',
     dark: '#4A044E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGameSilverGraphiteBoard',
@@ -364,7 +373,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#E5E7EB',
     dark: '#111827',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   }),
   buildBoardTheme({
     id: 'beautifulGameForestSandBoard',
@@ -372,7 +382,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     light: '#FDEAD7',
     dark: '#064E3B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    useAuthenticPalette: true
   })
 ]);
 
@@ -1462,7 +1473,9 @@ function buildBoardTheme(option) {
     surfaceMetalness: clamp01(source.surfaceMetalness, BASE_BOARD_THEME.surfaceMetalness),
     frameRoughness: clamp01(source.frameRoughness, BASE_BOARD_THEME.frameRoughness),
     frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness),
-    preserveOriginalMaterials: Boolean(source.preserveOriginalMaterials)
+    preserveOriginalMaterials: Boolean(source.preserveOriginalMaterials),
+    useAuthenticPalette: Boolean(source.useAuthenticPalette),
+    swapLightDark: Boolean(source.swapLightDark)
   };
 }
 
@@ -1495,6 +1508,62 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
+function sampleMeshColor(mesh) {
+  if (!mesh?.isMesh) return null;
+  const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  for (const mat of materials) {
+    if (!mat?.color) continue;
+    const color = mat.color.clone();
+    return `#${color.getHexString()}`;
+  }
+  return null;
+}
+
+function extractBoardColorPalette(boardModel) {
+  if (!boardModel) return null;
+  const palette = {
+    light: null,
+    dark: null,
+    frameLight: null,
+    frameDark: null
+  };
+
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = (node.name || '').toLowerCase();
+    const colorHex = sampleMeshColor(node);
+    if (!colorHex) return;
+    if (name === 'boardframe' || name.includes('frame')) {
+      if (!palette.frameDark) palette.frameDark = colorHex;
+    } else if (name === 'boardtop' || name.includes('top')) {
+      if (!palette.frameLight) palette.frameLight = colorHex;
+    } else if (name.startsWith('tile_')) {
+      const [, r, c] = node.name.split('_');
+      const isDark = (Number(r) + Number(c)) % 2 === 1;
+      const key = isDark ? 'dark' : 'light';
+      if (!palette[key]) palette[key] = colorHex;
+    }
+  });
+
+  const hasColors = Object.values(palette).some(Boolean);
+  return hasColors ? palette : null;
+}
+
+function ensureAuthenticBoardPalette(boardModel) {
+  if (!boardModel) return null;
+  if (boardModel.userData?.__authenticBoardPalette) {
+    return boardModel.userData.__authenticBoardPalette;
+  }
+  const palette = extractBoardColorPalette(boardModel);
+  if (palette) {
+    boardModel.userData = {
+      ...(boardModel.userData || {}),
+      __authenticBoardPalette: palette
+    };
+  }
+  return palette;
+}
+
 function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
 
@@ -1502,6 +1571,14 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   restoreBoardMaterials(boardModel);
 
   const theme = buildBoardTheme(boardTheme);
+  const authenticPalette = theme.useAuthenticPalette ? ensureAuthenticBoardPalette(boardModel) : null;
+  if (authenticPalette) {
+    const swap = theme.swapLightDark;
+    theme.light = swap ? authenticPalette.dark ?? theme.light : authenticPalette.light ?? theme.light;
+    theme.dark = swap ? authenticPalette.light ?? theme.dark : authenticPalette.dark ?? theme.dark;
+    theme.frameLight = authenticPalette.frameLight ?? theme.frameLight;
+    theme.frameDark = authenticPalette.frameDark ?? theme.frameDark;
+  }
 
   if (theme.preserveOriginalMaterials) {
     return;
@@ -5258,7 +5335,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const pixelRatio = Math.min(2.5, Math.max(1.5, window.devicePixelRatio || 1));
+    renderer.setPixelRatio(pixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
@@ -5941,6 +6019,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (boardModel) {
         boardModel.visible = true;
         boardGroup.add(boardModel);
+        const authenticPalette = ensureAuthenticBoardPalette(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
@@ -5950,6 +6029,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           } catch {}
           disposeObject3D(boardModel);
         };
+        if (arenaRef.current && authenticPalette) {
+          arenaRef.current.authenticBoardPalette = authenticPalette;
+        }
       } else {
         setProceduralBoardVisible(true);
         currentBoardModel = null;
@@ -6455,8 +6537,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     // Loop
     let lastTime = performance.now();
-    const step = () => {
-      const now = performance.now();
+    const minFrameInterval = 1000 / 40;
+    const renderOnce = (timestamp) => {
+      const now = timestamp ?? performance.now();
       const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
       const arenaState = arenaRef.current;
@@ -6507,9 +6590,20 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
       controls?.update();
       renderer.render(scene, camera);
+    };
+
+    const step = (timestamp) => {
+      renderOnce(timestamp);
       rafRef.current = requestAnimationFrame(step);
     };
-    step();
+    step(performance.now());
+
+    const frameGuard = window.setInterval(() => {
+      const now = performance.now();
+      if (now - lastTime > minFrameInterval * 1.05) {
+        renderOnce(now);
+      }
+    }, minFrameInterval);
 
     // Resize
     onResize = () => {
@@ -6528,6 +6622,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     return () => {
       cancelled = true;
       cancelAnimationFrame(rafRef.current);
+      if (frameGuard) {
+        clearInterval(frameGuard);
+      }
       stopCameraTween();
       if (onResize) {
         window.removeEventListener('resize', onResize);
