@@ -261,24 +261,6 @@ export default function GamesHallway({ games, onClose }) {
     floorGlow.position.set(0, 1.2, 0);
     scene.add(floorGlow);
 
-    const woodTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/wood/mahogany_diffuse.jpg');
-    woodTex.colorSpace = THREE.SRGBColorSpace;
-
-    const handleTex = loader.load('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r150/examples/textures/metal/Brass_Albedo.jpg');
-    handleTex.colorSpace = THREE.SRGBColorSpace;
-
-    const doorMat = new THREE.MeshStandardMaterial({
-      map: woodTex,
-      color: '#7b4a1a',
-      roughness: 0.3,
-      metalness: 0.25
-    });
-    const handleMat = new THREE.MeshStandardMaterial({
-      map: handleTex,
-      color: '#ffd700',
-      metalness: 1,
-      roughness: 0.1
-    });
     const frameMat = new THREE.MeshStandardMaterial({ color: '#c4a26c', metalness: 0.8, roughness: 0.2 });
 
     const signBackgroundColor = '#000000';
@@ -290,7 +272,6 @@ export default function GamesHallway({ games, onClose }) {
       : fallbackGameNames.map((name) => ({ name }));
 
     const interactable = [];
-    const handleGeom = new THREE.CylinderGeometry(0.07, 0.07, 0.4, 32);
 
     doorEntries.forEach((game, index) => {
       const label = String(game?.name || fallbackGameNames[index % fallbackGameNames.length]);
@@ -311,34 +292,6 @@ export default function GamesHallway({ games, onClose }) {
       frame.userData = { type: 'door', route: game?.route ?? null, game };
       doorGroup.add(frame);
       interactable.push(frame);
-
-      const leftDoor = new THREE.Mesh(new THREE.BoxGeometry(2, 4.8, 0.12), doorMat);
-      const rightDoor = new THREE.Mesh(new THREE.BoxGeometry(2, 4.8, 0.12), doorMat);
-      leftDoor.position.set(-1.05, 0, 0.12);
-      rightDoor.position.set(1.05, 0, 0.12);
-      [leftDoor, rightDoor].forEach((doorPanel) => {
-        doorPanel.castShadow = true;
-        doorPanel.receiveShadow = true;
-        doorPanel.userData = { type: 'door', route: game?.route ?? null, game };
-        interactable.push(doorPanel);
-      });
-      doorGroup.add(leftDoor);
-      doorGroup.add(rightDoor);
-
-      const leftHandle = new THREE.Mesh(handleGeom, handleMat);
-      const rightHandle = leftHandle.clone();
-      leftHandle.rotation.z = Math.PI / 2;
-      rightHandle.rotation.z = Math.PI / 2;
-      leftHandle.position.set(0.85, 0, 0.16);
-      rightHandle.position.set(-0.85, 0, 0.16);
-      [leftHandle, rightHandle].forEach((handle) => {
-        handle.castShadow = true;
-        handle.receiveShadow = false;
-        handle.userData = { type: 'door', route: game?.route ?? null, game };
-        interactable.push(handle);
-      });
-      leftDoor.add(leftHandle);
-      rightDoor.add(rightHandle);
 
       const signCanvas = document.createElement('canvas');
       signCanvas.width = 2048;
