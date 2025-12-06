@@ -1111,7 +1111,7 @@ const SPIN_TIP_MARGIN = CUE_TIP_RADIUS * 1.6;
 const SIDE_SPIN_MULTIPLIER = 1.25;
 const BACKSPIN_MULTIPLIER = 1.7 * 1.25 * 1.5;
 const TOPSPIN_MULTIPLIER = 1.3;
-const CUE_CLEARANCE_PADDING = BALL_R * 0.25;
+const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
@@ -10847,6 +10847,15 @@ function PoolRoyaleGame({
           syncBlendToSpherical();
         };
 
+        const sanitizeVector3 = (vec, fallback = null) => {
+          if (!vec) return fallback;
+          const { x, y, z } = vec;
+          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) {
+            return fallback;
+          }
+          return vec;
+        };
+
 
         const updateBroadcastCameras = ({
           railDir = 1,
@@ -10856,6 +10865,8 @@ function PoolRoyaleGame({
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
+          const safeTargetWorld = sanitizeVector3(targetWorld, null);
+          const safeFocusWorld = sanitizeVector3(focusWorld, null);
           const system =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? BROADCAST_SYSTEM_OPTIONS[0];
           const smoothing = THREE.MathUtils.clamp(
@@ -10864,8 +10875,8 @@ function PoolRoyaleGame({
             1
           );
           const baseFocus =
-            focusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
-          const trackingTarget = targetWorld ?? baseFocus;
+            safeFocusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
+          const trackingTarget = safeTargetWorld ?? baseFocus;
           const bias = THREE.MathUtils.clamp(system?.trackingBias ?? 0, 0, 1);
           const focusTarget =
             baseFocus && trackingTarget
