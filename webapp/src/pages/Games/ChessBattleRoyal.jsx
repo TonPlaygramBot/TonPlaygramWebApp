@@ -381,7 +381,7 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
   label: 'Classic Olive',
   white: {
-    color: '#d9c6a3',
+    color: '#f6f7fb',
     roughness: 0.28,
     metalness: 0.3,
     sheen: 0.3,
@@ -403,7 +403,7 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissiveIntensity: 0.22
   },
   accent: '#caa472',
-  whiteAccent: { color: '#d9c6a3' },
+  whiteAccent: { color: '#f6f7fb' },
   blackAccent: '#4f7f5c'
 });
 
