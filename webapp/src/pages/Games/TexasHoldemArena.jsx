@@ -109,6 +109,7 @@ const CARD_FORWARD_OFFSET = HUMAN_CARD_FORWARD_OFFSET;
 const CARD_VERTICAL_OFFSET = HUMAN_CARD_VERTICAL_OFFSET;
 const CARD_LOOK_LIFT = HUMAN_CARD_LOOK_LIFT;
 const CARD_LOOK_SPLAY = HUMAN_CARD_LOOK_SPLAY;
+const NAMEPLATE_BACK_TILT = -Math.PI / 14;
 const BET_FORWARD_OFFSET = CARD_W * -0.2;
 const POT_BELOW_COMMUNITY_OFFSET = -CARD_H;
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
@@ -931,7 +932,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const classicAngles =
     tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
   for (let i = 0; i < safeCount; i += 1) {
-    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
+    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
@@ -1426,7 +1427,7 @@ function payChips(player, amount, state) {
 function getNextActiveIndex(players, startIndex) {
   if (!players.length) return 0;
   for (let offset = 1; offset <= players.length; offset += 1) {
-    const idx = (startIndex - offset + players.length) % players.length;
+    const idx = (startIndex + offset) % players.length;
     const p = players[idx];
     if (!p) continue;
     if (!p.folded && p.chips > 0 && !p.allIn) {
@@ -1767,7 +1768,7 @@ function TexasHoldemArena({ search }) {
       return { ...DEFAULT_APPEARANCE };
     }
   });
-  const [, setTurnCountdown] = useState(TURN_DURATION);
+  const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const appearanceRef = useRef(appearance);
   useEffect(() => {
     if (effectivePlayerCount > 4) {
@@ -2513,6 +2514,9 @@ function TexasHoldemArena({ search }) {
 
         const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seat.player?.avatar);
         nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
+        const nameplateFacing = seat.forward.clone().setY(0).normalize();
+        nameplate.lookAt(nameplate.position.clone().add(nameplateFacing));
+        nameplate.rotateX(NAMEPLATE_BACK_TILT);
         arenaGroup.add(nameplate);
 
         const seatGroup = {
@@ -3218,13 +3222,21 @@ function TexasHoldemArena({ search }) {
     if (typeof focusIndex !== 'number') return;
     const seat = three.seatGroups?.[focusIndex];
     const pointerState = pointerStateRef.current;
-    if (!(pointerState?.active && pointerState.mode === 'camera')) {
-      focusCameraOnSeat(focusIndex, false);
+    const isCameraDragged = pointerState?.active && pointerState.mode === 'camera';
+    if (!isCameraDragged) {
+      if (seat?.isHuman) {
+        headAnglesRef.current.yaw = 0;
+        headAnglesRef.current.pitch = 0;
+        cameraAutoTargetRef.current = { yaw: 0, activeIndex: seat.index ?? focusIndex };
+        applyHeadOrientation();
+      } else {
+        focusCameraOnSeat(focusIndex, false);
+      }
     }
     if (seat?.isHuman) {
       playSound('knock');
     }
-  }, [currentActionIndex, currentStage, findSeatWithAvatar, focusCameraOnSeat, playSound]);
+  }, [applyHeadOrientation, currentActionIndex, currentStage, findSeatWithAvatar, focusCameraOnSeat, playSound]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3412,6 +3424,7 @@ function TexasHoldemArena({ search }) {
   const actor = gameState.players[gameState.actionIndex];
   const humanPlayer = useMemo(() => gameState.players.find((p) => p.isHuman), [gameState.players]);
   const isHumanTurn = actor?.id === humanPlayer?.id;
+  const countdownProgress = Math.min(1, Math.max(0, turnCountdown / TURN_DURATION));
   const toCall = humanPlayer ? Math.max(0, gameState.currentBet - humanPlayer.bet) : 0;
   const sliderMax = humanPlayer ? Math.max(0, humanPlayer.chips - toCall) : 0;
   const minRaiseAmount = humanPlayer ? Math.min(sliderMax, gameState.minRaise) : 0;
@@ -3438,6 +3451,38 @@ function TexasHoldemArena({ search }) {
     const name = actor.name || 'Opponent';
     return `${name} is acting`;
   }, [actor, gameState.stage]);
+
+  const renderAvatarTimer = useCallback(
+    (avatarSrc, size = 56) => {
+      const rotation = countdownProgress * 360;
+      return (
+        <div
+          className="relative inline-flex items-center justify-center rounded-full"
+          style={{
+            width: size,
+            height: size,
+            background: `conic-gradient(#fbbf24 ${rotation}deg, rgba(255,255,255,0.12) ${rotation}deg 360deg)`,
+            padding: Math.max(2, size * 0.08)
+          }}
+        >
+          <div className="absolute inset-[10%] rounded-full bg-black/80" />
+          {avatarSrc ? (
+            <img
+              src={avatarSrc}
+              alt="player avatar"
+              className="relative h-full w-full rounded-full object-cover border border-white/25 shadow-inner"
+            />
+          ) : (
+            <div className="relative h-full w-full rounded-full bg-slate-600/50" />
+          )}
+          <div className="absolute inset-0 flex items-center justify-center text-[0.65rem] font-semibold text-white drop-shadow-sm">
+            {Math.max(0, Math.ceil(turnCountdown))}s
+          </div>
+        </div>
+      );
+    },
+    [countdownProgress, turnCountdown]
+  );
 
   useEffect(() => {
     if (turnIntervalRef.current) {
@@ -3668,9 +3713,12 @@ function TexasHoldemArena({ search }) {
       </div>
       <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
-          {humanPlayer?.avatar && (
-            <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
-          )}
+          {humanPlayer?.avatar &&
+            (isHumanTurn ? (
+              renderAvatarTimer(humanPlayer.avatar, 44)
+            ) : (
+              <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
+            ))}
           <div className="flex flex-col leading-tight text-white text-center">
             <span className="text-sm font-semibold drop-shadow-md">{humanPlayer?.name || 'You'}</span>
             <span className="text-[0.74rem] text-white/80">
@@ -3679,13 +3727,23 @@ function TexasHoldemArena({ search }) {
           </div>
         </div>
       </div>
-      {turnLabel && (
+      {turnLabel && actor && gameState.stage !== 'showdown' && (
         <div className="pointer-events-none absolute top-3 inset-x-0 z-20 flex justify-center">
-          <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
-            {turnLabel}
+          <div className="flex items-center gap-3 rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
+            {renderAvatarTimer(actor.avatar || humanPlayer?.avatar, 54)}
+            <div className="flex flex-col text-left leading-tight">
+              <span className="text-[0.65rem] uppercase tracking-[0.3em] text-amber-100/80">Aktiv</span>
+              <span>{turnLabel}</span>
+            </div>
           </div>
         </div>
       )}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-16">
+        <div className="rounded-full border border-white/10 bg-black/70 px-3 py-1 text-[0.8rem] font-semibold text-amber-100 shadow-lg backdrop-blur">
+          <span className="mr-2 text-[0.65rem] uppercase tracking-[0.25em] text-white/70">Total pot:</span>
+          <span className="text-amber-200">{Math.round(gameState.pot ?? 0)} {gameState.token}</span>
+        </div>
+      </div>
       {sliderVisible && (
         <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white sm:right-6 sm:bottom-36">
           <div className="flex flex-col items-center gap-3">
