@@ -1,55 +1,66 @@
-# London 1990 Reconstruction Plan
+# London 1990 Western Area Rebuild Plan
 
-This document outlines a pragmatic approach to replace an existing city scene with a highly detailed, historically inspired reconstruction of western London circa 1990 using only open data and open-source assets (GLTF/GLB preferred).
+This document outlines how to replace the existing city content with a 1990-era recreation of western London using only open data and free, open-source GLTF assets.
 
 ## Goals
-- Remove the current city content (terrain, roads, buildings, props) and rebuild based on real-world topology for western London.
-- Keep the experience performant for a mobile-friendly WebGL/Three.js stack while retaining 1990-era visual cues.
-- Maintain modular systems (input, physics, rendering, UI, audio, networking) to simplify iteration.
+- Remove every existing city object (buildings, roads, pavements, parks, institutions) and replace them with data-driven equivalents for western London as it appeared circa 1990.
+- Use only open data (e.g., OpenStreetMap, Ordnance Survey OpenData) and open-source assets that allow redistribution in GLTF/GLB format.
+- Keep gameplay performant with modular systems (input, physics, rendering, UI, audio, networking) and clear onboarding/core loop.
 
-## Data sources (open-license)
-- **OpenStreetMap (OSM)**: roads, pavements, parks, rail lines, river outlines, and building footprints.
-- **Ordnance Survey OpenData**: supplemental footprints and height hints where OSM is sparse.
-- **Environment textures**: CC0 skyboxes from Poly Haven; CC0 terrain/brick/asphalt packs from ambientCG.
-- **Props & vehicles (1990s look)**: CC0/CC-BY GLTF packs on Sketchfab/Poly Pizza; prefer low-poly LOD sets.
+## Data Sources (Open & License-Friendly)
+- **OpenStreetMap**: road centerlines, footprints, parks. Export via [overpass-turbo.eu](https://overpass-turbo.eu/) or `osmium` to PBF/GeoJSON.
+- **Ordnance Survey OpenData**: historic building footprints where available; complements OSM gaps.
+- **Environment textures**: HDRIs from [polyhaven.com](https://polyhaven.com/) (CC0) for skyboxes and reflections.
+- **Props & vehicles**: CC0/CC-BY GLTF packs from [Kenney.nl](https://kenney.nl/assets) and [AmbientCG](https://ambientcg.com/) for materials.
+- **Terrain/elevation**: SRTM/ASTER DEM (public domain) for gentle height variation; downsample for performance.
 
-> Avoid Google Maps/Earth geometry or textures; use them only as visual references.
+> Avoid Google Maps/Earth geometry or textures because they are not redistributable.
 
-## Extraction & conversion pipeline
-1. **Roads & pavements**: export western London OSM extract (Geofabrik). Convert to vector tiles or GeoJSON and generate meshes with `osm2world` or `blender-osm` → export GLTF.
-2. **Buildings**: use OSM footprints + OS height hints; extrude in Blender with procedural height ranges based on building type (residential/office/retail) to match 1990 silhouettes. Export LOD0 (hero) and LOD1 (blocky) GLTFs.
-3. **Parks & water**: derive masks from OSM multipolygons; generate simple height-blended meshes. Apply CC0 grass/water materials.
-4. **Street furniture**: place 1990s-appropriate lamps, phone boxes, bus stops from CC0 GLTF kits. Create a placement CSV keyed by OSM node IDs for reproducibility.
-5. **Traffic & pedestrians**: use lightweight agent placeholders; later swap with rigged 1990s vehicles/peds GLTFs.
+## Extraction & Conversion Pipeline
+1. **Download area extract**: western London bounding box (e.g., Heathrow to Paddington). Save as `data/london-west-1990.osm.pbf`.
+2. **Generate base meshes**:
+   - Roads/pavements: use `osm2world` or `blender-osm` to convert OSM data to GLTF; set lane widths to 1990 standards (e.g., 3.2m) and enable sidewalk generation.
+   - Buildings: extrude footprints by historical heights (use OSM `height`/`levels`; otherwise fallback to area averages by landuse). Export as GLTF with LODs (high/medium/low) per district.
+   - Parks/greenery: convert `leisure=park` and `landuse=grass` polygons to simple ground meshes with tiling materials.
+3. **Optimize**:
+   - Run meshes through `gltfpack` (`gltfpack -i input.glb -o output.glb -cc -kn`) for compression.
+   - Bake lightmaps in Blender for static geometry; keep dynamic lights minimal.
+   - Generate collision meshes separately (simplified boxes/prisms) and keep them in a distinct GLTF node hierarchy.
+4. **Organize assets**: place GLTF/GLB files under `assets/london-1990/{roads,buildings,parks,props}/`. Include a manifest JSON referencing provenance and license of each file.
 
-## Scene layout (western London focus)
-- Cover key districts (e.g., Kensington, Hammersmith, Notting Hill, Chelsea) to keep scope bounded.
-- Use a **tile streaming** grid (e.g., 250–500 m chunks) with origin near the Thames to minimize floating-point error.
-- Each tile bundles: terrain patch, road mesh, building LODs, foliage/props list, baked light probes.
+## In-Engine Integration (Unity or Web/Three.js)
+- **ECS-friendly layout**: import GLTFs as prefabs with components for `Transform`, `Renderable`, `Collider`, and `AudioZone`.
+- **Streaming**: segment the city into grid chunks (~250m tiles). Stream GLTF tiles in/out based on camera distance; prewarm colliders.
+- **LODs**: assign LOD0/1/2 to each building; switch on screen size to maintain FPS on mobile.
+- **Collisions**: use dedicated collider GLTF layers to keep physics simple; disable mesh colliders on decorative props.
+- **Navigation**: build navmeshes per tile; stitch at chunk borders for AI/traffic.
+- **Lighting**: single directional sun + baked GI; per-district reflection probes using PolyHaven HDRIs for 1990 overcast feel.
+- **Audio**: ambient loops per zone (traffic, park, market) with distance-based attenuation.
 
-## Engine integration (Three.js/WebGL)
-- **Import pipeline**: `draco` compressed GLTFs; atlas textures (2048 for hero tiles, 1024 for peripheral tiles).
-- **ECS layout**: entities for `Transform`, `Renderable`, `Collider`, `AudioSource`, `Interactable`.
-- **Gameloop**: update → physics (fixed dt) → AI → animation → render. Keep rendering decoupled from data streaming.
-- **Culling & LOD**: frustrum + distance culling; switch LODs by screen size. Occlusion hints baked per tile.
-- **Input**: action-map abstraction for touch/gamepad/keyboard; mobile-first camera (orbit + first-person toggle).
+## Art Direction for 1990s London
+- Color palette: muted brick reds, concrete grays, dark asphalt; low-saturation shop signage.
+- Vehicles/props: 80s–90s era buses, black cabs, phone boxes, sodium-vapor streetlights.
+- Road markings: dashed white lane separators, yellow curb lines, 90s-era signage fonts.
+- Architecture mix: terraced housing, post-war estates, 80s office blocks around Paddington/Shepherd's Bush.
 
-## Visual tone (1990s London)
-- Desaturated brick/stone palettes; sodium-vapor streetlights; boxy vehicles and phone boxes as anchors.
-- Use baked lightmaps or light probes for static geometry; minimal real-time lights.
-- Add period signage/ads via CC0 decals; avoid modern LED screens.
+## Task Breakdown
+- **Data cleanup**: normalize OSM tags, fix building holes, ensure topology is manifold before extrusion.
+- **Mesh generation**: scriptable pipeline (Node/TypeScript or Python) that ingests PBF and outputs tiled GLTF with LODs.
+- **Prefab assembly**: create reusable prefabs for road segments, intersections, terraced houses, shopfronts, and landmarks; attach colliders and LOD groups.
+- **Replacement pass**: remove existing city scene references and load new tile manifest; verify gameplay loops (spawn, navigation, interactions) still work.
+- **Performance pass**: profile draw calls, memory, and GC; apply batching and texture atlases.
+- **QA**: automated scene load smoke test; collision pass; navigation sanity; visual checklist vs. 1990 references.
 
-## Build & validation steps
-- Bake tiles in Blender via script (Python) to ensure deterministic exports.
-- Run GLTF validator on every asset drop; ensure triangle counts per tile stay within budget (hero <150k, peripheral <60k).
-- Profiling: measure GPU frame time and draw calls per tile; enforce object pooling for dynamic agents.
+## Onboarding & UX Considerations
+- Keep controls responsive; provide a 20–30s tutorial overlay explaining movement, camera, and interaction hotspots.
+- Add contextual cues (icons/audio) when interacting with 90s props (phone boxes, buses, market stalls).
+- Ensure accessibility: remappable inputs and color-safe signage contrast.
 
-## Onboarding & UX
-- Short tap-through tutorial: move, look, interact. Provide visual/audio feedback for every action.
-- Settings: toggle LOD quality, traffic density, and post-processing (grain/bloom on/off).
+## Open-Source Compliance
+- Maintain a `LICENSES.md` in the asset folder listing each source, license, and attribution text.
+- Store raw data downloads and conversion scripts under `tools/london-1990/` with README for reproducibility.
 
-## Next actions (suggested backlog)
-- Automate OSM → GLTF export for west-London bounding box.
-- Prototype tile loader in `src/` with streaming and LOD swapping.
-- Integrate CC0 1990s prop pack and set up placement CSV per tile.
-- Create a reference moodboard (non-included) from archival photos to drive material tuning.
+## Next Steps
+1. Prototype one 250m tile around Paddington with OSM → GLTF pipeline and measure FPS on target devices.
+2. Define asset manifest schema and hook streaming loader to current game loop.
+3. Replace remaining tiles iteratively, running smoke tests after each district.
