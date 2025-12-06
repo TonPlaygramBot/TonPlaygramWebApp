@@ -135,11 +135,6 @@ const HUMAN_CARD_SCALE = 1;
 const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const TURN_TOKEN_RADIUS = 0.15 * MODEL_SCALE;
-const TURN_TOKEN_HEIGHT = 0.08 * MODEL_SCALE;
-const TURN_TOKEN_FORWARD_OFFSET = -0.04 * MODEL_SCALE;
-const TURN_TOKEN_LIFT = 0.12 * MODEL_SCALE;
-
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
@@ -1425,7 +1420,7 @@ function payChips(player, amount, state) {
 function getNextActiveIndex(players, startIndex) {
   if (!players.length) return 0;
   for (let offset = 1; offset <= players.length; offset += 1) {
-    const idx = (startIndex + offset) % players.length;
+    const idx = (startIndex - offset + players.length) % players.length;
     const p = players[idx];
     if (!p) continue;
     if (!p.folded && p.chips > 0 && !p.allIn) {
@@ -2627,26 +2622,9 @@ function TexasHoldemArena({ search }) {
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
 
-      const turnIndicator = new THREE.Mesh(
-        new THREE.CylinderGeometry(TURN_TOKEN_RADIUS * 1.05, TURN_TOKEN_RADIUS * 0.95, TURN_TOKEN_HEIGHT * 4, 48),
-        new THREE.MeshStandardMaterial({
-          color: '#d97706',
-          emissive: '#fbbf24',
-          emissiveIntensity: 0.36,
-          metalness: 0.42,
-          roughness: 0.24
-        })
-      );
-      turnIndicator.rotation.x = Math.PI / 2;
-      turnIndicator.position.copy(potAnchor.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
-      turnIndicator.visible = false;
-      turnIndicator.castShadow = true;
-      turnIndicator.receiveShadow = true;
-      arenaGroup.add(turnIndicator);
-
-        const orientHumanCards = () => {
-          const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
-          if (!humanSeatGroup) return;
+      const orientHumanCards = () => {
+        const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
+        if (!humanSeatGroup) return;
 
           const baseAnchor =
             getHumanCardAnchor(humanSeatGroup) ??
@@ -2678,7 +2656,6 @@ function TexasHoldemArena({ search }) {
         seatGroups,
         communityMeshes,
         potStack,
-          turnIndicator,
           potLayout,
           deckAnchor,
           raiseControls,
@@ -2966,11 +2943,6 @@ function TexasHoldemArena({ search }) {
           s.remove(mesh);
         });
         factory.disposeStack(threeRef.current.potStack);
-        if (turnIndicator) {
-          turnIndicator.geometry?.dispose?.();
-          turnIndicator.material?.dispose?.();
-          turnIndicator.parent?.remove(turnIndicator);
-        }
         factory.dispose();
         arena?.parent?.remove(arena);
         controls?.dispose?.();
@@ -2986,7 +2958,7 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
-    const { seatGroups, communityMeshes, chipFactory, potStack, potLayout, deckAnchor, arenaGroup, turnIndicator } = three;
+    const { seatGroups, communityMeshes, chipFactory, potStack, potLayout, deckAnchor, arenaGroup } = three;
     const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
     if (!state) return;
@@ -2996,9 +2968,6 @@ function TexasHoldemArena({ search }) {
 
     const showdownState = showdownAnimationRef.current;
     const winningCommunity = new Set(state.winningCommunityCards ?? []);
-
-    let turnTarget = null;
-    let turnForward = null;
 
     state.players.forEach((player, idx) => {
       const seat = seatGroups[idx];
@@ -3123,13 +3092,6 @@ function TexasHoldemArena({ search }) {
       }
 
       const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
-      if (highlight) {
-        const railAnchor = seat.chipRailAnchor ?? seat.cardRailAnchor ?? seat.chipAnchor;
-        turnTarget = railAnchor
-          .clone()
-          .add(new THREE.Vector3(0, TURN_TOKEN_LIFT + RAIL_SURFACE_LIFT, TURN_TOKEN_FORWARD_OFFSET));
-        turnForward = seat.forward.clone();
-      }
       const label = seat.nameplate;
       if (label?.userData?.update) {
         const status = player.status || '';
@@ -3159,25 +3121,6 @@ function TexasHoldemArena({ search }) {
       }
       seat.lastStatus = currentStatus;
     });
-
-    if (turnIndicator) {
-      if (turnTarget) {
-        if (!turnIndicator.visible) {
-          turnIndicator.position.copy(turnTarget);
-        } else {
-          turnIndicator.position.lerp(turnTarget, 0.32);
-        }
-        const forward = turnForward ? turnForward.clone().setY(0).normalize() : null;
-        if (forward && forward.lengthSq() > 0) {
-          const lookTarget = turnIndicator.position.clone().add(forward);
-          turnIndicator.lookAt(lookTarget);
-          turnIndicator.up.copy(WORLD_UP);
-        }
-        turnIndicator.visible = true;
-      } else {
-        turnIndicator.visible = false;
-      }
-    }
 
     three.orientHumanCards?.();
 
@@ -3250,10 +3193,14 @@ function TexasHoldemArena({ search }) {
     const three = threeRef.current;
     if (!three) return;
     const seat = three.seatGroups?.[currentActionIndex];
+    const pointerState = pointerStateRef.current;
+    if (!(pointerState?.active && pointerState.mode === 'camera')) {
+      focusCameraOnSeat(currentActionIndex, false);
+    }
     if (seat?.isHuman) {
       playSound('knock');
     }
-  }, [currentActionIndex, currentStage, playSound]);
+  }, [currentActionIndex, currentStage, focusCameraOnSeat, playSound]);
 
   useEffect(() => {
     if (!gameState) return;
