@@ -394,19 +394,19 @@ const SCULPTED_DRAG_STYLE = Object.freeze({
 
 const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   id: 'beautifulGameAuthentic',
-  label: 'Authentic ABeautifulGame',
+  label: 'Classic Olive',
   white: {
-    color: '#fffad3',
+    color: '#f6f7fb',
     roughness: 0.28,
     metalness: 0.3,
     sheen: 0.3,
-    sheenColor: '#fffad3',
+    sheenColor: '#ffffff',
     clearcoat: 0.32,
     clearcoatRoughness: 0.22,
     specularIntensity: 0.72
   },
   black: {
-    color: '#4c8073',
+    color: '#3f5f46',
     roughness: 0.28,
     metalness: 0.36,
     sheen: 0.24,
@@ -417,10 +417,10 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissive: '#25291c',
     emissiveIntensity: 0.22
   },
-  accent: '#caa472',
-  goldAccent: '#caa472',
-  whiteAccent: { color: '#fffad3' },
-  blackAccent: '#caa472'
+  accent: '#d7b24a',
+  goldAccent: '#d7b24a',
+  whiteAccent: { color: '#f6f7fb' },
+  blackAccent: '#b7892c'
 });
 
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
