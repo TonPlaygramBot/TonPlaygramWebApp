@@ -1495,6 +1495,31 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
+function extractBoardColorPalette(boardModel) {
+  if (!boardModel) return null;
+  const palette = { light: null, dark: null, frameLight: null, frameDark: null };
+  const store = (key, mat) => {
+    if (palette[key]) return;
+    const color = mat?.color;
+    if (color?.getHexString) palette[key] = `#${color.getHexString()}`;
+  };
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    const name = node.name ?? '';
+    if (name === 'BoardFrame' || name.toLowerCase().includes('frame')) {
+      materials.forEach((mat) => store('frameDark', mat));
+    } else if (name === 'BoardTop' || name.toLowerCase().includes('top')) {
+      materials.forEach((mat) => store('frameLight', mat));
+    } else if (name.startsWith('Tile_')) {
+      const [, r, c] = name.split('_');
+      const isDark = (Number(r) + Number(c)) % 2 === 1;
+      materials.forEach((mat) => store(isDark ? 'dark' : 'light', mat));
+    }
+  });
+  return palette;
+}
+
 function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
 
@@ -1586,14 +1611,27 @@ function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = 
   };
 }
 
-function createChessPalette(appearance = DEFAULT_APPEARANCE) {
+function mergeAuthenticBoardColors(themeSource, authenticBoardColors) {
+  if (!authenticBoardColors) return themeSource;
+  return {
+    ...themeSource,
+    light: authenticBoardColors.light ?? themeSource.light,
+    dark: authenticBoardColors.dark ?? themeSource.dark,
+    frameLight: authenticBoardColors.frameLight ?? themeSource.frameLight,
+    frameDark: authenticBoardColors.frameDark ?? themeSource.frameDark,
+    preserveOriginalMaterials: true
+  };
+}
+
+function createChessPalette(appearance = DEFAULT_APPEARANCE, authenticBoardColors = null) {
   const normalized = normalizeAppearance(appearance);
   const whitePieceOption =
     PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const blackPieceOption =
     PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
-  const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+  const boardSource = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+  const boardOption = mergeAuthenticBoardColors(boardSource, authenticBoardColors);
   const boardTheme = buildBoardTheme(boardOption);
   return {
     board: boardTheme,
@@ -4612,7 +4650,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     return { ...DEFAULT_APPEARANCE };
   });
   const appearanceRef = useRef(appearance);
-  const paletteRef = useRef(createChessPalette(appearance));
+  const authenticBoardColorsRef = useRef(null);
+  const paletteRef = useRef(createChessPalette(appearance, authenticBoardColorsRef.current));
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
     if (initialFlag && FLAG_EMOJIS.includes(initialFlag)) {
@@ -4981,7 +5020,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     if (!arena) return;
 
     const normalized = normalizeAppearance(appearance);
-    const palette = createChessPalette(normalized);
+    const palette = createChessPalette(normalized, authenticBoardColorsRef.current);
     paletteRef.current = palette;
     arena.palette = palette;
     if (arenaRef.current) {
@@ -5197,7 +5236,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const setup = async () => {
 
     const normalizedAppearance = normalizeAppearance(appearanceRef.current);
-    const palette = createChessPalette(normalizedAppearance);
+    const palette = createChessPalette(normalizedAppearance, authenticBoardColorsRef.current);
     paletteRef.current = palette;
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
@@ -5258,7 +5297,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    renderer.setPixelRatio(Math.min(2.5, Math.max(1.25, devicePixelRatio * 1.1)));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
@@ -5941,6 +5981,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (boardModel) {
         boardModel.visible = true;
         boardGroup.add(boardModel);
+        const authenticPalette = extractBoardColorPalette(boardModel);
+        if (authenticPalette) {
+          authenticBoardColorsRef.current = authenticPalette;
+          paletteRef.current = createChessPalette(
+            appearanceRef.current,
+            authenticBoardColorsRef.current
+          );
+        }
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
@@ -6455,9 +6503,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     // Loop
     let lastTime = performance.now();
+    const minFrameDt = 1 / 40;
     const step = () => {
       const now = performance.now();
-      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+      const dtRaw = Math.max(0, (now - lastTime) / 1000);
+      const dt = Math.min(0.1, dtRaw);
+      const frameDt = Math.min(dt, minFrameDt);
       lastTime = now;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
@@ -6502,7 +6553,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const pct = clamp01(activeLeft / Math.max(1, activeTotal));
         arenaState.sandTimer.setFill?.(pct);
         arenaState.sandTimer.setTime?.(activeLeft);
-        arenaState.sandTimer.tick?.(dt, now * 0.001);
+        arenaState.sandTimer.tick?.(frameDt, now * 0.001);
       }
 
       controls?.update();
