@@ -127,18 +127,18 @@ const PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND = 0.48;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL = CARD_W * 0.02;
 const PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT = CARD_SURFACE_OFFSET * 0.64;
 const HUMAN_CARD_INWARD_SHIFT = CARD_W * -0.68;
-const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.92;
+const HUMAN_CHIP_INWARD_SHIFT = CARD_W * -0.78;
 const HUMAN_CARD_LATERAL_SHIFT = CARD_W * 0.82;
 const HUMAN_CHIP_LATERAL_SHIFT = CARD_W * 1.12;
 const HUMAN_CARD_CHIP_BLEND = 0.08;
 const HUMAN_CARD_SCALE = 1;
-const COMMUNITY_CARD_SCALE = 1;
+const COMMUNITY_CARD_SCALE = 1.08;
 const HUMAN_CHIP_SCALE = 1;
 const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
-const TURN_TOKEN_RADIUS = 0.12 * MODEL_SCALE;
-const TURN_TOKEN_HEIGHT = 0.06 * MODEL_SCALE;
-const TURN_TOKEN_FORWARD_OFFSET = 0.08 * MODEL_SCALE;
-const TURN_TOKEN_LIFT = 0.1 * MODEL_SCALE;
+const TURN_TOKEN_RADIUS = 0.15 * MODEL_SCALE;
+const TURN_TOKEN_HEIGHT = 0.08 * MODEL_SCALE;
+const TURN_TOKEN_FORWARD_OFFSET = -0.04 * MODEL_SCALE;
+const TURN_TOKEN_LIFT = 0.12 * MODEL_SCALE;
 
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
@@ -182,7 +182,7 @@ const BET_DISTANCE_RATIO = 0.6;
 const RAIL_CHIP_SCALE = 1.08;
 const RAIL_CHIP_SPACING = CARD_W * 0.5;
 const RAIL_HEIGHT_OFFSET = CARD_D * 6.2;
-const RAIL_SURFACE_LIFT = CARD_D * 0.5;
+const RAIL_SURFACE_LIFT = CARD_D * 0.8;
 const RAIL_CHIP_ROW_SPACING = CARD_H * 0.36;
 
 const CHIP_SCATTER_LAYOUT = Object.freeze({
@@ -2622,13 +2622,20 @@ function TexasHoldemArena({ search }) {
       const potAnchor = computePotAnchor({ surfaceY: tableInfo?.surfaceY });
       const potStack = chipFactory.createStack(0, { mode: 'scatter', layout: CHIP_SCATTER_LAYOUT });
       potStack.position.copy(potAnchor);
+      potStack.scale.setScalar(1.06);
       arenaGroup.add(potStack);
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
 
       const turnIndicator = new THREE.Mesh(
-        new THREE.TorusGeometry(TURN_TOKEN_RADIUS, TURN_TOKEN_HEIGHT * 0.5, 16, 48),
-        new THREE.MeshStandardMaterial({ color: '#0ea5e9', emissive: '#22d3ee', emissiveIntensity: 0.48, metalness: 0.32 })
+        new THREE.CylinderGeometry(TURN_TOKEN_RADIUS * 1.05, TURN_TOKEN_RADIUS * 0.95, TURN_TOKEN_HEIGHT * 4, 48),
+        new THREE.MeshStandardMaterial({
+          color: '#d97706',
+          emissive: '#fbbf24',
+          emissiveIntensity: 0.36,
+          metalness: 0.42,
+          roughness: 0.24
+        })
       );
       turnIndicator.rotation.x = Math.PI / 2;
       turnIndicator.position.copy(potAnchor.clone().add(new THREE.Vector3(0, TURN_TOKEN_LIFT, TURN_TOKEN_FORWARD_OFFSET)));
@@ -3685,7 +3692,7 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
-      <div className="absolute bottom-10 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
+      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
         <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
           {humanPlayer?.avatar && (
             <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
@@ -3699,27 +3706,14 @@ function TexasHoldemArena({ search }) {
         </div>
       </div>
       {turnLabel && (
-        <div className="pointer-events-none absolute top-4 inset-x-0 z-20 flex justify-center">
+        <div className="pointer-events-none absolute top-3 inset-x-0 z-20 flex justify-center">
           <div className="rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
             {turnLabel}
           </div>
         </div>
       )}
       {sliderVisible && (
-        <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
-            <span className="text-2xl font-semibold drop-shadow-md">
-              {Math.round(finalRaise)} {gameState.token}
-            </span>
-            {toCall > 0 && (
-              <span className="text-[0.7rem] text-white/60">To call {Math.round(toCall)} {gameState.token}</span>
-            )}
-            {minRaiseAmount > 0 && (
-              <span className="text-[0.7rem] text-white/60">Min raise {Math.round(minRaiseAmount)} {gameState.token}</span>
-            )}
-            <span className="text-[0.7rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
-          </div>
+        <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white sm:right-6 sm:bottom-36">
           <div className="flex flex-col items-center gap-3">
             <input
               type="range"
@@ -3732,7 +3726,7 @@ function TexasHoldemArena({ search }) {
                 setChipSelection([]);
                 setSliderValue(next);
               }}
-              className="h-64 w-10 cursor-pointer appearance-none bg-transparent"
+              className="h-52 w-10 cursor-pointer appearance-none bg-transparent"
               style={{ writingMode: 'bt-lr', WebkitAppearance: 'slider-vertical' }}
             />
             <button
@@ -3745,6 +3739,19 @@ function TexasHoldemArena({ search }) {
             >
               {sliderLabel}
             </button>
+          </div>
+          <div className="flex flex-col items-center gap-1 text-center">
+            <span className="text-[0.6rem] uppercase tracking-[0.4em] text-white/60">{sliderLabel}</span>
+            <span className="text-xl font-semibold drop-shadow-md">
+              {Math.round(finalRaise)} {gameState.token}
+            </span>
+            {toCall > 0 && (
+              <span className="text-[0.65rem] text-white/60">To call {Math.round(toCall)} {gameState.token}</span>
+            )}
+            {minRaiseAmount > 0 && (
+              <span className="text-[0.65rem] text-white/60">Min raise {Math.round(minRaiseAmount)} {gameState.token}</span>
+            )}
+            <span className="text-[0.65rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
           </div>
         </div>
       )}
