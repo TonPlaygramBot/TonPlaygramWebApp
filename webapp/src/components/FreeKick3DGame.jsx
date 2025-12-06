@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
-const INSTRUCTION_TEXT = 'Swipe up to shoot • Curve by swiping sideways';
+const INSTRUCTION_TEXT = 'Swipe up to shoot • Feather the swipe to thread a pass';
 const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
 
 function formatTime(totalSeconds) {
@@ -508,6 +508,13 @@ const PASS_POWER_THRESHOLD = 0.38;
 const PASS_MAX_SPEED = 18;
 const PASS_MIN_HEIGHT = BALL_RADIUS * 1.1;
 const PASS_MAX_HEIGHT = 0.8;
+const POSSESSION_RADIUS = 0.55;
+const POSSESSION_HEIGHT_TOLERANCE = 0.42;
+const POSSESSION_SPEED_THRESHOLD = 1.2;
+const AI_DECISION_INTERVAL = 1.4;
+const AI_PASS_BIAS = 0.55;
+const AI_SHOT_DISTANCE = 7.6;
+const AI_MIN_CLEARANCE = 2.8;
 const CROSSBAR_HEIGHT_MARGIN = 0.2;
 const SOLVER_MAX_ITERATIONS = 8;
 const SOLVER_TARGET_EPSILON = 0.0012;
@@ -2078,6 +2085,17 @@ export default function FreeKick3DGame({ config }) {
     homeStrikerAnchor.position.set(0, 1.0, START_Z - 0.6);
     homeGroup.add(homeStrikerAnchor);
 
+    const awaySquad = [
+      { anchor: keeperAnchor, role: 'keeper', team: 'away' },
+      ...defenderAnchors.map((anchor) => ({ anchor, role: 'defender', team: 'away' })),
+      { anchor: strikerAnchor, role: 'striker', team: 'away' }
+    ];
+    const homeSquad = [
+      { anchor: homeKeeperAnchor, role: 'keeper', team: 'home' },
+      ...homeDefenderAnchors.map((anchor) => ({ anchor, role: 'defender', team: 'home' })),
+      { anchor: homeStrikerAnchor, role: 'striker', team: 'home' }
+    ];
+
     const awayDefenderPatrols = defenderAnchors.map((anchor, index) => ({
       anchor,
       phase: index * 0.65,
@@ -2713,6 +2731,10 @@ export default function FreeKick3DGame({ config }) {
       shotResolved: false,
       ballExploded: false,
       shotInFlight: false,
+      possession: null,
+      lastPossession: null,
+      aiDecisionCooldown: AI_DECISION_INTERVAL,
+      squads: { home: homeSquad, away: awaySquad },
       cameraCurrentPosition: camera.position.clone(),
       cameraFocus: CAMERA_IDLE_FOCUS.clone(),
       cameraShakeIntensity: 0,
@@ -3031,6 +3053,9 @@ export default function FreeKick3DGame({ config }) {
       const startX = THREE.MathUtils.clamp(THREE.MathUtils.randFloat(-startRange, startRange), -DEFENDER_MAX_OFFSET, DEFENDER_MAX_OFFSET);
       ball.position.set(startX, BALL_RADIUS, START_Z);
       ball.rotation.set(0, 0, 0);
+      state.possession = { team: 'player', anchor: homeStrikerAnchor };
+      state.lastPossession = 'player';
+      state.aiDecisionCooldown = AI_DECISION_INTERVAL;
       if (state.netSim) {
         state.netSim.velocity.fill(0);
       }
@@ -3185,6 +3210,121 @@ export default function FreeKick3DGame({ config }) {
       }
     };
 
+    const getAnchorPosition = (anchor, target = tmp) => {
+      if (!anchor) return null;
+      anchor.updateWorldMatrix(true, false);
+      anchor.getWorldPosition(target);
+      return target;
+    };
+
+    const getGoalPositionForTeam = (team) => {
+      const lateral = team === 'away' ? 0.6 : -0.6;
+      return new THREE.Vector3(lateral, goalHeight * 0.55, goalZ);
+    };
+
+    const launchBall = (target, hangTime, spinY = 0) => {
+      if (!target || !Number.isFinite(hangTime) || hangTime <= 0) return;
+      const displacement = tmp.copy(target).sub(ball.position);
+      const velocity = tmp2.set(
+        displacement.x / hangTime,
+        (displacement.y - 0.5 * GRAVITY.y * hangTime * hangTime) / hangTime,
+        displacement.z / hangTime
+      );
+      state.velocity.copy(velocity);
+      state.spin.set(0, spinY, 0);
+      state.possession = null;
+      state.shotInFlight = true;
+      state.shotResolved = false;
+      state.currentShotPoints = 0;
+    };
+
+    const chooseTeammate = (team, anchor) => {
+      const squad = state.squads?.[team] ?? [];
+      if (!squad.length) return null;
+      const origin = getAnchorPosition(anchor, tmp3)?.clone();
+      if (!origin) return null;
+      let best = null;
+      let bestScore = -Infinity;
+      squad.forEach((member) => {
+        if (!member.anchor || member.anchor === anchor) return;
+        const pos = getAnchorPosition(member.anchor, tmp3)?.clone();
+        if (!pos) return;
+        const distance = origin.distanceTo(pos);
+        const forward = goalZ - pos.z;
+        const spacing = Math.max(distance, 0.001);
+        const score = forward * 0.9 - spacing * 0.3 + (member.role === 'striker' ? 0.6 : 0);
+        if (score > bestScore) {
+          bestScore = score;
+          best = member;
+        }
+      });
+      return best;
+    };
+
+    const updateAiPlaymaking = (carrier, dt) => {
+      if (!carrier || carrier.team === 'player') return;
+      state.aiDecisionCooldown = Math.max(0, state.aiDecisionCooldown - dt);
+      if (state.aiDecisionCooldown > 0) return;
+      const carrierPos = getAnchorPosition(carrier.anchor, tmp2)?.clone();
+      if (!carrierPos) return;
+      const goalTarget = getGoalPositionForTeam(carrier.team);
+      const distanceToGoal = carrierPos.distanceTo(goalTarget);
+      const teammate = chooseTeammate(carrier.team, carrier.anchor);
+      const shouldShoot = distanceToGoal < AI_SHOT_DISTANCE || Math.random() > AI_PASS_BIAS || !teammate;
+
+      if (shouldShoot) {
+        const aim = goalTarget.clone();
+        aim.x += (Math.random() - 0.5) * 1.4;
+        aim.y = THREE.MathUtils.clamp(goalTarget.y + (Math.random() - 0.5) * 0.6, BALL_RADIUS * 0.9, goalHeight - 0.1);
+        const flightTime = THREE.MathUtils.clamp(distanceToGoal / 11, 0.55, 1.15);
+        launchBall(aim, flightTime, (Math.random() - 0.5) * 3.5);
+      } else {
+        const targetPos = getAnchorPosition(teammate.anchor, tmp3)?.clone();
+        if (!targetPos) return;
+        targetPos.y = THREE.MathUtils.clamp(targetPos.y + PASS_MIN_HEIGHT, PASS_MIN_HEIGHT, PASS_MAX_HEIGHT);
+        const travel = THREE.MathUtils.clamp(carrierPos.distanceTo(targetPos), AI_MIN_CLEARANCE, AI_SHOT_DISTANCE);
+        const hang = THREE.MathUtils.clamp(travel / 9, 0.65, 1.25);
+        launchBall(targetPos, hang, (Math.random() - 0.5) * 1.2);
+      }
+
+      state.aiDecisionCooldown = AI_DECISION_INTERVAL + Math.random() * 0.8;
+    };
+
+    const updatePossession = (dt) => {
+      if (state.shotInFlight && state.velocity.length() > POSSESSION_SPEED_THRESHOLD) return state.possession;
+      if (ball.position.y > BALL_RADIUS + POSSESSION_HEIGHT_TOLERANCE) return state.possession;
+      const squads = [...(state.squads?.home ?? []), ...(state.squads?.away ?? [])];
+      let closest = state.possession;
+      let bestDistance = POSSESSION_RADIUS;
+      squads.forEach((member) => {
+        const pos = getAnchorPosition(member.anchor, tmp3);
+        if (!pos) return;
+        const distance = pos.distanceTo(ball.position);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          closest = member;
+        }
+      });
+      if (closest) {
+        state.possession = closest;
+        state.lastPossession = closest.team;
+      }
+      if (state.possession && state.velocity.length() < POSSESSION_SPEED_THRESHOLD) {
+        const offset = state.possession.team === 'away' ? 0.35 : -0.35;
+        const anchorPos = getAnchorPosition(state.possession.anchor, tmp);
+        if (anchorPos) {
+          tmp2.copy(anchorPos);
+          tmp2.y = Math.max(BALL_RADIUS, anchorPos.y + BALL_RADIUS * 0.35);
+          tmp2.z += offset;
+          ball.position.lerp(tmp2, 0.4);
+          state.velocity.multiplyScalar(0.4);
+          state.spin.multiplyScalar(0.6);
+        }
+        updateAiPlaymaking(state.possession, dt);
+      }
+      return state.possession;
+    };
+
     const stepSimulation = (dt) => {
       state.netCooldown = Math.max(0, state.netCooldown - dt);
 
@@ -3239,7 +3379,12 @@ export default function FreeKick3DGame({ config }) {
         }
       }
 
-      if (
+      updatePossession(dt);
+
+      if (!gameStateRef.current.gameOver && !state.ballExploded && state.possession) {
+        state.velocity.multiplyScalar(0.35);
+        state.spin.multiplyScalar(0.5);
+      } else if (
         !gameStateRef.current.gameOver &&
         !state.ballExploded &&
         state.velocity.lengthSq() > 0.00001
@@ -3607,6 +3752,9 @@ export default function FreeKick3DGame({ config }) {
       clearAimLine();
       gestureRef.current.plan = null;
       if (!plan) return;
+      state.possession = null;
+      state.lastPossession = 'player';
+      state.aiDecisionCooldown = AI_DECISION_INTERVAL;
       state.velocity.copy(plan.velocity);
       state.spin.copy(plan.spin);
       state.scored = false;

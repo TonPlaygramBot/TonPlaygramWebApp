@@ -80,7 +80,7 @@ export default function FreeKickLobby() {
 
   return (
     <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
-      <h2 className="text-xl font-bold text-center">Free Kick Lobby</h2>
+      <h2 className="text-xl font-bold text-center">Football Battle Royale Lobby</h2>
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2">
