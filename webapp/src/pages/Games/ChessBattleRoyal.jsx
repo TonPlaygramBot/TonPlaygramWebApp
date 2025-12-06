@@ -417,9 +417,10 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissive: '#25291c',
     emissiveIntensity: 0.22
   },
-  accent: '#caa472',
+  accent: '#d7b24a',
+  goldAccent: '#d7b24a',
   whiteAccent: { color: '#f6f7fb' },
-  blackAccent: '#4f7f5c'
+  blackAccent: '#b7892c'
 });
 
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
@@ -485,6 +486,61 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
       accent: '#c23a5d',
       blackAccent: '#9f2949',
       whiteAccent: { color: '#f6f0f2' }
+    }
+  },
+  {
+    id: 'beautifulGameIvoryGold',
+    label: 'Ivory Gold',
+    style: {
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f3ede2' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#2b2620' },
+      accent: '#d7b24a',
+      blackAccent: '#b7892c',
+      whiteAccent: { color: '#f8f4e8' }
+    }
+  },
+  {
+    id: 'beautifulGameMidnightTeal',
+    label: 'Midnight Teal',
+    style: {
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e7f1f0', sheenColor: '#f7fffd' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0f1f24', emissive: '#0a1619', emissiveIntensity: 0.22 },
+      accent: '#d7b24a',
+      blackAccent: '#ad8328',
+      whiteAccent: { color: '#f8fbfb' }
+    }
+  },
+  {
+    id: 'beautifulGameRoyalNavy',
+    label: 'Royal Navy',
+    style: {
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e7ecf6' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0f1b2e' },
+      accent: '#d7b24a',
+      blackAccent: '#b48a2a',
+      whiteAccent: { color: '#f5f7ff' }
+    }
+  },
+  {
+    id: 'beautifulGameSandstone',
+    label: 'Sandstone Copper',
+    style: {
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f3e8d3' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#3a2a1f', sheenColor: '#e8c79f' },
+      accent: '#d7b24a',
+      blackAccent: '#b2772a',
+      whiteAccent: { color: '#f7f0e2' }
+    }
+  },
+  {
+    id: 'beautifulGameCrimsonEbony',
+    label: 'Crimson Ebony',
+    style: {
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f7ecec', sheenColor: '#fff7f7' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#2a0d14', emissive: '#12060a', emissiveIntensity: 0.2 },
+      accent: '#d7b24a',
+      blackAccent: '#b6782c',
+      whiteAccent: { color: '#fff4f6' }
     }
   }
 ]);
@@ -756,7 +812,6 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
   tableShape: 0,
-  boardColor: 0,
   pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
@@ -809,7 +864,6 @@ const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.i
 const PRESERVE_NATIVE_PIECE_IDS = new Set();
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'boardColor', label: 'Board Colors', options: BOARD_COLOR_OPTIONS },
   { key: 'pieceStyle', label: 'Chess Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
@@ -826,7 +880,6 @@ function normalizeAppearance(value = {}) {
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['boardColor', BOARD_COLOR_OPTIONS.length],
     ['pieceStyle', PIECE_STYLE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
@@ -836,6 +889,7 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
+  delete normalized.boardColor;
   return normalized;
 }
 
@@ -1456,8 +1510,7 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
   const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
-  const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
-  const boardTheme = buildBoardTheme(boardOption);
+  const boardTheme = buildBoardTheme(BEAUTIFUL_GAME_THEME);
   return {
     board: boardTheme,
     pieces: pieceOption,
@@ -1646,6 +1699,15 @@ async function applyTextureProfileToAssets(assets, profile) {
   return assets;
 }
 
+function stripMaterialTextures(material) {
+  if (!material) return;
+  ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].forEach((key) => {
+    if (material[key]) {
+      material[key] = null;
+    }
+  });
+}
+
 function applyLocalBeautifulGameMaterials(assets) {
   if (!assets) return assets;
   const { boardModel, piecePrototypes } = assets;
@@ -1767,6 +1829,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
+  const goldAccent = pieceStyle.goldAccent || '#d7b24a';
 
   const applySurface = (material, config) => {
     if (!material) return;
@@ -1787,6 +1850,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
+        stripMaterialTextures(applied);
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
         applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
@@ -1812,14 +1876,20 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
       const shouldAccent =
-        name.includes('collar') || name.includes('crown') || name.includes('ring') || name.includes('cross');
+        name.includes('collar') ||
+        name.includes('crown') ||
+        name.includes('ring') ||
+        name.includes('cross') ||
+        name.includes('band') ||
+        name.includes('rim');
       if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
-        const accentColor = colorKey === 'black' ? darkAccent : accentLight;
-        applied.color = new THREE.Color(accentColor);
+        stripMaterialTextures(applied);
+        const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+        applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
         applySurface(
@@ -1849,6 +1919,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
+  const goldAccent = pieceStyle.goldAccent || '#d7b24a';
 
   const applySurface = (material, config) => {
     if (!material) return;
@@ -1875,6 +1946,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
+        stripMaterialTextures(applied);
         applied.color = new THREE.Color(targetColor);
         applySurface(applied, colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {});
         if (Array.isArray(child.material)) {
@@ -1889,18 +1961,24 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   };
 
   const accentize = (mesh, colorKey) => {
-    const accentColor = colorKey === 'black' ? darkAccent : accentLight;
+    const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
       const shouldAccent =
-        name.includes('collar') || name.includes('crown') || name.includes('ring') || name.includes('cross');
+        name.includes('collar') ||
+        name.includes('crown') ||
+        name.includes('ring') ||
+        name.includes('cross') ||
+        name.includes('band') ||
+        name.includes('rim');
       if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
-        applied.color = new THREE.Color(accentColor);
+        stripMaterialTextures(applied);
+        applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
         applySurface(
@@ -1988,6 +2066,14 @@ function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
     if (type === 'P') {
       const gem = new THREE.Mesh(new THREE.SphereGeometry(gemRadius, 18, 16), rubyGlass.clone());
       gem.position.y = topY + gemRadius * 0.5;
+      gem.castShadow = true;
+      gem.receiveShadow = true;
+      proto.add(gem);
+    }
+
+    if (type === 'B') {
+      const gem = new THREE.Mesh(new THREE.SphereGeometry(tileSize * 0.07, 16, 14), rubyGlass.clone());
+      gem.position.y = topY - tileSize * 0.04;
       gem.castShadow = true;
       gem.receiveShadow = true;
       proto.add(gem);
@@ -4438,18 +4524,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
-    if (key === 'boardColor') {
-      return (
-        <div className="w-full overflow-hidden rounded-lg border border-white/10">
-          <div className="grid grid-cols-2" style={{ backgroundColor: option.frameDark }}>
-            {[0, 1, 2, 3].map((idx) => (
-              // eslint-disable-next-line react/no-array-index-key
-              <div key={idx} className="h-8" style={{ background: idx % 2 === 0 ? option.light : option.dark }} />
-            ))}
-          </div>
-        </div>
-      );
-    }
     if (key === 'pieceStyle') {
       return (
         <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
