@@ -61,8 +61,6 @@ const clamp01 = (value, fallback = 0) => {
   return Math.min(1, Math.max(0, value));
 };
 
-const AUTHENTIC_BOARD_THEME = { ...BASE_BOARD_THEME };
-
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
   dark: '#776a5a',
@@ -1453,17 +1451,17 @@ function createSandTimer(accentColor = '#f4b400') {
 function buildBoardTheme(option) {
   const source = option || {};
   return {
-    light: source.light ?? AUTHENTIC_BOARD_THEME.light,
-    dark: source.dark ?? AUTHENTIC_BOARD_THEME.dark,
-    frameLight: source.frameLight ?? AUTHENTIC_BOARD_THEME.frameLight,
-    frameDark: source.frameDark ?? AUTHENTIC_BOARD_THEME.frameDark,
-    accent: source.accent ?? AUTHENTIC_BOARD_THEME.accent,
-    highlight: source.highlight ?? AUTHENTIC_BOARD_THEME.highlight,
-    capture: source.capture ?? AUTHENTIC_BOARD_THEME.capture,
-    surfaceRoughness: clamp01(source.surfaceRoughness, AUTHENTIC_BOARD_THEME.surfaceRoughness),
-    surfaceMetalness: clamp01(source.surfaceMetalness, AUTHENTIC_BOARD_THEME.surfaceMetalness),
-    frameRoughness: clamp01(source.frameRoughness, AUTHENTIC_BOARD_THEME.frameRoughness),
-    frameMetalness: clamp01(source.frameMetalness, AUTHENTIC_BOARD_THEME.frameMetalness),
+    light: source.light ?? BASE_BOARD_THEME.light,
+    dark: source.dark ?? BASE_BOARD_THEME.dark,
+    frameLight: source.frameLight ?? BASE_BOARD_THEME.frameLight,
+    frameDark: source.frameDark ?? BASE_BOARD_THEME.frameDark,
+    accent: source.accent ?? BASE_BOARD_THEME.accent,
+    highlight: source.highlight ?? BASE_BOARD_THEME.highlight,
+    capture: source.capture ?? BASE_BOARD_THEME.capture,
+    surfaceRoughness: clamp01(source.surfaceRoughness, BASE_BOARD_THEME.surfaceRoughness),
+    surfaceMetalness: clamp01(source.surfaceMetalness, BASE_BOARD_THEME.surfaceMetalness),
+    frameRoughness: clamp01(source.frameRoughness, BASE_BOARD_THEME.frameRoughness),
+    frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness),
     preserveOriginalMaterials: Boolean(source.preserveOriginalMaterials)
   };
 }
@@ -1497,80 +1495,13 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
-function averageMaterialColor(material) {
-  const materials = Array.isArray(material) ? material : [material];
-  const color = new THREE.Color();
-  let count = 0;
-  materials.forEach((mat) => {
-    if (mat?.color) {
-      color.add(mat.color);
-      count += 1;
-    }
-  });
-  if (!count) return null;
-  color.multiplyScalar(1 / count);
-  return `#${color.getHexString()}`;
-}
-
-function extractAuthenticBoardPalette(boardModel) {
-  if (!boardModel) return null;
-  const lightSamples = [];
-  const darkSamples = [];
-  const frameLightSamples = [];
-  const frameDarkSamples = [];
-
-  boardModel.traverse((node) => {
-    if (!node?.isMesh) return;
-    const name = node.name || '';
-    const hex = averageMaterialColor(node.material);
-    if (!hex) return;
-    if (name.startsWith('Tile_')) {
-      const [, r, c] = name.split('_');
-      const isDark = (Number(r) + Number(c)) % 2 === 1;
-      (isDark ? darkSamples : lightSamples).push(hex);
-    } else if (name === 'BoardFrame' || name.toLowerCase().includes('frame')) {
-      frameDarkSamples.push(hex);
-    } else if (name === 'BoardTop' || name.toLowerCase().includes('top')) {
-      frameLightSamples.push(hex);
-    }
-  });
-
-  const pick = (samples) => {
-    if (!samples.length) return null;
-    const color = new THREE.Color();
-    samples.forEach((hex) => color.add(new THREE.Color(hex)));
-    color.multiplyScalar(1 / samples.length);
-    return `#${color.getHexString()}`;
-  };
-
-  const palette = {
-    light: pick(lightSamples),
-    dark: pick(darkSamples),
-    frameLight: pick(frameLightSamples),
-    frameDark: pick(frameDarkSamples)
-  };
-
-  const hasValues = Object.values(palette).some(Boolean);
-  return hasValues ? palette : null;
-}
-
-function applyAuthenticPaletteFallback(boardModel, theme) {
-  const palette = boardModel?.userData?.authenticBoardPalette;
-  if (!palette) return theme;
-  const merged = { ...theme };
-  ['light', 'dark', 'frameLight', 'frameDark'].forEach((key) => {
-    if (palette[key]) merged[key] = palette[key];
-  });
-  return merged;
-}
-
 function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
 
   snapshotBoardMaterials(boardModel);
   restoreBoardMaterials(boardModel);
 
-  const theme = applyAuthenticPaletteFallback(boardModel, buildBoardTheme(boardTheme));
+  const theme = buildBoardTheme(boardTheme);
 
   if (theme.preserveOriginalMaterials) {
     return;
@@ -3616,14 +3547,6 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     finalBox = new THREE.Box3().setFromObject(assets.boardModel);
     const boardTop = finalBox.max.y;
     assets.pieceYOffset = Math.max(boardTop + 0.04, PIECE_PLACEMENT_Y_OFFSET);
-    const palette = extractAuthenticBoardPalette(assets.boardModel);
-    if (palette) {
-      assets.boardModel.userData = {
-        ...(assets.boardModel.userData || {}),
-        authenticBoardPalette: palette
-      };
-      Object.assign(AUTHENTIC_BOARD_THEME, { ...AUTHENTIC_BOARD_THEME, ...palette });
-    }
   }
   harmonizeBeautifulGamePieces(assets.piecePrototypes, authenticStyle);
   if (options?.source === 'local') {
@@ -5335,7 +5258,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    renderer.setPixelRatio(Math.min(3, (window.devicePixelRatio || 1) * 1.15));
+    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
@@ -6531,14 +6454,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     window.addEventListener('pointerup', onPointerUp);
 
     // Loop
-    const MIN_FRAME_RATE = 50;
-    const MIN_FRAME_INTERVAL = 1000 / MIN_FRAME_RATE;
     let lastTime = performance.now();
     const step = () => {
       const now = performance.now();
-      const deltaMs = now - lastTime;
-      const cappedDeltaMs = Math.min(deltaMs, MIN_FRAME_INTERVAL);
-      const dt = Math.min(0.1, Math.max(0, cappedDeltaMs) / 1000);
+      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
       lastTime = now;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
