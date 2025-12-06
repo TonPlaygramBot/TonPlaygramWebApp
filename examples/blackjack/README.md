@@ -29,3 +29,26 @@ settling the pot and starting the next game.
 This example focuses on the game mechanics and is intentionally minimal. It can
 be paired with a Socket.IO server and React client similar to the other
 examples in this repository.
+
+## Running a multiplayer room server
+
+`server.js` shows a lightweight Socket.IO host that mirrors the Murlan Royale
+3D flow: rooms spin up automatically, hands are dealt once at least two players
+join, and the round advances from betting → hits → showdown without any extra
+UI scripting. To try it locally:
+
+```bash
+node examples/blackjack/server.js
+```
+
+From a client you can connect with Socket.IO and emit the following events:
+
+- `joinRoom`: `{ roomId, name? }` – join or create a room and trigger dealing
+  when the minimum player count is reached.
+- `bet`: `{ roomId, amount }` – convenience wrapper for `raise`.
+- `call`, `raise`, `fold`: `{ roomId, amount? }` – standard betting actions.
+- `hit`, `stand`: `{ roomId }` – act during the hit phase.
+
+The server emits `gameStateUpdate` after every action and a `showdown` payload
+when the hand resolves. `getState()` now includes `lastShowdown` so clients can
+render the winning line-up alongside the new deal.

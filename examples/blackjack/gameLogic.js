@@ -213,12 +213,17 @@ export class BlackjackGame {
       currentBet: this.currentBet,
       players: this.players,
       community: this.community,
-      phase: this.phase
+      phase: this.phase,
+      lastShowdown: this.lastShowdown
     };
   }
 
   allPlayersCalled() {
     return this.players.every(p => p.folded || (p.bet === this.currentBet && p.acted));
+  }
+
+  allPlayersSettled() {
+    return this.players.every(p => p.folded || p.stood);
   }
 }
 
