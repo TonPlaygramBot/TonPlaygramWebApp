@@ -414,16 +414,11 @@ const TOUCH_PRESETS = [
 export default function TableTennis3D({ player, ai }){
   const hostRef = useRef(null);
   const raf = useRef(0);
-  const menuRef = useRef(null);
-  const [variantIndex, setVariantIndex] = useState(0);
-  const [broadcastIndex, setBroadcastIndex] = useState(0);
-  const [ballIndex, setBallIndex] = useState(0);
-  const [controlIndex, setControlIndex] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const variant = GAME_VARIANTS[variantIndex] || GAME_VARIANTS[0];
-  const broadcastProfile = BROADCAST_PRESETS[broadcastIndex] || BROADCAST_PRESETS[0];
-  const ballProfile = BALL_TECHNIQUES[ballIndex] || BALL_TECHNIQUES[0];
-  const touchProfile = TOUCH_PRESETS[controlIndex] || TOUCH_PRESETS[0];
+  const audioRef = useRef({ ctx: null, buffers: {} });
+  const variant = GAME_VARIANTS[0];
+  const broadcastProfile = BROADCAST_PRESETS[0];
+  const ballProfile = BALL_TECHNIQUES[0];
+  const touchProfile = TOUCH_PRESETS[0];
 
   const playerLabel = player?.name || 'You';
   const aiLabel = ai?.name || 'AI';
@@ -442,39 +437,6 @@ export default function TableTennis3D({ player, ai }){
   const uiRef = useRef(ui);
   useEffect(() => { uiRef.current = ui; }, [ui]);
 
-  const applyConfiguration = ({ nextVariant = variantIndex, nextBroadcast = broadcastIndex, nextBall = ballIndex, nextControl = controlIndex, closeMenu = true } = {}) => {
-    setVariantIndex(nextVariant);
-    setBroadcastIndex(nextBroadcast);
-    setBallIndex(nextBall);
-    setControlIndex(nextControl);
-    if (closeMenu) setMenuOpen(false);
-    const nextServer = Math.random() < 0.5 ? 'P' : 'O';
-    setUi(createUiState(nextServer));
-    setResetKey(k => k + 1);
-  };
-
-  const handleVariantSelect = (index) => applyConfiguration({ nextVariant: index, closeMenu: false });
-  const handleBroadcastSelect = (index) => applyConfiguration({ nextBroadcast: index, closeMenu: false });
-  const handleBallSelect = (index) => applyConfiguration({ nextBall: index, closeMenu: false });
-  const handleControlSelect = (index) => applyConfiguration({ nextControl: index, closeMenu: false });
-  const confirmMenuSelection = () => applyConfiguration({ closeMenu: true });
-
-  useEffect(() => {
-    if (!menuOpen) return;
-    const onPointer = (event) => {
-      if (!menuRef.current) return;
-      if (!menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', onPointer);
-    document.addEventListener('touchstart', onPointer, { passive: true });
-    return () => {
-      document.removeEventListener('mousedown', onPointer);
-      document.removeEventListener('touchstart', onPointer);
-    };
-  }, [menuOpen]);
-
   const difficulty = useMemo(() => {
     const tag = (ai?.difficulty || ai?.level || 'pro').toString().toLowerCase();
     const presets = {
@@ -491,6 +453,54 @@ export default function TableTennis3D({ player, ai }){
   useEffect(()=>{
     const host = hostRef.current; if (!host) return;
     const timers = [];
+
+    // Procedural, license-free blips (no binary assets) for paddle + table hits
+    const ensureAudio = () => {
+      if (audioRef.current.ctx) return audioRef.current.ctx;
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      audioRef.current.ctx = new Ctor();
+      return audioRef.current.ctx;
+    };
+
+    const resumeAudio = () => {
+      const ctx = ensureAudio();
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    };
+
+    const makeHitBuffer = (freq = 420, duration = 0.14, noisy = false) => {
+      const ctx = ensureAudio();
+      if (!ctx) return null;
+      const len = Math.max(1, Math.floor(ctx.sampleRate * duration));
+      const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < len; i += 1){
+        const t = i / ctx.sampleRate;
+        const env = Math.pow(1 - t / duration, 3);
+        const osc = noisy ? (Math.random() * 2 - 1) * 0.6 : Math.sin(2 * Math.PI * freq * t);
+        data[i] = osc * env;
+      }
+      return buffer;
+    };
+
+    const playSfx = (name, gain = 0.9, rate = 1) => {
+      const ctx = ensureAudio();
+      const buffer = audioRef.current.buffers[name];
+      if (!ctx || !buffer) return;
+      const src = ctx.createBufferSource();
+      const g = ctx.createGain();
+      src.buffer = buffer;
+      src.playbackRate.value = rate;
+      g.gain.value = gain;
+      src.connect(g).connect(ctx.destination);
+      src.start();
+    };
+
+    const ctx = ensureAudio();
+    if (ctx && (!audioRef.current.buffers.bounce || !audioRef.current.buffers.paddle)){
+      audioRef.current.buffers.bounce = makeHitBuffer(360, 0.18, true);
+      audioRef.current.buffers.paddle = makeHitBuffer(920, 0.16, false);
+    }
 
     const rendererSettings = variant.renderer ?? {};
     const sceneSettings = variant.scene ?? {};
@@ -601,10 +611,10 @@ export default function TableTennis3D({ player, ai }){
       curHeight: cameraSettings.height ?? 2.04,
       yawUser: 0,
       pitchUser: 0,
-      followLerp: trackingSettings.followLerp ?? 0.2,
-      rallyBlend: trackingSettings.rallyBlend ?? 0.55,
-      yawDamping: trackingSettings.yawDamping ?? 0.18,
-      distDamping: trackingSettings.distDamping ?? 0.1,
+      followLerp: trackingSettings.followLerp ?? 0.28,
+      rallyBlend: trackingSettings.rallyBlend ?? 0.6,
+      yawDamping: trackingSettings.yawDamping ?? 0.2,
+      distDamping: trackingSettings.distDamping ?? 0.12,
     };
     const applyCam = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
@@ -1036,17 +1046,17 @@ export default function TableTennis3D({ player, ai }){
       w: new THREE.Vector3(0, 0, 0),
       mass: 0.0027,
       paddleMass: 0.16,
-      magnusCoeff: physicsSettings.magnusCoeff ?? 0.4,
-      spinDecay: physicsSettings.spinDecay ?? 0.91,
+      magnusCoeff: physicsSettings.magnusCoeff ?? 0.42,
+      spinDecay: physicsSettings.spinDecay ?? 0.93,
       gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -9.81, 0),
-      drag: physicsSettings.drag ?? 0.48,
-      tableRest: physicsSettings.tableRest ?? 0.84,
-      tableFriction: physicsSettings.tableFriction ?? 0.2,
-      paddleRest: physicsSettings.paddleRest ?? 1.04,
+      drag: physicsSettings.drag ?? 0.42,
+      tableRest: physicsSettings.tableRest ?? 0.9,
+      tableFriction: physicsSettings.tableFriction ?? 0.16,
+      paddleRest: physicsSettings.paddleRest ?? 1.02,
       paddleAim: physicsSettings.paddleAim ?? 0.62,
-      paddleLift: physicsSettings.paddleLift ?? 0.18,
-      netRest: physicsSettings.netRest ?? 0.36,
-      forceScale: physicsSettings.forceScale ?? 0.86,
+      paddleLift: physicsSettings.paddleLift ?? 0.2,
+      netRest: physicsSettings.netRest ?? 0.34,
+      forceScale: physicsSettings.forceScale ?? 0.82,
       spinTransfer: physicsSettings.spinTransfer ?? 0.34,
       netDrag: physicsSettings.netDrag ?? 0.18,
       wallRest: physicsSettings.wallRest ?? 0.62,
@@ -1124,13 +1134,6 @@ export default function TableTennis3D({ player, ai }){
     let st = 0;
     const gesture = {
       mode: 'idle',
-      startSpan: 0,
-      startYaw: 0,
-      startPitch: 0,
-      startDist: camRig.dist,
-      startHeight: camRig.height,
-      startAngle: 0,
-      startCenter: new THREE.Vector2(),
     };
 
     function clampX(x) { return THREE.MathUtils.clamp(x, -bounds.x, bounds.x); }
@@ -1209,6 +1212,7 @@ export default function TableTennis3D({ player, ai }){
 
     function onDown(e) {
       if (usingTouch && e.pointerType === 'touch') return;
+      resumeAudio();
       touching = true;
       const target = screenToTable(e.clientX, e.clientY);
       playerTarget.x = target.x;
@@ -1236,7 +1240,7 @@ export default function TableTennis3D({ player, ai }){
       const endY = evt?.clientY ?? ly;
       const distX = endX - sx;
       const distY = sy - endY;
-      if (distY < 24) return;
+      if (distY < 14) return;
       const duration = Math.max((performance.now() - st) / 1000, 0.12);
       const onPlayerSide = ball.position.z > 0 && Math.abs(ball.position.z - (playerBaseZ - 0.2)) < 1.6;
       if (onPlayerSide && ball.position.y <= 2.2) {
@@ -1251,71 +1255,25 @@ export default function TableTennis3D({ player, ai }){
     window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerup', onUp);
 
-    function startCameraGesture(touches){
-      if (touches.length < 2) return;
-      const a = touches[0];
-      const b = touches[1];
-      const dx = b.clientX - a.clientX;
-      const dy = b.clientY - a.clientY;
-      gesture.mode = 'camera';
-      gesture.startSpan = Math.hypot(dx, dy) || 1;
-      gesture.startYaw = camRig.yawUser;
-      gesture.startPitch = camRig.pitchUser;
-      gesture.startDist = camRig.dist;
-      gesture.startHeight = camRig.height;
-      gesture.startAngle = Math.atan2(dy, dx);
-      gesture.startCenter.set((a.clientX + b.clientX) * 0.5, (a.clientY + b.clientY) * 0.5);
-    }
-
     function onTouchStart(e) {
       usingTouch = true;
-      if (e.touches.length === 1){
-        gesture.mode = 'paddle';
-        const t = e.touches[0];
-        if (t) onDown({ clientX: t.clientX, clientY: t.clientY });
-      } else if (e.touches.length >= 2){
-        touching = false;
-        gesture.mode = 'camera';
-        startCameraGesture(e.touches);
-      }
+      const t = e.touches[0];
+      if (!t) return;
+      gesture.mode = 'paddle';
+      onDown({ clientX: t.clientX, clientY: t.clientY });
     }
     function onTouchMove(e) {
-      if (gesture.mode === 'camera' && e.touches.length >= 2){
-        const a = e.touches[0];
-        const b = e.touches[1];
-        const dx = b.clientX - a.clientX;
-        const dy = b.clientY - a.clientY;
-        const span = Math.hypot(dx, dy) || 1;
-        const scale = THREE.MathUtils.clamp(span / gesture.startSpan, 0.65, 1.65);
-        camRig.dist = THREE.MathUtils.clamp(gesture.startDist / scale, camRig.minDist, gesture.startDist + 1.2);
-        camRig.height = THREE.MathUtils.clamp(gesture.startHeight / scale, camRig.minHeight, gesture.startHeight + 1.2);
-        const angle = Math.atan2(dy, dx);
-        camRig.yawUser = THREE.MathUtils.clamp(gesture.startYaw + (angle - gesture.startAngle) * 0.8, -0.72, 0.72);
-        const cx = (a.clientX + b.clientX) * 0.5;
-        const cy = (a.clientY + b.clientY) * 0.5;
-        const deltaY = (cy - gesture.startCenter.y) / (el.getBoundingClientRect().height || 1);
-        camRig.pitchUser = THREE.MathUtils.clamp(gesture.startPitch + deltaY * -0.9, -0.14, 0.24);
-        return;
-      }
-      if (e.touches.length === 1){
-        const t = e.touches[0];
-        if (t) onMove({ clientX: t.clientX, clientY: t.clientY });
-      }
+      const t = e.touches[0];
+      if (t) onMove({ clientX: t.clientX, clientY: t.clientY });
     }
     function onTouchEnd(e) {
-      if (gesture.mode === 'camera' && e.touches.length >= 1){
-        startCameraGesture(e.touches);
-        return;
-      }
       const t = e.changedTouches[0];
       if (!t) {
         usingTouch = false;
         gesture.mode = 'idle';
         return;
       }
-      if (gesture.mode === 'paddle'){
-        onUp({ clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }, { fromTouch: true });
-      }
+      onUp({ clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }, { fromTouch: true });
       usingTouch = e.touches.length > 0;
       if (e.touches.length === 0){
         gesture.mode = 'idle';
@@ -1339,18 +1297,23 @@ export default function TableTennis3D({ player, ai }){
       } else {
         const lateral = THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x);
         const depth = THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear);
-        const rallyBlend = THREE.MathUtils.clamp(camRig.rallyBlend + Sx.v.length() * 0.14 + (Sx.state === 'rally' ? 0.18 : 0), 0, 0.9);
+        const rallyBlend = THREE.MathUtils.clamp(
+          camRig.rallyBlend + Sx.v.length() * 0.18 + (Sx.state === 'rally' ? 0.22 : 0.06),
+          0.35,
+          0.95
+        );
         focusVector.set(
           THREE.MathUtils.clamp(ball.position.x, -bounds.x, bounds.x),
           0,
           THREE.MathUtils.clamp(ball.position.z, bounds.zFar, bounds.zNear)
         );
-        const clampedBallZ = Math.min(focusVector.z, playerBaseZ + 0.12);
-        const paddleLeadZ = THREE.MathUtils.lerp(depth, playerBaseZ, 0.32);
+        const clampedBallZ = Math.min(focusVector.z, playerBaseZ - 0.02);
+        const paddleLeadZ = THREE.MathUtils.lerp(depth, playerBaseZ, 0.42);
+        const ballLeadZ = THREE.MathUtils.lerp(bounds.zNear, clampedBallZ, 0.85);
         followTarget.set(
-          THREE.MathUtils.lerp(lateral * 1.08, focusVector.x, rallyBlend),
+          THREE.MathUtils.lerp(lateral * 1.06, focusVector.x, rallyBlend),
           0,
-          THREE.MathUtils.lerp(paddleLeadZ, clampedBallZ, rallyBlend * 0.9)
+          THREE.MathUtils.lerp(paddleLeadZ, ballLeadZ, rallyBlend)
         );
       }
 
@@ -1370,14 +1333,14 @@ export default function TableTennis3D({ player, ai }){
         camRig.curYaw += (yawTarget - camRig.curYaw) * camRig.yawDamping;
       }
 
-      const heightBoost = Math.max(0, (ball.position.y - TABLE_TOP) * 0.22);
+      const heightBoost = Math.max(0, (ball.position.y - TABLE_TOP) * 0.32);
       const distTarget = THREE.MathUtils.clamp(
-        camRig.dist - Math.abs(lateralInfluence) * 0.26 - heightBoost * 0.12,
+        camRig.dist - Math.abs(lateralInfluence) * 0.18 - heightBoost * 0.18,
         camRig.minDist,
         camRig.dist + 0.6
       );
       const heightTarget = THREE.MathUtils.clamp(
-        camRig.height - Math.abs(lateralInfluence) * 0.08 + heightBoost * 0.28 + camRig.pitchUser * 0.9,
+        camRig.height - Math.abs(lateralInfluence) * 0.04 + heightBoost * 0.38 + camRig.pitchUser * 0.9,
         camRig.minHeight,
         camRig.height + 0.9
       );
@@ -1390,8 +1353,8 @@ export default function TableTennis3D({ player, ai }){
       }
 
       lookTarget.set(
-        camFollow.x * S,
-        (T.H - 0.04) * S,
+        THREE.MathUtils.lerp(camFollow.x, ball.position.x, 0.38) * S,
+        Math.max((T.H - 0.04) * S, (ball.position.y + 0.06) * S),
         (camFollow.z - camRig.forwardBias) * S
       );
 
@@ -1605,6 +1568,7 @@ export default function TableTennis3D({ player, ai }){
         Sx.v.add(spinSlip);
         Sx.w.multiplyScalar(0.82);
         ball.position.y = TABLE_TOP;
+        playSfx('bounce', 0.65 + Math.min(Math.abs(Sx.v.y), 1.4) * 0.15, THREE.MathUtils.clamp(0.9 + Math.abs(Sx.v.z) * 0.18, 0.86, 1.25));
 
         const side = z >= 0 ? 'P' : 'O';
         const other = side === 'P' ? 'O' : 'P';
@@ -1747,6 +1711,7 @@ export default function TableTennis3D({ player, ai }){
         const brush = Sx.tmpV0.set(paddleVel?.x || 0, paddleVel?.y || 0, paddleVel?.z || 0).cross(n).multiplyScalar(Sx.spinTransfer * 6.5);
         Sx.w.add(brush);
         ensureNetClear(contact, Sx.v, Sx.gravity.y, NET_TOP, BALL_R * 0.9);
+        playSfx('paddle', 0.78 + Math.min(Math.abs(closing), 3) * 0.08, THREE.MathUtils.clamp(1 + closing * -0.08, 0.82, 1.35));
 
         if (Sx.state === 'serve' && who === Srv.side && Sx.serveProgress === 'awaitServeHit'){
           Sx.serveProgress = 'awaitServerBounce';
@@ -1988,8 +1953,8 @@ export default function TableTennis3D({ player, ai }){
             if (Sx.serveProgress === 'awaitServeHit' && Sx.serveTimer <= 0){
               const dir = Srv.side === 'P' ? -1 : 1;
               const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.4, -0.78, 0.78);
-              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.65, 1.15);
-              Sx.v.set(aimX * serveScale * 1.1, Math.max(1.9, 2.9 * serveScale), 1.72 * dir * serveScale);
+              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.65, 1.08);
+              Sx.v.set(aimX * serveScale * 0.95, Math.max(1.8, 2.6 * serveScale), 1.46 * dir * serveScale);
               Sx.w.set(0, 0, 0);
               Sx.serveProgress = 'awaitServerBounce';
               Sx.lastTouch = Srv.side;
@@ -2059,7 +2024,7 @@ export default function TableTennis3D({ player, ai }){
       renderer.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey, variantIndex, broadcastIndex, ballIndex, controlIndex]);
+  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey]);
 
   const resetAll = ()=>{
     const next = Math.random() < 0.5 ? 'P' : 'O';
@@ -2070,154 +2035,33 @@ export default function TableTennis3D({ player, ai }){
   return (
     <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
       {/* HUD */}
-      <div className="absolute top-2 left-1/2 -translate-x-1/2 text-white text-[11px] sm:text-xs bg-white/10 backdrop-blur rounded px-3 py-2 flex flex-col items-center gap-[2px] text-center min-w-[220px]">
-        <div className="text-[9px] uppercase tracking-[0.24em] text-white/70">{variant.badge}</div>
-        <div className="font-semibold">{playerLabel} {ui.pScore} : {ui.oScore} {aiLabel}</div>
-        <div className="text-[10px] sm:text-[11px]">
-          {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
-        </div>
-        <div className="text-[10px] sm:text-[11px] opacity-80">{ui.msg}</div>
-        <div className="text-[9px] sm:text-[10px] opacity-70 leading-tight max-w-[240px]">{variant.tagline}</div>
-        <div className="flex flex-wrap items-center justify-center gap-1 pt-1">
-          <span className="px-2 py-[2px] rounded-full bg-white/10 text-[9px] uppercase tracking-[0.2em] text-white/80">{broadcastProfile.badge}</span>
-          <span className="px-2 py-[2px] rounded-full bg-white/10 text-[9px] uppercase tracking-[0.2em] text-white/80">{ballProfile.badge}</span>
-          <span className="px-2 py-[2px] rounded-full bg-white/10 text-[9px] uppercase tracking-[0.2em] text-white/80">{touchProfile.badge}</span>
+      <div className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 text-white text-center min-w-[240px]">
+        <div className="inline-flex flex-col gap-[2px] rounded-2xl px-4 py-3 bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="text-[9px] uppercase tracking-[0.26em] text-amber-200/80">{variant.badge} · Race to 11 · Win by 2</div>
+          <div className="text-sm font-semibold drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">{playerLabel} {ui.pScore} : {ui.oScore} {aiLabel}</div>
+          <div className="text-[10px] sm:text-[11px]">
+            {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
+          </div>
+          <div className="text-[10px] sm:text-[11px] opacity-90">{ui.msg}</div>
+          <div className="text-[9px] sm:text-[10px] opacity-70 leading-tight max-w-[260px]">{variant.tagline}</div>
         </div>
       </div>
-      <div ref={menuRef} className="absolute top-2 right-2 z-20 flex flex-col items-end gap-2">
-        <div className="flex items-center gap-2">
-          <div className="px-3 py-1 rounded-full border border-white/10 bg-black/40 text-white/70 text-[10px] uppercase tracking-[0.2em] backdrop-blur-sm shadow-sm">
-            {variant.name}
-          </div>
-          <button
-            type="button"
-            onClick={() => setMenuOpen(prev => !prev)}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors shadow-lg border border-white/10"
-            aria-label="Toggle game configuration menu"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="w-5 h-5"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.5 3.75L9.75 6a7.5 7.5 0 00-1.5.87L6 6.75l-1.5 2.6 1.74 1.26a7.5 7.5 0 000 1.74L4.5 13.35 6 15.94l2.25-.12c.45.34.94.63 1.5.87l.75 2.25h3l.75-2.25c.53-.24 1.03-.53 1.5-.87l2.25.12 1.5-2.59-1.74-1.26c.06-.57.06-1.16 0-1.74l1.74-1.26-1.5-2.6-2.25.12a7.5 7.5 0 00-1.5-.87l-.75-2.25h-3z"
-              />
-              <circle cx="12" cy="12" r="2.25" />
-            </svg>
-          </button>
+      <div className="pointer-events-none absolute top-2 right-2 z-20 flex flex-col items-end gap-1">
+        <div className="px-3 py-1 rounded-full border border-[rgba(255,215,0,0.25)] bg-[rgba(7,10,18,0.7)] text-white/80 text-[10px] uppercase tracking-[0.22em] shadow-lg">
+          {variant.name}
         </div>
-        {menuOpen && (
-          <div className="w-80 max-w-[82vw] max-h-[78vh] overflow-y-auto bg-black/80 text-white rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl px-3 py-3 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <div className="text-[11px] uppercase tracking-[0.26em] text-white/70">Game Loadout</div>
-              <button
-                type="button"
-                onClick={confirmMenuSelection}
-                className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/80 hover:bg-emerald-500 text-white text-[11px] shadow-lg"
-                aria-label="Confirm presets"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-                Confirm
-              </button>
-            </div>
-            <div className="space-y-2">
-              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Broadcast techniques</div>
-              {BROADCAST_PRESETS.map((option, idx) => {
-                const active = idx === broadcastIndex;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleBroadcastSelect(idx)}
-                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">{option.name}</span>
-                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
-                    </div>
-                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.description}</div>
-                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="space-y-2">
-              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Ball logic labs</div>
-              {BALL_TECHNIQUES.map((option, idx) => {
-                const active = idx === ballIndex;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleBallSelect(idx)}
-                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">{option.name}</span>
-                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
-                    </div>
-                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.description}</div>
-                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="space-y-2">
-              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Touch control studio</div>
-              {TOUCH_PRESETS.map((option, idx) => {
-                const active = idx === controlIndex;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleControlSelect(idx)}
-                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">{option.name}</span>
-                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
-                    </div>
-                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.description}</div>
-                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
-                  </button>
-                );
-              })}
-            </div>
-            <div className="space-y-1">
-              <div className="text-[11px] text-white/70 uppercase tracking-[0.2em]">Visual style</div>
-              {GAME_VARIANTS.map((option, idx) => {
-                const active = idx === variantIndex;
-                return (
-                  <button
-                    key={option.id}
-                    type="button"
-                    onClick={() => handleVariantSelect(idx)}
-                    className={`text-left px-3 py-2 rounded-xl transition-all ${active ? 'bg-white/15 ring-1 ring-white/40' : 'hover:bg-white/10'}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">{option.name}</span>
-                      {active && <span className="text-[10px] uppercase tracking-[0.26em] text-emerald-300">Live</span>}
-                    </div>
-                    <div className="text-[10px] text-white/70 leading-snug mt-[2px]">{option.tagline}</div>
-                    <div className="text-[9px] text-white/50 uppercase tracking-[0.26em] mt-1">{option.badge}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+        <div className="px-3 py-1 rounded-full bg-white/10 text-white/80 text-[10px] uppercase tracking-[0.16em] shadow">
+          {broadcastProfile.badge} · {ballProfile.badge} · {touchProfile.badge}
+        </div>
       </div>
       {!ui.gameOver && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
-          <button onClick={resetAll} className="text-white text-[11px] bg-white/10 hover:bg-white/20 rounded px-2 py-1">Reset</button>
+          <button
+            onClick={resetAll}
+            className="text-white text-[11px] bg-[rgba(7,10,18,0.78)] border border-[rgba(255,215,0,0.25)] hover:bg-[rgba(12,18,30,0.92)] rounded-full px-3 py-1 shadow"
+          >
+            Reset
+          </button>
         </div>
       )}
       {ui.gameOver && (
