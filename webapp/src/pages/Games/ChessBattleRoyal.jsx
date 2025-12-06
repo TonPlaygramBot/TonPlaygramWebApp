@@ -433,123 +433,6 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: BEAUTIFUL_GAME_AUTHENTIC_ID,
     label: 'ABeautifulGame (Original Colors)',
     style: { ...BEAUTIFUL_GAME_PIECE_STYLE, preserveOriginalMaterials: true }
-  },
-  {
-    id: BEAUTIFUL_GAME_SET_ID,
-    label: 'Classic Olive',
-    style: BEAUTIFUL_GAME_PIECE_STYLE
-  },
-  {
-    id: 'beautifulGameGraphite',
-    label: 'Graphite Frost',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e1e6f2' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#1f2832' },
-      accent: '#c4ccd8',
-      blackAccent: '#9ca7b7'
-    }
-  },
-  {
-    id: 'beautifulGameObsidian',
-    label: 'Onyx Black',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e2e3ea' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0b0d12' },
-      accent: '#b8985e',
-      blackAccent: '#d1b777'
-    }
-  },
-  {
-    id: 'beautifulGameForest',
-    label: 'Dark Forest',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e6e2d8' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0f2417' },
-      accent: '#7fbf8f',
-      blackAccent: '#5f9770'
-    }
-  },
-  {
-    id: 'beautifulGameStorm',
-    label: 'Slate Grey',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e5e6ea' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#1a2028' },
-      accent: '#b6bbc5',
-      blackAccent: '#8c929d'
-    }
-  },
-  {
-    id: 'beautifulGameGarnet',
-    label: 'Garnet Merlot',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f3e7e5', sheenColor: '#fff5f7' },
-      black: {
-        ...BEAUTIFUL_GAME_PIECE_STYLE.black,
-        color: '#4a0f26',
-        sheenColor: '#d7a3b3',
-        emissive: '#250813',
-        emissiveIntensity: 0.24
-      },
-      accent: '#c23a5d',
-      blackAccent: '#9f2949',
-      whiteAccent: { color: '#f6f0f2' }
-    }
-  },
-  {
-    id: 'beautifulGameIvoryGold',
-    label: 'Ivory Gold',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f3ede2' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#2b2620' },
-      accent: '#d7b24a',
-      blackAccent: '#b7892c',
-      whiteAccent: { color: '#f8f4e8' }
-    }
-  },
-  {
-    id: 'beautifulGameMidnightTeal',
-    label: 'Midnight Teal',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e7f1f0', sheenColor: '#f7fffd' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0f1f24', emissive: '#0a1619', emissiveIntensity: 0.22 },
-      accent: '#d7b24a',
-      blackAccent: '#ad8328',
-      whiteAccent: { color: '#f8fbfb' }
-    }
-  },
-  {
-    id: 'beautifulGameRoyalNavy',
-    label: 'Royal Navy',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e7ecf6' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0f1b2e' },
-      accent: '#d7b24a',
-      blackAccent: '#b48a2a',
-      whiteAccent: { color: '#f5f7ff' }
-    }
-  },
-  {
-    id: 'beautifulGameSandstone',
-    label: 'Sandstone Copper',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f3e8d3' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#3a2a1f', sheenColor: '#e8c79f' },
-      accent: '#d7b24a',
-      blackAccent: '#b2772a',
-      whiteAccent: { color: '#f7f0e2' }
-    }
-  },
-  {
-    id: 'beautifulGameCrimsonEbony',
-    label: 'Crimson Ebony',
-    style: {
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f7ecec', sheenColor: '#fff7f7' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#2a0d14', emissive: '#12060a', emissiveIntensity: 0.2 },
-      accent: '#d7b24a',
-      blackAccent: '#b6782c',
-      whiteAccent: { color: '#fff4f6' }
-    }
   }
 ]);
 
@@ -3266,6 +3149,7 @@ function extractChessSetAssets(scene, options = {}) {
   const COLOR_B = /(\b|_)(black|ebony|dark|b)(\b|_)/i;
 
   const proto = { white: {}, black: {} };
+  const palettes = { white: [], black: [] };
 
   const nodePath = (node) => {
     const names = [];
@@ -3297,6 +3181,14 @@ function extractChessSetAssets(scene, options = {}) {
   root.traverse((node) => {
     if (!node) return;
     const path = nodePath(node);
+    if (node.isMesh) {
+      const colorForPalette = detectColor(path, node);
+      if (colorForPalette && Array.isArray(node.material)) {
+        palettes[colorForPalette].push(...node.material.filter(Boolean).map((m) => (m.clone ? m.clone() : m)));
+      } else if (colorForPalette && node.material) {
+        palettes[colorForPalette].push(node.material.clone ? node.material.clone() : node.material);
+      }
+    }
     const type = detectType(path);
     if (!type) return;
     const color = detectColor(path, node);
@@ -3350,6 +3242,39 @@ function extractChessSetAssets(scene, options = {}) {
   const preferredPieceYOffset = Number.isFinite(pieceYOffset)
     ? pieceYOffset
     : PIECE_PLACEMENT_Y_OFFSET;
+  const applyPalette = (node, palette) => {
+    if (!node || !palette?.length) return;
+    node.traverse((child) => {
+      if (!child?.isMesh) return;
+      const base = Array.isArray(child.material) ? child.material : [child.material];
+      const applied = base.map((_, idx) => palette[idx % palette.length].clone?.() || palette[idx % palette.length]);
+      child.material = Array.isArray(child.material) ? applied : applied[0];
+    });
+  };
+
+  const swapTypesBetweenColors = (types) => {
+    types.forEach((type) => {
+      const w = proto.white[type];
+      const b = proto.black[type];
+      if (w && b) {
+        const wFromB = cloneWithMaterials(b);
+        applyPalette(wFromB, palettes.white);
+        const bFromW = cloneWithMaterials(w);
+        applyPalette(bFromW, palettes.black);
+        proto.white[type] = wFromB;
+        proto.black[type] = bFromW;
+      } else if (w && !b) {
+        const bFromW = cloneWithMaterials(w);
+        applyPalette(bFromW, palettes.black);
+        proto.black[type] = bFromW;
+      } else if (!w && b) {
+        const wFromB = cloneWithMaterials(b);
+        applyPalette(wFromB, palettes.white);
+        proto.white[type] = wFromB;
+      }
+    });
+  };
+
   const ensurePrototypes = () => {
     ['white', 'black'].forEach((colorKey) => {
       TYPES.forEach((type) => {
@@ -3357,7 +3282,7 @@ function extractChessSetAssets(scene, options = {}) {
         const other = colorKey === 'white' ? 'black' : 'white';
         if (proto[other][type]) {
           const c = cloneWithMaterials(proto[other][type]);
-          recolorObject(c, colorKey === 'white' ? 0xe9ebef : 0x1a1c21);
+          applyPalette(c, palettes[colorKey]);
           proto[colorKey][type] = c;
           return;
         }
@@ -3366,18 +3291,19 @@ function extractChessSetAssets(scene, options = {}) {
         const source = anySame || anyOther;
         if (source) {
           const c = cloneWithMaterials(source);
-          const L = averageLuminance(c);
-          if (colorKey === 'white' && L < 0.5) recolorObject(c, 0xe9ebef);
-          if (colorKey === 'black' && L > 0.5) recolorObject(c, 0x1a1c21);
+          applyPalette(c, palettes[colorKey].length ? palettes[colorKey] : palettes[other]);
           proto[colorKey][type] = c;
         }
       });
     });
 
+    swapTypesBetweenColors(['R', 'N', 'B']);
+
     ['white', 'black'].forEach((colorKey) => {
       TYPES.forEach((type) => {
         if (!proto[colorKey][type]) return;
         const src = cloneWithMaterials(proto[colorKey][type]);
+        applyPalette(src, palettes[colorKey]);
         const box = new THREE.Box3().setFromObject(src);
         const size = box.getSize(new THREE.Vector3());
         const footprint = Math.max(size.x, size.z) || 1;
@@ -5428,7 +5354,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     camera = new THREE.PerspectiveCamera(CAM.fov, 1, CAM.near, CAM.far);
     const isPortrait = host.clientHeight > host.clientWidth;
     const cameraSeatAngle = Math.PI / 2;
-    const cameraBackOffset = isPortrait ? 2.55 : 1.78;
+    const cameraBackOffset = (isPortrait ? 2.55 : 1.78) + 0.35;
     const cameraForwardOffset = isPortrait ? 0.08 : 0.2;
     const cameraHeightOffset = isPortrait ? 1.72 : 1.34;
     const cameraRadius = chairDistance + cameraBackOffset - cameraForwardOffset;
