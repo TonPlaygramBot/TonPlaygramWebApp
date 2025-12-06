@@ -1399,6 +1399,60 @@ function buildBoardTheme(option) {
   };
 }
 
+function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
+  if (!boardModel) return;
+
+  const theme = buildBoardTheme(boardTheme);
+  const applyMaterial = (mesh, updater) => {
+    if (!mesh?.isMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const updated = materials.map((mat) => {
+      if (!mat) return mat;
+      const next = mat.clone ? mat.clone() : mat;
+      updater(next);
+      next.needsUpdate = true;
+      return next;
+    });
+    mesh.material = Array.isArray(mesh.material) ? updated : updated[0];
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  };
+
+  const applyFrame = (mesh, color) =>
+    applyMaterial(mesh, (mat) => {
+      if (mat?.color?.set) mat.color.set(color);
+      if (Number.isFinite(theme.frameRoughness)) mat.roughness = clamp01(theme.frameRoughness);
+      if (Number.isFinite(theme.frameMetalness)) mat.metalness = clamp01(theme.frameMetalness);
+      if ('clearcoat' in mat) mat.clearcoat = 0;
+      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
+      if ('reflectivity' in mat) mat.reflectivity = 0;
+    });
+
+  const applySurface = (mesh, color) =>
+    applyMaterial(mesh, (mat) => {
+      if (mat?.color?.set) mat.color.set(color);
+      if (Number.isFinite(theme.surfaceRoughness)) mat.roughness = clamp01(theme.surfaceRoughness);
+      if (Number.isFinite(theme.surfaceMetalness)) mat.metalness = clamp01(theme.surfaceMetalness);
+      if ('clearcoat' in mat) mat.clearcoat = 0;
+      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
+      if ('reflectivity' in mat) mat.reflectivity = 0;
+    });
+
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = node.name ?? '';
+    if (name === 'BoardFrame' || name.toLowerCase().includes('frame')) {
+      applyFrame(node, theme.frameDark);
+    } else if (name === 'BoardTop' || name.toLowerCase().includes('top')) {
+      applyFrame(node, theme.frameLight);
+    } else if (name.startsWith('Tile_')) {
+      const [, r, c] = name.split('_');
+      const isDark = (Number(r) + Number(c)) % 2 === 1;
+      applySurface(node, isDark ? theme.dark : theme.light);
+    }
+  });
+}
+
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
   const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
@@ -4684,10 +4738,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arenaRef.current.palette = palette;
       arenaRef.current.boardMaterials = arena.boardMaterials;
     }
-    if (arena.boardModel) {
-      arena.boardModel.visible = false;
-      arena.setProceduralBoardVisible?.(true);
-    }
     const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
@@ -4754,6 +4804,19 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     }
 
+    if (arena.piecePrototypes) {
+      harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
+    }
+    if (arena.allPieceMeshes) {
+      applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
+    }
+
+    if (arena.boardModel) {
+      applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
+      arena.boardModel.visible = true;
+      arena.setProceduralBoardVisible?.(false);
+    }
+
     const shouldSwapPieces = !arena.activePieceSetId || nextPieceSetId !== arena.activePieceSetId;
     if (shouldSwapPieces) {
       loadPieceSet(RAW_BOARD_SIZE)
@@ -4766,7 +4829,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         });
     }
 
-    if (arena.boardMaterials) {
+    if (arena.boardMaterials && (!arena.boardModel || arena.usingProceduralBoard)) {
       const usingExternalBoard = Boolean(arena.boardModel && !arena.usingProceduralBoard);
       const { base: baseMat, top: topMat, coord: coordMat, tiles } = arena.boardMaterials;
       baseMat?.color?.set?.(boardTheme.frameDark);
@@ -5626,6 +5689,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (boardModel) {
         boardModel.visible = true;
         boardGroup.add(boardModel);
+        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
