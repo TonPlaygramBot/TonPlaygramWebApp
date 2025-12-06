@@ -46,46 +46,11 @@ export async function startTirana2040(){
 
   const TREE_LIBRARY = [
     {
-      id: 'fir_tree_01',
-      name: 'Fir Tree 01 – Tall Conifers',
-      role: 'Forest tree',
-      image: 'https://cdn.polyhaven.com/asset_img/thumbs/fir_tree_01.png?format=png',
-      url: 'https://polyhaven.com/a/fir_tree_01'
-    },
-    {
-      id: 'tree_small_02',
-      name: 'Tree Small 02 – Dense Canopy (Hedge / Wall)',
-      role: 'Very dense, great in a row as a hedge wall',
-      image: 'https://cdn.polyhaven.com/asset_img/primary/tree_small_02.png?height=760&quality=95',
-      url: 'https://polyhaven.com/a/tree_small_02'
-    },
-    {
-      id: 'island_tree_01',
-      name: 'Island Tree 01 – Wide Crown',
-      role: 'When placed in a row, it forms a very full crown',
-      image: 'https://cdn.polyhaven.com/asset_img/primary/island_tree_01.png?height=760&quality=95',
-      url: 'https://polyhaven.com/a/island_tree_01'
-    },
-    {
-      id: 'fir_sapling_medium',
-      name: 'Fir Sapling Medium – Pine Wall',
-      role: 'Place in a row for a very dense pine wall',
-      image: 'https://cdn.polyhaven.com/asset_img/thumbs/fir_sapling_medium.png?format=png',
-      url: 'https://polyhaven.com/a/fir_sapling_medium'
-    },
-    {
-      id: 'quiver_tree_01',
-      name: 'Quiver Tree 01 – Desert Tree',
-      role: 'Tree with a white trunk, more exotic style',
-      image: 'https://cdn.polyhaven.com/asset_img/thumbs/quiver_tree_01.png?format=png',
-      url: 'https://polyhaven.com/a/quiver_tree_01'
-    },
-    {
-      id: 'quiver_tree_02',
-      name: 'Quiver Tree 02 – Compact Succulent Tree',
-      role: 'Thick trunk with a very compact aloe-style crown',
-      image: 'https://cdn.polyhaven.com/asset_img/thumbs/quiver_tree_02.png?format=png',
-      url: 'https://polyhaven.com/a/quiver_tree_02'
+      id: 'evergreen_minimal',
+      name: 'Minimal Evergreen',
+      role: 'Lightweight city canopy',
+      image: null,
+      url: 'local'
     }
   ];
 
@@ -207,6 +172,26 @@ export async function startTirana2040(){
   renderer.toneMappingExposure = 1.85;
   const allowShadows = !isMobile;
   renderer.shadowMap.enabled = allowShadows; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const loadingManager=new THREE.LoadingManager();
+  loadingManager.setURLModifier((url)=>{ if(url?.startsWith('data:')||url?.startsWith('blob:')) return url; return url; });
+  loadingManager.onError = (url)=>console.warn('Asset load error:', url);
+  const gltfLoader=new GLTFLoader(loadingManager);
+  const draco=new DRACOLoader(loadingManager);
+  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+  gltfLoader.setDRACOLoader(draco);
+  gltfLoader.setCrossOrigin('anonymous');
+  gltfLoader.register((parser)=>{ const c=document.createElement('canvas'); c.width=c.height=1; const ctx=c.getContext('2d'); ctx.fillStyle='#888'; ctx.fillRect(0,0,1,1); const blank=new THREE.CanvasTexture(c); blank.colorSpace=THREE.SRGBColorSpace; blank.needsUpdate=true; const orig=parser.getDependency.bind(parser); parser.getDependency=function(type,index){ if(type==='texture') return orig(type,index).catch(()=>blank); return orig(type,index); }; return {name:'TextureFallbackIfMissing'}; });
+
+  const prefabKit={ ready:false, unit:null };
+  function normalizePrefab(root){ const box=new THREE.Box3().setFromObject(root); const center=new THREE.Vector3(); box.getCenter(center); root.position.sub(center); const minY=box.min.y-center.y; root.position.y -= minY; root.updateMatrixWorld(true); }
+  function applyPrefabMaterial(root, material){ const mats=new WeakSet(); root.traverse((o)=>{ if(!o.isMesh) return; if(material){ o.material=material.clone(); } else if(!o.material){ o.material=new THREE.MeshStandardMaterial({ color:0x9ca3af }); } if(!mats.has(o.material)){ o.material.side=THREE.DoubleSide; o.material.needsUpdate=true; mats.add(o.material); } o.castShadow=allowShadows; o.receiveShadow=allowShadows; }); return root; }
+  async function loadPrefabGLB(urls, timeoutMs=FAST_BOOT?3200:6200){ let lastErr=null; for(const url of urls){ try { const gltf=await withTimeout(gltfLoader.loadAsync(url), timeoutMs); return gltf; } catch(err){ lastErr=err; } } throw lastErr || new Error('prefab load fail'); }
+  async function ensurePrefabKit(){ if(prefabKit.ready) return prefabKit; try { const gltf=await loadPrefabGLB([
+      'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Box/glTF-Binary/Box.glb',
+      'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Box/glTF-Binary/Box.glb'
+    ]); const root=(gltf.scene||gltf.scenes?.[0])?.clone?.()||null; prefabKit.unit=root || new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({ color:0x9ca3af })); normalizePrefab(prefabKit.unit); prefabKit.ready=true; return prefabKit; } catch(err){ console.warn('Prefab kit failed, using procedural boxes', err); prefabKit.unit=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({ color:0x9ca3af })); normalizePrefab(prefabKit.unit); prefabKit.ready=true; return prefabKit; } }
+  function makePrefabBox(w,h,d, material){ const base=(prefabKit.unit?.clone?.()||new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshStandardMaterial({ color:0x9ca3af }))); applyPrefabMaterial(base, material); base.scale.set(w,h,d); base.position.y += h/2; base.userData.prefab='box'; return base; }
   wrap.appendChild(renderer.domElement);
   if (ctxlost) {
     renderer.domElement.addEventListener('webglcontextlost',(e)=>{ e.preventDefault(); ctxlost.style.display='grid'; });
@@ -378,6 +363,7 @@ export async function startTirana2040(){
       const fallback = makeTreeFallback();
       let settled=false;
       const finish=(material)=>{ if(settled) return; settled=true; resolve({ tree, material }); };
+      if(!tree.image){ finish(fallback); return; }
       const timeout=setTimeout(()=>{ console.warn('Tree texture timeout', tree.id); finish(fallback); }, 2200);
       treeTextureLoader.load(tree.image,
         (tex)=>{ clearTimeout(timeout); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(4,maxAniso); finish(new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false })); },
@@ -438,6 +424,8 @@ export async function startTirana2040(){
 
   let treePalette = [];
   treePalette = await buildTreePalette();
+
+  await ensurePrefabKit();
 
   window.__phase='textures-ready';
 
@@ -894,8 +882,15 @@ export async function startTirana2040(){
     const roofMat = new THREE.MeshStandardMaterial({ color:0x4a4f59, roughness:0.8 });
     const rect={x0:xc-w/2,x1:xc+w/2,z0:zc-d/2,z1:zc+d/2};
     if(opts.plot && !reservePlotRect(opts.plot.ix, opts.plot.iz, rect)) return null;
-    const geom=new THREE.BoxGeometry(w,height,d);
-    const mesh=new THREE.Mesh(geom, [wallMat,wallMat,roofMat,roofMat,wallMat,wallMat]); mesh.castShadow=allowShadows; mesh.receiveShadow=allowShadows; mesh.position.set(xc,height/2,zc); city.add(mesh);
+    const shell=makePrefabBox(w,height,d, wallMat);
+    shell.position.set(xc,height/2,zc);
+    const roof=makePrefabBox(w*0.94,0.6,d*0.94, roofMat);
+    roof.position.set(xc,height+0.3,zc);
+    const podium=makePrefabBox(w+2.4,0.5,d+2.4, wallMat.clone()); podium.position.set(xc,0.25,zc);
+    const mesh=new THREE.Group();
+    mesh.add(podium,shell,roof);
+    mesh.traverse((o)=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } });
+    city.add(mesh);
     addInteriorFrames(xc,zc,w,d,floors);
     addGroundShops(xc,zc,w,d,opts.sign);
     addSideEntrance(xc,zc,w,d);
@@ -921,11 +916,11 @@ export async function startTirana2040(){
     const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(16,maxAniso); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.needsUpdate=true; return t; }
 
 
-  function treesPerimeter(cx,cz){ const half=PLOT*0.45; const step=8;
+  function treesPerimeter(cx,cz){ const half=PLOT*0.45; const step=12;
     const ring=new THREE.Group(); ring.userData.kind='trees';
     const baseSeed=Math.abs(Math.round(cx+cz));
     let placed=0;
-    const place=(x,z)=>{ const mat=nextTreeMaterial(baseSeed, placed) || new THREE.SpriteMaterial({ color:0x3c6f4d, transparent:true, opacity:0.92, depthWrite:false }); const sprite=new THREE.Sprite(mat); const height=8.4+Math.random()*2.6; const width=height*0.55*(1+Math.random()*0.18); sprite.scale.set(width,height,1); sprite.center.set(0.5,0); sprite.position.set(x, -0.05, z); sprite.castShadow=allowShadows; sprite.receiveShadow=allowShadows; ring.add(sprite); placed++; };
+    const place=(x,z)=>{ const mat=nextTreeMaterial(baseSeed, placed) || new THREE.SpriteMaterial({ color:0x3c6f4d, transparent:true, opacity:0.92, depthWrite:false }); const height=9; const width=height*0.56; const sprite=new THREE.Sprite(mat); sprite.scale.set(width,height,1); sprite.center.set(0.5,0); sprite.position.set(x, -0.05, z); sprite.castShadow=allowShadows; sprite.receiveShadow=allowShadows; ring.add(sprite); placed++; };
     for(let x=-half;x<=half;x+=step){ place(cx+x, cz-half); place(cx+x, cz+half); }
     for(let z=-half;z<=half;z+=step){ place(cx-half, cz+z); place(cx+half, cz+z); }
     city.add(ring);
@@ -1010,28 +1005,30 @@ export async function startTirana2040(){
 
   function addFountain(cx,cz){
     addParkGrass(cx,cz,1.2);
-    const ringR=12;
+    const ringR=11.5;
     const baseMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0xaeb8c6, roughness:0.55 });
-    const base=new THREE.Mesh(new THREE.CylinderGeometry(ringR,ringR,0.6,48), baseMat); base.position.set(cx,0.3,cz); base.castShadow=false; base.receiveShadow=true; city.add(base);
+    const tierMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0x9aa3b1, roughness:0.5, metalness:0.1 });
+    const plinth=makePrefabBox(ringR*2.6,0.8,ringR*2.6, baseMat.clone()); plinth.position.set(cx,0.4,cz); city.add(plinth);
+    const innerDeck=makePrefabBox(ringR*1.9,0.6,ringR*1.9, tierMat.clone()); innerDeck.position.set(cx,0.95,cz); city.add(innerDeck);
+    const basin=makePrefabBox(ringR*1.2,0.5,ringR*1.2, baseMat.clone()); basin.position.set(cx,1.35,cz); city.add(basin);
     const waterSurface=new Water(new THREE.CircleGeometry(ringR*0.9, 72), {
       color:'#4da1d6',
       flowDirection:new THREE.Vector2(1,1),
       textureWidth:512,
       textureHeight:512,
-      scale:2.2,
-      flowSpeed:0.15,
+      scale:1.8,
+      flowSpeed:0.12,
       normalMap0: waterNormalTile,
       normalMap1: waterNormalTile
     });
-    waterSurface.rotation.x=-Math.PI/2; waterSurface.position.set(cx,0.52,cz); city.add(waterSurface);
-    const rimStones=new THREE.Group(); const stoneGeo=new THREE.CylinderGeometry(0.45,0.5,0.2,10); const stoneMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0x8d96a1, roughness:0.65 }); for(let i=0;i<42;i++){ const ang=Math.random()*Math.PI*2; const r=ringR*0.9 + Math.random()*0.8; const stone=new THREE.Mesh(stoneGeo, stoneMat); stone.position.set(cx+Math.cos(ang)*r,0.2,cz+Math.sin(ang)*r); stone.rotation.y=ang; rimStones.add(stone); }
-    const outerRim=new THREE.Group(); for(let i=0;i<32;i++){ const ang=Math.random()*Math.PI*2; const r=ringR*1.18 + Math.random()*1.6; const boulder=new THREE.Mesh(new THREE.DodecahedronGeometry(0.9+Math.random()*0.6), stoneMat.clone()); boulder.position.set(cx+Math.cos(ang)*r,0.24,cz+Math.sin(ang)*r); boulder.rotation.y=ang; outerRim.add(boulder); }
-    city.add(rimStones, outerRim);
-    const jets=[]; for(let i=0;i<8;i++){ const jet=new THREE.Mesh(new THREE.ConeGeometry(0.4,1.6,16), waterMat.clone()); jet.position.set(cx+(Math.random()*2-1)*2,1.2,cz+(Math.random()*2-1)*2); jet.rotation.x=Math.PI; jet.userData.phase=Math.random()*Math.PI*2; city.add(jet); jets.push(jet); }
+    waterSurface.rotation.x=-Math.PI/2; waterSurface.position.set(cx,1.62,cz); city.add(waterSurface);
+    const obelisk=makePrefabBox(2.6,5.6,2.6, tierMat.clone()); obelisk.position.set(cx,4.2,cz); city.add(obelisk);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(ringR*0.92,0.18,10,48), tierMat.clone()); rim.rotation.x=Math.PI/2; rim.position.set(cx,1.62,cz); rim.castShadow=allowShadows; rim.receiveShadow=allowShadows; city.add(rim);
+    const jets=[]; const jetCount=10; for(let i=0;i<jetCount;i++){ const ang=(i/jetCount)*Math.PI*2; const r=ringR*0.65; const jet=new THREE.Mesh(new THREE.ConeGeometry(0.32,1.8,16), waterMat.clone()); jet.position.set(cx+Math.cos(ang)*r,1.8,cz+Math.sin(ang)*r); jet.rotation.x=Math.PI; jet.userData.phase=i*0.35; city.add(jet); jets.push(jet); }
     fountainWaters.push(waterSurface);
-    fountainJets.push(...jets.map((j)=>({ mesh:j, baseY:j.position.y, phase:j.userData.phase||0, speed:1.4+Math.random()*0.6 })));
+    fountainJets.push(...jets.map((j)=>({ mesh:j, baseY:j.position.y, phase:j.userData.phase||0, speed:1.25 })));
     treesPerimeter(cx,cz);
-    mapParks.push({type:'fountain',x:cx,z:cz,w:ringR*2.4,d:ringR*2.4});
+    mapParks.push({type:'fountain',x:cx,z:cz,w:ringR*2.6,d:ringR*2.6});
   }
 
   const trafficLights=[];
@@ -1130,7 +1127,9 @@ export async function startTirana2040(){
     }
   }
   addFountain(startX + CELL*0.6, startZ + CELL*0.6);
+  addFountain(startX + CELL*4.6, startZ + CELL*4.6);
   addBasketCourt(startX + CELL*2.4, startZ - CELL*1.2);
+  addBasketCourt(startX + CELL*3.6, startZ + CELL*1.2);
   commitWindows();
   for(let i=-BLOCKS_X;i<=BLOCKS_X;i+=2){ addTrafficLight(i*CELL*0.5, -BLOCKS_Z*CELL*0.5, 0); addTrafficLight(i*CELL*0.5, BLOCKS_Z*CELL*0.5, Math.PI); }
 
@@ -1227,12 +1226,6 @@ export async function startTirana2040(){
   const scorchTex=(function(){ const c=document.createElement('canvas'); c.width=c.height=128; const ctx=c.getContext('2d'); ctx.fillStyle='rgba(0,0,0,0)'; ctx.fillRect(0,0,128,128); ctx.translate(64,64); const grd=ctx.createRadialGradient(0,0,6,0,0,60); grd.addColorStop(0,'rgba(64,64,64,0.9)'); grd.addColorStop(0.55,'rgba(40,40,40,0.65)'); grd.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=grd; ctx.beginPath(); ctx.arc(0,0,60,0,Math.PI*2); ctx.fill(); const tex=new THREE.CanvasTexture(c); tex.colorSpace=THREE.SRGBColorSpace; return tex; })();
   const grenadeFallbackGeo=new THREE.SphereGeometry(0.18,18,18);
   const grenadeFallbackMat=new THREE.MeshStandardMaterial({ color:0x4a4f59, metalness:0.32, roughness:0.58 });
-
-  const manager=new THREE.LoadingManager();
-  manager.setURLModifier((url)=>{ if(url?.startsWith('data:')||url?.startsWith('blob:')) return url; return url; });
-  manager.onError = (url)=>console.warn('Asset load error:', url);
-  const gltfLoader=new GLTFLoader(manager); const draco=new DRACOLoader(manager); draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/'); gltfLoader.setDRACOLoader(draco); gltfLoader.setCrossOrigin('anonymous');
-  gltfLoader.register((parser)=>{ const c=document.createElement('canvas'); c.width=c.height=1; const ctx=c.getContext('2d'); ctx.fillStyle='#888'; ctx.fillRect(0,0,1,1); const blank=new THREE.CanvasTexture(c); blank.colorSpace=THREE.SRGBColorSpace; blank.needsUpdate=true; const orig=parser.getDependency.bind(parser); parser.getDependency=function(type,index){ if(type==='texture') return orig(type,index).catch(()=>blank); return orig(type,index); }; return {name:'TextureFallbackIfMissing'}; });
 
   const ARMORY=[
     { key:'Glock',  name:'Glock', urls:[
