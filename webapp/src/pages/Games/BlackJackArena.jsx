@@ -10,6 +10,7 @@ import { createMurlanStyleTable, applyTableMaterials, TABLE_SHAPE_OPTIONS } from
 import { createCardGeometry, createCardMesh, orientCard, setCardFace, CARD_THEMES } from '../../utils/cards3d.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { getAvatarUrl } from '../../utils/avatarUtils.js';
 import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
@@ -814,7 +815,7 @@ function buildPlayers(searchOrOptions) {
         isDealer: false,
         isHuman: true,
         chips: baseChips,
-        avatar: avatar || null
+        avatar: avatar || flag
       });
     } else {
       const flag = nextFlag() || FLAG_EMOJIS[(i * 11) % FLAG_EMOJIS.length];
@@ -825,7 +826,7 @@ function buildPlayers(searchOrOptions) {
         isDealer: false,
         isHuman: false,
         chips: baseChips,
-        avatar: null
+        avatar: flag
       });
     }
   }
@@ -937,12 +938,34 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   return layout;
 }
 
-function makeNameplate(name, chips, renderer) {
+function makeNameplate(name, chips, renderer, avatar = '') {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 220;
   const ctx = canvas.getContext('2d');
-  const draw = (playerName, stack, highlight, status) => {
+  const avatarImg = new Image();
+  avatarImg.crossOrigin = 'anonymous';
+  let avatarReady = false;
+  let currentAvatar = '';
+  let spriteRef = null;
+  const draw = (playerName, stack, highlight, status, avatarSource = '') => {
+    const normalizedAvatar = getAvatarUrl(avatarSource) || '';
+    if (normalizedAvatar !== currentAvatar) {
+      currentAvatar = normalizedAvatar;
+      avatarReady = false;
+      if (currentAvatar) {
+        avatarImg.onload = () => {
+          avatarReady = true;
+          if (spriteRef) spriteRef.userData.texture.needsUpdate = true;
+        };
+        avatarImg.onerror = () => {
+          avatarReady = false;
+          currentAvatar = '';
+          if (spriteRef) spriteRef.userData.texture.needsUpdate = true;
+        };
+        avatarImg.src = currentAvatar;
+      }
+    }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = highlight ? 'rgba(34,197,94,0.3)' : 'rgba(15,23,42,0.78)';
     ctx.strokeStyle = highlight ? '#4ade80' : 'rgba(255,255,255,0.16)';
@@ -950,26 +973,51 @@ function makeNameplate(name, chips, renderer) {
     roundRect(ctx, 16, 16, canvas.width - 32, canvas.height - 32, 32);
     ctx.fill();
     ctx.stroke();
+    const avatarSize = 96;
+    const avatarX = 32;
+    const avatarY = (canvas.height - avatarSize) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, avatarSize / 2, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fill();
+    ctx.clip();
+    if (avatarReady && currentAvatar) {
+      ctx.drawImage(avatarImg, avatarX, avatarY, avatarSize, avatarSize);
+    } else {
+      ctx.fillStyle = '#1f2937';
+      ctx.fillRect(avatarX, avatarY, avatarSize, avatarSize);
+      ctx.fillStyle = '#e2e8f0';
+      ctx.font = '600 52px "Inter", system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const fallback = (avatarSource && avatarSource.trim()[0]) || (playerName?.[0] || '?');
+      ctx.fillText(fallback, avatarX + avatarSize / 2, avatarY + avatarSize / 2 + 4);
+    }
+    ctx.restore();
+
+    const textX = avatarX + avatarSize + 28;
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 64px "Inter", system-ui, sans-serif';
+    ctx.font = '700 58px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'top';
-    ctx.fillText(playerName, 40, 40);
-    ctx.font = '600 48px "Inter", system-ui, sans-serif';
+    ctx.fillText(playerName, textX, 40);
+    ctx.font = '600 42px "Inter", system-ui, sans-serif';
     ctx.fillStyle = '#cbd5f5';
-    ctx.fillText(`${stack} chips`, 40, 130);
+    ctx.fillText(`${stack} chips`, textX, 134);
     if (status) {
       ctx.textAlign = 'right';
       ctx.fillStyle = '#facc15';
-      ctx.fillText(status, canvas.width - 40, 130);
+      ctx.fillText(status, canvas.width - 40, 134);
       ctx.textAlign = 'left';
     }
   };
-  draw(name, chips, false, '');
+  draw(name, chips, false, '', avatar);
   const texture = new THREE.CanvasTexture(canvas);
   applySRGBColorSpace(texture);
   texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
   const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
   const sprite = new THREE.Sprite(material);
+  spriteRef = sprite;
   const scale = 1.3 * MODEL_SCALE;
   sprite.scale.set(scale, scale * 0.45, 1);
   sprite.userData.update = draw;
@@ -984,19 +1032,13 @@ function makePotLabel(amount, token, renderer) {
   const ctx = canvas.getContext('2d');
   const draw = (value, tokenSymbol) => {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = 'rgba(15,23,42,0.8)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.lineWidth = 12;
-    roundRect(ctx, 28, 80, canvas.width - 56, 120, 28);
-    ctx.fill();
-    ctx.stroke();
     ctx.fillStyle = '#cbd5f5';
-    ctx.font = '600 64px "Inter", system-ui, sans-serif';
+    ctx.font = '600 52px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('Total Pot', canvas.width / 2, 118);
     ctx.fillStyle = '#f8fafc';
-    ctx.font = '700 72px "Inter", system-ui, sans-serif';
+    ctx.font = '700 60px "Inter", system-ui, sans-serif';
     ctx.fillText(`${Math.round(value)} ${tokenSymbol}`, canvas.width / 2, 186);
     ctx.textAlign = 'left';
   };
@@ -1240,6 +1282,12 @@ function applyPlayerAction(state, action) {
     player.revealed = true;
     player.stood = true;
     player.result = `Stand ${handValue(player.hand)}`;
+    advancePlayer(state);
+  } else if (action === 'fold') {
+    player.viewed = true;
+    player.revealed = true;
+    player.stood = true;
+    player.result = 'Fold';
     advancePlayer(state);
   }
 }
@@ -2253,7 +2301,13 @@ function BlackJackArena({ search }) {
       chipFactory.setAmount(seat.betStack, player.bet);
       if (seat.nameplate?.userData?.update) {
         const active = state.currentIndex === idx && state.stage === 'player-turns';
-        seat.nameplate.userData.update(player.name, Math.round(player.chips), active, player.result || '');
+        seat.nameplate.userData.update(
+          player.name,
+          Math.round(player.chips),
+          active,
+          player.result || '',
+          player.avatar || player.flag
+        );
         seat.nameplate.userData.texture.needsUpdate = true;
       }
     });
@@ -2314,7 +2368,8 @@ function BlackJackArena({ search }) {
         setUiState({
           actions: [
             { id: 'hit', label: 'Hit' },
-            { id: 'stand', label: 'Stand' }
+            { id: 'stand', label: 'Stand' },
+            { id: 'fold', label: 'Fold' }
           ],
           requiresPreview
         });
@@ -2437,6 +2492,7 @@ function BlackJackArena({ search }) {
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalBet <= 0);
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const previewRequired = uiState.requiresPreview && Boolean(activePlayer?.isHuman);
+  const showHumanTurn = gameState.stage === 'player-turns' && Boolean(activePlayer?.isHuman);
   const humanHand = humanPlayer?.hand ?? [];
 
   const handleChipClick = useCallback(
@@ -2658,7 +2714,7 @@ function BlackJackArena({ search }) {
       </div>
       <div className="absolute top-4 left-1/2 -translate-x-1/2 text-center text-white drop-shadow-lg">
         <p className="text-lg font-semibold">Black Jack Multiplayer</p>
-        <p className="text-sm opacity-80">
+        <p className="text-xs opacity-80">
           Pot: {Math.round(gameState.pot)} {gameState.token} · Best hand: {highestVisibleScore}
         </p>
       </div>
@@ -2669,16 +2725,6 @@ function BlackJackArena({ search }) {
       )}
       {sliderEnabled && (
         <div className="pointer-events-auto absolute top-1/2 right-2 z-10 flex -translate-y-1/2 flex-col items-center gap-4 text-white sm:right-6">
-          <div className="flex flex-col items-center gap-1 text-center">
-            <span className="text-xs uppercase tracking-[0.5em] text-white/60">{sliderLabel}</span>
-            <span className="text-2xl font-semibold drop-shadow-md">
-              {Math.round(finalBet)} {gameState.token}
-            </span>
-            {minBet > 0 && (
-              <span className="text-[0.7rem] text-white/60">Min {Math.round(minBet)} {gameState.token}</span>
-            )}
-            <span className="text-[0.7rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
-          </div>
           <div className="flex flex-col items-center gap-3">
             <input
               type="range"
@@ -2704,31 +2750,17 @@ function BlackJackArena({ search }) {
             >
               {sliderLabel}
             </button>
+            <div className="flex flex-col items-center gap-1 text-center">
+              <span className="text-[0.65rem] uppercase tracking-[0.35em] text-white/60">{sliderLabel}</span>
+              <span className="text-lg font-semibold drop-shadow-md">
+                {Math.round(finalBet)} {gameState.token}
+              </span>
+              {minBet > 0 && (
+                <span className="text-[0.65rem] text-white/60">Min {Math.round(minBet)} {gameState.token}</span>
+              )}
+              <span className="text-[0.65rem] text-white/70">Stack {Math.round(sliderMax)} {gameState.token}</span>
+            </div>
           </div>
-        </div>
-      )}
-      {sliderEnabled && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
-          <button
-            type="button"
-            onClick={handleUndoChip}
-            disabled={undoDisabled}
-            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 ${
-              undoDisabled ? 'bg-amber-900/40 text-white/40 shadow-none' : 'bg-amber-500/90 hover:bg-amber-400'
-            }`}
-          >
-            Undo
-          </button>
-          <button
-            type="button"
-            onClick={handleAllIn}
-            disabled={overlayAllInDisabled}
-            className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
-              overlayAllInDisabled ? 'bg-red-900/50 text-white/40 shadow-none' : 'bg-red-600/90 hover:bg-red-500'
-            }`}
-          >
-            All-in
-          </button>
         </div>
       )}
       {previewRequired && (
@@ -2743,24 +2775,55 @@ function BlackJackArena({ search }) {
           <p className="text-[0.7rem] text-white/70">Reveal your hand before acting.</p>
         </div>
       )}
-      {gameState.stage === 'player-turns' && activePlayer?.isHuman && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center justify-center gap-3">
-          {uiState.actions.map((action) => (
-            <button
-              key={action.id}
-              onClick={() => handleAction(action.id)}
-              disabled={previewRequired}
-              className={`px-5 py-2 rounded-lg font-semibold text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 ${
-                previewRequired
-                  ? 'cursor-not-allowed bg-green-900/50 text-white/50 shadow-none'
-                  : action.id === 'stand'
-                    ? 'bg-red-600/90 hover:bg-red-500'
-                    : 'bg-green-600/90 hover:bg-green-500'
-              }`}
-            >
-              {action.label}
-            </button>
-          ))}
+      {(sliderEnabled || showHumanTurn) && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center justify-center gap-3">
+          {showHumanTurn &&
+            uiState.actions.map((action) => {
+              const isStand = action.id === 'stand';
+              const isFold = action.id === 'fold';
+              const baseColor = isStand
+                ? 'bg-red-600/90 hover:bg-red-500'
+                : isFold
+                  ? 'bg-slate-700/80 hover:bg-slate-600'
+                  : 'bg-green-600/90 hover:bg-green-500';
+              const disabledClasses = 'cursor-not-allowed bg-green-900/50 text-white/50 shadow-none';
+              return (
+                <button
+                  key={action.id}
+                  onClick={() => handleAction(action.id)}
+                  disabled={previewRequired}
+                  className={`px-5 py-2 rounded-lg font-semibold text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-200 ${
+                    previewRequired ? disabledClasses : baseColor
+                  }`}
+                >
+                  {action.label}
+                </button>
+              );
+            })}
+          {sliderEnabled && (
+            <>
+              <button
+                type="button"
+                onClick={handleUndoChip}
+                disabled={undoDisabled}
+                className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 ${
+                  undoDisabled ? 'bg-amber-900/40 text-white/40 shadow-none' : 'bg-amber-500/90 hover:bg-amber-400'
+                }`}
+              >
+                Undo
+              </button>
+              <button
+                type="button"
+                onClick={handleAllIn}
+                disabled={overlayAllInDisabled}
+                className={`px-5 py-2 rounded-lg font-semibold uppercase tracking-wide text-white shadow-lg transition focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300 ${
+                  overlayAllInDisabled ? 'bg-red-900/50 text-white/40 shadow-none' : 'bg-red-600/90 hover:bg-red-500'
+                }`}
+              >
+                All-in
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
