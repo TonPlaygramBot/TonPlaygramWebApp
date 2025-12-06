@@ -2386,6 +2386,7 @@ function TexasHoldemArena({ search }) {
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_HEIGHT
         : CAMERA_PLAYER_FOCUS_HEIGHT;
       const focusBlend = portrait ? PORTRAIT_CAMERA_PLAYER_FOCUS_BLEND : CAMERA_PLAYER_FOCUS_BLEND;
+      const potFocus = computePotAnchor({ surfaceY: tableInfo?.surfaceY });
       const chipFocus = humanSeat.chipAnchor
         .clone()
         .addScaledVector(humanSeat.forward, -focusForwardPull);
@@ -2394,11 +2395,7 @@ function TexasHoldemArena({ search }) {
       const humanActing = Boolean(
         activeState?.stage !== 'showdown' && activeState?.players?.[activeState.actionIndex]?.isHuman
       );
-      const topSeatFocus =
-        humanActing && seatTopPoint
-          ? seatTopPoint.clone().setY(seatTopPoint.y + CAMERA_TURN_FOCUS_LIFT)
-          : null;
-      const focus = topSeatFocus ?? (humanActing ? focusBase : focusBase.clone().lerp(chipFocus, focusBlend));
+      const focus = humanActing ? potFocus : focusBase.clone().lerp(chipFocus, focusBlend);
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(position, focus, WORLD_UP);
       const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
@@ -2697,8 +2694,8 @@ function TexasHoldemArena({ search }) {
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
       const potLabel = createRailTextSprite(['Total pot', '0'], {
-        width: 2.4 * MODEL_SCALE,
-        height: 0.9 * MODEL_SCALE
+        width: (2.4 * MODEL_SCALE) / 3,
+        height: (0.9 * MODEL_SCALE) / 3
       });
       potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, 0)));
       potLabel.renderOrder = 12;
