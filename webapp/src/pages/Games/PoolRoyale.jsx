@@ -431,7 +431,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.052; // open the middle rail arches a touch so the rounded cut radius breathes slightly wider around the jaws
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.028; // trim the middle rail arches so the rounded cut radius tucks a bit tighter around the jaws
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
 
 function buildChromePlateGeometry({
@@ -745,7 +745,7 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
 const POCKET_JAW_DEPTH_SCALE = 0.9; // extend the jaws farther downward so their length reads longer without lifting the tops
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.098; // drop the jaws a touch farther so their lips sit closer to the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.036; // leave a lean clearance so the added jaw depth clears the cloth without moving the tops
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
