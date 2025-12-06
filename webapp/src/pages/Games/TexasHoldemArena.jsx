@@ -1059,7 +1059,7 @@ function makeNameplate(name, chips, renderer, avatar) {
   let lastStack = chips;
   let lastHighlight = false;
   let lastStatus = '';
-  const draw = (playerName, stack, highlight, status, nextAvatar) => {
+  const draw = (playerName, stack, highlight, status, nextAvatar, timer) => {
     const normalizedAvatar = getAvatarUrl(nextAvatar) || fallbackAvatar;
     if (nextAvatar && normalizedAvatar !== avatarSrc) {
       avatarSrc = normalizedAvatar;
@@ -1108,6 +1108,35 @@ function makeNameplate(name, chips, renderer, avatar) {
       ctx.restore();
     }
     ctx.restore();
+    const timerVisible = timer && Number.isFinite(timer.remaining) && timer.remaining > 0;
+    if (timerVisible) {
+      const total = Math.max(1, Math.round(timer.total ?? TURN_DURATION));
+      const remaining = Math.max(0, Math.round(timer.remaining));
+      const progress = Math.max(0, Math.min(1, remaining / total));
+      const timerRadius = 28;
+      const timerCenterX = avatarX + avatarSize / 2;
+      const timerCenterY = avatarY - timerRadius * 0.6;
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.35)';
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetY = 6;
+      ctx.beginPath();
+      ctx.arc(timerCenterX, timerCenterY, timerRadius + 4, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(8,12,24,0.9)';
+      ctx.fill();
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = 'rgba(14,165,233,0.8)';
+      ctx.beginPath();
+      ctx.arc(timerCenterX, timerCenterY, timerRadius, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * progress);
+      ctx.stroke();
+      ctx.font = '700 34px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#e0f2fe';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${remaining}s`, timerCenterX, timerCenterY);
+      ctx.restore();
+    }
+
     ctx.fillStyle = '#f8fafc';
     ctx.font = '700 68px "Inter", system-ui, sans-serif';
     ctx.textBaseline = 'top';
@@ -1906,7 +1935,17 @@ function TexasHoldemArena({ search }) {
       const three = threeRef.current;
       const basis = cameraBasisRef.current;
       if (!three || !basis) return;
-      const seat = three.seatGroups?.[seatIndex];
+      const players = gameStateRef.current?.players ?? [];
+      let targetIndex = seatIndex;
+      const currentPlayer = players?.[seatIndex];
+      const hasAvatar = Boolean(currentPlayer?.avatar || currentPlayer?.flag);
+      if (!hasAvatar) {
+        const fallbackIndex = players.findIndex((p) => p && (p.avatar || p.flag));
+        if (fallbackIndex >= 0) {
+          targetIndex = fallbackIndex;
+        }
+      }
+      const seat = three.seatGroups?.[targetIndex];
       if (!seat) return;
       const focusPoint = seat.stoolAnchor.clone();
       focusPoint.y += seat.stoolHeight + CAMERA_TURN_FOCUS_LIFT;
@@ -1922,10 +1961,10 @@ function TexasHoldemArena({ search }) {
       if (immediate) {
         headAnglesRef.current.yaw = clampedYaw;
         headAnglesRef.current.pitch = 0;
-        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
+        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: targetIndex };
         applyHeadOrientation();
       } else {
-        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
+        cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: targetIndex };
       }
     },
     [applyHeadOrientation]
@@ -3091,15 +3130,7 @@ function TexasHoldemArena({ search }) {
         seat.betStack.visible = false;
       }
 
-      const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
-      const label = seat.nameplate;
-      if (label?.userData?.update) {
-        const status = player.status || '';
-        const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
-        seat.lastAvatar = labelAvatar;
-        label.userData.update(player.name, chipsAmount, highlight, status, labelAvatar);
-        label.userData.texture.needsUpdate = true;
-      }
+      seat.chipStack.visible = true;
 
       if (player.folded && !(prevPlayer?.folded)) {
         playSound('fold');
@@ -3184,6 +3215,27 @@ function TexasHoldemArena({ search }) {
       actionIndex: state.actionIndex
     };
   }, [gameState, playSound]);
+
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three || !gameState) return;
+    const { seatGroups } = three;
+    seatGroups.forEach((seat, idx) => {
+      const player = gameState.players?.[idx];
+      if (!seat || !player) return;
+      const label = seat.nameplate;
+      if (!label?.userData?.update) return;
+      const activeTurn =
+        gameState.stage !== 'showdown' && idx === gameState.actionIndex && !player.folded && !player.allIn;
+      const timerInfo = activeTurn ? { remaining: turnCountdown, total: TURN_DURATION } : null;
+      const status = player.status || '';
+      const chipsAmount = Math.max(0, Math.round(player.chips));
+      const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
+      seat.lastAvatar = labelAvatar;
+      label.userData.update(player.name, chipsAmount, activeTurn, status, labelAvatar, timerInfo);
+      label.userData.texture.needsUpdate = true;
+    });
+  }, [gameState, turnCountdown]);
 
   const currentActionIndex = gameState?.actionIndex;
   const currentStage = gameState?.stage;
