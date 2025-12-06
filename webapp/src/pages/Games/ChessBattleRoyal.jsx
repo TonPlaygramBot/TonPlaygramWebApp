@@ -177,6 +177,8 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const BOARD_GROUP_Y_OFFSET = -0.01;
 const BOARD_MODEL_Y_OFFSET = -0.04;
+const MIN_RENDER_FPS = 40;
+const RENDER_RESOLUTION_SCALE = 1.08;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.063;
@@ -376,7 +378,13 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
   })
 ]);
 
-const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
+const BOARD_COLOR_OPTIONS = Object.freeze(
+  BEAUTIFUL_GAME_BOARD_VARIANTS.map((option, index) => ({
+    ...option,
+    useAuthenticPalette: true,
+    swapTiles: index === 1
+  }))
+);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -1462,7 +1470,9 @@ function buildBoardTheme(option) {
     surfaceMetalness: clamp01(source.surfaceMetalness, BASE_BOARD_THEME.surfaceMetalness),
     frameRoughness: clamp01(source.frameRoughness, BASE_BOARD_THEME.frameRoughness),
     frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness),
-    preserveOriginalMaterials: Boolean(source.preserveOriginalMaterials)
+    preserveOriginalMaterials: Boolean(source.preserveOriginalMaterials),
+    useAuthenticPalette: Boolean(source.useAuthenticPalette),
+    swapTiles: Boolean(source.swapTiles)
   };
 }
 
@@ -1495,6 +1505,36 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
+function extractBoardPalette(boardModel) {
+  if (!boardModel) return null;
+  const palette = {
+    frameLight: [],
+    frameDark: [],
+    tileLight: [],
+    tileDark: []
+  };
+
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    const name = node.name ?? '';
+    const cloned = materials.map((mat) => (mat?.clone ? mat.clone() : mat));
+
+    if (name === 'BoardFrame' || name.toLowerCase().includes('frame')) {
+      palette.frameDark.push(...cloned);
+    } else if (name === 'BoardTop' || name.toLowerCase().includes('top')) {
+      palette.frameLight.push(...cloned);
+    } else if (name.startsWith('Tile_')) {
+      const [, r, c] = name.split('_');
+      const isDark = (Number(r) + Number(c)) % 2 === 1;
+      if (isDark) palette.tileDark.push(...cloned);
+      else palette.tileLight.push(...cloned);
+    }
+  });
+
+  return palette;
+}
+
 function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
 
@@ -1502,6 +1542,43 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   restoreBoardMaterials(boardModel);
 
   const theme = buildBoardTheme(boardTheme);
+
+  let palette = boardModel.userData?.__authenticBoardPalette;
+  if (theme.useAuthenticPalette && !palette) {
+    palette = extractBoardPalette(boardModel);
+    if (palette) {
+      boardModel.userData = {
+        ...(boardModel.userData || {}),
+        __authenticBoardPalette: palette
+      };
+    }
+  }
+  if (theme.useAuthenticPalette && palette) {
+    const swapTiles = Boolean(theme.swapTiles);
+    boardModel.traverse((node) => {
+      if (!node?.isMesh) return;
+      const name = node.name ?? '';
+      const applySet = (set) => {
+        if (!set?.length) return;
+        const materials = set.map((mat) => (mat?.clone ? mat.clone() : mat));
+        node.material = Array.isArray(node.material) ? materials : materials[0];
+        node.castShadow = true;
+        node.receiveShadow = true;
+      };
+
+      if (name === 'BoardFrame' || name.toLowerCase().includes('frame')) {
+        applySet(palette.frameDark.length ? palette.frameDark : palette.frameLight);
+      } else if (name === 'BoardTop' || name.toLowerCase().includes('top')) {
+        applySet(palette.frameLight.length ? palette.frameLight : palette.frameDark);
+      } else if (name.startsWith('Tile_')) {
+        const [, r, c] = name.split('_');
+        const isDark = (Number(r) + Number(c)) % 2 === 1;
+        if (isDark) applySet(swapTiles ? palette.tileLight : palette.tileDark);
+        else applySet(swapTiles ? palette.tileDark : palette.tileLight);
+      }
+    });
+    return;
+  }
 
   if (theme.preserveOriginalMaterials) {
     return;
@@ -3517,6 +3594,13 @@ function extractChessSetAssets(scene, options = {}) {
 
   ensurePrototypes();
 
+  if (boardModel) {
+    boardModel.userData = {
+      ...(boardModel.userData || {}),
+      __authenticBoardPalette: extractBoardPalette(boardModel)
+    };
+  }
+
   const assets = { boardModel, piecePrototypes: proto, tileSize, pieceYOffset: preferredPieceYOffset };
   return assets;
 }
@@ -5258,7 +5342,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const pixelRatio = Math.min(2.25, (window.devicePixelRatio || 1) * RENDER_RESOLUTION_SCALE);
+    renderer.setPixelRatio(pixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
@@ -5683,8 +5768,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     setViewModeInternal(viewModeRef.current);
 
     const fit = () => {
-      const w = host.clientWidth;
-      const h = host.clientHeight;
+      const w = host.clientWidth * RENDER_RESOLUTION_SCALE;
+      const h = host.clientHeight * RENDER_RESOLUTION_SCALE;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -6454,10 +6539,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     window.addEventListener('pointerup', onPointerUp);
 
     // Loop
+    const minFrameMs = 1000 / MIN_RENDER_FPS;
     let lastTime = performance.now();
     const step = () => {
       const now = performance.now();
-      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+      const elapsedMs = now - lastTime;
+      if (elapsedMs < minFrameMs) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      const dt = Math.min(0.1, Math.max(0, elapsedMs / 1000));
       lastTime = now;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
