@@ -1046,12 +1046,12 @@ export default function TableTennis3D({ player, ai }){
       w: new THREE.Vector3(0, 0, 0),
       mass: 0.0027,
       paddleMass: 0.16,
-      magnusCoeff: physicsSettings.magnusCoeff ?? 0.42,
-      spinDecay: physicsSettings.spinDecay ?? 0.93,
-      gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -9.81, 0),
-      drag: physicsSettings.drag ?? 0.42,
+      magnusCoeff: physicsSettings.magnusCoeff ?? 0.38,
+      spinDecay: physicsSettings.spinDecay ?? 0.955,
+      gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -13.5, 0),
+      drag: physicsSettings.drag ?? 0.36,
       tableRest: physicsSettings.tableRest ?? 0.9,
-      tableFriction: physicsSettings.tableFriction ?? 0.16,
+      tableFriction: physicsSettings.tableFriction ?? 0.2,
       paddleRest: physicsSettings.paddleRest ?? 1.02,
       paddleAim: physicsSettings.paddleAim ?? 0.62,
       paddleLift: physicsSettings.paddleLift ?? 0.2,
@@ -1060,9 +1060,9 @@ export default function TableTennis3D({ player, ai }){
       spinTransfer: physicsSettings.spinTransfer ?? 0.34,
       netDrag: physicsSettings.netDrag ?? 0.18,
       wallRest: physicsSettings.wallRest ?? 0.62,
-      wallFriction: physicsSettings.wallFriction ?? 0.08,
-      floorRest: physicsSettings.floorRest ?? 0.52,
-      floorFriction: physicsSettings.floorFriction ?? 0.14,
+      wallFriction: physicsSettings.wallFriction ?? 0.1,
+      floorRest: physicsSettings.floorRest ?? 0.48,
+      floorFriction: physicsSettings.floorFriction ?? 0.18,
       netKill: physicsSettings.netKill ?? 0.42,
       state: 'serve',
       lastTouch: null,
@@ -1074,6 +1074,7 @@ export default function TableTennis3D({ player, ai }){
       simVel: new THREE.Vector3(),
       tmpV0: new THREE.Vector3(),
       tmpV1: new THREE.Vector3(),
+      tmpV2: new THREE.Vector3(),
       pendingFault: false,
     };
     let playerSwing = null;
@@ -1529,17 +1530,38 @@ export default function TableTennis3D({ player, ai }){
     }
 
     // ---------- Collisions ----------
-    const resolveSurfaceBounce = (normal, restitution, friction, spinAtten = 0.72) => {
-      const vDot = Sx.v.dot(normal);
-      if (vDot >= 0) return false;
-      const normalImpulse = -(1 + restitution) * vDot;
-      const bounce = Sx.tmpV0.copy(normal).multiplyScalar(normalImpulse);
-      const tangent = Sx.tmpV1.copy(Sx.v).addScaledVector(normal, -vDot);
+    const resolveSurfaceBounce = (normal, restitution, friction, spinElasticity = 0.78) => {
+      // Combine linear and rotational velocity at the contact patch so spin affects bounce
+      const contactVel = Sx.tmpV0.copy(Sx.v);
+      const spinVel = Sx.tmpV2.copy(Sx.w).cross(normal).multiplyScalar(BALL_R);
+      contactVel.add(spinVel);
+
+      const approachSpeed = contactVel.dot(normal);
+      if (approachSpeed >= 0) return false;
+
+      const speedFactor = THREE.MathUtils.clamp(-approachSpeed * 0.08, 0, 0.18);
+      const cor = THREE.MathUtils.clamp(restitution + speedFactor, 0.72, 1.1);
+      const normalImpulse = -(1 + cor) * approachSpeed;
+
+      // Tangential response with Coulomb friction and spin feedback
+      const tangent = Sx.tmpV1.copy(contactVel).addScaledVector(normal, -approachSpeed);
       const tangMag = tangent.length();
-      const tangScale = tangMag > 1e-5 ? Math.max(0, 1 - friction) : 1;
-      if (tangMag > 1e-5) tangent.multiplyScalar(tangScale);
-      Sx.v.copy(bounce).add(tangent);
-      Sx.w.multiplyScalar(spinAtten);
+      let frictionImpulse = 0;
+      if (tangMag > 1e-6) {
+        frictionImpulse = Math.min(tangMag, friction * normalImpulse);
+        tangent.multiplyScalar(frictionImpulse / tangMag);
+      } else {
+        tangent.set(0, 0, 0);
+      }
+
+      Sx.v.addScaledVector(normal, normalImpulse).addScaledVector(tangent, -1);
+
+      if (frictionImpulse > 0) {
+        const spinImpulse = Sx.tmpV2.copy(normal).cross(tangent).multiplyScalar(1 / BALL_R);
+        Sx.w.add(spinImpulse);
+      }
+      const spinBrake = 1 - THREE.MathUtils.clamp(-approachSpeed * 0.045, 0, 0.28);
+      Sx.w.multiplyScalar(spinElasticity * spinBrake);
       return true;
     };
 
@@ -1563,10 +1585,10 @@ export default function TableTennis3D({ player, ai }){
         }
 
         const n = Sx.tmpN.set(0, 1, 0);
-        resolveSurfaceBounce(n, Sx.tableRest, Sx.tableFriction, 0.78);
-        const spinSlip = Sx.tmpV1.copy(Sx.w).cross(n).multiplyScalar(BALL_R * 0.1);
+        resolveSurfaceBounce(n, Sx.tableRest, Sx.tableFriction, 0.86);
+        const spinSlip = Sx.tmpV1.copy(Sx.w).cross(n).multiplyScalar(BALL_R * 0.06);
         Sx.v.add(spinSlip);
-        Sx.w.multiplyScalar(0.82);
+        Sx.w.multiplyScalar(0.9);
         ball.position.y = TABLE_TOP;
         playSfx('bounce', 0.65 + Math.min(Math.abs(Sx.v.y), 1.4) * 0.15, THREE.MathUtils.clamp(0.9 + Math.abs(Sx.v.z) * 0.18, 0.86, 1.25));
 
@@ -1744,10 +1766,10 @@ export default function TableTennis3D({ player, ai }){
         ball.position.x = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
         ball.position.y = Math.max(yAtNet, TABLE_TOP);
         const n = Sx.tmpN.set(0, 0, sign);
-        resolveSurfaceBounce(n, Sx.netRest * 0.9, 0.42, 0.5);
-        Sx.v.multiplyScalar(1 - Sx.netDrag);
-        Sx.v.y = Math.max(Sx.v.y - Sx.netKill, -Math.abs(Sx.v.y) * 0.6);
-        Sx.w.multiplyScalar(0.4);
+        resolveSurfaceBounce(n, Sx.netRest * 0.9, 0.52, 0.6);
+        Sx.v.multiplyScalar(1 - Sx.netDrag * 1.1);
+        Sx.v.y = Math.max(Sx.v.y - Sx.netKill * 1.2, -Math.abs(Sx.v.y) * 0.65);
+        Sx.w.multiplyScalar(0.35);
         queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 120);
       }
     }
@@ -1896,6 +1918,14 @@ export default function TableTennis3D({ player, ai }){
       Sx.v.addScaledVector(magnus, dt);
       const spinDamp = Math.pow(Sx.spinDecay, dt * 60);
       Sx.w.multiplyScalar(spinDamp);
+      const maxSpeed = 18;
+      if (Sx.v.length() > maxSpeed){
+        Sx.v.setLength(maxSpeed);
+      }
+      const maxSpin = 140;
+      if (Sx.w.length() > maxSpin){
+        Sx.w.setLength(maxSpin);
+      }
       ball.position.addScaledVector(Sx.v, dt);
 
       const scored = bounceTable(prevBall);
