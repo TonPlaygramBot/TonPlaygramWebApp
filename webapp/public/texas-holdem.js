@@ -810,7 +810,7 @@ function setPlayerTurnIndicator(idx) {
 function findNextActivePlayer(startIdx = 0) {
   const total = state.players.length;
   for (let offset = 0; offset < total; offset++) {
-    const idx = (startIdx + offset) % total;
+    const idx = ((startIdx - offset) % total + total) % total;
     const player = state.players[idx];
     if (player && !player.vacant && player.active) return idx;
   }
@@ -1201,7 +1201,7 @@ async function proceedStage() {
   clearInterval(state.timerInterval);
   setPlayerTurnIndicator(null);
   hideControls();
-  for (let i = 1; i < state.players.length; i++) {
+  for (let i = state.players.length - 1; i >= 1; i--) {
     const p = state.players[i];
     if (p.vacant || !p.active) continue;
     setPlayerTurnIndicator(i);
