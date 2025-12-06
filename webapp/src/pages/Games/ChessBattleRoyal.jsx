@@ -428,6 +428,69 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
 const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuthentic';
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
 
+const COLOR_THEME_OPTIONS = Object.freeze([
+  {
+    id: 'authentic',
+    label: 'Authentic',
+    piece: { white: '#f6f7fb', black: '#3f5f46', preserveOriginal: true },
+    board: null
+  },
+  {
+    id: 'swapPalettes',
+    label: 'Swap Palettes',
+    piece: { white: '#3f5f46', black: '#f6f7fb', preserveOriginal: false },
+    board: { light: '#EEE8D5', dark: '#2B2F36' }
+  },
+  {
+    id: 'blueOrange',
+    label: 'Blue / Orange',
+    piece: { white: '#5B8DEF', black: '#F59E0B', preserveOriginal: false },
+    board: { light: '#93C5FD', dark: '#1E293B' }
+  },
+  {
+    id: 'redTeal',
+    label: 'Red / Teal',
+    piece: { white: '#EF4444', black: '#14B8A6', preserveOriginal: false },
+    board: { light: '#FCA5A5', dark: '#0F766E' }
+  },
+  {
+    id: 'purpleLime',
+    label: 'Purple / Lime',
+    piece: { white: '#8B5CF6', black: '#84CC16', preserveOriginal: false },
+    board: { light: '#C4B5FD', dark: '#365314' }
+  },
+  {
+    id: 'pinkCyan',
+    label: 'Pink / Cyan',
+    piece: { white: '#EC4899', black: '#06B6D4', preserveOriginal: false },
+    board: { light: '#F9A8D4', dark: '#164E63' }
+  },
+  {
+    id: 'goldSlate',
+    label: 'Gold / Slate',
+    piece: { white: '#F59E0B', black: '#64748B', preserveOriginal: false },
+    board: { light: '#FDE68A', dark: '#0F172A' }
+  },
+  {
+    id: 'emeraldFuchsia',
+    label: 'Emerald / Fuchsia',
+    piece: { white: '#10B981', black: '#A21CAF', preserveOriginal: false },
+    board: { light: '#6EE7B7', dark: '#4A044E' }
+  },
+  {
+    id: 'silverGraphite',
+    label: 'Silver / Graphite',
+    piece: { white: '#D1D5DB', black: '#111827', preserveOriginal: false },
+    board: { light: '#E5E7EB', dark: '#111827' }
+  },
+  {
+    id: 'forestSand',
+    label: 'Forest / Sand',
+    piece: { white: '#22C55E', black: '#E9D5A1', preserveOriginal: false },
+    board: { light: '#FDEAD7', dark: '#064E3B' }
+  }
+]);
+
 const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
   {
     id: BEAUTIFUL_GAME_AUTHENTIC_ID,
@@ -705,7 +768,11 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
   tableShape: 0,
-  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
+  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
+  pieceColorTheme: 0,
+  opponentPieceColorTheme: 0,
+  boardColorTheme: 0,
+  linkPieceColors: true
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -758,6 +825,9 @@ const PRESERVE_NATIVE_PIECE_IDS = new Set();
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'pieceStyle', label: 'Chess Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'pieceColorTheme', label: 'Your Piece Colors', options: COLOR_THEME_OPTIONS },
+  { key: 'opponentPieceColorTheme', label: 'Opponent Piece Colors', options: COLOR_THEME_OPTIONS },
+  { key: 'boardColorTheme', label: 'Board Colors', options: COLOR_THEME_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
@@ -773,7 +843,10 @@ function normalizeAppearance(value = {}) {
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['pieceStyle', PIECE_STYLE_OPTIONS.length]
+    ['pieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['pieceColorTheme', COLOR_THEME_OPTIONS.length],
+    ['opponentPieceColorTheme', COLOR_THEME_OPTIONS.length],
+    ['boardColorTheme', COLOR_THEME_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -782,6 +855,8 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
+  normalized.linkPieceColors =
+    value?.linkPieceColors === undefined ? normalized.linkPieceColors : Boolean(value?.linkPieceColors);
   delete normalized.boardColor;
   return normalized;
 }
@@ -1414,14 +1489,42 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
   const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
-  const boardTheme = buildBoardTheme(BEAUTIFUL_GAME_THEME);
+  const baseBoardTheme = buildBoardTheme(BEAUTIFUL_GAME_THEME);
+  const whiteTheme = COLOR_THEME_OPTIONS[normalized.pieceColorTheme] ?? COLOR_THEME_OPTIONS[0];
+  const blackTheme = normalized.linkPieceColors
+    ? whiteTheme
+    : COLOR_THEME_OPTIONS[normalized.opponentPieceColorTheme] ?? COLOR_THEME_OPTIONS[0];
+  const boardThemeOption = COLOR_THEME_OPTIONS[normalized.boardColorTheme] ?? COLOR_THEME_OPTIONS[0];
+
+  const applyPieceColors = (style) => ({
+    ...style,
+    white: { ...style.white, color: whiteTheme?.piece?.white ?? style.white?.color },
+    black: { ...style.black, color: blackTheme?.piece?.black ?? style.black?.color },
+    whiteAccent: { ...style.whiteAccent },
+    blackAccent: { ...style.blackAccent },
+    preserveOriginalMaterials: Boolean(
+      whiteTheme?.piece?.preserveOriginal && blackTheme?.piece?.preserveOriginal
+    )
+  });
+
+  const pieceStyle = applyPieceColors(pieceOption);
+
+  const boardTheme = boardThemeOption?.board
+    ? buildBoardTheme({
+        ...baseBoardTheme,
+        light: boardThemeOption.board.light,
+        dark: boardThemeOption.board.dark,
+        preserveOriginalMaterials: Boolean(boardThemeOption.piece?.preserveOriginal)
+      })
+    : baseBoardTheme;
   return {
     board: boardTheme,
-    pieces: pieceOption,
+    pieces: pieceStyle,
     highlight: boardTheme.highlight,
     capture: boardTheme.capture,
     accent: boardTheme.accent,
-    pieceSetId: PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.id ?? DEFAULT_PIECE_SET_ID
+    pieceSetId: PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.id ?? DEFAULT_PIECE_SET_ID,
+    pieceStyle
   };
 }
 
@@ -4518,6 +4621,26 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         </div>
       );
     }
+    if (key === 'pieceColorTheme' || key === 'opponentPieceColorTheme') {
+      const whiteColor = option.piece?.white ?? '#f5f5f7';
+      const blackColor = option.piece?.black ?? '#111827';
+      return (
+        <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
+          <span className="h-6 w-6 rounded-full border border-white/20 shadow" style={{ background: whiteColor }} />
+          <span className="h-6 w-6 rounded-full border border-white/20 shadow" style={{ background: blackColor }} />
+        </div>
+      );
+    }
+    if (key === 'boardColorTheme') {
+      const light = option.board?.light ?? BEAUTIFUL_GAME_THEME.light;
+      const dark = option.board?.dark ?? BEAUTIFUL_GAME_THEME.dark;
+      return (
+        <div className="grid h-10 w-full grid-cols-2 overflow-hidden rounded-lg border border-white/10">
+          <div className="h-full" style={{ background: light }} />
+          <div className="h-full" style={{ background: dark }} />
+        </div>
+      );
+    }
     if (key === 'tableWood') {
       const preset = WOOD_PRESETS_BY_ID[option.presetId] ?? WOOD_FINISH_PRESETS[0];
       const color = `#${hslToHexNumber(preset.hue, preset.sat, preset.light).toString(16).padStart(6, '0')}`;
@@ -6464,25 +6587,52 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     </button>
                   </div>
                   <div className="mt-3 max-h-72 space-y-3 overflow-y-auto pr-1">
+                    <label className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-[0.7rem] text-white/70">
+                      <span>Use the same piece colors for both players</span>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border border-sky-400/40 bg-transparent text-sky-300 focus:ring-sky-400"
+                        checked={appearance.linkPieceColors}
+                        onChange={(event) =>
+                          setAppearance((prev) =>
+                            normalizeAppearance({
+                              ...prev,
+                              linkPieceColors: event.target.checked,
+                              opponentPieceColorTheme: event.target.checked
+                                ? prev.pieceColorTheme
+                                : prev.opponentPieceColorTheme
+                            })
+                          )
+                        }
+                      />
+                    </label>
                     {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                       <div key={key} className="space-y-2">
                         <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">{label}</p>
                         <div className="grid grid-cols-2 gap-2">
                           {options.map((option, idx) => {
                             const selected = appearance[key] === idx;
+                            const isOpponentColor = key === 'opponentPieceColorTheme';
+                            const disabled = isOpponentColor && appearance.linkPieceColors;
                             return (
                               <button
                                 key={option.id}
                                 type="button"
                                 onClick={() =>
+                                  !disabled &&
                                   setAppearance((prev) =>
                                     normalizeAppearance({
                                       ...prev,
-                                      [key]: idx
+                                      [key]: idx,
+                                      ...(prev.linkPieceColors &&
+                                      (key === 'pieceColorTheme' || key === 'opponentPieceColorTheme')
+                                        ? { pieceColorTheme: idx, opponentPieceColorTheme: idx }
+                                        : {})
                                     })
                                   )
                                 }
                                 aria-pressed={selected}
+                                disabled={disabled}
                                 className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                   selected
                                     ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
