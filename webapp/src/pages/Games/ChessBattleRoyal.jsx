@@ -348,6 +348,21 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     surfaceMetalness: 0.04,
     frameRoughness: 0.86,
     frameMetalness: 0.05
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameGarnetBoard',
+    label: 'Garnet Velvet Board',
+    light: '#f3e5e4',
+    dark: '#3a0f1d',
+    frameLight: '#c99aaa',
+    frameDark: '#2a0b15',
+    accent: '#c23a5d',
+    highlight: '#ffb0c8',
+    capture: '#ff7a9c',
+    surfaceRoughness: 0.74,
+    surfaceMetalness: 0.04,
+    frameRoughness: 0.86,
+    frameMetalness: 0.05
   })
 ]);
 
@@ -453,6 +468,23 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
       black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#1a2028' },
       accent: '#b6bbc5',
       blackAccent: '#8c929d'
+    }
+  },
+  {
+    id: 'beautifulGameGarnet',
+    label: 'Garnet Merlot',
+    style: {
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f3e7e5', sheenColor: '#fff5f7' },
+      black: {
+        ...BEAUTIFUL_GAME_PIECE_STYLE.black,
+        color: '#4a0f26',
+        sheenColor: '#d7a3b3',
+        emissive: '#250813',
+        emissiveIntensity: 0.24
+      },
+      accent: '#c23a5d',
+      blackAccent: '#9f2949',
+      whiteAccent: { color: '#f6f0f2' }
     }
   }
 ]);
