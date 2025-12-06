@@ -288,6 +288,7 @@ export async function startTirana2040(){
 
   const world = new CANNON.World({ gravity: new CANNON.Vec3(0,-9.81,0) });
   world.broadphase = new CANNON.SAPBroadphase(world); world.allowSleep = true;
+  const PHYSICS_STEP = 1/90;
   const matGround=new CANNON.Material('ground'), matPlayer=new CANNON.Material('player'), matEnemy=new CANNON.Material('enemy'), matCar=new CANNON.Material('car');
   world.addContactMaterial(new CANNON.ContactMaterial(matGround, matPlayer, { friction:.2, restitution:0 }));
   world.addContactMaterial(new CANNON.ContactMaterial(matGround, matCar, { friction:.9, restitution:0 }));
@@ -1227,10 +1228,11 @@ export async function startTirana2040(){
   const grenadeFallbackGeo=new THREE.SphereGeometry(0.18,18,18);
   const grenadeFallbackMat=new THREE.MeshStandardMaterial({ color:0x4a4f59, metalness:0.32, roughness:0.58 });
 
-  const BLANK_PNG='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';
-  const manager=new THREE.LoadingManager(); manager.setURLModifier((url)=>{ if(url?.startsWith('data:')||url?.startsWith('blob:')) return url; if(/(\.(png|jpg|jpeg|webp|ktx2|dds|tga)(\?|#|$))/i.test(url)) return BLANK_PNG; return url; });
+  const manager=new THREE.LoadingManager();
+  manager.setURLModifier((url)=>{ if(url?.startsWith('data:')||url?.startsWith('blob:')) return url; return url; });
+  manager.onError = (url)=>console.warn('Asset load error:', url);
   const gltfLoader=new GLTFLoader(manager); const draco=new DRACOLoader(manager); draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/'); gltfLoader.setDRACOLoader(draco); gltfLoader.setCrossOrigin('anonymous');
-  gltfLoader.register((parser)=>{ const c=document.createElement('canvas'); c.width=c.height=1; const ctx=c.getContext('2d'); ctx.fillStyle='#888'; ctx.fillRect(0,0,1,1); const blank=new THREE.CanvasTexture(c); blank.colorSpace=THREE.SRGBColorSpace; blank.needsUpdate=true; const orig=parser.getDependency.bind(parser); parser.getDependency=function(type,index){ if(type==='texture') return Promise.resolve(blank); return orig(type,index); }; return {name:'NullTextures'}; });
+  gltfLoader.register((parser)=>{ const c=document.createElement('canvas'); c.width=c.height=1; const ctx=c.getContext('2d'); ctx.fillStyle='#888'; ctx.fillRect(0,0,1,1); const blank=new THREE.CanvasTexture(c); blank.colorSpace=THREE.SRGBColorSpace; blank.needsUpdate=true; const orig=parser.getDependency.bind(parser); parser.getDependency=function(type,index){ if(type==='texture') return orig(type,index).catch(()=>blank); return orig(type,index); }; return {name:'TextureFallbackIfMissing'}; });
 
   const ARMORY=[
     { key:'Glock',  name:'Glock', urls:[
@@ -2078,7 +2080,8 @@ export async function startTirana2040(){
 
     if(!waypoint && navGuide){ updateNavGuide(); }
 
-    world.step(1/90, dt, 2);
+    const maxSubSteps = dt>0.022 ? 1 : 3;
+    world.step(PHYSICS_STEP, dt, maxSubSteps);
     updateTracers(dt);
     fountainWaters.forEach((w)=>{ const uniforms=w.material?.uniforms; if(uniforms?.time){ uniforms.time.value += dt; } });
     fountainJets.forEach((jet)=>{ jet.phase += dt*jet.speed; const pulse=0.7 + Math.abs(Math.sin(jet.phase))*1.3; jet.mesh.scale.set(1, pulse, 1); jet.mesh.position.y = jet.baseY + pulse*0.42; });
