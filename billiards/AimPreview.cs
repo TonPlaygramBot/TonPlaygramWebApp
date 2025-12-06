@@ -16,13 +16,21 @@ public static class AimPreview
     /// <summary>Runs the solver preview and formats the result.</summary>
     public static Result Build(BilliardsSolver solver, Vec2 cueStart, Vec2 dir, double speed, List<BilliardsSolver.Ball> others)
     {
-        var p = solver.PreviewShot(cueStart, dir, speed, others);
+        var preview = solver.PreviewShot(cueStart, dir, speed, others);
+        var impact = solver.SimulateFirstImpact(cueStart, dir, speed, others);
+
+        List<Vec2> path = new List<Vec2> { cueStart, impact.Point };
+        if (impact.CueVelocity.Length > PhysicsConstants.Epsilon)
+        {
+            path.Add(impact.Point + impact.CueVelocity.Normalized() * PhysicsConstants.BallRadius);
+        }
+
         return new Result
         {
-            Path = p.Path.ToArray(),
-            ContactPoint = p.ContactPoint,
-            CuePostVelocity = p.CuePostVelocity,
-            TargetPostVelocity = p.TargetPostVelocity
+            Path = path.ToArray(),
+            ContactPoint = impact.Point,
+            CuePostVelocity = impact.CueVelocity,
+            TargetPostVelocity = impact.TargetVelocity ?? preview.TargetPostVelocity
         };
     }
 }

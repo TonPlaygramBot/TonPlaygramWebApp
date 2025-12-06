@@ -918,6 +918,12 @@ public class CueCamera : MonoBehaviour
             {
                 Vector3 adjustedPosition = hit.point - dir * collisionBuffer;
                 adjustedPosition.y = Mathf.Max(adjustedPosition.y, minimumHeight);
+                if (Vector3.Distance(adjustedPosition, focusPosition) < collisionRadius)
+                {
+                    float safeDistance = Mathf.Max(hit.distance - collisionBuffer, collisionRadius);
+                    adjustedPosition = focusOrigin + dir * safeDistance;
+                    adjustedPosition.y = Mathf.Max(adjustedPosition.y, minimumHeight + collisionBuffer);
+                }
                 desiredPosition = adjustedPosition;
             }
         }
