@@ -373,9 +373,7 @@ function makeTargetTexture({
   return texture;
 }
 
-const WORLD_SCALE = 0.65;
-
-const BASE_GOAL_CONFIG = {
+const GOAL_CONFIG = {
   width: 7.32,
   height: 2.44,
   depthTop: 0.8,
@@ -384,20 +382,10 @@ const BASE_GOAL_CONFIG = {
   z: -10.2
 };
 
-const GOAL_CONFIG = {
-  width: BASE_GOAL_CONFIG.width * WORLD_SCALE,
-  height: BASE_GOAL_CONFIG.height * WORLD_SCALE,
-  depthTop: BASE_GOAL_CONFIG.depthTop * WORLD_SCALE,
-  depthBottom: BASE_GOAL_CONFIG.depthBottom * WORLD_SCALE,
-  postDiameter: BASE_GOAL_CONFIG.postDiameter * WORLD_SCALE,
-  z: BASE_GOAL_CONFIG.z * WORLD_SCALE
-};
-
 const CESIUM_MAN_URL =
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb';
-const DEFENDER_MODEL_HEIGHT = 1.4 * WORLD_SCALE;
-const KEEPER_MODEL_HEIGHT = 1.92 * WORLD_SCALE;
-const STRIKER_MODEL_HEIGHT = 1.68 * WORLD_SCALE;
+const DEFENDER_MODEL_HEIGHT = 1.4;
+const KEEPER_MODEL_HEIGHT = 1.92;
 
 const MIN_GOAL_POINTS = 5;
 const TIMER_BONUS_OPTIONS = Object.freeze([10, 15, 20]);
@@ -405,9 +393,9 @@ const BOMB_TIME_PENALTY = 15;
 const BOMB_SCORE_PENALTY = 50;
 const BOMB_RESET_DELAY = 0.7;
 
-const PENALTY_AREA_DEPTH = 16.5 * WORLD_SCALE;
-const BALL_PENALTY_BUFFER = 1.5 * WORLD_SCALE; // ensures kick is taken outside of the box
-const BALL_RADIUS = 0.184 * WORLD_SCALE; // 20% smaller ball for tighter mobile play
+const PENALTY_AREA_DEPTH = 16.5;
+const BALL_PENALTY_BUFFER = 1.5; // ensures kick is taken outside of the box
+const BALL_RADIUS = 0.184; // 20% smaller ball for tighter mobile play
 const GRAVITY = new THREE.Vector3(0, -9.81 * 0.35, 0);
 const AIR_DRAG = 0.0006;
 const FRICTION = 0.995;
@@ -420,11 +408,11 @@ const SHOOT_POWER_SCALE = 2.1; // slightly softened top-end power for smoother, 
 const SHOOT_VERTICAL_POWER_MIN = 0.38;
 const SHOOT_VERTICAL_POWER_MAX = 0.58;
 const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.68;
-const MAX_BASE_SHOT_POWER = 36 * WORLD_SCALE;
+const MAX_BASE_SHOT_POWER = 36;
 const MAX_SHOT_POWER = MAX_BASE_SHOT_POWER * SHOOT_POWER_SCALE;
-const BASE_SPIN_SCALE = 1.6 * WORLD_SCALE;
+const BASE_SPIN_SCALE = 1.6;
 const SPIN_SCALE = BASE_SPIN_SCALE * 1.35;
-const CROSSBAR_HEIGHT_MARGIN = 0.2 * WORLD_SCALE;
+const CROSSBAR_HEIGHT_MARGIN = 0.2;
 const SOLVER_MAX_ITERATIONS = 8;
 const SOLVER_TARGET_EPSILON = 0.0012;
 const SOLVER_DELTA_AZIMUTH = 0.008;
@@ -436,14 +424,14 @@ const MAX_VERTICAL_LAUNCH_SPEED = Math.sqrt(
     2 * Math.abs(GRAVITY.y) * Math.max(0, GOAL_CONFIG.height + CROSSBAR_HEIGHT_MARGIN - BALL_RADIUS)
   )
 );
-const DEFENDER_JUMP_VELOCITY = 3.6 * WORLD_SCALE;
+const DEFENDER_JUMP_VELOCITY = 3.6;
 const DEFENDER_GRAVITY_SCALE = 0.85;
 const DEFENDER_MAX_OFFSET = GOAL_CONFIG.width * 0.48;
 const KEEPER_RETURN_EASE = 0.05;
 const KEEPER_CENTER_EASE = 0.08;
-const TARGET_PADDING_X = 0.35 * WORLD_SCALE;
-const TARGET_PADDING_Y = 0.28 * WORLD_SCALE;
-const TARGET_SEPARATION = 0.32 * WORLD_SCALE;
+const TARGET_PADDING_X = 0.35;
+const TARGET_PADDING_Y = 0.28;
+const TARGET_SEPARATION = 0.32;
 const FIXED_TIME_STEP = 1 / 60;
 const TARGET_FPS = 60;
 const MIN_FRAME_TIME = 1000 / TARGET_FPS;
@@ -451,19 +439,11 @@ const RENDER_RESOLUTION_SCALE = 0.9;
 const MAX_PIXEL_RATIO = 1.5;
 const MAX_FRAME_DELTA = 1 / 45;
 const MAX_ACCUMULATED_TIME = 0.18;
-const CAMERA_IDLE_POSITION = new THREE.Vector3(
-  0,
-  7.2 * WORLD_SCALE,
-  Math.abs(GOAL_CONFIG.z) * 2.05
-);
-const CAMERA_IDLE_FOCUS = new THREE.Vector3(
-  0,
-  GOAL_CONFIG.height * 1.1,
-  GOAL_CONFIG.z + (START_Z - GOAL_CONFIG.z) * 0.25
-);
-const CAMERA_ACTIVE_MIN_DISTANCE = 3.4 * WORLD_SCALE;
-const CAMERA_ACTIVE_MAX_DISTANCE = 8.6 * WORLD_SCALE;
-const CAMERA_LATERAL_CLAMP = 3.6 * WORLD_SCALE;
+const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 1.82, START_Z + 4.1);
+const CAMERA_IDLE_FOCUS = new THREE.Vector3(0, 1.48, GOAL_CONFIG.z);
+const CAMERA_ACTIVE_MIN_DISTANCE = 3.4;
+const CAMERA_ACTIVE_MAX_DISTANCE = 8.6;
+const CAMERA_LATERAL_CLAMP = 3.6;
 const CAMERA_IDLE_LERP = 0.1;
 const CAMERA_ACTIVE_LERP = 0.18;
 const CAMERA_SHAKE_DECAY = 3.5;
@@ -472,12 +452,6 @@ const SOUND_SOURCES = {
   whistle: encodeURI('/assets/sounds/metal-whistle-6121.mp3'),
   goal: encodeURI('/assets/sounds/goal net origjinal (2).mp3'),
   kick: encodeURI('/assets/sounds/ball kick .mp3')
-};
-
-const PLAYER_COLORS = {
-  keeper: 0x2563eb,
-  defenders: [0xf97316, 0x22c55e],
-  striker: 0xf43f5e
 };
 export default function FreeKick3DGame({ config }) {
   const hostRef = useRef(null);
@@ -679,7 +653,7 @@ export default function FreeKick3DGame({ config }) {
     const fieldGroup = new THREE.Group();
 
     const apron = new THREE.Mesh(
-      new THREE.PlaneGeometry(21 * WORLD_SCALE, 32 * WORLD_SCALE),
+      new THREE.PlaneGeometry(21, 32),
       new THREE.MeshStandardMaterial({ color: 0x0b2012, roughness: 0.98, metalness: 0.02 })
     );
     apron.rotation.x = -Math.PI / 2;
@@ -688,10 +662,7 @@ export default function FreeKick3DGame({ config }) {
     fieldGroup.add(apron);
 
     const surroundMaterial = new THREE.MeshStandardMaterial({ color: 0x14522a, roughness: 0.95, metalness: 0.04 });
-    const surround = new THREE.Mesh(
-      new THREE.PlaneGeometry(16.5 * WORLD_SCALE, 28.5 * WORLD_SCALE),
-      surroundMaterial
-    );
+    const surround = new THREE.Mesh(new THREE.PlaneGeometry(16.5, 28.5), surroundMaterial);
     surround.rotation.x = -Math.PI / 2;
     surround.receiveShadow = true;
     surround.position.y = -0.009;
@@ -702,16 +673,16 @@ export default function FreeKick3DGame({ config }) {
       roughness: 0.92,
       metalness: 0.04
     });
-    const pitch = new THREE.Mesh(new THREE.PlaneGeometry(14 * WORLD_SCALE, 26 * WORLD_SCALE), pitchMaterial);
+    const pitch = new THREE.Mesh(new THREE.PlaneGeometry(14, 26), pitchMaterial);
     pitch.rotation.x = -Math.PI / 2;
     pitch.receiveShadow = true;
     fieldGroup.add(pitch);
 
     const applySharedGrassTexture = (baseTexture) => {
-      applyGrassTexture(baseTexture, pitchMaterial, 7.5 * WORLD_SCALE, 14.5 * WORLD_SCALE);
+      applyGrassTexture(baseTexture, pitchMaterial, 7.5, 14.5);
       const surroundTexture = baseTexture.clone();
       surroundTexture.image = baseTexture.image;
-      applyGrassTexture(surroundTexture, surroundMaterial, 5 * WORLD_SCALE, 9.5 * WORLD_SCALE);
+      applyGrassTexture(surroundTexture, surroundMaterial, 5, 9.5);
     };
 
     textureLoader.load(
@@ -744,7 +715,7 @@ export default function FreeKick3DGame({ config }) {
       roughness: 0.28,
       metalness: 0.1
     });
-    const lineThickness = 0.12 * WORLD_SCALE;
+    const lineThickness = 0.12;
     const addLine = (width, depth, position) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, 0.004, depth), lineMaterial);
       mesh.position.copy(position);
@@ -755,8 +726,8 @@ export default function FreeKick3DGame({ config }) {
     };
 
     const penaltyAreaDepth = PENALTY_AREA_DEPTH;
-    const goalAreaDepth = 5.5 * WORLD_SCALE;
-    const penaltySpotDistance = 11 * WORLD_SCALE;
+    const goalAreaDepth = 5.5;
+    const penaltySpotDistance = 11;
     const availableSideSpace = Math.max(0.1, pitchHalfWidth - goalWidth / 2);
     const clampedSideSpace = Math.max(availableSideSpace, 0);
     const penaltyAreaExtraX = Math.min(PENALTY_AREA_DEPTH, clampedSideSpace);
@@ -1626,9 +1597,9 @@ export default function FreeKick3DGame({ config }) {
     standsGroup.add(suitesGroup);
     standsGroup.add(roofSupports);
 
-    const standScale = 0.36 * WORLD_SCALE; // scale seating tiers down with the mini stadium
+    const standScale = 0.36; // 20% larger seating tiers for better presence
     standsGroup.scale.set(standScale, standScale, standScale);
-    const standsOffsetZ = goalZ - goalDepthBottom - 3.3 * WORLD_SCALE;
+    const standsOffsetZ = goalZ - goalDepthBottom - 3.3;
     standsGroup.position.set(0, 0.12, standsOffsetZ);
     scene.add(standsGroup);
 
@@ -1643,11 +1614,11 @@ export default function FreeKick3DGame({ config }) {
       roughness: 0.62
     });
     const stadiumSpan = Math.abs(standsGroup.position.z) * 2;
-    const stadiumSideHeight = 6.4 * WORLD_SCALE;
-    const stadiumSideThickness = 1.1 * WORLD_SCALE;
-    const stadiumSideOffsetX = pitchHalfWidth + 8.5 * WORLD_SCALE;
+    const stadiumSideHeight = 6.4;
+    const stadiumSideThickness = 1.1;
+    const stadiumSideOffsetX = pitchHalfWidth + 8.5;
     const leftStadiumSide = new THREE.Mesh(
-      new THREE.BoxGeometry(stadiumSideThickness, stadiumSideHeight, stadiumSpan + 6 * WORLD_SCALE),
+      new THREE.BoxGeometry(stadiumSideThickness, stadiumSideHeight, stadiumSpan + 6),
       stadiumSideMaterial
     );
     leftStadiumSide.position.set(-stadiumSideOffsetX, stadiumSideHeight / 2, 0);
@@ -1925,55 +1896,35 @@ export default function FreeKick3DGame({ config }) {
     const wallGroup = new THREE.Group();
     wallGroup.position.set(0, 0, DEFENDER_WALL_Z);
     wallGroup.rotation.y = Math.PI;
+    const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0xfacc15, roughness: 0.6 });
     const defenders = [];
     const defenderOffsets = [];
     const defenderAnchors = [];
-    const defenderBaseY = 1.1 * WORLD_SCALE;
-    const defenderRadius = 0.28 * WORLD_SCALE;
-    const defenderHalfHeight = 0.7 * WORLD_SCALE;
-    const defenderSpacing = 0.75 * WORLD_SCALE;
-    for (let i = 0; i < 2; i += 1) {
+    const defenderBaseY = 1.1;
+    for (let i = 0; i < 3; i += 1) {
       const anchor = new THREE.Group();
-      const placeholderGeo = new THREE.CapsuleGeometry(0.25 * WORLD_SCALE, 0.9 * WORLD_SCALE, 4, 8);
-      const placeholder = new THREE.Mesh(
-        placeholderGeo,
-        new THREE.MeshPhysicalMaterial({ color: PLAYER_COLORS.defenders[i], roughness: 0.6 })
-      );
+      const placeholderGeo = new THREE.CapsuleGeometry(0.25, 0.9, 4, 8);
+      const placeholder = new THREE.Mesh(placeholderGeo, wallMaterial);
       placeholder.castShadow = true;
       placeholder.receiveShadow = true;
       anchor.add(placeholder);
-      const offsetX = i === 0 ? -defenderSpacing : defenderSpacing;
+      const offsetX = (i - 1) * 0.8;
       anchor.position.set(offsetX, defenderBaseY, 0);
       wallGroup.add(anchor);
-      defenders.push({ mesh: anchor, radius: defenderRadius, halfHeight: defenderHalfHeight, offsetX });
+      defenders.push({ mesh: anchor, radius: 0.28, halfHeight: 0.7, offsetX });
       defenderOffsets.push(offsetX);
       defenderAnchors.push(anchor);
     }
     scene.add(wallGroup);
 
-    const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: PLAYER_COLORS.keeper, roughness: 0.45 });
+    const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0xfacc15, roughness: 0.45 });
     const keeperAnchor = new THREE.Group();
-    const keeperMesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.32 * WORLD_SCALE, 1.2 * WORLD_SCALE, 6, 12),
-      keeperMaterial
-    );
+    const keeperMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.2, 6, 12), keeperMaterial);
     keeperMesh.castShadow = true;
     keeperMesh.receiveShadow = true;
     keeperAnchor.add(keeperMesh);
-    keeperAnchor.position.set(0, 1.02 * WORLD_SCALE, goalZ + 0.32 * WORLD_SCALE);
+    keeperAnchor.position.set(0, 1.02, goalZ + 0.32);
     scene.add(keeperAnchor);
-
-    const strikerAnchor = new THREE.Group();
-    const strikerMesh = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.3 * WORLD_SCALE, 1.1 * WORLD_SCALE, 6, 12),
-      new THREE.MeshPhysicalMaterial({ color: PLAYER_COLORS.striker, roughness: 0.45 })
-    );
-    strikerMesh.castShadow = true;
-    strikerMesh.receiveShadow = true;
-    strikerAnchor.add(strikerMesh);
-    strikerAnchor.position.set(-0.35 * WORLD_SCALE, 1 * WORLD_SCALE, START_Z + 0.6 * WORLD_SCALE);
-    strikerAnchor.rotation.y = Math.PI;
-    scene.add(strikerAnchor);
 
     const targetGroup = new THREE.Group();
     targetGroup.position.set(0, 0, goalZ - 0.08);
@@ -1992,8 +1943,8 @@ export default function FreeKick3DGame({ config }) {
 
     const keeperState = {
       mesh: keeperAnchor,
-      radius: 0.34 * WORLD_SCALE,
-      halfHeight: 0.92 * WORLD_SCALE,
+      radius: 0.34,
+      halfHeight: 0.92,
       baseY: keeperAnchor.position.y,
       baseZ: keeperAnchor.position.z,
       baseX: keeperAnchor.position.x,
@@ -2067,15 +2018,8 @@ export default function FreeKick3DGame({ config }) {
           anchor.add(character);
         };
 
-        defenderAnchors.forEach((anchor, index) =>
-          attachCharacter(
-            anchor,
-            DEFENDER_MODEL_HEIGHT,
-            PLAYER_COLORS.defenders[index % PLAYER_COLORS.defenders.length]
-          )
-        );
-        attachCharacter(keeperAnchor, KEEPER_MODEL_HEIGHT, PLAYER_COLORS.keeper);
-        attachCharacter(strikerAnchor, STRIKER_MODEL_HEIGHT, PLAYER_COLORS.striker);
+        defenderAnchors.forEach((anchor) => attachCharacter(anchor, DEFENDER_MODEL_HEIGHT, 0xfacc15));
+        attachCharacter(keeperAnchor, KEEPER_MODEL_HEIGHT, 0xfacc15);
       },
       undefined,
       (error) => {
