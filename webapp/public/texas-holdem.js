@@ -781,10 +781,14 @@ function setPlayerTurnIndicator(idx) {
     .forEach((a) => a.classList.remove('turn'));
   const token = document.getElementById('turnToken');
   if (token) token.classList.remove('active');
-  if (idx === null || idx === undefined || idx < 0) return;
+  if (idx === null || idx === undefined || idx < 0) {
+    state.turn = null;
+    return;
+  }
   const nextIdx = findNextActivePlayer(idx);
   if (nextIdx === null) return;
   idx = nextIdx;
+  state.turn = idx;
   const player = state.players[idx];
   const cards = document.getElementById('cards-' + idx);
   if (cards) cards.classList.add('turn');
@@ -796,8 +800,8 @@ function setPlayerTurnIndicator(idx) {
     if (stage && seat) {
       const stageRect = stage.getBoundingClientRect();
       const seatRect = seat.getBoundingClientRect();
-      token.style.left = seatRect.left - stageRect.left + seatRect.width / 2 + 'px';
-      token.style.top = seatRect.top - stageRect.top - 8 + 'px';
+      token.style.left = seatRect.right - stageRect.left + 10 + 'px';
+      token.style.top = seatRect.top - stageRect.top + seatRect.height / 2 + 'px';
       token.classList.add('active');
     }
   }
@@ -1121,6 +1125,7 @@ function updateTimer() {
   document.querySelectorAll('.avatar-timer').forEach((el) => {
     el.classList.remove('active');
   });
+  if (state.turn === null || state.turn === undefined) return;
   const t = document.getElementById('timer-' + state.turn);
   if (!t) return;
   const label = t.querySelector('.avatar-timer__label');
