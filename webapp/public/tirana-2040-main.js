@@ -424,6 +424,7 @@ export async function startTirana2040(){
   window.institutions=institutions;
   window.bots=bots;
   const mapRoads=[]; const mapBuildings=[]; const mapParks=[]; const mapLandmarks=[];
+  const USE_LONDON_1990_MASTERPLAN = true;
   const BLOCKS_X=5, BLOCKS_Z=4; const CELL=112; const ROAD=24; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
   const northSouthStreets=['Gloucester Place','Baker Street','Marylebone High Street','Harley Street','Park Lane','Edgware Road'];
   const eastWestStreets=['Marylebone Road','George Street','Oxford Street','Hyde Park Place','Marble Arch'];
@@ -536,94 +537,203 @@ export async function startTirana2040(){
     if(label) mapLandmarks.push({x:(x1+x2)/2, z:(z1+z2)/2, label});
   }
 
-  for(let ix=0; ix<=BLOCKS_X; ix++){
-    const geo=new THREE.PlaneGeometry(ROAD,(CELL)*BLOCKS_Z + ROAD);
-    const m=new THREE.Mesh(geo, roadMat);
-    const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
-    const zPos=ROAD*0.5-(BLOCKS_Z*CELL)/2;
-    m.rotation.x=-Math.PI/2;
-    m.position.set(xPos, ROAD_SURFACE_Y, zPos);
-    m.receiveShadow=allowShadows; city.add(m);
-    const halfLen=(CELL)*BLOCKS_Z*0.5 + ROAD*0.5;
-    mapRoads.push({name:northSouthStreets[ix]||`Rruga ${ix+1}`, from:{x:xPos, z:-halfLen}, to:{x:xPos, z:halfLen}, width:ROAD});
-    addRoadsideBands(xPos, zPos, (CELL)*BLOCKS_Z + ROAD, 'vertical');
-    paintRoadMarkings(xPos, -halfLen, xPos, halfLen, 'vertical');
-    if(northSouthStreets[ix]){ const label=makeLabel(northSouthStreets[ix],0.55); label.position.set(xPos,0.12,-(BLOCKS_Z*CELL)/2 - 18); label.rotation.y=Math.PI; city.add(label); }
-  }
-  for(let iz=0; iz<=BLOCKS_Z; iz++){
-    const geo=new THREE.PlaneGeometry((CELL)*BLOCKS_X + ROAD, ROAD);
-    const m=new THREE.Mesh(geo, roadMat);
-    const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
-    const xPos=ROAD*0.5-(BLOCKS_X*CELL)/2;
-    m.rotation.x=-Math.PI/2;
-    m.position.set(xPos, ROAD_SURFACE_Y, zPos);
-    m.receiveShadow=allowShadows; city.add(m);
-    const halfLen=(CELL)*BLOCKS_X*0.5 + ROAD*0.5;
-    mapRoads.push({name:eastWestStreets[iz]||`Bulevardi ${iz+1}`, from:{x:-halfLen, z:zPos}, to:{x:halfLen, z:zPos}, width:ROAD});
-    addRoadsideBands(xPos, zPos, (CELL)*BLOCKS_X + ROAD, 'horizontal');
-    paintRoadMarkings(-halfLen, zPos, halfLen, zPos, 'horizontal');
-    if(eastWestStreets[iz]){ const label=makeLabel(eastWestStreets[iz],0.55); label.position.set(-(BLOCKS_X*CELL)/2 - 18,0.12,zPos); label.rotation.y=Math.PI/2; city.add(label); }
-  }
-
-  const guardOffset=ROAD/2 + 0.6;
-  const guardLen=Math.max(18, PLOT*0.9);
-  for(let ix=0; ix<=BLOCKS_X; ix++){
-    const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
-    for(let iz=0; iz<BLOCKS_Z; iz++){
-      const zSeg=startZ + iz*CELL;
-      addGuardrailSegment(xPos+guardOffset, zSeg, guardLen, 'z');
-      addGuardrailSegment(xPos-guardOffset, zSeg, guardLen, 'z');
-    }
-  }
-  for(let iz=0; iz<=BLOCKS_Z; iz++){
-    const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
-    for(let ix=0; ix<BLOCKS_X; ix++){
-      const xSeg=startX + ix*CELL;
-      addGuardrailSegment(xSeg, zPos+guardOffset, guardLen, 'x');
-      addGuardrailSegment(xSeg, zPos-guardOffset, guardLen, 'x');
+  function addRoadSegment(from,to,{width=18,name,labelOffset=10,sidewalkWidth=3.1}={}){
+    const dx=to.x-from.x, dz=to.z-from.z; const len=Math.hypot(dx,dz)||1;
+    const angle=Math.atan2(dz,dx);
+    const geo=new THREE.PlaneGeometry(len,width);
+    const strip=new THREE.Mesh(geo, roadMat.clone());
+    strip.rotation.x=-Math.PI/2;
+    strip.rotation.y=angle;
+    strip.position.set((from.x+to.x)/2, ROAD_SURFACE_Y, (from.z+to.z)/2);
+    strip.receiveShadow=allowShadows;
+    city.add(strip);
+    mapRoads.push({name:name||'Unmarked street', from:{...from}, to:{...to}, width});
+    const nx=-dz/len, nz=dx/len;
+    const centerX=(from.x+to.x)/2, centerZ=(from.z+to.z)/2;
+    const sidewalkGeo=new THREE.PlaneGeometry(Math.max(1,len-2), sidewalkWidth);
+    const sidewalkMatInstance=sidewalkMat.clone();
+    [1,-1].forEach((sign)=>{
+      const sw=new THREE.Mesh(sidewalkGeo, sidewalkMatInstance);
+      sw.rotation.x=-Math.PI/2;
+      sw.rotation.y=angle;
+      sw.position.set(centerX + nx*(width/2 + sidewalkWidth*0.5)*sign, ROAD_SURFACE_Y+0.012, centerZ + nz*(width/2 + sidewalkWidth*0.5)*sign);
+      sw.receiveShadow=allowShadows;
+      city.add(sw);
+    });
+    if(name){
+      const lbl=makeLabel(name,0.6);
+      lbl.position.set(centerX + nx*labelOffset, 0.12, centerZ + nz*labelOffset);
+      lbl.rotation.y=angle + Math.PI/2;
+      city.add(lbl);
     }
   }
 
-  const fenceOffset=ROAD/2 + 1.4;
-  const fenceLen=Math.max(18, PLOT*0.92);
-  for(let ix=0; ix<=BLOCKS_X; ix++){
-    const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
-    for(let iz=0; iz<BLOCKS_Z; iz++){
-      const zSeg=startZ + iz*CELL;
-      addRoadFenceSegment(xPos+fenceOffset, zSeg, fenceLen, 'z');
-      addRoadFenceSegment(xPos-fenceOffset, zSeg, fenceLen, 'z');
-    }
-  }
-  for(let iz=0; iz<=BLOCKS_Z; iz++){
-    const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
-    for(let ix=0; ix<BLOCKS_X; ix++){
-      const xSeg=startX + ix*CELL;
-      addRoadFenceSegment(xSeg, zPos+fenceOffset, fenceLen, 'x');
-      addRoadFenceSegment(xSeg, zPos-fenceOffset, fenceLen, 'x');
-    }
+  function addPocketPark(cx,cz,w=34,d=26){
+    const lawn=new THREE.Mesh(new THREE.PlaneGeometry(w,d), parkLawnTex);
+    lawn.rotation.x=-Math.PI/2;
+    lawn.position.set(cx,0.02,cz);
+    lawn.receiveShadow=allowShadows;
+    city.add(lawn);
+    mapParks.push({x:cx,z:cz,w,d});
+    mapLandmarks.push({x:cx,z:cz,label:'Small garden square'});
   }
 
-  for(let ix=0; ix<=BLOCKS_X; ix++){
+  function addTownhouse({cx,cz,width=8,depth=12,floors=4,style='georgian',label=null}){
+    const height=floors*SCALE.FLOOR_H;
+    const wallTex=style==='victorian'? plasterTex : brickTex;
+    const wallMat=makeLambertAngleMat(wallTex);
+    const roofMat=new THREE.MeshStandardMaterial({ color: style==='victorian'?0x2f3642:0x3a4250, roughness:0.82 });
+    const shell=makePrefabBox(width,height,depth, wallMat);
+    const roof=makePrefabBox(width*0.96,0.5,depth*0.96, roofMat);
+    roof.position.set(cx,height+0.25,cz);
+    shell.position.set(cx,height/2,cz);
+    const stoop=new THREE.Mesh(new THREE.BoxGeometry(width*0.82,0.4,2.2), new THREE.MeshStandardMaterial({ color:0xd1d5db, roughness:0.68 }));
+    stoop.position.set(cx,0.2,cz + depth/2 + 1.0);
+    const chimney=new THREE.Mesh(new THREE.BoxGeometry(0.8,2.2,0.8), new THREE.MeshStandardMaterial({ color:0x8b4513, roughness:0.62 }));
+    chimney.position.set(cx - width*0.32, height+1.1, cz - depth*0.34);
+    const entryLabel=label? makeLabel(label,0.35):null;
+    if(entryLabel){ entryLabel.position.set(cx,2.0, cz + depth/2 + 0.8); }
+    const mesh=new THREE.Group();
+    mesh.add(shell,roof,stoop,chimney);
+    if(entryLabel) mesh.add(entryLabel);
+    mesh.traverse((o)=>{ if(o.isMesh){ o.castShadow=allowShadows; o.receiveShadow=allowShadows; } });
+    city.add(mesh);
+    addWindowsForBuilding(cx,cz,width,depth,height);
+    buildings.push({mesh,cx,cz,w:width,d:depth,h:height,kind:style});
+    buildingBoxes.push({min:{x:cx-width/2,z:cz-depth/2}, max:{x:cx+width/2,z:cz+depth/2}});
+    mapBuildings.push({x:cx,z:cz,w:width,d:depth,h:height,floors,kind:style});
+    const body=new CANNON.Body({mass:0}); body.addShape(new CANNON.Box(new CANNON.Vec3(width/2,height/2,depth/2))); body.position.set(cx,height/2,cz); world.addBody(body);
+    if(label){ mapLandmarks.push({x:cx,z:cz,label}); }
+    return mesh;
+  }
+
+  function addTownhouseRow({z,xs,style='georgian',labelPrefix=null}){
+    xs.forEach((x,idx)=>{
+      const label=labelPrefix?`${labelPrefix} ${idx+1}`:null;
+      addTownhouse({cx:x, cz:z, floors:3+((idx+1)%2), style, label});
+    });
+  }
+
+  function buildLondon1990Plan(){
+    gnd.scale.set(1.08,1,1.12);
+    const roads=[
+      {from:{x:-210,z:-84}, to:{x:210,z:-84}, name:'Marylebone Road', width:18},
+      {from:{x:-210,z:-10}, to:{x:210,z:-10}, name:'George Street', width:16},
+      {from:{x:-210,z:76}, to:{x:210,z:76}, name:'Wigmore Street', width:16},
+      {from:{x:-160,z:-170}, to:{x:-160,z:150}, name:'Gloucester Place', width:14},
+      {from:{x:-70,z:-170}, to:{x:-70,z:150}, name:'Baker Street', width:14},
+      {from:{x:22,z:-170}, to:{x:22,z:150}, name:'Portman Street', width:14},
+      {from:{x:118,z:-170}, to:{x:118,z:150}, name:'Park Street', width:14}
+    ];
+    roads.forEach((r)=>addRoadSegment(r.from,r.to,{width:r.width,name:r.name}));
+
+    addPocketPark(-115,120,44,32);
+    addPocketPark(95,-32,34,26);
+
+    addTownhouseRow({z:-32, xs:[-195,-175,-155,-135,-115,-95,-75,-55,-35,-15], style:'georgian', labelPrefix:'Georgian Row'});
+    addTownhouseRow({z:30, xs:[-190,-168,-146,-124,-102,-80,-58,-36,-14], style:'victorian', labelPrefix:'Victorian Terrace'});
+    addTownhouseRow({z:104, xs:[-150,-130,-110,-90,-70,-50,-30,-10,10,30], style:'victorian', labelPrefix:'Upper Baker Villas'});
+    addTownhouseRow({z:-118, xs:[40,60,80,100,120,140,160,180], style:'georgian', labelPrefix:'Park Crescent'});
+    addTownhouseRow({z:62, xs:[54,74,94,114,134,154,174], style:'georgian', labelPrefix:'Marble Arch Walk'});
+
+    mapLandmarks.push({x:-70,z:-62,label:'🚇 Baker Street Station'});
+    mapLandmarks.push({x:180,z:-60,label:'Marble Arch (1990)'});
+    mapLandmarks.push({x:0,z:130,label:'Hyde Park fringe'});
+    mapLandmarks.push({x:-160,z:12,label:'Sherlock Holmes Museum'});
+  }
+
+  if(USE_LONDON_1990_MASTERPLAN){
+    buildLondon1990Plan();
+  } else {
+    for(let ix=0; ix<=BLOCKS_X; ix++){
+      const geo=new THREE.PlaneGeometry(ROAD,(CELL)*BLOCKS_Z + ROAD);
+      const m=new THREE.Mesh(geo, roadMat);
+      const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
+      const zPos=ROAD*0.5-(BLOCKS_Z*CELL)/2;
+      m.rotation.x=-Math.PI/2;
+      m.position.set(xPos, ROAD_SURFACE_Y, zPos);
+      m.receiveShadow=allowShadows; city.add(m);
+      const halfLen=(CELL)*BLOCKS_Z*0.5 + ROAD*0.5;
+      mapRoads.push({name:northSouthStreets[ix]||`Rruga ${ix+1}`, from:{x:xPos, z:-halfLen}, to:{x:xPos, z:halfLen}, width:ROAD});
+      addRoadsideBands(xPos, zPos, (CELL)*BLOCKS_Z + ROAD, 'vertical');
+      paintRoadMarkings(xPos, -halfLen, xPos, halfLen, 'vertical');
+      if(northSouthStreets[ix]){ const label=makeLabel(northSouthStreets[ix],0.55); label.position.set(xPos,0.12,-(BLOCKS_Z*CELL)/2 - 18); label.rotation.y=Math.PI; city.add(label); }
+    }
     for(let iz=0; iz<=BLOCKS_Z; iz++){
-      const crossX=ix*CELL-(BLOCKS_X*CELL)/2;
-      const crossZ=iz*CELL-(BLOCKS_Z*CELL)/2;
-      addCrosswalk(crossX, crossZ, 0);
-      addCrosswalk(crossX, crossZ, 1);
-      addIntersectionPatch(crossX, crossZ);
-      if((ix+iz)%2===0){ addStreetLight(crossX+ROAD*0.5, crossZ+ROAD*0.5); }
+      const geo=new THREE.PlaneGeometry((CELL)*BLOCKS_X + ROAD, ROAD);
+      const m=new THREE.Mesh(geo, roadMat);
+      const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
+      const xPos=ROAD*0.5-(BLOCKS_X*CELL)/2;
+      m.rotation.x=-Math.PI/2;
+      m.position.set(xPos, ROAD_SURFACE_Y, zPos);
+      m.receiveShadow=allowShadows; city.add(m);
+      const halfLen=(CELL)*BLOCKS_X*0.5 + ROAD*0.5;
+      mapRoads.push({name:eastWestStreets[iz]||`Bulevardi ${iz+1}`, from:{x:-halfLen, z:zPos}, to:{x:halfLen, z:zPos}, width:ROAD});
+      addRoadsideBands(xPos, zPos, (CELL)*BLOCKS_X + ROAD, 'horizontal');
+      paintRoadMarkings(-halfLen, zPos, halfLen, zPos, 'horizontal');
+      if(eastWestStreets[iz]){ const label=makeLabel(eastWestStreets[iz],0.55); label.position.set(-(BLOCKS_X*CELL)/2 - 18,0.12,zPos); label.rotation.y=Math.PI/2; city.add(label); }
     }
-  }
 
-  buildPerimeterWalls();
-  addBusStop(-cityHalfX*0.6, cityHalfZ+ROAD*0.8, 0);
-  addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
-  addBikeCorridor(-cityHalfX, startZ + CELL*1.5, cityHalfX, startZ + CELL*1.5, {label:"Oxford Street bus & cycle lane"});
-  addBikeCorridor(startX + CELL*2.0, -cityHalfZ, startX + CELL*2.0, cityHalfZ, {label:"Regent's Park perimeter cycleway"});
-  mapLandmarks.push({x:startX+CELL*1.0, z:startZ+CELL*0.6, label:'🚇 Baker Street Station'});
-  mapLandmarks.push({x:cityHalfX-ROAD*0.6, z:-cityHalfZ+ROAD*0.8, label:'⛰ Marble Arch'});
-  mapLandmarks.push({x:cityHalfX*0.2, z:cityHalfZ-ROAD*0.8, label:'🌳 Hyde Park fringe'});
-  mapLandmarks.push({x:-cityHalfX*0.18, z:startZ+CELL*2.6, label:'🛍 Oxford Street'});
-  addBikeCorridor(startX + CELL*3.5, -cityHalfZ, startX + CELL*3.5, cityHalfZ, {label:'Perimeter greenway'});
+    const guardOffset=ROAD/2 + 0.6;
+    const guardLen=Math.max(18, PLOT*0.9);
+    for(let ix=0; ix<=BLOCKS_X; ix++){
+      const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
+      for(let iz=0; iz<BLOCKS_Z; iz++){
+        const zSeg=startZ + iz*CELL;
+        addGuardrailSegment(xPos+guardOffset, zSeg, guardLen, 'z');
+        addGuardrailSegment(xPos-guardOffset, zSeg, guardLen, 'z');
+      }
+    }
+    for(let iz=0; iz<=BLOCKS_Z; iz++){
+      const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
+      for(let ix=0; ix<BLOCKS_X; ix++){
+        const xSeg=startX + ix*CELL;
+        addGuardrailSegment(xSeg, zPos+guardOffset, guardLen, 'x');
+        addGuardrailSegment(xSeg, zPos-guardOffset, guardLen, 'x');
+      }
+    }
+
+    const fenceOffset=ROAD/2 + 1.4;
+    const fenceLen=Math.max(18, PLOT*0.92);
+    for(let ix=0; ix<=BLOCKS_X; ix++){
+      const xPos=ix*CELL-(BLOCKS_X*CELL)/2;
+      for(let iz=0; iz<BLOCKS_Z; iz++){
+        const zSeg=startZ + iz*CELL;
+        addRoadFenceSegment(xPos+fenceOffset, zSeg, fenceLen, 'z');
+        addRoadFenceSegment(xPos-fenceOffset, zSeg, fenceLen, 'z');
+      }
+    }
+    for(let iz=0; iz<=BLOCKS_Z; iz++){
+      const zPos=iz*CELL-(BLOCKS_Z*CELL)/2;
+      for(let ix=0; ix<BLOCKS_X; ix++){
+        const xSeg=startX + ix*CELL;
+        addRoadFenceSegment(xSeg, zPos+fenceOffset, fenceLen, 'x');
+        addRoadFenceSegment(xSeg, zPos-fenceOffset, fenceLen, 'x');
+      }
+    }
+
+    for(let ix=0; ix<=BLOCKS_X; ix++){
+      for(let iz=0; iz<=BLOCKS_Z; iz++){
+        const crossX=ix*CELL-(BLOCKS_X*CELL)/2;
+        const crossZ=iz*CELL-(BLOCKS_Z*CELL)/2;
+        addCrosswalk(crossX, crossZ, 0);
+        addCrosswalk(crossX, crossZ, 1);
+        addIntersectionPatch(crossX, crossZ);
+        if((ix+iz)%2===0){ addStreetLight(crossX+ROAD*0.5, crossZ+ROAD*0.5); }
+      }
+    }
+
+    buildPerimeterWalls();
+    addBusStop(-cityHalfX*0.6, cityHalfZ+ROAD*0.8, 0);
+    addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
+    addBikeCorridor(-cityHalfX, startZ + CELL*1.5, cityHalfX, startZ + CELL*1.5, {label:"Oxford Street bus & cycle lane"});
+    addBikeCorridor(startX + CELL*2.0, -cityHalfZ, startX + CELL*2.0, cityHalfZ, {label:"Regent's Park perimeter cycleway"});
+    mapLandmarks.push({x:startX+CELL*1.0, z:startZ+CELL*0.6, label:'🚇 Baker Street Station'});
+    mapLandmarks.push({x:cityHalfX-ROAD*0.6, z:-cityHalfZ+ROAD*0.8, label:'⛰ Marble Arch'});
+    mapLandmarks.push({x:cityHalfX*0.2, z:cityHalfZ-ROAD*0.8, label:'🌳 Hyde Park fringe'});
+    mapLandmarks.push({x:-cityHalfX*0.18, z:startZ+CELL*2.6, label:'🛍 Oxford Street'});
+    addBikeCorridor(startX + CELL*3.5, -cityHalfZ, startX + CELL*3.5, cityHalfZ, {label:'Perimeter greenway'});
+  }
 
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
   const windowMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.12, depthWrite:false });
