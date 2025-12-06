@@ -67,15 +67,36 @@ function pathBlocked (a, b, balls, ignoreIds, radius, margin = 1) {
   )
 }
 
-function pocketEntry (pocket, radius, width, height) {
+function pocketNormal (pocket, width, height) {
   const center = { x: width / 2, y: height / 2 }
   const dir = { x: center.x - pocket.x, y: center.y - pocket.y }
   const len = Math.hypot(dir.x, dir.y) || 1
+  return { x: dir.x / len, y: dir.y / len }
+}
+
+function pocketEntry (pocket, radius, width, height, target) {
+  const normal = pocketNormal(pocket, width, height)
+  let dir = normal
+
+  if (target) {
+    dir = { x: pocket.x - target.x, y: pocket.y - target.y }
+    const len = Math.hypot(dir.x, dir.y) || 1
+    dir = { x: dir.x / len, y: dir.y / len }
+  }
+
   const offset = radius * 1.05
   return {
-    x: pocket.x + (dir.x / len) * offset,
-    y: pocket.y + (dir.y / len) * offset
+    x: pocket.x - dir.x * offset,
+    y: pocket.y - dir.y * offset
   }
+}
+
+function pocketAlignment (pocket, target, width, height) {
+  if (!target) return 1
+  const approach = { x: pocket.x - target.x, y: pocket.y - target.y }
+  const len = Math.hypot(approach.x, approach.y) || 1
+  const normal = pocketNormal(pocket, width, height)
+  return Math.max(0, (approach.x / len) * normal.x + (approach.y / len) * normal.y)
 }
 
 function currentGroup (state) {
@@ -164,7 +185,7 @@ function clearShotCandidates (req) {
 
   for (const target of targets) {
     for (const pocket of pockets) {
-      const entry = pocketEntry(pocket, r, req.state.width, req.state.height)
+      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
       const ghost = {
         x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
         y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
@@ -197,10 +218,12 @@ function clearShotCandidates (req) {
       if (cut > Math.PI) cut = Math.abs(cut - Math.PI * 2)
       const viewAngle = Math.atan2(r * 2, dist(target, entry))
       const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
+      const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
+      const weightedView = viewScore * (0.7 + 0.3 * entryAlignment)
 
       // require fairly central hit and open pocket view
-      if (cut <= maxCut && viewScore >= minView) {
-        candidates.push({ target, pocket, cut, view: viewScore })
+      if (cut <= maxCut && weightedView >= minView) {
+        candidates.push({ target, pocket, cut, view: weightedView })
       }
     }
   }
@@ -316,7 +339,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
     if (!preview) continue
     let score = preview.quality
     if (depth > 1) {
-      const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height)
+      const entry = pocketEntry(pocket, req.state.ballRadius, req.state.width, req.state.height, target)
       const nextCueAfter = estimateCueAfterShot(
         cue,
         target,
@@ -336,7 +359,7 @@ function estimateRunoutPotential (req, cueAfter, targetId, balls, depth = 1) {
 function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict = false, options = {}) {
   const r = req.state.ballRadius
   const balls = ballsOverride || req.state.balls
-  const entry = pocketEntry(pocket, r, req.state.width, req.state.height)
+  const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
   const ghost = {
     x: target.x - (entry.x - target.x) * (r * 2 / dist(target, entry)),
     y: target.y - (entry.y - target.y) * (r * 2 / dist(target, entry))
@@ -376,7 +399,9 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
   const nearHole = 1 - Math.min(dist(target, entry) / (r * 20), 1)
   const viewAngle = Math.atan2(r * 2, dist(target, entry))
   const viewScore = Math.min(viewAngle / (Math.PI / 2), 1)
-  if (strict && (centerAlign < 0.5 || viewScore < 0.3)) {
+  const entryAlignment = pocketAlignment(pocket, target, req.state.width, req.state.height)
+  const pocketOpen = viewScore * (0.7 + 0.3 * entryAlignment)
+  if (strict && (centerAlign < 0.5 || pocketOpen < 0.3)) {
     return null
   }
   const lookaheadDepth = Number.isFinite(options.lookaheadDepth)
@@ -391,7 +416,7 @@ function evaluate (req, cue, target, pocket, power, spin, ballsOverride, strict 
       1,
       0.3 * potChance +
         0.2 * centerAlign +
-        0.18 * viewScore +
+        0.18 * pocketOpen +
         0.08 * nextScore +
         0.08 * nearHole +
         0.16 * runoutPotential -
@@ -462,7 +487,7 @@ export function planShot (req) {
 
   for (const strict of [true, false]) {
     for (const { target, pocket } of candidatePairs) {
-      const entry = pocketEntry(pocket, r, req.state.width, req.state.height)
+      const entry = pocketEntry(pocket, r, req.state.width, req.state.height, target)
       // ball in hand: sample cue placements along pocket-target line
       const placements = []
       if (req.state.ballInHand) {
