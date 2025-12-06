@@ -109,26 +109,32 @@ export async function startTirana2040(){
     SkeletonUtils
   ] = await Promise.all([
     importWithFallback('THREE', [
+      'three',
       'https://esm.sh/three@0.160.0',
       'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js'
     ]),
     importWithFallback('CANNON', [
+      'cannon-es',
       'https://esm.sh/cannon-es@0.20.0',
       'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js'
     ]),
     importWithFallback('GLTFLoader', [
+      'three/examples/jsm/loaders/GLTFLoader.js',
       'https://esm.sh/three@0.160.0/examples/jsm/loaders/GLTFLoader.js',
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js'
     ]),
     importWithFallback('DRACOLoader', [
+      'three/examples/jsm/loaders/DRACOLoader.js',
       'https://esm.sh/three@0.160.0/examples/jsm/loaders/DRACOLoader.js',
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/DRACOLoader.js'
     ]),
     importWithFallback('Water', [
+      'three/examples/jsm/objects/Water2.js',
       'https://esm.sh/three@0.160.0/examples/jsm/objects/Water2.js',
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/objects/Water2.js'
     ]),
     importWithFallback('SkeletonUtils', [
+      'three/examples/jsm/utils/SkeletonUtils.js',
       'https://esm.sh/three@0.160.0/examples/jsm/utils/SkeletonUtils.js',
       'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/utils/SkeletonUtils.js'
     ])
@@ -1112,6 +1118,49 @@ export async function startTirana2040(){
   function addAirport(x,z){ const runway=new THREE.Mesh(new THREE.PlaneGeometry(400,26), new THREE.MeshBasicMaterial({ color:0x2f2f2f })); runway.rotation.x=-Math.PI/2; runway.position.set(x,0.02,z); city.add(runway); const stripe=new THREE.Mesh(new THREE.PlaneGeometry(400*0.9,3), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.7 })); stripe.rotation.x=-Math.PI/2; stripe.position.set(x,0.03,z); city.add(stripe); const tower=new THREE.Mesh(new THREE.CylinderGeometry(4,4,28,16), new THREE.MeshStandardMaterial({ color:0x9aa0a8 })); tower.position.set(x+40,14,z-20); city.add(tower); const top=new THREE.Mesh(new THREE.SphereGeometry(6,16,12), new THREE.MeshStandardMaterial({ color:0xbfc6cf, metalness:0.2, roughness:0.6 })); top.position.set(x+40,28,z-20); city.add(top); POIS.push({type:'airport', pos:new THREE.Vector3(x,0,z), label:'🛫'}); mapLandmarks.push({x,z,label:'🛫 Airport'}); }
   function addTrainStation(x,z){ const plat=new THREE.Mesh(new THREE.PlaneGeometry(160,8), new THREE.MeshBasicMaterial({ color:0x666b73 })); plat.rotation.x=-Math.PI/2; plat.position.set(x,0.02,z); city.add(plat); const rails=new THREE.Group(); for(let i=0;i<4;i++){ const r=new THREE.Mesh(new THREE.PlaneGeometry(160,0.3), new THREE.MeshBasicMaterial({ color:0x444 })); r.rotation.x=-Math.PI/2; r.position.set(x,0.021,z-2+i*1.2); rails.add(r);} city.add(rails); addBuilding(x+30,z-8,{floors:5,w:50,d:16,hue:48,sign:'STATION', landmark:false}); POIS.push({type:'station', pos:new THREE.Vector3(x,0,z), label:'🚉'}); mapLandmarks.push({x,z,label:'🚉 Station'}); }
 
+  function addBakerStreetDistrict(){
+    const bakerZ=startZ + CELL*1.35;
+    const maryleboneZ=startZ + CELL*0.85;
+    const oxfordZ=startZ + CELL*2.1;
+    const regentsZ=startZ + CELL*0.35;
+    const westX=startX + CELL*0.1;
+    const eastX=startX + CELL*4.4;
+    const bakerAxis=[
+      {name:'Baker Street', from:{x:westX-ROAD*0.5,z:bakerZ}, to:{x:eastX+ROAD*0.3,z:bakerZ}, width:ROAD},
+      {name:'Marylebone Road', from:{x:westX-ROAD*0.3,z:maryleboneZ}, to:{x:eastX+ROAD*0.2,z:maryleboneZ}, width:ROAD*1.1},
+      {name:'Oxford Street', from:{x:westX,z:oxfordZ}, to:{x:eastX,z:oxfordZ}, width:ROAD},
+      {name:'Regent\'s Park Edge', from:{x:westX-ROAD*0.4,z:regentsZ}, to:{x:eastX*0.46,z:regentsZ}, width:ROAD}
+    ];
+    bakerAxis.forEach((road)=>{ mapRoads.push(road); addStreetLight(road.from.x, road.from.z); addStreetLight(road.to.x, road.to.z); });
+    addGuardrailSegment(eastX+ROAD*0.6, bakerZ, 3.6, 'x');
+    addRoadFenceSegment(westX-ROAD*0.9, bakerZ, 6.2, 'x');
+    addBusStop(startX + CELL*2.1, bakerZ+4.8, 0);
+    addBusStop(startX + CELL*2.6, bakerZ-5.2, Math.PI);
+    const townhouseRow=[
+      {x:startX+CELL*1.2, z:bakerZ+6.2, sign:'221B', floors:5, w:22, d:18, hue:24},
+      {x:startX+CELL*1.55, z:bakerZ+6.5, sign:'BOOKS', floors:6, w:24, d:20, hue:18},
+      {x:startX+CELL*1.9, z:bakerZ+6.1, sign:'CAFE', floors:5, w:22, d:18, hue:26}
+    ];
+    townhouseRow.forEach((row)=>{ const b=addBuilding(row.x, row.z, {floors:row.floors,w:row.w,d:row.d,sign:row.sign,hue:row.hue}); if(b){ mapLandmarks.push({x:row.x,z:row.z,label:`${row.sign} • Baker St`}); } });
+    const museum=addBuilding(startX+CELL*2.35, bakerZ-12, {floors:7,w:32,d:22,sign:'MUSEUM', landmark:true});
+    if(museum){ mapLandmarks.push({x:startX+CELL*2.35,z:bakerZ-12,label:'🕵️ Sherlock Museum'}); }
+    const tussauds=addBuilding(startX+CELL*2.8, bakerZ+12, {floors:8,w:36,d:28,sign:'TUSSAUDS', landmark:true});
+    if(tussauds){ mapLandmarks.push({x:startX+CELL*2.8,z:bakerZ+12,label:'🎭 Madame Tussauds'}); }
+    const stationPad=new THREE.Mesh(new THREE.CircleGeometry(6,42), new THREE.MeshBasicMaterial({ color:0x1f2937, transparent:true, opacity:0.35 }));
+    stationPad.rotation.x=-Math.PI/2; stationPad.position.set(startX+CELL*2.6, 0.03, bakerZ-0.4); stationPad.renderOrder=4; city.add(stationPad);
+    mapLandmarks.push({x:startX+CELL*2.6, z:bakerZ-0.4, label:'🚇 Baker Street'});
+    addParkGrass(startX + CELL*0.9, regentsZ-4, 0.9);
+    addParkGrass(startX + CELL*0.4, regentsZ+14, 0.9);
+    mapLandmarks.push({x:startX + CELL*0.9,z:regentsZ-4,label:'🌳 Regent\'s Park Gardens'});
+    mapLandmarks.push({x:startX + CELL*0.4,z:regentsZ+14,label:'🦢 Boating Pond'});
+    addBench(startX + CELL*1.05, bakerZ+2.4, Math.PI/2);
+    addBench(startX + CELL*1.05, bakerZ-2.4, -Math.PI/2);
+    addBench(startX + CELL*3.2, bakerZ+2.4, Math.PI/2);
+    addBench(startX + CELL*3.2, bakerZ-2.4, -Math.PI/2);
+    addStreetLight(startX + CELL*3.4, maryleboneZ);
+    addStreetLight(startX + CELL*3.4, oxfordZ);
+  }
+
   const blockPlan=[
     ['res_high','green','civic','green','res_mid'],
     ['res_mid','plaza_core','plaza_axis','green','campus'],
@@ -1190,6 +1239,7 @@ export async function startTirana2040(){
   addParkGrass(startX + CELL*3.2, startZ + CELL*2.6, 1.0); mapParks.push({type:'green',x:startX + CELL*3.2,z:startZ + CELL*2.6,w:PLOT*0.9,d:PLOT*0.9});
   addBasketCourt(startX + CELL*2.2, startZ + CELL*0.4);
   addBasketCourt(startX + CELL*1.2, startZ + CELL*2.2);
+  addBakerStreetDistrict();
   commitWindows();
   for(let i=-BLOCKS_X;i<=BLOCKS_X;i+=2){ addTrafficLight(i*CELL*0.5, -BLOCKS_Z*CELL*0.5, 0); addTrafficLight(i*CELL*0.5, BLOCKS_Z*CELL*0.5, Math.PI); }
 
