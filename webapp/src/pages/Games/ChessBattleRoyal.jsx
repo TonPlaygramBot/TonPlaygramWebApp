@@ -1707,15 +1707,12 @@ function applyLocalBeautifulGameMaterials(assets) {
   return assets;
 }
 
-function harmonizeBeautifulGamePieces(piecePrototypes) {
+function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!piecePrototypes) return;
-  const lightColor = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? BEAUTIFUL_GAME_THEME.light;
-  const darkColor = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
-  const accentLight =
-    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ??
-    BEAUTIFUL_GAME_PIECE_STYLE.accent ??
-    BEAUTIFUL_GAME_THEME.accent;
-  const darkAccent = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
+  const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
+  const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
+  const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
 
   const applySurface = (material, config) => {
     if (!material) return;
@@ -1738,7 +1735,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
         const applied = mat.clone ? mat.clone() : mat;
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
-        applySurface(applied, colorHex === lightColor ? BEAUTIFUL_GAME_PIECE_STYLE.white : BEAUTIFUL_GAME_PIECE_STYLE.black);
+        applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
         if (Array.isArray(child.material)) {
           child.material[idx] = applied;
         } else {
@@ -1774,8 +1771,8 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
         applySurface(
           applied,
           colorKey === 'white'
-            ? BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent || BEAUTIFUL_GAME_PIECE_STYLE.white
-            : BEAUTIFUL_GAME_PIECE_STYLE.blackAccent || BEAUTIFUL_GAME_PIECE_STYLE.black
+            ? pieceStyle.whiteAccent || pieceStyle.white
+            : pieceStyle.blackAccent || pieceStyle.black
         );
         if (Array.isArray(child.material)) {
           child.material[idx] = applied;
@@ -1788,6 +1785,90 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
 
   ['white', 'black'].forEach((colorKey) => {
     Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece, colorKey));
+  });
+}
+
+function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
+  if (!meshes) return;
+  const list = Array.isArray(meshes) ? meshes : [meshes];
+  const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
+  const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
+  const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
+
+  const applySurface = (material, config) => {
+    if (!material) return;
+    if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
+    if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
+    if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
+    if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
+    if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
+    if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
+    if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
+    if (config.emissive) {
+      material.emissive = new THREE.Color(config.emissive);
+      if (Number.isFinite(config.emissiveIntensity)) {
+        material.emissiveIntensity = clamp01(config.emissiveIntensity);
+      }
+    }
+  };
+
+  const recolorMesh = (mesh, colorKey) => {
+    const targetColor = colorKey === 'black' ? darkColor : lightColor;
+    mesh.traverse((child) => {
+      if (!child?.isMesh) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat, idx) => {
+        if (!mat) return;
+        const applied = mat.clone ? mat.clone() : mat;
+        applied.color = new THREE.Color(targetColor);
+        applySurface(applied, colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {});
+        if (Array.isArray(child.material)) {
+          child.material[idx] = applied;
+        } else {
+          child.material = applied;
+        }
+        child.castShadow = true;
+        child.receiveShadow = true;
+      });
+    });
+  };
+
+  const accentize = (mesh, colorKey) => {
+    const accentColor = colorKey === 'black' ? darkAccent : accentLight;
+    mesh.traverse((child) => {
+      if (!child?.isMesh) return;
+      const name = child.name?.toLowerCase?.() ?? '';
+      const shouldAccent =
+        name.includes('collar') || name.includes('crown') || name.includes('ring') || name.includes('cross');
+      if (!shouldAccent) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat, idx) => {
+        if (!mat) return;
+        const applied = mat.clone ? mat.clone() : mat;
+        applied.color = new THREE.Color(accentColor);
+        applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
+        applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
+        applySurface(
+          applied,
+          colorKey === 'white'
+            ? pieceStyle.whiteAccent || pieceStyle.white || {}
+            : pieceStyle.blackAccent || pieceStyle.black || {}
+        );
+        if (Array.isArray(child.material)) {
+          child.material[idx] = applied;
+        } else {
+          child.material = applied;
+        }
+      });
+    });
+  };
+
+  list.forEach((mesh) => {
+    if (!mesh) return;
+    const colorKey = mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
+    recolorMesh(mesh, colorKey);
+    accentize(mesh, colorKey);
   });
 }
 
@@ -4609,6 +4690,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     const pieceSetOption = PIECE_STYLE_OPTIONS[BEAUTIFUL_GAME_PIECE_INDEX] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
+    const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
@@ -4616,7 +4698,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -4677,7 +4759,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       loadPieceSet(RAW_BOARD_SIZE)
         .then((assets) => {
           if (!arenaRef.current) return;
-          arenaRef.current.applyPieceSetAssets?.(assets, nextPieceSetId);
+          arenaRef.current.applyPieceSetAssets?.(assets, nextPieceSetId, pieceStyleOption);
         })
         .catch((error) => {
           console.warn('Chess Battle Royal: failed to swap piece set', error);
@@ -4717,23 +4799,33 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       });
     }
 
+    if (isBeautifulGameSet && arena.piecePrototypes) {
+      harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
+    }
+
     if (arena.allPieceMeshes) {
-      const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
-      arena.allPieceMeshes.forEach((group) => {
-        const meshStyleId = group.userData?.__pieceStyleId;
-        if (meshStyleId && PRESERVE_NATIVE_PIECE_IDS.has(meshStyleId)) return;
-        const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
-        const materialSet = nextPieceMaterials[colorKey];
-        if (!materialSet) return;
-        group.traverse((child) => {
-          if (!child.isMesh) return;
-          const role = child.userData?.__pieceMaterialRole === 'accent' ? 'accent' : 'base';
-          const mat = role === 'accent' && materialSet.accent ? materialSet.accent : materialSet.base;
-          if (mat) child.material = mat;
+      if (isBeautifulGameSet) {
+        applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
+        disposePieceMaterials(arena.pieceMaterials);
+        arena.pieceMaterials = null;
+      } else {
+        const nextPieceMaterials = createPieceMaterials(pieceStyleOption);
+        arena.allPieceMeshes.forEach((group) => {
+          const meshStyleId = group.userData?.__pieceStyleId;
+          if (meshStyleId && PRESERVE_NATIVE_PIECE_IDS.has(meshStyleId)) return;
+          const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
+          const materialSet = nextPieceMaterials[colorKey];
+          if (!materialSet) return;
+          group.traverse((child) => {
+            if (!child.isMesh) return;
+            const role = child.userData?.__pieceMaterialRole === 'accent' ? 'accent' : 'base';
+            const mat = role === 'accent' && materialSet.accent ? materialSet.accent : materialSet.base;
+            if (mat) child.material = mat;
+          });
         });
-      });
-      disposePieceMaterials(arena.pieceMaterials);
-      arena.pieceMaterials = nextPieceMaterials;
+        disposePieceMaterials(arena.pieceMaterials);
+        arena.pieceMaterials = nextPieceMaterials;
+      }
     }
 
     const accentColor = palette.accent ?? '#4ce0c3';
@@ -5520,7 +5612,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     };
 
-    const applyPieceSetAssets = (assets, setId = currentPieceSetId) => {
+    const applyPieceSetAssets = (assets, setId = currentPieceSetId, pieceStyleOption = paletteRef.current?.pieces) => {
       const { boardModel, piecePrototypes } = assets || {};
       currentPieceSetId = setId;
       currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
@@ -5548,6 +5640,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
+        if ((setId || '').startsWith('beautifulGame')) {
+          harmonizeBeautifulGamePieces(
+            currentPiecePrototypes,
+            pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
+          );
+        }
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         paintPiecesFromPrototypes(piecePrototypes, setId);
       }
@@ -5589,7 +5687,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     pieceSetPromise
       .then((assets) => {
         if (cancelled) return;
-        applyPieceSetAssets(assets, initialPieceSetId);
+        applyPieceSetAssets(assets, initialPieceSetId, pieceStyleOption);
       })
       .catch((error) => {
         console.error('Chess Battle Royal: failed to resolve chess set', error);
