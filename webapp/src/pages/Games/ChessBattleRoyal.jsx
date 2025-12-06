@@ -282,18 +282,7 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_THEME_NAMES = [
-  'Authentic',
-  'Swap Palettes',
-  'Blue / Orange',
-  'Red / Teal',
-  'Purple / Lime',
-  'Pink / Cyan',
-  'Gold / Slate',
-  'Emerald / Fuchsia',
-  'Silver / Graphite',
-  'Forest / Sand'
-];
+const BEAUTIFUL_GAME_THEME_NAMES = ['Authentic', 'Swap Palettes'];
 
 const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
   buildBoardTheme({
@@ -305,74 +294,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
   buildBoardTheme({
     id: 'beautifulGameSwapBoard',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
-    light: '#EEE8D5',
-    dark: '#2B2F36',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameBlueOrangeBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
-    light: '#93C5FD',
-    dark: '#1E293B',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameRedTealBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
-    light: '#FCA5A5',
-    dark: '#0F766E',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGamePurpleLimeBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
-    light: '#C4B5FD',
-    dark: '#365314',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGamePinkCyanBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
-    light: '#F9A8D4',
-    dark: '#164E63',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameGoldSlateBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
-    light: '#FDE68A',
-    dark: '#0F172A',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameEmeraldFuchsiaBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
-    light: '#6EE7B7',
-    dark: '#4A044E',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameSilverGraphiteBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
-    light: '#E5E7EB',
-    dark: '#111827',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameForestSandBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
-    light: '#FDEAD7',
-    dark: '#064E3B',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
+    ...BEAUTIFUL_GAME_THEME,
+    preserveOriginalMaterials: true
   })
 ]);
 
@@ -449,100 +372,10 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
     style: {
       ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
+      preserveOriginalMaterials: true,
       keepTextures: true,
       white: { ...BASE_PIECE_STYLE.white, color: BEAUTIFUL_GAME_THEME.dark },
       black: { ...BASE_PIECE_STYLE.black, color: BEAUTIFUL_GAME_THEME.light }
-    }
-  },
-  {
-    id: 'beautifulGameBlueOrange',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#93C5FD' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#1E293B' },
-      accent: '#F59E0B'
-    }
-  },
-  {
-    id: 'beautifulGameRedTeal',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FCA5A5' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#0F766E' }
-    }
-  },
-  {
-    id: 'beautifulGamePurpleLime',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#C4B5FD' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#365314' }
-    }
-  },
-  {
-    id: 'beautifulGamePinkCyan',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#F9A8D4' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#164E63' }
-    }
-  },
-  {
-    id: 'beautifulGameGoldSlate',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FDE68A' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#0F172A' },
-      goldAccent: '#d7b24a'
-    }
-  },
-  {
-    id: 'beautifulGameEmeraldFuchsia',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#6EE7B7' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#4A044E' }
-    }
-  },
-  {
-    id: 'beautifulGameSilverGraphite',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#E5E7EB' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#111827' }
-    }
-  },
-  {
-    id: 'beautifulGameForestSand',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FDEAD7' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#064E3B' }
     }
   }
 ]);
@@ -5258,7 +5091,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    renderer.setPixelRatio(Math.max(1.5, Math.min(window.devicePixelRatio || 1, 2.5)));
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
@@ -6454,10 +6287,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     window.addEventListener('pointerup', onPointerUp);
 
     // Loop
+    const MIN_FPS = 40;
+    const MIN_FRAME_TIME = 1000 / MIN_FPS;
     let lastTime = performance.now();
-    const step = () => {
-      const now = performance.now();
-      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+    const step = (now = performance.now()) => {
+      const deltaMs = now - lastTime;
+      const clampedMs = Math.min(Math.max(0, deltaMs), MIN_FRAME_TIME);
+      const dt = Math.min(0.1, clampedMs / 1000);
       lastTime = now;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
