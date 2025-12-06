@@ -423,9 +423,15 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   blackAccent: '#b7892c'
 });
 
+const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuthentic';
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
 
 const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
+  {
+    id: BEAUTIFUL_GAME_AUTHENTIC_ID,
+    label: 'ABeautifulGame (Original Colors)',
+    style: { ...BEAUTIFUL_GAME_PIECE_STYLE, preserveOriginalMaterials: true }
+  },
   {
     id: BEAUTIFUL_GAME_SET_ID,
     label: 'Classic Olive',
@@ -546,7 +552,7 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
 ]);
 
 const DEFAULT_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
-const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SET_ID;
+const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_AUTHENTIC_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
@@ -5778,7 +5784,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        if ((setId || '').startsWith('beautifulGame')) {
+        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
+        if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
           harmonizeBeautifulGamePieces(
             currentPiecePrototypes,
             pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
