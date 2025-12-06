@@ -44,15 +44,7 @@ export async function startTirana2040(){
   async function loadWithRetry(urls){ return Array.isArray(urls) && urls.length>0; }
   window.loadWithRetry=loadWithRetry;
 
-  const TREE_LIBRARY = [
-    {
-      id: 'evergreen_minimal',
-      name: 'Minimal Evergreen',
-      role: 'Lightweight city canopy',
-      image: null,
-      url: 'local'
-    }
-  ];
+  const TREE_LIBRARY = [];
 
   function withTimeout(promise, ms=8000){
     return new Promise((resolve, reject)=>{
@@ -223,12 +215,12 @@ export async function startTirana2040(){
   // initialized at the device's full DPR, leaving the screen blank. Keep the
   // full-fidelity pipeline (FAST_BOOT stays off) but cap the render density on
   // phones so the renderer reliably starts.
-  const maxMobileDpr = 1.6;
+  const maxMobileDpr = 1.3;
   const minVisualDpr = isMobile ? 1.0 : 1.1;
-  let dprBase = Math.max(minVisualDpr, Math.min(window.devicePixelRatio||1.2, isMobile ? maxMobileDpr : 3.2));
-  let dprScale = isMobile ? 1.0 : 1.18;
-  const DPR_MIN = isMobile ? 1.0 : 0.95;
-  const DPR_MAX_SCALE = isMobile ? 1.15 : 1.35;
+  let dprBase = Math.max(minVisualDpr, Math.min(window.devicePixelRatio||1.1, isMobile ? maxMobileDpr : 2.4));
+  let dprScale = isMobile ? 0.95 : 1.05;
+  const DPR_MIN = isMobile ? 0.95 : 0.9;
+  const DPR_MAX_SCALE = isMobile ? 1.15 : 1.25;
   const PERF_TARGET_FPS = 50;
   let lowFpsTime = 0;
   let perfBoosted = false;
@@ -358,23 +350,10 @@ export async function startTirana2040(){
     return new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false });
   }
   const treeTextureLoader = textureLoader;
-  function loadTreeBillboard(tree){
-    return new Promise((resolve)=>{
-      const fallback = makeTreeFallback();
-      let settled=false;
-      const finish=(material)=>{ if(settled) return; settled=true; resolve({ tree, material }); };
-      if(!tree.image){ finish(fallback); return; }
-      const timeout=setTimeout(()=>{ console.warn('Tree texture timeout', tree.id); finish(fallback); }, 2200);
-      treeTextureLoader.load(tree.image,
-        (tex)=>{ clearTimeout(timeout); tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=Math.min(4,maxAniso); finish(new THREE.SpriteMaterial({ map:tex, transparent:true, depthWrite:false })); },
-        undefined,
-        (err)=>{ clearTimeout(timeout); console.warn('Failed to load tree texture', tree.id, err); finish(fallback); }
-      );
-    });
-  }
+  function loadTreeBillboard(){ return Promise.resolve(null); }
   function loadTiledTexture(url, repeatX=1, repeatY=1){ return new Promise((resolve)=>{ textureLoader.load(url, (tex)=>{ tex.wrapS=tex.wrapT=THREE.RepeatWrapping; tex.repeat.set(repeatX, repeatY); tex.anisotropy=Math.min(12,maxAniso); tex.colorSpace=THREE.SRGBColorSpace; resolve(tex); }, ()=>resolve(null)); }); }
-  async function buildTreePalette(){ const palette=await Promise.all(TREE_LIBRARY.map(loadTreeBillboard)); return palette.filter(Boolean); }
-  function nextTreeMaterial(seed, offset=0){ if(!treePalette.length) return null; return treePalette[(seed+offset)%treePalette.length]?.material||null; }
+  async function buildTreePalette(){ return []; }
+  function nextTreeMaterial(){ return null; }
   function grassProcedural(size=1024){ const c=document.createElement('canvas'); c.width=c.height=size; const x=c.getContext('2d'); x.fillStyle='#6fa863'; x.fillRect(0,0,size,size); for(let i=0;i<2600;i++){ x.fillStyle=`rgba(0,80,0,${Math.random()*0.12})`; x.fillRect(Math.random()*size,Math.random()*size,1,1);} const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; t.colorSpace=THREE.SRGBColorSpace; return t; }
   function grassTex(){
     return new Promise((resolve)=>{
@@ -916,15 +895,7 @@ export async function startTirana2040(){
     const t=new THREE.CanvasTexture(c); t.anisotropy=Math.min(16,maxAniso); t.wrapS=t.wrapT=THREE.ClampToEdgeWrapping; t.needsUpdate=true; return t; }
 
 
-  function treesPerimeter(cx,cz){ const half=PLOT*0.45; const step=12;
-    const ring=new THREE.Group(); ring.userData.kind='trees';
-    const baseSeed=Math.abs(Math.round(cx+cz));
-    let placed=0;
-    const place=(x,z)=>{ const mat=nextTreeMaterial(baseSeed, placed) || new THREE.SpriteMaterial({ color:0x3c6f4d, transparent:true, opacity:0.92, depthWrite:false }); const height=9; const width=height*0.56; const sprite=new THREE.Sprite(mat); sprite.scale.set(width,height,1); sprite.center.set(0.5,0); sprite.position.set(x, -0.05, z); sprite.castShadow=allowShadows; sprite.receiveShadow=allowShadows; ring.add(sprite); placed++; };
-    for(let x=-half;x<=half;x+=step){ place(cx+x, cz-half); place(cx+x, cz+half); }
-    for(let z=-half;z<=half;z+=step){ place(cx-half, cz+z); place(cx+half, cz+z); }
-    city.add(ring);
-  }
+  function treesPerimeter(){ return; }
 
   function scatterFlowers(cx,cz,scale=1){
     // Flower decals were overlapping with nearby park textures and have been removed
@@ -1003,33 +974,7 @@ export async function startTirana2040(){
     mapParks.push({type:'basket',x:cx,z:cz,w:wm+apron*2,d:hm+apron*2});
   }
 
-  function addFountain(cx,cz){
-    addParkGrass(cx,cz,1.2);
-    const ringR=11.5;
-    const baseMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0xaeb8c6, roughness:0.55 });
-    const tierMat=new THREE.MeshStandardMaterial({ map:naturalStoneTex||undefined, color:0x9aa3b1, roughness:0.5, metalness:0.1 });
-    const plinth=makePrefabBox(ringR*2.6,0.8,ringR*2.6, baseMat.clone()); plinth.position.set(cx,0.4,cz); city.add(plinth);
-    const innerDeck=makePrefabBox(ringR*1.9,0.6,ringR*1.9, tierMat.clone()); innerDeck.position.set(cx,0.95,cz); city.add(innerDeck);
-    const basin=makePrefabBox(ringR*1.2,0.5,ringR*1.2, baseMat.clone()); basin.position.set(cx,1.35,cz); city.add(basin);
-    const waterSurface=new Water(new THREE.CircleGeometry(ringR*0.9, 72), {
-      color:'#4da1d6',
-      flowDirection:new THREE.Vector2(1,1),
-      textureWidth:512,
-      textureHeight:512,
-      scale:1.8,
-      flowSpeed:0.12,
-      normalMap0: waterNormalTile,
-      normalMap1: waterNormalTile
-    });
-    waterSurface.rotation.x=-Math.PI/2; waterSurface.position.set(cx,1.62,cz); city.add(waterSurface);
-    const obelisk=makePrefabBox(2.6,5.6,2.6, tierMat.clone()); obelisk.position.set(cx,4.2,cz); city.add(obelisk);
-    const rim=new THREE.Mesh(new THREE.TorusGeometry(ringR*0.92,0.18,10,48), tierMat.clone()); rim.rotation.x=Math.PI/2; rim.position.set(cx,1.62,cz); rim.castShadow=allowShadows; rim.receiveShadow=allowShadows; city.add(rim);
-    const jets=[]; const jetCount=10; for(let i=0;i<jetCount;i++){ const ang=(i/jetCount)*Math.PI*2; const r=ringR*0.65; const jet=new THREE.Mesh(new THREE.ConeGeometry(0.32,1.8,16), waterMat.clone()); jet.position.set(cx+Math.cos(ang)*r,1.8,cz+Math.sin(ang)*r); jet.rotation.x=Math.PI; jet.userData.phase=i*0.35; city.add(jet); jets.push(jet); }
-    fountainWaters.push(waterSurface);
-    fountainJets.push(...jets.map((j)=>({ mesh:j, baseY:j.position.y, phase:j.userData.phase||0, speed:1.25 })));
-    treesPerimeter(cx,cz);
-    mapParks.push({type:'fountain',x:cx,z:cz,w:ringR*2.6,d:ringR*2.6});
-  }
+  function addFountain(){ return; }
 
   const trafficLights=[];
   function addTrafficLight(x,z,dir=0){ const h=SCALE.TRAFFIC_LIGHT_H; const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.1,h,10), new THREE.MeshStandardMaterial({ color:0x666 })); pole.position.set(x,h/2,z); city.add(pole); const box=new THREE.Mesh(new THREE.BoxGeometry(0.4,1,0.3), new THREE.MeshStandardMaterial({ color:0x222 })); box.position.set(x,h-1.4,z); box.rotation.y=dir; box.userData={kind:'traffic_head'}; city.add(box);
@@ -1060,12 +1005,12 @@ export async function startTirana2040(){
     ['res_mid','green','res_mid','res_mid','green','res_mid'],
     ['res_high','green','civic','civic','green','res_high']
   ];
-  const parkKinds=['tennis','basket','fountain'];
+  const parkKinds=['tennis','basket'];
   const parkOverrides=new Map([
-    ['2,2','fountain'],
+    ['2,2','basket'],
     ['3,2','basket'],
     ['2,3','basket'],
-    ['3,3','fountain']
+    ['3,3','tennis']
   ]);
   function pickPark(ix,iz){ return parkOverrides.get(`${ix},${iz}`) || parkKinds[(ix+iz)%parkKinds.length]; }
   function addCivicBenches(cx,cz){ addBench(cx+PLOT*0.32, cz, Math.PI/2); addBench(cx-PLOT*0.32, cz, -Math.PI/2); addBench(cx, cz+PLOT*0.32, 0); addBench(cx, cz-PLOT*0.32, Math.PI); }
@@ -1084,7 +1029,8 @@ export async function startTirana2040(){
     const cx=startX+ix*CELL, cz=startZ+iz*CELL;
     registerPlotArea(ix,iz,cx,cz,PLOT*0.95,PLOT*0.95);
     addSidewalk(cx,cz);
-    addFountain(cx,cz);
+    addParkGrass(cx,cz,1.0);
+    mapParks.push({type:'green',x:cx,z:cz,w:PLOT*0.9,d:PLOT*0.9});
     addBuilding(cx, cz-8, {plot:{ix,iz}, floors:9, w:58, d:42, sign:label, landmark:true});
     addCivicBenches(cx,cz);
   }
@@ -1110,7 +1056,7 @@ export async function startTirana2040(){
     const pick=pickPark(ix,iz);
     if(pick==='tennis') addTennisCourt(cx,cz);
     else if(pick==='basket') addBasketCourt(cx,cz);
-    else addFountain(cx,cz);
+    else { addParkGrass(cx,cz,1.0); mapParks.push({type:'green',x:cx,z:cz,w:PLOT*0.9,d:PLOT*0.9}); }
     addCivicBenches(cx,cz);
   }
 
@@ -1126,8 +1072,8 @@ export async function startTirana2040(){
       else layoutResidentialCluster(ix,iz,{density:'mid'});
     }
   }
-  addFountain(startX + CELL*0.6, startZ + CELL*0.6);
-  addFountain(startX + CELL*4.6, startZ + CELL*4.6);
+  addParkGrass(startX + CELL*0.6, startZ + CELL*0.6, 1.0); mapParks.push({type:'green',x:startX + CELL*0.6,z:startZ + CELL*0.6,w:PLOT*0.9,d:PLOT*0.9});
+  addParkGrass(startX + CELL*4.6, startZ + CELL*4.6, 1.0); mapParks.push({type:'green',x:startX + CELL*4.6,z:startZ + CELL*4.6,w:PLOT*0.9,d:PLOT*0.9});
   addBasketCourt(startX + CELL*2.4, startZ - CELL*1.2);
   addBasketCourt(startX + CELL*3.6, startZ + CELL*1.2);
   commitWindows();
@@ -1654,9 +1600,12 @@ export async function startTirana2040(){
   const LOOK_SENS_A  = isMobile ? 0.22 : 0.18;
   const AIM_RATE_A   = 1.05;
   const AIM_SMOOTH_A = 4.6;
+  function pointerToNDC(e){ const rect=canvasEl.getBoundingClientRect(); return { x: ((e.clientX-rect.left)/rect.width)*2-1, y: -((e.clientY-rect.top)/rect.height)*2+1 }; }
+  function findPickup(hit){ let obj=hit?.object||null; while(obj && !obj.userData?.weaponKey && obj.parent){ obj=obj.parent; } return (obj&&obj.userData?.weaponKey)? obj : null; }
+  function tryPickupByClick(e){ if(isUIBlock(e.target)) return false; const ndc=pointerToNDC(e); raycaster.setFromCamera(ndc, camera); const pickup=raycaster.intersectObjects(weaponPickups,true).map(findPickup).find(Boolean); if(!pickup) return false; const dist=Math.hypot(pickup.position.x-player.position.x, pickup.position.z-player.position.z); if(dist>6) return false; collectWeaponPickup(pickup); return true; }
   function setAimFromEvent(e){ if(isUIBlock(e.target)) return; aimPoint.set(0,0); updateCrosshairScreen(); }
   function isUIBlock(el){ return el.closest('#joyMove')||el.closest('#shootPad')||el.closest('#armory')||el.closest('#reloadMini')||el.closest('#climbBtn')||el.closest('#driveBtn')||el.closest('#zoomBox'); }
-  canvasEl.addEventListener('pointerdown',(e)=>{ if(inputMode!=='A') return; if(isUIBlock(e.target)) return; setAimFromEvent(e); if(look.active) return; look.active=true; look.id=e.pointerId; look.lastX=e.clientX; look.lastY=e.clientY; try{ canvasEl.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); });
+  canvasEl.addEventListener('pointerdown',(e)=>{ if(inputMode!=='A') return; if(isUIBlock(e.target)) return; if(tryPickupByClick(e)){ e.preventDefault(); return; } setAimFromEvent(e); if(look.active) return; look.active=true; look.id=e.pointerId; look.lastX=e.clientX; look.lastY=e.clientY; try{ canvasEl.setPointerCapture(e.pointerId); }catch(_){} e.preventDefault(); });
   canvasEl.addEventListener('pointermove',(e)=>{ if(inputMode!=='A') return; setAimFromEvent(e); if(!look.active||e.pointerId!==look.id) return; const dx=e.clientX-look.lastX; const dy=e.clientY-look.lastY; look.lastX=e.clientX; look.lastY=e.clientY; lookAccumX += dx; lookAccumY += dy; e.preventDefault(); });
   function lookRelease(e){ if(inputMode!=='A') return; if(!look.active||e.pointerId!==look.id) return; look.active=false; try{ canvasEl.releasePointerCapture(e.pointerId); }catch(_){} e.preventDefault(); }
   canvasEl.addEventListener('pointerup', lookRelease); canvasEl.addEventListener('pointercancel', lookRelease);
@@ -1723,7 +1672,7 @@ export async function startTirana2040(){
     else if(normalized==='fire'||normalized==='firetruck') urls=URLS.FireTruck;
     else if(normalized==='bus') urls=URLS.Bus;
     else if(normalized==='motorcycle'||normalized==='moto'||normalized==='bike') urls=URLS.Motorcycle;
-    else if(normalized==='sedan') urls=URLS.Sedan;
+    else if(normalized==='sedan'||normalized==='car') urls=URLS.Sedan;
     else urls=URLS.CarConcept;
     if(FAST_BOOT){
       const sizeQuick = (normalized==='motorcycle'||normalized==='moto'||normalized==='bike')? {w:1.2,h:1.4,l:2.2}:{w:4.4,h:1.4,l:1.9};
