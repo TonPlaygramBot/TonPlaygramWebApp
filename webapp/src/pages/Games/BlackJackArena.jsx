@@ -846,7 +846,7 @@ function createSeatLayout(count, tableInfo = null, options = {}) {
   const classicAngles =
     tableInfo?.shapeId === 'classicOctagon' ? buildClassicOctagonAngles(safeCount) : null;
   for (let i = 0; i < safeCount; i += 1) {
-    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET - (i / safeCount) * Math.PI * 2;
+    const baseAngle = Math.PI / 2 - HUMAN_SEAT_ROTATION_OFFSET + (i / safeCount) * Math.PI * 2;
     const angle = classicAngles?.[i] ?? cardinalAngles?.[i] ?? baseAngle;
     const isHuman = i === 0;
     const forward = new THREE.Vector3(Math.cos(angle), 0, Math.sin(angle));
