@@ -464,16 +464,16 @@ function makeTargetTexture({
   return texture;
 }
 
-const PITCH_WIDTH = 10.5;
-const PITCH_LENGTH = 24;
+const PITCH_WIDTH = 16.8;
+const PITCH_LENGTH = 38.4;
 
 const GOAL_CONFIG = {
-  width: 5.5,
-  height: 2.0,
-  depthTop: 0.6,
-  depthBottom: 1.4,
+  width: 7.0,
+  height: 2.4,
+  depthTop: 0.9,
+  depthBottom: 1.8,
   postDiameter: 0.1,
-  z: -8
+  z: -12.8
 };
 
 const DEFENDER_MODEL_HEIGHT = 1.35;
@@ -485,8 +485,8 @@ const BOMB_TIME_PENALTY = 15;
 const BOMB_SCORE_PENALTY = 50;
 const BOMB_RESET_DELAY = 0.7;
 
-const PENALTY_AREA_DEPTH = 10.5;
-const BALL_PENALTY_BUFFER = 1.25; // ensures kick is taken outside of the box
+const PENALTY_AREA_DEPTH = 14.5;
+const BALL_PENALTY_BUFFER = 1.4; // ensures kick is taken outside of the box
 const BALL_RADIUS = 0.184; // 20% smaller ball for tighter mobile play
 const GRAVITY = new THREE.Vector3(0, -9.81 * 0.35, 0);
 const AIR_DRAG = 0.0006;
@@ -496,7 +496,7 @@ const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
 const DEFENDER_WALL_Z = GOAL_CONFIG.z + 2.2; // place defenders just ahead of the far goal mouth
-const SHOOT_POWER_SCALE = 2.1; // slightly softened top-end power for smoother, more realistic strikes
+const SHOOT_POWER_SCALE = 1.26; // 40% reduction for smoother, more realistic strikes
 const SHOOT_VERTICAL_POWER_MIN = 0.38;
 const SHOOT_VERTICAL_POWER_MAX = 0.58;
 const SHOOT_VERTICAL_FULL_POWER_THRESHOLD = 0.68;
@@ -511,13 +511,19 @@ const PASS_MAX_HEIGHT = 0.8;
 const POSSESSION_RADIUS = 0.55;
 const POSSESSION_HEIGHT_TOLERANCE = 0.42;
 const POSSESSION_SPEED_THRESHOLD = 1.2;
-const AI_DECISION_INTERVAL = 1.4;
-const AI_PASS_BIAS = 0.55;
-const AI_SHOT_DISTANCE = 7.6;
-const AI_MIN_CLEARANCE = 2.8;
+const AI_DECISION_INTERVAL = 1.05;
+const AI_PASS_BIAS = 0.48;
+const AI_SHOT_DISTANCE = 11.5;
+const AI_MIN_CLEARANCE = 4.25;
+const AI_PRESSURE_RADIUS = 3.25;
+const AI_LANE_CLEARANCE = 0.7;
 const CROSSBAR_HEIGHT_MARGIN = 0.2;
 const SOLVER_MAX_ITERATIONS = 8;
 const SOLVER_TARGET_EPSILON = 0.0012;
+const PLAYER_MOVE_SPEED = 6;
+const PLAYER_SPRINT_MULTIPLIER = 1.5;
+const PLAYER_BOUNDARY_PADDING = 0.6;
+const JOYSTICK_DEADZONE = 0.12;
 const SOLVER_DELTA_AZIMUTH = 0.008;
 const SOLVER_DELTA_SLOPE = 0.008;
 const CURVE_SWIPE_INFLUENCE = 0; // prioritize the target over swipe variance for pinpoint accuracy
@@ -565,6 +571,9 @@ export default function FreeKick3DGame({ config }) {
   const hostRef = useRef(null);
   const threeRef = useRef(null);
   const gestureRef = useRef({ start: null, last: null, pointerId: null, history: [], plan: null });
+  const movementRef = useRef({ x: 0, y: 0, sprint: false });
+  const joystickPointerIdRef = useRef(null);
+  const joystickBaseRef = useRef(null);
   const messageTimeoutRef = useRef(null);
   const resetTimeoutRef = useRef(null);
   const gameStateRef = useRef({ gameOver: false });
@@ -583,6 +592,8 @@ export default function FreeKick3DGame({ config }) {
   const [isRunning, setIsRunning] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [message, setMessage] = useState(INSTRUCTION_TEXT);
+  const [joystick, setJoystick] = useState({ active: false, dx: 0, dy: 0 });
+  const [sprinting, setSprinting] = useState(false);
 
   const playerName = useMemo(() => config.playerName || 'Player', [config.playerName]);
   const playDuration = useMemo(() => Math.max(10, Number(config.duration) || 60), [config.duration]);
@@ -914,6 +925,7 @@ export default function FreeKick3DGame({ config }) {
     addBoxMarkings(-goalZ);
 
     addLine(pitchWidth, lineThickness, new THREE.Vector3(0, 0, 0));
+
     const centerCircle = new THREE.Mesh(
       new THREE.RingGeometry(4.5 - lineThickness / 2, 4.5 + lineThickness / 2, 64),
       lineMaterial
@@ -921,6 +933,32 @@ export default function FreeKick3DGame({ config }) {
     centerCircle.rotation.x = -Math.PI / 2;
     centerCircle.position.set(0, 0.002, 0);
     markings.add(centerCircle);
+
+    const centerSpot = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.006, 32), lineMaterial);
+    centerSpot.position.set(0, 0.002, 0);
+    markings.add(centerSpot);
+
+    const addBoundary = () => {
+      addLine(pitchWidth, lineThickness, new THREE.Vector3(0, 0, pitchHalfLength));
+      addLine(pitchWidth, lineThickness, new THREE.Vector3(0, 0, -pitchHalfLength));
+      addLine(lineThickness, pitchLength, new THREE.Vector3(pitchHalfWidth, 0, 0));
+      addLine(lineThickness, pitchLength, new THREE.Vector3(-pitchHalfWidth, 0, 0));
+    };
+    addBoundary();
+
+    const addCornerArc = (x, z, startAngle) => {
+      const arc = new THREE.Mesh(
+        new THREE.RingGeometry(1 - lineThickness / 2, 1 + lineThickness / 2, 48, 1, startAngle, Math.PI / 2),
+        lineMaterial
+      );
+      arc.rotation.x = -Math.PI / 2;
+      arc.position.set(x, 0.002, z);
+      markings.add(arc);
+    };
+    addCornerArc(pitchHalfWidth, pitchHalfLength, Math.PI);
+    addCornerArc(-pitchHalfWidth, pitchHalfLength, Math.PI * 1.5);
+    addCornerArc(pitchHalfWidth, -pitchHalfLength, Math.PI / 2);
+    addCornerArc(-pitchHalfWidth, -pitchHalfLength, 0);
 
     fieldGroup.add(markings);
     scene.add(fieldGroup);
@@ -3096,11 +3134,98 @@ export default function FreeKick3DGame({ config }) {
       camera.lookAt(CAMERA_IDLE_FOCUS);
       camera.up.set(0, 1, 0);
     };
+
+    const commitKickPlan = (plan, { countShot = true } = {}) => {
+      if (!plan || !plan.velocity || gameStateRef.current.gameOver) return false;
+      if (!state.possession || state.possession.team !== 'player') return false;
+      if (state.shotInFlight || state.ballExploded) return false;
+
+      const velocity = plan.velocity.clone();
+      if (velocity.length() > MAX_SHOT_POWER) {
+        velocity.setLength(MAX_SHOT_POWER);
+      }
+      const spin = plan.spin ? plan.spin.clone() : new THREE.Vector3(0, 0, 0);
+
+      state.possession = null;
+      state.lastPossession = 'player';
+      state.aiDecisionCooldown = AI_DECISION_INTERVAL;
+      state.velocity.copy(velocity);
+      state.spin.copy(spin);
+      state.scored = false;
+      state.shotResolved = false;
+      state.ballExploded = false;
+      state.shotInFlight = true;
+      state.currentShotPoints = 0;
+      state.cameraShakeIntensity = Math.min(state.cameraShakeIntensity + 0.4, 0.95);
+
+      if (state.wallState && !state.wallState.jumping) {
+        state.wallState.velocityY = DEFENDER_JUMP_VELOCITY;
+        state.wallState.jumping = true;
+      }
+      if (state.keeperState) {
+        state.keeperState.targetX = 0;
+        state.keeperState.targetY = state.keeperState.baseY + goalHeight * 0.02;
+        state.keeperState.moveEase = KEEPER_CENTER_EASE;
+      }
+
+      if (countShot) {
+        setShots((value) => value + 1);
+      }
+      playKickSound();
+      return true;
+    };
+
+    const shootAtGoal = () => {
+      const aim = getGoalPositionForTeam('home').clone();
+      aim.x += (Math.random() - 0.5) * 0.8;
+      aim.y = THREE.MathUtils.clamp(aim.y + 0.45, BALL_RADIUS * 0.9, goalHeight - 0.06);
+      const distance = ball.position.distanceTo(aim);
+      const hang = THREE.MathUtils.clamp(distance / 13, 0.62, 1.18);
+      const displacement = tmp.copy(aim).sub(ball.position);
+      const velocity = new THREE.Vector3(
+        displacement.x / hang,
+        (displacement.y - 0.5 * GRAVITY.y * hang * hang) / hang,
+        displacement.z / hang
+      );
+      const spin = new THREE.Vector3(0, (Math.random() - 0.5) * 2.2, 0);
+      return commitKickPlan({ velocity, spin });
+    };
+
+    const passToSupport = () => {
+      const teammate = chooseTeammate('home', homeStrikerAnchor);
+      if (!teammate) return false;
+      const target = getAnchorPosition(teammate.anchor, tmp3)?.clone();
+      if (!target) return false;
+      target.y = Math.max(PASS_MIN_HEIGHT, target.y + PASS_MIN_HEIGHT * 0.8);
+      target.x += (Math.random() - 0.5) * 0.4;
+      const travel = Math.max(target.distanceTo(ball.position), AI_MIN_CLEARANCE);
+      const hang = THREE.MathUtils.clamp(travel / 10.5, 0.65, 1.25);
+      const displacement = tmp.copy(target).sub(ball.position);
+      const velocity = new THREE.Vector3(
+        displacement.x / hang,
+        (displacement.y - 0.5 * GRAVITY.y * hang * hang) / hang,
+        displacement.z / hang
+      );
+      if (velocity.length() > PASS_MAX_SPEED) {
+        velocity.setLength(PASS_MAX_SPEED);
+      }
+      return commitKickPlan({ velocity, spin: new THREE.Vector3(0, 0, 0) }, { countShot: false });
+    };
     resetBall();
 
     threeRef.current = {
       ...state,
-      resetBall
+      resetBall,
+      commitKickPlan,
+      shootAtGoal,
+      passToSupport,
+      setSprint: (value) => {
+        movementRef.current.sprint = value;
+      },
+      setMovementVector: (dx, dy) => {
+        movementRef.current.x = dx;
+        movementRef.current.y = dy;
+      }
     };
 
     const updateAimLine = () => {
@@ -3199,7 +3324,9 @@ export default function FreeKick3DGame({ config }) {
         );
       }
 
-      if (homeStrikerPatrol.anchor) {
+      const input = movementRef.current;
+      const hasPlayerInput = Math.hypot(input.x, input.y) > JOYSTICK_DEADZONE;
+      if (homeStrikerPatrol.anchor && !hasPlayerInput) {
         homeStrikerPatrol.anchor.position.x = Math.sin(elapsed * 0.55 + homeStrikerPatrol.phase) * 1.25;
         const roamZ = Math.sin(elapsed * 0.4 + homeStrikerPatrol.phase) * 3.2 - 0.6;
         homeStrikerPatrol.anchor.position.z = THREE.MathUtils.clamp(
@@ -3238,11 +3365,34 @@ export default function FreeKick3DGame({ config }) {
       state.currentShotPoints = 0;
     };
 
+    const laneIsClear = (start, target, opponents = []) => {
+      if (!start || !target) return true;
+      const direction = tmp.copy(target).sub(start);
+      const lenSq = direction.lengthSq();
+      if (lenSq <= 1e-6) return true;
+      return !opponents.some((member) => {
+        const pos = getAnchorPosition(member.anchor, tmp3);
+        if (!pos) return false;
+        const t = THREE.MathUtils.clamp(tmp2.copy(pos).sub(start).dot(direction) / lenSq, 0, 1);
+        const closestPoint = tmp2.copy(direction).multiplyScalar(t).add(start);
+        const clearance = pos.distanceTo(closestPoint);
+        return clearance < AI_LANE_CLEARANCE + 0.25;
+      });
+    };
+
+    const underPressure = (origin, opponents = []) =>
+      opponents.some((member) => {
+        const pos = getAnchorPosition(member.anchor, tmp3);
+        if (!pos) return false;
+        return pos.distanceTo(origin) < AI_PRESSURE_RADIUS;
+      });
+
     const chooseTeammate = (team, anchor) => {
       const squad = state.squads?.[team] ?? [];
       if (!squad.length) return null;
       const origin = getAnchorPosition(anchor, tmp3)?.clone();
       if (!origin) return null;
+      const opponents = team === 'away' ? state.squads?.home ?? [] : state.squads?.away ?? [];
       let best = null;
       let bestScore = -Infinity;
       squad.forEach((member) => {
@@ -3252,7 +3402,14 @@ export default function FreeKick3DGame({ config }) {
         const distance = origin.distanceTo(pos);
         const forward = goalZ - pos.z;
         const spacing = Math.max(distance, 0.001);
-        const score = forward * 0.9 - spacing * 0.3 + (member.role === 'striker' ? 0.6 : 0);
+        const laneClear = laneIsClear(origin, pos, opponents);
+        const inTraffic = underPressure(pos, opponents);
+        const score =
+          forward * 0.95 -
+          spacing * 0.22 +
+          (member.role === 'striker' ? 0.75 : 0) +
+          (laneClear ? 1.2 : -0.9) -
+          (inTraffic ? 0.6 : 0);
         if (score > bestScore) {
           bestScore = score;
           best = member;
@@ -3269,25 +3426,36 @@ export default function FreeKick3DGame({ config }) {
       if (!carrierPos) return;
       const goalTarget = getGoalPositionForTeam(carrier.team);
       const distanceToGoal = carrierPos.distanceTo(goalTarget);
+      const opponents = carrier.team === 'away' ? state.squads?.home ?? [] : state.squads?.away ?? [];
+      const pressured = underPressure(carrierPos, opponents);
       const teammate = chooseTeammate(carrier.team, carrier.anchor);
-      const shouldShoot = distanceToGoal < AI_SHOT_DISTANCE || Math.random() > AI_PASS_BIAS || !teammate;
+      const clearToGoal = laneIsClear(carrierPos, goalTarget, opponents);
+      const shouldShoot =
+        (clearToGoal && distanceToGoal < AI_SHOT_DISTANCE) ||
+        (!teammate && clearToGoal) ||
+        (!pressured && Math.random() > AI_PASS_BIAS);
 
       if (shouldShoot) {
         const aim = goalTarget.clone();
-        aim.x += (Math.random() - 0.5) * 1.4;
-        aim.y = THREE.MathUtils.clamp(goalTarget.y + (Math.random() - 0.5) * 0.6, BALL_RADIUS * 0.9, goalHeight - 0.1);
-        const flightTime = THREE.MathUtils.clamp(distanceToGoal / 11, 0.55, 1.15);
-        launchBall(aim, flightTime, (Math.random() - 0.5) * 3.5);
+        const cornerBias = GOAL_CONFIG.width * 0.32;
+        const side = carrierPos.x >= 0 ? -1 : 1;
+        aim.x += side * (cornerBias + Math.random() * 0.4);
+        aim.y = THREE.MathUtils.clamp(goalTarget.y + goalHeight * 0.22 + Math.random() * 0.4, BALL_RADIUS * 0.9, goalHeight - 0.08);
+        const flightTime = THREE.MathUtils.clamp(distanceToGoal / 12.5, 0.65, 1.25);
+        const curve = (Math.random() - 0.5) * 2.6 + side * 1.2;
+        launchBall(aim, flightTime, curve);
       } else {
         const targetPos = getAnchorPosition(teammate.anchor, tmp3)?.clone();
         if (!targetPos) return;
         targetPos.y = THREE.MathUtils.clamp(targetPos.y + PASS_MIN_HEIGHT, PASS_MIN_HEIGHT, PASS_MAX_HEIGHT);
+        targetPos.x += (Math.random() - 0.5) * 0.8;
+        targetPos.z += Math.sign(goalZ - targetPos.z) * 0.6;
         const travel = THREE.MathUtils.clamp(carrierPos.distanceTo(targetPos), AI_MIN_CLEARANCE, AI_SHOT_DISTANCE);
-        const hang = THREE.MathUtils.clamp(travel / 9, 0.65, 1.25);
+        const hang = THREE.MathUtils.clamp(travel / 9.5, 0.7, 1.32);
         launchBall(targetPos, hang, (Math.random() - 0.5) * 1.2);
       }
 
-      state.aiDecisionCooldown = AI_DECISION_INTERVAL + Math.random() * 0.8;
+      state.aiDecisionCooldown = AI_DECISION_INTERVAL * (pressured ? 0.85 : 1) + Math.random() * 0.6;
     };
 
     const updatePossession = (dt) => {
@@ -3323,6 +3491,28 @@ export default function FreeKick3DGame({ config }) {
         updateAiPlaymaking(state.possession, dt);
       }
       return state.possession;
+    };
+
+    const applyPlayerInput = (dt) => {
+      const input = movementRef.current;
+      const anchor = homeStrikerAnchor;
+      if (!anchor) return;
+      const magnitude = Math.hypot(input.x, input.y);
+      if (magnitude <= JOYSTICK_DEADZONE) return;
+
+      const speed = PLAYER_MOVE_SPEED * (input.sprint ? PLAYER_SPRINT_MULTIPLIER : 1);
+      const normX = input.x / magnitude;
+      const normZ = -input.y / magnitude;
+      anchor.position.x = THREE.MathUtils.clamp(
+        anchor.position.x + normX * speed * dt,
+        -pitchHalfWidth + PLAYER_BOUNDARY_PADDING,
+        pitchHalfWidth - PLAYER_BOUNDARY_PADDING
+      );
+      anchor.position.z = THREE.MathUtils.clamp(
+        anchor.position.z + normZ * speed * dt,
+        goalZ + PENALTY_AREA_DEPTH * 0.22,
+        pitchHalfLength - 1.05
+      );
     };
 
     const stepSimulation = (dt) => {
@@ -3380,6 +3570,7 @@ export default function FreeKick3DGame({ config }) {
       }
 
       updatePossession(dt);
+      applyPlayerInput(dt);
 
       if (!gameStateRef.current.gameOver && !state.ballExploded && state.possession) {
         state.velocity.multiplyScalar(0.35);
@@ -3752,28 +3943,7 @@ export default function FreeKick3DGame({ config }) {
       clearAimLine();
       gestureRef.current.plan = null;
       if (!plan) return;
-      state.possession = null;
-      state.lastPossession = 'player';
-      state.aiDecisionCooldown = AI_DECISION_INTERVAL;
-      state.velocity.copy(plan.velocity);
-      state.spin.copy(plan.spin);
-      state.scored = false;
-      state.shotResolved = false;
-      state.ballExploded = false;
-      state.shotInFlight = true;
-      state.currentShotPoints = 0;
-      state.cameraShakeIntensity = Math.min(state.cameraShakeIntensity + 0.4, 0.95);
-      if (state.wallState && !state.wallState.jumping) {
-        state.wallState.velocityY = DEFENDER_JUMP_VELOCITY;
-        state.wallState.jumping = true;
-      }
-      if (state.keeperState) {
-        state.keeperState.targetX = 0;
-        state.keeperState.targetY = state.keeperState.baseY + goalHeight * 0.02;
-        state.keeperState.moveEase = KEEPER_CENTER_EASE;
-      }
-      setShots((value) => value + 1);
-      playKickSound();
+      commitKickPlan(plan);
     };
 
     renderer.domElement.addEventListener('pointerdown', onPointerDown, { passive: false });
@@ -3889,6 +4059,72 @@ export default function FreeKick3DGame({ config }) {
     }
   };
 
+  const updateMovementVector = (dx, dy, active) => {
+    const clampedDx = THREE.MathUtils.clamp(dx, -1, 1);
+    const clampedDy = THREE.MathUtils.clamp(dy, -1, 1);
+    movementRef.current.x = clampedDx;
+    movementRef.current.y = clampedDy;
+    threeRef.current?.setMovementVector?.(clampedDx, clampedDy);
+    setJoystick({ active, dx: clampedDx, dy: clampedDy });
+  };
+
+  const endJoystick = () => {
+    joystickPointerIdRef.current = null;
+    updateMovementVector(0, 0, false);
+  };
+
+  const handleJoystickPointerDown = (event) => {
+    event.preventDefault();
+    if (joystickPointerIdRef.current !== null) return;
+    joystickPointerIdRef.current = event.pointerId;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    handleJoystickPointerMove(event);
+  };
+
+  const handleJoystickPointerMove = (event) => {
+    if (joystickPointerIdRef.current !== event.pointerId) return;
+    const base = joystickBaseRef.current;
+    if (!base) return;
+    const rect = base.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = event.clientX - centerX;
+    const dy = event.clientY - centerY;
+    const radius = rect.width / 2;
+    const magnitude = Math.min(Math.hypot(dx, dy), radius);
+    if (radius <= 0) return;
+    const normX = dx / radius;
+    const normY = dy / radius;
+    const scaledX = (normX * magnitude) / radius;
+    const scaledY = (normY * magnitude) / radius;
+    updateMovementVector(scaledX, scaledY, true);
+  };
+
+  const handleJoystickPointerUp = (event) => {
+    if (joystickPointerIdRef.current !== event.pointerId) return;
+    endJoystick();
+  };
+
+  const toggleSprint = (value) => {
+    movementRef.current.sprint = value;
+    threeRef.current?.setSprint?.(value);
+    setSprinting(value);
+  };
+
+  const handleShoot = () => {
+    const success = threeRef.current?.shootAtGoal?.();
+    if (!success) {
+      setMessage('Regain possession to shoot');
+    }
+  };
+
+  const handlePass = () => {
+    const success = threeRef.current?.passToSupport?.();
+    if (!success) {
+      setMessage('Find the ball to pass');
+    }
+  };
+
   return (
     <div className="relative h-full w-full select-none text-white">
       <div ref={hostRef} className="absolute inset-0" />
@@ -3909,6 +4145,55 @@ export default function FreeKick3DGame({ config }) {
       <div className="absolute top-20 left-1/2 z-10 flex -translate-x-1/2 gap-2 text-xs md:text-sm">
         <div className="rounded-full bg-black/50 px-3 py-1">Shots {shots}</div>
         <div className="rounded-full bg-black/50 px-3 py-1">Goals {goals}</div>
+      </div>
+      <div className="absolute bottom-6 left-4 z-20 select-none">
+        <div
+          ref={joystickBaseRef}
+          className="relative h-28 w-28 rounded-full border border-white/15 bg-black/40 backdrop-blur"
+          onPointerDown={handleJoystickPointerDown}
+          onPointerMove={handleJoystickPointerMove}
+          onPointerUp={handleJoystickPointerUp}
+          onPointerCancel={endJoystick}
+          onPointerLeave={(event) => {
+            if (joystickPointerIdRef.current === event.pointerId) endJoystick();
+          }}
+        >
+          <div
+            className="pointer-events-none absolute h-14 w-14 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/40 shadow"
+            style={{
+              left: `${50 + joystick.dx * 40}%`,
+              top: `${50 + joystick.dy * 40}%`
+            }}
+          />
+        </div>
+        <div className="mt-2 text-center text-xs uppercase tracking-wide text-white/70">Move</div>
+      </div>
+      <div className="absolute bottom-4 right-4 z-20 flex flex-col items-end gap-3 text-sm">
+        <button
+          type="button"
+          onPointerDown={handleShoot}
+          className="rounded-full bg-emerald-500 px-6 py-2 font-semibold text-white shadow-lg shadow-emerald-500/30"
+        >
+          Shoot
+        </button>
+        <button
+          type="button"
+          onPointerDown={handlePass}
+          className="rounded-full bg-sky-500 px-6 py-2 font-semibold text-white shadow-lg shadow-sky-500/30"
+        >
+          Pass
+        </button>
+        <button
+          type="button"
+          onPointerDown={() => toggleSprint(true)}
+          onPointerUp={() => toggleSprint(false)}
+          onPointerLeave={() => toggleSprint(false)}
+          className={`rounded-full px-6 py-2 font-semibold text-white shadow-lg transition-shadow ${
+            sprinting ? 'bg-amber-500 shadow-amber-400/40' : 'bg-amber-400 shadow-amber-300/30'
+          }`}
+        >
+          Sprint
+        </button>
       </div>
       <div className="pointer-events-none absolute bottom-6 left-1/2 z-10 w-[90%] -translate-x-1/2 rounded-xl bg-black/50 px-4 py-3 text-center text-sm md:text-base">
         {message}
