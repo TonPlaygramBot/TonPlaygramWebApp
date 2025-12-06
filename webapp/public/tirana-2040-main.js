@@ -423,9 +423,9 @@ export async function startTirana2040(){
   window.institutions=institutions;
   window.bots=bots;
   const mapRoads=[]; const mapBuildings=[]; const mapParks=[]; const mapLandmarks=[];
-  const BLOCKS_X=6, BLOCKS_Z=6; const CELL=120; const ROAD=28; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
-  const northSouthStreets=['Kombinat Street','Kavaja Street','Martyrs Street','Myslym Shyri Street','Ismail Qemali Street','Abdyl Frasheri Street','Bajram Curri Street'];
-  const eastWestStreets=['Mother Teresa Blvd','Skanderbeg Street','Ismail Ndroqi Street','Ali Demi Street','Petro Nini Street','Teuta Street','Don Bosko Street'];
+  const BLOCKS_X=5, BLOCKS_Z=4; const CELL=112; const ROAD=24; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
+  const northSouthStreets=['Kombinat Road','Kavaja Street','Ibrahim Rugova Blvd','Deshmoret e Kombit','Elbasan Street','Unaza e Madhe'];
+  const eastWestStreets=['Zogu I Boulevard','Lana Promenade','Skanderbeg Square','Bajram Curri Boulevard','Elbasan Gateway'];
   const ringRoadName='Tirana 2040 Ring Road';
 
   const groundGeo = new THREE.PlaneGeometry((CELL)*BLOCKS_X + ROAD*2, (CELL)*BLOCKS_Z + ROAD*2);
@@ -616,9 +616,9 @@ export async function startTirana2040(){
   buildPerimeterWalls();
   addBusStop(-cityHalfX*0.6, cityHalfZ+ROAD*0.8, 0);
   addBusStop(cityHalfX*0.6, -cityHalfZ-ROAD*0.8, Math.PI);
-  addBikeCorridor(-cityHalfX, startZ + CELL*2.5, cityHalfX, startZ + CELL*2.5, {label:'Main east-west bike lane'});
-  addBikeCorridor(startX + CELL*1.5, -cityHalfZ, startX + CELL*1.5, cityHalfZ, {label:'North-south bicycle spine'});
-  addBikeCorridor(startX + CELL*4.5, -cityHalfZ, startX + CELL*4.5, cityHalfZ, {label:'Perimeter greenway'});
+  addBikeCorridor(-cityHalfX, startZ + CELL*1.5, cityHalfX, startZ + CELL*1.5, {label:'Lana riverfront cycleway'});
+  addBikeCorridor(startX + CELL*2.0, -cityHalfZ, startX + CELL*2.0, cityHalfZ, {label:'Central boulevard bike spine'});
+  addBikeCorridor(startX + CELL*3.5, -cityHalfZ, startX + CELL*3.5, cityHalfZ, {label:'Perimeter greenway'});
 
   const windowGeo=new THREE.PlaneGeometry(1.2,1.8);
   const windowMat=new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.12, depthWrite:false });
@@ -998,18 +998,15 @@ export async function startTirana2040(){
   function addTrainStation(x,z){ const plat=new THREE.Mesh(new THREE.PlaneGeometry(160,8), new THREE.MeshBasicMaterial({ color:0x666b73 })); plat.rotation.x=-Math.PI/2; plat.position.set(x,0.02,z); city.add(plat); const rails=new THREE.Group(); for(let i=0;i<4;i++){ const r=new THREE.Mesh(new THREE.PlaneGeometry(160,0.3), new THREE.MeshBasicMaterial({ color:0x444 })); r.rotation.x=-Math.PI/2; r.position.set(x,0.021,z-2+i*1.2); rails.add(r);} city.add(rails); addBuilding(x+30,z-8,{floors:5,w:50,d:16,hue:48,sign:'STATION', landmark:false}); POIS.push({type:'station', pos:new THREE.Vector3(x,0,z), label:'🚉'}); mapLandmarks.push({x,z,label:'🚉 Station'}); }
 
   const blockPlan=[
-    ['res_high','green','civic','civic','green','res_high'],
-    ['res_mid','green','res_mid','res_mid','green','res_mid'],
-    ['gateway','green','plaza','plaza','green','campus'],
-    ['gateway','green','plaza','plaza','green','campus'],
-    ['res_mid','green','res_mid','res_mid','green','res_mid'],
-    ['res_high','green','civic','civic','green','res_high']
+    ['res_high','green','civic','green','res_mid'],
+    ['res_mid','plaza_core','plaza_axis','green','campus'],
+    ['gateway','green','res_mid','green','res_mid'],
+    ['res_high','green','civic','green','res_mid']
   ];
   const parkKinds=['tennis','basket'];
   const parkOverrides=new Map([
-    ['2,2','basket'],
-    ['3,2','basket'],
-    ['2,3','basket'],
+    ['1,0','basket'],
+    ['1,2','basket'],
     ['3,3','tennis']
   ]);
   function pickPark(ix,iz){ return parkOverrides.get(`${ix},${iz}`) || parkKinds[(ix+iz)%parkKinds.length]; }
@@ -1064,7 +1061,9 @@ export async function startTirana2040(){
     for(let iz=0; iz<BLOCKS_Z; iz++){
       const type=blockPlan[iz]?.[ix] || (((ix+iz)%2===0)?'green':'res_mid');
       if(type==='green') placePark(ix,iz);
-      else if(type==='civic') placeCivicCore(ix,iz,'CIVIC');
+      else if(type==='civic'){ const label = (ix===2 && iz===0)?'MUSEUM': (ix===2 && iz===3)?'CULTURE': 'CIVIC'; placeCivicCore(ix,iz,label); }
+      else if(type==='plaza_core') placeCivicCore(ix,iz,'SKANDERBEG');
+      else if(type==='plaza_axis') placeCivicCore(ix,iz,'PEDONALJA');
       else if(type==='plaza') placeCivicCore(ix,iz,'PLAZA');
       else if(type==='campus') placeCampus(ix,iz);
       else if(type==='gateway') placeGateway(ix,iz);
@@ -1072,10 +1071,10 @@ export async function startTirana2040(){
       else layoutResidentialCluster(ix,iz,{density:'mid'});
     }
   }
-  addParkGrass(startX + CELL*0.6, startZ + CELL*0.6, 1.0); mapParks.push({type:'green',x:startX + CELL*0.6,z:startZ + CELL*0.6,w:PLOT*0.9,d:PLOT*0.9});
-  addParkGrass(startX + CELL*4.6, startZ + CELL*4.6, 1.0); mapParks.push({type:'green',x:startX + CELL*4.6,z:startZ + CELL*4.6,w:PLOT*0.9,d:PLOT*0.9});
-  addBasketCourt(startX + CELL*2.4, startZ - CELL*1.2);
-  addBasketCourt(startX + CELL*3.6, startZ + CELL*1.2);
+  addParkGrass(startX + CELL*0.8, startZ + CELL*0.8, 1.0); mapParks.push({type:'green',x:startX + CELL*0.8,z:startZ + CELL*0.8,w:PLOT*0.9,d:PLOT*0.9});
+  addParkGrass(startX + CELL*3.2, startZ + CELL*2.6, 1.0); mapParks.push({type:'green',x:startX + CELL*3.2,z:startZ + CELL*2.6,w:PLOT*0.9,d:PLOT*0.9});
+  addBasketCourt(startX + CELL*2.2, startZ + CELL*0.4);
+  addBasketCourt(startX + CELL*1.2, startZ + CELL*2.2);
   commitWindows();
   for(let i=-BLOCKS_X;i<=BLOCKS_X;i+=2){ addTrafficLight(i*CELL*0.5, -BLOCKS_Z*CELL*0.5, 0); addTrafficLight(i*CELL*0.5, BLOCKS_Z*CELL*0.5, Math.PI); }
 
@@ -1099,11 +1098,11 @@ export async function startTirana2040(){
   addAirport(ringR*0.9,  -ringR*0.6);
   addTrainStation(-ringR*0.6, ringR*0.85);
 
-  addInstitution('police',   startX+CELL*0.6, startZ+CELL*0.8);
-  addInstitution('hospital', startX+CELL*4.6, startZ+CELL*3.0);
-  addInstitution('school',   startX+CELL*2.4, startZ+CELL*4.4);
-  addInstitution('fire',     startX+CELL*0.8, startZ+CELL*4.8);
-  addInstitution('mall',     startX+CELL*3.6, startZ+CELL*1.4);
+  addInstitution('police',   startX+CELL*0.9, startZ+CELL*0.6);
+  addInstitution('hospital', startX+CELL*3.4, startZ+CELL*1.6);
+  addInstitution('school',   startX+CELL*2.0, startZ+CELL*2.8);
+  addInstitution('fire',     startX+CELL*1.2, startZ+CELL*2.4);
+  addInstitution('mall',     startX+CELL*3.0, startZ+CELL*0.8);
 
   const playerRadius=0.32; const player=new CANNON.Body({ mass:72, material:matPlayer, shape:new CANNON.Sphere(playerRadius), position:new CANNON.Vec3(0,0.94,10), linearDamping:0.18, angularDamping:0.9 });
   player.fixedRotation=true; player.allowSleep=false; world.addBody(player);
@@ -1721,20 +1720,16 @@ export async function startTirana2040(){
   async function spawnParkedCommons(){
     const palette=['#64748b','#9ca3af','#475569','#7f5539','#ef8354','#14b8a6'];
     const spots=[
-      {kind:'sedan', x:startX+CELL*0.9,  z:startZ+CELL*1.3, heading:Math.PI*0.18},
+      {kind:'sedan', x:startX+CELL*0.9,  z:startZ+CELL*0.9, heading:Math.PI*0.18},
       {kind:'car',   x:startX+CELL*1.6,  z:startZ+CELL*1.1, heading:-Math.PI*0.22},
-      {kind:'motorcycle', x:startX+CELL*1.95, z:startZ+CELL*1.55, heading:-Math.PI*0.12, color:'#f97316'},
-      {kind:'sedan', x:startX+CELL*2.3,  z:startZ+CELL*1.8, heading:Math.PI*0.36},
-      {kind:'bus',   x:startX+CELL*3.1,  z:startZ+CELL*2.35, heading:-Math.PI*0.48, color:'#facc15'},
-      {kind:'car',   x:startX+CELL*2.4,  z:startZ+CELL*3.1, heading:Math.PI*0.52},
-      {kind:'sedan', x:startX+CELL*4.0,  z:startZ+CELL*1.6, heading:-Math.PI*0.12},
-      {kind:'motorcycle', x:startX+CELL*4.2, z:startZ+CELL*2.05, heading:Math.PI*0.08, color:'#38bdf8'},
-      {kind:'sedan', x:startX+CELL*1.2, z:startZ+CELL*2.85, heading:-Math.PI*0.38, color:'#0ea5e9'},
-      {kind:'car', x:startX+CELL*3.65, z:startZ+CELL*3.25, heading:Math.PI*0.72, color:'#22c55e'},
-      {kind:'car', x:startX+CELL*5.0, z:startZ+CELL*2.6, heading:-Math.PI*0.08, color:'#f97316'},
-      {kind:'motorcycle', x:startX+CELL*5.2, z:startZ+CELL*1.35, heading:Math.PI*0.28, color:'#e11d48'},
-      {kind:'sedan', x:startX+CELL*2.85, z:startZ+CELL*0.9, heading:Math.PI*0.12, color:'#a3e635'},
-      {kind:'bus', x:startX+CELL*0.6, z:startZ+CELL*3.6, heading:-Math.PI*0.58, color:'#fde047'}
+      {kind:'motorcycle', x:startX+CELL*2.0, z:startZ+CELL*1.6, heading:-Math.PI*0.12, color:'#f97316'},
+      {kind:'sedan', x:startX+CELL*2.6,  z:startZ+CELL*2.0, heading:Math.PI*0.36},
+      {kind:'bus',   x:startX+CELL*3.4,  z:startZ+CELL*1.4, heading:-Math.PI*0.48, color:'#facc15'},
+      {kind:'car',   x:startX+CELL*3.2,  z:startZ+CELL*2.4, heading:Math.PI*0.52},
+      {kind:'motorcycle', x:startX+CELL*1.2, z:startZ+CELL*2.6, heading:Math.PI*0.08, color:'#38bdf8'},
+      {kind:'sedan', x:startX+CELL*0.8, z:startZ+CELL*1.8, heading:-Math.PI*0.38, color:'#0ea5e9'},
+      {kind:'car', x:startX+CELL*2.4, z:startZ+CELL*0.6, heading:Math.PI*0.72, color:'#22c55e'},
+      {kind:'bus', x:startX+CELL*4.0, z:startZ+CELL*2.8, heading:-Math.PI*0.58, color:'#fde047'}
     ];
     for(let i=0;i<spots.length;i++){
       const spot=spots[i];
