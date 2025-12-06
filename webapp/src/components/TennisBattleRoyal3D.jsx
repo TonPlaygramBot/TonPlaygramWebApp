@@ -296,7 +296,8 @@ const RACKET_ORIENTATIONS = [
 
 const BASE_MIN_SWIPE = 220;
 const BASE_MAX_SWIPE = 1400;
-const BASE_HIT_FORCE = 4.6 * 0.35;
+// Reduce the baseline strike force so ball launches are 20% softer overall
+const BASE_HIT_FORCE = 4.6 * 0.35 * 0.8;
 const BASE_SPEED_CAP = 22.5 * BASE_HIT_FORCE;
 const BASE_TENNIS_DIMENSIONS = { length: 23.77, width: 9.2 };
 const BASE_ARCADE_CAMERA = { height: 9, offset: 16 };
