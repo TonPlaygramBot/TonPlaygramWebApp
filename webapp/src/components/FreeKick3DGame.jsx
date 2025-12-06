@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const INSTRUCTION_TEXT = 'Swipe up to shoot • Curve by swiping sideways';
 const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
@@ -393,12 +392,6 @@ const GOAL_CONFIG = {
   z: BASE_GOAL_CONFIG.z * WORLD_SCALE
 };
 
-const CESIUM_MAN_URL =
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb';
-const DEFENDER_MODEL_HEIGHT = 1.4 * WORLD_SCALE;
-const KEEPER_MODEL_HEIGHT = 1.92 * WORLD_SCALE;
-const STRIKER_MODEL_HEIGHT = 1.68 * WORLD_SCALE;
-
 const MIN_GOAL_POINTS = 5;
 const TIMER_BONUS_OPTIONS = Object.freeze([10, 15, 20]);
 const BOMB_TIME_PENALTY = 15;
@@ -453,13 +446,13 @@ const MAX_FRAME_DELTA = 1 / 45;
 const MAX_ACCUMULATED_TIME = 0.18;
 const CAMERA_IDLE_POSITION = new THREE.Vector3(
   0,
-  7.2 * WORLD_SCALE,
-  Math.abs(GOAL_CONFIG.z) * 2.05
+  9 * WORLD_SCALE,
+  Math.abs(GOAL_CONFIG.z) * 2.6
 );
 const CAMERA_IDLE_FOCUS = new THREE.Vector3(
   0,
-  GOAL_CONFIG.height * 1.1,
-  GOAL_CONFIG.z + (START_Z - GOAL_CONFIG.z) * 0.25
+  GOAL_CONFIG.height * 1.25,
+  Math.abs(GOAL_CONFIG.z) * 0.5
 );
 const CAMERA_ACTIVE_MIN_DISTANCE = 3.4 * WORLD_SCALE;
 const CAMERA_ACTIVE_MAX_DISTANCE = 8.6 * WORLD_SCALE;
@@ -649,8 +642,6 @@ export default function FreeKick3DGame({ config }) {
     };
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin?.('anonymous');
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setCrossOrigin?.('anonymous');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
@@ -2002,87 +1993,6 @@ export default function FreeKick3DGame({ config }) {
       moveEase: KEEPER_RETURN_EASE,
       side: 0
     };
-
-    const characterSize = new THREE.Vector3();
-
-    const disposeAnchorChildren = (anchor) => {
-      anchor.children.slice().forEach((child) => {
-        anchor.remove(child);
-        if (child.isMesh) {
-          child.geometry?.dispose?.();
-          if (Array.isArray(child.material)) {
-            child.material.forEach((material) => material?.dispose?.());
-          } else {
-            child.material?.dispose?.();
-          }
-        }
-      });
-    };
-
-    const cloneCharacter = (root, tintColor) => {
-      const clone = root.clone(true);
-      clone.traverse((child) => {
-        if (!child.isMesh) return;
-        child.castShadow = true;
-        child.receiveShadow = true;
-        if (Array.isArray(child.material)) {
-          child.material = child.material.map((material) => {
-            const next = material?.clone ? material.clone() : material;
-            if (next?.color) {
-              next.color = next.color.clone();
-              if (tintColor !== undefined) next.color.setHex(tintColor);
-            }
-            next.needsUpdate = true;
-            return next;
-          });
-        } else if (child.material) {
-          const material = child.material.clone ? child.material.clone() : child.material;
-          if (material?.color) {
-            material.color = material.color.clone();
-            if (tintColor !== undefined) material.color.setHex(tintColor);
-          }
-          material.needsUpdate = true;
-          child.material = material;
-        }
-      });
-      return clone;
-    };
-
-    gltfLoader.load(
-      CESIUM_MAN_URL,
-      (gltf) => {
-        if (disposed) return;
-        const root = gltf.scene || gltf.scenes?.[0];
-        if (!root) return;
-        const baseBox = new THREE.Box3().setFromObject(root);
-        const baseHeight = baseBox.getSize(characterSize).y || 1;
-        const attachCharacter = (anchor, targetHeight, tintColor) => {
-          if (!anchor) return;
-          const character = cloneCharacter(root, tintColor);
-          const scale = targetHeight / baseHeight;
-          character.scale.setScalar(scale);
-          const box = new THREE.Box3().setFromObject(character);
-          character.position.set(0, -box.min.y, 0);
-          disposeAnchorChildren(anchor);
-          anchor.add(character);
-        };
-
-        defenderAnchors.forEach((anchor, index) =>
-          attachCharacter(
-            anchor,
-            DEFENDER_MODEL_HEIGHT,
-            PLAYER_COLORS.defenders[index % PLAYER_COLORS.defenders.length]
-          )
-        );
-        attachCharacter(keeperAnchor, KEEPER_MODEL_HEIGHT, PLAYER_COLORS.keeper);
-        attachCharacter(strikerAnchor, STRIKER_MODEL_HEIGHT, PLAYER_COLORS.striker);
-      },
-      undefined,
-      (error) => {
-        if (disposed) return;
-        console.error('Failed to load CesiumMan model for Free Kick 3D', error);
-      }
-    );
 
     const ballTexture = makeUCLBallTexture(2048);
     const bumpMap = makeBumpFromColor(ballTexture);
