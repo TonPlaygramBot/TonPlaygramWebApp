@@ -188,11 +188,11 @@
       .avatar-timer {
         position: absolute;
         inset: auto;
-        top: -12px;
-        left: 50%;
+        top: 50%;
+        right: -8px;
         width: 36px;
         height: 36px;
-        transform: translate(-50%, -65%) scale(0.92);
+        transform: translate(60%, -50%) scale(0.92);
         border-radius: 50%;
         background: radial-gradient(circle at 50% 50%, rgba(10, 12, 24, 0.92) 60%, transparent 62%);
         filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.35));
@@ -202,7 +202,7 @@
       }
       .avatar-timer.active {
         opacity: 1;
-        transform: translate(-50%, -78%) scale(1);
+        transform: translate(60%, -50%) scale(1);
       }
       .avatar-timer__fill {
         position: absolute;
@@ -417,7 +417,7 @@
       }
 
       .seat.bottom {
-        bottom: 0.5%;
+        bottom: 5%;
         left: 50%;
         transform: translateX(-50%);
         --card-scale: 1.083;
@@ -493,6 +493,22 @@
       }
       .seat.bottom .name {
         font-size: 12px;
+      }
+      .seat.bottom .avatar {
+        opacity: 0;
+        transform: translateY(-4px);
+        transition: opacity 0.2s ease, transform 0.2s ease;
+      }
+      .seat.bottom .avatar.turn {
+        opacity: 1;
+        transform: translateY(-10px);
+      }
+      .seat.small {
+        --avatar-scale: 0.8;
+      }
+      .seat.small .avatar {
+        font-size: 24px;
+        opacity: 1;
       }
       .seat-inner .cards {
         padding: 0;
