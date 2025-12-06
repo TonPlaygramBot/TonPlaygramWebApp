@@ -222,8 +222,6 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -297,17 +295,95 @@ const BEAUTIFUL_GAME_THEME_NAMES = [
   'Forest / Sand'
 ];
 
-const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
-  BEAUTIFUL_GAME_THEME_NAMES.map((name, index) =>
-    buildBoardTheme({
-      id: `beautifulGameBoard${index}`,
-      label: `ABeautifulGame (${name})`,
-      ...BEAUTIFUL_GAME_THEME,
-      preserveOriginalMaterials: true,
-      keepTextures: true
-    })
-  )
-);
+const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
+  buildBoardTheme({
+    id: 'beautifulGameClassicBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
+    ...BEAUTIFUL_GAME_THEME,
+    preserveOriginalMaterials: true
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameSwapBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
+    light: '#EEE8D5',
+    dark: '#2B2F36',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameBlueOrangeBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
+    light: '#93C5FD',
+    dark: '#1E293B',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameRedTealBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
+    light: '#FCA5A5',
+    dark: '#0F766E',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGamePurpleLimeBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
+    light: '#C4B5FD',
+    dark: '#365314',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGamePinkCyanBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
+    light: '#F9A8D4',
+    dark: '#164E63',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameGoldSlateBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
+    light: '#FDE68A',
+    dark: '#0F172A',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameEmeraldFuchsiaBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
+    light: '#6EE7B7',
+    dark: '#4A044E',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameSilverGraphiteBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
+    light: '#E5E7EB',
+    dark: '#111827',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  }),
+  buildBoardTheme({
+    id: 'beautifulGameForestSandBoard',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
+    light: '#FDEAD7',
+    dark: '#064E3B',
+    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+    frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+    preserveOriginalMaterials: false
+  })
+]);
 
 const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
 
@@ -371,18 +447,114 @@ const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
 
 const BASE_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
 
-const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
-  BEAUTIFUL_GAME_THEME_NAMES.map((name, index) => ({
-    id: index === 0 ? BEAUTIFUL_GAME_AUTHENTIC_ID : `beautifulGameVariant${index}`,
-    label: `ABeautifulGame (${name})`,
+const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
+  {
+    id: BEAUTIFUL_GAME_AUTHENTIC_ID,
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
+    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true, keepTextures: true }
+  },
+  {
+    id: 'beautifulGameSwapPalettes',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
     style: {
       ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: true,
+      preserveOriginalMaterials: false,
       keepTextures: true,
-      paletteSwap: index === 1
+      white: { ...BASE_PIECE_STYLE.white, color: BEAUTIFUL_GAME_THEME.dark },
+      black: { ...BASE_PIECE_STYLE.black, color: BEAUTIFUL_GAME_THEME.light }
     }
-  }))
-);
+  },
+  {
+    id: 'beautifulGameBlueOrange',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#93C5FD' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#1E293B' },
+      accent: '#F59E0B'
+    }
+  },
+  {
+    id: 'beautifulGameRedTeal',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#FCA5A5' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#0F766E' }
+    }
+  },
+  {
+    id: 'beautifulGamePurpleLime',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#C4B5FD' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#365314' }
+    }
+  },
+  {
+    id: 'beautifulGamePinkCyan',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#F9A8D4' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#164E63' }
+    }
+  },
+  {
+    id: 'beautifulGameGoldSlate',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#FDE68A' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#0F172A' },
+      goldAccent: '#d7b24a'
+    }
+  },
+  {
+    id: 'beautifulGameEmeraldFuchsia',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#6EE7B7' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#4A044E' }
+    }
+  },
+  {
+    id: 'beautifulGameSilverGraphite',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#E5E7EB' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#111827' }
+    }
+  },
+  {
+    id: 'beautifulGameForestSand',
+    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#FDEAD7' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#064E3B' }
+    }
+  }
+]);
 
 const DEFAULT_PIECE_STYLE =
   BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
@@ -1718,62 +1890,19 @@ function applyLocalBeautifulGameMaterials(assets) {
   return assets;
 }
 
-function captureBeautifulGamePalettes(piecePrototypes) {
-  const palettes = { white: [], black: [] };
-  ['white', 'black'].forEach((colorKey) => {
-    const anyPiece = Object.values(piecePrototypes?.[colorKey] || {}).find(Boolean);
-    if (!anyPiece) return;
-    anyPiece.traverse((child) => {
-      if (!child?.isMesh) return;
-      const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((mat) => {
-        if (mat) palettes[colorKey].push(mat.clone ? mat.clone() : mat);
-      });
-    });
-  });
-  return palettes;
-}
-
-function applyPaletteToPieces(piecePrototypes, colorKey, palette) {
-  if (!palette?.length) return;
-  Object.values(piecePrototypes?.[colorKey] || {}).forEach((piece) => {
-    piece?.traverse?.((child) => {
-      if (!child?.isMesh) return;
-      const mats = Array.isArray(child.material) ? child.material : [child.material];
-      const swapped = mats.map((_, index) => (palette[index % palette.length]?.clone?.()
-        ? palette[index % palette.length].clone()
-        : palette[index % palette.length]));
-      if (Array.isArray(child.material)) {
-        child.material = swapped;
-      } else {
-        [child.material] = swapped;
-      }
-      child.castShadow = true;
-      child.receiveShadow = true;
-    });
-  });
-}
-
-function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE, palettes) {
+function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!piecePrototypes) return;
-  const authenticPalettes = palettes || piecePrototypes.__authenticPalettes;
   if (pieceStyle?.preserveOriginalMaterials) {
-    if (authenticPalettes) {
-      const swap = pieceStyle.paletteSwap;
-      applyPaletteToPieces(piecePrototypes, 'white', swap ? authenticPalettes.black : authenticPalettes.white);
-      applyPaletteToPieces(piecePrototypes, 'black', swap ? authenticPalettes.white : authenticPalettes.black);
-    } else {
-      ['white', 'black'].forEach((colorKey) => {
-        Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => {
-          piece?.traverse?.((child) => {
-            if (child?.isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-            }
-          });
+    ['white', 'black'].forEach((colorKey) => {
+      Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => {
+        piece?.traverse?.((child) => {
+          if (child?.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
         });
       });
-    }
+    });
     return;
   }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
@@ -3402,8 +3531,7 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     const boardTop = finalBox.max.y;
     assets.pieceYOffset = Math.max(boardTop + 0.04, PIECE_PLACEMENT_Y_OFFSET);
   }
-  assets.piecePrototypes.__authenticPalettes = captureBeautifulGamePalettes(assets.piecePrototypes);
-  harmonizeBeautifulGamePieces(assets.piecePrototypes, authenticStyle, assets.piecePrototypes.__authenticPalettes);
+  harmonizeBeautifulGamePieces(assets.piecePrototypes, authenticStyle);
   if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
@@ -3517,12 +3645,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     tileSize,
     pieceYOffset: boardTop + 0.02
   };
-  assets.piecePrototypes.__authenticPalettes = captureBeautifulGamePalettes(assets.piecePrototypes);
-  harmonizeBeautifulGamePieces(
-    assets.piecePrototypes,
-    BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style,
-    assets.piecePrototypes.__authenticPalettes
-  );
+  harmonizeBeautifulGamePieces(assets.piecePrototypes);
   if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
