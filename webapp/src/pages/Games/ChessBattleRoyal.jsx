@@ -224,11 +224,8 @@ const SAND_TIMER_SCALE = 0.36;
 const BEAUTIFUL_GAME_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_TOUCH_URLS = [
@@ -312,7 +309,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#2B2F36',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGameBlueOrangeBoard',
@@ -321,7 +318,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#1E293B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGameRedTealBoard',
@@ -330,7 +327,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#0F766E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGamePurpleLimeBoard',
@@ -339,7 +336,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#365314',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGamePinkCyanBoard',
@@ -348,7 +345,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#164E63',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGameGoldSlateBoard',
@@ -357,7 +354,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#0F172A',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGameEmeraldFuchsiaBoard',
@@ -366,7 +363,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#4A044E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGameSilverGraphiteBoard',
@@ -375,7 +372,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#111827',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   }),
   buildBoardTheme({
     id: 'beautifulGameForestSandBoard',
@@ -384,7 +381,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#064E3B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: true
+    preserveOriginalMaterials: false
   })
 ]);
 
@@ -454,52 +451,108 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
   {
     id: BEAUTIFUL_GAME_AUTHENTIC_ID,
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true, keepTextures: true }
   },
   {
     id: 'beautifulGameSwapPalettes',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: BEAUTIFUL_GAME_THEME.dark },
+      black: { ...BASE_PIECE_STYLE.black, color: BEAUTIFUL_GAME_THEME.light }
+    }
   },
   {
     id: 'beautifulGameBlueOrange',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#93C5FD' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#1E293B' },
+      accent: '#F59E0B'
+    }
   },
   {
     id: 'beautifulGameRedTeal',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#FCA5A5' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#0F766E' }
+    }
   },
   {
     id: 'beautifulGamePurpleLime',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#C4B5FD' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#365314' }
+    }
   },
   {
     id: 'beautifulGamePinkCyan',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#F9A8D4' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#164E63' }
+    }
   },
   {
     id: 'beautifulGameGoldSlate',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#FDE68A' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#0F172A' },
+      goldAccent: '#d7b24a'
+    }
   },
   {
     id: 'beautifulGameEmeraldFuchsia',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#6EE7B7' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#4A044E' }
+    }
   },
   {
     id: 'beautifulGameSilverGraphite',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#E5E7EB' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#111827' }
+    }
   },
   {
     id: 'beautifulGameForestSand',
     label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true }
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: '#FDEAD7' },
+      black: { ...BASE_PIECE_STYLE.black, color: '#064E3B' }
+    }
   }
 ]);
 
@@ -1817,6 +1870,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const goldAccent = pieceStyle.goldAccent || '#d7b24a';
+  const shouldStripTextures = !pieceStyle.keepTextures;
 
   const applySurface = (material, config) => {
     if (!material) return;
@@ -1837,7 +1891,9 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
-        stripMaterialTextures(applied);
+        if (shouldStripTextures) {
+          stripMaterialTextures(applied);
+        }
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
         applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
@@ -1859,6 +1915,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
 
   const accentize = (piece, colorKey) => {
     if (!piece) return;
+    const shouldStripTextures = !pieceStyle.keepTextures;
     piece.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
@@ -1871,12 +1928,14 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         name.includes('rim');
       if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((mat, idx) => {
-        if (!mat) return;
-        const applied = mat.clone ? mat.clone() : mat;
-        stripMaterialTextures(applied);
-        const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
-        applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
+        mats.forEach((mat, idx) => {
+          if (!mat) return;
+          const applied = mat.clone ? mat.clone() : mat;
+          if (shouldStripTextures) {
+            stripMaterialTextures(applied);
+          }
+          const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+          applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
         applySurface(
@@ -1918,6 +1977,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
   const goldAccent = pieceStyle.goldAccent || '#d7b24a';
+  const shouldStripTextures = !pieceStyle.keepTextures;
 
   const applySurface = (material, config) => {
     if (!material) return;
@@ -1944,7 +2004,9 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
-        stripMaterialTextures(applied);
+        if (shouldStripTextures) {
+          stripMaterialTextures(applied);
+        }
         applied.color = new THREE.Color(targetColor);
         applySurface(applied, colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {});
         if (Array.isArray(child.material)) {
@@ -1975,7 +2037,9 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
       mats.forEach((mat, idx) => {
         if (!mat) return;
         const applied = mat.clone ? mat.clone() : mat;
-        stripMaterialTextures(applied);
+        if (shouldStripTextures) {
+          stripMaterialTextures(applied);
+        }
         applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
