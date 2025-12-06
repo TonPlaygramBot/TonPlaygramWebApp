@@ -48,3 +48,34 @@ test('standing keeps hand static when others hit', () => {
   assert.equal(game.getBestValue(alice.hand), before);
 });
 
+test('allPlayersSettled signals when everyone has acted', () => {
+  const game = new BlackjackGame('room');
+  game.addPlayer('a');
+  game.addPlayer('b');
+  game.start();
+  game.startHitPhase();
+
+  const alice = game.players.find((p) => p.id === 'a');
+  const bob = game.players.find((p) => p.id === 'b');
+  alice.stood = true;
+  bob.folded = true;
+
+  assert.equal(game.allPlayersSettled(), true);
+});
+
+test('last showdown details are exposed in getState', () => {
+  const game = new BlackjackGame('room');
+  game.addPlayer('a');
+  game.addPlayer('b');
+  game.start();
+  game.startHitPhase();
+  game.players.forEach((p) => {
+    p.stood = true;
+  });
+
+  const showdown = game.showdown();
+  const state = game.getState();
+
+  assert.deepEqual(state.lastShowdown, showdown);
+});
+
