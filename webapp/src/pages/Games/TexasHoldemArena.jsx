@@ -1066,7 +1066,9 @@ function makeNameplate(name, chips, renderer, avatar) {
   let lastStack = chips;
   let lastHighlight = false;
   let lastStatus = '';
-  const draw = (playerName, stack, highlight, status, nextAvatar) => {
+  let lastTimer = null;
+  let lastTimerProgress = null;
+  const draw = (playerName, stack, highlight, status, nextAvatar, timerSeconds, timerProgress) => {
     const normalizedAvatar = getAvatarUrl(nextAvatar) || fallbackAvatar;
     if (nextAvatar && normalizedAvatar !== avatarSrc) {
       avatarSrc = normalizedAvatar;
@@ -1077,6 +1079,8 @@ function makeNameplate(name, chips, renderer, avatar) {
     lastStack = stack;
     lastHighlight = highlight;
     lastStatus = status;
+    lastTimer = timerSeconds;
+    lastTimerProgress = timerProgress;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     const panelRadius = 44;
     const panelX = 12;
@@ -1129,11 +1133,43 @@ function makeNameplate(name, chips, renderer, avatar) {
       ctx.fillStyle = '#c7d2fe';
       ctx.fillText(status, textX, textY + 150);
     }
+
+    const timerValue = Number.isFinite(timerSeconds) ? Math.max(0, timerSeconds) : null;
+    const timerPercent = Number.isFinite(timerProgress) ? Math.max(0, Math.min(1, timerProgress)) : null;
+    if (timerValue !== null && timerPercent !== null) {
+      const ringRadius = avatarSize / 2 + 22;
+      const startAngle = -Math.PI / 2;
+      ctx.save();
+      ctx.lineWidth = 14;
+      ctx.strokeStyle = 'rgba(15,23,42,0.75)';
+      ctx.beginPath();
+      ctx.arc(avatarX + avatarSize / 2, avatarY + avatarSize / 2, ringRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.strokeStyle = '#fbbf24';
+      ctx.beginPath();
+      ctx.arc(
+        avatarX + avatarSize / 2,
+        avatarY + avatarSize / 2,
+        ringRadius,
+        startAngle,
+        startAngle + Math.PI * 2 * timerPercent
+      );
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      ctx.font = '700 52px "Inter", system-ui, sans-serif';
+      ctx.fillStyle = '#f8fafc';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${timerValue}s`, avatarX + avatarSize / 2, avatarY + avatarSize + 18);
+      ctx.restore();
+    }
   };
-  draw(name, chips, false, '');
+  draw(name, chips, false, '', avatar, lastTimer, lastTimerProgress);
   avatarImg.onload = () => {
     avatarReady = true;
-    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc);
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc, lastTimer, lastTimerProgress);
     texture.needsUpdate = true;
   };
   avatarImg.onerror = () => {
@@ -1144,7 +1180,7 @@ function makeNameplate(name, chips, renderer, avatar) {
       return;
     }
     avatarReady = true;
-    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc);
+    draw(lastName, lastStack, lastHighlight, lastStatus, avatarSrc, lastTimer, lastTimerProgress);
     texture.needsUpdate = true;
   };
   avatarImg.src = avatarSrc;
@@ -2353,7 +2389,11 @@ function TexasHoldemArena({ search }) {
         .clone()
         .addScaledVector(humanSeat.forward, -focusForwardPull);
       chipFocus.y = TABLE_HEIGHT + focusHeight - CAMERA_PLAYER_FOCUS_DROP;
-      const focus = focusBase.lerp(chipFocus, focusBlend);
+      const activeState = gameStateRef.current;
+      const humanActing = Boolean(
+        activeState?.stage !== 'showdown' && activeState?.players?.[activeState.actionIndex]?.isHuman
+      );
+      const focus = humanActing ? focusBase : focusBase.lerp(chipFocus, focusBlend);
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(position, focus, WORLD_UP);
       const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
@@ -2514,7 +2554,7 @@ function TexasHoldemArena({ search }) {
 
         const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seat.player?.avatar);
         nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
-        const nameplateFacing = seat.forward.clone().setY(0).normalize();
+        const nameplateFacing = seat.forward.clone().negate().setY(0).normalize();
         nameplate.lookAt(nameplate.position.clone().add(nameplateFacing));
         nameplate.rotateX(NAMEPLATE_BACK_TILT);
         arenaGroup.add(nameplate);
@@ -2554,6 +2594,9 @@ function TexasHoldemArena({ search }) {
         const labelForward = seat.labelOffset?.forward ?? 0;
         const labelOffset = seat.forward.clone().setLength(labelForward).add(new THREE.Vector3(0, labelLift, 0));
         nameplate.position.copy(seat.seatPos.clone().add(labelOffset));
+        const seatNameplateFacing = seat.forward.clone().negate().setY(0).normalize();
+        nameplate.lookAt(nameplate.position.clone().add(seatNameplateFacing));
+        nameplate.rotateX(NAMEPLATE_BACK_TILT);
 
         const { player } = seat;
         if (player) {
@@ -2563,7 +2606,9 @@ function TexasHoldemArena({ search }) {
             Math.round(player.chips) || 0,
             false,
             '',
-            player.avatar
+            player.avatar,
+            null,
+            null
           );
           const cardValues = player.hand?.map?.((card) => cardKey(card));
           const hasCards = cardValues?.length;
@@ -2646,6 +2691,16 @@ function TexasHoldemArena({ search }) {
       arenaGroup.add(potStack);
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
+      const potLabel = createRailTextSprite(['Total pot', '0'], {
+        width: 2.4 * MODEL_SCALE,
+        height: 0.9 * MODEL_SCALE
+      });
+      potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, 0)));
+      potLabel.renderOrder = 12;
+      if (potLabel.material) {
+        potLabel.material.depthWrite = false;
+      }
+      arenaGroup.add(potLabel);
 
       const orientHumanCards = () => {
         const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
@@ -2675,25 +2730,26 @@ function TexasHoldemArena({ search }) {
           renderer,
           scene,
           camera,
-        chipFactory,
-        cardGeometry,
-        faceCache,
-        seatGroups,
-        communityMeshes,
-        potStack,
+          chipFactory,
+          cardGeometry,
+          faceCache,
+          seatGroups,
+          communityMeshes,
+          potStack,
+          potLabel,
           potLayout,
           deckAnchor,
           raiseControls,
           raycaster,
           orientHumanCards,
-        frameId: null,
-        chairTemplate,
-        chairMaterials,
-        arenaGroup,
-        tableInfo,
-        tableShapeId: initialShape.id,
-        cardThemeId: cardTheme.id
-      };
+          frameId: null,
+          chairTemplate,
+          chairMaterials,
+          arenaGroup,
+          tableInfo,
+          tableShapeId: initialShape.id,
+          cardThemeId: cardTheme.id
+        };
 
       potDisplayRef.current = Math.max(0, Math.round(gameState?.pot ?? 0));
       potTargetRef.current = potDisplayRef.current;
@@ -2967,6 +3023,10 @@ function TexasHoldemArena({ search }) {
           }
           s.remove(mesh);
         });
+        if (threeRef.current.potLabel) {
+          threeRef.current.potLabel.userData?.dispose?.();
+          threeRef.current.potLabel.parent?.remove(threeRef.current.potLabel);
+        }
         factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
         arena?.parent?.remove(arena);
@@ -2983,13 +3043,17 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
-    const { seatGroups, communityMeshes, chipFactory, potStack, potLayout, deckAnchor, arenaGroup } = three;
+    const { seatGroups, communityMeshes, chipFactory, potStack, potLabel, potLayout, deckAnchor, arenaGroup } = three;
     const cardTheme = CARD_THEMES.find((theme) => theme.id === three.cardThemeId) ?? CARD_THEMES[0];
     const state = gameState;
     if (!state) return;
 
     const previous = prevStateRef.current;
     potTargetRef.current = Math.max(0, Math.round(state.pot ?? 0));
+    if (potLabel?.userData?.update) {
+      potLabel.userData.update(['Total pot', `${Math.round(state.pot ?? 0)} ${state.token}`]);
+      potLabel.userData.texture.needsUpdate = true;
+    }
 
     const showdownState = showdownAnimationRef.current;
     const winningCommunity = new Set(state.winningCommunityCards ?? []);
@@ -3229,6 +3293,12 @@ function TexasHoldemArena({ search }) {
         headAnglesRef.current.pitch = 0;
         cameraAutoTargetRef.current = { yaw: 0, activeIndex: seat.index ?? focusIndex };
         applyHeadOrientation();
+        if (!overheadView) {
+          const mount = mountRef.current;
+          const width = mount?.clientWidth ?? window.innerWidth;
+          const height = mount?.clientHeight ?? window.innerHeight;
+          viewControlsRef.current.applySeatedCamera?.(width, height, { animate: false });
+        }
       } else {
         focusCameraOnSeat(focusIndex, false);
       }
@@ -3236,7 +3306,7 @@ function TexasHoldemArena({ search }) {
     if (seat?.isHuman) {
       playSound('knock');
     }
-  }, [applyHeadOrientation, currentActionIndex, currentStage, findSeatWithAvatar, focusCameraOnSeat, playSound]);
+  }, [applyHeadOrientation, currentActionIndex, currentStage, findSeatWithAvatar, focusCameraOnSeat, overheadView, playSound]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3445,12 +3515,32 @@ function TexasHoldemArena({ search }) {
   const sliderDisplayValue = sliderVisible ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
 
-  const turnLabel = useMemo(() => {
-    if (!actor || gameState.stage === 'showdown') return '';
-    if (actor.isHuman) return 'Your turn';
-    const name = actor.name || 'Opponent';
-    return `${name} is acting`;
-  }, [actor, gameState.stage]);
+  useEffect(() => {
+    const three = threeRef.current;
+    if (!three || !gameState) return;
+    const { seatGroups } = three;
+    const actionIdx = gameState.actionIndex;
+    if (!Array.isArray(seatGroups)) return;
+    seatGroups.forEach((seat, idx) => {
+      const label = seat.nameplate;
+      const player = gameState.players?.[idx];
+      if (!label?.userData?.update || !player) return;
+      const highlight =
+        gameState.stage !== 'showdown' && idx === actionIdx && !player.folded && !player.allIn && Number.isFinite(actionIdx);
+      const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
+      seat.lastAvatar = labelAvatar;
+      label.userData.update(
+        player.name ?? `Player ${idx + 1}`,
+        Math.round(player.chips) || 0,
+        highlight,
+        player.status || '',
+        labelAvatar,
+        highlight ? Math.max(0, Math.ceil(turnCountdown)) : null,
+        highlight ? countdownProgress : null
+      );
+      label.userData.texture.needsUpdate = true;
+    });
+  }, [countdownProgress, gameState, turnCountdown]);
 
   const renderAvatarTimer = useCallback(
     (avatarSrc, size = 56) => {
@@ -3725,23 +3815,6 @@ function TexasHoldemArena({ search }) {
               {Math.round(humanPlayer?.chips ?? 0)} {gameState.token}
             </span>
           </div>
-        </div>
-      </div>
-      {turnLabel && actor && gameState.stage !== 'showdown' && (
-        <div className="pointer-events-none absolute top-3 inset-x-0 z-20 flex justify-center">
-          <div className="flex items-center gap-3 rounded-full border border-[rgba(255,215,0,0.35)] bg-[rgba(7,10,18,0.7)] px-4 py-2 text-sm font-semibold text-white shadow-lg backdrop-blur">
-            {renderAvatarTimer(actor.avatar || humanPlayer?.avatar, 54)}
-            <div className="flex flex-col text-left leading-tight">
-              <span className="text-[0.65rem] uppercase tracking-[0.3em] text-amber-100/80">Aktiv</span>
-              <span>{turnLabel}</span>
-            </div>
-          </div>
-        </div>
-      )}
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 translate-y-16">
-        <div className="rounded-full border border-white/10 bg-black/70 px-3 py-1 text-[0.8rem] font-semibold text-amber-100 shadow-lg backdrop-blur">
-          <span className="mr-2 text-[0.65rem] uppercase tracking-[0.25em] text-white/70">Total pot:</span>
-          <span className="text-amber-200">{Math.round(gameState.pot ?? 0)} {gameState.token}</span>
         </div>
       </div>
       {sliderVisible && (
