@@ -977,6 +977,43 @@ function makeNameplate(name, chips, renderer) {
   return sprite;
 }
 
+function makePotLabel(amount, token, renderer) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const draw = (value, tokenSymbol) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(15,23,42,0.8)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 12;
+    roundRect(ctx, 28, 80, canvas.width - 56, 120, 28);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#cbd5f5';
+    ctx.font = '600 64px "Inter", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Total Pot', canvas.width / 2, 118);
+    ctx.fillStyle = '#f8fafc';
+    ctx.font = '700 72px "Inter", system-ui, sans-serif';
+    ctx.fillText(`${Math.round(value)} ${tokenSymbol}`, canvas.width / 2, 186);
+    ctx.textAlign = 'left';
+  };
+  draw(amount, token);
+  const texture = new THREE.CanvasTexture(canvas);
+  applySRGBColorSpace(texture);
+  texture.anisotropy = renderer?.capabilities?.getMaxAnisotropy?.() ?? 4;
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+  const sprite = new THREE.Sprite(material);
+  const scale = 1 * MODEL_SCALE;
+  sprite.scale.set(scale, scale * 0.44, 1);
+  sprite.center.set(0.5, 0);
+  sprite.userData.update = draw;
+  sprite.userData.texture = texture;
+  return sprite;
+}
+
 function createBetControls({ arena, seat, chipFactory, tableInfo }) {
   if (!arena || !seat || !chipFactory || !tableInfo) return null;
   const group = new THREE.Group();
@@ -1237,7 +1274,8 @@ function BlackJackArena({ search }) {
   const stageForDealRef = useRef(null);
   const audioRef = useRef({ deal: null, knock: null });
   const dealAnimationRef = useRef({ queue: [], active: false, activeMeshes: new Set() });
-  const turnIntervalRef = useRef(null);
+  const turnTimeoutRef = useRef(null);
+  const turnWarningRef = useRef(null);
   const pointerStateRef = useRef({
     active: false,
     pointerId: null,
@@ -1264,7 +1302,6 @@ function BlackJackArena({ search }) {
   const [uiState, setUiState] = useState({ actions: [], requiresPreview: false });
   const [chipSelection, setChipSelection] = useState([]);
   const [sliderValue, setSliderValue] = useState(0);
-  const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -1486,6 +1523,32 @@ function BlackJackArena({ search }) {
     camera.lookAt(basis.position.clone().add(finalForward));
     three.orientHumanCards?.();
   }, []);
+
+  const focusCameraOnSeat = useCallback(
+    (seatIndex, immediate = false) => {
+      const three = threeRef.current;
+      const basis = cameraBasisRef.current;
+      if (!three || !basis) return;
+      const seat = three.seatGroups?.[seatIndex];
+      if (!seat) return;
+      const focusPoint = seat.stoolAnchor.clone();
+      focusPoint.y += seat.stoolHeight + CAMERA_TURN_FOCUS_LIFT;
+      const toTarget = focusPoint.sub(basis.position);
+      if (toTarget.lengthSq() === 0) return;
+      const projected = toTarget.clone().projectOnPlane(basis.baseUp);
+      if (projected.lengthSq() === 0) return;
+      projected.normalize();
+      const baseForward = basis.baseForward.clone().projectOnPlane(basis.baseUp).normalize();
+      const baseRight = basis.baseRight.clone().projectOnPlane(basis.baseUp).normalize();
+      const yaw = Math.atan2(projected.dot(baseRight), projected.dot(baseForward));
+      headAnglesRef.current.yaw = THREE.MathUtils.clamp(yaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
+      headAnglesRef.current.pitch = 0;
+      if (immediate) {
+        applyHeadOrientation();
+      }
+    },
+    [applyHeadOrientation]
+  );
 
   useEffect(() => {
     let element = null;
@@ -1756,6 +1819,11 @@ function BlackJackArena({ search }) {
     potStack.position.copy(POT_OFFSET);
     arenaGroup.add(potStack);
 
+    const potLabel = makePotLabel(gameState?.pot ?? 0, gameState?.token ?? searchOptions.token, renderer);
+    potLabel.position.copy(POT_OFFSET);
+    potLabel.position.y = TABLE_HEIGHT + CARD_SURFACE_OFFSET * 0.35;
+    arenaGroup.add(potLabel);
+
     const raycaster = new THREE.Raycaster();
 
     threeRef.current = {
@@ -1770,6 +1838,7 @@ function BlackJackArena({ search }) {
       chipFactory,
       seatGroups,
       potStack,
+      potLabel,
       deckAnchor,
       raiseControls,
       raycaster,
@@ -2021,6 +2090,7 @@ function BlackJackArena({ search }) {
           chipFactory: factory,
           seatGroups: seats,
           potStack: pot,
+          potLabel,
           tableInfo: info,
           raiseControls: controls
         } = threeRef.current;
@@ -2044,6 +2114,11 @@ function BlackJackArena({ search }) {
           }
         });
         factory.disposeStack(pot);
+        if (potLabel) {
+          potLabel.material?.map?.dispose?.();
+          potLabel.material?.dispose?.();
+          s.remove(potLabel);
+        }
         controls?.dispose?.();
         factory.dispose();
         info?.dispose?.();
@@ -2142,7 +2217,7 @@ function BlackJackArena({ search }) {
   useEffect(() => {
     const three = threeRef.current;
     if (!three) return;
-    const { seatGroups, chipFactory, potStack, cardGeometry, faceCache } = three;
+    const { seatGroups, chipFactory, potStack, potLabel, cardGeometry, faceCache } = three;
     const state = gameState;
     if (!state) return;
     const animating = dealAnimationRef.current?.activeMeshes ?? new Set();
@@ -2183,7 +2258,30 @@ function BlackJackArena({ search }) {
       }
     });
     chipFactory.setAmount(potStack, state.pot);
+    if (potLabel?.userData?.update) {
+      potLabel.userData.update(Math.round(state.pot), state.token);
+      potLabel.userData.texture.needsUpdate = true;
+    }
   }, [gameState]);
+
+  const currentStage = gameState?.stage;
+  const currentTurnIndex = gameState?.currentIndex;
+
+  useEffect(() => {
+    if (currentStage !== 'player-turns') return;
+    if (typeof currentTurnIndex !== 'number' || currentTurnIndex < 0) return;
+    const pointerState = pointerStateRef.current;
+    if (pointerState?.active && pointerState.mode === 'camera') return;
+    const seat = threeRef.current?.seatGroups?.[currentTurnIndex];
+    if (!seat) return;
+    if (seat.isHuman) {
+      headAnglesRef.current.yaw = 0;
+      headAnglesRef.current.pitch = 0;
+      applyHeadOrientation();
+    } else {
+      focusCameraOnSeat(currentTurnIndex, true);
+    }
+  }, [applyHeadOrientation, focusCameraOnSeat, currentStage, currentTurnIndex]);
 
   useEffect(() => {
     if (timerRef.current) {
@@ -2252,45 +2350,47 @@ function BlackJackArena({ search }) {
   }, [gameState.stage, startDealAnimation]);
 
   useEffect(() => {
-    if (turnIntervalRef.current) {
-      clearInterval(turnIntervalRef.current);
-      turnIntervalRef.current = null;
+    if (turnTimeoutRef.current) {
+      clearTimeout(turnTimeoutRef.current);
+      turnTimeoutRef.current = null;
+    }
+    if (turnWarningRef.current) {
+      clearTimeout(turnWarningRef.current);
+      turnWarningRef.current = null;
     }
     if (gameState.stage !== 'player-turns') {
-      setTurnCountdown(TURN_DURATION);
       return;
     }
     const activeIndex = gameState.currentIndex;
     const actor = gameState.players[activeIndex];
-    const startedAt = Date.now();
-    setTurnCountdown(TURN_DURATION);
-    turnIntervalRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startedAt) / 1000);
-      const remaining = Math.max(0, TURN_DURATION - elapsed);
-      setTurnCountdown(remaining);
-      if (remaining === 15) {
-        playSound('knock');
-      }
-      if (remaining <= 0) {
-        clearInterval(turnIntervalRef.current);
-        turnIntervalRef.current = null;
-        if (actor?.isHuman) {
-          setGameState((prev) => {
-            const next = cloneState(prev);
-            if (next.stage !== 'player-turns' || next.currentIndex !== activeIndex) return prev;
-            applyPlayerAction(next, 'stand');
-            return next;
-          });
-        }
-      }
-    }, 1000);
+    if (!actor) return;
+
+    turnWarningRef.current = setTimeout(() => {
+      playSound('knock');
+    }, Math.max(0, (TURN_DURATION - 15) * 1000));
+
+    if (actor.isHuman) {
+      turnTimeoutRef.current = setTimeout(() => {
+        setGameState((prev) => {
+          const next = cloneState(prev);
+          if (next.stage !== 'player-turns' || next.currentIndex !== activeIndex) return prev;
+          applyPlayerAction(next, 'stand');
+          return next;
+        });
+      }, TURN_DURATION * 1000);
+    }
+
     return () => {
-      if (turnIntervalRef.current) {
-        clearInterval(turnIntervalRef.current);
-        turnIntervalRef.current = null;
+      if (turnTimeoutRef.current) {
+        clearTimeout(turnTimeoutRef.current);
+        turnTimeoutRef.current = null;
+      }
+      if (turnWarningRef.current) {
+        clearTimeout(turnWarningRef.current);
+        turnWarningRef.current = null;
       }
     };
-  }, [gameState.stage, gameState.currentIndex, gameState.players, playSound]);
+  }, [gameState.currentIndex, gameState.players, gameState.stage, playSound]);
 
   const handlePreview = useCallback(() => {
     setGameState((prev) => {
@@ -2338,7 +2438,6 @@ function BlackJackArena({ search }) {
   const overlayAllInDisabled = !sliderEnabled || sliderMax <= 0;
   const previewRequired = uiState.requiresPreview && Boolean(activePlayer?.isHuman);
   const humanHand = humanPlayer?.hand ?? [];
-  const timerProgress = Math.max(0, Math.min(1, turnCountdown / TURN_DURATION));
 
   const handleChipClick = useCallback(
     (value) => {
@@ -2478,19 +2577,6 @@ function BlackJackArena({ search }) {
   return (
     <div className="relative w-full h-full">
       <div ref={mountRef} className="absolute inset-0" />
-      <div className="pointer-events-none absolute top-4 left-1/2 z-30 flex w-[360px] -translate-x-1/2 flex-col gap-2 rounded-2xl bg-black/55 p-3 text-white shadow-xl backdrop-blur">
-        <div className="flex items-center justify-between text-sm font-semibold tracking-wide">
-          <span className="uppercase text-white/80">Turn</span>
-          <span className="text-base">{activePlayer?.name || '...'}</span>
-          <span className="text-emerald-300">{turnCountdown}s</span>
-        </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full bg-gradient-to-r from-emerald-400 via-amber-300 to-rose-400"
-            style={{ width: `${timerProgress * 100}%` }}
-          />
-        </div>
-      </div>
       <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-2">
         <button
           type="button"
