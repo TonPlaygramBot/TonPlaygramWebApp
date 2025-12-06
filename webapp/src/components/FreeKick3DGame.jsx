@@ -403,7 +403,7 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
-const DEFENDER_WALL_Z = 1.2; // legacy spot where the ball used to start
+const DEFENDER_WALL_Z = Math.abs(GOAL_CONFIG.z) - 0.6; // place defenders inside the far goal mouth
 const SHOOT_POWER_SCALE = 2.1; // slightly softened top-end power for smoother, more realistic strikes
 const SHOOT_VERTICAL_POWER_MIN = 0.38;
 const SHOOT_VERTICAL_POWER_MAX = 0.58;
@@ -433,6 +433,10 @@ const TARGET_PADDING_X = 0.35;
 const TARGET_PADDING_Y = 0.28;
 const TARGET_SEPARATION = 0.32;
 const FIXED_TIME_STEP = 1 / 60;
+const TARGET_FPS = 60;
+const MIN_FRAME_TIME = 1000 / TARGET_FPS;
+const RENDER_RESOLUTION_SCALE = 0.9;
+const MAX_PIXEL_RATIO = 1.5;
 const MAX_FRAME_DELTA = 1 / 45;
 const MAX_ACCUMULATED_TIME = 0.18;
 const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 1.82, START_Z + 4.1);
@@ -578,8 +582,12 @@ export default function FreeKick3DGame({ config }) {
     let disposed = false;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.setSize(host.clientWidth, host.clientHeight);
+    renderer.setPixelRatio(Math.min(MAX_PIXEL_RATIO, (window.devicePixelRatio || 1) * RENDER_RESOLUTION_SCALE));
+    renderer.setSize(
+      host.clientWidth * RENDER_RESOLUTION_SCALE,
+      host.clientHeight * RENDER_RESOLUTION_SCALE,
+      false
+    );
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -698,6 +706,8 @@ export default function FreeKick3DGame({ config }) {
 
     const pitchWidth = pitch.geometry.parameters.width ?? 0;
     const pitchHalfWidth = pitchWidth / 2;
+    const pitchLength = pitch.geometry.parameters.height ?? 0;
+    const pitchHalfLength = pitchLength / 2;
     const markings = new THREE.Group();
     markings.position.y = 0.002;
     const lineMaterial = new THREE.MeshStandardMaterial({
@@ -787,6 +797,64 @@ export default function FreeKick3DGame({ config }) {
 
     fieldGroup.add(markings);
     scene.add(fieldGroup);
+
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xbde4ff,
+      roughness: 0.1,
+      metalness: 0.08,
+      transmission: 0.88,
+      transparent: true,
+      opacity: 0.35,
+      thickness: 0.35,
+      ior: 1.5
+    });
+
+    const glassGroup = new THREE.Group();
+    const glassHeight = 3.6;
+    const glassThickness = 0.16;
+    const glassInnerOffset = lineThickness / 2 + glassThickness / 2 + 0.05;
+    const buildGlassWall = (width, height, depth, position) => {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), glassMaterial);
+      wall.position.copy(position);
+      wall.castShadow = false;
+      wall.receiveShadow = false;
+      glassGroup.add(wall);
+      return wall;
+    };
+
+    buildGlassWall(
+      glassThickness,
+      glassHeight,
+      pitchLength + glassThickness * 2,
+      new THREE.Vector3(pitchHalfWidth + glassInnerOffset, glassHeight / 2, 0)
+    );
+    buildGlassWall(
+      glassThickness,
+      glassHeight,
+      pitchLength + glassThickness * 2,
+      new THREE.Vector3(-pitchHalfWidth - glassInnerOffset, glassHeight / 2, 0)
+    );
+    buildGlassWall(
+      pitchWidth + glassThickness * 2,
+      glassHeight,
+      glassThickness,
+      new THREE.Vector3(0, glassHeight / 2, -pitchHalfLength - glassInnerOffset)
+    );
+    buildGlassWall(
+      pitchWidth + glassThickness * 2,
+      glassHeight,
+      glassThickness,
+      new THREE.Vector3(0, glassHeight / 2, pitchHalfLength + glassInnerOffset)
+    );
+
+    buildGlassWall(
+      pitchWidth + glassThickness * 2,
+      glassThickness,
+      pitchLength + glassThickness * 2,
+      new THREE.Vector3(0, glassHeight + glassThickness / 2, 0)
+    );
+
+    fieldGroup.add(glassGroup);
 
     const depthAtHeight = (height) => {
       const clamped = THREE.MathUtils.clamp((height - postRadius) / Math.max(0.0001, goalHeight - postRadius), 0, 1);
@@ -886,6 +954,47 @@ export default function FreeKick3DGame({ config }) {
       createFrameCollider(rearLeftTop, rearLeftBottom, postRadius * 0.8, { restitution: 0.98 }),
       createFrameCollider(rearRightTop, rearRightBottom, postRadius * 0.8, { restitution: 0.98 })
     ];
+
+    const glassColliderRadius = glassThickness / 2 + 0.03;
+    const glassRestitution = 0.9;
+    const addGlassCollider = (start, end, overrides = {}) => {
+      structureColliders.push(
+        createFrameCollider(start, end, glassColliderRadius, {
+          restitution: glassRestitution,
+          velocityDamping: 0.84,
+          spinDamping: 0.78,
+          slop: 0.0025,
+          ...overrides
+        })
+      );
+    };
+
+    addGlassCollider(
+      new THREE.Vector3(pitchHalfWidth + glassInnerOffset, glassHeight / 2, -pitchHalfLength - glassInnerOffset),
+      new THREE.Vector3(pitchHalfWidth + glassInnerOffset, glassHeight / 2, pitchHalfLength + glassInnerOffset)
+    );
+    addGlassCollider(
+      new THREE.Vector3(-pitchHalfWidth - glassInnerOffset, glassHeight / 2, -pitchHalfLength - glassInnerOffset),
+      new THREE.Vector3(-pitchHalfWidth - glassInnerOffset, glassHeight / 2, pitchHalfLength + glassInnerOffset)
+    );
+    addGlassCollider(
+      new THREE.Vector3(-pitchHalfWidth - glassInnerOffset, glassHeight / 2, -pitchHalfLength - glassInnerOffset),
+      new THREE.Vector3(pitchHalfWidth + glassInnerOffset, glassHeight / 2, -pitchHalfLength - glassInnerOffset)
+    );
+    addGlassCollider(
+      new THREE.Vector3(-pitchHalfWidth - glassInnerOffset, glassHeight / 2, pitchHalfLength + glassInnerOffset),
+      new THREE.Vector3(pitchHalfWidth + glassInnerOffset, glassHeight / 2, pitchHalfLength + glassInnerOffset)
+    );
+    addGlassCollider(
+      new THREE.Vector3(-pitchHalfWidth - glassInnerOffset, glassHeight + glassThickness / 2, -pitchHalfLength - glassInnerOffset),
+      new THREE.Vector3(pitchHalfWidth + glassInnerOffset, glassHeight + glassThickness / 2, -pitchHalfLength - glassInnerOffset),
+      { restitution: 0.82, velocityDamping: 0.82 }
+    );
+    addGlassCollider(
+      new THREE.Vector3(-pitchHalfWidth - glassInnerOffset, glassHeight + glassThickness / 2, pitchHalfLength + glassInnerOffset),
+      new THREE.Vector3(pitchHalfWidth + glassInnerOffset, glassHeight + glassThickness / 2, pitchHalfLength + glassInnerOffset),
+      { restitution: 0.82, velocityDamping: 0.82 }
+    );
 
     const netTexture = (() => {
       const size = 512;
@@ -1494,6 +1603,30 @@ export default function FreeKick3DGame({ config }) {
     standsGroup.position.set(0, 0.12, standsOffsetZ);
     scene.add(standsGroup);
 
+    const oppositeStands = standsGroup.clone(true);
+    oppositeStands.position.set(0, standsGroup.position.y, -standsGroup.position.z);
+    oppositeStands.rotation.y = Math.PI;
+    scene.add(oppositeStands);
+
+    const stadiumSideMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1f2937,
+      metalness: 0.45,
+      roughness: 0.62
+    });
+    const stadiumSpan = Math.abs(standsGroup.position.z) * 2;
+    const stadiumSideHeight = 6.4;
+    const stadiumSideThickness = 1.1;
+    const stadiumSideOffsetX = pitchHalfWidth + 8.5;
+    const leftStadiumSide = new THREE.Mesh(
+      new THREE.BoxGeometry(stadiumSideThickness, stadiumSideHeight, stadiumSpan + 6),
+      stadiumSideMaterial
+    );
+    leftStadiumSide.position.set(-stadiumSideOffsetX, stadiumSideHeight / 2, 0);
+    leftStadiumSide.receiveShadow = true;
+    const rightStadiumSide = leftStadiumSide.clone();
+    rightStadiumSide.position.x = stadiumSideOffsetX;
+    scene.add(leftStadiumSide, rightStadiumSide);
+
     const billboardColliders = billboardGroup.children.map((mesh) => {
       const { width = baseBillboardWidth, height = billboardHeight } = mesh.geometry.parameters || {};
       return {
@@ -1755,8 +1888,14 @@ export default function FreeKick3DGame({ config }) {
 
     scene.add(goal);
 
+    const mirroredGoal = goal.clone(true);
+    mirroredGoal.position.z = Math.abs(goalZ) * 2;
+    mirroredGoal.rotation.y = Math.PI;
+    scene.add(mirroredGoal);
+
     const wallGroup = new THREE.Group();
     wallGroup.position.set(0, 0, DEFENDER_WALL_Z);
+    wallGroup.rotation.y = Math.PI;
     const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0xfacc15, roughness: 0.6 });
     const defenders = [];
     const defenderOffsets = [];
@@ -2366,6 +2505,7 @@ export default function FreeKick3DGame({ config }) {
       aimLine,
       goalAABB,
       lastTime: performance.now(),
+      lastFrameTime: performance.now(),
       timeAccumulator: 0,
       smoothedFrameTime: FIXED_TIME_STEP,
       velocity: new THREE.Vector3(),
@@ -3066,12 +3206,17 @@ export default function FreeKick3DGame({ config }) {
     const animate = () => {
       if (state.disposed) return;
       const now = performance.now();
+      if (now - state.lastFrameTime < MIN_FRAME_TIME) {
+        state.animationId = requestAnimationFrame(animate);
+        return;
+      }
       let frameDelta = (now - state.lastTime) / 1000;
       if (!Number.isFinite(frameDelta) || frameDelta <= 0) {
         frameDelta = FIXED_TIME_STEP;
       }
       frameDelta = Math.min(MAX_FRAME_DELTA, frameDelta);
       state.lastTime = now;
+      state.lastFrameTime = now;
       state.smoothedFrameTime = THREE.MathUtils.lerp(state.smoothedFrameTime, frameDelta, 0.15);
       state.timeAccumulator = Math.min(state.timeAccumulator + frameDelta, MAX_ACCUMULATED_TIME);
 
@@ -3229,7 +3374,10 @@ export default function FreeKick3DGame({ config }) {
     const onResize = () => {
       const width = host.clientWidth;
       const height = host.clientHeight;
-      renderer.setSize(width, height);
+      renderer.setPixelRatio(
+        Math.min(MAX_PIXEL_RATIO, (window.devicePixelRatio || 1) * RENDER_RESOLUTION_SCALE)
+      );
+      renderer.setSize(width * RENDER_RESOLUTION_SCALE, height * RENDER_RESOLUTION_SCALE, false);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
     };
