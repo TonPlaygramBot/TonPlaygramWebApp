@@ -279,7 +279,8 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
     surfaceRoughness: 0.74,
     surfaceMetalness: 0.04,
     frameRoughness: 0.86,
-    frameMetalness: 0.05
+    frameMetalness: 0.05,
+    preserveOriginalMaterials: true
   })
 );
 
@@ -1455,7 +1456,8 @@ function buildBoardTheme(option) {
     surfaceRoughness: clamp01(source.surfaceRoughness, BASE_BOARD_THEME.surfaceRoughness),
     surfaceMetalness: clamp01(source.surfaceMetalness, BASE_BOARD_THEME.surfaceMetalness),
     frameRoughness: clamp01(source.frameRoughness, BASE_BOARD_THEME.frameRoughness),
-    frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness)
+    frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness),
+    preserveOriginalMaterials: Boolean(source.preserveOriginalMaterials)
   };
 }
 
@@ -1463,6 +1465,16 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   if (!boardModel) return;
 
   const theme = buildBoardTheme(boardTheme);
+
+  if (theme.preserveOriginalMaterials) {
+    boardModel.traverse((node) => {
+      if (node?.isMesh) {
+        node.castShadow = true;
+        node.receiveShadow = true;
+      }
+    });
+    return;
+  }
   const applyMaterial = (mesh, updater) => {
     if (!mesh?.isMesh) return;
     const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -1831,6 +1843,19 @@ function applyLocalBeautifulGameMaterials(assets) {
 
 function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!piecePrototypes) return;
+  if (pieceStyle?.preserveOriginalMaterials) {
+    ['white', 'black'].forEach((colorKey) => {
+      Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => {
+        piece?.traverse?.((child) => {
+          if (child?.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+      });
+    });
+    return;
+  }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
@@ -1921,6 +1946,17 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
 function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!meshes) return;
   const list = Array.isArray(meshes) ? meshes : [meshes];
+  if (pieceStyle?.preserveOriginalMaterials) {
+    list.forEach((mesh) => {
+      mesh?.traverse?.((child) => {
+        if (child?.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+    });
+    return;
+  }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
@@ -3367,9 +3403,12 @@ function extractChessSetAssets(scene, options = {}) {
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
   const assetScale = options?.assetScale ?? BEAUTIFUL_GAME_ASSET_SCALE;
+  const authenticStyle =
+    BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
+    BEAUTIFUL_GAME_PIECE_STYLE;
   const assets = extractChessSetAssets(scene, {
     targetBoardSize,
-    pieceStyle: BEAUTIFUL_GAME_PIECE_STYLE,
+    pieceStyle: authenticStyle,
     styleId: 'beautifulGame',
     assetScale,
     name: 'ABeautifulGame',
@@ -3389,7 +3428,7 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     const boardTop = finalBox.max.y;
     assets.pieceYOffset = Math.max(boardTop + 0.04, PIECE_PLACEMENT_Y_OFFSET);
   }
-  harmonizeBeautifulGamePieces(assets.piecePrototypes);
+  harmonizeBeautifulGamePieces(assets.piecePrototypes, authenticStyle);
   if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
