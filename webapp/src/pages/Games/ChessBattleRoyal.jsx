@@ -70,9 +70,9 @@ const BASE_BOARD_THEME = Object.freeze({
   highlight: '#6ee7b7',
   capture: '#f87171',
   surfaceRoughness: 0.74,
-  surfaceMetalness: 0.18,
-  frameRoughness: 0.82,
-  frameMetalness: 0.12
+  surfaceMetalness: 0.04,
+  frameRoughness: 0.86,
+  frameMetalness: 0.05
 });
 
 const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
@@ -276,10 +276,10 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
     accent: '#4f7f5c',
     highlight: '#7ef9a1',
     capture: '#ff8975',
-    surfaceRoughness: 0.6,
-    surfaceMetalness: 0.24,
-    frameRoughness: 0.8,
-    frameMetalness: 0.2
+    surfaceRoughness: 0.74,
+    surfaceMetalness: 0.04,
+    frameRoughness: 0.86,
+    frameMetalness: 0.05
   })
 );
 
@@ -299,10 +299,10 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     accent: '#c4ccd8',
     highlight: '#8fd0ff',
     capture: '#fca5a5',
-    surfaceRoughness: 0.52,
-    surfaceMetalness: 0.26,
-    frameRoughness: 0.76,
-    frameMetalness: 0.22
+    surfaceRoughness: 0.74,
+    surfaceMetalness: 0.04,
+    frameRoughness: 0.86,
+    frameMetalness: 0.05
   }),
   buildBoardTheme({
     id: 'beautifulGameOnyxBoard',
@@ -314,10 +314,10 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     accent: '#b8985e',
     highlight: '#ffd166',
     capture: '#f97373',
-    surfaceRoughness: 0.58,
-    surfaceMetalness: 0.32,
-    frameRoughness: 0.7,
-    frameMetalness: 0.34
+    surfaceRoughness: 0.74,
+    surfaceMetalness: 0.04,
+    frameRoughness: 0.86,
+    frameMetalness: 0.05
   }),
   buildBoardTheme({
     id: 'beautifulGameForestBoard',
@@ -329,10 +329,10 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     accent: '#7fbf8f',
     highlight: '#7ed3a0',
     capture: '#e57373',
-    surfaceRoughness: 0.6,
-    surfaceMetalness: 0.24,
-    frameRoughness: 0.8,
-    frameMetalness: 0.2
+    surfaceRoughness: 0.74,
+    surfaceMetalness: 0.04,
+    frameRoughness: 0.86,
+    frameMetalness: 0.05
   }),
   buildBoardTheme({
     id: 'beautifulGameStormBoard',
@@ -344,10 +344,10 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     accent: '#b6bbc5',
     highlight: '#9cc3ff',
     capture: '#ff8b9b',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.24,
-    frameRoughness: 0.82,
-    frameMetalness: 0.22
+    surfaceRoughness: 0.74,
+    surfaceMetalness: 0.04,
+    frameRoughness: 0.86,
+    frameMetalness: 0.05
   })
 ]);
 
@@ -419,8 +419,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameGraphite',
     label: 'Graphite Frost',
     style: {
-      white: { color: '#e1e5ec', roughness: 0.3, metalness: 0.26, sheen: 0.34, clearcoat: 0.4 },
-      black: { color: '#1f252d', roughness: 0.24, metalness: 0.36, sheen: 0.26, clearcoat: 0.34 },
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e1e6f2' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#1f2832' },
       accent: '#c4ccd8',
       blackAccent: '#9ca7b7'
     }
@@ -429,8 +429,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameObsidian',
     label: 'Onyx Black',
     style: {
-      white: { color: '#dbdfe6', roughness: 0.3, metalness: 0.28, sheen: 0.28, clearcoat: 0.36 },
-      black: { color: '#0a0c11', roughness: 0.22, metalness: 0.44, sheen: 0.22, clearcoat: 0.38 },
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e2e3ea' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0b0d12' },
       accent: '#b8985e',
       blackAccent: '#d1b777'
     }
@@ -439,8 +439,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameForest',
     label: 'Dark Forest',
     style: {
-      white: { color: '#e6e1d4', roughness: 0.28, metalness: 0.24, sheen: 0.32, clearcoat: 0.34 },
-      black: { color: '#11261a', roughness: 0.26, metalness: 0.34, sheen: 0.24, clearcoat: 0.3 },
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e6e2d8' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#0f2417' },
       accent: '#7fbf8f',
       blackAccent: '#5f9770'
     }
@@ -449,8 +449,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: 'beautifulGameStorm',
     label: 'Slate Grey',
     style: {
-      white: { color: '#e7e6e8', roughness: 0.28, metalness: 0.24, sheen: 0.32, clearcoat: 0.36 },
-      black: { color: '#1a1f27', roughness: 0.24, metalness: 0.34, sheen: 0.26, clearcoat: 0.34 },
+      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#e5e6ea' },
+      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#1a2028' },
       accent: '#b6bbc5',
       blackAccent: '#8c929d'
     }
@@ -1685,6 +1685,17 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
     BEAUTIFUL_GAME_THEME.accent;
   const darkAccent = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
 
+  const applySurface = (material, config) => {
+    if (!material) return;
+    if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
+    if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
+    if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
+    if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
+    if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
+    if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
+    if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
+  };
+
   const applyColor = (piece, colorHex) => {
     if (!piece) return;
     piece.traverse((child) => {
@@ -1695,6 +1706,7 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
         const applied = mat.clone ? mat.clone() : mat;
         applied.color = new THREE.Color(colorHex);
         applied.emissive?.set?.(0x000000);
+        applySurface(applied, colorHex === lightColor ? BEAUTIFUL_GAME_PIECE_STYLE.white : BEAUTIFUL_GAME_PIECE_STYLE.black);
         if (Array.isArray(child.material)) {
           child.material[idx] = applied;
         } else {
@@ -1727,6 +1739,12 @@ function harmonizeBeautifulGamePieces(piecePrototypes) {
         applied.color = new THREE.Color(accentColor);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
+        applySurface(
+          applied,
+          colorKey === 'white'
+            ? BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent || BEAUTIFUL_GAME_PIECE_STYLE.white
+            : BEAUTIFUL_GAME_PIECE_STYLE.blackAccent || BEAUTIFUL_GAME_PIECE_STYLE.black
+        );
         if (Array.isArray(child.material)) {
           child.material[idx] = applied;
         } else {
@@ -2160,7 +2178,8 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
       color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
       roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
       metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
-      clearcoat: 0.32
+      clearcoat: 0,
+      reflectivity: 0
     })
   );
   base.position.y = BOARD.baseH * 0.5;
@@ -2171,7 +2190,8 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
       color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
       roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
       metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
-      clearcoat: 0.22
+      clearcoat: 0,
+      reflectivity: 0
     })
   );
   top.position.y = BOARD.baseH + 0.07;
@@ -2186,8 +2206,9 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
         color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
         roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
         metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
-        clearcoat: 0.08,
-        specularIntensity: 0.32
+        clearcoat: 0,
+        reflectivity: 0,
+        specularIntensity: 0.18
       });
       const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
       tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
@@ -4637,12 +4658,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       baseMat?.color?.set?.(boardTheme.frameDark);
       baseMat.roughness = boardTheme.frameRoughness;
       baseMat.metalness = boardTheme.frameMetalness;
+      if ('clearcoat' in baseMat) baseMat.clearcoat = 0;
+      if ('reflectivity' in baseMat) baseMat.reflectivity = 0;
       baseMat.transparent = usingExternalBoard;
       baseMat.opacity = usingExternalBoard ? Math.min(baseMat.opacity ?? 0.02, 0.08) : 1;
       baseMat.depthWrite = !usingExternalBoard;
       topMat?.color?.set?.(boardTheme.frameLight);
       topMat.roughness = boardTheme.surfaceRoughness;
       topMat.metalness = boardTheme.surfaceMetalness;
+      if ('clearcoat' in topMat) topMat.clearcoat = 0;
+      if ('reflectivity' in topMat) topMat.reflectivity = 0;
       topMat.transparent = usingExternalBoard;
       topMat.opacity = usingExternalBoard ? Math.min(topMat.opacity ?? 0.02, 0.08) : 1;
       topMat.depthWrite = !usingExternalBoard;
@@ -4652,6 +4677,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         tileMesh.material.color.set(isDark ? boardTheme.dark : boardTheme.light);
         tileMesh.material.roughness = boardTheme.surfaceRoughness;
         tileMesh.material.metalness = boardTheme.surfaceMetalness;
+        if ('clearcoat' in tileMesh.material) tileMesh.material.clearcoat = 0;
+        if ('reflectivity' in tileMesh.material) tileMesh.material.reflectivity = 0;
         tileMesh.material.transparent = usingExternalBoard;
         tileMesh.material.opacity = usingExternalBoard ? Math.min(tileMesh.material.opacity ?? 0.08, 0.12) : 1;
         tileMesh.material.depthWrite = !usingExternalBoard;
