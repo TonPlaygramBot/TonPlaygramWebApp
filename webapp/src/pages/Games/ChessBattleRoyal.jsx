@@ -368,83 +368,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
   })
 ]);
 
-function buildTintedBoardVariant({ id, label, light, dark }) {
-  const toHex = (value) =>
-    typeof value === 'number' ? `#${value.toString(16).padStart(6, '0')}` : value;
-  const lightColor = toHex(light);
-  const darkColor = toHex(dark);
-  return buildBoardTheme({
-    ...BEAUTIFUL_GAME_THEME,
-    id,
-    label,
-    light: lightColor,
-    dark: darkColor,
-    frameLight: lightColor,
-    frameDark: darkColor
-  });
-}
-
-const CHANGE_COLOR_BOARD_VARIANTS = Object.freeze([
-  buildTintedBoardVariant({
-    id: 'beautifulGameSwapBoard',
-    label: 'Swap Palettes Board',
-    light: 0xeee8d5,
-    dark: 0x2b2f36
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGameBlueOrangeBoard',
-    label: 'Blue / Orange Board',
-    light: 0x93c5fd,
-    dark: 0x1e293b
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGameRedTealBoard',
-    label: 'Red / Teal Board',
-    light: 0xfca5a5,
-    dark: 0x0f766e
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGamePurpleLimeBoard',
-    label: 'Purple / Lime Board',
-    light: 0xc4b5fd,
-    dark: 0x365314
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGamePinkCyanBoard',
-    label: 'Pink / Cyan Board',
-    light: 0xf9a8d4,
-    dark: 0x164e63
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGameGoldSlateBoard',
-    label: 'Gold / Slate Board',
-    light: 0xfde68a,
-    dark: 0x0f172a
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGameEmeraldFuchsiaBoard',
-    label: 'Emerald / Fuchsia Board',
-    light: 0x6ee7b7,
-    dark: 0x4a044e
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGameSilverGraphiteBoard',
-    label: 'Silver / Graphite Board',
-    light: 0xe5e7eb,
-    dark: 0x111827
-  }),
-  buildTintedBoardVariant({
-    id: 'beautifulGameForestSandBoard',
-    label: 'Forest / Sand Board',
-    light: 0xfdead7,
-    dark: 0x064e3b
-  })
-]);
-
-const BOARD_COLOR_OPTIONS = Object.freeze([
-  ...BEAUTIFUL_GAME_BOARD_VARIANTS,
-  ...CHANGE_COLOR_BOARD_VARIANTS
-]);
+const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -509,96 +433,6 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
     id: BEAUTIFUL_GAME_AUTHENTIC_ID,
     label: 'ABeautifulGame (Original Colors)',
     style: { ...BEAUTIFUL_GAME_PIECE_STYLE, preserveOriginalMaterials: true }
-  },
-  {
-    id: 'beautifulGameSwapPalettes',
-    label: 'Swap Palettes',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: BEAUTIFUL_GAME_PIECE_STYLE.black.color },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: BEAUTIFUL_GAME_PIECE_STYLE.white.color },
-      preserveOriginalMaterials: false
-    }
-  },
-  {
-    id: 'beautifulGameBlueOrange',
-    label: 'Blue / Orange',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#5b8def' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#f59e0b' },
-      accent: '#5b8def'
-    }
-  },
-  {
-    id: 'beautifulGameRedTeal',
-    label: 'Red / Teal',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#ef4444' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#14b8a6' },
-      accent: '#ef4444'
-    }
-  },
-  {
-    id: 'beautifulGamePurpleLime',
-    label: 'Purple / Lime',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#8b5cf6' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#84cc16' },
-      accent: '#8b5cf6'
-    }
-  },
-  {
-    id: 'beautifulGamePinkCyan',
-    label: 'Pink / Cyan',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#ec4899' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#06b6d4' },
-      accent: '#ec4899'
-    }
-  },
-  {
-    id: 'beautifulGameGoldSlate',
-    label: 'Gold / Slate',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#f59e0b' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#64748b' },
-      accent: '#f59e0b'
-    }
-  },
-  {
-    id: 'beautifulGameEmeraldFuchsia',
-    label: 'Emerald / Fuchsia',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#10b981' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#a21caf' },
-      accent: '#10b981'
-    }
-  },
-  {
-    id: 'beautifulGameSilverGraphite',
-    label: 'Silver / Graphite',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#d1d5db' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#111827' },
-      accent: '#d1d5db'
-    }
-  },
-  {
-    id: 'beautifulGameForestSand',
-    label: 'Forest / Sand',
-    style: {
-      ...BEAUTIFUL_GAME_PIECE_STYLE,
-      white: { ...BEAUTIFUL_GAME_PIECE_STYLE.white, color: '#22c55e' },
-      black: { ...BEAUTIFUL_GAME_PIECE_STYLE.black, color: '#e9d5a1' },
-      accent: '#22c55e'
-    }
   }
 ]);
 
@@ -871,8 +705,7 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
   tableShape: 0,
-  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
-  boardColor: 0
+  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -924,7 +757,6 @@ const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.i
 const PRESERVE_NATIVE_PIECE_IDS = new Set();
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'boardColor', label: 'Chess Board', options: BOARD_COLOR_OPTIONS },
   { key: 'pieceStyle', label: 'Chess Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
@@ -941,8 +773,7 @@ function normalizeAppearance(value = {}) {
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['pieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['boardColor', BOARD_COLOR_OPTIONS.length]
+    ['pieceStyle', PIECE_STYLE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -951,6 +782,7 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
+  delete normalized.boardColor;
   return normalized;
 }
 
@@ -1582,7 +1414,7 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
   const pieceOption = PIECE_STYLE_OPTIONS[normalized.pieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
-  const boardTheme = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? buildBoardTheme(BEAUTIFUL_GAME_THEME);
+  const boardTheme = buildBoardTheme(BEAUTIFUL_GAME_THEME);
   return {
     board: boardTheme,
     pieces: pieceOption,
@@ -4668,20 +4500,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
-    if (key === 'boardColor') {
-      return (
-        <div className="flex w-full items-center justify-center gap-1 rounded-lg bg-white/5 p-2">
-          <span
-            className="h-8 w-8 rounded border border-white/20 shadow"
-            style={{ background: option.light || '#e5e5e5' }}
-          />
-          <span
-            className="h-8 w-8 rounded border border-white/20 shadow"
-            style={{ background: option.dark || '#1f2933' }}
-          />
-        </div>
-      );
-    }
     if (key === 'pieceStyle') {
       return (
         <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
