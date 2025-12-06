@@ -431,7 +431,7 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // pinch the middle rail arches slightly tighter so the rounded cut radius comes in further toward the jaws
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.052; // open the middle rail arches a touch so the rounded cut radius breathes slightly wider around the jaws
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
 
 function buildChromePlateGeometry({
@@ -772,7 +772,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92; // relax the side jaw radius a touch so the middle pocket arc reads larger while still moving outward
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.036; // lower the middle jaws slightly less so the fascia trims down from the top
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.004; // pull the middle pocket jaws inward so the lips sit closer to centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * -0.002; // pull the middle pocket jaws further inward so the lips sit closer to centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
