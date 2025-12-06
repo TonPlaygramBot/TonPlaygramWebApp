@@ -309,7 +309,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#2B2F36',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGameBlueOrangeBoard',
@@ -318,7 +318,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#1E293B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGameRedTealBoard',
@@ -327,7 +327,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#0F766E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGamePurpleLimeBoard',
@@ -336,7 +336,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#365314',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGamePinkCyanBoard',
@@ -345,7 +345,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#164E63',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGameGoldSlateBoard',
@@ -354,7 +354,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#0F172A',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGameEmeraldFuchsiaBoard',
@@ -363,7 +363,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#4A044E',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGameSilverGraphiteBoard',
@@ -372,7 +372,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#111827',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   }),
   buildBoardTheme({
     id: 'beautifulGameForestSandBoard',
@@ -381,7 +381,7 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
     dark: '#064E3B',
     frameLight: BEAUTIFUL_GAME_THEME.frameLight,
     frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-    preserveOriginalMaterials: false
+    preserveOriginalMaterials: true
   })
 ]);
 
@@ -1475,18 +1475,44 @@ function buildBoardTheme(option) {
   };
 }
 
+const BOARD_MATERIAL_CACHE = new WeakMap();
+
+function snapshotBoardMaterials(boardModel) {
+  if (BOARD_MATERIAL_CACHE.has(boardModel)) return;
+  const cache = new Map();
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const materials = Array.isArray(node.material)
+      ? node.material.map((mat) => (mat?.clone ? mat.clone() : mat))
+      : [node.material?.clone ? node.material.clone() : node.material];
+    cache.set(node.uuid, materials);
+  });
+  BOARD_MATERIAL_CACHE.set(boardModel, cache);
+}
+
+function restoreBoardMaterials(boardModel) {
+  const cache = BOARD_MATERIAL_CACHE.get(boardModel);
+  if (!cache) return;
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const saved = cache.get(node.uuid);
+    if (!saved) return;
+    const cloned = saved.map((mat) => (mat?.clone ? mat.clone() : mat));
+    node.material = Array.isArray(node.material) ? cloned : cloned[0];
+    node.castShadow = true;
+    node.receiveShadow = true;
+  });
+}
+
 function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
+
+  snapshotBoardMaterials(boardModel);
+  restoreBoardMaterials(boardModel);
 
   const theme = buildBoardTheme(boardTheme);
 
   if (theme.preserveOriginalMaterials) {
-    boardModel.traverse((node) => {
-      if (node?.isMesh) {
-        node.castShadow = true;
-        node.receiveShadow = true;
-      }
-    });
     return;
   }
   const applyMaterial = (mesh, updater) => {
