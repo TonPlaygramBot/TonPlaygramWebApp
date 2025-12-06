@@ -194,8 +194,7 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
   });
 }
 
-const KNOCK_SFX_URL =
-  'https://cdn.pixabay.com/download/audio/2022/03/08/audio_9cfa68cdd8.mp3?filename=knocking-on-wood-14620.mp3';
+const KNOCK_SFX_URL = encodeURI('/assets/sounds/domino-pieces-1-32112 (mp3cut.net).mp3');
 
 const sfxBuffers = {
   placeFallback: createBuffer(0.36, (t, i) => {
