@@ -812,9 +812,19 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
   tableShape: 0,
-  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
+  pieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
+  playerAccent: 0,
+  opponentAccent: 1
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
+
+const PLAYER_COLOR_OPTIONS = Object.freeze([
+  { id: 'auroraGold', label: 'Royal Gold', color: '#d7b24a' },
+  { id: 'crystalCyan', label: 'Crystal Cyan', color: '#4ce0c3' },
+  { id: 'emberRed', label: 'Ember Red', color: '#e35c5c' },
+  { id: 'violetNebula', label: 'Violet Nebula', color: '#8f7cf4' },
+  { id: 'emeraldPulse', label: 'Emerald Pulse', color: '#2dd36f' }
+]);
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
     id: 'crimsonVelvet',
@@ -880,7 +890,9 @@ function normalizeAppearance(value = {}) {
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['pieceStyle', PIECE_STYLE_OPTIONS.length]
+    ['pieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['playerAccent', PLAYER_COLOR_OPTIONS.length],
+    ['opponentAccent', PLAYER_COLOR_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -1521,6 +1533,11 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   };
 }
 
+function resolvePlayerAccent(index, fallback) {
+  const option = PLAYER_COLOR_OPTIONS[index] ?? null;
+  return option?.color || fallback || '#4ce0c3';
+}
+
 let sharedKTX2Loader = null;
 
 function createConfiguredGLTFLoader(renderer = null) {
@@ -1701,6 +1718,8 @@ async function applyTextureProfileToAssets(assets, profile) {
 
 function stripMaterialTextures(material) {
   if (!material) return;
+  const hasTexture = Boolean(material.map || material.normalMap);
+  if (material.userData?.preserveTextures || hasTexture) return;
   ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'].forEach((key) => {
     if (material[key]) {
       material[key] = null;
@@ -2047,6 +2066,7 @@ function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
         m.map = texture;
         m.normalMap = texture;
         m.normalScale = new THREE.Vector2(0.34, 0.34);
+        m.userData = { ...(m.userData || {}), preserveTextures: true };
         m.needsUpdate = true;
       }
       m.roughness = clamp01((m.roughness ?? 0.36) * 0.82);
@@ -4622,6 +4642,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   const players = useMemo(() => {
     const accentColor = paletteRef.current?.accent ?? '#4ce0c3';
+    const playerAccent = resolvePlayerAccent(appearance.playerAccent, accentColor);
+    const opponentAccent = resolvePlayerAccent(appearance.opponentAccent, accentColor);
     const effectivePlayerFlag =
       playerFlag || resolvedInitialFlag || (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
     const playerName =
@@ -4636,14 +4658,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         index: 0,
         photoUrl: playerPhoto,
         name: playerName,
-        color: accentColor,
+        color: playerAccent,
         isTurn: ui.turnWhite
       },
       {
         index: 1,
         photoUrl: effectiveAiFlag || '🏁',
         name: aiName,
-        color: accentColor,
+        color: opponentAccent,
         isTurn: !ui.turnWhite
       }
     ];
@@ -6472,6 +6494,55 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     onChange={(event) => setShowHighlights(event.target.checked)}
                   />
                 </label>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Player Colors</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Pick accent colors for you and your rival.</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {[{
+                      key: 'playerAccent',
+                      label: 'Your accent'
+                    },
+                    {
+                      key: 'opponentAccent',
+                      label: 'Opponent accent'
+                    }].map(({ key, label }) => (
+                      <div key={key} className="space-y-1">
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">{label}</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {PLAYER_COLOR_OPTIONS.map((option, idx) => {
+                            const selected = appearance[key] === idx;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                onClick={() =>
+                                  setAppearance((prev) => normalizeAppearance({ ...prev, [key]: idx }))
+                                }
+                                aria-pressed={selected}
+                                className={`flex items-center gap-2 rounded-lg border px-2 py-2 text-left text-[0.65rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                  selected
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                }`}
+                              >
+                                <span
+                                  className="inline-block h-5 w-5 rounded-full border border-white/60"
+                                  style={{ background: option.color }}
+                                  aria-hidden="true"
+                                />
+                                <span className="text-gray-200">{option.label}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
