@@ -744,8 +744,8 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.12; // extend the jaws farther downward so their length reads longer without lifting the tops
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.098; // drop the jaws a touch farther so their lips sit closer to the cloth plane
+const POCKET_JAW_DEPTH_SCALE = 1.22; // extend the jaws farther downward so their length reads longer without lifting the tops
+const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.102; // drop the jaws a touch farther so their lips sit closer to the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.012; // leave a lean clearance so the added jaw depth clears the cloth without moving the tops
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
@@ -768,11 +768,11 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9; // widen the middle jaw span slightly so the wooden rail cut breathes more like the corners
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.98; // relax the side jaw radius a touch so the middle pocket arc reads larger while still moving outward
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.036; // lower the middle jaws slightly less so the fascia trims down from the top
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * -0.002; // pull the middle pocket jaws further inward so the lips sit closer to centre
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.84; // narrow the middle jaw span so the rail cut hugs closer to centre
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.94; // tighten the side jaw radius so the middle pocket arc reads smaller and tucked in
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.18; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.032; // lower the middle jaws slightly less so the fascia trims down from the top
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * -0.006; // pull the middle pocket jaws further inward so the lips sit closer to centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -836,7 +836,7 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.986; // trim the middle pocket mouth so the jaws sit tighter toward centre
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
