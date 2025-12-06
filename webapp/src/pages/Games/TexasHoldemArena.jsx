@@ -916,7 +916,7 @@ function clampValue(value, min, max) {
 function hasSeatAvatar(state, index) {
   if (!state?.players || typeof index !== 'number' || index < 0) return false;
   const player = state.players[index];
-  return Boolean(player && player.avatar);
+  return Boolean(player && (player.avatar || player.flag));
 }
 
 function createSeatLayout(count, tableInfo = null, options = {}) {
@@ -1805,6 +1805,7 @@ function TexasHoldemArena({ search }) {
     }
   });
   const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
+  const [turnHudSide, setTurnHudSide] = useState('center');
   const appearanceRef = useRef(appearance);
   useEffect(() => {
     if (effectivePlayerCount > 4) {
@@ -1837,6 +1838,10 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    updateTurnHudSide();
+  }, [updateTurnHudSide]);
 
   useEffect(() => {
     const activeIndex = cameraAutoTargetRef.current?.activeIndex;
@@ -1975,6 +1980,15 @@ function TexasHoldemArena({ search }) {
     },
     [applyHeadOrientation]
   );
+
+  const updateTurnHudSide = useCallback(() => {
+    const yaw = headAnglesRef.current?.yaw ?? 0;
+    if (Math.abs(yaw) < 0.08) {
+      setTurnHudSide('center');
+      return;
+    }
+    setTurnHudSide(yaw > 0 ? 'right' : 'left');
+  }, []);
 
   const findSeatWithAvatar = useCallback((startIndex = 0) => {
     const state = gameStateRef.current;
@@ -2554,7 +2568,9 @@ function TexasHoldemArena({ search }) {
         hoverChip.visible = false;
         arenaGroup.add(hoverChip);
 
-        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, seat.player?.avatar);
+        const initialAvatar =
+          getAvatarUrl(seat.player?.avatar) || seat.player?.flag || '/assets/icons/profile.svg';
+        const nameplate = makeNameplate(`Player ${seatIndex + 1}`, 1000, renderer, initialAvatar);
         nameplate.position.copy(seat.chipRailAnchor.clone().add(new THREE.Vector3(0, SEAT_THICKNESS + LABEL_BASE_HEIGHT, 0)));
         const nameplateFacing = seat.forward.clone().negate().setY(0).normalize();
         nameplate.lookAt(nameplate.position.clone().add(nameplateFacing));
@@ -2603,12 +2619,13 @@ function TexasHoldemArena({ search }) {
         const { player } = seat;
         if (player) {
           const labelFace = nameplate.material?.map ?? null;
+          const playerAvatar = getAvatarUrl(player.avatar) || player.flag || '/assets/icons/profile.svg';
           labelFace?.userData?.update?.(
             player.name ?? `Player ${seatIndex + 1}`,
             Math.round(player.chips) || 0,
             false,
             '',
-            player.avatar,
+            playerAvatar,
             null,
             null
           );
@@ -3185,13 +3202,14 @@ function TexasHoldemArena({ search }) {
 
       const highlight = state.stage !== 'showdown' && idx === state.actionIndex && !player.folded && !player.allIn;
       const label = seat.nameplate;
-      if (label?.userData?.update) {
-        const status = player.status || '';
-        const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
-        seat.lastAvatar = labelAvatar;
-        label.userData.update(player.name, chipsAmount, highlight, status, labelAvatar);
-        label.userData.texture.needsUpdate = true;
-      }
+        if (label?.userData?.update) {
+          const status = player.status || '';
+          const labelAvatar =
+            getAvatarUrl(player.avatar) || player.flag || seat.lastAvatar || '/assets/icons/profile.svg';
+          seat.lastAvatar = labelAvatar;
+          label.userData.update(player.name, chipsAmount, highlight, status, labelAvatar);
+          label.userData.texture.needsUpdate = true;
+        }
 
       if (player.folded && !(prevPlayer?.folded)) {
         playSound('fold');
@@ -3305,10 +3323,20 @@ function TexasHoldemArena({ search }) {
         focusCameraOnSeat(focusIndex, false);
       }
     }
+    updateTurnHudSide();
     if (seat?.isHuman) {
       playSound('knock');
     }
-  }, [applyHeadOrientation, currentActionIndex, currentStage, findSeatWithAvatar, focusCameraOnSeat, overheadView, playSound]);
+  }, [
+    applyHeadOrientation,
+    currentActionIndex,
+    currentStage,
+    findSeatWithAvatar,
+    focusCameraOnSeat,
+    overheadView,
+    playSound,
+    updateTurnHudSide
+  ]);
 
   useEffect(() => {
     if (!gameState) return;
@@ -3517,6 +3545,20 @@ function TexasHoldemArena({ search }) {
   const sliderDisplayValue = sliderVisible ? Math.round(Math.min(sliderMax, sliderValue)) : 0;
   const overlayConfirmDisabled = !sliderEnabled || (sliderMax > 0 && finalRaise <= 0);
 
+  const hudPositionClass = useMemo(() => {
+    switch (turnHudSide) {
+      case 'left':
+        return 'left-4 translate-x-0 items-start';
+      case 'right':
+        return 'right-4 translate-x-0 items-end';
+      default:
+        return 'left-1/2 -translate-x-1/2 items-center';
+    }
+  }, [turnHudSide]);
+
+  const hudJustifyClass =
+    turnHudSide === 'left' ? 'justify-start' : turnHudSide === 'right' ? 'justify-end' : 'justify-center';
+
   useEffect(() => {
     const three = threeRef.current;
     if (!three || !gameState) return;
@@ -3529,7 +3571,8 @@ function TexasHoldemArena({ search }) {
       if (!label?.userData?.update || !player) return;
       const highlight =
         gameState.stage !== 'showdown' && idx === actionIdx && !player.folded && !player.allIn && Number.isFinite(actionIdx);
-      const labelAvatar = player.avatar || player.flag || seat.lastAvatar;
+      const labelAvatar =
+        getAvatarUrl(player.avatar) || player.flag || seat.lastAvatar || '/assets/icons/profile.svg';
       seat.lastAvatar = labelAvatar;
       label.userData.update(
         player.name ?? `Player ${idx + 1}`,
@@ -3803,22 +3846,21 @@ function TexasHoldemArena({ search }) {
           </div>
         )}
       </div>
-      <div className="absolute bottom-14 left-1/2 z-20 flex -translate-x-1/2 justify-center pointer-events-auto">
-        <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
-          {humanPlayer?.avatar &&
-            (isHumanTurn ? (
-              renderAvatarTimer(humanPlayer.avatar, 44)
-            ) : (
-              <img src={humanPlayer.avatar} alt="player avatar" className="h-10 w-10 rounded-full object-cover" />
-            ))}
-          <div className="flex flex-col leading-tight text-white text-center">
-            <span className="text-sm font-semibold drop-shadow-md">{humanPlayer?.name || 'You'}</span>
-            <span className="text-[0.74rem] text-white/80">
-              {Math.round(humanPlayer?.chips ?? 0)} {gameState.token}
-            </span>
+      {isHumanTurn && humanPlayer && (
+        <div
+          className={`absolute bottom-20 sm:bottom-24 z-20 flex pointer-events-auto ${hudPositionClass} ${hudJustifyClass}`}
+        >
+          <div className="flex items-center space-x-3 rounded-full bg-white/10 px-4 py-3 text-xs shadow-lg backdrop-blur">
+            {renderAvatarTimer(humanPlayer.avatar || '/assets/icons/profile.svg', 44)}
+            <div className="flex flex-col leading-tight text-white text-center">
+              <span className="text-sm font-semibold drop-shadow-md">{humanPlayer.name || 'You'}</span>
+              <span className="text-[0.74rem] text-white/80">
+                {Math.round(humanPlayer.chips ?? 0)} {gameState.token}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       {sliderVisible && (
         <div className="pointer-events-auto absolute right-2 bottom-32 z-10 flex flex-col items-center gap-3 text-white sm:right-6 sm:bottom-36">
           <div className="flex flex-col items-center gap-3">
