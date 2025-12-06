@@ -4485,7 +4485,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     try {
       const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
       if (stored) {
-        return normalizeAppearance(JSON.parse(stored));
+        const normalized = normalizeAppearance(JSON.parse(stored));
+        normalized.pieceStyle = BEAUTIFUL_GAME_PIECE_INDEX;
+        return normalized;
       }
     } catch {}
     return { ...DEFAULT_APPEARANCE };
