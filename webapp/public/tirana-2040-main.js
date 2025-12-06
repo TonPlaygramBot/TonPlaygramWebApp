@@ -1,3 +1,5 @@
+import { buildWestEndDistrict } from './tirana-2040-westend.js';
+
 const GAME_NAME = 'London 1990 • Baker Street District';
 document.title = GAME_NAME;
 
@@ -614,6 +616,133 @@ export async function startTirana2040(){
     });
   }
 
+  function plotHasCollision(cx,cz,w,d,padding=1.2){
+    const minX=cx - w/2 - padding;
+    const maxX=cx + w/2 + padding;
+    const minZ=cz - d/2 - padding;
+    const maxZ=cz + d/2 + padding;
+    for(const box of buildingBoxes){
+      if(maxX < box.min.x) continue;
+      if(minX > box.max.x) continue;
+      if(maxZ < box.min.z) continue;
+      if(minZ > box.max.z) continue;
+      return true;
+    }
+    return false;
+  }
+
+  function addBlockBuilding({cx,cz,width=18,depth=18,floors=6,style='office',label=null,glass=false,roofGarden=false}){
+    if(plotHasCollision(cx,cz,width,depth)) return null;
+    const height=Math.max(2,floors)*SCALE.FLOOR_H;
+    const hue=style==='modernist'?210: style==='artdeco'?32: style==='hotel'?48:22;
+    const bodyGeo=new THREE.BoxGeometry(width,height,depth);
+    const facade = glass
+      ? new THREE.MeshPhysicalMaterial({ color:0xbfd7ff, transmission:0.72, thickness:0.34, roughness:0.08, metalness:0.08 })
+      : new THREE.MeshStandardMaterial({ map:facadeTex(hue), roughness:0.78, metalness:0.06 });
+    const mesh=new THREE.Mesh(bodyGeo, facade);
+    mesh.position.set(cx,height/2,cz);
+    mesh.castShadow=allowShadows; mesh.receiveShadow=allowShadows;
+    city.add(mesh);
+    addWindowsForBuilding(cx,cz,width,depth,height);
+    if(roofGarden){
+      const garden=new THREE.Mesh(new THREE.PlaneGeometry(width*0.92, depth*0.92), turfMat);
+      garden.rotation.x=-Math.PI/2;
+      garden.position.set(cx,height+0.01,cz);
+      garden.userData={kind:'roof_garden'};
+      city.add(garden);
+    }
+    buildings.push({mesh,cx,cz,w:width,d:depth,h:height,kind:style});
+    buildingBoxes.push({min:{x:cx-width/2,z:cz-depth/2}, max:{x:cx+width/2,z:cz+depth/2}});
+    mapBuildings.push({x:cx,z:cz,w:width,d:depth,h:height,floors,kind:style});
+    const body=new CANNON.Body({mass:0});
+    body.addShape(new CANNON.Box(new CANNON.Vec3(width/2,height/2,depth/2)));
+    body.position.set(cx,height/2,cz);
+    world.addBody(body);
+    if(label){ mapLandmarks.push({x:cx,z:cz,label}); }
+    return mesh;
+  }
+
+  function addServiceMarker({x,z,label,color=0xe11d48}){
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.45,1.4,12), new THREE.MeshStandardMaterial({color, metalness:0.2, roughness:0.5}));
+    cone.position.set(x,0.7,z);
+    cone.castShadow=allowShadows;
+    city.add(cone);
+    if(label){ mapLandmarks.push({x,z,label}); }
+  }
+
+  function addKiosk(x,z,dir=0){
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(1.2,1.4,2.1,8), new THREE.MeshStandardMaterial({color:0x334155, metalness:0.38, roughness:0.58}));
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(1.6,0.9,8), new THREE.MeshStandardMaterial({color:0xfacc15, roughness:0.42}));
+    roof.position.y=1.5;
+    const kiosk=new THREE.Group(); kiosk.add(base,roof); kiosk.position.set(x,1.05,z); kiosk.rotation.y=dir; kiosk.castShadow=allowShadows; kiosk.receiveShadow=allowShadows;
+    city.add(kiosk);
+  }
+
+  function addCallBox(x,z){
+    const body=new THREE.Mesh(new THREE.BoxGeometry(0.8,2.4,0.8), new THREE.MeshStandardMaterial({color:0x1d4ed8, roughness:0.45}));
+    body.position.set(x,1.2,z);
+    const roof=new THREE.Mesh(new THREE.BoxGeometry(0.9,0.25,0.9), new THREE.MeshStandardMaterial({color:0x0f172a}));
+    roof.position.set(x,2.5,z);
+    const group=new THREE.Group(); group.add(body,roof); group.castShadow=allowShadows; group.receiveShadow=allowShadows;
+    city.add(group);
+  }
+
+  function addWestEndProp(prop){
+    if(!prop) return;
+    const {type, position, rotation}=prop;
+    if(type==='bench') addBench(position.x, position.z, rotation||0);
+    else if(type==='lamp') addStreetLight(position.x, position.z);
+    else if(type==='kiosk') addKiosk(position.x, position.z, rotation||0);
+    else if(type==='hydrant') addServiceMarker({x:position.x, z:position.z, label:'Hydrant', color:0xef4444});
+    else if(type==='callbox'){ addCallBox(position.x, position.z); mapLandmarks.push({x:position.x, z:position.z, label:'Police Callbox'}); }
+  }
+
+  function applyWestEndPlan(plan){
+    if(!plan) return;
+    try { updateStatus(`${GAME_NAME} • Laying out Baker Street`); } catch(_){ }
+    (plan.connectors||[]).forEach((road)=>{
+      addRoadSegment(road.from, road.to, {width:road.width, name:road.name});
+    });
+    (plan.arterials||[]).forEach((road)=>{
+      // Skip duplicates that already exist in the base grid by checking width and midpoint.
+      const midX=(road.from.x+road.to.x)/2; const midZ=(road.from.z+road.to.z)/2;
+      const duplicate=mapRoads.some((r)=>Math.abs(((r.from.x+r.to.x)/2)-midX)<2 && Math.abs(((r.from.z+r.to.z)/2)-midZ)<2 && Math.abs(r.width-road.width)<2);
+      if(!duplicate){ addRoadSegment(road.from, road.to, {width:road.width, name:road.name}); }
+    });
+    (plan.plazas||[]).forEach((p)=>{
+      addPocketPark(p.center.x, p.center.z, p.size.w, p.size.d);
+      mapLandmarks.push({x:p.center.x, z:p.center.z, label:p.name});
+      const benchCount=Math.max(2, Math.floor((p.size.w+p.size.d)/18));
+      for(let i=0;i<benchCount;i++){
+        const t=i/(benchCount-1||1)-0.5;
+        addBench(p.center.x + t*(p.size.w*0.6), p.center.z - p.size.d*0.45, Math.PI);
+      }
+    });
+    (plan.blocks||[]).forEach((b)=>{
+      const width=b.size?.w||12;
+      const depth=b.size?.d||12;
+      if(plotHasCollision(b.center.x, b.center.z, width, depth)) return;
+      if(b.type==='terrace' || b.type==='retail'){
+        addTownhouse({cx:b.center.x, cz:b.center.z, width, depth, floors:b.floors||4, style:b.style||'georgian', label:b.label||null});
+      } else {
+        addBlockBuilding({cx:b.center.x, cz:b.center.z, width, depth, floors:b.floors||6, style:b.style||'office', label:b.label||null, glass:!!b.glass, roofGarden:b.type==='hotel'});
+      }
+    });
+    (plan.stations||[]).forEach((s)=>{
+      mapLandmarks.push({x:s.position.x, z:s.position.z, label:`🚇 ${s.label}`});
+      (s.exits||[]).forEach((exit)=>{ addServiceMarker({x:exit.x, z:exit.z, label:`Exit ${exit.direction}`, color:0x22c55e}); });
+    });
+    (plan.props||[]).forEach(addWestEndProp);
+    (plan.emergency||[]).forEach((e)=>{
+      if(e.type==='hydrant') addServiceMarker({x:e.position.x, z:e.position.z, label:'Hydrant', color:0xdb2777});
+      else if(e.type==='callbox') addWestEndProp({type:'callbox', position:e.position});
+    });
+    (plan.poi||[]).forEach((p)=>{ mapLandmarks.push({x:p.x, z:p.z, label:p.label}); });
+    (plan.busCorridors||[]).forEach((b)=>{
+      addBikeCorridor(b.from.x, b.from.z, b.to.x, b.to.z, {width:4, label:b.label});
+    });
+  }
+
   function buildLondon1990Plan(){
     gnd.scale.set(1.08,1,1.12);
     const roads=[
@@ -644,6 +773,7 @@ export async function startTirana2040(){
 
   if(USE_LONDON_1990_MASTERPLAN){
     buildLondon1990Plan();
+    applyWestEndPlan(buildWestEndDistrict());
   } else {
     for(let ix=0; ix<=BLOCKS_X; ix++){
       const geo=new THREE.PlaneGeometry(ROAD,(CELL)*BLOCKS_Z + ROAD);
