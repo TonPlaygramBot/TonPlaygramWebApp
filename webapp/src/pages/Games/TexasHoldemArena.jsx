@@ -1983,39 +1983,6 @@ function TexasHoldemArena({ search }) {
     [applyHeadOrientation]
   );
 
-  const alignCameraToActiveTurn = useCallback(
-    (options = {}) => {
-      const { immediate = false, force = false } = options;
-      const state = gameStateRef.current;
-      if (!state || typeof state.actionIndex !== 'number' || state.stage === 'showdown') return;
-      const three = threeRef.current;
-      if (!three) return;
-      const focusIndex = findSeatWithAvatar(state.actionIndex);
-      if (typeof focusIndex !== 'number') return;
-      const seat = three.seatGroups?.[focusIndex];
-      if (!seat) return;
-      const pointerState = pointerStateRef.current;
-      const isCameraDragged = pointerState?.active && pointerState.mode === 'camera';
-      if (isCameraDragged && !force) return;
-
-      if (seat.isHuman) {
-        headAnglesRef.current.yaw = 0;
-        headAnglesRef.current.pitch = 0;
-        cameraAutoTargetRef.current = { yaw: 0, activeIndex: seat.index ?? focusIndex };
-        applyHeadOrientation();
-        if (!overheadView) {
-          const mount = mountRef.current;
-          const width = mount?.clientWidth ?? window.innerWidth;
-          const height = mount?.clientHeight ?? window.innerHeight;
-          viewControlsRef.current.applySeatedCamera?.(width, height, { animate: !immediate });
-        }
-      } else {
-        focusCameraOnSeat(focusIndex, immediate);
-      }
-    },
-    [applyHeadOrientation, findSeatWithAvatar, focusCameraOnSeat, overheadView]
-  );
-
   const findSeatWithAvatar = useCallback((startIndex = 0) => {
     const state = gameStateRef.current;
     const players = state?.players ?? [];
@@ -2973,7 +2940,6 @@ function TexasHoldemArena({ search }) {
         applyHoverTarget(null);
         if (wasCameraDrag) {
           cameraAutoTargetRef.current = { yaw: releaseYaw, activeIndex: null };
-          alignCameraToActiveTurn({ immediate: true, force: true });
         }
       }
     };
@@ -3339,14 +3305,35 @@ function TexasHoldemArena({ search }) {
   const currentActionIndex = gameState?.actionIndex;
   const currentStage = gameState?.stage;
   useEffect(() => {
-    if (typeof currentActionIndex !== 'number' || currentStage === 'showdown') return;
-    alignCameraToActiveTurn();
+    if (typeof currentActionIndex !== 'number') return;
+    if (currentStage === 'showdown') return;
+    const three = threeRef.current;
+    if (!three) return;
     const focusIndex = findSeatWithAvatar(currentActionIndex);
-    const seat = threeRef.current?.seatGroups?.[focusIndex];
+    if (typeof focusIndex !== 'number') return;
+    const seat = three.seatGroups?.[focusIndex];
+    const pointerState = pointerStateRef.current;
+    const isCameraDragged = pointerState?.active && pointerState.mode === 'camera';
+    if (!isCameraDragged) {
+      if (seat?.isHuman) {
+        headAnglesRef.current.yaw = 0;
+        headAnglesRef.current.pitch = 0;
+        cameraAutoTargetRef.current = { yaw: 0, activeIndex: seat.index ?? focusIndex };
+        applyHeadOrientation();
+        if (!overheadView) {
+          const mount = mountRef.current;
+          const width = mount?.clientWidth ?? window.innerWidth;
+          const height = mount?.clientHeight ?? window.innerHeight;
+          viewControlsRef.current.applySeatedCamera?.(width, height, { animate: false });
+        }
+      } else {
+        focusCameraOnSeat(focusIndex, false);
+      }
+    }
     if (seat?.isHuman) {
       playSound('knock');
     }
-  }, [alignCameraToActiveTurn, currentActionIndex, currentStage, findSeatWithAvatar, playSound]);
+  }, [applyHeadOrientation, currentActionIndex, currentStage, findSeatWithAvatar, focusCameraOnSeat, overheadView, playSound]);
 
   useEffect(() => {
     if (!gameState) return;
