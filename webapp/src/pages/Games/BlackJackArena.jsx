@@ -149,12 +149,12 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
     legColor: '#080808'
   },
   {
-    id: 'goldenHour',
-    label: 'Golden Hour',
-    primary: '#8b5a1a',
-    accent: '#4a2f0b',
-    highlight: '#d8a85f',
-    legColor: '#2a1a09'
+    id: 'royalPlum',
+    label: 'Royal Chestnut',
+    primary: '#3f1f5b',
+    accent: '#2c1340',
+    highlight: '#7c4ae0',
+    legColor: '#140a24'
   }
 ]);
 
