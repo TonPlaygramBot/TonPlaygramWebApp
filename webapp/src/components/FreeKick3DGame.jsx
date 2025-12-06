@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const INSTRUCTION_TEXT = 'Swipe up to shoot • Curve by swiping sideways';
 const FIELD_TEXTURE_URL = 'https://threejs.org/examples/textures/terrain/grasslight-big.jpg';
@@ -281,6 +280,98 @@ function makeUCLBallTexture(size = 1024) {
   return texture;
 }
 
+const PLAYER_MATERIALS = Object.freeze({
+  skin: 0xffd7b3,
+  hairDark: 0x1f2937,
+  hairLight: 0x7c3aed,
+  boots: 0x111827
+});
+
+function buildStylizedPlayer({ height, shirtColor, shortColor, accentColor }) {
+  const group = new THREE.Group();
+  const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.6, metalness: 0.08 });
+  const shortMat = new THREE.MeshStandardMaterial({ color: shortColor, roughness: 0.55, metalness: 0.05 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5, metalness: 0.12 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: PLAYER_MATERIALS.skin, roughness: 0.55 });
+  const bootMat = new THREE.MeshStandardMaterial({ color: PLAYER_MATERIALS.boots, roughness: 0.65 });
+
+  const legGeo = new THREE.CylinderGeometry(0.11, 0.12, 0.7, 12);
+  const thighGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.32, 12);
+  const torsoGeo = new THREE.BoxGeometry(0.4, 0.55, 0.26);
+  const armGeo = new THREE.CylinderGeometry(0.07, 0.08, 0.48, 10);
+  const neckGeo = new THREE.CylinderGeometry(0.08, 0.08, 0.16, 12);
+  const headGeo = new THREE.SphereGeometry(0.18, 18, 18);
+  const hairGeo = new THREE.CylinderGeometry(0.19, 0.19, 0.1, 14);
+  const bootGeo = new THREE.BoxGeometry(0.18, 0.1, 0.28);
+
+  const addLimb = (xOffset) => {
+    const upper = new THREE.Mesh(thighGeo, shortMat);
+    upper.position.set(xOffset, thighGeo.parameters.height / 2, 0);
+    group.add(upper);
+
+    const lower = new THREE.Mesh(legGeo, shortMat);
+    lower.position.set(xOffset, thighGeo.parameters.height + legGeo.parameters.height / 2 - 0.02, 0);
+    group.add(lower);
+
+    const boot = new THREE.Mesh(bootGeo, bootMat);
+    boot.position.set(xOffset, thighGeo.parameters.height + legGeo.parameters.height + bootGeo.parameters.height / 2 - 0.06, 0.06);
+    boot.castShadow = true;
+    boot.receiveShadow = true;
+    group.add(boot);
+  };
+
+  addLimb(-0.1);
+  addLimb(0.1);
+
+  const torso = new THREE.Mesh(torsoGeo, shirtMat);
+  torso.position.set(0, legGeo.parameters.height + thighGeo.parameters.height + torsoGeo.parameters.height / 2, 0);
+  torso.castShadow = true;
+  torso.receiveShadow = true;
+  group.add(torso);
+
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(torsoGeo.parameters.width * 0.2, torsoGeo.parameters.height * 1.05, torsoGeo.parameters.depth * 1.02), accentMat);
+  stripe.position.copy(torso.position);
+  group.add(stripe);
+
+  const neck = new THREE.Mesh(neckGeo, skinMat);
+  neck.position.set(0, torso.position.y + torsoGeo.parameters.height / 2 + neckGeo.parameters.height / 2 - 0.02, 0);
+  group.add(neck);
+
+  const head = new THREE.Mesh(headGeo, skinMat);
+  head.position.set(0, neck.position.y + neckGeo.parameters.height / 2 + headGeo.parameters.radius + 0.01, 0);
+  group.add(head);
+
+  const hair = new THREE.Mesh(hairGeo, new THREE.MeshStandardMaterial({ color: PLAYER_MATERIALS.hairDark, roughness: 0.6 }));
+  hair.position.set(0, head.position.y + headGeo.parameters.radius - 0.02, 0);
+  group.add(hair);
+
+  const shoulderY = torso.position.y + torsoGeo.parameters.height * 0.4;
+  const arm = new THREE.Mesh(armGeo, shirtMat);
+  arm.position.set(-torsoGeo.parameters.width * 0.6, shoulderY, 0);
+  arm.rotation.z = Math.PI / 2.6;
+  group.add(arm);
+  const armR = arm.clone();
+  armR.position.x *= -1;
+  armR.rotation.z *= -1;
+  group.add(armR);
+
+  const bbox = new THREE.Box3().setFromObject(group);
+  const size = bbox.getSize(new THREE.Vector3());
+  const baseHeight = size.y || 1;
+  const scale = height / baseHeight;
+  group.scale.setScalar(scale);
+  bbox.setFromObject(group);
+  group.position.y = -bbox.min.y;
+
+  group.traverse((child) => {
+    if (!child.isMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = true;
+  });
+
+  return group;
+}
+
 function makeBumpFromColor(texture) {
   const canvas = document.createElement('canvas');
   canvas.width = texture.image.width;
@@ -374,18 +465,16 @@ function makeTargetTexture({
 }
 
 const GOAL_CONFIG = {
-  width: 7.32,
-  height: 2.44,
-  depthTop: 0.8,
-  depthBottom: 2.0,
-  postDiameter: 0.12,
-  z: -10.2
+  width: 5.5,
+  height: 2.0,
+  depthTop: 0.6,
+  depthBottom: 1.4,
+  postDiameter: 0.1,
+  z: -8
 };
 
-const CESIUM_MAN_URL =
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb';
-const DEFENDER_MODEL_HEIGHT = 1.4;
-const KEEPER_MODEL_HEIGHT = 1.92;
+const DEFENDER_MODEL_HEIGHT = 1.35;
+const KEEPER_MODEL_HEIGHT = 1.85;
 
 const MIN_GOAL_POINTS = 5;
 const TIMER_BONUS_OPTIONS = Object.freeze([10, 15, 20]);
@@ -393,8 +482,8 @@ const BOMB_TIME_PENALTY = 15;
 const BOMB_SCORE_PENALTY = 50;
 const BOMB_RESET_DELAY = 0.7;
 
-const PENALTY_AREA_DEPTH = 16.5;
-const BALL_PENALTY_BUFFER = 1.5; // ensures kick is taken outside of the box
+const PENALTY_AREA_DEPTH = 10.5;
+const BALL_PENALTY_BUFFER = 1.25; // ensures kick is taken outside of the box
 const BALL_RADIUS = 0.184; // 20% smaller ball for tighter mobile play
 const GRAVITY = new THREE.Vector3(0, -9.81 * 0.35, 0);
 const AIR_DRAG = 0.0006;
@@ -403,7 +492,7 @@ const MAGNUS_COEFFICIENT = 0.045;
 const RESTITUTION = 0.45;
 const GROUND_Y = 0;
 const START_Z = GOAL_CONFIG.z + PENALTY_AREA_DEPTH + BALL_PENALTY_BUFFER;
-const DEFENDER_WALL_Z = Math.abs(GOAL_CONFIG.z) - 0.6; // place defenders inside the far goal mouth
+const DEFENDER_WALL_Z = GOAL_CONFIG.z + 2.2; // place defenders just ahead of the far goal mouth
 const SHOOT_POWER_SCALE = 2.1; // slightly softened top-end power for smoother, more realistic strikes
 const SHOOT_VERTICAL_POWER_MIN = 0.38;
 const SHOOT_VERTICAL_POWER_MAX = 0.58;
@@ -439,13 +528,13 @@ const RENDER_RESOLUTION_SCALE = 0.9;
 const MAX_PIXEL_RATIO = 1.5;
 const MAX_FRAME_DELTA = 1 / 45;
 const MAX_ACCUMULATED_TIME = 0.18;
-const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 1.82, START_Z + 4.1);
-const CAMERA_IDLE_FOCUS = new THREE.Vector3(0, 1.48, GOAL_CONFIG.z);
-const CAMERA_ACTIVE_MIN_DISTANCE = 3.4;
-const CAMERA_ACTIVE_MAX_DISTANCE = 8.6;
-const CAMERA_LATERAL_CLAMP = 3.6;
-const CAMERA_IDLE_LERP = 0.1;
-const CAMERA_ACTIVE_LERP = 0.18;
+const CAMERA_IDLE_POSITION = new THREE.Vector3(0, 8.2, Math.abs(GOAL_CONFIG.z) + 9.5);
+const CAMERA_IDLE_FOCUS = new THREE.Vector3(0, 3.4, 0);
+const CAMERA_ACTIVE_MIN_DISTANCE = 6.0;
+const CAMERA_ACTIVE_MAX_DISTANCE = 14.0;
+const CAMERA_LATERAL_CLAMP = 4.8;
+const CAMERA_IDLE_LERP = 0.12;
+const CAMERA_ACTIVE_LERP = 0.2;
 const CAMERA_SHAKE_DECAY = 3.5;
 const SOUND_SOURCES = {
   crowd: encodeURI('/assets/sounds/football-crowd-3-69245.mp3'),
@@ -623,8 +712,6 @@ export default function FreeKick3DGame({ config }) {
     };
     const textureLoader = new THREE.TextureLoader();
     textureLoader.setCrossOrigin?.('anonymous');
-    const gltfLoader = new GLTFLoader();
-    gltfLoader.setCrossOrigin?.('anonymous');
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87ceeb);
@@ -653,7 +740,7 @@ export default function FreeKick3DGame({ config }) {
     const fieldGroup = new THREE.Group();
 
     const apron = new THREE.Mesh(
-      new THREE.PlaneGeometry(21, 32),
+      new THREE.PlaneGeometry(16, 24),
       new THREE.MeshStandardMaterial({ color: 0x0b2012, roughness: 0.98, metalness: 0.02 })
     );
     apron.rotation.x = -Math.PI / 2;
@@ -662,7 +749,7 @@ export default function FreeKick3DGame({ config }) {
     fieldGroup.add(apron);
 
     const surroundMaterial = new THREE.MeshStandardMaterial({ color: 0x14522a, roughness: 0.95, metalness: 0.04 });
-    const surround = new THREE.Mesh(new THREE.PlaneGeometry(16.5, 28.5), surroundMaterial);
+    const surround = new THREE.Mesh(new THREE.PlaneGeometry(12, 20), surroundMaterial);
     surround.rotation.x = -Math.PI / 2;
     surround.receiveShadow = true;
     surround.position.y = -0.009;
@@ -673,7 +760,7 @@ export default function FreeKick3DGame({ config }) {
       roughness: 0.92,
       metalness: 0.04
     });
-    const pitch = new THREE.Mesh(new THREE.PlaneGeometry(14, 26), pitchMaterial);
+    const pitch = new THREE.Mesh(new THREE.PlaneGeometry(10.5, 18), pitchMaterial);
     pitch.rotation.x = -Math.PI / 2;
     pitch.receiveShadow = true;
     fieldGroup.add(pitch);
@@ -1889,29 +1976,29 @@ export default function FreeKick3DGame({ config }) {
     scene.add(goal);
 
     const mirroredGoal = goal.clone(true);
-    mirroredGoal.position.z = Math.abs(goalZ) * 2;
+    mirroredGoal.position.z = -goalZ;
     mirroredGoal.rotation.y = Math.PI;
     scene.add(mirroredGoal);
 
     const wallGroup = new THREE.Group();
-    wallGroup.position.set(0, 0, DEFENDER_WALL_Z);
+    wallGroup.position.set(0, 0, GOAL_CONFIG.z + 2.2);
     wallGroup.rotation.y = Math.PI;
     const wallMaterial = new THREE.MeshPhysicalMaterial({ color: 0xfacc15, roughness: 0.6 });
-    const defenders = [];
+    const wallDefenders = [];
     const defenderOffsets = [];
     const defenderAnchors = [];
-    const defenderBaseY = 1.1;
-    for (let i = 0; i < 3; i += 1) {
+    const defenderBaseY = 1.0;
+    for (let i = 0; i < 2; i += 1) {
       const anchor = new THREE.Group();
-      const placeholderGeo = new THREE.CapsuleGeometry(0.25, 0.9, 4, 8);
+      const placeholderGeo = new THREE.CapsuleGeometry(0.24, 0.8, 4, 8);
       const placeholder = new THREE.Mesh(placeholderGeo, wallMaterial);
       placeholder.castShadow = true;
       placeholder.receiveShadow = true;
       anchor.add(placeholder);
-      const offsetX = (i - 1) * 0.8;
+      const offsetX = (i - 0.5) * 0.9;
       anchor.position.set(offsetX, defenderBaseY, 0);
       wallGroup.add(anchor);
-      defenders.push({ mesh: anchor, radius: 0.28, halfHeight: 0.7, offsetX });
+      wallDefenders.push({ mesh: anchor, radius: 0.26, halfHeight: 0.64, offsetX });
       defenderOffsets.push(offsetX);
       defenderAnchors.push(anchor);
     }
@@ -1919,12 +2006,44 @@ export default function FreeKick3DGame({ config }) {
 
     const keeperMaterial = new THREE.MeshPhysicalMaterial({ color: 0xfacc15, roughness: 0.45 });
     const keeperAnchor = new THREE.Group();
-    const keeperMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.32, 1.2, 6, 12), keeperMaterial);
+    const keeperMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 1.1, 6, 12), keeperMaterial);
     keeperMesh.castShadow = true;
     keeperMesh.receiveShadow = true;
     keeperAnchor.add(keeperMesh);
-    keeperAnchor.position.set(0, 1.02, goalZ + 0.32);
+    keeperAnchor.position.set(0, 1.0, goalZ + 0.32);
     scene.add(keeperAnchor);
+
+    const strikerAnchor = new THREE.Group();
+    strikerAnchor.position.set(0, 1.0, goalZ + PENALTY_AREA_DEPTH * 0.62);
+    scene.add(strikerAnchor);
+
+    const homeGroup = new THREE.Group();
+    scene.add(homeGroup);
+    const homeKeeperAnchor = new THREE.Group();
+    homeKeeperAnchor.position.set(0, 1.0, -goalZ - 0.32);
+    homeKeeperAnchor.rotation.y = Math.PI;
+    homeGroup.add(homeKeeperAnchor);
+
+    const homeDefenderAnchors = [];
+    const homeDefenderGroup = new THREE.Group();
+    homeDefenderGroup.position.set(0, 0, -goalZ - 2.0);
+    homeGroup.add(homeDefenderGroup);
+    for (let i = 0; i < 2; i += 1) {
+      const anchor = new THREE.Group();
+      const placeholderGeo = new THREE.CapsuleGeometry(0.24, 0.8, 4, 8);
+      const placeholder = new THREE.Mesh(placeholderGeo, new THREE.MeshPhysicalMaterial({ color: 0x22c55e, roughness: 0.6 }));
+      placeholder.castShadow = true;
+      placeholder.receiveShadow = true;
+      anchor.add(placeholder);
+      const offsetX = (i - 0.5) * 0.9;
+      anchor.position.set(offsetX, defenderBaseY, 0);
+      homeDefenderGroup.add(anchor);
+      homeDefenderAnchors.push(anchor);
+    }
+
+    const homeStrikerAnchor = new THREE.Group();
+    homeStrikerAnchor.position.set(0, 1.0, START_Z - 0.6);
+    homeGroup.add(homeStrikerAnchor);
 
     const targetGroup = new THREE.Group();
     targetGroup.position.set(0, 0, goalZ - 0.08);
@@ -1932,7 +2051,7 @@ export default function FreeKick3DGame({ config }) {
 
     const wallState = {
       group: wallGroup,
-      defenders,
+      defenders: wallDefenders,
       offsets: defenderOffsets,
       baseY: defenderBaseY,
       centerX: 0,
@@ -1954,8 +2073,6 @@ export default function FreeKick3DGame({ config }) {
       side: 0
     };
 
-    const characterSize = new THREE.Vector3();
-
     const disposeAnchorChildren = (anchor) => {
       anchor.children.slice().forEach((child) => {
         anchor.remove(child);
@@ -1970,63 +2087,30 @@ export default function FreeKick3DGame({ config }) {
       });
     };
 
-    const cloneCharacter = (root, tintColor) => {
-      const clone = root.clone(true);
-      clone.traverse((child) => {
-        if (!child.isMesh) return;
-        child.castShadow = true;
-        child.receiveShadow = true;
-        if (Array.isArray(child.material)) {
-          child.material = child.material.map((material) => {
-            const next = material?.clone ? material.clone() : material;
-            if (next?.color) {
-              next.color = next.color.clone();
-              if (tintColor !== undefined) next.color.setHex(tintColor);
-            }
-            next.needsUpdate = true;
-            return next;
-          });
-        } else if (child.material) {
-          const material = child.material.clone ? child.material.clone() : child.material;
-          if (material?.color) {
-            material.color = material.color.clone();
-            if (tintColor !== undefined) material.color.setHex(tintColor);
-          }
-          material.needsUpdate = true;
-          child.material = material;
-        }
-      });
-      return clone;
+    const attachPlayer = (anchor, targetHeight, colors) => {
+      if (!anchor) return;
+      const player = buildStylizedPlayer({ height: targetHeight, ...colors });
+      disposeAnchorChildren(anchor);
+      anchor.add(player);
     };
 
-    gltfLoader.load(
-      CESIUM_MAN_URL,
-      (gltf) => {
-        if (disposed) return;
-        const root = gltf.scene || gltf.scenes?.[0];
-        if (!root) return;
-        const baseBox = new THREE.Box3().setFromObject(root);
-        const baseHeight = baseBox.getSize(characterSize).y || 1;
-        const attachCharacter = (anchor, targetHeight, tintColor) => {
-          if (!anchor) return;
-          const character = cloneCharacter(root, tintColor);
-          const scale = targetHeight / baseHeight;
-          character.scale.setScalar(scale);
-          const box = new THREE.Box3().setFromObject(character);
-          character.position.set(0, -box.min.y, 0);
-          disposeAnchorChildren(anchor);
-          anchor.add(character);
-        };
+    const awayColors = { shirtColor: 0x1d4ed8, shortColor: 0x0f172a, accentColor: 0x93c5fd };
+    const homeColors = { shirtColor: 0xef4444, shortColor: 0x7f1d1d, accentColor: 0xfca5a5 };
 
-        defenderAnchors.forEach((anchor) => attachCharacter(anchor, DEFENDER_MODEL_HEIGHT, 0xfacc15));
-        attachCharacter(keeperAnchor, KEEPER_MODEL_HEIGHT, 0xfacc15);
-      },
-      undefined,
-      (error) => {
-        if (disposed) return;
-        console.error('Failed to load CesiumMan model for Free Kick 3D', error);
-      }
-    );
+    defenderAnchors.forEach((anchor) => attachPlayer(anchor, DEFENDER_MODEL_HEIGHT, awayColors));
+    attachPlayer(keeperAnchor, KEEPER_MODEL_HEIGHT, awayColors);
+    attachPlayer(strikerAnchor, DEFENDER_MODEL_HEIGHT, awayColors);
+
+    homeDefenderAnchors.forEach((anchor) => attachPlayer(anchor, DEFENDER_MODEL_HEIGHT, homeColors));
+    attachPlayer(homeKeeperAnchor, KEEPER_MODEL_HEIGHT, homeColors);
+    attachPlayer(homeStrikerAnchor, DEFENDER_MODEL_HEIGHT, homeColors);
+
+    const playerColliders = [...wallDefenders];
+    playerColliders.push({ mesh: strikerAnchor, radius: 0.26, halfHeight: 0.7, offsetX: 0 });
+    playerColliders.push({ mesh: homeDefenderAnchors[0], radius: 0.26, halfHeight: 0.64, offsetX: -0.45 });
+    playerColliders.push({ mesh: homeDefenderAnchors[1], radius: 0.26, halfHeight: 0.64, offsetX: 0.45 });
+    playerColliders.push({ mesh: homeStrikerAnchor, radius: 0.26, halfHeight: 0.7, offsetX: 0 });
+    playerColliders.push({ mesh: homeKeeperAnchor, radius: 0.34, halfHeight: 0.9, offsetX: 0 });
 
     const ballTexture = makeUCLBallTexture(2048);
     const bumpMap = makeBumpFromColor(ballTexture);
@@ -2538,7 +2622,7 @@ export default function FreeKick3DGame({ config }) {
 
     state.netSim = netSim;
     state.billboards = billboardAnimations;
-    state.defenders = defenders;
+    state.defenders = playerColliders;
     state.structureColliders = structureColliders;
     state.cameraColliders = cameraColliders;
     state.broadcastCameraRigs = broadcastCameras;
