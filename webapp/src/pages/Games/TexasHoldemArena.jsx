@@ -2378,6 +2378,7 @@ function TexasHoldemArena({ search }) {
       const maxCameraHeight = ARENA_WALL_TOP_Y - CAMERA_WALL_HEIGHT_MARGIN;
       position.y = Math.min(humanSeat.stoolHeight + elevation, maxCameraHeight);
       const focusBase = cameraTarget.clone().add(new THREE.Vector3(0, CAMERA_FOCUS_CENTER_LIFT, 0));
+      const seatTopPoint = seatTopPointRef.current;
       const focusForwardPull = portrait
         ? PORTRAIT_CAMERA_PLAYER_FOCUS_FORWARD_PULL
         : CAMERA_PLAYER_FOCUS_FORWARD_PULL;
@@ -2393,7 +2394,11 @@ function TexasHoldemArena({ search }) {
       const humanActing = Boolean(
         activeState?.stage !== 'showdown' && activeState?.players?.[activeState.actionIndex]?.isHuman
       );
-      const focus = humanActing ? focusBase : focusBase.lerp(chipFocus, focusBlend);
+      const topSeatFocus =
+        humanActing && seatTopPoint
+          ? seatTopPoint.clone().setY(seatTopPoint.y + CAMERA_TURN_FOCUS_LIFT)
+          : null;
+      const focus = topSeatFocus ?? (humanActing ? focusBase : focusBase.clone().lerp(chipFocus, focusBlend));
       const lookMatrix = new THREE.Matrix4();
       lookMatrix.lookAt(position, focus, WORLD_UP);
       const targetQuaternion = new THREE.Quaternion().setFromRotationMatrix(lookMatrix);
