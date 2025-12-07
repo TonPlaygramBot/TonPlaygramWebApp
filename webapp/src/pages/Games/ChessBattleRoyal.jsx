@@ -1600,14 +1600,11 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   const applyMaterial = (mesh, updater) => {
     if (!mesh?.isMesh) return;
     const materials = toArray(mesh.material);
-    const updated = materials.map((mat) => {
-      if (!mat) return mat;
-      const next = mat.clone ? mat.clone() : mat;
-      updater(next);
-      next.needsUpdate = true;
-      return next;
+    materials.forEach((mat) => {
+      if (!mat) return;
+      updater(mat);
+      mat.needsUpdate = true;
     });
-    mesh.material = Array.isArray(mesh.material) ? updated : updated[0];
     mesh.castShadow = true;
     mesh.receiveShadow = true;
   };
@@ -2178,19 +2175,17 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
     mesh.traverse((child) => {
       if (!child?.isMesh) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((mat, idx) => {
+      mats.forEach((mat) => {
         if (!mat) return;
-        const applied = mat.clone ? mat.clone() : mat;
         if (shouldStripTextures) {
-          stripMaterialTextures(applied);
+          stripMaterialTextures(mat);
         }
-        applied.color = new THREE.Color(targetColor);
-        applySurface(applied, colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {});
-        if (Array.isArray(child.material)) {
-          child.material[idx] = applied;
+        if (mat.color?.set) {
+          mat.color.set(targetColor);
         } else {
-          child.material = applied;
+          mat.color = new THREE.Color(targetColor);
         }
+        applySurface(mat, colorKey === 'white' ? pieceStyle.white || {} : pieceStyle.black || {});
         child.castShadow = true;
         child.receiveShadow = true;
       });
@@ -2211,26 +2206,24 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
         name.includes('rim');
       if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((mat, idx) => {
+      mats.forEach((mat) => {
         if (!mat) return;
-        const applied = mat.clone ? mat.clone() : mat;
         if (shouldStripTextures) {
-          stripMaterialTextures(applied);
+          stripMaterialTextures(mat);
         }
-        applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
-        applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
-        applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
+        if (mat.color?.set) {
+          mat.color.set(accentColor || darkAccent || accentLight);
+        } else {
+          mat.color = new THREE.Color(accentColor || darkAccent || accentLight);
+        }
+        mat.metalness = clamp01((mat.metalness ?? 0.35) + 0.2);
+        mat.roughness = clamp01((mat.roughness ?? 0.3) * 0.7);
         applySurface(
-          applied,
+          mat,
           colorKey === 'white'
             ? pieceStyle.whiteAccent || pieceStyle.white || {}
             : pieceStyle.blackAccent || pieceStyle.black || {}
         );
-        if (Array.isArray(child.material)) {
-          child.material[idx] = applied;
-        } else {
-          child.material = applied;
-        }
       });
     });
   };
@@ -2292,12 +2285,22 @@ function applyHeadPresetToMeshes(meshes, preset) {
     if (type !== 'P' && type !== 'B') return;
     const heads = collectHeadMeshes(mesh);
     heads.forEach((head) => {
-      const applied = baseMaterial.clone();
-      if (Array.isArray(head.material)) {
-        head.material = head.material.map(() => applied.clone());
-      } else {
-        head.material = applied;
-      }
+      const mats = Array.isArray(head.material) ? head.material : [head.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        if (mat.color?.set) {
+          mat.color.set(baseMaterial.color);
+        }
+        if ('metalness' in mat) mat.metalness = clamp01(baseMaterial.metalness ?? 0);
+        if ('roughness' in mat) mat.roughness = clamp01(baseMaterial.roughness ?? 0.1);
+        mat.transparent = baseMaterial.transparent;
+        mat.transmission = clamp01(baseMaterial.transmission ?? 0);
+        mat.ior = baseMaterial.ior ?? 1.5;
+        mat.thickness = baseMaterial.thickness ?? 0.4;
+        if ('clearcoat' in mat) mat.clearcoat = 0.5;
+        if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = 0.06;
+        mat.needsUpdate = true;
+      });
       head.castShadow = true;
       head.receiveShadow = true;
     });
@@ -3535,11 +3538,18 @@ function extractChessSetAssets(scene, options = {}) {
     : PIECE_PLACEMENT_Y_OFFSET;
   const applyPalette = (node, palette) => {
     if (!node || !palette?.length) return;
+    const copyColor = (dst, src) => {
+      if (!dst || !src) return;
+      if (dst.color?.copy && src.color) dst.color.copy(src.color);
+      if (dst.emissive?.set) dst.emissive.set(0x000000);
+    };
     node.traverse((child) => {
       if (!child?.isMesh) return;
       const base = Array.isArray(child.material) ? child.material : [child.material];
-      const applied = base.map((_, idx) => palette[idx % palette.length].clone?.() || palette[idx % palette.length]);
-      child.material = Array.isArray(child.material) ? applied : applied[0];
+      base.forEach((mat, idx) => {
+        const src = palette[idx % palette.length];
+        copyColor(mat, src);
+      });
     });
   };
 
@@ -3566,6 +3576,17 @@ function extractChessSetAssets(scene, options = {}) {
     });
   };
 
+  const unifyWhiteToBlackForms = () => {
+    TYPES.forEach((type) => {
+      const bProto = proto.black[type];
+      if (!bProto) return;
+      const whitePalette = palettes.white.length ? palettes.white : palettes.black;
+      const wFromB = cloneWithMaterials(bProto);
+      applyPalette(wFromB, whitePalette);
+      proto.white[type] = wFromB;
+    });
+  };
+
   const ensurePrototypes = () => {
     ['white', 'black'].forEach((colorKey) => {
       TYPES.forEach((type) => {
@@ -3589,6 +3610,7 @@ function extractChessSetAssets(scene, options = {}) {
     });
 
     swapTypesBetweenColors(['R', 'N', 'B']);
+    unifyWhiteToBlackForms();
 
     ['white', 'black'].forEach((colorKey) => {
       TYPES.forEach((type) => {
