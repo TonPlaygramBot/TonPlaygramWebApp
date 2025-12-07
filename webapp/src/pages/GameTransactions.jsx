@@ -12,7 +12,6 @@ const GAME_NAME_MAP = {
   domino: 'Domino Royal 3D',
   blackjack: 'Black Jack Multiplayer',
   murlan: 'Murlan Royale',
-  tirana2040: 'London 1990',
 };
 
 function getGameName(slug = '') {
