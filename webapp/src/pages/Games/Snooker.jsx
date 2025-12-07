@@ -232,7 +232,7 @@ function createDefaultPocketJawMaterial() {
   });
 }
 
-const POCKET_VISUAL_EXPANSION = 1.028;
+const POCKET_VISUAL_EXPANSION = 1.018;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
@@ -252,46 +252,45 @@ const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.041; // mirror the Pool Royale middle pocket arch radius so chrome hugs the same curve
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.026; // mirror the Pool Royale middle pocket arch radius so chrome hugs the same curve
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
 const CHROME_PLATE_THICKNESS_SCALE = 0.034;
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18;
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.24;
 const CHROME_PLATE_RENDER_ORDER = 3.5;
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.14;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.34;
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // match Pool Royale by pulling the chrome arches further toward centre
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // align middle pocket wood cuts with Pool Royale's centred arches
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008;
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.92;
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
-const POCKET_JAW_DEPTH_SCALE = 1.02;
+const POCKET_JAW_DEPTH_SCALE = 0.68;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42;
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74;
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66;
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.66;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
@@ -2921,30 +2920,30 @@ function applySnookerScaling({
 }
 
 // Kamera: ruaj kënd komod që mos shtrihet poshtë cloth-it, por lejo pak më shumë lartësi kur ngrihet
-const STANDING_VIEW_PHI = 0.86; // match Pool Royale's standing orbit height for consistent framing
+const STANDING_VIEW_PHI = 0.95; // lower the standing orbit closer to the cloth while keeping clearance
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
-const STANDING_VIEW_MARGIN = 0.0024;
+const STANDING_VIEW_MARGIN = 0.0012;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // align tilt ceiling with Pool Royale limits
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14; // allow a lower sweep so the player camera sits nearer the rail
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.012; // pull the orbit camera closer to the rail without clipping
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.04;
 const BROADCAST_PULL_IN_SCALE = 0.92;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
-const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 0.9985;
+const STANDING_VIEW_MARGIN_PORTRAIT = 0.998;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
-  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
-  portrait: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
-  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 })
+  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.97 }),
+  portrait: Object.freeze({ cue: 0.86, broadcast: 0.92, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.95 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -2974,13 +2973,6 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // match Pool Royale aim-line headroom
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // mirror Pool Royale aiming guide thickness
-const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975);
-const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
-const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
-const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
-const AIM_SPIN_PREVIEW_SIDE = 0.22;
-const AIM_SPIN_PREVIEW_FORWARD = 0.12;
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
@@ -3018,14 +3010,12 @@ const CAMERA_MIN_HORIZONTAL =
 const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const IN_HAND_CAMERA_PULLBACK = 1.38;
-const TOP_VIEW_MARGIN = 0.32;
-const TOP_VIEW_RADIUS_SCALE = 0.28;
-const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_MARGIN = 0.54; // scaled to the snooker footprint so the overhead view hugs the rails
+const TOP_VIEW_RADIUS_SCALE = 0.44;
+const TOP_VIEW_MIN_RADIUS_SCALE = 0.92;
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.04, CAMERA.minPhi * 0.64);
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
-const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
-const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
@@ -6344,16 +6334,6 @@ function SnookerGame() {
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
-  const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
-  const inHandPlacementModeRef = useRef(inHandPlacementMode);
-  useEffect(() => {
-    inHandPlacementModeRef.current = inHandPlacementMode;
-  }, [inHandPlacementMode]);
-  useEffect(() => {
-    const playerTurn = (hud.turn ?? 0) === 0;
-    const placing = Boolean(hud.inHand && playerTurn);
-    setInHandPlacementMode(placing);
-  }, [hud.inHand, hud.turn]);
   useEffect(() => {
     const sph = sphRef.current;
     const bounds = cameraBoundsRef.current;
@@ -9762,8 +9742,8 @@ function SnookerGame() {
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
-        color: 0x7ce7ff,
-        linewidth: AIM_LINE_WIDTH,
+        color: 0xffffff,
+        linewidth: 2,
         transparent: true,
         opacity: 0.9
       });
@@ -9774,23 +9754,6 @@ function SnookerGame() {
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
       table.add(aim);
-      const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(),
-        new THREE.Vector3()
-      ]);
-      const cueAfter = new THREE.Line(
-        cueAfterGeom,
-        new THREE.LineDashedMaterial({
-          color: 0x7ce7ff,
-          linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE * 0.9,
-          gapSize: AIM_GAP_SIZE,
-          transparent: true,
-          opacity: 0.45
-        })
-      );
-      cueAfter.visible = false;
-      table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
@@ -9809,12 +9772,11 @@ function SnookerGame() {
       const target = new THREE.Line(
         targetGeom,
         new THREE.LineDashedMaterial({
-          color: 0xffd166,
-          linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE,
-          gapSize: AIM_GAP_SIZE,
+          color: 0xffffff,
+          dashSize: 1,
+          gapSize: 1,
           transparent: true,
-          opacity: 0.65
+          opacity: 0.5
         })
       );
       target.visible = false;
@@ -10322,7 +10284,6 @@ function SnookerGame() {
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
-        if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
@@ -10367,8 +10328,6 @@ function SnookerGame() {
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
-          setInHandPlacementMode(false);
-          autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
       };
@@ -11300,19 +11259,9 @@ function SnookerGame() {
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
-        const cameraBlend = THREE.MathUtils.clamp(
-          cameraBlendRef.current ?? 1,
-          0,
-          1
-        );
-        const baseAimLerp = THREE.MathUtils.lerp(
-          CUE_VIEW_AIM_LINE_LERP,
-          STANDING_VIEW_AIM_LINE_LERP,
-          cameraBlend
-        );
         const aimLerpFactor = chalkAssistTargetRef.current
-          ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
-          : baseAimLerp;
+          ? CHALK_AIM_LERP_SLOW
+          : 0.2;
         if (!lookModeRef.current && !spinDragActiveRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
@@ -11333,11 +11282,6 @@ function SnookerGame() {
             cue,
             aimDir,
             balls
-          );
-          const powerStrength = THREE.MathUtils.clamp(
-            powerRef.current ?? 0,
-            0,
-            1
           );
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
@@ -11381,18 +11325,18 @@ function SnookerGame() {
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
-          const primaryColor = aimingWrong
-            ? 0xff3333
-            : targetBall && !railNormal
-              ? 0xffd166
-              : 0x7ce7ff;
-          aim.material.color.set(primaryColor);
-          aim.material.opacity = 0.55 + 0.35 * powerStrength;
+          aim.material.color.set(
+            aimingWrong
+              ? 0xff3333
+              : targetBall && !railNormal
+                ? 0xffff00
+                : 0xffffff
+          );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
-            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
+            end.clone().add(perp.clone().multiplyScalar(1.4)),
+            end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
           if (lookModeRef.current) {
@@ -11403,39 +11347,7 @@ function SnookerGame() {
           } else {
             aimFocusRef.current = null;
           }
-          const cueFollowDir = afterDir
-            ? new THREE.Vector3(afterDir.x, 0, afterDir.y).normalize()
-            : dir.clone();
-          const spinSideInfluence = (appliedSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence =
-            (appliedSpin.y || 0) * (0.68 + 0.45 * powerStrength);
-          const cueFollowDirSpinAdjusted = cueFollowDir
-            .clone()
-            .add(perp.clone().multiplyScalar(spinSideInfluence))
-            .add(dir.clone().multiplyScalar(spinVerticalInfluence * AIM_SPIN_PREVIEW_FORWARD));
-          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
-            cueFollowDirSpinAdjusted.normalize();
-          }
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
-          if (backSpinWeight > 1e-8) {
-            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
-            const drawDir = dir.clone().negate();
-            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
-            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
-              cueFollowDirSpinAdjusted.normalize();
-            }
-          }
-          const cueFollowLength =
-            BALL_R * (12 + powerStrength * 18) *
-            (1 + spinVerticalInfluence * AIM_SPIN_PREVIEW_SIDE);
-          const followEnd = end
-            .clone()
-            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
-          cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = true;
-          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
-          cueAfter.computeLineDistances();
-          const clampedPower = powerStrength;
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           const desiredPull = clampedPower * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
@@ -11613,7 +11525,6 @@ function SnookerGame() {
           aimFocusRef.current = null;
           aim.visible = false;
           tick.visible = false;
-          cueAfter.visible = false;
           target.visible = false;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
