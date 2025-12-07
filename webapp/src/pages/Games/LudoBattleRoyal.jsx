@@ -183,9 +183,7 @@ const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
-  tableShape: 0,
-  tokenModel: 0,
-  tokenColors: Array(DEFAULT_PLAYER_COUNT).fill(0)
+  tableShape: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -195,43 +193,6 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS }
 ];
-
-const TOKEN_MODEL_OPTIONS = Object.freeze([
-  { id: 'mixed', label: 'Mixed Chess Set', description: 'Classic rotation of king to pawn.', type: null },
-  { id: 'k', label: 'Kings', description: 'Tall, regal silhouettes for every token.', type: 'k' },
-  { id: 'q', label: 'Queens', description: 'Heavier crowns with wide bases.', type: 'q' },
-  { id: 'r', label: 'Rooks', description: 'Fortified towers with strong edges.', type: 'r' },
-  { id: 'n', label: 'Knights', description: 'Horse-shaped tokens for a playful vibe.', type: 'n' },
-  { id: 'b', label: 'Bishops', description: 'Elegant curves with a center cut.', type: 'b' },
-  { id: 'p', label: 'Pawns', description: 'Minimal pawns for a compact board.', type: 'p' }
-]);
-
-const TOKEN_COLOR_FAMILIES = Object.freeze([
-  {
-    id: 'redFamily',
-    label: 'Crimson ramp',
-    base: BOARD_COLORS[0],
-    swatches: [0xef4444, 0xf87171, 0xb91c1c, 0xff4d67]
-  },
-  {
-    id: 'amberFamily',
-    label: 'Amber gold',
-    base: 0xfacc15,
-    swatches: [0xfacc15, 0xfbbf24, 0xffe066, 0xeab308]
-  },
-  {
-    id: 'blueFamily',
-    label: 'Royal blue',
-    base: BOARD_COLORS[2],
-    swatches: [0x3b82f6, 0x60a5fa, 0x1d4ed8, 0x0ea5e9]
-  },
-  {
-    id: 'greenFamily',
-    label: 'Emerald',
-    base: BOARD_COLORS[3],
-    swatches: [0x22c55e, 0x34d399, 0x16a34a, 0x0ea85a]
-  }
-]);
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const NON_DIAMOND_SHAPE_INDEX = (() => {
@@ -246,8 +207,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length],
-    ['tokenModel', TOKEN_MODEL_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -255,16 +215,6 @@ function normalizeAppearance(value = {}) {
       const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
       normalized[key] = clamped;
     }
-  });
-  const tokenColors = Array.isArray(value?.tokenColors) ? [...value.tokenColors] : [];
-  normalized.tokenColors = Array.from({ length: DEFAULT_PLAYER_COUNT }, (_, idx) => {
-    const raw = Number(tokenColors[idx]);
-    if (Number.isFinite(raw)) {
-      const family = TOKEN_COLOR_FAMILIES[idx % TOKEN_COLOR_FAMILIES.length];
-      const max = family?.swatches?.length ?? 1;
-      return Math.min(Math.max(0, Math.round(raw)), max - 1);
-    }
-    return 0;
   });
   return normalized;
 }
@@ -276,30 +226,6 @@ function enforceShapeForPlayers(appearance, playerCount) {
     safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
   }
   return safe;
-}
-
-function getTokenFamily(playerIndex) {
-  const family = TOKEN_COLOR_FAMILIES[playerIndex % TOKEN_COLOR_FAMILIES.length];
-  return family ?? TOKEN_COLOR_FAMILIES[0];
-}
-
-function getPlayerTokenColors(appearance, playerCount = DEFAULT_PLAYER_COUNT) {
-  const normalized = normalizeAppearance(appearance);
-  const colors = [];
-  for (let i = 0; i < playerCount; i += 1) {
-    const family = getTokenFamily(i);
-    const swatches = family?.swatches ?? [];
-    const choice = normalized.tokenColors?.[i] ?? 0;
-    const color = swatches[choice] ?? swatches[0] ?? PLAYER_COLORS[i] ?? 0xffffff;
-    colors.push(color);
-  }
-  return colors;
-}
-
-function getTokenType(appearance) {
-  const normalized = normalizeAppearance(appearance);
-  const option = TOKEN_MODEL_OPTIONS[normalized.tokenModel] ?? TOKEN_MODEL_OPTIONS[0];
-  return option?.type ?? null;
 }
 
 function getEffectiveShapeConfig(shapeIndex, playerCount) {
@@ -760,8 +686,8 @@ function disposeChairAssets(chairTemplate, chairMaterials) {
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
-// Enlarge the Ludo board so one tile aligns with a single chess square footprint.
-const BOARD_SCALE = 3.15 * ARENA_SCALE;
+// Enlarge the Ludo board so it spans 2.7x the classic footprint.
+const BOARD_SCALE = 2.7 * ARENA_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
@@ -1412,49 +1338,6 @@ function addCenterHome(scene) {
   }
 }
 
-function buildTokens({
-  scene,
-  startPads,
-  playerCount,
-  abgAssets,
-  playerPalettes,
-  playerTokenColors,
-  tokenType
-}) {
-  return playerTokenColors.slice(0, playerCount).map((color, playerIdx) => {
-    const palette = playerPalettes[playerIdx] ?? [];
-    return Array.from({ length: 4 }, (_, i) => {
-      const type = tokenType || TOKEN_TYPE_SEQUENCE[i % TOKEN_TYPE_SEQUENCE.length];
-      const baseProto = abgAssets?.proto?.w?.[type] || abgAssets?.proto?.b?.[type] || null;
-      const token = baseProto ? baseProto.clone(true) : makeRook(makeTokenMaterial(color));
-      if (baseProto && palette.length) {
-        abgApplyPalette(token, palette);
-      }
-      const label = createTokenCountLabel();
-      if (label) {
-        token.add(label);
-        token.userData.countLabel = label;
-      }
-      if (!token.userData) token.userData = {};
-      token.userData.tokenColor = colorNumberToHex(color);
-      token.userData.tokenType = type;
-      token.userData.playerIndex = playerIdx;
-      token.userData.tokenIndex = i;
-      token.traverse((node) => {
-        if (!node.userData) node.userData = {};
-        node.userData.tokenGroup = token;
-        node.userData.playerIndex = playerIdx;
-        node.userData.tokenIndex = i;
-      });
-      const homePos = startPads[playerIdx][i].clone();
-      homePos.y = getTokenRailHeight(playerIdx);
-      token.position.copy(homePos);
-      scene.add(token);
-      return token;
-    });
-  });
-}
-
 function getArrowAngle(dx, dz) {
   if (dx === 0 && dz === 0) {
     return 0;
@@ -1933,7 +1816,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   });
   const appearanceRef = useRef(appearance);
-  const tokenAppearanceRef = useRef({ model: appearance.tokenModel, colors: appearance.tokenColors });
   const arenaRef = useRef(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const seatPositionsRef = useRef([]);
@@ -1946,8 +1828,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   });
 
   const playerColorsHex = useMemo(
-    () => getPlayerTokenColors(appearance, activePlayerCount).map((value) => colorNumberToHex(value)),
-    [activePlayerCount, appearance]
+    () => PLAYER_COLORS.slice(0, activePlayerCount).map((value) => colorNumberToHex(value)),
+    [activePlayerCount]
   );
 
   const aiFlags = useMemo(() => {
@@ -1998,7 +1880,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
   useEffect(() => {
     appearanceRef.current = appearance;
-    tokenAppearanceRef.current = { model: appearance.tokenModel, colors: appearance.tokenColors };
   }, [activePlayerCount, appearance]);
 
   const clearHumanRollTimeout = useCallback(() => {
@@ -2316,9 +2197,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       ? indicator.material[0]
       : indicator.material;
     if (!material) return;
-    const state = stateRef.current;
-    const colorHex = state?.playerTokenColors?.[player] ?? PLAYER_COLORS[player];
-    const color = new THREE.Color(colorHex);
+    const color = new THREE.Color(PLAYER_COLORS[player]);
     material.color.set(color);
     if (material.emissive) {
       material.emissive.set(color.clone().multiplyScalar(0.3));
@@ -2609,6 +2488,77 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   }, []);
 
   useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
+      } catch (error) {
+        console.warn('Failed to persist Ludo appearance', error);
+      }
+    }
+
+    const arena = arenaRef.current;
+    if (!arena) return;
+
+    const normalized = normalizeAppearance(appearance);
+    const safe = enforceShapeForPlayers(normalized, activePlayerCount);
+    const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+    const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+    const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
+    const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, activePlayerCount);
+
+    if (shapeOption) {
+      const shapeChanged = shapeOption.id !== arena.tableShapeId;
+      const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
+      if (shapeChanged || rotationChanged) {
+        const boardGroup = arena.boardGroup;
+        if (boardGroup && arena.tableInfo?.group) {
+          arena.tableInfo.group.remove(boardGroup);
+        }
+        const nextTable = createMurlanStyleTable({
+          arena: arena.arenaGroup,
+          renderer: arena.renderer,
+          tableRadius: TABLE_RADIUS,
+          tableHeight: TABLE_HEIGHT,
+          woodOption,
+          clothOption,
+          baseOption,
+          shapeOption,
+          rotationY
+        });
+        applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
+        if (boardGroup) {
+          boardGroup.position.set(0, nextTable.surfaceY + 0.004, 0);
+          nextTable.group.add(boardGroup);
+        }
+        arena.tableInfo?.dispose?.();
+        arena.tableInfo = nextTable;
+        arena.tableShapeId = nextTable.shapeId;
+        if (arena.boardLookTarget) {
+          arena.boardLookTarget.set(0, nextTable.surfaceY + CAMERA_TARGET_LIFT, 0);
+          arena.defaultLookTarget = arena.boardLookTarget.clone();
+        }
+        arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
+        arena.controls?.update();
+        fitRef.current?.();
+        configureDiceAnchors({ tableInfo: nextTable, boardGroup, chairs: arena.chairs });
+        const currentTurn = stateRef.current?.turn ?? 0;
+        moveDiceToRail(currentTurn, true);
+      } else if (arena.tableInfo?.materials) {
+        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
+      }
+    }
+
+    if (chairOption) {
+      const chairTheme = {
+        seatColor: chairOption.primary,
+        legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
+      };
+      applyChairThemeMaterials(arena, chairTheme);
+    }
+  }, [appearance]);
+
+  useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
     const baseVolume = getGameVolume();
     const level = soundEnabled ? baseVolume : 0;
@@ -2848,7 +2798,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairs.push({ group, anchor: avatarAnchor });
     }
 
-    const boardData = await buildLudoBoard(boardGroup, activePlayerCount, initialAppearance);
+    const boardData = await buildLudoBoard(boardGroup, activePlayerCount);
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -2867,9 +2817,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       progress: Array.from({ length: activePlayerCount }, () => Array(4).fill(-1)),
       turn: 0,
       winner: null,
-      animation: null,
-      playerTokenColors: boardData.playerTokenColors,
-      tokenType: boardData.tokenType
+      animation: null
     };
 
     updateTokenStacks();
@@ -2892,11 +2840,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairTemplate,
       chairMaterials,
       chairs,
-      seatAnchors: chairs.map((chair) => chair.anchor),
-      abgAssets: boardData.abgAssets,
-      playerPalettes: boardData.playerPalettes,
-      playerTokenColors: boardData.playerTokenColors,
-      tokenType: boardData.tokenType
+      seatAnchors: chairs.map((chair) => chair.anchor)
     };
 
     const attemptDiceRoll = (clientX, clientY) => {
@@ -3219,146 +3163,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return state.goalSlots[player][tokenIndex].clone().add(TOKEN_GOAL_LIFT.clone());
   };
-
-  const rebuildTokens = useCallback(
-    async (safeAppearance) => {
-      const arena = arenaRef.current;
-      const state = stateRef.current;
-      if (!arena || !state || !arena.boardGroup) return;
-      const abgAssets = arena.abgAssets ?? (await getAbgAssets());
-      if (!abgAssets) return;
-      const playerTokenColors = getPlayerTokenColors(safeAppearance, activePlayerCount);
-      const tokenType = getTokenType(safeAppearance);
-      const playerPalettes = playerTokenColors.map((color, idx) => {
-        const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
-        return abgTintPalette(src, color);
-      });
-
-      state.tokens?.forEach((list) => {
-        list?.forEach((token) => {
-          if (!token) return;
-          token.parent?.remove(token);
-        });
-      });
-
-      const tokens = buildTokens({
-        scene: arena.boardGroup,
-        startPads: state.startPads,
-        playerCount: activePlayerCount,
-        abgAssets,
-        playerPalettes,
-        playerTokenColors,
-        tokenType
-      });
-
-      state.tokens = tokens;
-      state.playerTokenColors = playerTokenColors;
-      state.tokenType = tokenType;
-      arena.abgAssets = abgAssets;
-      arena.playerPalettes = playerPalettes;
-      arena.playerTokenColors = playerTokenColors;
-      arena.tokenType = tokenType;
-      humanSelectionRef.current = null;
-
-      if (Array.isArray(state.progress)) {
-        state.progress.forEach((row, playerIdx) => {
-          row?.forEach((prog, tokenIdx) => {
-            const token = tokens[playerIdx]?.[tokenIdx];
-            if (!token) return;
-            const pos = getWorldForProgress(playerIdx, prog ?? -1, tokenIdx);
-            token.position.copy(pos);
-            token.rotation.set(0, 0, 0);
-          });
-        });
-      }
-
-      updateTokenStacks();
-      applyRailLayout();
-      updateTurnIndicator(state?.turn ?? 0, true);
-    },
-    [activePlayerCount, applyRailLayout, updateTokenStacks, updateTurnIndicator]
-  );
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        window.localStorage?.setItem(APPEARANCE_STORAGE_KEY, JSON.stringify(appearance));
-      } catch (error) {
-        console.warn('Failed to persist Ludo appearance', error);
-      }
-    }
-
-    const arena = arenaRef.current;
-    if (!arena) return;
-
-    const normalized = normalizeAppearance(appearance);
-    const safe = enforceShapeForPlayers(normalized, activePlayerCount);
-    const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, activePlayerCount);
-
-    if (shapeOption) {
-      const shapeChanged = shapeOption.id !== arena.tableShapeId;
-      const rotationChanged = Math.abs((arena.tableInfo?.rotationY ?? 0) - rotationY) > 1e-3;
-      if (shapeChanged || rotationChanged) {
-        const boardGroup = arena.boardGroup;
-        if (boardGroup && arena.tableInfo?.group) {
-          arena.tableInfo.group.remove(boardGroup);
-        }
-        const nextTable = createMurlanStyleTable({
-          arena: arena.arenaGroup,
-          renderer: arena.renderer,
-          tableRadius: TABLE_RADIUS,
-          tableHeight: TABLE_HEIGHT,
-          woodOption,
-          clothOption,
-          baseOption,
-          shapeOption,
-          rotationY
-        });
-        applyTableMaterials(nextTable.materials, { woodOption, clothOption, baseOption }, arena.renderer);
-        if (boardGroup) {
-          boardGroup.position.set(0, nextTable.surfaceY + 0.004, 0);
-          nextTable.group.add(boardGroup);
-        }
-        arena.tableInfo?.dispose?.();
-        arena.tableInfo = nextTable;
-        arena.tableShapeId = nextTable.shapeId;
-        if (arena.boardLookTarget) {
-          arena.boardLookTarget.set(0, nextTable.surfaceY + CAMERA_TARGET_LIFT, 0);
-          arena.defaultLookTarget = arena.boardLookTarget.clone();
-        }
-        arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
-        arena.controls?.update();
-        fitRef.current?.();
-        configureDiceAnchors({ tableInfo: nextTable, boardGroup, chairs: arena.chairs });
-        const currentTurn = stateRef.current?.turn ?? 0;
-        moveDiceToRail(currentTurn, true);
-      } else if (arena.tableInfo?.materials) {
-        applyTableMaterials(arena.tableInfo.materials, { woodOption, clothOption, baseOption }, arena.renderer);
-      }
-    }
-
-    if (chairOption) {
-      const chairTheme = {
-        seatColor: chairOption.primary,
-        legColor: chairOption.legColor ?? DEFAULT_STOOL_THEME.legColor
-      };
-      applyChairThemeMaterials(arena, chairTheme);
-    }
-
-    const tokenSignature = JSON.stringify({ model: safe.tokenModel, colors: safe.tokenColors });
-    const previousSignature = JSON.stringify({
-      model: tokenAppearanceRef.current?.model,
-      colors: tokenAppearanceRef.current?.colors
-    });
-    if (tokenSignature !== previousSignature) {
-      tokenAppearanceRef.current = { model: safe.tokenModel, colors: safe.tokenColors };
-      rebuildTokens(safe);
-    }
-  }, [activePlayerCount, appearance, rebuildTokens]);
 
   const scheduleMove = (player, tokenIndex, targetProgress, onComplete) => {
     const state = stateRef.current;
@@ -3881,79 +3685,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </svg>
                 </button>
               </div>
-              <div className="mt-4 max-h-80 space-y-4 overflow-y-auto pr-1">
-                <div className="space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Token Style</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {TOKEN_MODEL_OPTIONS.map((option, idx) => {
-                      const selected = appearance.tokenModel === idx;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setAppearance((prev) => ({ ...prev, tokenModel: idx }))}
-                          aria-pressed={selected}
-                          className={`flex flex-col items-start rounded-2xl border p-3 transition text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            selected
-                              ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                              : 'border-white/10 bg-white/5 hover:border-white/20'
-                          }`}
-                        >
-                          <span className="text-sm font-semibold text-gray-100">{option.label}</span>
-                          <span className="mt-1 text-[0.7rem] text-gray-300/80">{option.description}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Token Colors</p>
-                  {Array.from({ length: activePlayerCount }, (_, playerIdx) => {
-                    const family = getTokenFamily(playerIdx);
-                    return (
-                      <div key={`token-color-${playerIdx}`} className="space-y-2 rounded-xl border border-white/10 bg-white/5 p-2">
-                        <div className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                          <span>
-                            Player {playerIdx + 1} · {family.label}
-                          </span>
-                          <span className="text-white/60">{COLOR_NAMES[playerIdx] ?? ''}</span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-2">
-                          {(family.swatches || []).map((swatch, shadeIdx) => {
-                            const selected = (appearance.tokenColors?.[playerIdx] ?? 0) === shadeIdx;
-                            return (
-                              <button
-                                key={`${family.id}-${shadeIdx}`}
-                                type="button"
-                                onClick={() => {
-                                  setAppearance((prev) => {
-                                    const normalized = normalizeAppearance(prev);
-                                    const next = [...normalized.tokenColors];
-                                    next[playerIdx] = shadeIdx;
-                                    return { ...normalized, tokenColors: next };
-                                  });
-                                }}
-                                aria-pressed={selected}
-                                className={`flex items-center justify-center rounded-lg border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                  selected
-                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.25)]'
-                                    : 'border-white/10 bg-black/20 hover:border-white/20'
-                                }`}
-                              >
-                                <span
-                                  className="block h-6 w-6 rounded-full border border-white/30 shadow-inner"
-                                  style={{ backgroundColor: `#${new THREE.Color(swatch).getHexString()}` }}
-                                />
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
+              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
                 {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
@@ -4101,16 +3833,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 }
 
-async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, appearance = DEFAULT_APPEARANCE) {
+async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   const scene = boardGroup;
 
   const abgAssets = await getAbgAssets();
   const boardPalette = abgAssets?.boardPalette ?? { light: null, dark: null };
   const lightBoardMat = cloneBoardMaterial(boardPalette.light, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(boardPalette.dark ?? boardPalette.light, 0xdccfb0);
-  const playerTokenColors = getPlayerTokenColors(appearance, playerCount);
-  const tokenType = getTokenType(appearance);
-  const playerPalettes = playerTokenColors.map((color, idx) => {
+  const playerPalettes = PLAYER_COLORS.map((color, idx) => {
     const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
     return abgTintPalette(src, color);
   });
@@ -4217,14 +3947,40 @@ async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, ap
   addCenterHome(scene);
   addBoardMarkers(scene, cellToWorld);
 
-  const tokens = buildTokens({
-    scene,
-    startPads,
-    playerCount,
-    abgAssets,
-    playerPalettes,
-    playerTokenColors,
-    tokenType
+  const tokens = TOKEN_COLORS.slice(0, playerCount).map((color, playerIdx) => {
+    const palette = playerPalettes[playerIdx] ?? [];
+    return Array.from({ length: 4 }, (_, i) => {
+      const type = TOKEN_TYPE_SEQUENCE[i % TOKEN_TYPE_SEQUENCE.length];
+      const baseProto =
+        abgAssets?.proto?.w?.[type] ||
+        abgAssets?.proto?.b?.[type] ||
+        null;
+      const token = baseProto ? baseProto.clone(true) : makeRook(makeTokenMaterial(color));
+      if (baseProto && palette.length) {
+        abgApplyPalette(token, palette);
+      }
+      const label = createTokenCountLabel();
+      if (label) {
+        token.add(label);
+        token.userData.countLabel = label;
+      }
+      if (!token.userData) token.userData = {};
+      token.userData.tokenColor = colorNumberToHex(color);
+      token.userData.tokenType = type;
+      token.userData.playerIndex = playerIdx;
+      token.userData.tokenIndex = i;
+      token.traverse((node) => {
+        if (!node.userData) node.userData = {};
+        node.userData.tokenGroup = token;
+        node.userData.playerIndex = playerIdx;
+        node.userData.tokenIndex = i;
+      });
+      const homePos = startPads[playerIdx][i].clone();
+      homePos.y = getTokenRailHeight(playerIdx);
+      token.position.copy(homePos);
+      scene.add(token);
+      return token;
+    });
   });
 
   const dice = makeDice();
@@ -4284,10 +4040,6 @@ async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, ap
     homeColumns: homeColumnPositions,
     goalSlots,
     tokens,
-    playerPalettes,
-    playerTokenColors,
-    tokenType,
-    abgAssets,
     dice,
     turnIndicator,
     trackTiles: trackTileMeshes,
