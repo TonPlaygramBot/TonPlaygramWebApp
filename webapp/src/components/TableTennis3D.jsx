@@ -400,6 +400,76 @@ const TOUCH_PRESETS = [
   },
 ];
 
+class Rules {
+  constructor() {
+    this.score = { player: 0, ai: 0 };
+    this.service = { server: "Player", servesSinceSwap: 0 };
+    this.stage = "Warmup"; // Warmup | ServeFlying | Rally | PointOver | GameOver
+    this.rally = { lastHitter: null, lastSideBounce: null, consecutiveBouncesOnSameSide: 0 };
+    this.contact = { touchedNetThisFlight: false };
+    this.letServe = false;
+  }
+  resetRally(){
+    this.rally = { lastHitter: null, lastSideBounce: null, consecutiveBouncesOnSameSide: 0 };
+    this.contact.touchedNetThisFlight = false;
+    this.letServe = false;
+  }
+  isDeuce(){
+    return this.score.player >= 10 && this.score.ai >= 10 && Math.abs(this.score.player - this.score.ai) < 2;
+  }
+  currentServeSpan(){
+    return this.isDeuce() ? 1 : 2;
+  }
+  awardPoint(side){
+    if (this.stage === "GameOver") return;
+    if (this.letServe) {
+      this.letServe = false;
+      this.stage = "ServeFlying";
+      this.resetRally();
+      return;
+    }
+    if (side === "Player") this.score.player += 1; else this.score.ai += 1;
+    const lead = Math.abs(this.score.player - this.score.ai);
+    const maxp = Math.max(this.score.player, this.score.ai);
+    if (maxp >= 11 && lead >= 2) {
+      this.stage = "GameOver";
+      return;
+    }
+    this.service.servesSinceSwap += 1;
+    if (this.service.servesSinceSwap >= this.currentServeSpan()) {
+      this.service.server = this.service.server === "Player" ? "AI" : "Player";
+      this.service.servesSinceSwap = 0;
+    }
+    this.stage = "PointOver";
+  }
+}
+
+const SIMPLE_DIFFICULTY = {
+  Easy:   { react: 2.5, aimErr: 0.28, power: 0.8, spin: 0.5 },
+  Medium: { react: 4.0, aimErr: 0.13, power: 1.0, spin: 0.9 },
+  Hard:   { react: 6.0, aimErr: 0.05, power: 1.2, spin: 1.3 },
+};
+
+const simpleClamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const simpleLerp = (a, b, t) => a + (b - a) * t;
+const simpleRand = (a, b) => Math.random() * (b - a) + a;
+
+function planAIReturn(ballState, difficulty) {
+  const preset = SIMPLE_DIFFICULTY[difficulty] || SIMPLE_DIFFICULTY.Medium;
+  const halfL = 2.74 / 2;
+  const halfW = 1.525 / 2;
+  const aimX = simpleClamp(ballState.pos.x + simpleRand(-0.3, 0.3), -halfW * 0.75, halfW * 0.75);
+  const aimZ = halfL * simpleLerp(0.18, 0.35, Math.random());
+  const target = new THREE.Vector3(aimX, 0.76 + 0.02, aimZ);
+  const dir = target.clone().sub(ballState.pos).normalize();
+  const impulse = dir.multiplyScalar(3.2 * preset.power);
+  impulse.y = 2.4 * preset.power;
+  const sideSpin = simpleRand(-1, 1) * 40 * preset.spin;
+  const topSpin = 50 * preset.spin;
+  ballState.omega.set(0, sideSpin, topSpin);
+  return { impulse, target };
+}
+
 /**
  * TABLE TENNIS 3D — Mobile Portrait (1:1)
  * --------------------------------------
@@ -422,37 +492,27 @@ export default function TableTennis3D({ player, ai }){
 
   const playerLabel = player?.name || 'You';
   const aiLabel = ai?.name || 'AI';
-  const initialServer = useMemo(() => (Math.random() < 0.5 ? 'P' : 'O'), []);
-  const createUiState = (serving = initialServer) => ({
-    pScore: 0,
-    oScore: 0,
-    serving,
-    msg: `${serving === 'P' ? playerLabel : aiLabel} to serve`,
-    gameOver: false,
-    winner: null,
-  });
-
-  const [ui, setUi] = useState(() => createUiState());
+  const initialServer = useMemo(() => (Math.random() < 0.5 ? 'Player' : 'AI'), []);
+  const [score, setScore] = useState({ player: 0, ai: 0 });
+  const [server, setServer] = useState(initialServer);
+  const [stage, setStage] = useState('Warmup');
+  const [message, setMessage] = useState(`${initialServer === 'Player' ? playerLabel : aiLabel} to serve`);
+  const [winner, setWinner] = useState(null);
   const [resetKey, setResetKey] = useState(0);
-  const uiRef = useRef(ui);
-  useEffect(() => { uiRef.current = ui; }, [ui]);
+  const rulesRef = useRef(new Rules());
+  useEffect(() => {
+    rulesRef.current.service.server = initialServer;
+  }, [initialServer]);
 
   const difficulty = useMemo(() => {
-    const tag = (ai?.difficulty || ai?.level || 'pro').toString().toLowerCase();
-    const presets = {
-      easy:   { speed: 3.1, vertical: 2.3, react: 0.055 },
-      medium: { speed: 3.6, vertical: 2.7, react: 0.042 },
-      normal: { speed: 3.6, vertical: 2.7, react: 0.042 },
-      pro:    { speed: 4.1, vertical: 3.1, react: 0.028 },
-      hard:   { speed: 4.1, vertical: 3.1, react: 0.028 },
-      legend: { speed: 4.5, vertical: 3.4, react: 0.022 },
-    };
-    return presets[tag] || presets.pro;
+    const tag = (ai?.difficulty || ai?.level || 'medium').toString().toLowerCase();
+    if (tag.includes('easy')) return 'Easy';
+    if (tag.includes('hard') || tag.includes('pro') || tag.includes('legend')) return 'Hard';
+    return 'Medium';
   }, [ai?.difficulty, ai?.level]);
 
   useEffect(()=>{
     const host = hostRef.current; if (!host) return;
-    const timers = [];
 
     // Procedural, license-free blips (no binary assets) for paddle + table hits
     const ensureAudio = () => {
@@ -537,8 +597,6 @@ export default function TableTennis3D({ player, ai }){
     const minTrailOpacity = trailSettings.minOpacity ?? 0.18;
     const maxTrailOpacity = trailSettings.maxOpacity ?? 0.62;
     const trailSpeedFactor = trailSettings.speedFactor ?? 0.045;
-    const baseShadowFactor = (ballSettings.shadowOpacity ?? 0.22) / 0.22;
-
     // Prevent overscroll on mobile
     const prevOver = document.documentElement.style.overscrollBehavior;
     document.documentElement.style.overscrollBehavior = 'none';
@@ -616,6 +674,8 @@ export default function TableTennis3D({ player, ai }){
       yawDamping: trackingSettings.yawDamping ?? 0.2,
       distDamping: trackingSettings.distDamping ?? 0.12,
     };
+    camera.position.set(0, camRig.height * S, camRig.dist * S);
+    camera.lookAt(new THREE.Vector3(0, T.H * S, 0));
     const applyCam = () => {
       camera.aspect = host.clientWidth / host.clientHeight;
       camera.updateProjectionMatrix();
@@ -978,16 +1038,6 @@ export default function TableTennis3D({ player, ai }){
     player.position.z =  playerBaseZ; player.position.x = 0;
     opp.position.z    = oppBaseZ; opp.position.x    = 0;
 
-    const playerTarget = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
-    player.userData.target = playerTarget;
-
-    const playerPrev = new THREE.Vector3().copy(player.position);
-    const oppPrev = new THREE.Vector3().copy(opp.position);
-    const playerVel = new THREE.Vector3();
-    const oppVel = new THREE.Vector3();
-    const prevBall = new THREE.Vector3();
-    const headWorld = new THREE.Vector3();
-
     // ---------- Ball ----------
     const ballMaterial = new THREE.MeshStandardMaterial({
       color: ballSettings.color ?? 0xfff1cc,
@@ -1039,1014 +1089,284 @@ export default function TableTennis3D({ player, ai }){
     ballTrail.frustumCulled = false;
     tableG.add(ballTrail);
 
-    // ---------- Physics State ----------
-    const Srv = { side: ui.serving };
-    const Sx = {
-      v: new THREE.Vector3(0, 0, 0),
-      w: new THREE.Vector3(0, 0, 0),
-      mass: 0.0027,
-      paddleMass: 0.16,
-      magnusCoeff: physicsSettings.magnusCoeff ?? 0.38,
-      spinDecay: physicsSettings.spinDecay ?? 0.955,
-      gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -13.5, 0),
-      drag: physicsSettings.drag ?? 0.36,
-      tableRest: physicsSettings.tableRest ?? 0.9,
-      tableFriction: physicsSettings.tableFriction ?? 0.2,
-      paddleRest: physicsSettings.paddleRest ?? 1.02,
-      paddleAim: physicsSettings.paddleAim ?? 0.62,
-      paddleLift: physicsSettings.paddleLift ?? 0.2,
-      netRest: physicsSettings.netRest ?? 0.34,
-      forceScale: physicsSettings.forceScale ?? 0.82,
-      spinTransfer: physicsSettings.spinTransfer ?? 0.34,
-      netDrag: physicsSettings.netDrag ?? 0.18,
-      wallRest: physicsSettings.wallRest ?? 0.62,
-      wallFriction: physicsSettings.wallFriction ?? 0.1,
-      floorRest: physicsSettings.floorRest ?? 0.48,
-      floorFriction: physicsSettings.floorFriction ?? 0.18,
-      netKill: physicsSettings.netKill ?? 0.42,
-      state: 'serve',
-      lastTouch: null,
-      bounces: { P: 0, O: 0 },
-      serveProgress: 'awaitServeHit',
-      serveTimer: serveTimers.player,
-      tmpN: new THREE.Vector3(),
-      simPos: new THREE.Vector3(),
-      simVel: new THREE.Vector3(),
-      tmpV0: new THREE.Vector3(),
-      tmpV1: new THREE.Vector3(),
-      tmpV2: new THREE.Vector3(),
-      pendingFault: false,
-    };
-    let playerSwing = null;
+    // ---------- Physics & Rules (ported) ----------
+    const halfL = T.L / 2;
+    const halfW = T.W / 2;
+    const PADDLE_RADIUS = 0.085;
+    const BALL_RADIUS = BALL_R;
+    const WORLD_Y_FLOOR = -0.1;
+    const FIXED_DT = 1 / 120;
+    const MAX_ACCUM_DT = 0.2;
 
-    function resetServe(){
-      Sx.v.set(0,0,0);
-      Sx.w.set(0,0,0);
-      Sx.state='serve';
-      Sx.lastTouch=null;
-      Sx.bounces.P = 0;
-      Sx.bounces.O = 0;
-      Sx.pendingFault = false;
-      Sx.serveProgress = 'awaitServeHit';
-      Sx.serveTimer = Srv.side === 'P' ? serveTimers.player : serveTimers.opponent;
-      const side = Srv.side;
-      if (side==='P'){
-        ball.position.set(player.position.x, TABLE_TOP + 0.12, playerBaseZ - 0.09);
+    const rules = rulesRef.current;
+    rules.service.server = server;
+
+    const ballState = { pos: new THREE.Vector3(0, T.H + 0.3, halfL * 0.35), vel: new THREE.Vector3(), omega: new THREE.Vector3() };
+    const playerState = { pos: new THREE.Vector3(0, T.H + 0.13, halfL * 0.30) };
+    const aiState = { pos: new THREE.Vector3(0, T.H + 0.13, -halfL * 0.40) };
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const tablePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(T.H + 0.12) * S);
+
+    const swipe = { pos: playerState.pos.clone(), t: performance.now() };
+
+    const trailBuf = [];
+    const accRef = { value: 0 };
+    const lastTime = { value: performance.now() };
+
+    const syncHUD = () => {
+      setScore({ ...rules.score });
+      setServer(rules.service.server);
+      setStage(rules.stage);
+      if (rules.stage === 'GameOver') {
+        setWinner(rules.score.player > rules.score.ai ? 'Player' : 'AI');
+        setMessage(`${rules.score.player > rules.score.ai ? playerLabel : aiLabel} wins — tap reset`);
+      } else if (rules.stage === 'ServeFlying') {
+        setMessage(`${rules.service.server === 'Player' ? playerLabel : aiLabel} to serve`);
+        setWinner(null);
       } else {
-        ball.position.set(opp.position.x, TABLE_TOP + 0.12, oppBaseZ + 0.09);
-      }
-      playerTarget.set(player.position.x, player.position.y, player.position.z);
-      ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
-      ballShadow.scale.set(1, 1, 1);
-      for (let i = 0; i < TRAIL_COUNT; i++){
-        const idx = i * 3;
-        trailPositions[idx] = ball.position.x;
-        trailPositions[idx + 1] = ball.position.y;
-        trailPositions[idx + 2] = ball.position.z;
-      }
-      trailGeometry.attributes.position.needsUpdate = true;
-      trailMaterial.opacity = minTrailOpacity;
-      setUi(prev => ({
-        ...prev,
-        msg: `${side === 'P' ? playerLabel : aiLabel} to serve`,
-        gameOver: false,
-        winner: null,
-      }));
-    }
-
-    // ---------- Input: Swipe-to-hit (Battle Royal style) ----------
-    const bounds = {
-      x: T.W/2 - 0.06,
-      zNear: playerBaseZ + 0.08,
-      zFar: 0.06,
-    };
-    const swipeProfile = touchProfile.swipe ?? {};
-    const trackingProfile = touchProfile.tracking ?? {};
-    const targetLerpX = trackingProfile.targetLerp?.x ?? 0.5;
-    const targetLerpZ = trackingProfile.targetLerp?.z ?? 0.4;
-    const el = renderer.domElement;
-    el.style.touchAction = 'none';
-    let usingTouch = false;
-    let touching = false;
-    let sx = 0;
-    let sy = 0;
-    let lx = 0;
-    let ly = 0;
-    let st = 0;
-    const gesture = {
-      mode: 'idle',
-    };
-
-    function clampX(x) { return THREE.MathUtils.clamp(x, -bounds.x, bounds.x); }
-    function clampZ(z) { return THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear); }
-    function screenToTable(clientX, clientY) {
-      const rect = el.getBoundingClientRect();
-      const nx = (clientX - rect.left) / rect.width;
-      const nz = 1 - (clientY - rect.top) / rect.height;
-      const x = clampX((nx - 0.5) * (bounds.x * 2));
-      const z = clampZ(bounds.zFar + nz * (bounds.zNear - bounds.zFar));
-      return { x, z, rect };
-    }
-
-    const MIN_SWIPE_SPEED = swipeProfile.minSpeed ?? 180;
-    const MAX_SWIPE_SPEED = swipeProfile.maxSpeed ?? 1700;
-
-    function swipeToShot(distX, distY, swipeTime, towardsEnemy = true, rect) {
-      const swipeT = Math.max(swipeTime, 0.06);
-      const swipeLength = Math.hypot(distX, distY);
-      const speed = swipeLength / swipeT;
-      const viewportScale = rect ? THREE.MathUtils.clamp(Math.min(rect.width, rect.height) / 720, 0.76, 1.2) : 1;
-      const scaledMin = MIN_SWIPE_SPEED * THREE.MathUtils.lerp(0.9, 1.08, viewportScale - 0.76);
-      const scaledMax = MAX_SWIPE_SPEED * THREE.MathUtils.lerp(0.92, 1.12, viewportScale - 0.76);
-      const clampedSpeed = THREE.MathUtils.clamp(speed * viewportScale, scaledMin, scaledMax);
-      const normalized = (clampedSpeed - scaledMin) / (scaledMax - scaledMin);
-      const forward = towardsEnemy ? -1 : 1;
-      const lateralScale = (swipeProfile.lateralScale ?? 1.65) * THREE.MathUtils.clamp((bounds.x * 2) / T.W, 0.9, 1.12);
-      const liftRange = swipeProfile.liftRange ?? [0.32, 1.08];
-      const forwardRange = swipeProfile.forwardRange ?? [0.88, 1.52];
-      const depthScale = THREE.MathUtils.clamp(T.L / 2.74, 0.86, 1.18);
-      const curveScale = swipeProfile.curveScale ?? 1;
-      const chopScale = swipeProfile.chopScale ?? 1;
-      const lateral = THREE.MathUtils.clamp(distX / Math.max(rect?.width || 1, 1), -lateralScale, lateralScale) * forward;
-      const lift = THREE.MathUtils.mapLinear(normalized, 0, 1, liftRange[0], liftRange[1]);
-      const forwardPower = THREE.MathUtils.mapLinear(normalized, 0, 1, forwardRange[0], forwardRange[1]) * forward * depthScale;
-      const curve = THREE.MathUtils.clamp((distX / Math.max(rect?.width || 240, 180)) * 18 * curveScale, -9, 9);
-      const chop = THREE.MathUtils.clamp(((distY - Math.abs(distX) * 0.35) / Math.max(rect?.height || 360, 260)) * chopScale, -0.6, 0.9);
-      const topspin = THREE.MathUtils.lerp(12, 34, normalized + chop * 0.25);
-      return {
-        lateral,
-        lift,
-        forward: forwardPower,
-        normalized,
-        curve,
-        swipeSpeed: clampedSpeed,
-        chop,
-        topspin,
-      };
-    }
-
-    function shotToSwing(shot) {
-      const courtScale = THREE.MathUtils.clamp(T.L / 2.74, 0.86, 1.2);
-      const dir = new THREE.Vector3(shot.lateral, shot.lift + shot.chop * 0.12, shot.forward * courtScale);
-      const speed = dir.length();
-      const normal = dir.normalize();
-      const sideCurve = shot.curve ?? 0;
-      const topspin = shot.topspin ?? THREE.MathUtils.lerp(12, 30, shot.normalized);
-      const curveAim = normal.clone();
-      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01, -0.32, 0.32);
-      const power = THREE.MathUtils.clamp(shot.normalized * courtScale + Math.abs(shot.chop) * 0.18, 0.12, 1.08);
-      const speedScale = THREE.MathUtils.clamp(courtScale, 0.88, 1.16);
-      return {
-        normal,
-        speed: speed * speedScale,
-        ttl: 0.34,
-        extraSpin: new THREE.Vector3(sideCurve * 0.26, sideCurve * 0.72 - shot.chop * 6, topspin * Math.sign(shot.forward || -1)),
-        friction: 0.2,
-        restitution: 1.08,
-        reach: BALL_R + 0.34,
-        force: Math.min(1.15, power * (1 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 6))) * speedScale,
-        power,
-        aimDirection: curveAim.normalize(),
-        liftBoost: shot.chop > 0 ? shot.chop * 0.3 : 0
-      };
-    }
-
-    function onDown(e) {
-      if (usingTouch && e.pointerType === 'touch') return;
-      resumeAudio();
-      touching = true;
-      const target = screenToTable(e.clientX, e.clientY);
-      playerTarget.x = target.x;
-      playerTarget.z = target.z;
-      sx = lx = e.clientX;
-      sy = ly = e.clientY;
-      st = performance.now();
-      player.userData.swing = -0.35;
-      player.userData.swingLR = 0;
-    }
-    function onMove(e) {
-      if (!touching) return;
-      if (usingTouch && e.pointerType === 'touch') return;
-      lx = e.clientX;
-      ly = e.clientY;
-      const target = screenToTable(e.clientX, e.clientY);
-      playerTarget.x += (target.x - playerTarget.x) * targetLerpX;
-      playerTarget.z += (target.z - playerTarget.z) * targetLerpZ;
-    }
-    function onUp(evt, { fromTouch = false } = {}) {
-      if (!touching) return;
-      if (!fromTouch && usingTouch && evt?.pointerType === 'touch') return;
-      touching = false;
-      const endX = evt?.clientX ?? lx;
-      const endY = evt?.clientY ?? ly;
-      const distX = endX - sx;
-      const distY = sy - endY;
-      if (distY < 14) return;
-      const duration = Math.max((performance.now() - st) / 1000, 0.12);
-      const onPlayerSide = ball.position.z > 0 && Math.abs(ball.position.z - (playerBaseZ - 0.2)) < 1.6;
-      if (onPlayerSide && ball.position.y <= 2.2) {
-        const shot = swipeToShot(distX, distY, duration, true, screenToTable(endX, endY).rect);
-        playerSwing = shotToSwing(shot);
-        player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
-        player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
-      }
-    }
-
-    el.addEventListener('pointerdown', onDown);
-    window.addEventListener('pointermove', onMove, { passive: true });
-    window.addEventListener('pointerup', onUp);
-
-    function onTouchStart(e) {
-      usingTouch = true;
-      const t = e.touches[0];
-      if (!t) return;
-      gesture.mode = 'paddle';
-      onDown({ clientX: t.clientX, clientY: t.clientY });
-    }
-    function onTouchMove(e) {
-      const t = e.touches[0];
-      if (t) onMove({ clientX: t.clientX, clientY: t.clientY });
-    }
-    function onTouchEnd(e) {
-      const t = e.changedTouches[0];
-      if (!t) {
-        usingTouch = false;
-        gesture.mode = 'idle';
-        return;
-      }
-      onUp({ clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }, { fromTouch: true });
-      usingTouch = e.touches.length > 0;
-      if (e.touches.length === 0){
-        gesture.mode = 'idle';
-      }
-    }
-
-    el.addEventListener('touchstart', onTouchStart, { passive: true });
-    el.addEventListener('touchmove', onTouchMove, { passive: true });
-    el.addEventListener('touchend', onTouchEnd, { passive: true });
-    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
-
-    const camPos = new THREE.Vector3();
-    const camFollow = new THREE.Vector3(player.position.x, 0, player.position.z);
-    const followTarget = new THREE.Vector3();
-    const lookTarget = new THREE.Vector3();
-    const focusVector = new THREE.Vector3();
-    const backVec = new THREE.Vector3();
-    function updateCamera(immediate = false, lockCenter = false){
-      if (lockCenter){
-        followTarget.set(0, 0, 0);
-      } else {
-        const lateral = THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x);
-        const depth = THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear);
-        const rallyBlend = THREE.MathUtils.clamp(
-          camRig.rallyBlend + Sx.v.length() * 0.18 + (Sx.state === 'rally' ? 0.22 : 0.06),
-          0.35,
-          0.95
-        );
-        focusVector.set(
-          THREE.MathUtils.clamp(ball.position.x, -bounds.x, bounds.x),
-          0,
-          THREE.MathUtils.clamp(ball.position.z, bounds.zFar, bounds.zNear)
-        );
-        const clampedBallZ = Math.min(focusVector.z, playerBaseZ - 0.02);
-        const paddleLeadZ = THREE.MathUtils.lerp(depth, playerBaseZ, 0.42);
-        const ballLeadZ = THREE.MathUtils.lerp(bounds.zNear, clampedBallZ, 0.85);
-        followTarget.set(
-          THREE.MathUtils.lerp(lateral * 1.06, focusVector.x, rallyBlend),
-          0,
-          THREE.MathUtils.lerp(paddleLeadZ, ballLeadZ, rallyBlend)
-        );
-      }
-
-      if (immediate){
-        camFollow.copy(followTarget);
-        camRig.curDist = camRig.dist;
-        camRig.curHeight = camRig.height;
-      } else {
-        camFollow.lerp(followTarget, camRig.followLerp);
-      }
-
-      const lateralInfluence = THREE.MathUtils.clamp(camFollow.x / (bounds.x * 1.12), -1, 1);
-      const yawTarget = camRig.yawBase + camRig.yawUser + camRig.yawRange * lateralInfluence;
-      if (immediate){
-        camRig.curYaw = yawTarget;
-      } else {
-        camRig.curYaw += (yawTarget - camRig.curYaw) * camRig.yawDamping;
-      }
-
-      const heightBoost = Math.max(0, (ball.position.y - TABLE_TOP) * 0.32);
-      const distTarget = THREE.MathUtils.clamp(
-        camRig.dist - Math.abs(lateralInfluence) * 0.18 - heightBoost * 0.18,
-        camRig.minDist,
-        camRig.dist + 0.6
-      );
-      const heightTarget = THREE.MathUtils.clamp(
-        camRig.height - Math.abs(lateralInfluence) * 0.04 + heightBoost * 0.38 + camRig.pitchUser * 0.9,
-        camRig.minHeight,
-        camRig.height + 0.9
-      );
-      if (immediate){
-        camRig.curDist = distTarget;
-        camRig.curHeight = heightTarget;
-      } else {
-        camRig.curDist += (distTarget - camRig.curDist) * camRig.distDamping;
-        camRig.curHeight += (heightTarget - camRig.curHeight) * camRig.distDamping;
-      }
-
-      lookTarget.set(
-        THREE.MathUtils.lerp(camFollow.x, ball.position.x, 0.38) * S,
-        Math.max((T.H - 0.04) * S, (ball.position.y + 0.06) * S),
-        (camFollow.z - camRig.forwardBias) * S
-      );
-
-      backVec.set(Math.sin(camRig.curYaw), 0, Math.cos(camRig.curYaw)).multiplyScalar(camRig.curDist);
-      camPos.copy(lookTarget).add(backVec);
-      camPos.y = camRig.curHeight + ((camRig.pitch + camRig.pitchUser) * 5.1);
-
-      camera.position.copy(camPos);
-      camera.lookAt(lookTarget);
-    }
-
-    // ensure table fits view similar to Air Hockey
-    const corners = [
-      new THREE.Vector3(-T.W/2 * S, T.H * S, -T.L/2 * S),
-      new THREE.Vector3(T.W/2 * S, T.H * S, -T.L/2 * S),
-      new THREE.Vector3(-T.W/2 * S, T.H * S, T.L/2 * S),
-      new THREE.Vector3(T.W/2 * S, T.H * S, T.L/2 * S)
-    ];
-    const toNDC = v => v.clone().project(camera);
-    const ensureFit = () => {
-      const savedFollow = camFollow.clone();
-      for (let i = 0; i < 20; i++) {
-        updateCamera(true, true);
-        const over = corners.some(c => {
-          const p = toNDC(c);
-          return Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
-        });
-        if (!over) break;
-        camRig.dist += 0.18;
-        camRig.height += 0.06;
-      }
-      camRig.dist = Math.max(camRig.minDist, camRig.dist - 0.4);
-      camRig.height = Math.max(camRig.minHeight, camRig.height - 0.18);
-      camRig.curDist = camRig.dist;
-      camRig.curHeight = camRig.height;
-      camRig.curYaw = camRig.yawBase;
-      camFollow.copy(savedFollow);
-      updateCamera(true);
-    };
-
-    // ---------- AI ----------
-    const aiSpeedBase = difficulty.speed * (aiSettings.speed ?? 1);
-    const aiVerticalBase = difficulty.vertical * (aiSettings.vertical ?? 1);
-    const aiReactBase = difficulty.react * (aiSettings.react ?? 1);
-    const AI = {
-      baseSpeed: aiSpeedBase,
-      baseVertical: aiVerticalBase,
-      baseReact: aiReactBase,
-      speed: aiSpeedBase,
-      vertical: aiVerticalBase,
-      react: aiReactBase,
-      targetX: 0,
-      targetZ: oppBaseZ,
-      timer: 0,
-      prediction: null,
-    };
-
-    function solveShot(from, to, gravityY, flightTime){
-      const t = Math.max(0.18, flightTime);
-      const dx = to.x - from.x;
-      const dz = to.z - from.z;
-      const dy = to.y - from.y;
-      const vx = dx / t;
-      const vz = dz / t;
-      const vy = (dy - 0.5 * gravityY * t * t) / t;
-      return new THREE.Vector3(vx, vy, vz);
-    }
-
-    function ensureNetClear(from, velocity, gravityY, netTop, margin = BALL_R){
-      const vz = velocity.z;
-      const dzToNet = -from.z;
-      if (Math.abs(vz) < 1e-5) return velocity;
-      const tNet = dzToNet / vz;
-      if (tNet <= 0) return velocity;
-      const yNet = from.y + velocity.y * tNet + 0.5 * gravityY * tNet * tNet;
-      const need = netTop + margin;
-      if (yNet < need){
-        velocity.y += (need - yNet) / Math.max(0.15, tNet);
-      }
-      return velocity;
-    }
-
-    function predictBallForSide(targetZ, direction){
-      Sx.simPos.copy(ball.position);
-      Sx.simVel.copy(Sx.v);
-      let time = 0;
-      const step = 1/240;
-      for (let i = 0; i < 960; i++){
-        time += step;
-        Sx.simVel.addScaledVector(Sx.gravity, step);
-        const simSpeed = Sx.simVel.length();
-        if (simSpeed > 1e-4){
-          const drag = 0.5 * Sx.drag * BALL_R * simSpeed * step;
-          Sx.simVel.addScaledVector(Sx.simVel, -drag);
-        }
-        Sx.simPos.addScaledVector(Sx.simVel, step);
-
-        if (Sx.simPos.y <= TABLE_TOP && Sx.simVel.y < 0){
-          Sx.simPos.y = TABLE_TOP;
-          Sx.simVel.y = -Sx.simVel.y * Sx.tableRest;
-          const damp = 1 - Sx.tableFriction * 0.5;
-          Sx.simVel.x *= damp;
-          Sx.simVel.z *= damp;
-        }
-
-        if (Math.abs(Sx.simPos.z) < 0.01 && Sx.simPos.y < NET_TOP){
-          Sx.simVel.z *= -Sx.netRest;
-          Sx.simVel.x *= 0.94;
-          Sx.simVel.y *= 0.7;
-        }
-
-        if ((direction > 0 && Sx.simPos.z >= targetZ) || (direction < 0 && Sx.simPos.z <= targetZ)){
-          return { pos: Sx.simPos.clone(), vel: Sx.simVel.clone(), time };
-        }
-
-        if (Sx.simPos.y < 0.01) break;
-      }
-      return null;
-    }
-
-    function stepAI(dt){
-      const scoreboard = uiRef.current;
-      const diff = scoreboard.oScore - scoreboard.pScore;
-      const pressure = THREE.MathUtils.clamp(diff / 6, -0.8, 0.8);
-      const targetSpeed = AI.baseSpeed + pressure * 1.1;
-      const targetVertical = AI.baseVertical + pressure * 0.7;
-      const targetReact = AI.baseReact - pressure * 0.012;
-      AI.speed += (targetSpeed - AI.speed) * 0.18;
-      AI.vertical += (targetVertical - AI.vertical) * 0.18;
-      AI.react += (targetReact - AI.react) * 0.22;
-      AI.react = THREE.MathUtils.clamp(AI.react, 0.018, 0.08);
-
-      AI.timer -= dt;
-      const baseZ = oppBaseZ - 0.015;
-      if (AI.timer <= 0){
-        AI.timer = AI.react + (Sx.state === 'serve' ? 0.015 : 0);
-        AI.prediction = null;
-        const movingTowardAI = Sx.v.z < -0.02;
-        if (movingTowardAI && (Sx.state === 'rally' || (Sx.state === 'serve' && Srv.side === 'P' && Sx.serveProgress !== 'awaitServeHit'))){
-          AI.prediction = predictBallForSide(baseZ + 0.04, -1);
-        }
-        if (AI.prediction){
-          const anticipation = THREE.MathUtils.clamp(1 - AI.prediction.time * 0.55, 0, 1);
-          const safeX = THREE.MathUtils.clamp(
-            AI.prediction.pos.x + AI.prediction.vel.x * 0.12,
-            -T.W/2 + 0.07,
-            T.W/2 - 0.07
-          );
-          const centerBlend = THREE.MathUtils.lerp(safeX, 0, 0.18 + (1 - anticipation) * 0.2);
-          AI.targetX = THREE.MathUtils.clamp(
-            centerBlend + (Math.random() - 0.5) * (0.09 + anticipation * 0.06),
-            -bounds.x,
-            bounds.x
-          );
-          const reach = THREE.MathUtils.clamp((AI.prediction.pos.y - TABLE_TOP) * 0.3, -0.16, 0.2);
-          const rallyBias = anticipation * 0.05;
-          AI.targetZ = THREE.MathUtils.clamp(baseZ + reach - rallyBias, baseZ - 0.24, baseZ + 0.22);
-        } else {
-          const calm = 0.12 + (Sx.state === 'serve' ? 0.18 : 0.08);
-          AI.targetX = THREE.MathUtils.lerp(AI.targetX, 0, calm);
-          AI.targetZ = THREE.MathUtils.lerp(AI.targetZ, baseZ - 0.05, calm * 0.8);
-        }
-      }
-
-      opp.position.x += THREE.MathUtils.clamp(AI.targetX - opp.position.x, -AI.speed * dt, AI.speed * dt);
-      opp.position.z += THREE.MathUtils.clamp(AI.targetZ - opp.position.z, -AI.vertical * dt, AI.vertical * dt);
-
-      if (!AI.prediction && Sx.v.z > 0.06){
-        opp.position.x = THREE.MathUtils.lerp(opp.position.x, 0, 0.16);
-        opp.position.z = THREE.MathUtils.lerp(opp.position.z, baseZ - 0.04, 0.16);
-      }
-    }
-
-    // ---------- Collisions ----------
-    const resolveSurfaceBounce = (normal, restitution, friction, spinElasticity = 0.78) => {
-      // Combine linear and rotational velocity at the contact patch so spin affects bounce
-      const contactVel = Sx.tmpV0.copy(Sx.v);
-      const spinVel = Sx.tmpV2.copy(Sx.w).cross(normal).multiplyScalar(BALL_R);
-      contactVel.add(spinVel);
-
-      const approachSpeed = contactVel.dot(normal);
-      if (approachSpeed >= 0) return false;
-
-      const speedFactor = THREE.MathUtils.clamp(-approachSpeed * 0.08, 0, 0.18);
-      const cor = THREE.MathUtils.clamp(restitution + speedFactor, 0.72, 1.1);
-      const normalImpulse = -(1 + cor) * approachSpeed;
-
-      // Tangential response with Coulomb friction and spin feedback
-      const tangent = Sx.tmpV1.copy(contactVel).addScaledVector(normal, -approachSpeed);
-      const tangMag = tangent.length();
-      let frictionImpulse = 0;
-      if (tangMag > 1e-6) {
-        frictionImpulse = Math.min(tangMag, friction * normalImpulse);
-        tangent.multiplyScalar(frictionImpulse / tangMag);
-      } else {
-        tangent.set(0, 0, 0);
-      }
-
-      Sx.v.addScaledVector(normal, normalImpulse).addScaledVector(tangent, -1);
-
-      if (frictionImpulse > 0) {
-        const spinImpulse = Sx.tmpV2.copy(normal).cross(tangent).multiplyScalar(1 / BALL_R);
-        Sx.w.add(spinImpulse);
-      }
-      const spinBrake = 1 - THREE.MathUtils.clamp(-approachSpeed * 0.045, 0, 0.28);
-      Sx.w.multiplyScalar(spinElasticity * spinBrake);
-      return true;
-    };
-
-    const queueFault = (winner, delay = 260) => {
-      if (Sx.pendingFault || Sx.state === 'dead') return;
-      Sx.pendingFault = true;
-      Sx.state = 'fault';
-      timers.push(setTimeout(() => pointTo(winner), delay));
-    };
-
-    function bounceTable(prev){
-      if (Sx.state === 'dead') return false;
-      if (prev.y > TABLE_TOP && ball.position.y <= TABLE_TOP){
-        const x = ball.position.x;
-        const z = ball.position.z;
-        const inBounds = Math.abs(x) <= T.W/2 + BALL_R && Math.abs(z) <= T.L/2 + BALL_R;
-        if (!inBounds){
-          const side = z >= 0 ? 'P' : 'O';
-          queueFault(side === 'P' ? 'O' : 'P', 200);
-          return true;
-        }
-
-        const n = Sx.tmpN.set(0, 1, 0);
-        resolveSurfaceBounce(n, Sx.tableRest, Sx.tableFriction, 0.86);
-        const spinSlip = Sx.tmpV1.copy(Sx.w).cross(n).multiplyScalar(BALL_R * 0.06);
-        Sx.v.add(spinSlip);
-        Sx.w.multiplyScalar(0.9);
-        ball.position.y = TABLE_TOP;
-        playSfx('bounce', 0.65 + Math.min(Math.abs(Sx.v.y), 1.4) * 0.15, THREE.MathUtils.clamp(0.9 + Math.abs(Sx.v.z) * 0.18, 0.86, 1.25));
-
-        const side = z >= 0 ? 'P' : 'O';
-        const other = side === 'P' ? 'O' : 'P';
-        Sx.bounces[side] = (Sx.bounces[side] || 0) + 1;
-
-        if (Sx.state === 'serve'){
-          if (Sx.serveProgress === 'awaitServerBounce'){
-            if (side === Srv.side){
-              Sx.serveProgress = 'awaitReceiverBounce';
-            } else {
-              queueFault(other, 160);
-              return true;
-            }
-          } else if (Sx.serveProgress === 'awaitReceiverBounce'){
-            if (side !== Srv.side){
-              Sx.state = 'rally';
-              Sx.serveProgress = 'live';
-              Sx.bounces[other] = 0;
-            } else {
-              queueFault(other, 160);
-              return true;
-            }
-          }
-        } else if (Sx.state === 'rally'){
-          if (Sx.lastTouch === side){
-            queueFault(other, 160);
-            return true;
-          } else {
-            Sx.bounces[other] = 0;
-          }
-        }
-      }
-      return false;
-    }
-
-    function bounceArenaSurfaces(){
-      let collided = false;
-      if (ball.position.y <= arenaBounds.floorY + BALL_R){
-        ball.position.y = arenaBounds.floorY + BALL_R;
-        resolveSurfaceBounce(Sx.tmpN.set(0, 1, 0), Sx.floorRest, Sx.floorFriction, 0.6);
-        Sx.v.multiplyScalar(0.98);
-        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
-        collided = true;
-      }
-
-      if (Math.abs(ball.position.x) >= arenaBounds.halfX - BALL_R * 0.5){
-        const sign = ball.position.x >= 0 ? 1 : -1;
-        ball.position.x = sign * (arenaBounds.halfX - BALL_R * 0.5);
-        resolveSurfaceBounce(Sx.tmpN.set(sign, 0, 0), Sx.wallRest, Sx.wallFriction, 0.76);
-        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
-        collided = true;
-      }
-
-      if (Math.abs(ball.position.z) >= arenaBounds.halfZ - BALL_R * 0.5){
-        const sign = ball.position.z >= 0 ? 1 : -1;
-        ball.position.z = sign * (arenaBounds.halfZ - BALL_R * 0.5);
-        resolveSurfaceBounce(Sx.tmpN.set(0, 0, sign), Sx.wallRest, Sx.wallFriction, 0.76);
-        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
-        collided = true;
-      }
-      return collided;
-    }
-
-    function hitPaddle(paddle, who, paddleVel){
-      if (Sx.state === 'dead' || Sx.pendingFault || Sx.state === 'fault') return false;
-      if (Sx.state === 'serve' && who !== Srv.side && Sx.serveProgress !== 'live') return false;
-      const { headAnchor, headRadius = (0.092 * PADDLE_SCALE) } = paddle.userData || {};
-      if (!headAnchor) return false;
-      headAnchor.getWorldPosition(headWorld);
-      headWorld.divideScalar(S);
-      const worldHeadX = headWorld.x;
-      const worldHeadY = headWorld.y;
-      const worldHeadZ = headWorld.z;
-      const dx = ball.position.x - worldHeadX;
-      const dy = ball.position.y - worldHeadY;
-      const dz = ball.position.z - worldHeadZ;
-      const detection = (headRadius + BALL_R) * 1.35;
-      if ((dx * dx + dy * dy + dz * dz) < detection * detection){
-        const attackSign = who === 'P' ? -1 : 1;
-        const n = Sx.tmpN.set(dx, dy, dz);
-        if (n.lengthSq() < 1e-6) n.set(0, 1, attackSign * 0.1);
-        n.normalize();
-
-        const contact = new THREE.Vector3(
-          worldHeadX + n.x * (headRadius + BALL_R * 0.12),
-          Math.max(worldHeadY + n.y * (headRadius + BALL_R * 0.12), T.H + BALL_R),
-          worldHeadZ + n.z * (headRadius + BALL_R * 0.12)
-        );
-        ball.position.copy(contact);
-
-        const relVel = Sx.tmpV0.copy(Sx.v);
-        if (paddleVel) relVel.sub(paddleVel);
-        const closing = relVel.dot(n);
-        if (closing >= 0) return false;
-
-        const invBall = 1 / Sx.mass;
-        const invPaddle = 1 / Sx.paddleMass;
-        const j = -(1 + Sx.paddleRest) * closing / (invBall + invPaddle);
-        const impulse = Sx.tmpV1.copy(n).multiplyScalar(j * invBall);
-        Sx.v.add(impulse);
-
-        // frictional component to add tangential velocity and spin
-        const tangent = relVel.addScaledVector(n, -closing);
-        const tanMag = tangent.length();
-        if (tanMag > 1e-5){
-          tangent.multiplyScalar(1 / tanMag);
-          const maxSlip = Math.abs(j) * 0.35;
-          const slipImpulse = Math.min(maxSlip, tanMag);
-          const tangentBoost = tangent.multiplyScalar(-slipImpulse * invBall);
-          Sx.v.add(tangentBoost);
-          const spinDir = Sx.tmpV0.copy(tangent).cross(n).normalize();
-          Sx.w.addScaledVector(spinDir, slipImpulse * 18 * (Sx.spinTransfer ?? 1));
-        }
-
-        // encourage purposeful shots while preserving physical impulse
-        const paddleActor = who === 'P' ? player : opp;
-        const aimBias = THREE.MathUtils.clamp(
-          paddleActor.position.x * Sx.paddleAim,
-          -T.W / 2 + 0.12,
-          T.W / 2 - 0.12
-        );
-        Sx.v.x = THREE.MathUtils.clamp(Sx.v.x + aimBias * 0.6, -4.2, 4.2);
-        const liftBonus = (paddleVel?.y || 0) * 0.18;
-        Sx.v.y = Math.max(Sx.v.y, Sx.paddleLift + Math.abs(closing) * 1.1 + liftBonus);
-        const forward = Math.max(0.9, Math.abs(Sx.v.z));
-        Sx.v.z = attackSign * THREE.MathUtils.clamp(forward, 0.9, 4.8);
-
-        if (who === 'P' && playerSwing){
-          const swing = playerSwing;
-          const aim = swing.aimDirection?.clone() || swing.normal.clone();
-          const power = THREE.MathUtils.clamp(swing.power ?? swing.force ?? 0.6, 0.15, 1.2);
-          const speed = THREE.MathUtils.lerp(3.2, 6.6, power) * Sx.forceScale;
-          Sx.v.copy(aim.multiplyScalar(speed));
-          Sx.v.y = Math.max(Sx.v.y, 1.35 + (swing.liftBoost || 0));
-          if (swing.extraSpin){
-            Sx.w.addScaledVector(swing.extraSpin, 0.08 * (Sx.spinTransfer ?? 1));
-          }
-          playerSwing = null;
-        }
-        const brush = Sx.tmpV0.set(paddleVel?.x || 0, paddleVel?.y || 0, paddleVel?.z || 0).cross(n).multiplyScalar(Sx.spinTransfer * 6.5);
-        Sx.w.add(brush);
-        ensureNetClear(contact, Sx.v, Sx.gravity.y, NET_TOP, BALL_R * 0.9);
-        playSfx('paddle', 0.78 + Math.min(Math.abs(closing), 3) * 0.08, THREE.MathUtils.clamp(1 + closing * -0.08, 0.82, 1.35));
-
-        if (Sx.state === 'serve' && who === Srv.side && Sx.serveProgress === 'awaitServeHit'){
-          Sx.serveProgress = 'awaitServerBounce';
-          Sx.lastTouch = who;
-        } else {
-          Sx.state = 'rally';
-          Sx.lastTouch = who;
-          Sx.bounces.P = 0;
-          Sx.bounces.O = 0;
-        }
-        return true;
-      }
-      return false;
-    }
-
-    function hitNet(prev){
-      if (Sx.pendingFault) return;
-      const prevZ = prev.z;
-      const currZ = ball.position.z;
-      const crossed = (prevZ > 0 && currZ <= 0) || (prevZ < 0 && currZ >= 0);
-      if (!crossed) return;
-      const denom = currZ - prevZ || 1e-6;
-      const t = THREE.MathUtils.clamp((0 - prevZ) / denom, 0, 1);
-      const yAtNet = THREE.MathUtils.lerp(prev.y, ball.position.y, t);
-      const xAtNet = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
-      if (Math.abs(xAtNet) <= T.W / 2 + BALL_R * 0.5 && yAtNet < NET_TOP + BALL_R * 0.4){
-        const push = BALL_R * 0.6;
-        const sign = prevZ > 0 ? 1 : -1;
-        ball.position.z = sign * push;
-        ball.position.x = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
-        ball.position.y = Math.max(yAtNet, TABLE_TOP);
-        const n = Sx.tmpN.set(0, 0, sign);
-        resolveSurfaceBounce(n, Sx.netRest * 0.9, 0.52, 0.6);
-        Sx.v.multiplyScalar(1 - Sx.netDrag * 1.1);
-        Sx.v.y = Math.max(Sx.v.y - Sx.netKill * 1.2, -Math.abs(Sx.v.y) * 0.65);
-        Sx.w.multiplyScalar(0.35);
-        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 120);
-      }
-    }
-
-    // ---------- Scoring & Rules ----------
-    function pointTo(winner){
-      if (Sx.state === 'dead') return;
-      const state = uiRef.current;
-      const newP = state.pScore + (winner === 'P' ? 1 : 0);
-      const newO = state.oScore + (winner === 'O' ? 1 : 0);
-      const total = newP + newO;
-      const deuce = newP >= 10 && newO >= 10;
-      const shouldSwap = deuce ? true : (total % 2 === 0);
-      const currentServer = state.serving;
-      const nextServing = shouldSwap ? (currentServer === 'P' ? 'O' : 'P') : currentServer;
-      const gameOver = (newP >= 11 || newO >= 11) && Math.abs(newP - newO) >= 2;
-      const leader = newP === newO ? null : (newP > newO ? 'P' : 'O');
-      let statusMsg = 'Swipe up to serve and hit';
-      if (gameOver){
-        const winnerLabel = winner === 'P' ? playerLabel : aiLabel;
-        statusMsg = `${winnerLabel} wins — Tap Reset`;
-      } else if (deuce && Math.abs(newP - newO) === 1){
-        const edgeLabel = leader === 'P' ? playerLabel : aiLabel;
-        statusMsg = `${edgeLabel} has game point`;
-      }
-
-      setUi({
-        pScore: newP,
-        oScore: newO,
-        serving: nextServing,
-        msg: statusMsg,
-        gameOver,
-        winner: gameOver ? winner : null,
-      });
-
-      Sx.state = 'dead';
-      Sx.v.set(0,0,0);
-      Sx.w.set(0,0,0);
-      Sx.pendingFault = false;
-      Sx.lastTouch = null;
-      Sx.bounces.P = 0;
-      Sx.bounces.O = 0;
-      Srv.side = nextServing;
-
-      timers.forEach(clearTimeout);
-      timers.length = 0;
-
-      if (!gameOver){
-        timers.push(setTimeout(()=>{
-          if (uiRef.current.gameOver) return;
-          resetServe();
-        }, 520));
-      }
-    }
-
-    function checkFaults(){
-      if (Sx.state === 'dead' || Sx.pendingFault) return true;
-      const x = ball.position.x;
-      const z = ball.position.z;
-      const y = ball.position.y;
-      if (y < TABLE_TOP - BALL_R * 0.6){
-        if (Math.abs(x) > T.W/2 + BALL_R || Math.abs(z) > T.L/2 + BALL_R){
-          const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
-          queueFault(winner, 200);
-          return true;
-        }
-        if (y <= arenaBounds.floorY + BALL_R * 1.1){
-          const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
-          queueFault(winner, 180);
-          return true;
-        }
-      }
-      if (Math.abs(z) < BALL_R * 1.2 && y < TABLE_TOP + BALL_R * 0.1){
-        const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
-        queueFault(winner, 120);
-        return true;
-      }
-      if (Sx.state === 'serve' && Sx.serveProgress === 'awaitReceiverBounce'){
-        const receiver = Srv.side === 'P' ? 'O' : 'P';
-        const receiverSign = receiver === 'P' ? 1 : -1;
-        if (z * receiverSign > T.L/2 + BALL_R){
-          queueFault(receiver, 200);
-          return true;
-        }
-      }
-      return false;
-    }
-
-    // ---------- Loop ----------
-    const FIXED_STEP = 1 / 120;
-    let accumulator = 0;
-    let lastTime = performance.now();
-
-    const adjustPaddleYaw = (paddle, velocity) => {
-      const { visualWrapper, baseYaw, orientationSign = 1, wrist, baseTilt = 0, baseRoll = 0 } = paddle.userData || {};
-      if (!visualWrapper || !Number.isFinite(baseYaw)) return;
-
-      const dx = ball.position.x - paddle.position.x;
-      const dz = ball.position.z - paddle.position.z;
-      const forwardX = Math.sin(baseYaw);
-      const forwardZ = Math.cos(baseYaw);
-      const ahead = forwardX * dx + forwardZ * dz > 0.01;
-
-      const rightX = forwardZ;
-      const rightZ = -forwardX;
-      const velLateral = velocity.x * rightX + velocity.z * rightZ;
-      const cross = forwardX * dz - forwardZ * dx;
-
-      const swingBackhand = Math.max(0, -velLateral * orientationSign);
-      const swingForehand = Math.max(0, velLateral * orientationSign);
-      const backhandAim = ahead ? Math.max(0, -cross * orientationSign) : 0;
-
-      const offsetLeft = THREE.MathUtils.clamp(backhandAim * 0.7 + swingBackhand * 0.18, 0, 0.92);
-      const offsetRight = Math.min(swingForehand * 0.12, 0.35);
-
-      const leftRange = orientationSign === 1 ? 0.5 : 0.95;
-      const rightRange = orientationSign === 1 ? 0.95 : 0.5;
-      const targetYaw = THREE.MathUtils.clamp(
-        baseYaw + orientationSign * offsetLeft - orientationSign * offsetRight,
-        baseYaw - leftRange,
-        baseYaw + rightRange
-      );
-
-      const damping = orientationSign === 1 ? 0.22 : 0.18;
-      visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, damping);
-
-      if (wrist){
-        const heightFactor = THREE.MathUtils.clamp((ball.position.y - TABLE_TOP) * 0.85, -0.4, 0.52);
-        const tiltTarget = baseTilt + heightFactor + (velocity.z || 0) * -0.02 * orientationSign;
-        const rollTarget = baseRoll + (velocity.x || 0) * 0.04;
-        wrist.rotation.x += (tiltTarget - wrist.rotation.x) * 0.22;
-        wrist.rotation.z += (rollTarget - wrist.rotation.z) * 0.24;
+        setMessage('Swipe up to serve and hit');
+        setWinner(null);
       }
     };
 
-    function integrate(dt){
-      if (Sx.state === 'dead') return;
-      prevBall.copy(ball.position);
-      Sx.v.y += Sx.gravity.y * dt;
-      const speed = Sx.v.length();
-      if (speed > 1e-4){
-        const drag = Sx.drag * speed * speed * dt * 0.14;
-        Sx.v.addScaledVector(Sx.v, -drag / (1 + Sx.mass));
-      }
-      const magnus = Sx.tmpV1.copy(Sx.w).cross(Sx.v).multiplyScalar(Sx.magnusCoeff);
-      Sx.v.addScaledVector(magnus, dt);
-      const spinDamp = Math.pow(Sx.spinDecay, dt * 60);
-      Sx.w.multiplyScalar(spinDamp);
-      const maxSpeed = 18;
-      if (Sx.v.length() > maxSpeed){
-        Sx.v.setLength(maxSpeed);
-      }
-      const maxSpin = 140;
-      if (Sx.w.length() > maxSpin){
-        Sx.w.setLength(maxSpin);
-      }
-      ball.position.addScaledVector(Sx.v, dt);
-
-      const scored = bounceTable(prevBall);
-      if (!scored){
-        hitNet(prevBall);
-        bounceArenaSurfaces();
-        hitPaddle(player, 'P', playerVel);
-        hitPaddle(opp, 'O', oppVel);
-        checkFaults();
-      }
-    }
-
-    function step(){
-      const now = performance.now();
-      const frameDt = Math.min(0.05, (now - lastTime) / 1000 || 0);
-      lastTime = now;
-      accumulator = Math.min(accumulator + frameDt, 0.25);
-
-      // Camera follow
-      updateCamera();
-
-      // AI
-      stepAI(frameDt);
-
-      if (!ui.gameOver){
-        tableG.updateMatrixWorld(true);
-        if (player.userData?.target){
-          const lerpFactor = 1 - Math.exp(-frameDt * 20);
-          player.position.lerp(player.userData.target, lerpFactor);
-          player.position.x = THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x);
-          player.position.z = THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear);
-        }
-        const invDt = frameDt > 0 ? 1 / frameDt : 0;
-        playerVel.copy(player.position).sub(playerPrev).multiplyScalar(invDt);
-        oppVel.copy(opp.position).sub(oppPrev).multiplyScalar(invDt);
-        playerPrev.copy(player.position);
-        oppPrev.copy(opp.position);
-
-        adjustPaddleYaw(player, playerVel);
-        adjustPaddleYaw(opp, oppVel);
-
-        if (playerSwing){
-          playerSwing.ttl -= frameDt;
-          if (playerSwing.ttl <= 0) playerSwing = null;
-        }
-
-        if (Sx.state !== 'dead'){
-          if (Sx.state === 'serve'){
-            const server = Srv.side === 'P' ? player : opp;
-            const serverVel = Srv.side === 'P' ? playerVel : oppVel;
-            const targetZ = server.position.z + (Srv.side === 'P' ? -0.14 : 0.14);
-            ball.position.x = THREE.MathUtils.lerp(ball.position.x, server.position.x, 0.25);
-            ball.position.z = THREE.MathUtils.lerp(ball.position.z, targetZ, 0.22);
-            Sx.serveTimer -= frameDt;
-            if (Sx.serveProgress === 'awaitServeHit' && Sx.serveTimer <= 0){
-              const dir = Srv.side === 'P' ? -1 : 1;
-              const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.4, -0.78, 0.78);
-              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.65, 1.08);
-              Sx.v.set(aimX * serveScale * 0.95, Math.max(1.8, 2.6 * serveScale), 1.46 * dir * serveScale);
-              Sx.w.set(0, 0, 0);
-              Sx.serveProgress = 'awaitServerBounce';
-              Sx.lastTouch = Srv.side;
-            }
-          }
-        }
-      }
-
-      while (accumulator >= FIXED_STEP){
-        integrate(FIXED_STEP);
-        accumulator -= FIXED_STEP;
-      }
-
-      ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
-      const heightAbove = Math.max(0, ball.position.y - TABLE_TOP);
-      const sh = THREE.MathUtils.clamp(1 - heightAbove * 3.8, 0.3, 1.05);
-      ballShadow.scale.set(sh, sh, 1);
-      const shadowOpacity = THREE.MathUtils.clamp(0.92 - heightAbove * 5.2, 0.24, 0.92);
-      ballShadow.material.opacity = THREE.MathUtils.clamp(shadowOpacity * baseShadowFactor, 0, 1);
-      for (let i = TRAIL_COUNT - 1; i > 0; i--){
+    const updateTrail = () => {
+      for (let i = TRAIL_COUNT - 1; i > 0; i -= 1) {
         const src = (i - 1) * 3;
         const dst = i * 3;
         trailPositions[dst] = trailPositions[src];
         trailPositions[dst + 1] = trailPositions[src + 1];
         trailPositions[dst + 2] = trailPositions[src + 2];
       }
-      trailPositions[0] = ball.position.x;
-      trailPositions[1] = ball.position.y;
-      trailPositions[2] = ball.position.z;
+      trailPositions[0] = ballState.pos.x;
+      trailPositions[1] = ballState.pos.y;
+      trailPositions[2] = ballState.pos.z;
       trailGeometry.attributes.position.needsUpdate = true;
-      const velocityMag = Sx.v.length();
+      const velocityMag = ballState.vel.length();
       trailMaterial.opacity = THREE.MathUtils.clamp(
         minTrailOpacity + velocityMag * trailSpeedFactor,
         minTrailOpacity,
-        maxTrailOpacity
+        maxTrailOpacity,
       );
+    };
 
+    const applyAirDrag = (v, dt) => { v.multiplyScalar(1 / (1 + 0.15 * dt)); };
+    const applyMagnus = (v, omega, dt) => { const c = omega.clone().cross(v).multiplyScalar(0.0007 * dt); v.add(c); };
+    const reflectTable = (state) => {
+      state.vel.y *= -0.90;
+      state.vel.x *= 0.88;
+      state.vel.z *= 0.88;
+      state.omega.multiplyScalar(0.85);
+    };
+    const collideWithNet = (state) => {
+      state.vel.z *= -0.35;
+      state.vel.multiplyScalar(0.94);
+      state.omega.multiplyScalar(0.9);
+    };
+    const boundsOut = (p) => {
+      const outX = Math.abs(p.x) > halfW + 0.06;
+      const outZ = Math.abs(p.z) > halfL + 0.06;
+      const floor = p.y < WORLD_Y_FLOOR;
+      return outX || outZ || floor;
+    };
+
+    const lastSideZ = (z) => (z > 0 ? 'Player' : 'AI');
+
+    const onBounceAt = (pos) => {
+      const side = lastSideZ(pos.z);
+      if (rules.stage === 'ServeFlying') {
+        if (rules.rally.lastSideBounce === null) {
+          const must = rules.service.server;
+          if (side !== must) { rules.awardPoint(must === 'Player' ? 'AI' : 'Player'); syncHUD(); return; }
+        } else {
+          const mustOpp = rules.service.server === 'Player' ? 'AI' : 'Player';
+          if (side !== mustOpp) { rules.awardPoint(rules.service.server === 'Player' ? 'AI' : 'Player'); syncHUD(); return; }
+          if (rules.contact.touchedNetThisFlight) rules.letServe = true;
+        }
+      }
+      if (rules.rally.lastSideBounce === side) rules.rally.consecutiveBouncesOnSameSide += 1; else rules.rally.consecutiveBouncesOnSameSide = 1;
+      rules.rally.lastSideBounce = side;
+      if (rules.stage === 'Rally' && rules.rally.consecutiveBouncesOnSameSide >= 2) { rules.awardPoint(side === 'Player' ? 'AI' : 'Player'); syncHUD(); }
+    };
+
+    const resetForServe = (serverSide) => {
+      rules.stage = 'ServeFlying';
+      rules.resetRally();
+      rules.service.server = serverSide;
+      const z = serverSide === 'Player' ? halfL * 0.35 : -halfL * 0.35;
+      ballState.pos.set(0, T.H + 0.32, z);
+      ballState.vel.set(simpleRand(-0.4, 0.4), 2.2, serverSide === 'Player' ? -2.9 : 2.9);
+      ballState.omega.set(0, 0, 0);
+      setServer(serverSide);
+      setStage(rules.stage);
+      setWinner(null);
+      setMessage(`${serverSide === 'Player' ? playerLabel : aiLabel} to serve`);
+      updateTrail();
+    };
+
+    const performPaddleHits = () => {
+      const entries = [ { grp: playerState, side: 'Player' }, { grp: aiState, side: 'AI' } ];
+      for (const { grp, side } of entries) {
+        const d = ballState.pos.clone().sub(grp.pos);
+        if (d.length() >= PADDLE_RADIUS + BALL_RADIUS) continue;
+        let swipeV = new THREE.Vector3();
+        if (side === 'Player') {
+          const now = performance.now();
+          const dtMs = Math.max(1, now - (swipe.t || now));
+          swipeV = grp.pos.clone().sub(swipe.pos).multiplyScalar(1000 / dtMs);
+          swipe.pos.copy(grp.pos);
+          swipe.t = now;
+        } else {
+          const deltaX = simpleClamp(ballState.pos.x - grp.pos.x, -1, 1);
+          swipeV.set(deltaX, 0, 0);
+        }
+        const dir = d.normalize();
+        const preset = SIMPLE_DIFFICULTY[difficulty] || SIMPLE_DIFFICULTY.Medium;
+        const basePower = side === 'Player' ? 1.8 : 2.2 * preset.power;
+        const impulse = dir.multiplyScalar(basePower).addScaledVector(swipeV, side === 'Player' ? 0.02 : 0.01);
+        ballState.vel.add(impulse);
+        const top = simpleClamp(swipeV.z, -6, 6) * (side === 'Player' ? 8 : 10) * (side === 'AI' ? preset.spin : 1);
+        const sideSpin = simpleClamp(-swipeV.x, -6, 6) * 6 * (side === 'AI' ? preset.spin : 1);
+        ballState.omega.add(new THREE.Vector3(0, sideSpin, top));
+        rules.rally.lastHitter = side;
+      }
+    };
+
+    const physicsStep = (dt) => {
+      if (rules.stage === 'Warmup') { resetForServe(rules.service.server); return; }
+      ballState.vel.y += -9.81 * dt;
+      applyAirDrag(ballState.vel, dt);
+      applyMagnus(ballState.vel, ballState.omega, dt);
+      const nextPos = ballState.pos.clone().addScaledVector(ballState.vel, dt);
+      const onTop = nextPos.y - BALL_RADIUS <= T.H && Math.abs(nextPos.x) <= halfW && Math.abs(nextPos.z) <= halfL && ballState.vel.y < 0;
+      if (onTop) {
+        nextPos.y = T.H + BALL_RADIUS;
+        reflectTable(ballState);
+        onBounceAt(nextPos);
+        if (rules.stage === 'ServeFlying' && rules.rally.lastSideBounce !== null) {
+          if (!rules.letServe) rules.stage = 'Rally';
+          setStage(rules.stage);
+        }
+      }
+      const nearZ = Math.abs(nextPos.z) <= 0.012 * 0.5 + BALL_RADIUS * 0.6;
+      const low = nextPos.y <= T.H + T.NET_H + BALL_RADIUS * 0.3;
+      if (nearZ && low) { collideWithNet(ballState); rules.contact.touchedNetThisFlight = true; }
+      performPaddleHits();
+      if (boundsOut(nextPos)) {
+        const winnerSide = ballState.pos.z > 0 ? 'AI' : 'Player';
+        rules.awardPoint(winnerSide);
+        syncHUD();
+        if (rules.stage !== 'GameOver') resetForServe(rules.service.server);
+        return;
+      }
+      ballState.pos.copy(nextPos);
+      if (trailSettings) {
+        trailBuf.push(ballState.pos.clone());
+        if (trailBuf.length > 40) trailBuf.shift();
+      }
+    };
+
+    const aiStep = (dt) => {
+      const preset = SIMPLE_DIFFICULTY[difficulty] || SIMPLE_DIFFICULTY.Medium;
+      const s = Math.min(1, dt * preset.react);
+      const targetX = simpleClamp(ballState.pos.x, -halfW + PADDLE_RADIUS, halfW - PADDLE_RADIUS);
+      const targetZ = -halfL * 0.40;
+      aiState.pos.x += (targetX - aiState.pos.x) * s;
+      aiState.pos.z += (targetZ - aiState.pos.z) * s;
+      const d = ballState.pos.clone().sub(aiState.pos).length();
+      if (d < PADDLE_RADIUS + BALL_RADIUS + 0.02) {
+        const plan = planAIReturn(ballState, difficulty);
+        ballState.vel.add(plan.impulse);
+        rules.rally.lastHitter = 'AI';
+      }
+    };
+
+    const pointerToPlane = (clientX, clientY) => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+      raycaster.setFromCamera(pointer, camera);
+      const hit = new THREE.Vector3();
+      if (raycaster.ray.intersectPlane(tablePlane, hit)) {
+        return hit.multiplyScalar(1 / S);
+      }
+      return new THREE.Vector3(0, T.H + 0.12, halfL * 0.3);
+    };
+
+    const clampPaddlePos = (p) => {
+      const x = simpleClamp(p.x, -halfW + PADDLE_RADIUS, halfW - PADDLE_RADIUS);
+      const z = simpleClamp(p.z, 0.06, halfL - 0.06);
+      return new THREE.Vector3(x, T.H + 0.13, z);
+    };
+
+    const onPointerDown = (e) => {
+      swipe.pos.copy(playerState.pos);
+      swipe.t = performance.now();
+      const px = e.touches ? e.touches[0].clientX : e.clientX;
+      const py = e.touches ? e.touches[0].clientY : e.clientY;
+      const hit = clampPaddlePos(pointerToPlane(px, py));
+      playerState.pos.copy(hit);
+    };
+
+    const onPointerMove = (e) => {
+      const px = e.touches ? e.touches[0].clientX : e.clientX;
+      const py = e.touches ? e.touches[0].clientY : e.clientY;
+      const hit = clampPaddlePos(pointerToPlane(px, py));
+      playerState.pos.copy(hit);
+    };
+
+    const onPointerUp = () => { swipe.pos.copy(playerState.pos); swipe.t = performance.now(); };
+
+    renderer.domElement.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    renderer.domElement.addEventListener('touchstart', onPointerDown, { passive: true });
+    window.addEventListener('touchmove', onPointerMove, { passive: true });
+    window.addEventListener('touchend', onPointerUp);
+
+    const updateMeshes = () => {
+      player.position.copy(playerState.pos);
+      opp.position.copy(aiState.pos);
+      ball.position.copy(ballState.pos);
+      ballShadow.position.set(ballState.pos.x, T.H + 0.005, ballState.pos.z);
+      const shadowScale = simpleClamp(1 - (ballState.pos.y - T.H) * 2.5, 0.2, 1.1);
+      ballShadow.scale.setScalar(shadowScale * 1.6);
+    };
+
+    const frame = () => {
+      const now = performance.now();
+      const dt = Math.min((now - lastTime.value) / 1000, MAX_ACCUM_DT);
+      lastTime.value = now;
+      accRef.value = Math.min(accRef.value + dt, MAX_ACCUM_DT);
+      while (accRef.value >= FIXED_DT) {
+        physicsStep(FIXED_DT);
+        aiStep(FIXED_DT);
+        accRef.value -= FIXED_DT;
+      }
+      updateMeshes();
+      updateTrail();
       renderer.render(scene, camera);
-      raf.current = requestAnimationFrame(step);
-    }
+      raf.current = requestAnimationFrame(frame);
+    };
 
-    ensureFit();
-    resetServe();
-    step();
+    resetForServe(rules.service.server);
+    frame();
 
-    // ---------- Resize ----------
-    const onResize = ()=>{ setSize(); applyCam(); ensureFit(); };
+    const onResize = () => { setSize(); applyCam(); };
     window.addEventListener('resize', onResize);
 
-    return ()=>{
+    return () => {
       cancelAnimationFrame(raf.current);
       window.removeEventListener('resize', onResize);
-      el.removeEventListener('pointerdown', onDown);
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      el.removeEventListener('touchstart', onTouchStart);
-      el.removeEventListener('touchmove', onTouchMove);
-      el.removeEventListener('touchend', onTouchEnd);
-      el.removeEventListener('touchcancel', onTouchEnd);
-      timers.forEach(clearTimeout);
+      renderer.domElement.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      renderer.domElement.removeEventListener('touchstart', onPointerDown);
+      window.removeEventListener('touchmove', onPointerMove);
+      window.removeEventListener('touchend', onPointerUp);
       document.documentElement.style.overscrollBehavior = prevOver;
-      try{ host.removeChild(renderer.domElement); }catch{}
+      try { host.removeChild(renderer.domElement); } catch {}
       paddleWoodTex.dispose();
       paddleWoodMat.dispose();
       trailGeometry.dispose();
@@ -2054,11 +1374,16 @@ export default function TableTennis3D({ player, ai }){
       renderer.dispose();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey]);
-
-  const resetAll = ()=>{
-    const next = Math.random() < 0.5 ? 'P' : 'O';
-    setUi(createUiState(next));
+  }, [aiLabel, difficulty, playerLabel, resetKey]);
+  const resetAll = () => {
+    const nextServer = Math.random() < 0.5 ? 'Player' : 'AI';
+    rulesRef.current = new Rules();
+    rulesRef.current.service.server = nextServer;
+    setScore({ player: 0, ai: 0 });
+    setStage('Warmup');
+    setServer(nextServer);
+    setWinner(null);
+    setMessage(`${nextServer === 'Player' ? playerLabel : aiLabel} to serve`);
     setResetKey(k => k + 1);
   };
 
@@ -2068,11 +1393,11 @@ export default function TableTennis3D({ player, ai }){
       <div className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 text-white text-center min-w-[240px]">
         <div className="inline-flex flex-col gap-[2px] rounded-2xl px-4 py-3 bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
           <div className="text-[9px] uppercase tracking-[0.26em] text-amber-200/80">{variant.badge} · Race to 11 · Win by 2</div>
-          <div className="text-sm font-semibold drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">{playerLabel} {ui.pScore} : {ui.oScore} {aiLabel}</div>
+          <div className="text-sm font-semibold drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">{playerLabel} {score.player} : {score.ai} {aiLabel}</div>
           <div className="text-[10px] sm:text-[11px]">
-            {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
+            {stage === 'GameOver' ? `Winner: ${winner === 'Player' ? playerLabel : aiLabel}` : `Serve: ${server === 'Player' ? playerLabel : aiLabel}`}
           </div>
-          <div className="text-[10px] sm:text-[11px] opacity-90">{ui.msg}</div>
+          <div className="text-[10px] sm:text-[11px] opacity-90">{message}</div>
           <div className="text-[9px] sm:text-[10px] opacity-70 leading-tight max-w-[260px]">{variant.tagline}</div>
         </div>
       </div>
@@ -2084,7 +1409,7 @@ export default function TableTennis3D({ player, ai }){
           {broadcastProfile.badge} · {ballProfile.badge} · {touchProfile.badge}
         </div>
       </div>
-      {!ui.gameOver && (
+      {stage !== 'GameOver' && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
           <button
             onClick={resetAll}
@@ -2094,9 +1419,9 @@ export default function TableTennis3D({ player, ai }){
           </button>
         </div>
       )}
-      {ui.gameOver && (
+      {stage === 'GameOver' && (
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="text-white text-sm sm:text-base font-semibold">{ui.winner === 'P' ? playerLabel : aiLabel} takes the game!</p>
+          <p className="text-white text-sm sm:text-base font-semibold">{winner === 'Player' ? playerLabel : aiLabel} takes the game!</p>
           <button onClick={resetAll} className="text-white text-sm bg-rose-500/80 hover:bg-rose-500 rounded-full px-5 py-2 shadow-lg">Play Again</button>
         </div>
       )}
