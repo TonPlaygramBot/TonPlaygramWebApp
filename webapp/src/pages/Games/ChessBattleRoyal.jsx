@@ -264,11 +264,160 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 
+const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
+  {
+    id: 'beautifulGameAuthentic',
+    name: 'Authentic',
+    piece: { preserveOriginal: true },
+    board: { light: '#e4d2b3', dark: '#2f3526', preserveOriginal: true }
+  },
+  {
+    id: 'beautifulGameSwapPalettes',
+    name: 'Swap Palettes',
+    piece: { white: '#2f3526', black: '#e4d2b3' },
+    board: { light: '#EEE8D5', dark: '#2B2F36' }
+  },
+  {
+    id: 'beautifulGameBlueOrange',
+    name: 'Blue / Orange',
+    piece: { white: '#5B8DEF', black: '#F59E0B' },
+    board: { light: '#93C5FD', dark: '#1E293B' }
+  },
+  {
+    id: 'beautifulGameRedTeal',
+    name: 'Red / Teal',
+    piece: { white: '#EF4444', black: '#14B8A6' },
+    board: { light: '#FCA5A5', dark: '#0F766E' }
+  },
+  {
+    id: 'beautifulGamePurpleLime',
+    name: 'Purple / Lime',
+    piece: { white: '#8B5CF6', black: '#84CC16' },
+    board: { light: '#C4B5FD', dark: '#365314' }
+  },
+  {
+    id: 'beautifulGamePinkCyan',
+    name: 'Pink / Cyan',
+    piece: { white: '#EC4899', black: '#06B6D4' },
+    board: { light: '#F9A8D4', dark: '#164E63' }
+  },
+  {
+    id: 'beautifulGameGoldSlate',
+    name: 'Gold / Slate',
+    piece: { white: '#F59E0B', black: '#64748B' },
+    board: { light: '#FDE68A', dark: '#0F172A' }
+  },
+  {
+    id: 'beautifulGameEmeraldFuchsia',
+    name: 'Emerald / Fuchsia',
+    piece: { white: '#10B981', black: '#A21CAF' },
+    board: { light: '#6EE7B7', dark: '#4A044E' }
+  },
+  {
+    id: 'beautifulGameSilverGraphite',
+    name: 'Silver / Graphite',
+    piece: { white: '#D1D5DB', black: '#111827' },
+    board: { light: '#E5E7EB', dark: '#111827' }
+  },
+  {
+    id: 'beautifulGameForestSand',
+    name: 'Forest / Sand',
+    piece: { white: '#22C55E', black: '#E9D5A1' },
+    board: { light: '#FDEAD7', dark: '#064E3B' }
+  },
+  {
+    id: 'beautifulGameCoffeeCream',
+    name: 'Coffee / Cream',
+    piece: { white: '#9D6B53', black: '#EEE0D5' },
+    board: { light: '#D6BFA9', dark: '#6B4F3A' }
+  },
+  {
+    id: 'beautifulGameMidnightIce',
+    name: 'Midnight / Ice',
+    piece: { white: '#C7D2FE', black: '#111827' },
+    board: { light: '#E5E7EB', dark: '#0B1220' }
+  },
+  {
+    id: 'beautifulGameNavyCoral',
+    name: 'Navy / Coral',
+    piece: { white: '#1D4ED8', black: '#FB7185' },
+    board: { light: '#93C5FD', dark: '#0F172A' }
+  },
+  {
+    id: 'beautifulGameMintCharcoal',
+    name: 'Mint / Charcoal',
+    piece: { white: '#34D399', black: '#374151' },
+    board: { light: '#A7F3D0', dark: '#111827' }
+  },
+  {
+    id: 'beautifulGameRoseIndigo',
+    name: 'Rose / Indigo',
+    piece: { white: '#F43F5E', black: '#4338CA' },
+    board: { light: '#FBCFE8', dark: '#1E1B4B' }
+  },
+  {
+    id: 'beautifulGameAmberStone',
+    name: 'Amber / Stone',
+    piece: { white: '#F59E0B', black: '#78716C' },
+    board: { light: '#FDE68A', dark: '#292524' }
+  },
+  {
+    id: 'beautifulGameVioletAmber',
+    name: 'Violet / Amber',
+    piece: { white: '#7C3AED', black: '#F59E0B' },
+    board: { light: '#DDD6FE', dark: '#1F1147' }
+  },
+  {
+    id: 'beautifulGameAquaMaroon',
+    name: 'Aqua / Maroon',
+    piece: { white: '#22D3EE', black: '#7F1D1D' },
+    board: { light: '#A5F3FC', dark: '#3F0E0E' }
+  },
+  {
+    id: 'beautifulGameBronzeCoal',
+    name: 'Bronze / Coal',
+    piece: { white: '#CD7F32', black: '#0A0A0A' },
+    board: { light: '#E9D5A1', dark: '#262626' }
+  },
+  {
+    id: 'beautifulGameSteelPlum',
+    name: 'Steel / Plum',
+    piece: { white: '#94A3B8', black: '#581C87' },
+    board: { light: '#CBD5E1', dark: '#2D1B4E' }
+  },
+  {
+    id: 'beautifulGameOceanSandstone',
+    name: 'Ocean / Sandstone',
+    piece: { white: '#3B82F6', black: '#F5DEB3' },
+    board: { light: '#BFDBFE', dark: '#7C3F00' }
+  },
+  {
+    id: 'beautifulGameTealOrange',
+    name: 'Teal / Orange',
+    piece: { white: '#14B8A6', black: '#F97316' },
+    board: { light: '#99F6E4', dark: '#1F2937' }
+  },
+  {
+    id: 'beautifulGameWineIvory',
+    name: 'Wine / Ivory',
+    piece: { white: '#991B1B', black: '#ECECEC' },
+    board: { light: '#F5EDE0', dark: '#3B1C1C' }
+  },
+  {
+    id: 'beautifulGameMono',
+    name: 'Mono',
+    piece: { white: '#E5E7EB', black: '#1F2937' },
+    board: { light: '#E5E7EB', dark: '#111827' }
+  }
+]);
+
+const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => config.name);
+
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
     ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
-    light: '#e4d2b3',
-    dark: '#2f3526',
+    light: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.light,
+    dark: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.dark,
     frameLight: '#c7a16c',
     frameDark: '#3a2c20',
     accent: '#4f7f5c',
@@ -282,99 +431,24 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_THEME_NAMES = [
-  'Authentic',
-  'Swap Palettes',
-  'Blue / Orange',
-  'Red / Teal',
-  'Purple / Lime',
-  'Pink / Cyan',
-  'Gold / Slate',
-  'Emerald / Fuchsia',
-  'Silver / Graphite',
-  'Forest / Sand'
-];
-
-const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
-  buildBoardTheme({
-    id: 'beautifulGameClassicBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
-    ...BEAUTIFUL_GAME_THEME,
-    preserveOriginalMaterials: true
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameSwapBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
-    light: '#EEE8D5',
-    dark: '#2B2F36',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameBlueOrangeBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
-    light: '#93C5FD',
-    dark: '#1E293B',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameRedTealBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
-    light: '#FCA5A5',
-    dark: '#0F766E',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGamePurpleLimeBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
-    light: '#C4B5FD',
-    dark: '#365314',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGamePinkCyanBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
-    light: '#F9A8D4',
-    dark: '#164E63',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameGoldSlateBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
-    light: '#FDE68A',
-    dark: '#0F172A',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameEmeraldFuchsiaBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
-    light: '#6EE7B7',
-    dark: '#4A044E',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameSilverGraphiteBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
-    light: '#E5E7EB',
-    dark: '#111827',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameForestSandBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
-    light: '#FDEAD7',
-    dark: '#064E3B',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  })
-]);
+const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
+  BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
+    buildBoardTheme({
+      id: `${config.id}Board`,
+      label: `ABeautifulGame (${config.name})`,
+      light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
+      dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
+      frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+      frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+      surfaceRoughness: BEAUTIFUL_GAME_THEME.surfaceRoughness,
+      surfaceMetalness: BEAUTIFUL_GAME_THEME.surfaceMetalness,
+      accent: BEAUTIFUL_GAME_THEME.accent,
+      highlight: BEAUTIFUL_GAME_THEME.highlight,
+      capture: BEAUTIFUL_GAME_THEME.capture,
+      preserveOriginalMaterials: Boolean(config.board?.preserveOriginal)
+    })
+  )
+);
 
 const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
 
@@ -438,114 +512,29 @@ const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
 
 const BASE_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
 
-const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
-  {
-    id: BEAUTIFUL_GAME_AUTHENTIC_ID,
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true, keepTextures: true }
-  },
-  {
-    id: 'beautifulGameSwapPalettes',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: BEAUTIFUL_GAME_THEME.dark },
-      black: { ...BASE_PIECE_STYLE.black, color: BEAUTIFUL_GAME_THEME.light }
-    }
-  },
-  {
-    id: 'beautifulGameBlueOrange',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#93C5FD' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#1E293B' },
-      accent: '#F59E0B'
-    }
-  },
-  {
-    id: 'beautifulGameRedTeal',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FCA5A5' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#0F766E' }
-    }
-  },
-  {
-    id: 'beautifulGamePurpleLime',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#C4B5FD' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#365314' }
-    }
-  },
-  {
-    id: 'beautifulGamePinkCyan',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#F9A8D4' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#164E63' }
-    }
-  },
-  {
-    id: 'beautifulGameGoldSlate',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FDE68A' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#0F172A' },
-      goldAccent: '#d7b24a'
-    }
-  },
-  {
-    id: 'beautifulGameEmeraldFuchsia',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#6EE7B7' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#4A044E' }
-    }
-  },
-  {
-    id: 'beautifulGameSilverGraphite',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#E5E7EB' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#111827' }
-    }
-  },
-  {
-    id: 'beautifulGameForestSand',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FDEAD7' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#064E3B' }
-    }
-  }
-]);
+const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
+  BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => {
+    const preserveOriginal = Boolean(config.piece?.preserveOriginal);
+    const pieceStyle = preserveOriginal
+      ? { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true, keepTextures: true }
+      : {
+          ...BASE_PIECE_STYLE,
+          preserveOriginalMaterials: false,
+          keepTextures: true,
+          white: { ...BASE_PIECE_STYLE.white, color: config.piece?.white ?? BASE_PIECE_STYLE.white.color },
+          black: { ...BASE_PIECE_STYLE.black, color: config.piece?.black ?? BASE_PIECE_STYLE.black.color },
+          accent: config.piece?.accent ?? BASE_PIECE_STYLE.accent,
+          goldAccent: config.piece?.goldAccent ?? BASE_PIECE_STYLE.goldAccent,
+          whiteAccent: config.piece?.whiteAccent ?? BASE_PIECE_STYLE.whiteAccent,
+          blackAccent: config.piece?.blackAccent ?? BASE_PIECE_STYLE.blackAccent
+        };
+    return {
+      id: config.id,
+      label: `ABeautifulGame (${config.name})`,
+      style: pieceStyle
+    };
+  })
+);
 
 const DEFAULT_PIECE_STYLE =
   BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
@@ -764,6 +753,81 @@ const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
   PIECE_STYLE_OPTIONS.findIndex((option) => option.id === DEFAULT_PIECE_SET_ID)
 );
 
+const HEAD_PRESET_OPTIONS = Object.freeze([
+  {
+    id: 'headGlass',
+    label: 'Glass',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.05,
+      transmission: 0.95,
+      ior: 1.5,
+      thickness: 0.5
+    }
+  },
+  {
+    id: 'headRuby',
+    label: 'Ruby',
+    preset: {
+      color: '#9b111e',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.92,
+      ior: 2.4,
+      thickness: 0.6
+    }
+  },
+  {
+    id: 'headPearl',
+    label: 'Pearl',
+    preset: {
+      color: '#f5f5f5',
+      metalness: 0.05,
+      roughness: 0.25,
+      transmission: 0,
+      ior: 1.3,
+      thickness: 0.2
+    }
+  },
+  {
+    id: 'headSapphire',
+    label: 'Sapphire',
+    preset: {
+      color: '#0f52ba',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headEmerald',
+    label: 'Emerald',
+    preset: {
+      color: '#046a38',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headDiamond',
+    label: 'Diamond',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.03,
+      transmission: 0.98,
+      ior: 2.4,
+      thickness: 0.8
+    }
+  }
+]);
+
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
 const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
@@ -818,7 +882,8 @@ const DEFAULT_APPEARANCE = {
   tableShape: 0,
   boardColor: 0,
   whitePieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
-  blackPieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
+  blackPieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
+  headStyle: 0
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -872,6 +937,7 @@ const PRESERVE_NATIVE_PIECE_IDS = new Set();
 const CUSTOMIZATION_SECTIONS = [
   { key: 'whitePieceStyle', label: 'White Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'blackPieceStyle', label: 'Black Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'headStyle', label: 'Heads (Pawn & Bishop)', options: HEAD_PRESET_OPTIONS },
   { key: 'boardColor', label: 'Chess Board', options: BOARD_COLOR_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
@@ -893,7 +959,8 @@ function normalizeAppearance(value = {}) {
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
     ['boardColor', BOARD_COLOR_OPTIONS.length],
     ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length]
+    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['headStyle', HEAD_PRESET_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -1595,9 +1662,11 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
   const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
+  const headOption = HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
   return {
     board: boardTheme,
     pieces: pieceOption,
+    head: headOption,
     highlight: boardTheme.highlight,
     capture: boardTheme.capture,
     accent: boardTheme.accent,
@@ -2123,111 +2192,91 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   });
 }
 
+function makeHeadMaterial(preset) {
+  if (!preset) return null;
+  return new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(preset.color ?? '#ffffff'),
+    metalness: clamp01(preset.metalness ?? 0),
+    roughness: clamp01(preset.roughness ?? 0.1),
+    transparent: (preset.transmission ?? 0) > 0,
+    transmission: clamp01(preset.transmission ?? 0),
+    ior: preset.ior ?? 1.5,
+    thickness: preset.thickness ?? 0.4,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06
+  });
+}
+
+function collectHeadMeshes(piece) {
+  const targets = [];
+  if (!piece) return targets;
+  const pbox = new THREE.Box3().setFromObject(piece);
+  const height = pbox.max.y - pbox.min.y;
+  const cutoff = pbox.max.y - height * 0.22;
+  piece.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mbox = new THREE.Box3().setFromObject(node);
+    const size = new THREE.Vector3();
+    mbox.getSize(size);
+    const nearTop = mbox.max.y >= cutoff;
+    const notFullBody = size.y <= height * 0.45;
+    const name = node.name?.toLowerCase?.() ?? '';
+    const nameHint = /(head|top|cap|finial|ball)/.test(name);
+    if ((nearTop && notFullBody) || nameHint) {
+      targets.push(node);
+    }
+  });
+  return targets;
+}
+
+function applyHeadPresetToMeshes(meshes, preset) {
+  if (!meshes || !preset) return;
+  const list = Array.isArray(meshes) ? meshes : [meshes];
+  const baseMaterial = makeHeadMaterial(preset);
+  if (!baseMaterial) return;
+  list.forEach((mesh) => {
+    const type = (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '')
+      .toString()
+      .toUpperCase();
+    if (type !== 'P' && type !== 'B') return;
+    const heads = collectHeadMeshes(mesh);
+    heads.forEach((head) => {
+      const applied = baseMaterial.clone();
+      if (Array.isArray(head.material)) {
+        head.material = head.material.map(() => applied.clone());
+      } else {
+        head.material = applied;
+      }
+      head.castShadow = true;
+      head.receiveShadow = true;
+    });
+  });
+}
+
+function applyHeadPresetToPrototypes(piecePrototypes, preset) {
+  if (!piecePrototypes || !preset) return;
+  const list = [];
+  ['white', 'black'].forEach((colorKey) => {
+    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => list.push(proto));
+  });
+  applyHeadPresetToMeshes(list, preset);
+}
+
 function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
   if (!piecePrototypes) return;
 
-  const rubyGlass = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#b10f2e'),
-    roughness: 0.16,
-    metalness: 0.32,
-    transparent: true,
-    opacity: 1,
-    transmission: 0.88,
-    ior: 1.55,
-    thickness: 0.44,
-    attenuationColor: new THREE.Color('#b10f2e'),
-    attenuationDistance: 0.45,
-    clearcoat: 0.54,
-    clearcoatRoughness: 0.18,
-    reflectivity: 0.78
-  });
-
-  const royalGold = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#d7b24a'),
-    roughness: 0.24,
-    metalness: 0.96,
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.16,
-    sheen: 0.22,
-    sheenColor: new THREE.Color('#fff6d5'),
-    reflectivity: 0.84
-  });
-
-  const marbleTexture = createGraniteTexture('#d7d2c8', 73, 2.6);
-  const onyxTexture = createGraniteTexture('#1f1e26', 61, 2.2);
-
-  const applyStoneVeins = (mesh, useLight) => {
-    if (!mesh?.isMesh || mesh.userData?.__veined) return;
-    const mat = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    mat.forEach((m) => {
-      if (!m || m.map) return;
-      const texture = useLight ? marbleTexture : onyxTexture;
-      if (texture) {
-        m.map = texture;
-        m.normalMap = texture;
-        m.normalScale = new THREE.Vector2(0.34, 0.34);
-        m.needsUpdate = true;
-      }
-      m.roughness = clamp01((m.roughness ?? 0.36) * 0.82);
-      m.metalness = clamp01((m.metalness ?? 0.18) + 0.08);
-    });
-    mesh.userData = { ...(mesh.userData || {}), __veined: true };
-  };
-
-  const ornament = (proto, colorKey) => {
+  const markShadowed = (proto) => {
     if (!proto || proto.userData?.__ornamented) return;
-    const type = proto.userData?.__pieceType;
-    const box = new THREE.Box3().setFromObject(proto);
-    const height = box.max.y - box.min.y || 1;
-    const topY = box.max.y;
-    const gemRadius = Math.max(tileSize * 0.09, height * 0.08);
-
-    if (type === 'P') {
-      const gem = new THREE.Mesh(new THREE.SphereGeometry(gemRadius, 18, 16), rubyGlass.clone());
-      gem.position.y = topY + gemRadius * 0.5;
-      gem.castShadow = true;
-      gem.receiveShadow = true;
-      proto.add(gem);
-    }
-
-    if (type === 'B') {
-      const gem = new THREE.Mesh(new THREE.SphereGeometry(tileSize * 0.07, 16, 14), rubyGlass.clone());
-      gem.position.y = topY - tileSize * 0.04;
-      gem.castShadow = true;
-      gem.receiveShadow = true;
-      proto.add(gem);
-    }
-
-    if (type === 'K' || type === 'Q') {
-      const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(tileSize * 0.14, tileSize * 0.035, 14, 32),
-        royalGold.clone()
-      );
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = topY + tileSize * 0.02;
-      ring.castShadow = true;
-      ring.receiveShadow = true;
-      proto.add(ring);
-
-      const gem = new THREE.Mesh(new THREE.SphereGeometry(tileSize * 0.06, 14, 12), rubyGlass.clone());
-      gem.position.y = topY + tileSize * 0.16;
-      gem.castShadow = true;
-      gem.receiveShadow = true;
-      proto.add(gem);
-    }
-
     proto.traverse((child) => {
       if (!child?.isMesh) return;
-      applyStoneVeins(child, colorKey === 'white');
       child.castShadow = true;
       child.receiveShadow = true;
     });
-
     proto.userData = { ...(proto.userData || {}), __ornamented: true };
   };
 
   ['white', 'black'].forEach((colorKey) => {
-    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => ornament(proto, colorKey));
+    Object.values(piecePrototypes[colorKey] || {}).forEach((proto) => markShadowed(proto, colorKey));
   });
 }
 
@@ -4708,6 +4757,18 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         </div>
       );
     }
+    if (key === 'headStyle') {
+      const color = option.preset?.color || '#ffffff';
+      return (
+        <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
+          <span
+            className="h-6 w-6 rounded-full border border-white/20 shadow"
+            style={{ background: color }}
+          />
+          <span className="text-[0.7rem] font-semibold text-white/80">{option.label}</span>
+        </div>
+      );
+    }
     if (key === 'boardColor') {
       const light = option.light || '#dcd7c9';
       const dark = option.dark || '#2d2a32';
@@ -4999,7 +5060,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+    const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
+    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -5057,9 +5119,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     if (arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
+      applyHeadPresetToPrototypes(arena.piecePrototypes, headPreset);
     }
     if (arena.allPieceMeshes) {
       applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
+      applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
     if (arena.boardModel) {
@@ -5140,6 +5204,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         disposePieceMaterials(arena.pieceMaterials);
         arena.pieceMaterials = nextPieceMaterials;
       }
+      applyHeadPresetToMeshes(arena.allPieceMeshes, headPreset);
     }
 
     const accentColor = palette.accent ?? '#4ce0c3';
@@ -5934,6 +5999,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         ? assets.pieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
+      const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
       if (currentBoardCleanup) {
         currentBoardCleanup();
         currentBoardCleanup = null;
@@ -5963,8 +6029,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
           );
         }
+        applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         paintPiecesFromPrototypes(piecePrototypes, setId);
+        applyHeadPresetToMeshes(allPieceMeshes, headPreset);
       }
       if (arenaRef.current) {
         arenaRef.current.boardModel = currentBoardModel;
