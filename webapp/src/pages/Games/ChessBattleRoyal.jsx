@@ -436,26 +436,13 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
-  BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
-    buildBoardTheme({
-      id: `${config.id}Board`,
-      label: `ABeautifulGame (${config.name})`,
-      light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
-      dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
-      frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-      frameDark: BEAUTIFUL_GAME_THEME.frameDark,
-      surfaceRoughness: BEAUTIFUL_GAME_THEME.surfaceRoughness,
-      surfaceMetalness: BEAUTIFUL_GAME_THEME.surfaceMetalness,
-      accent: BEAUTIFUL_GAME_THEME.accent,
-      highlight: BEAUTIFUL_GAME_THEME.highlight,
-      capture: BEAUTIFUL_GAME_THEME.capture,
-      preserveOriginalMaterials: Boolean(config.board?.preserveOriginal)
-    })
-  )
+const BOARD_COLOR_OPTIONS = Object.freeze(
+  BOARD_COLOR_BASE_OPTIONS.map((option) => ({
+    ...buildBoardTheme(option),
+    id: option.id,
+    label: option.label
+  }))
 );
-
-const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -6026,11 +6013,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
       const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
-      if (currentBoardCleanup) {
-        currentBoardCleanup();
-        currentBoardCleanup = null;
-      }
       if (boardModel) {
+        if (currentBoardCleanup) {
+          currentBoardCleanup();
+          currentBoardCleanup = null;
+        }
         boardModel.visible = true;
         boardGroup.add(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
@@ -6042,6 +6029,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           } catch {}
           disposeObject3D(boardModel);
         };
+      } else if (currentBoardModel) {
+        setProceduralBoardVisible(false);
       } else {
         setProceduralBoardVisible(true);
         currentBoardModel = null;
