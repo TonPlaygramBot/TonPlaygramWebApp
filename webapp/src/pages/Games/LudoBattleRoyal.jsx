@@ -128,6 +128,19 @@ const FALLBACK_SEAT_POSITIONS = [
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
 
+const normalizeColorValue = (value, fallback) => {
+  if (value == null) return fallback;
+  if (typeof value === 'string') return new THREE.Color(value).getHex();
+  const num = Number(value);
+  return Number.isFinite(num) ? num : fallback;
+};
+
+function resolvePlayerColors(appearance = {}) {
+  const paletteOption = TOKEN_PALETTE_OPTIONS[appearance.tokenPalette] ?? TOKEN_PALETTE_OPTIONS[0];
+  const swatches = paletteOption?.swatches ?? [];
+  return PLAYER_COLOR_ORDER.map((_, idx) => normalizeColorValue(swatches[idx], DEFAULT_PLAYER_COLORS[idx]));
+}
+
 const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
 const CAMERA_FAR = ARENA_CAMERA_DEFAULTS.far;
@@ -135,6 +148,40 @@ const CAMERA_DOLLY_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
+
+const TOKEN_STYLE_OPTIONS = Object.freeze([
+  {
+    id: 'battleChess',
+    label: 'Battle Chess Tokens',
+    description: 'Use the Chess Battle Royale GLTF set for every pawn.',
+    typeSequence: TOKEN_TYPE_SEQUENCE,
+    prefersAbg: true
+  },
+  {
+    id: 'towerRooks',
+    label: 'Minimal Rook Set',
+    description: 'Swap every pawn with sleek rooks for a clean read.',
+    typeSequence: ['r']
+  }
+]);
+
+const TOKEN_PALETTE_OPTIONS = Object.freeze([
+  {
+    id: 'vividCore',
+    label: 'Vivid Core',
+    swatches: [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e]
+  },
+  {
+    id: 'frostbite',
+    label: 'Frostbite Pastel',
+    swatches: [0xfb7185, 0x60a5fa, 0xfde047, 0x86efac]
+  },
+  {
+    id: 'midnightPulse',
+    label: 'Midnight Pulse',
+    swatches: [0xbe123c, 0x1d4ed8, 0xca8a04, 0x15803d]
+  }
+]);
 
 const CHAIR_COLOR_OPTIONS = Object.freeze([
   {
@@ -183,7 +230,9 @@ const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
-  tableShape: 0
+  tableShape: 0,
+  tokenPalette: 0,
+  tokenStyle: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -191,7 +240,9 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS }
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
+  { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
+  { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS }
 ];
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
@@ -207,7 +258,9 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_OPTIONS.length],
+    ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
+    ['tokenStyle', TOKEN_STYLE_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -686,8 +739,8 @@ function disposeChairAssets(chairTemplate, chairMaterials) {
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
-// Enlarge the Ludo board so it spans 2.7x the classic footprint.
-const BOARD_SCALE = 2.7 * ARENA_SCALE;
+// Enlarge the Ludo board so it spans 3.1x the classic footprint.
+const BOARD_SCALE = 3.1 * ARENA_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
@@ -802,13 +855,12 @@ const HOME_COLUMN_COORDS = Object.freeze([
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
-const COLOR_NAMES = ['Red', 'White', 'Blue', 'Green'];
-const BOARD_COLORS = Object.freeze([0xef4444, 0xffffff, 0x3b82f6, 0x22c55e]);
+const COLOR_NAMES = ['Red', 'Blue', 'Yellow', 'Green'];
+const BOARD_COLORS = Object.freeze([0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e]);
 const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
-const PLAYER_COLORS = Object.freeze(
+const DEFAULT_PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
-const TOKEN_COLORS = PLAYER_COLORS;
 const TOKEN_TRACK_SURFACE_OFFSET = 0.002;
 const TOKEN_HOME_SURFACE_OFFSET = 0.008;
 const TOKEN_GOAL_SURFACE_OFFSET = 0.0065;
@@ -1353,7 +1405,7 @@ function getTrackDirectionAngle(index) {
   return getArrowAngle(dx, dz);
 }
 
-function addBoardMarkers(scene, cellToWorld) {
+function addBoardMarkers(scene, cellToWorld, playerColors = DEFAULT_PLAYER_COLORS) {
   if (typeof document === 'undefined') return;
   const group = new THREE.Group();
   scene.add(group);
@@ -1375,9 +1427,9 @@ function addBoardMarkers(scene, cellToWorld) {
     const angle = getTrackDirectionAngle(index);
     const baseColor =
       startOwner != null
-        ? PLAYER_COLORS[startOwner]
+        ? playerColors[startOwner]
         : safeOwner != null
-        ? PLAYER_COLORS[safeOwner]
+        ? playerColors[safeOwner]
         : '#0f172a';
     const isStartTile = startOwner != null;
     if (!isStartTile) {
@@ -1402,7 +1454,7 @@ function addBoardMarkers(scene, cellToWorld) {
     const [safeR, safeC] = TRACK_COORDS[safeIndex];
     const safePosition = cellToWorld(safeR, safeC).clone();
     const star = createStarMarkerMesh({
-      color: PLAYER_COLORS[playerIdx],
+      color: playerColors[playerIdx],
       position: safePosition,
       size: LUDO_TILE * 0.88
     });
@@ -1420,13 +1472,13 @@ function addBoardMarkers(scene, cellToWorld) {
       }
       const arrowMarker = createMarkerMesh({
         label: '',
-        color: PLAYER_COLORS[playerIdx],
+        color: playerColors[playerIdx],
         position: homePos,
         angle: arrowAngle,
         size: LUDO_TILE * 0.88,
         arrow: true,
         backgroundColor: 'transparent',
-        arrowColor: PLAYER_COLORS[playerIdx]
+        arrowColor: playerColors[playerIdx]
       });
       if (arrowMarker) group.add(arrowMarker);
     });
@@ -1773,6 +1825,25 @@ function clearTokenHighlight(token) {
   setTokenHighlight(token, false);
 }
 
+const areColorArraysEqual = (a = [], b = []) => {
+  if (a.length !== b.length) return false;
+  return a.every((value, idx) => value === b[idx]);
+};
+
+function disposeBoardGroup(group) {
+  if (!group) return;
+  group.traverse((node) => {
+    if (node.isMesh) {
+      node.geometry?.dispose?.();
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach((mat) => {
+        if (mat?.map) mat.map.dispose?.();
+        mat?.dispose?.();
+      });
+    }
+  });
+}
+
 function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
@@ -1816,6 +1887,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
   });
   const appearanceRef = useRef(appearance);
+  const playerColorsRef = useRef(resolvePlayerColors(appearance));
   const arenaRef = useRef(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const seatPositionsRef = useRef([]);
@@ -1827,9 +1899,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     turnCycle: 0
   });
 
+  const playerColors = useMemo(() => resolvePlayerColors(appearance), [appearance]);
+
   const playerColorsHex = useMemo(
-    () => PLAYER_COLORS.slice(0, activePlayerCount).map((value) => colorNumberToHex(value)),
-    [activePlayerCount]
+    () => playerColors.slice(0, activePlayerCount).map((value) => colorNumberToHex(value)),
+    [activePlayerCount, playerColors]
   );
 
   const aiFlags = useMemo(() => {
@@ -1877,10 +1951,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
     return map;
   }, [seatAnchors]);
-
-  useEffect(() => {
-    appearanceRef.current = appearance;
-  }, [activePlayerCount, appearance]);
 
   const clearHumanRollTimeout = useCallback(() => {
     if (humanRollTimeoutRef.current) {
@@ -2124,6 +2194,36 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
           </div>
         );
       }
+      case 'tokenPalette': {
+        const swatches = option?.swatches ?? [];
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40">
+            <div className="absolute inset-0 grid grid-cols-4">
+              {swatches.map((swatch, idx) => (
+                <div
+                  // eslint-disable-next-line react/no-array-index-key
+                  key={`${option.id}-swatch-${idx}`}
+                  className="h-full w-full"
+                  style={{ backgroundColor: colorNumberToHex(normalizeColorValue(swatch, DEFAULT_PLAYER_COLORS[idx])) }}
+                />
+              ))}
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
+          </div>
+        );
+      }
+      case 'tokenStyle':
+        return (
+          <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 text-center text-[0.7rem] leading-tight text-slate-100">
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
+            <div className="relative flex flex-col items-center">
+              <span className="font-semibold">{option.label}</span>
+              {option.description && (
+                <span className="text-[0.6rem] text-slate-200/80">{option.description}</span>
+              )}
+            </div>
+          </div>
+        );
       default:
         return null;
     }
@@ -2197,7 +2297,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       ? indicator.material[0]
       : indicator.material;
     if (!material) return;
-    const color = new THREE.Color(PLAYER_COLORS[player]);
+    const activeColors = playerColorsRef.current || DEFAULT_PLAYER_COLORS;
+    const color = new THREE.Color(activeColors[player]);
     material.color.set(color);
     if (material.emissive) {
       material.emissive.set(color.clone().multiplyScalar(0.3));
@@ -2506,6 +2607,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, activePlayerCount);
+    const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
+    const previousColors = resolvePlayerColors(previousAppearance);
+    const nextColors = resolvePlayerColors(safe);
+    const paletteChanged = !areColorArraysEqual(previousColors, nextColors);
+    const tokenStyleChanged = previousAppearance.tokenStyle !== safe.tokenStyle;
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -2556,7 +2663,63 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       };
       applyChairThemeMaterials(arena, chairTheme);
     }
-  }, [appearance]);
+
+    const refreshBoardTokens = async () => {
+      const arenaState = arenaRef.current;
+      if (!arenaState?.tableInfo?.group) return;
+      const nextBoardGroup = new THREE.Group();
+      nextBoardGroup.position.set(0, arenaState.tableInfo.surfaceY + 0.004, 0);
+      nextBoardGroup.scale.setScalar(BOARD_SCALE);
+      nextBoardGroup.rotation.y = BOARD_ROTATION_Y;
+      arenaState.tableInfo.group.add(nextBoardGroup);
+
+      const boardData = await buildLudoBoard(
+        nextBoardGroup,
+        activePlayerCount,
+        nextColors,
+        tokenStyleOption
+      );
+      if (arenaState.boardGroup) {
+        arenaState.tableInfo.group.remove(arenaState.boardGroup);
+        disposeBoardGroup(arenaState.boardGroup);
+      }
+      arenaState.boardGroup = nextBoardGroup;
+      diceRef.current = boardData.dice;
+      turnIndicatorRef.current = boardData.turnIndicator;
+      configureDiceAnchors({
+        dice: boardData.dice,
+        boardGroup: nextBoardGroup,
+        chairs: arenaState.chairs,
+        tableInfo: arenaState.tableInfo
+      });
+      moveDiceToRail(0, true);
+      updateTurnIndicator(0, true);
+      stateRef.current = {
+        paths: boardData.paths,
+        startPads: boardData.startPads,
+        homeColumns: boardData.homeColumns,
+        goalSlots: boardData.goalSlots,
+        tokens: boardData.tokens,
+        turnIndicator: boardData.turnIndicator,
+        trackTiles: boardData.trackTiles,
+        homeColumnTiles: boardData.homeColumnTiles,
+        progress: Array.from({ length: activePlayerCount }, () => Array(4).fill(-1)),
+        turn: 0,
+        winner: null,
+        animation: null
+      };
+      setUi({ turn: 0, status: 'Your turn — dice rolling soon', dice: null, winner: null, turnCycle: 0 });
+      updateTokenStacks();
+      applyRailLayout();
+      scheduleHumanAutoRoll();
+    };
+
+    playerColorsRef.current = nextColors;
+    appearanceRef.current = safe;
+    if (paletteChanged || tokenStyleChanged) {
+      refreshBoardTokens();
+    }
+  }, [appearance, activePlayerCount, applyRailLayout, scheduleHumanAutoRoll, updateTurnIndicator]);
 
   useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
@@ -2684,6 +2847,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const clothOption = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
     const chairOption = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const tokenStyleOption =
+      TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const initialPlayerColors = resolvePlayerColors(initialAppearance);
+    appearanceRef.current = initialAppearance;
+    playerColorsRef.current = initialPlayerColors;
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
       initialAppearance.tableShape,
       activePlayerCount
@@ -2798,7 +2966,12 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairs.push({ group, anchor: avatarAnchor });
     }
 
-    const boardData = await buildLudoBoard(boardGroup, activePlayerCount);
+    const boardData = await buildLudoBoard(
+      boardGroup,
+      activePlayerCount,
+      initialPlayerColors,
+      tokenStyleOption
+    );
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -3833,14 +4006,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 }
 
-async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
+async function buildLudoBoard(
+  boardGroup,
+  playerCount = DEFAULT_PLAYER_COUNT,
+  playerColors = DEFAULT_PLAYER_COLORS,
+  tokenStyleOption = TOKEN_STYLE_OPTIONS[0]
+) {
   const scene = boardGroup;
 
   const abgAssets = await getAbgAssets();
   const boardPalette = abgAssets?.boardPalette ?? { light: null, dark: null };
   const lightBoardMat = cloneBoardMaterial(boardPalette.light, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(boardPalette.dark ?? boardPalette.light, 0xdccfb0);
-  const playerPalettes = PLAYER_COLORS.map((color, idx) => {
+  const tokenTypeSequence =
+    tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
+  const playerPalettes = playerColors.map((color, idx) => {
     const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
     return abgTintPalette(src, color);
   });
@@ -3914,7 +4094,7 @@ async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
         continue;
       }
       if (columnIndex !== -1 && columnIndex < playerCount) {
-        const baseColor = PLAYER_COLORS[columnIndex];
+        const baseColor = playerColors[columnIndex];
         const mesh = new THREE.Mesh(tileGeo, cloneBoardMaterial(darkBoardMat, baseColor));
         mesh.position.copy(pos);
         registerTile(mesh);
@@ -3945,16 +4125,16 @@ async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   }
 
   addCenterHome(scene);
-  addBoardMarkers(scene, cellToWorld);
+  addBoardMarkers(scene, cellToWorld, playerColors);
 
-  const tokens = TOKEN_COLORS.slice(0, playerCount).map((color, playerIdx) => {
+  const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     const palette = playerPalettes[playerIdx] ?? [];
     return Array.from({ length: 4 }, (_, i) => {
-      const type = TOKEN_TYPE_SEQUENCE[i % TOKEN_TYPE_SEQUENCE.length];
-      const baseProto =
-        abgAssets?.proto?.w?.[type] ||
-        abgAssets?.proto?.b?.[type] ||
-        null;
+      const type = tokenTypeSequence[i % tokenTypeSequence.length];
+      const shouldUseAbg = tokenStyleOption?.prefersAbg !== false;
+      const baseProto = shouldUseAbg
+        ? abgAssets?.proto?.w?.[type] || abgAssets?.proto?.b?.[type] || null
+        : null;
       const token = baseProto ? baseProto.clone(true) : makeRook(makeTokenMaterial(color));
       if (baseProto && palette.length) {
         abgApplyPalette(token, palette);
@@ -4019,8 +4199,8 @@ async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   };
 
   const indicatorMat = new THREE.MeshStandardMaterial({
-    color: PLAYER_COLORS[0],
-    emissive: new THREE.Color(PLAYER_COLORS[0]).multiplyScalar(0.3),
+    color: playerColors[0],
+    emissive: new THREE.Color(playerColors[0]).multiplyScalar(0.3),
     emissiveIntensity: 0.9,
     metalness: 0.45,
     roughness: 0.35,
