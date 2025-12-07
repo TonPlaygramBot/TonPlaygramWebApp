@@ -438,12 +438,12 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BOARD_COLOR_OPTIONS = Object.freeze(
+const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
       // Board palettes lifted directly from the ABeautifulGame presets (no extra colors)
       id: `${config.id}Board`,
-      label: config.name,
+      label: `ABeautifulGame (${config.name})`,
       light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
       dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
       frameLight: BEAUTIFUL_GAME_THEME.frameLight,
@@ -459,6 +459,8 @@ const BOARD_COLOR_OPTIONS = Object.freeze(
     })
   )
 );
+
+const BOARD_COLOR_OPTIONS = BEAUTIFUL_GAME_BOARD_OPTIONS;
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -6042,6 +6044,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         boardGroup.add(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
+        arena.usingProceduralBoard = false;
+        if (arenaRef.current) {
+          arenaRef.current.usingProceduralBoard = false;
+        }
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
           try {
