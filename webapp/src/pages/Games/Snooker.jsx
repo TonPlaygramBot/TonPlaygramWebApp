@@ -237,60 +237,60 @@ const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
-const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // mirror Pool Royale fascia trim
+const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034;
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // align chrome fascia trim with Pool Royale geometry
 const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034;
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1;
 const CHROME_CORNER_WIDTH_SCALE = 0.982;
 const CHROME_CORNER_HEIGHT_SCALE = 0.962;
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0;
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
-const CHROME_CORNER_DIMENSION_SCALE = 1;
+const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia proportions aligned with Pool Royale plates
 const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02;
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
-const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.0416; // match Pool Royale side arch radius
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.026; // mirror the Pool Royale middle pocket arch radius so chrome hugs the same curve
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
 const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // align fascia thickness to Pool Royale
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18;
+const CHROME_PLATE_THICKNESS_SCALE = 0.034;
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.24;
 const CHROME_PLATE_RENDER_ORDER = 3.5;
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2;
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.14;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0; // disable extra expansion to mirror Pool Royale fascia
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294;
-const WOOD_CORNER_CUT_SCALE = 0.976;
-const WOOD_SIDE_CUT_SCALE = 0.986;
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2;
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008;
+const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.34;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // match Pool Royale by pulling the chrome arches further toward centre
+const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
+const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // align middle pocket wood cuts with Pool Royale's centred arches
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.92;
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
-const POCKET_JAW_DEPTH_SCALE = 1.02;
+const POCKET_JAW_DEPTH_SCALE = 0.68;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42;
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74;
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66;
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.4328;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.66;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
@@ -502,8 +502,8 @@ function addPocketCuts(parent, clothPlane) {
 // --------------------------------------------------
 // separate scales for table and balls
 // Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
-const TABLE_SIZE_SHRINK = 0.92; // mirror Pool Royale shrink while keeping proportions intact
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // reuse Pool Royale reduction so trim, rails, and pockets align 1:1
+const TABLE_SIZE_SHRINK = 0.78;
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
 const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -749,7 +749,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 20; // mirror Pool Royale framing so the table fill matches broadcast coverage
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 22; // mirror Pool Royale framing so the table fill matches broadcast coverage
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -780,33 +780,31 @@ const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const POCKET_SOUND_TAIL = 1;
-// Match the Pool Royale table height and stance so both builds sit at the same elevation
+// Make the four round legs dramatically taller so the table surface rides higher
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_HEIGHT_REDUCTION = 0.8;
-const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after reduction
-const TABLE_LIFT =
+const LEG_HEIGHT_BOOST = 1.15; // lift the playfield by extending the legs 15%
+const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
+const TABLE_LIFT_BASE =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
-const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
-const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
+const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
-const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
-const BASE_LEG_ROOM_HEIGHT =
-  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_ROOM_HEIGHT =
-  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
+const LEG_ROOM_HEIGHT_RAW_BASE = BASE_LEG_HEIGHT + TABLE_LIFT_BASE;
+const LEG_ROOM_HEIGHT_BASE =
+  (LEG_ROOM_HEIGHT_RAW_BASE + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ROOM_HEIGHT = LEG_ROOM_HEIGHT_BASE * LEG_HEIGHT_BOOST;
+const TABLE_LIFT = TABLE_LIFT_BASE + (LEG_ROOM_HEIGHT - LEG_ROOM_HEIGHT_BASE);
+// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
+const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // lift the apron to close the gap beneath the lowered rails
-const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP + LEG_ELEVATION_DELTA;
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
