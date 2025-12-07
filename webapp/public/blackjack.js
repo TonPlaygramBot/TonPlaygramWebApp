@@ -659,8 +659,8 @@ function playerCall() {
   playCallRaise();
   renderPot();
   p.action = { type: 'call', text: `${p.name} calls ${formatAmount(pay)}` };
-  state.awaitingCall = false;
   render();
+  nextTurn();
 }
 
 function canSplit(p) {
