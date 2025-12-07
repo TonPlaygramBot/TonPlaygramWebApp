@@ -257,28 +257,11 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
   }
 ]);
 
-const BEAUTIFUL_GAME_URLS = Object.freeze([
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
-]);
-
-const TOKEN_PIECE_OPTIONS = Object.freeze([
-  { id: 'king', label: 'King', type: 'K' },
-  { id: 'queen', label: 'Queen', type: 'Q' },
-  { id: 'bishop', label: 'Officer', type: 'B' },
-  { id: 'knight', label: 'Horse', type: 'N' },
-  { id: 'rook', label: 'Tower', type: 'R' },
-  { id: 'pawn', label: 'Soldier', type: 'P' }
-]);
-
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
-  tableShape: 0,
-  tokenPiece: TOKEN_PIECE_OPTIONS.find((option) => option.id === 'rook')?.id || TOKEN_PIECE_OPTIONS[0].id
+  tableShape: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -311,9 +294,6 @@ function normalizeAppearance(value = {}) {
       normalized[key] = clamped;
     }
   });
-  const desiredToken = typeof value?.tokenPiece === 'string' ? value.tokenPiece : DEFAULT_APPEARANCE.tokenPiece;
-  normalized.tokenPiece =
-    TOKEN_PIECE_OPTIONS.find((option) => option.id === desiredToken)?.id || DEFAULT_APPEARANCE.tokenPiece;
   return normalized;
 }
 
@@ -341,295 +321,6 @@ function adjustHexColor(hex, amount) {
   const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
-}
-
-function applyMaterialSettingsWithSRGB(node) {
-  if (!node?.isMesh) return;
-  node.castShadow = true;
-  node.receiveShadow = true;
-  const materials = Array.isArray(node.material) ? node.material : [node.material];
-  materials.forEach((mat, index) => {
-    if (!mat) return;
-    const cloned = mat.clone ? mat.clone() : mat;
-    if (Array.isArray(node.material)) {
-      node.material[index] = cloned;
-    } else {
-      node.material = cloned;
-    }
-    if (cloned.map) applySRGBColorSpace(cloned.map);
-    if (cloned.emissiveMap) applySRGBColorSpace(cloned.emissiveMap);
-  });
-}
-
-function cloneWithMaterials(object) {
-  const clone = object.clone(true);
-  clone.traverse((child) => {
-    if (!child.isMesh) return;
-    if (Array.isArray(child.material)) {
-      child.material = child.material.map((mat) => (mat?.clone ? mat.clone() : mat));
-    } else if (child.material?.clone) {
-      child.material = child.material.clone();
-    }
-    child.castShadow = true;
-    child.receiveShadow = false;
-  });
-  return clone;
-}
-
-function averageLuminance(root) {
-  let sum = 0;
-  let count = 0;
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-    const mats = Array.isArray(node.material) ? node.material : [node.material];
-    mats.forEach((mat) => {
-      if (!mat?.color) return;
-      const { r, g, b } = mat.color;
-      sum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
-      count += 1;
-    });
-  });
-  return count > 0 ? sum / count : 0.5;
-}
-
-function ascendWhile(node, predicate) {
-  let current = node;
-  while (current?.parent && predicate(current.parent)) {
-    current = current.parent;
-  }
-  return current;
-}
-
-function pieceTypeFromName(name = '') {
-  const lower = name.toLowerCase();
-  if (lower.includes('king')) return 'K';
-  if (lower.includes('queen')) return 'Q';
-  if (lower.includes('rook')) return 'R';
-  if (lower.includes('bishop')) return 'B';
-  if (lower.includes('knight')) return 'N';
-  if (lower.includes('pawn')) return 'P';
-  return null;
-}
-
-function detectPieceColor(node) {
-  let current = node;
-  for (let i = 0; i < 4 && current; i += 1) {
-    const name = current.name?.toLowerCase?.() ?? '';
-    if (name.includes('white')) return 'white';
-    if (name.includes('black')) return 'black';
-    current = current.parent;
-  }
-  return null;
-}
-
-function deriveBoardPalette(boardModel) {
-  const palette = [];
-  boardModel?.traverse((node) => {
-    if (!node?.isMesh) return;
-    const mats = Array.isArray(node.material) ? node.material : [node.material];
-    mats.forEach((mat) => {
-      if (mat?.color) palette.push(mat.clone ? mat.clone() : mat);
-    });
-  });
-  if (!palette.length) return { light: null, dark: null };
-  const scored = palette
-    .map((mat) => ({ mat, lum: mat.color ? 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b : 0 }))
-    .sort((a, b) => a.lum - b.lum);
-  const darkest = scored[0]?.mat ?? null;
-  const brightest = scored[scored.length - 1]?.mat ?? null;
-  return { dark: darkest, light: brightest };
-}
-
-function extractChessSetAssets(scene, options = {}) {
-  const { targetBoardSize = RAW_BOARD_SIZE, assetScale = 1 } = options;
-  if (!scene) return { boardModel: null, piecePrototypes: null };
-
-  const root = scene.clone(true);
-  root.traverse(applyMaterialSettingsWithSRGB);
-  root.updateMatrixWorld(true);
-
-  const TYPES = ['P', 'R', 'N', 'B', 'Q', 'K'];
-  const TYPE_ALIASES = [
-    ['P', /pawn/i],
-    ['R', /rook|castle/i],
-    ['N', /knight|horse/i],
-    ['B', /bishop|officer/i],
-    ['Q', /queen/i],
-    ['K', /king/i]
-  ];
-  const COLOR_W = /(\b|_)(white|ivory|light|w)(\b|_)/i;
-  const COLOR_B = /(\b|_)(black|ebony|dark|b)(\b|_)/i;
-
-  const proto = { white: {}, black: {} };
-  const palettes = { white: [], black: [] };
-
-  const nodePath = (node) => {
-    const names = [];
-    let current = node;
-    while (current) {
-      if (current.name) names.push(current.name);
-      current = current.parent;
-    }
-    return names.reverse().join('/');
-  };
-
-  const detectType = (path) => {
-    const lower = (path || '').toLowerCase();
-    for (const [t, regex] of TYPE_ALIASES) {
-      if (regex.test(lower)) return t;
-    }
-    return pieceTypeFromName(path) || null;
-  };
-
-  const detectColor = (path, node) => {
-    const explicit = detectPieceColor(node);
-    if (explicit) return explicit;
-    if (COLOR_W.test(path)) return 'white';
-    if (COLOR_B.test(path)) return 'black';
-    const L = averageLuminance(node);
-    return L >= 0.45 ? 'white' : 'black';
-  };
-
-  root.traverse((node) => {
-    if (!node) return;
-    const path = nodePath(node);
-    if (node.isMesh) {
-      const colorForPalette = detectColor(path, node);
-      if (colorForPalette && Array.isArray(node.material)) {
-        palettes[colorForPalette].push(...node.material.filter(Boolean).map((m) => (m.clone ? m.clone() : m)));
-      } else if (colorForPalette && node.material) {
-        palettes[colorForPalette].push(node.material.clone ? node.material.clone() : node.material);
-      }
-    }
-    const type = detectType(path);
-    if (!type) return;
-    const color = detectColor(path, node);
-    if (!color || proto[color][type]) return;
-    proto[color][type] = node;
-  });
-
-  const boards = [];
-  root.traverse((node) => {
-    const n = (node?.name || '').toLowerCase();
-    if (/board|chessboard|table/.test(n)) boards.push(node);
-  });
-  const boardNode = boards[0] || root;
-  const boardModel = cloneWithMaterials(boardNode);
-  boardModel.name = 'ABeautifulGameBoard';
-  boardModel.traverse(applyMaterialSettingsWithSRGB);
-  const nodesToCull = [];
-  boardModel.traverse((node) => {
-    if (pieceTypeFromName(node.name)) nodesToCull.push(node);
-  });
-  nodesToCull.forEach((node) => {
-    if (node?.parent) node.parent.remove(node);
-  });
-  boardModel.updateMatrixWorld(true);
-
-  const boardSizeBox = new THREE.Box3().setFromObject(boardModel);
-  const boardSize = boardSizeBox.getSize(new THREE.Vector3());
-  const largest = Math.max(boardSize.x || 1, boardSize.z || 1);
-  const targetSize = Math.max(targetBoardSize, 0.001);
-  const totalScale = (targetSize / largest) * assetScale;
-  boardModel.scale.setScalar(totalScale);
-  boardModel.updateMatrixWorld(true);
-  const scaledBox = new THREE.Box3().setFromObject(boardModel);
-  const boardCenter = new THREE.Vector3();
-  scaledBox.getCenter(boardCenter);
-  boardModel.position.set(-boardCenter.x, -scaledBox.min.y, -boardCenter.z);
-
-  const tileSize = Math.max(0.001, targetSize / 8);
-  const preferredPieceYOffset = Math.max(scaledBox.max.y + 0.02, 0.05);
-  const applyPalette = (node, palette) => {
-    if (!node || !palette?.length) return;
-    node.traverse((child) => {
-      if (!child?.isMesh) return;
-      const base = Array.isArray(child.material) ? child.material : [child.material];
-      const applied = base.map((_, idx) => palette[idx % palette.length].clone?.() || palette[idx % palette.length]);
-      child.material = Array.isArray(child.material) ? applied : applied[0];
-    });
-  };
-
-  const swapTypesBetweenColors = (types) => {
-    types.forEach((type) => {
-      const w = proto.white[type];
-      const b = proto.black[type];
-      if (w && b) {
-        const wFromB = cloneWithMaterials(b);
-        applyPalette(wFromB, palettes.white);
-        const bFromW = cloneWithMaterials(w);
-        applyPalette(bFromW, palettes.black);
-        proto.white[type] = wFromB;
-        proto.black[type] = bFromW;
-      } else if (w && !b) {
-        const bFromW = cloneWithMaterials(w);
-        applyPalette(bFromW, palettes.black);
-        proto.black[type] = bFromW;
-      } else if (!w && b) {
-        const wFromB = cloneWithMaterials(b);
-        applyPalette(wFromB, palettes.white);
-        proto.white[type] = wFromB;
-      }
-    });
-  };
-
-  const ensurePrototypes = () => {
-    ['white', 'black'].forEach((colorKey) => {
-      TYPES.forEach((type) => {
-        if (proto[colorKey][type]) return;
-        const other = colorKey === 'white' ? 'black' : 'white';
-        if (proto[other][type]) {
-          const c = cloneWithMaterials(proto[other][type]);
-          applyPalette(c, palettes[colorKey]);
-          proto[colorKey][type] = c;
-        }
-      });
-    });
-    swapTypesBetweenColors(TYPES);
-  };
-
-  ensurePrototypes();
-  const piecePrototypes = { white: {}, black: {} };
-  TYPES.forEach((type) => {
-    if (proto.white[type]) piecePrototypes.white[type] = cloneWithMaterials(proto.white[type]);
-    if (proto.black[type]) piecePrototypes.black[type] = cloneWithMaterials(proto.black[type]);
-  });
-
-  return { boardModel, piecePrototypes, tileSize, pieceYOffset: preferredPieceYOffset };
-}
-
-function extractBeautifulGameAssets(scene, targetBoardSize) {
-  const assets = extractChessSetAssets(scene, { targetBoardSize, assetScale: 1 });
-  const palette = deriveBoardPalette(assets.boardModel);
-  const boardBox = assets.boardModel ? new THREE.Box3().setFromObject(assets.boardModel) : null;
-  const boardTop = boardBox ? boardBox.max.y : TILE_HALF_HEIGHT;
-  return { ...assets, boardPalette: palette, boardTop };
-}
-
-async function loadBeautifulGameAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const loader = new GLTFLoader();
-  const draco = new DRACOLoader();
-  draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-  loader.setDRACOLoader(draco);
-
-  let lastError = null;
-  for (const url of BEAUTIFUL_GAME_URLS) {
-    try {
-      const resolvedUrl = new URL(url, window.location.href).href;
-      const resourcePath = resolvedUrl.substring(0, resolvedUrl.lastIndexOf('/') + 1);
-      const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
-      loader.setResourcePath(resourcePath);
-      loader.setPath(isAbsolute ? '' : resourcePath);
-      // eslint-disable-next-line no-await-in-loop
-      const gltf = await loader.loadAsync(resolvedUrl);
-      if (!gltf?.scene) continue;
-      return extractBeautifulGameAssets(gltf.scene, targetBoardSize);
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  if (lastError) throw lastError;
-  throw new Error('Failed to load ABeautifulGame glTF');
 }
 
 function fitChairModelToFootprint(model) {
@@ -852,7 +543,6 @@ function disposeChairAssets(chairTemplate, chairMaterials) {
 
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
-const TARGET_CHESS_BOARD_SIZE = LUDO_TILE * 8;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
 // Enlarge the Ludo board so it spans 2.7x the classic footprint.
 const BOARD_SCALE = 2.7 * ARENA_SCALE;
@@ -1805,30 +1495,6 @@ function makeTokenMaterial(color) {
     material.map = texture;
   }
   return material;
-}
-
-function makeTokenFromPrototype(proto, playerColor, scale = 1) {
-  if (!proto) return null;
-  const g = proto.clone(true);
-  g.traverse((node) => {
-    if (!node.isMesh) return;
-    node.castShadow = true;
-    node.receiveShadow = true;
-  });
-  g.scale.multiplyScalar(scale);
-  const bounds = new THREE.Box3().setFromObject(g);
-  if (Number.isFinite(bounds.min.y) && Number.isFinite(bounds.max.y)) {
-    g.position.y -= bounds.min.y;
-  }
-  const label = createTokenCountLabel();
-  if (label) {
-    g.add(label);
-    g.userData.countLabel = label;
-  }
-  if (playerColor) {
-    g.userData.tokenColor = playerColor;
-  }
-  return g;
 }
 
 function makeRook(mat) {
@@ -2896,6 +2562,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const boardGroup = new THREE.Group();
     boardGroup.position.set(0, tableInfo.surfaceY + 0.004, 0);
+    boardGroup.scale.setScalar(BOARD_SCALE);
     boardGroup.rotation.y = BOARD_ROTATION_Y;
     tableInfo.group.add(boardGroup);
 
@@ -2989,47 +2656,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairs.push({ group, anchor: avatarAnchor });
     }
 
-    let boardSurfaceHeight = TILE_HALF_HEIGHT;
-    let tilePalette = null;
-    let tokenPrototype = null;
-    let prototypeTileSize = null;
-    try {
-      const beautifulAssets = await loadBeautifulGameAssets(TARGET_CHESS_BOARD_SIZE);
-      if (beautifulAssets?.boardModel) {
-        const boardClone = beautifulAssets.boardModel.clone(true);
-        const boardScale = RAW_BOARD_SIZE / TARGET_CHESS_BOARD_SIZE;
-        boardClone.scale.multiplyScalar(boardScale);
-        boardClone.updateMatrixWorld(true);
-        const boardBox = new THREE.Box3().setFromObject(boardClone);
-        boardSurfaceHeight = Math.max(boardSurfaceHeight, boardBox.max.y + TILE_HALF_HEIGHT + 0.002);
-        tilePalette = beautifulAssets.boardPalette;
-        boardGroup.add(boardClone);
-      }
-      prototypeTileSize = beautifulAssets?.tileSize || null;
-      const desiredPiece = TOKEN_PIECE_OPTIONS.find(
-        (option) => option.id === (appearanceRef.current?.tokenPiece || DEFAULT_APPEARANCE.tokenPiece)
-      );
-      const pieceKey = desiredPiece?.type || 'R';
-      const protoSource =
-        beautifulAssets?.piecePrototypes?.white?.[pieceKey] ||
-        beautifulAssets?.piecePrototypes?.black?.[pieceKey];
-      if (protoSource) {
-        tokenPrototype = protoSource;
-      }
-    } catch (error) {
-      console.warn('Falling back to procedural Ludo board visuals', error);
-    }
-
-    const boardData = buildLudoBoard(boardGroup, activePlayerCount, {
-      tilePalette,
-      tileBaseY: boardSurfaceHeight,
-      tokenPrototype,
-      prototypeTileSize,
-      tokenType: TOKEN_PIECE_OPTIONS.find(
-        (option) => option.id === (appearanceRef.current?.tokenPiece || DEFAULT_APPEARANCE.tokenPiece)
-      )?.type
-    });
-    boardGroup.scale.setScalar(BOARD_SCALE);
+    const boardData = buildLudoBoard(boardGroup, activePlayerCount);
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -3951,32 +3578,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     </div>
                   </div>
                 ))}
-                <div className="space-y-2">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Token Piece</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {TOKEN_PIECE_OPTIONS.map((option) => {
-                      const selected = appearance.tokenPiece === option.id;
-                      const glyphMap = { K: '♔', Q: '♕', B: '♗', N: '♘', R: '♖', P: '♙' };
-                      const glyph = glyphMap[option.type] || '♟';
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setAppearance((prev) => ({ ...prev, tokenPiece: option.id }))}
-                          aria-pressed={selected}
-                          className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            selected
-                              ? 'border-emerald-400/80 bg-emerald-400/10 shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                              : 'border-white/10 bg-white/5 hover:border-white/20'
-                          }`}
-                        >
-                          <span className="text-2xl leading-none text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">{glyph}</span>
-                          <span className="mt-1 text-center text-[0.7rem] font-semibold text-gray-200">{option.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
               </div>
               <div className="mt-4 space-y-3">
                 <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
@@ -4090,13 +3691,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 }
 
-function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, options = {}) {
+function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   const scene = boardGroup;
-  const tilePalette = options.tilePalette || null;
-  const tileBaseY = options.tileBaseY ?? TILE_HALF_HEIGHT;
-  const prototypeTileSize = options.prototypeTileSize || null;
-  const tokenPrototype = options.tokenPrototype || null;
-  const tokenType = options.tokenType || 'R';
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -4127,7 +3723,7 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, options 
   const cellToWorld = (r, c) => {
     const x = -half + (c + 0.5) * LUDO_TILE;
     const z = -half + (r + 0.5) * LUDO_TILE;
-    return new THREE.Vector3(x, tileBaseY, z);
+    return new THREE.Vector3(x, TILE_HALF_HEIGHT, z);
   };
 
   const startPads = getHomeStartPads(half, playerCount);
@@ -4151,14 +3747,6 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, options 
 
   const tileSize = LUDO_TILE * 0.92;
   const tileGeo = new THREE.BoxGeometry(tileSize, PLAYFIELD_HEIGHT, tileSize);
-  const tileMaterialFor = (r, c) => {
-    const fromPalette = (r + c) % 2 === 0 ? tilePalette?.light : tilePalette?.dark;
-    if (fromPalette?.clone) return fromPalette.clone();
-    if (fromPalette) return fromPalette;
-    const fallback = (r + c) % 2 === 0 ? 0xe4d2b3 : 0x2f3526;
-    const accent = adjustHexColor(colorNumberToHex(fallback), 0.08);
-    return createBoardTileMaterial(fallback, accent);
-  };
   for (let r = 0; r < LUDO_GRID; r++) {
     for (let c = 0; c < LUDO_GRID; c++) {
       const pos = cellToWorld(r, c);
@@ -4175,7 +3763,9 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, options 
         continue;
       }
       if (columnIndex !== -1 && columnIndex < playerCount) {
-        const mesh = new THREE.Mesh(tileGeo, tileMaterialFor(r, c));
+        const baseColor = PLAYER_COLORS[columnIndex];
+        const accent = adjustHexColor(colorNumberToHex(baseColor), 0.2);
+        const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
         mesh.position.copy(pos);
         registerTile(mesh);
         const stepIndex = HOME_COLUMN_KEY_TO_STEP.get(key);
@@ -4186,7 +3776,10 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, options 
         continue;
       }
       if (TRACK_KEY_SET.has(key)) {
-        const mesh = new THREE.Mesh(tileGeo, tileMaterialFor(r, c));
+        const isSafe = SAFE_TRACK_KEY_SET.has(key);
+        const baseColor = isSafe ? 0xf4e3bd : 0xfef9ef;
+        const accent = isSafe ? '#f59e0b' : '#fbbf24';
+        const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
         mesh.position.copy(pos);
         registerTile(mesh);
         const trackIndex = TRACK_INDEX_BY_KEY.get(key);
@@ -4205,31 +3798,25 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT, options 
   addCenterHome(scene);
   addBoardMarkers(scene, cellToWorld);
 
-  const prototypeScale = tokenPrototype && prototypeTileSize ? (LUDO_TILE * 0.9) / prototypeTileSize : 1;
   const tokens = TOKEN_COLORS.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
-      const playerColorHex = colorNumberToHex(color);
-      const token =
-        tokenPrototype
-          ? makeTokenFromPrototype(tokenPrototype, playerColorHex, prototypeScale)
-          : makeRook(makeTokenMaterial(color));
-      token.userData = {
-        ...(token.userData || {}),
+      const rook = makeRook(makeTokenMaterial(color));
+      rook.userData = {
+        ...(rook.userData || {}),
         playerIndex: playerIdx,
-        tokenIndex: i,
-        tokenType
+        tokenIndex: i
       };
-      token.traverse((node) => {
+      rook.traverse((node) => {
         if (!node.userData) node.userData = {};
-        node.userData.tokenGroup = token;
+        node.userData.tokenGroup = rook;
         node.userData.playerIndex = playerIdx;
         node.userData.tokenIndex = i;
       });
       const homePos = startPads[playerIdx][i].clone();
       homePos.y = getTokenRailHeight(playerIdx);
-      token.position.copy(homePos);
-      scene.add(token);
-      return token;
+      rook.position.copy(homePos);
+      scene.add(rook);
+      return rook;
     });
   });
 
