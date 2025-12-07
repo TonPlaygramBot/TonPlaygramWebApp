@@ -436,24 +436,6 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const LUDO_TILE_OVERLAY = [
-  ['red', 'red', 'red', 'none', 'none', 'blue', 'blue', 'blue'],
-  ['red', 'none', 'red', 'none', 'none', 'blue', 'none', 'blue'],
-  ['red', 'red', 'red', 'none', 'none', 'blue', 'blue', 'blue'],
-  ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'none'],
-  ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'none'],
-  ['green', 'green', 'green', 'none', 'none', 'white', 'white', 'white'],
-  ['green', 'none', 'green', 'none', 'none', 'white', 'none', 'white'],
-  ['green', 'green', 'green', 'none', 'none', 'white', 'white', 'white']
-];
-
-const LUDO_COLORS = Object.freeze({
-  red: '#d22f27',
-  blue: '#2563eb',
-  green: '#16a34a',
-  white: '#e5e7eb'
-});
-
 const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
@@ -1676,64 +1658,13 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
     const isTile = tileHints.some((hint) => name.includes(hint)) || name.startsWith('tile_');
     const targetColor = isTile
       ? lightness >= 0.5
-      ? theme.light
-      : theme.dark
+        ? theme.light
+        : theme.dark
       : lightness >= 0.55
-      ? theme.frameLight
-      : theme.frameDark;
+        ? theme.frameLight
+        : theme.frameDark;
     applySurface(node, targetColor);
   });
-}
-
-function disposeLudoOverlay(group) {
-  if (!group) return;
-  group.traverse((node) => {
-    if (node.isMesh) {
-      if (Array.isArray(node.material)) {
-        node.material.forEach((mat) => mat?.dispose?.());
-      } else {
-        node.material?.dispose?.();
-      }
-      node.geometry?.dispose?.();
-    }
-  });
-}
-
-function buildLudoOverlay(boardModel, tileSize = BOARD.tile) {
-  if (!boardModel) return null;
-  const overlay = new THREE.Group();
-  overlay.name = 'LudoOverlay';
-
-  const box = new THREE.Box3().setFromObject(boardModel);
-  const boardTop = box.max.y + 0.003;
-  const tile = Math.max(0.001, tileSize || BOARD.tile);
-  const half = (tile * 8) / 2;
-  const neutralLight = new THREE.Color(BEAUTIFUL_GAME_THEME.light);
-  const neutralDark = new THREE.Color(BEAUTIFUL_GAME_THEME.dark);
-  const geometry = new THREE.PlaneGeometry(tile, tile);
-
-  LUDO_TILE_OVERLAY.forEach((row, r) => {
-    row.forEach((cell, c) => {
-      if (cell === 'none') return;
-      const isLight = (r + c) % 2 === 0;
-      const baseColor = cell && LUDO_COLORS[cell] ? LUDO_COLORS[cell] : isLight ? neutralLight : neutralDark;
-      const material = new THREE.MeshStandardMaterial({
-        color: baseColor,
-        transparent: true,
-        opacity: cell && LUDO_COLORS[cell] ? 0.35 : 0.18,
-        metalness: 0.08,
-        roughness: 0.62,
-        side: THREE.DoubleSide
-      });
-      const mesh = new THREE.Mesh(geometry.clone(), material);
-      mesh.position.set(c * tile - half + tile / 2, boardTop, r * tile - half + tile / 2);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.userData.type = 'ludoTile';
-      overlay.add(mesh);
-    });
-  });
-
-  return overlay;
 }
 
 function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = DEFAULT_PIECE_STYLE) {
@@ -4762,7 +4693,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'drag' });
-  const ludoOverlayRef = useRef(null);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -6100,23 +6030,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         currentBoardCleanup();
         currentBoardCleanup = null;
       }
-      if (ludoOverlayRef.current) {
-        try {
-          boardGroup.remove(ludoOverlayRef.current);
-        } catch {}
-        disposeLudoOverlay(ludoOverlayRef.current);
-        ludoOverlayRef.current = null;
-      }
       if (boardModel) {
         boardModel.visible = true;
         boardGroup.add(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
-        const ludoOverlay = buildLudoOverlay(boardModel, currentTileSize);
-        if (ludoOverlay) {
-          boardGroup.add(ludoOverlay);
-          ludoOverlayRef.current = ludoOverlay;
-        }
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
           try {
