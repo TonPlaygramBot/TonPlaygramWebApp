@@ -843,7 +843,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.982; // tighten the middle cloth/rail cutouts slightly while keeping the pocket mouth ratio stable
+const SIDE_POCKET_CUT_SCALE = 0.972; // make the middle cloth/rail cutouts a touch smaller without altering fascia or jaw geometry
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -10139,6 +10139,29 @@ function PoolRoyaleGame({
       const backInterior = roomDepth / 2 - wallInset;
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
+
+      const doorMaskHeight = wallHeight * 0.72;
+      const doorMaskDepth = Math.max(wallThickness * 0.65, 0.1);
+      const interiorMaskMat = new THREE.MeshStandardMaterial({
+        color: wallMat.color.clone(),
+        roughness: wallMat.roughness,
+        metalness: wallMat.metalness,
+        flatShading: true,
+        side: THREE.FrontSide
+      });
+      const addShortRailMask = (z) => {
+        const mask = new THREE.Mesh(
+          new THREE.BoxGeometry(roomWidth - wallThickness * 1.5, doorMaskHeight, doorMaskDepth),
+          interiorMaskMat
+        );
+        mask.castShadow = false;
+        mask.receiveShadow = true;
+        mask.position.set(0, floorY + doorMaskHeight / 2, z + Math.sign(z) * doorMaskDepth * 0.45);
+        world.add(mask);
+      };
+
+      addShortRailMask(frontInterior);
+      addShortRailMask(backInterior);
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
