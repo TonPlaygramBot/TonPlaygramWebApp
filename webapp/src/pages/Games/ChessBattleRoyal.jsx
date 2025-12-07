@@ -208,6 +208,11 @@ const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
+const TARGET_FPS = 75;
+const TARGET_FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
+const RENDER_PIXEL_RATIO_CAP = 1.35;
+const RENDER_PIXEL_RATIO_SCALE = 0.9;
+const MIN_RENDER_PIXEL_RATIO = 1;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -4769,87 +4774,57 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
+    const swatchClass = 'h-5 w-10 rounded-md border border-white/15 shadow-inner';
+    const dualSwatch = (a, b) => (
+      <span className="flex items-center gap-1.5">
+        <span className={swatchClass} style={{ background: a }} />
+        <span className={swatchClass} style={{ background: b }} />
+      </span>
+    );
     if (key === 'whitePieceStyle' || key === 'blackPieceStyle') {
-      return (
-        <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
-          <span
-            className="h-6 w-6 rounded-full border border-white/20 shadow"
-            style={{ background: option.white?.color || '#f5f5f7' }}
-          />
-          <span
-            className="h-6 w-6 rounded-full border border-white/20 shadow"
-            style={{ background: option.black?.color || '#111827' }}
-          />
-          <span
-            className="h-3 w-8 rounded-full border border-white/10"
-            style={{ background: option.accent || option.blackAccent?.color || '#caa472' }}
-          />
-        </div>
-      );
+      return dualSwatch(option.white?.color || '#f5f5f7', option.black?.color || '#111827');
     }
     if (key === 'headStyle') {
       const color = option.preset?.color || '#ffffff';
-      return (
-        <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
-          <span
-            className="h-6 w-6 rounded-full border border-white/20 shadow"
-            style={{ background: color }}
-          />
-          <span className="text-[0.7rem] font-semibold text-white/80">{option.label}</span>
-        </div>
-      );
+      return <span className={swatchClass} style={{ background: color }} />;
     }
     if (key === 'boardColor') {
       const light = option.light || '#dcd7c9';
       const dark = option.dark || '#2d2a32';
       return (
-        <div className="flex w-full items-center justify-center gap-2 rounded-lg bg-white/5 p-2">
-          <span className="h-6 w-6 rounded border border-white/20" style={{ background: light }} />
-          <span className="h-6 w-6 rounded border border-white/20" style={{ background: dark }} />
-        </div>
+        <span
+          className={swatchClass}
+          style={{ background: `linear-gradient(90deg, ${light}, ${dark})` }}
+        />
       );
     }
     if (key === 'tableWood') {
       const preset = WOOD_PRESETS_BY_ID[option.presetId] ?? WOOD_FINISH_PRESETS[0];
       const color = `#${hslToHexNumber(preset.hue, preset.sat, preset.light).toString(16).padStart(6, '0')}`;
-      return <div className="h-10 w-full rounded-lg border border-white/10" style={{ background: color }} />;
+      return <span className={swatchClass} style={{ background: color }} />;
     }
     if (key === 'tableCloth') {
       return (
-        <div
-          className="h-10 w-full rounded-lg border border-white/10"
+        <span
+          className={swatchClass}
           style={{ background: `linear-gradient(180deg, ${option.feltTop}, ${option.feltBottom})` }}
         />
       );
     }
     if (key === 'tableBase') {
       return (
-        <div
-          className="h-10 w-full rounded-lg border border-white/10"
+        <span
+          className={swatchClass}
           style={{ background: `linear-gradient(135deg, ${option.baseColor}, ${option.trimColor})` }}
         />
       );
     }
     if (key === 'chairColor') {
-      return (
-        <div
-          className="flex h-10 w-full items-center justify-between rounded-lg border border-white/10 px-2"
-          style={{ background: option.primary }}
-        >
-          <span className="h-6 w-6 rounded-full border border-white/30" style={{ background: option.accent }} />
-          <span className="h-4 w-8 rounded-full border border-white/20" style={{ background: option.legColor }} />
-        </div>
-      );
+      return dualSwatch(option.primary || '#1f2937', option.accent || option.highlight || '#38bdf8');
     }
     if (key === 'tableShape') {
-      return (
-        <div className="flex h-10 w-full items-center justify-center rounded-lg border border-white/10 bg-white/5">
-          <div
-            className="h-7 w-14 bg-sky-300/60"
-            style={{ ...(option.preview || {}), border: '1px solid rgba(255,255,255,0.35)' }}
-          />
-        </div>
-      );
+      const previewBackground = option.preview?.background || option.preview?.backgroundColor;
+      return <span className={swatchClass} style={{ background: previewBackground || '#38bdf8' }} />;
     }
     return null;
   }, []);
@@ -5353,7 +5328,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const scaledPixelRatio = devicePixelRatio * RENDER_PIXEL_RATIO_SCALE;
+    const pixelRatio = Math.max(
+      MIN_RENDER_PIXEL_RATIO,
+      Math.min(RENDER_PIXEL_RATIO_CAP, scaledPixelRatio)
+    );
+    renderer.setPixelRatio(pixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     // Ensure the canvas covers the entire host element so the board is centered
@@ -6553,6 +6534,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     // Loop
     let lastTime = performance.now();
+    let lastRender = lastTime;
     const step = () => {
       const now = performance.now();
       const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
@@ -6604,7 +6586,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
 
       controls?.update();
-      renderer.render(scene, camera);
+      if (now - lastRender >= TARGET_FRAME_INTERVAL_MS) {
+        renderer.render(scene, camera);
+        lastRender = now;
+      }
       rafRef.current = requestAnimationFrame(step);
     };
     step();
@@ -6763,11 +6748,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                       Reset
                     </button>
                   </div>
-                  <div className="mt-3 max-h-72 space-y-3 overflow-y-auto pr-1">
+                  <div className="mt-3 max-h-72 space-y-4 overflow-y-auto pr-1">
                     {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                      <div key={key} className="space-y-2">
+                      <div key={key} className="space-y-1.5">
                         <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">{label}</p>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1.5">
                           {options.map((option, idx) => {
                             const selected = appearance[key] === idx;
                             return (
@@ -6783,16 +6768,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                   )
                                 }
                                 aria-pressed={selected}
-                                className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                   selected
                                     ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
                                     : 'border-white/10 bg-white/5 hover:border-white/20'
                                 }`}
                               >
+                                <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
                                 {renderCustomizationPreview(key, option)}
-                                <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                                  {option.label}
-                                </span>
                               </button>
                             );
                           })}
