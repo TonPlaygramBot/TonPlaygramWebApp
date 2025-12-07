@@ -61,6 +61,8 @@ const clamp01 = (value, fallback = 0) => {
   return Math.min(1, Math.max(0, value));
 };
 
+const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
   dark: '#776a5a',
@@ -1555,6 +1557,7 @@ function buildBoardTheme(option) {
 }
 
 const BOARD_MATERIAL_CACHE = new WeakMap();
+const BOARD_PALETTE_CACHE = new WeakMap();
 
 function snapshotBoardMaterials(boardModel) {
   if (BOARD_MATERIAL_CACHE.has(boardModel)) return;
@@ -1583,6 +1586,31 @@ function restoreBoardMaterials(boardModel) {
   });
 }
 
+function snapshotBoardPalette(boardModel) {
+  if (BOARD_PALETTE_CACHE.has(boardModel)) return BOARD_PALETTE_CACHE.get(boardModel);
+  let light = null;
+  let dark = null;
+
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (!mat?.color) return;
+      const lum = luminance(mat.color);
+      if (!light || lum > light.lum) light = { mat, lum };
+      if (!dark || lum < dark.lum) dark = { mat, lum };
+    });
+  });
+
+  const palette = {
+    light: light?.mat?.clone?.() ?? null,
+    dark: dark?.mat?.clone?.() ?? light?.mat?.clone?.() ?? null
+  };
+
+  BOARD_PALETTE_CACHE.set(boardModel, palette);
+  return palette;
+}
+
 function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
 
@@ -1594,45 +1622,46 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
     return;
   }
 
-  const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const palette = snapshotBoardPalette(boardModel);
+  const baseLight = palette.light;
+  const baseDark = palette.dark ?? palette.light;
+
   const toArray = (value) => (Array.isArray(value) ? value : [value]);
 
-  const applyMaterial = (mesh, updater) => {
-    if (!mesh?.isMesh) return;
-    const materials = toArray(mesh.material);
-    const updated = materials.map((mat) => {
-      if (!mat) return mat;
-      const next = mat.clone ? mat.clone() : mat;
-      updater(next);
-      next.needsUpdate = true;
-      return next;
-    });
-    mesh.material = Array.isArray(mesh.material) ? updated : updated[0];
+  const assignMaterial = (mesh, material) => {
+    if (!mesh?.isMesh || !material) return;
+    const createInstance = () => (material.clone ? material.clone() : material);
+    mesh.material = Array.isArray(mesh.material)
+      ? mesh.material.map(() => createInstance())
+      : createInstance();
     mesh.castShadow = true;
     mesh.receiveShadow = true;
   };
 
-  const applyFrame = (mesh, color) =>
-    applyMaterial(mesh, (mat) => {
-      if (mat?.color?.set) mat.color.set(color);
-      if (Number.isFinite(theme.frameRoughness)) mat.roughness = clamp01(theme.frameRoughness);
-      if (Number.isFinite(theme.frameMetalness)) mat.metalness = clamp01(theme.frameMetalness);
-      if ('clearcoat' in mat) mat.clearcoat = 0;
-      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
-      if ('reflectivity' in mat) mat.reflectivity = 0;
-      if (mat?.emissive?.set) mat.emissive.set(0x000000);
-    });
+  const tintMaterial = (base, color, roughnessKey, metalnessKey) => {
+    const mat = base?.clone?.() ?? new THREE.MeshPhysicalMaterial({ color });
+    if (mat?.color?.set) mat.color.set(color);
+    if (Number.isFinite(theme[roughnessKey])) mat.roughness = clamp01(theme[roughnessKey]);
+    if (Number.isFinite(theme[metalnessKey])) mat.metalness = clamp01(theme[metalnessKey]);
+    if ('clearcoat' in mat) mat.clearcoat = 0;
+    if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
+    if ('reflectivity' in mat) mat.reflectivity = 0;
+    if (mat?.emissive?.set) mat.emissive.set(0x000000);
+    mat.needsUpdate = true;
+    return mat;
+  };
 
-  const applySurface = (mesh, color) =>
-    applyMaterial(mesh, (mat) => {
-      if (mat?.color?.set) mat.color.set(color);
-      if (Number.isFinite(theme.surfaceRoughness)) mat.roughness = clamp01(theme.surfaceRoughness);
-      if (Number.isFinite(theme.surfaceMetalness)) mat.metalness = clamp01(theme.surfaceMetalness);
-      if ('clearcoat' in mat) mat.clearcoat = 0;
-      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
-      if ('reflectivity' in mat) mat.reflectivity = 0;
-      if (mat?.emissive?.set) mat.emissive.set(0x000000);
-    });
+  const applyFrame = (mesh, color, useLightPalette = true) => {
+    const source = useLightPalette ? baseLight : baseDark;
+    const tinted = tintMaterial(source, color, 'frameRoughness', 'frameMetalness');
+    assignMaterial(mesh, tinted);
+  };
+
+  const applySurface = (mesh, color, isDarkTile) => {
+    const source = isDarkTile ? baseDark : baseLight;
+    const tinted = tintMaterial(source, color, 'surfaceRoughness', 'surfaceMetalness');
+    assignMaterial(mesh, tinted);
+  };
 
   const frameNames = ['boardframe', 'frame', 'rim', 'border'];
   const topHints = ['boardtop', 'top', 'cover'];
@@ -1670,7 +1699,7 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
       : lightness >= 0.55
         ? theme.frameLight
         : theme.frameDark;
-    applySurface(node, targetColor);
+    applySurface(node, targetColor, isTile ? lightness < 0.5 : lightness < 0.55);
   });
 }
 
