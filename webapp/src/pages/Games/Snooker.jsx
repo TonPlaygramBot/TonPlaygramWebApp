@@ -232,7 +232,7 @@ function createDefaultPocketJawMaterial() {
   });
 }
 
-const POCKET_VISUAL_EXPANSION = 1.028; // match Pool Royale pocket reveal sizing
+const POCKET_VISUAL_EXPANSION = 1.018;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
 const CHROME_CORNER_EXPANSION_SCALE = 1.002;
@@ -271,29 +271,29 @@ const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // match Pool Royale by 
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // align middle pocket wood cuts with Pool Royale's centred arches
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008;
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.92;
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
 const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
-const POCKET_JAW_DEPTH_SCALE = 1.02;
+const POCKET_JAW_DEPTH_SCALE = 0.68;
 const POCKET_JAW_EDGE_FLUSH_START = 0.22;
 const POCKET_JAW_EDGE_FLUSH_END = 1;
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42;
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74;
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66;
 const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
 const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
 const POCKET_JAW_SEGMENT_MIN = 144;
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9;
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92;
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.66;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08;
 const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
 const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
 const CORNER_JAW_ARC_DEG = 120;
 const SIDE_JAW_ARC_DEG = 120;
 
@@ -502,7 +502,7 @@ function addPocketCuts(parent, clothPlane) {
 // --------------------------------------------------
 // separate scales for table and balls
 // Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
-const TABLE_SIZE_SHRINK = 0.92; // reuse Pool Royale shrink so height, rails, and materials line up
+const TABLE_SIZE_SHRINK = 0.78;
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
 const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
 const SIZE_REDUCTION = 0.7;
@@ -514,11 +514,10 @@ const TABLE_GROWTH_DURATION_MS = 1200;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
-const TABLE_HEIGHT_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // preserve Pool Royale table height while widening the surface
 const TABLE = {
   W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
-  THICK: 1.8 * TABLE_HEIGHT_SCALE,
+  THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // match Pool Royale rail stack height
@@ -2929,8 +2928,8 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.14; // allow a lower sweep so the player camera sits nearer the rail
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // align orbit radius with Pool Royale camera staging
-const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.012; // pull the orbit camera closer to the rail without clipping
+const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.08;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.04;
 const BROADCAST_PULL_IN_SCALE = 0.92;
