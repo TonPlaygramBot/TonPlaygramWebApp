@@ -1569,13 +1569,16 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   restoreBoardMaterials(boardModel);
 
   const theme = buildBoardTheme(boardTheme);
-
   if (theme.preserveOriginalMaterials) {
     return;
   }
+
+  const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const toArray = (value) => (Array.isArray(value) ? value : [value]);
+
   const applyMaterial = (mesh, updater) => {
     if (!mesh?.isMesh) return;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    const materials = toArray(mesh.material);
     const updated = materials.map((mat) => {
       if (!mat) return mat;
       const next = mat.clone ? mat.clone() : mat;
@@ -1596,6 +1599,7 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
       if ('clearcoat' in mat) mat.clearcoat = 0;
       if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
       if ('reflectivity' in mat) mat.reflectivity = 0;
+      if (mat?.emissive?.set) mat.emissive.set(0x000000);
     });
 
   const applySurface = (mesh, color) =>
@@ -1606,20 +1610,46 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
       if ('clearcoat' in mat) mat.clearcoat = 0;
       if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
       if ('reflectivity' in mat) mat.reflectivity = 0;
+      if (mat?.emissive?.set) mat.emissive.set(0x000000);
     });
+
+  const frameNames = ['boardframe', 'frame', 'rim', 'border'];
+  const topHints = ['boardtop', 'top', 'cover'];
+  const tileHints = ['tile', 'square', 'cell', 'floor'];
 
   boardModel.traverse((node) => {
     if (!node?.isMesh) return;
-    const name = node.name ?? '';
-    if (name === 'BoardFrame' || name.toLowerCase().includes('frame')) {
-      applyFrame(node, theme.frameDark);
-    } else if (name === 'BoardTop' || name.toLowerCase().includes('top')) {
-      applyFrame(node, theme.frameLight);
-    } else if (name.startsWith('Tile_')) {
-      const [, r, c] = name.split('_');
-      const isDark = (Number(r) + Number(c)) % 2 === 1;
-      applySurface(node, isDark ? theme.dark : theme.light);
+    const name = (node.name ?? '').toLowerCase();
+    const materials = toArray(node.material);
+    let avgLum = 0;
+    let count = 0;
+    materials.forEach((mat) => {
+      if (mat?.color) {
+        avgLum += luminance(mat.color);
+        count += 1;
+      }
+    });
+    const lightness = count > 0 ? avgLum / count : 0.5;
+
+    if (frameNames.some((hint) => name.includes(hint))) {
+      applyFrame(node, lightness >= 0.55 ? theme.frameLight : theme.frameDark);
+      return;
     }
+
+    if (topHints.some((hint) => name.includes(hint))) {
+      applyFrame(node, theme.frameLight);
+      return;
+    }
+
+    const isTile = tileHints.some((hint) => name.includes(hint)) || name.startsWith('tile_');
+    const targetColor = isTile
+      ? lightness >= 0.5
+        ? theme.light
+        : theme.dark
+      : lightness >= 0.55
+        ? theme.frameLight
+        : theme.frameDark;
+    applySurface(node, targetColor);
   });
 }
 
