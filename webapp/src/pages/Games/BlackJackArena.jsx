@@ -110,6 +110,7 @@ const CAMERA_AUTO_FOCUS_TURNS = false; // Keep camera control manual for the pla
 const TURN_DURATION = 30;
 const DEAL_DURATION = 420;
 const DEAL_STAGGER = 110;
+const TURN_DIRECTION = -1; // Use counter direction for turn progression and indicators
 
 function easeOutCubic(t) {
   const clamped = Math.min(1, Math.max(0, t));
@@ -1227,11 +1228,16 @@ function dealInitialCards(state) {
   state.currentIndex = getNextPlayerIndex(state.players, -1);
 }
 
-function getNextPlayerIndex(players, start) {
+function getNextPlayerIndex(players, start, direction = TURN_DIRECTION) {
   const total = players.length;
-  const startIdx = start < 0 ? 0 : (start + 1) % total;
+  if (total === 0) return -1;
+
+  const step = direction >= 0 ? 1 : -1;
+  const startIdx = start < 0
+    ? (step > 0 ? 0 : total - 1)
+    : (start + step + total) % total;
   for (let offset = 0; offset < total; offset += 1) {
-    const idx = (startIdx + offset) % total;
+    const idx = (startIdx + offset * step + total * total) % total;
     const player = players[idx];
     if (!player) continue;
     if (player.hand.length > 0 && !player.bust && !player.stood) {
