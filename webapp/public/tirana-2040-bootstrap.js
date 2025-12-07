@@ -1,10 +1,10 @@
 import { startTirana2040 } from './tirana-2040-main.js';
 
 function displayBootstrapError(err) {
-  console.error('London 1990 failed during bootstrap import', err);
+  console.error('Dual Range failed during bootstrap import', err);
   const statusEl = document.getElementById('status');
   if (statusEl) {
-    statusEl.textContent = 'London 1990 • Failed to load';
+    statusEl.textContent = 'Dual Range • Failed to load';
   }
 }
 

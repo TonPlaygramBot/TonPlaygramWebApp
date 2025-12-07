@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
-<title>London 1990 • Baker Street District</title>
+<title>Dual Range • Two-Player Shooting Gallery</title>
 <link rel="stylesheet" href="./tirana-2040.css" />
 </head>
 <body>
@@ -12,12 +12,16 @@
   <div class="hud">
     <div class="row top">
       <div style="display:flex;gap:6px;align-items:center">
-        <div class="chip" id="status">London 1990 • Baker Street District</div>
-        <div id="br" class="chip">Entrants: 10 • AI</div>
+        <div class="chip" id="status">Dual Range • Initializing…</div>
+        <div id="br" class="chip">Mode: 2 players • Hot-seat</div>
         <div id="weaponName" class="chip" aria-live="polite">Weapon: —</div>
+        <div class="chip" id="p1Score" aria-live="polite">Shooter 1 • 0 pts</div>
+        <div class="chip" id="p2Score" aria-live="polite">Shooter 2 • 0 pts</div>
+        <div class="chip" id="activePlayer">Active: Shooter 1</div>
       </div>
       <div style="display:flex;gap:6px;align-items:center">
-        <button id="mapBtn" class="btn">🗺 Map</button>
+        <button id="swapPlayerBtn" class="btn">🔁 Switch shooter</button>
+        <button id="mapBtn" class="btn">🗺 Range map</button>
         <button id="muteBtn" class="btn">🔊</button>
       </div>
   </div>
@@ -37,7 +41,7 @@
     <div id="mapOverlay">
       <canvas id="mapCanvas"></canvas>
       <button id="mapClose">Exit Map</button>
-      <div id="legend"><strong>West End Navigation</strong>Tap Baker Street, Marble Arch, Oxford Street or Marylebone High Street on the map to set a waypoint and follow the dashed guidance in-game. Tap the same spot again to clear it. Icons: 🏥 Hospital · 🚓 Police · 🧯 Fire · 🛍 Mall · 🛫 Airport · 🚉 Station</div>
+      <div id="legend"><strong>Range Layout</strong>Targets are grouped by distance. Tap anywhere on the miniature map to check lane spacing and where the next wave will pop up. The yellow box marks the firing line; stay behind it when swapping shooters. Icons: 🎯 Target cluster · 🛡 Cover berm · 📦 Weapon rack</div>
     <div id="mapControls">
       <div class="mapRow"><span id="mapZoomLabel">Zoom 1.0x</span></div>
       <div class="mapRow">
