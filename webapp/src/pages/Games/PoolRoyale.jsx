@@ -745,9 +745,10 @@ const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
 const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 0.72; // deepen the jaws further so the underside fills out the pocket throat further downward
+const POCKET_JAW_DEPTH_SCALE = 1.02; // push the jaw bodies further down so the underside reaches the pocket floor
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
-const POCKET_JAW_BOTTOM_CLEARANCE = TABLE.THICK * 0.042; // keep a slimmer gap beneath the jaws so the extended depth still clears the cloth
+const POCKET_JAW_BOTTOM_CLEARANCE = 0; // allow the jaw extrusion to run right down to the pocket base without a visible gap
+const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.12; // align the jaw underside to the same height as the pocket base plate
 const POCKET_JAW_EDGE_FLUSH_START = 0.22; // hold the thicker centre section longer before easing toward the chrome trim
 const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome trim flush at the very ends
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.16; // draw the edge down to a finer, pointier profile while keeping the middle volume intact
@@ -6926,7 +6927,12 @@ function Table3D(
       railH * POCKET_JAW_DEPTH_SCALE * depthMultiplier
     );
     const clearance = Math.max(0, POCKET_JAW_BOTTOM_CLEARANCE);
-    const safeBottomY = pocketTopY + clearance;
+    const pocketFloorY =
+      pocketTopY -
+      TABLE.THICK +
+      POCKET_JAW_FLOOR_CONTACT_LIFT +
+      (isMiddle ? SIDE_POCKET_PLYWOOD_LIFT : 0);
+    const safeBottomY = pocketFloorY + clearance;
     const maxJawDepth = jawTopY - safeBottomY;
     if (Number.isFinite(maxJawDepth)) {
       const limitedDepth = Math.max(MICRO_EPS, maxJawDepth - MICRO_EPS * 0.5);
