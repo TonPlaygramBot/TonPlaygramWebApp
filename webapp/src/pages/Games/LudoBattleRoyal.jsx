@@ -61,6 +61,31 @@ const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 
 const TOKEN_TYPE_SEQUENCE = ['k', 'q', 'b', 'n', 'r', 'p'];
 
+const TOKEN_TYPE_LABELS = {
+  k: 'King',
+  q: 'Queen',
+  b: 'Bishop',
+  n: 'Knight',
+  r: 'Rook',
+  p: 'Pawn'
+};
+
+const TOKEN_SET_OPTIONS = Object.freeze([
+  { id: 'royaleMix', label: 'Royal Mix', sequence: TOKEN_TYPE_SEQUENCE },
+  { id: 'kings', label: 'King Tokens', sequence: ['k'] },
+  { id: 'queens', label: 'Queen Tokens', sequence: ['q'] },
+  { id: 'bishops', label: 'Bishop Tokens', sequence: ['b'] },
+  { id: 'knights', label: 'Knight Tokens', sequence: ['n'] },
+  { id: 'rooks', label: 'Rook Tokens', sequence: ['r'] },
+  { id: 'pawns', label: 'Pawn Tokens', sequence: ['p'] }
+]);
+
+const mixHex = (from, to, factor) => {
+  const color = new THREE.Color(from);
+  color.lerp(new THREE.Color(to), clamp(factor, 0, 1));
+  return color.getHex();
+};
+
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const ARENA_GROWTH = 1.45;
@@ -183,15 +208,27 @@ const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
-  tableShape: 0
+  tableShape: 0,
+  tokenSet: 0,
+  tokenPalette: 0
 };
 
-const CUSTOMIZATION_SECTIONS = [
+const TABLE_CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS }
+];
+
+const TOKEN_CUSTOMIZATION_SECTIONS = [
+  { key: 'tokenSet', label: 'Token Piece', options: TOKEN_SET_OPTIONS },
+  { key: 'tokenPalette', label: 'Token Colors', options: TOKEN_COLOR_PRESETS }
+];
+
+const CUSTOMIZATION_GROUPS = [
+  { title: 'Table Setup', sections: TABLE_CUSTOMIZATION_SECTIONS },
+  { title: 'Token Setup', sections: TOKEN_CUSTOMIZATION_SECTIONS }
 ];
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
@@ -207,7 +244,9 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_OPTIONS.length],
+    ['tokenSet', TOKEN_SET_OPTIONS.length],
+    ['tokenPalette', TOKEN_COLOR_PRESETS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -226,6 +265,23 @@ function enforceShapeForPlayers(appearance, playerCount) {
     safe.tableShape = NON_DIAMOND_SHAPE_INDEX;
   }
   return safe;
+}
+
+function getTokenSequenceForAppearance(index) {
+  const option = TOKEN_SET_OPTIONS[index];
+  if (option?.sequence?.length) {
+    return option.sequence;
+  }
+  return TOKEN_TYPE_SEQUENCE;
+}
+
+function getTokenColorsForAppearance(paletteIndex, playerCount) {
+  const preset = TOKEN_COLOR_PRESETS[paletteIndex] ?? TOKEN_COLOR_PRESETS[0];
+  const sourceColors = Array.isArray(preset?.colors) && preset.colors.length
+    ? preset.colors
+    : PLAYER_COLORS;
+  const clampedCount = clampPlayerCount(playerCount ?? DEFAULT_PLAYER_COUNT);
+  return sourceColors.slice(0, clampedCount).map((color, idx) => color ?? PLAYER_COLORS[idx]);
 }
 
 function getEffectiveShapeConfig(shapeIndex, playerCount) {
@@ -686,8 +742,8 @@ function disposeChairAssets(chairTemplate, chairMaterials) {
 const LUDO_GRID = 15;
 const LUDO_TILE = 0.075;
 const RAW_BOARD_SIZE = LUDO_GRID * LUDO_TILE;
-// Enlarge the Ludo board so it spans 2.7x the classic footprint.
-const BOARD_SCALE = 2.7 * ARENA_SCALE;
+// Enlarge the Ludo board so it spans 3.1x the classic footprint to match the chess square footprint better.
+const BOARD_SCALE = 3.1 * ARENA_SCALE;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_CLOTH_HALF = BOARD_DISPLAY_SIZE / 2;
 const BOARD_RADIUS = BOARD_DISPLAY_SIZE / 2;
@@ -808,7 +864,19 @@ const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
 const PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
-const TOKEN_COLORS = PLAYER_COLORS;
+const TOKEN_COLOR_PRESETS = Object.freeze([
+  { id: 'classicBright', label: 'Classic Bright', colors: PLAYER_COLORS },
+  {
+    id: 'satinDeep',
+    label: 'Satin Deep',
+    colors: PLAYER_COLORS.map((color) => mixHex(color, 0x0f172a, 0.28))
+  },
+  {
+    id: 'softGlow',
+    label: 'Soft Glow',
+    colors: PLAYER_COLORS.map((color) => mixHex(color, 0xffffff, 0.32))
+  }
+]);
 const TOKEN_TRACK_SURFACE_OFFSET = 0.002;
 const TOKEN_HOME_SURFACE_OFFSET = 0.008;
 const TOKEN_GOAL_SURFACE_OFFSET = 0.0065;
@@ -1828,8 +1896,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   });
 
   const playerColorsHex = useMemo(
-    () => PLAYER_COLORS.slice(0, activePlayerCount).map((value) => colorNumberToHex(value)),
-    [activePlayerCount]
+    () =>
+      getTokenColorsForAppearance(appearance.tokenPalette, activePlayerCount).map((value) =>
+        colorNumberToHex(value)
+      ),
+    [activePlayerCount, appearance.tokenPalette]
   );
 
   const aiFlags = useMemo(() => {
@@ -2028,6 +2099,19 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
   }, []);
 
+  const disposeTokenObject = useCallback((token) => {
+    if (!token) return;
+    token.traverse((child) => {
+      if (!child.isMesh) return;
+      child.geometry?.dispose?.();
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat) => {
+        mat?.map?.dispose?.();
+        mat?.dispose?.();
+      });
+    });
+  }, []);
+
   const renderPreview = useCallback((type, option) => {
     switch (type) {
       case 'tableWood': {
@@ -2121,6 +2205,47 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
               />
             </div>
             <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
+          </div>
+        );
+      }
+      case 'tokenSet': {
+        const sequence = option?.sequence?.length ? option.sequence : TOKEN_TYPE_SEQUENCE;
+        const items = sequence.slice(0, 4);
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 py-2">
+            <div className="flex h-full items-center justify-center gap-2">
+              {items.map((type, idx) => (
+                <div
+                  key={`${type}-${idx}`}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/5 text-[0.7rem] font-semibold uppercase text-sky-100"
+                >
+                  {(TOKEN_TYPE_LABELS[type] ?? type).slice(0, 1)}
+                </div>
+              ))}
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/30" />
+          </div>
+        );
+      }
+      case 'tokenPalette': {
+        const colors = option?.colors?.length ? option.colors : PLAYER_COLORS;
+        return (
+          <div className="relative h-14 w-full overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-2 py-2">
+            <div className="flex h-full w-full items-center justify-center gap-2">
+              {colors.slice(0, 4).map((color, idx) => (
+                <div
+                  key={`${color}-${idx}`}
+                  className="flex h-8 flex-1 items-center justify-center rounded-lg shadow-inner"
+                  style={{
+                    background: `linear-gradient(135deg, ${colorNumberToHex(color)}, ${adjustHexColor(
+                      colorNumberToHex(color),
+                      0.18
+                    )})`
+                  }}
+                />
+              ))}
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/30" />
           </div>
         );
       }
@@ -2556,7 +2681,14 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       };
       applyChairThemeMaterials(arena, chairTheme);
     }
-  }, [appearance]);
+
+    const tokenChanged =
+      arena.tokenAppearance?.tokenSet !== safe.tokenSet ||
+      arena.tokenAppearance?.tokenPalette !== safe.tokenPalette;
+    if (tokenChanged) {
+      rebuildTokensForAppearance(safe);
+    }
+  }, [activePlayerCount, appearance, rebuildTokensForAppearance]);
 
   useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
@@ -2798,7 +2930,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairs.push({ group, anchor: avatarAnchor });
     }
 
-    const boardData = await buildLudoBoard(boardGroup, activePlayerCount);
+    const boardData = await buildLudoBoard(boardGroup, activePlayerCount, safeAppearance);
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -2840,7 +2972,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairTemplate,
       chairMaterials,
       chairs,
-      seatAnchors: chairs.map((chair) => chair.anchor)
+      seatAnchors: chairs.map((chair) => chair.anchor),
+      tokenAppearance: { tokenSet: safeAppearance.tokenSet, tokenPalette: safeAppearance.tokenPalette }
     };
 
     const attemptDiceRoll = (clientX, clientY) => {
@@ -3163,6 +3296,77 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     }
     return state.goalSlots[player][tokenIndex].clone().add(TOKEN_GOAL_LIFT.clone());
   };
+
+  const rebuildTokensForAppearance = useCallback(
+    async (appearanceConfig) => {
+      const arena = arenaRef.current;
+      const state = stateRef.current;
+      if (!arena || !state) return;
+
+      if (!Array.isArray(state.tokens)) return;
+
+      const safeAppearance = enforceShapeForPlayers(normalizeAppearance(appearanceConfig), activePlayerCount);
+      const abgAssets = await getAbgAssets();
+      const sequence = getTokenSequenceForAppearance(safeAppearance.tokenSet);
+      const resolvedSequence = sequence.length ? sequence : TOKEN_TYPE_SEQUENCE;
+      const tokenColors = getTokenColorsForAppearance(safeAppearance.tokenPalette, activePlayerCount);
+      const playerPalettes = tokenColors.map((color, idx) => {
+        const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
+        return abgTintPalette(src, color);
+      });
+
+      state.tokens.flat().forEach((token) => {
+        if (!token) return;
+        arena.boardGroup?.remove(token);
+        disposeTokenObject(token);
+      });
+
+      const newTokens = tokenColors.map((color, playerIdx) => {
+        const palette = playerPalettes[playerIdx] ?? [];
+        return Array.from({ length: 4 }, (_, tokenIndex) => {
+          const type = resolvedSequence[tokenIndex % resolvedSequence.length];
+          const baseProto =
+            abgAssets?.proto?.w?.[type] ||
+            abgAssets?.proto?.b?.[type] ||
+            null;
+          const token = baseProto ? baseProto.clone(true) : makeRook(makeTokenMaterial(color));
+          if (baseProto && palette.length) {
+            abgApplyPalette(token, palette);
+          }
+          const label = createTokenCountLabel();
+          if (label) {
+            token.add(label);
+            token.userData.countLabel = label;
+          }
+          if (!token.userData) token.userData = {};
+          token.userData.tokenColor = colorNumberToHex(color);
+          token.userData.tokenType = type;
+          token.userData.playerIndex = playerIdx;
+          token.userData.tokenIndex = tokenIndex;
+          token.traverse((node) => {
+            if (!node.userData) node.userData = {};
+            node.userData.tokenGroup = token;
+            node.userData.playerIndex = playerIdx;
+            node.userData.tokenIndex = tokenIndex;
+          });
+
+          const progress = state.progress?.[playerIdx]?.[tokenIndex];
+          const clampedProgress = Number.isFinite(progress) ? progress : -1;
+          const targetPos = getWorldForProgress(playerIdx, clampedProgress, tokenIndex);
+          token.position.copy(targetPos);
+          token.rotation.set(0, 0, 0);
+          arena.boardGroup?.add(token);
+          return token;
+        });
+      });
+
+      state.tokens = newTokens;
+      arena.tokenAppearance = { tokenSet: safeAppearance.tokenSet, tokenPalette: safeAppearance.tokenPalette };
+      humanSelectionRef.current = null;
+      updateTokenStacks();
+    },
+    [activePlayerCount, disposeTokenObject, getWorldForProgress, updateTokenStacks]
+  );
 
   const scheduleMove = (player, tokenIndex, targetProgress, onComplete) => {
     const state = stateRef.current;
@@ -3685,39 +3889,44 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </svg>
                 </button>
               </div>
-              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option, idx) => {
-                        const selected = appearance[key] === idx;
-                        const disabled =
-                          key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && DEFAULT_PLAYER_COUNT > 4;
-                        return (
-                          <button
-                            key={option.id ?? idx}
-                            type="button"
-                            onClick={() => {
-                              if (disabled) return;
-                              setAppearance((prev) => ({ ...prev, [key]: idx }));
-                            }}
-                            aria-pressed={selected}
-                            disabled={disabled}
-                            className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
-                          >
-                            {renderPreview(key, option)}
-                            <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+              <div className="mt-4 max-h-72 space-y-5 overflow-y-auto pr-1">
+                {CUSTOMIZATION_GROUPS.map(({ title, sections }) => (
+                  <div key={title} className="space-y-3">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-sky-200/80">{title}</p>
+                    {sections.map(({ key, label, options }) => (
+                      <div key={key} className="space-y-2">
+                        <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {options.map((option, idx) => {
+                            const selected = appearance[key] === idx;
+                            const disabled =
+                              key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && DEFAULT_PLAYER_COUNT > 4;
+                            return (
+                              <button
+                                key={option.id ?? idx}
+                                type="button"
+                                onClick={() => {
+                                  if (disabled) return;
+                                  setAppearance((prev) => ({ ...prev, [key]: idx }));
+                                }}
+                                aria-pressed={selected}
+                                disabled={disabled}
+                                className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                  selected
+                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                    : 'border-white/10 bg-white/5 hover:border-white/20'
+                                } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
+                              >
+                                {renderPreview(key, option)}
+                                <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
+                                  {option.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ))}
               </div>
@@ -3833,14 +4042,22 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 }
 
-async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
+async function buildLudoBoard(
+  boardGroup,
+  playerCount = DEFAULT_PLAYER_COUNT,
+  appearance = DEFAULT_APPEARANCE
+) {
   const scene = boardGroup;
 
   const abgAssets = await getAbgAssets();
   const boardPalette = abgAssets?.boardPalette ?? { light: null, dark: null };
   const lightBoardMat = cloneBoardMaterial(boardPalette.light, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(boardPalette.dark ?? boardPalette.light, 0xdccfb0);
-  const playerPalettes = PLAYER_COLORS.map((color, idx) => {
+  const tokenColors = getTokenColorsForAppearance(appearance?.tokenPalette, playerCount);
+  const tokenSequence = getTokenSequenceForAppearance(appearance?.tokenSet);
+  const resolvedSequence = tokenSequence.length ? tokenSequence : TOKEN_TYPE_SEQUENCE;
+
+  const playerPalettes = tokenColors.map((color, idx) => {
     const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
     return abgTintPalette(src, color);
   });
@@ -3947,10 +4164,10 @@ async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   addCenterHome(scene);
   addBoardMarkers(scene, cellToWorld);
 
-  const tokens = TOKEN_COLORS.slice(0, playerCount).map((color, playerIdx) => {
+  const tokens = tokenColors.map((color, playerIdx) => {
     const palette = playerPalettes[playerIdx] ?? [];
     return Array.from({ length: 4 }, (_, i) => {
-      const type = TOKEN_TYPE_SEQUENCE[i % TOKEN_TYPE_SEQUENCE.length];
+      const type = resolvedSequence[i % resolvedSequence.length];
       const baseProto =
         abgAssets?.proto?.w?.[type] ||
         abgAssets?.proto?.b?.[type] ||
