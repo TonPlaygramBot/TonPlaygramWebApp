@@ -1470,7 +1470,7 @@ function payChips(player, amount, state) {
 function getNextActiveIndex(players, startIndex) {
   if (!players.length) return 0;
   for (let offset = 1; offset <= players.length; offset += 1) {
-    const idx = (startIndex + offset) % players.length;
+    const idx = (startIndex - offset + players.length) % players.length;
     const p = players[idx];
     if (!p) continue;
     if (!p.folded && p.chips > 0 && !p.allIn) {
