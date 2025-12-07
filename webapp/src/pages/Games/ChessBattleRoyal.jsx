@@ -441,7 +441,7 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
 const BOARD_COLOR_OPTIONS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
-      // Only expose the board color pairs that exist inside the ABeautifulGame GLTF theme list
+      // Board palettes lifted directly from the ABeautifulGame presets (no extra colors)
       id: `${config.id}Board`,
       label: config.name,
       light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
@@ -5156,9 +5156,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     if (arena.boardModel) {
       applyBeautifulGameBoardTheme(arena.boardModel, boardTheme);
       arena.boardModel.visible = true;
-      // Always prefer the GLTF chessboard over the procedural fallback once it is available
       arena.setProceduralBoardVisible?.(false);
-      arena.usingProceduralBoard = false;
     }
 
     const shouldSwapPieces = !arena.activePieceSetId || nextPieceSetId !== arena.activePieceSetId;
