@@ -438,24 +438,14 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_BOARD_COLORS = Object.freeze(
-  BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => ({
-    id: `${config.id}Board`,
-    label: config.name,
-    light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
-    dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
-    preserveOriginal: Boolean(config.board?.preserveOriginal)
-  }))
-);
-
 const BOARD_COLOR_OPTIONS = Object.freeze(
-  BEAUTIFUL_GAME_BOARD_COLORS.map((config) =>
+  BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
       // Board palettes lifted directly from the ABeautifulGame presets (no extra colors)
-      id: config.id,
-      label: config.label,
-      light: config.light,
-      dark: config.dark,
+      id: `${config.id}Board`,
+      label: config.name,
+      light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
+      dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
       frameLight: BEAUTIFUL_GAME_THEME.frameLight,
       frameDark: BEAUTIFUL_GAME_THEME.frameDark,
       surfaceRoughness: BEAUTIFUL_GAME_THEME.surfaceRoughness,
@@ -465,7 +455,7 @@ const BOARD_COLOR_OPTIONS = Object.freeze(
       accent: BEAUTIFUL_GAME_THEME.accent,
       highlight: BEAUTIFUL_GAME_THEME.highlight,
       capture: BEAUTIFUL_GAME_THEME.capture,
-      preserveOriginalMaterials: config.preserveOriginal
+      preserveOriginalMaterials: Boolean(config.board?.preserveOriginal)
     })
   )
 );
@@ -6043,11 +6033,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
       const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
+      if (currentBoardCleanup) {
+        currentBoardCleanup();
+        currentBoardCleanup = null;
+      }
       if (boardModel) {
-        if (currentBoardCleanup) {
-          currentBoardCleanup();
-          currentBoardCleanup = null;
-        }
         boardModel.visible = true;
         boardGroup.add(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
@@ -6059,14 +6049,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           } catch {}
           disposeObject3D(boardModel);
         };
-      } else if (currentBoardModel) {
-        applyBeautifulGameBoardTheme(
-          currentBoardModel,
-          paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME
-        );
-        setProceduralBoardVisible(false);
       } else {
         setProceduralBoardVisible(true);
+        currentBoardModel = null;
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
