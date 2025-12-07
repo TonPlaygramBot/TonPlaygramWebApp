@@ -1,6 +1,6 @@
 import { useLocation } from 'react-router-dom';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import TableTennis3D from '../../components/TableTennis3D.jsx';
+import TableTennisClassic from '../../components/TableTennisClassic.jsx';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
 
@@ -18,6 +18,6 @@ export default function TableTennis() {
     avatar: flag,
     difficulty: params.get('difficulty') || 'pro',
   };
-  return <TableTennis3D player={player} ai={ai} />;
+  return <TableTennisClassic player={player} ai={ai} />;
 }
 
