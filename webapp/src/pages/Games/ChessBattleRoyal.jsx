@@ -438,10 +438,11 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
+const BOARD_COLOR_OPTIONS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
-      id: config.id,
+      // Board palettes lifted directly from the ABeautifulGame presets (no extra colors)
+      id: `${config.id}Board`,
       label: config.name,
       light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
       dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
@@ -449,6 +450,8 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
       frameDark: BEAUTIFUL_GAME_THEME.frameDark,
       surfaceRoughness: BEAUTIFUL_GAME_THEME.surfaceRoughness,
       surfaceMetalness: BEAUTIFUL_GAME_THEME.surfaceMetalness,
+      frameRoughness: BEAUTIFUL_GAME_THEME.frameRoughness,
+      frameMetalness: BEAUTIFUL_GAME_THEME.frameMetalness,
       accent: BEAUTIFUL_GAME_THEME.accent,
       highlight: BEAUTIFUL_GAME_THEME.highlight,
       capture: BEAUTIFUL_GAME_THEME.capture,
@@ -456,8 +459,6 @@ const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
     })
   )
 );
-
-const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
