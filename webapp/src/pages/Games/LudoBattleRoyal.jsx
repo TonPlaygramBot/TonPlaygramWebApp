@@ -60,6 +60,80 @@ const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
 const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 
 const TOKEN_TYPE_SEQUENCE = ['k', 'q', 'b', 'n', 'r', 'p'];
+const HEAD_PRESET_OPTIONS = Object.freeze([
+  {
+    id: 'headGlass',
+    label: 'Glass',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.05,
+      transmission: 0.95,
+      ior: 1.5,
+      thickness: 0.5
+    }
+  },
+  {
+    id: 'headRuby',
+    label: 'Ruby',
+    preset: {
+      color: '#9b111e',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.92,
+      ior: 2.4,
+      thickness: 0.6
+    }
+  },
+  {
+    id: 'headPearl',
+    label: 'Pearl',
+    preset: {
+      color: '#f5f5f5',
+      metalness: 0.05,
+      roughness: 0.25,
+      transmission: 0,
+      ior: 1.3,
+      thickness: 0.2
+    }
+  },
+  {
+    id: 'headSapphire',
+    label: 'Sapphire',
+    preset: {
+      color: '#0f52ba',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headEmerald',
+    label: 'Emerald',
+    preset: {
+      color: '#046a38',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headDiamond',
+    label: 'Diamond',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.03,
+      transmission: 0.98,
+      ior: 2.4,
+      thickness: 0.8
+    }
+  }
+]);
 
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -165,6 +239,15 @@ const TOKEN_STYLE_OPTIONS = Object.freeze([
   }
 ]);
 
+const TOKEN_PIECE_OPTIONS = Object.freeze([
+  { id: 'piecePawn', label: 'Play as Pawn', type: 'p', symbol: '♙' },
+  { id: 'pieceRook', label: 'Play as Rook', type: 'r', symbol: '♖' },
+  { id: 'pieceKnight', label: 'Play as Knight', type: 'n', symbol: '♘' },
+  { id: 'pieceBishop', label: 'Play as Bishop', type: 'b', symbol: '♗' },
+  { id: 'pieceQueen', label: 'Play as Queen', type: 'q', symbol: '♕' },
+  { id: 'pieceKing', label: 'Play as King', type: 'k', symbol: '♔' }
+]);
+
 const TOKEN_PALETTE_OPTIONS = Object.freeze([
   {
     id: 'vividCore',
@@ -180,6 +263,21 @@ const TOKEN_PALETTE_OPTIONS = Object.freeze([
     id: 'midnightPulse',
     label: 'Midnight Pulse',
     swatches: [0xbe123c, 0x1d4ed8, 0xca8a04, 0x15803d]
+  },
+  {
+    id: 'radiantCandy',
+    label: 'Radiant Candy',
+    swatches: [0xff7aa2, 0x7dd3fc, 0xffe999, 0x6ee7b7]
+  },
+  {
+    id: 'steelPulse',
+    label: 'Steel Pulse',
+    swatches: [0xe2e8f0, 0x94a3b8, 0x475569, 0x0ea5e9]
+  },
+  {
+    id: 'sunsetArena',
+    label: 'Sunset Arena',
+    swatches: [0xfb7185, 0xf97316, 0xfacc15, 0x4ade80]
   }
 ]);
 
@@ -232,7 +330,9 @@ const DEFAULT_APPEARANCE = {
   chairColor: 0,
   tableShape: 0,
   tokenPalette: 0,
-  tokenStyle: 0
+  tokenStyle: 0,
+  tokenPiece: 0,
+  headStyle: 0
 };
 
 const CUSTOMIZATION_SECTIONS = [
@@ -242,7 +342,9 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'tokenPalette', label: 'Token Palette', options: TOKEN_PALETTE_OPTIONS },
-  { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS }
+  { key: 'tokenStyle', label: 'Token Style', options: TOKEN_STYLE_OPTIONS },
+  { key: 'tokenPiece', label: 'Token Piece', options: TOKEN_PIECE_OPTIONS },
+  { key: 'headStyle', label: 'Heads (Pawn & Bishop)', options: HEAD_PRESET_OPTIONS }
 ];
 
 const DIAMOND_SHAPE_ID = 'diamondEdge';
@@ -260,7 +362,9 @@ function normalizeAppearance(value = {}) {
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_OPTIONS.length],
     ['tokenPalette', TOKEN_PALETTE_OPTIONS.length],
-    ['tokenStyle', TOKEN_STYLE_OPTIONS.length]
+    ['tokenStyle', TOKEN_STYLE_OPTIONS.length],
+    ['tokenPiece', TOKEN_PIECE_OPTIONS.length],
+    ['headStyle', HEAD_PRESET_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -502,7 +606,7 @@ async function getAbgAssets() {
       });
     });
 
-    return { proto, palettes, boardPalette };
+    return { proto, palettes, boardPalette, boardPrototype: abgCloneWithMats(boardNode) };
   })();
   return abgAssetPromise;
 }
@@ -749,6 +853,8 @@ const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
 const CENTER_HOME_BASE_OFFSET = -0.0045;
+const CHESS_TILE_SIZE = 4.2;
+const GLTF_BOARD_TILE_SCALE = (LUDO_TILE * BOARD_SCALE) / CHESS_TILE_SIZE;
 // Align the Ludo board quadrants with the token rails that sit on the table edges.
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
@@ -1757,6 +1863,40 @@ function makeRook(mat) {
   return g;
 }
 
+function makeHeadMaterial(preset) {
+  const color = preset?.color ?? '#ffffff';
+  return new THREE.MeshPhysicalMaterial({
+    color,
+    metalness: preset?.metalness ?? 0.05,
+    roughness: preset?.roughness ?? 0.15,
+    transmission: preset?.transmission ?? 0.4,
+    ior: preset?.ior ?? 1.4,
+    thickness: preset?.thickness ?? 0.4,
+    envMapIntensity: 1.15,
+    clearcoat: 0.6,
+    clearcoatRoughness: 0.18
+  });
+}
+
+function applyHeadPresetToToken(token, preset) {
+  if (!token || !preset) return;
+  const mat = makeHeadMaterial(preset);
+  token.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = (node.name || '').toLowerCase();
+    const tagged = node.userData?.tokenHead === true;
+    const looksLikeHead = tagged || /(head|top|finial|crown|cap|ball)/.test(name);
+    if (!looksLikeHead) return;
+    if (Array.isArray(node.material)) {
+      node.material = node.material.map(() => mat.clone());
+    } else {
+      node.material = mat.clone();
+    }
+    node.castShadow = true;
+    node.receiveShadow = true;
+  });
+}
+
 function ease(t) {
   return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
 }
@@ -2224,6 +2364,29 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             </div>
           </div>
         );
+      case 'tokenPiece':
+        return (
+          <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 text-center text-[0.7rem] leading-tight text-slate-100">
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
+            <div className="relative flex flex-col items-center">
+              <span className="text-xl">{option.symbol}</span>
+              <span className="text-[0.6rem] text-slate-200/80">{option.label}</span>
+            </div>
+          </div>
+        );
+      case 'headStyle':
+        return (
+          <div className="relative flex h-14 w-full items-center justify-center overflow-hidden rounded-xl border border-white/10 bg-slate-950/40 px-3 text-center text-[0.7rem] leading-tight text-slate-100">
+            <div className="absolute inset-0 bg-gradient-to-tr from-white/5 via-transparent to-black/40" />
+            <div
+              className="relative h-8 w-8 rounded-full shadow-inner"
+              style={{
+                background: `radial-gradient(circle at 30% 30%, ${option.preset.color}, #000)`
+              }}
+            />
+            <span className="ml-3 text-[0.7rem] font-semibold">{option.label}</span>
+          </div>
+        );
       default:
         return null;
     }
@@ -2467,7 +2630,8 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         }
         seatDir.normalize();
 
-        let restRadius = BOARD_RADIUS + 0.36;
+        // Keep token resting rails aligned to the previous wooden rail footprint.
+        let restRadius = BOARD_RADIUS + 0.135;
         if (chairGroup) {
           chairGroup.getWorldPosition(seatWorldPos);
           seatWorldPos.setY(0);
@@ -2496,7 +2660,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             restRadius = Math.min(restRadius, outer - 0.14);
           }
         }
-        restRadius = Math.max(restRadius, BOARD_RADIUS + 0.24);
+        restRadius = Math.max(restRadius, BOARD_RADIUS + 0.135);
 
         const restWorld = seatDir.clone().multiplyScalar(restRadius).add(centerXZ);
         restWorld.y = centerWorld.y + heightWorld;
@@ -2608,11 +2772,15 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(safe.tableShape, activePlayerCount);
     const tokenStyleOption = TOKEN_STYLE_OPTIONS[safe.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const tokenPieceOption = TOKEN_PIECE_OPTIONS[safe.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+    const headOption = HEAD_PRESET_OPTIONS[safe.headStyle] ?? HEAD_PRESET_OPTIONS[0];
     const previousAppearance = appearanceRef.current || DEFAULT_APPEARANCE;
     const previousColors = resolvePlayerColors(previousAppearance);
     const nextColors = resolvePlayerColors(safe);
     const paletteChanged = !areColorArraysEqual(previousColors, nextColors);
     const tokenStyleChanged = previousAppearance.tokenStyle !== safe.tokenStyle;
+    const tokenPieceChanged = previousAppearance.tokenPiece !== safe.tokenPiece;
+    const headStyleChanged = previousAppearance.headStyle !== safe.headStyle;
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -2677,7 +2845,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         nextBoardGroup,
         activePlayerCount,
         nextColors,
-        tokenStyleOption
+        tokenStyleOption,
+        headOption,
+        tokenPieceOption
       );
       if (arenaState.boardGroup) {
         arenaState.tableInfo.group.remove(arenaState.boardGroup);
@@ -2716,7 +2886,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     playerColorsRef.current = nextColors;
     appearanceRef.current = safe;
-    if (paletteChanged || tokenStyleChanged) {
+    if (paletteChanged || tokenStyleChanged || tokenPieceChanged || headStyleChanged) {
       refreshBoardTokens();
     }
   }, [appearance, activePlayerCount, applyRailLayout, scheduleHumanAutoRoll, updateTurnIndicator]);
@@ -2849,6 +3019,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const chairOption = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const tokenStyleOption =
       TOKEN_STYLE_OPTIONS[initialAppearance.tokenStyle] ?? TOKEN_STYLE_OPTIONS[0];
+    const tokenPieceOption =
+      TOKEN_PIECE_OPTIONS[initialAppearance.tokenPiece] ?? TOKEN_PIECE_OPTIONS[0];
+    const headOption = HEAD_PRESET_OPTIONS[initialAppearance.headStyle] ?? HEAD_PRESET_OPTIONS[0];
     const initialPlayerColors = resolvePlayerColors(initialAppearance);
     appearanceRef.current = initialAppearance;
     playerColorsRef.current = initialPlayerColors;
@@ -2970,7 +3143,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       boardGroup,
       activePlayerCount,
       initialPlayerColors,
-      tokenStyleOption
+      tokenStyleOption,
+      headOption,
+      tokenPieceOption
     );
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
@@ -4010,7 +4185,9 @@ async function buildLudoBoard(
   boardGroup,
   playerCount = DEFAULT_PLAYER_COUNT,
   playerColors = DEFAULT_PLAYER_COLORS,
-  tokenStyleOption = TOKEN_STYLE_OPTIONS[0]
+  tokenStyleOption = TOKEN_STYLE_OPTIONS[0],
+  headPresetOption = HEAD_PRESET_OPTIONS[0],
+  tokenPieceOption = TOKEN_PIECE_OPTIONS[0]
 ) {
   const scene = boardGroup;
 
@@ -4018,12 +4195,16 @@ async function buildLudoBoard(
   const boardPalette = abgAssets?.boardPalette ?? { light: null, dark: null };
   const lightBoardMat = cloneBoardMaterial(boardPalette.light, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(boardPalette.dark ?? boardPalette.light, 0xdccfb0);
-  const tokenTypeSequence =
+  let tokenTypeSequence =
     tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
+  if (tokenPieceOption?.type) {
+    tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
+  }
   const playerPalettes = playerColors.map((color, idx) => {
     const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
     return abgTintPalette(src, color);
   });
+  const headPreset = headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -4127,6 +4308,19 @@ async function buildLudoBoard(
   addCenterHome(scene);
   addBoardMarkers(scene, cellToWorld, playerColors);
 
+  if (abgAssets?.boardPrototype) {
+    const boardStamp = abgAssets.boardPrototype.clone(true);
+    boardStamp.scale.setScalar(GLTF_BOARD_TILE_SCALE);
+    boardStamp.position.set(0, CENTER_HOME_BASE_OFFSET + 0.0002, 0);
+    boardStamp.rotation.y = BOARD_ROTATION_Y;
+    boardStamp.traverse((node) => {
+      if (!node.isMesh) return;
+      node.castShadow = false;
+      node.receiveShadow = true;
+    });
+    scene.add(boardStamp);
+  }
+
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     const palette = playerPalettes[playerIdx] ?? [];
     return Array.from({ length: 4 }, (_, i) => {
@@ -4138,6 +4332,9 @@ async function buildLudoBoard(
       const token = baseProto ? baseProto.clone(true) : makeRook(makeTokenMaterial(color));
       if (baseProto && palette.length) {
         abgApplyPalette(token, palette);
+      }
+      if (headPreset) {
+        applyHeadPresetToToken(token, headPreset);
       }
       const label = createTokenCountLabel();
       if (label) {
