@@ -51,11 +51,6 @@ export default function Home() {
       name: '3D Snooker preload',
       description: 'Key snippets for billiards physics and +Y mobile controls.',
       href: `${baseUrl}game-preloads/3d-snooker-preload.txt`
-    },
-    {
-      name: 'London 1990 preload',
-      description: 'Narrative bundle plus asset placeholders for the London 1990 Baker Street mini-game.',
-      href: `${baseUrl}game-preloads/tirana-2040-preload.txt`
     }
   ];
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();

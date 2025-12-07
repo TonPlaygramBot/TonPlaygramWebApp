@@ -48,8 +48,6 @@ import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import Snooker from './pages/Games/Snooker.jsx';
 import SnookerLobby from './pages/Games/SnookerLobby.jsx';
-import Tirana2040 from './pages/Games/Tirana2040.jsx';
-import Tirana2040Lobby from './pages/Games/Tirana2040Lobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -145,8 +143,6 @@ export default function App() {
             />
             <Route path="/games/snooker/lobby" element={<SnookerLobby />} />
             <Route path="/games/snooker" element={<Snooker />} />
-            <Route path="/games/tirana2040/lobby" element={<Tirana2040Lobby />} />
-            <Route path="/games/tirana2040" element={<Tirana2040 />} />
             <Route path="/spin" element={<SpinPage />} />
             <Route path="/admin/influencer" element={<InfluencerAdmin />} />
             <Route path="/tasks" element={<Tasks />} />
