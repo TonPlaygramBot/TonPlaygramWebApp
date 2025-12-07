@@ -419,6 +419,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.14; // trim fascia span slightly so the middle plates sit closer to the pocket centres without widening the rounded pocket edge
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.28; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
@@ -6236,6 +6237,8 @@ function Table3D(
     MICRO_EPS,
     sideChromePlateWidth * CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE
   );
+  const sideChromeOuterExtension =
+    TABLE.THICK * CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE;
   const sidePlateHalfHeightLimit = Math.max(
     0,
     chromePlateInnerLimitZ - TABLE.THICK * 0.08
@@ -6581,11 +6584,12 @@ function Table3D(
     { id: 'sideLeft', sx: -1 },
     { id: 'sideRight', sx: 1 }
   ].forEach(({ id, sx }) => {
-    let plateWidth = sideChromePlateWidth;
-    let centerX =
+    let plateWidth = sideChromePlateWidth + sideChromeOuterExtension;
+    const baseCenterX =
       sx *
-      (outerHalfW - plateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
+      (outerHalfW - sideChromePlateWidth / 2 - chromePlateInset + sideChromePlateOutwardShift +
         (sideChromePlateWidthExpansion * CHROME_SIDE_PLATE_CORNER_BIAS_SCALE) / 2);
+    let centerX = baseCenterX + sx * (sideChromeOuterExtension / 2);
     const baseOuterEdge = Math.abs(centerX) + plateWidth / 2;
     if (baseOuterEdge > sideChromeOuterEdgeLimit) {
       const overrun = baseOuterEdge - sideChromeOuterEdgeLimit;
