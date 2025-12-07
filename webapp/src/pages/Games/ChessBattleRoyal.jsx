@@ -282,99 +282,80 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_THEME_NAMES = [
-  'Authentic',
-  'Swap Palettes',
-  'Blue / Orange',
-  'Red / Teal',
-  'Purple / Lime',
-  'Pink / Cyan',
-  'Gold / Slate',
-  'Emerald / Fuchsia',
-  'Silver / Graphite',
-  'Forest / Sand'
-];
-
-const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze([
-  buildBoardTheme({
-    id: 'beautifulGameClassicBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
-    ...BEAUTIFUL_GAME_THEME,
-    preserveOriginalMaterials: true
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameSwapBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
-    light: '#EEE8D5',
-    dark: '#2B2F36',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameBlueOrangeBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
-    light: '#93C5FD',
-    dark: '#1E293B',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameRedTealBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
-    light: '#FCA5A5',
-    dark: '#0F766E',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGamePurpleLimeBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
-    light: '#C4B5FD',
-    dark: '#365314',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGamePinkCyanBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
-    light: '#F9A8D4',
-    dark: '#164E63',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameGoldSlateBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
-    light: '#FDE68A',
-    dark: '#0F172A',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameEmeraldFuchsiaBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
-    light: '#6EE7B7',
-    dark: '#4A044E',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameSilverGraphiteBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
-    light: '#E5E7EB',
-    dark: '#111827',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  }),
-  buildBoardTheme({
-    id: 'beautifulGameForestSandBoard',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
-    light: '#FDEAD7',
-    dark: '#064E3B',
-    frameLight: BEAUTIFUL_GAME_THEME.frameLight,
-    frameDark: BEAUTIFUL_GAME_THEME.frameDark
-  })
+const HEAD_PRESETS = Object.freeze([
+  { id: 'glass', name: 'Glass', label: 'Glass', color: '#ffffff', metalness: 0.0, roughness: 0.05, transmission: 0.95, ior: 1.5, thickness: 0.5 },
+  { id: 'ruby', name: 'Ruby', label: 'Ruby', color: '#9b111e', metalness: 0.05, roughness: 0.08, transmission: 0.92, ior: 2.4, thickness: 0.6 },
+  { id: 'pearl', name: 'Pearl', label: 'Pearl', color: '#f5f5f5', metalness: 0.05, roughness: 0.25, transmission: 0.0, ior: 1.3, thickness: 0.2 },
+  { id: 'sapphire', name: 'Sapphire', label: 'Sapphire', color: '#0f52ba', metalness: 0.05, roughness: 0.08, transmission: 0.9, ior: 1.8, thickness: 0.7 },
+  { id: 'emerald', name: 'Emerald', label: 'Emerald', color: '#046a38', metalness: 0.05, roughness: 0.08, transmission: 0.9, ior: 1.8, thickness: 0.7 },
+  { id: 'diamond', name: 'Diamond', label: 'Diamond', color: '#ffffff', metalness: 0.0, roughness: 0.03, transmission: 0.98, ior: 2.4, thickness: 0.8 }
 ]);
+
+const SIMPLE_THEME_PRESETS = Object.freeze([
+  { name: 'Authentic', piece: { w: { kind: 'palette', src: 'w' }, b: { kind: 'palette', src: 'b' } }, board: { light: '#e4d2b3', dark: '#2f3526' } },
+  { name: 'Swap Palettes', piece: { w: { kind: 'palette', src: 'b' }, b: { kind: 'palette', src: 'w' } }, board: { light: '#EEE8D5', dark: '#2B2F36' } },
+  { name: 'Blue / Orange', piece: { w: { kind: 'solid', color: '#5B8DEF' }, b: { kind: 'solid', color: '#F59E0B' } }, board: { light: '#93C5FD', dark: '#1E293B' } },
+  { name: 'Red / Teal', piece: { w: { kind: 'solid', color: '#EF4444' }, b: { kind: 'solid', color: '#14B8A6' } }, board: { light: '#FCA5A5', dark: '#0F766E' } },
+  { name: 'Purple / Lime', piece: { w: { kind: 'solid', color: '#8B5CF6' }, b: { kind: 'solid', color: '#84CC16' } }, board: { light: '#C4B5FD', dark: '#365314' } },
+  { name: 'Pink / Cyan', piece: { w: { kind: 'solid', color: '#EC4899' }, b: { kind: 'solid', color: '#06B6D4' } }, board: { light: '#F9A8D4', dark: '#164E63' } },
+  { name: 'Gold / Slate', piece: { w: { kind: 'solid', color: '#F59E0B' }, b: { kind: 'solid', color: '#64748B' } }, board: { light: '#FDE68A', dark: '#0F172A' } },
+  { name: 'Emerald / Fuchsia', piece: { w: { kind: 'solid', color: '#10B981' }, b: { kind: 'solid', color: '#A21CAF' } }, board: { light: '#6EE7B7', dark: '#4A044E' } },
+  { name: 'Silver / Graphite', piece: { w: { kind: 'solid', color: '#D1D5DB' }, b: { kind: 'solid', color: '#111827' } }, board: { light: '#E5E7EB', dark: '#111827' } },
+  { name: 'Forest / Sand', piece: { w: { kind: 'solid', color: '#22C55E' }, b: { kind: 'solid', color: '#E9D5A1' } }, board: { light: '#FDEAD7', dark: '#064E3B' } },
+  { name: 'Coffee / Cream', piece: { w: { kind: 'solid', color: '#9D6B53' }, b: { kind: 'solid', color: '#EEE0D5' } }, board: { light: '#D6BFA9', dark: '#6B4F3A' } },
+  { name: 'Midnight / Ice', piece: { w: { kind: 'solid', color: '#C7D2FE' }, b: { kind: 'solid', color: '#111827' } }, board: { light: '#E5E7EB', dark: '#0B1220' } },
+  { name: 'Navy / Coral', piece: { w: { kind: 'solid', color: '#1D4ED8' }, b: { kind: 'solid', color: '#FB7185' } }, board: { light: '#93C5FD', dark: '#0F172A' } },
+  { name: 'Mint / Charcoal', piece: { w: { kind: 'solid', color: '#34D399' }, b: { kind: 'solid', color: '#374151' } }, board: { light: '#A7F3D0', dark: '#111827' } },
+  { name: 'Rose / Indigo', piece: { w: { kind: 'solid', color: '#F43F5E' }, b: { kind: 'solid', color: '#4338CA' } }, board: { light: '#FBCFE8', dark: '#1E1B4B' } },
+  { name: 'Amber / Stone', piece: { w: { kind: 'solid', color: '#F59E0B' }, b: { kind: 'solid', color: '#78716C' } }, board: { light: '#FDE68A', dark: '#292524' } },
+  { name: 'Violet / Amber', piece: { w: { kind: 'solid', color: '#7C3AED' }, b: { kind: 'solid', color: '#F59E0B' } }, board: { light: '#DDD6FE', dark: '#1F1147' } },
+  { name: 'Aqua / Maroon', piece: { w: { kind: 'solid', color: '#22D3EE' }, b: { kind: 'solid', color: '#7F1D1D' } }, board: { light: '#A5F3FC', dark: '#3F0E0E' } },
+  { name: 'Bronze / Coal', piece: { w: { kind: 'solid', color: '#CD7F32' }, b: { kind: 'solid', color: '#0A0A0A' } }, board: { light: '#E9D5A1', dark: '#262626' } },
+  { name: 'Steel / Plum', piece: { w: { kind: 'solid', color: '#94A3B8' }, b: { kind: 'solid', color: '#581C87' } }, board: { light: '#CBD5E1', dark: '#2D1B4E' } },
+  { name: 'Ocean / Sandstone', piece: { w: { kind: 'solid', color: '#3B82F6' }, b: { kind: 'solid', color: '#F5DEB3' } }, board: { light: '#BFDBFE', dark: '#7C3F00' } },
+  { name: 'Teal / Orange', piece: { w: { kind: 'solid', color: '#14B8A6' }, b: { kind: 'solid', color: '#F97316' } }, board: { light: '#99F6E4', dark: '#1F2937' } },
+  { name: 'Wine / Ivory', piece: { w: { kind: 'solid', color: '#991B1B' }, b: { kind: 'solid', color: '#ECECEC' } }, board: { light: '#F5EDE0', dark: '#3B1C1C' } },
+  { name: 'Mono', piece: { w: { kind: 'solid', color: '#E5E7EB' }, b: { kind: 'solid', color: '#1F2937' } }, board: { light: '#E5E7EB', dark: '#111827' } }
+]);
+
+const BEAUTIFUL_GAME_THEME_NAMES = SIMPLE_THEME_PRESETS.map((preset) => preset.name);
+
+function makeThemeSlug(name, suffix) {
+  return `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${suffix}`;
+}
+
+function themeColorToHex(value, fallback) {
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return `#${value.toString(16).padStart(6, '0')}`;
+  }
+  return fallback;
+}
+
+const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
+  SIMPLE_THEME_PRESETS.map((preset, idx) => {
+    const id = makeThemeSlug(preset.name, 'board');
+    if (!preset.board?.light || !preset.board?.dark) {
+      return buildBoardTheme({ id, label: `ABeautifulGame (${preset.name})`, ...BEAUTIFUL_GAME_THEME });
+    }
+    return buildBoardTheme({
+      id,
+      label: `ABeautifulGame (${preset.name})`,
+      light: themeColorToHex(preset.board.light, BEAUTIFUL_GAME_THEME.light),
+      dark: themeColorToHex(preset.board.dark, BEAUTIFUL_GAME_THEME.dark),
+      frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+      frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+      accent: BEAUTIFUL_GAME_THEME.accent,
+      highlight: BEAUTIFUL_GAME_THEME.highlight,
+      capture: BEAUTIFUL_GAME_THEME.capture,
+      surfaceRoughness: BEAUTIFUL_GAME_THEME.surfaceRoughness,
+      surfaceMetalness: BEAUTIFUL_GAME_THEME.surfaceMetalness,
+      frameRoughness: BEAUTIFUL_GAME_THEME.frameRoughness,
+      frameMetalness: BEAUTIFUL_GAME_THEME.frameMetalness,
+      preserveOriginalMaterials: idx === 0
+    });
+  })
+);
 
 const BOARD_COLOR_OPTIONS = Object.freeze(BEAUTIFUL_GAME_BOARD_VARIANTS);
 
@@ -437,115 +418,33 @@ const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuthentic';
 const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
 
 const BASE_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
-
-const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze([
-  {
-    id: BEAUTIFUL_GAME_AUTHENTIC_ID,
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[0]})`,
-    style: { ...BASE_PIECE_STYLE, preserveOriginalMaterials: true, keepTextures: true }
-  },
-  {
-    id: 'beautifulGameSwapPalettes',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[1]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: BEAUTIFUL_GAME_THEME.dark },
-      black: { ...BASE_PIECE_STYLE.black, color: BEAUTIFUL_GAME_THEME.light }
-    }
-  },
-  {
-    id: 'beautifulGameBlueOrange',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[2]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#93C5FD' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#1E293B' },
-      accent: '#F59E0B'
-    }
-  },
-  {
-    id: 'beautifulGameRedTeal',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[3]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FCA5A5' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#0F766E' }
-    }
-  },
-  {
-    id: 'beautifulGamePurpleLime',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[4]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#C4B5FD' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#365314' }
-    }
-  },
-  {
-    id: 'beautifulGamePinkCyan',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[5]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#F9A8D4' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#164E63' }
-    }
-  },
-  {
-    id: 'beautifulGameGoldSlate',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[6]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FDE68A' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#0F172A' },
-      goldAccent: '#d7b24a'
-    }
-  },
-  {
-    id: 'beautifulGameEmeraldFuchsia',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[7]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#6EE7B7' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#4A044E' }
-    }
-  },
-  {
-    id: 'beautifulGameSilverGraphite',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[8]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#E5E7EB' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#111827' }
-    }
-  },
-  {
-    id: 'beautifulGameForestSand',
-    label: `ABeautifulGame (${BEAUTIFUL_GAME_THEME_NAMES[9]})`,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: '#FDEAD7' },
-      black: { ...BASE_PIECE_STYLE.black, color: '#064E3B' }
-    }
-  }
-]);
+const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
+  SIMPLE_THEME_PRESETS.map((preset, idx) => {
+    const id = idx === 0 ? BEAUTIFUL_GAME_AUTHENTIC_ID : makeThemeSlug(preset.name, 'pieces');
+    const preserveOriginalMaterials =
+      preset.piece?.w?.kind === 'palette' && preset.piece?.b?.kind === 'palette';
+    const whiteColor = themeColorToHex(
+      preset.piece?.w?.kind === 'solid' ? preset.piece.w.color : BEAUTIFUL_GAME_THEME.light,
+      BEAUTIFUL_GAME_THEME.light
+    );
+    const blackColor = themeColorToHex(
+      preset.piece?.b?.kind === 'solid' ? preset.piece.b.color : BEAUTIFUL_GAME_THEME.dark,
+      BEAUTIFUL_GAME_THEME.dark
+    );
+    return {
+      id,
+      label: `ABeautifulGame (${preset.name})`,
+      style: {
+        ...BASE_PIECE_STYLE,
+        preserveOriginalMaterials,
+        keepTextures: true,
+        white: { ...BASE_PIECE_STYLE.white, color: whiteColor },
+        black: { ...BASE_PIECE_STYLE.black, color: blackColor },
+        accent: BASE_PIECE_STYLE.accent
+      }
+    };
+  })
+);
 
 const DEFAULT_PIECE_STYLE =
   BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
@@ -818,7 +717,8 @@ const DEFAULT_APPEARANCE = {
   tableShape: 0,
   boardColor: 0,
   whitePieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
-  blackPieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX)
+  blackPieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
+  headStyle: 0
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
 const CHAIR_COLOR_OPTIONS = Object.freeze([
@@ -872,6 +772,7 @@ const PRESERVE_NATIVE_PIECE_IDS = new Set();
 const CUSTOMIZATION_SECTIONS = [
   { key: 'whitePieceStyle', label: 'White Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'blackPieceStyle', label: 'Black Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'headStyle', label: 'Heads', options: HEAD_PRESETS },
   { key: 'boardColor', label: 'Chess Board', options: BOARD_COLOR_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
@@ -893,7 +794,8 @@ function normalizeAppearance(value = {}) {
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
     ['boardColor', BOARD_COLOR_OPTIONS.length],
     ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length]
+    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['headStyle', HEAD_PRESETS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -1595,12 +1497,14 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
   const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
+  const headPreset = HEAD_PRESETS[normalized.headStyle] ?? HEAD_PRESETS[0];
   return {
     board: boardTheme,
     pieces: pieceOption,
     highlight: boardTheme.highlight,
     capture: boardTheme.capture,
     accent: boardTheme.accent,
+    headPreset,
     pieceSetId: PIECE_STYLE_OPTIONS[normalized.whitePieceStyle]?.id ?? DEFAULT_PIECE_SET_ID
   };
 }
@@ -2015,7 +1919,63 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   });
 }
 
-function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
+function collectHeadMeshes(piece) {
+  const out = [];
+  const bbox = new THREE.Box3().setFromObject(piece);
+  const height = bbox.max.y - bbox.min.y;
+  const cutoff = bbox.max.y - height * 0.22;
+  piece.traverse((node) => {
+    if (!node?.isMesh) return;
+    const nodeBox = new THREE.Box3().setFromObject(node);
+    const size = nodeBox.getSize(new THREE.Vector3());
+    const nearTop = nodeBox.max.y >= cutoff;
+    const notTooTall = size.y <= height * 0.45;
+    const name = node.name?.toLowerCase?.() ?? '';
+    const hint = /(head|top|cap|crown|finial|ball)/.test(name);
+    if ((nearTop && notTooTall) || hint) {
+      out.push(node);
+    }
+  });
+  return out;
+}
+
+function applyHeadPresetToMeshes(meshes, headPreset = HEAD_PRESETS[0]) {
+  if (!meshes || !headPreset) return;
+  const list = Array.isArray(meshes) ? meshes : [meshes];
+  const mat = new THREE.MeshPhysicalMaterial({
+    color: new THREE.Color(headPreset.color || '#ffffff'),
+    metalness: headPreset.metalness ?? 0.0,
+    roughness: headPreset.roughness ?? 0.05,
+    transparent: (headPreset.transmission ?? 0) > 0,
+    transmission: headPreset.transmission ?? 0.0,
+    ior: headPreset.ior ?? 1.5,
+    thickness: headPreset.thickness ?? 0.5,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06
+  });
+  list.forEach((mesh) => {
+    if (!mesh) return;
+    const type = mesh.userData?.__pieceType;
+    if (type !== 'P' && type !== 'B') return;
+    collectHeadMeshes(mesh).forEach((node) => {
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach((_, idx) => {
+        const applied = mat.clone();
+        if (Array.isArray(node.material)) {
+          node.material[idx] = applied;
+        } else {
+          node.material = applied;
+        }
+      });
+    });
+  });
+}
+
+function applyBeautifulGameStyleToMeshes(
+  meshes,
+  pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE,
+  headPreset = HEAD_PRESETS[0]
+) {
   if (!meshes) return;
   const list = Array.isArray(meshes) ? meshes : [meshes];
   if (pieceStyle?.preserveOriginalMaterials) {
@@ -2121,6 +2081,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
     recolorMesh(mesh, colorKey);
     accentize(mesh, colorKey);
   });
+  applyHeadPresetToMeshes(list, headPreset);
 }
 
 function adornPiecePrototypes(piecePrototypes, tileSize = BOARD.tile) {
@@ -4718,6 +4679,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         </div>
       );
     }
+    if (key === 'headStyle') {
+      const color = option.color || '#ffffff';
+      return (
+        <div className="flex w-full items-center justify-center rounded-full border border-white/15 bg-white/5 p-2">
+          <span className="h-7 w-7 rounded-full border border-white/30 shadow" style={{ background: color }} />
+        </div>
+      );
+    }
     if (key === 'tableWood') {
       const preset = WOOD_PRESETS_BY_ID[option.presetId] ?? WOOD_FINISH_PRESETS[0];
       const color = `#${hslToHexNumber(preset.hue, preset.sat, preset.light).toString(16).padStart(6, '0')}`;
@@ -4999,6 +4968,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
+    const headPreset = palette.headPreset ?? HEAD_PRESETS[0];
       const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
@@ -5057,9 +5027,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     if (arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
+      applyHeadPresetToMeshes(arena.piecePrototypes, headPreset);
     }
     if (arena.allPieceMeshes) {
-      applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
+      applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption, headPreset);
     }
 
     if (arena.boardModel) {
@@ -5115,11 +5086,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     if (isBeautifulGameSet && arena.piecePrototypes) {
       harmonizeBeautifulGamePieces(arena.piecePrototypes, pieceStyleOption);
+      applyHeadPresetToMeshes(arena.piecePrototypes, headPreset);
     }
 
     if (arena.allPieceMeshes) {
       if (isBeautifulGameSet) {
-        applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption);
+        applyBeautifulGameStyleToMeshes(arena.allPieceMeshes, pieceStyleOption, headPreset);
         disposePieceMaterials(arena.pieceMaterials);
         arena.pieceMaterials = null;
       } else {
@@ -5930,6 +5902,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const applyPieceSetAssets = (assets, setId = currentPieceSetId, pieceStyleOption = paletteRef.current?.pieces) => {
       const { boardModel, piecePrototypes } = assets || {};
       currentPieceSetId = setId;
+      const headPreset = paletteRef.current?.headPreset ?? HEAD_PRESETS[0];
       currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
         ? assets.pieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
@@ -5963,6 +5936,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
           );
         }
+        applyHeadPresetToMeshes(currentPiecePrototypes, headPreset);
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         paintPiecesFromPrototypes(piecePrototypes, setId);
       }
