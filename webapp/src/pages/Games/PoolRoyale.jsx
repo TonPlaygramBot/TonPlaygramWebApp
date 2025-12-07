@@ -946,26 +946,26 @@ const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = 0; // remove the underlay lift so pocket rims sit flush on the cloth
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.58 +
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.44 +
   POCKET_VIS_R * 2.9 +
   BALL_R * 2.02;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.88 +
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.62 +
   POCKET_VIS_R * 2.82 +
   BALL_R * 1.92;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.12,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 8.8,
-  heightOffsetShortMultiplier: 1.05,
+  heightOffset: BALL_R * 9.6,
+  heightOffsetShortMultiplier: 1.08,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
-  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.15,
-  heightDrop: BALL_R * 1.6,
-  distanceScale: 0.9,
-  heightScale: 1.2,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
+  heightDrop: BALL_R * 1.3,
+  distanceScale: 0.84,
+  heightScale: 1.28,
   focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
@@ -4110,7 +4110,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0235; // hold the orbit slightly farther back so the table stays framed with more breathing room
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
@@ -4177,17 +4177,17 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 0.36;
-const TOP_VIEW_RADIUS_SCALE = 0.32;
+const TOP_VIEW_MARGIN = 0.32;
+const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.04, CAMERA.minPhi * 0.62);
+const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.045;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.19;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
 );
-const CUE_VIEW_PHI_LIFT = 0.085;
+const CUE_VIEW_PHI_LIFT = 0.1;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
@@ -5169,7 +5169,7 @@ function calcTarget(cue, dir, balls) {
   if (dirNorm.y > 1e-8)
     checkRail((limY - cuePos.y) / dirNorm.y, new THREE.Vector2(0, -1));
 
-  const contactRadius = BALL_R * 2 + CUE_CLEARANCE_PADDING;
+  const contactRadius = BALL_R * 2;
   const contactRadius2 = contactRadius * contactRadius;
   const ballList = Array.isArray(balls) ? balls : [];
   ballList.forEach((b) => {
@@ -10140,6 +10140,7 @@ function PoolRoyaleGame({
       const leftInterior = -roomWidth / 2 + wallInset;
       const rightInterior = roomWidth / 2 - wallInset;
 
+      const SHOW_SHORT_RAIL_MASKS = false;
       const doorMaskHeight = wallHeight * 0.72;
       const doorMaskDepth = Math.max(wallThickness * 0.65, 0.1);
       const interiorMaskMat = new THREE.MeshStandardMaterial({
@@ -10150,6 +10151,7 @@ function PoolRoyaleGame({
         side: THREE.FrontSide
       });
       const addShortRailMask = (z) => {
+        if (!SHOW_SHORT_RAIL_MASKS) return;
         const mask = new THREE.Mesh(
           new THREE.BoxGeometry(roomWidth - wallThickness * 1.5, doorMaskHeight, doorMaskDepth),
           interiorMaskMat
@@ -10160,8 +10162,10 @@ function PoolRoyaleGame({
         world.add(mask);
       };
 
-      addShortRailMask(frontInterior);
-      addShortRailMask(backInterior);
+      if (SHOW_SHORT_RAIL_MASKS) {
+        addShortRailMask(frontInterior);
+        addShortRailMask(backInterior);
+      }
 
       cueRackGroupsRef.current = [];
       cueOptionGroupsRef.current = [];
@@ -11450,7 +11454,7 @@ function PoolRoyaleGame({
             const cameraBounds = cameraBoundsRef.current ?? null;
             const cueBounds = cameraBounds?.cueShot ?? null;
             const standingBounds = cameraBounds?.standing ?? null;
-            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.25;
+            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
             const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
             const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
             if (cueBallForPocket && focusBall?.active) {
@@ -16986,11 +16990,30 @@ function PoolRoyaleGame({
             style={{
               width: `${SPIN_CONTROL_DIAMETER_PX}px`,
               height: `${SPIN_CONTROL_DIAMETER_PX}px`,
-              background: `radial-gradient(circle, #f9fafb 0%, #f9fafb ${
-                SWERVE_THRESHOLD * 100
-              }%, #facc15 ${SWERVE_THRESHOLD * 100}%, #facc15 100%)`
+              background: '#f9fafb'
             }}
           >
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: `radial-gradient(circle, transparent ${SWERVE_THRESHOLD * 100}%, rgba(250, 204, 21, 0.28) ${
+                  SWERVE_THRESHOLD * 100
+                }%, rgba(250, 204, 21, 0.32) 100%)`
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute rounded-full"
+              style={{
+                border: '2px solid #facc15',
+                width: `${SWERVE_THRESHOLD * 100}%`,
+                height: `${SWERVE_THRESHOLD * 100}%`,
+                left: `${(1 - SWERVE_THRESHOLD) * 50}%`,
+                top: `${(1 - SWERVE_THRESHOLD) * 50}%`,
+                boxShadow: '0 0 0 6px rgba(250, 204, 21, 0.2)'
+              }}
+            />
             <div
               aria-hidden="true"
               className="absolute rounded-full border-2 border-red-500 pointer-events-none"
