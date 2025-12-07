@@ -421,6 +421,8 @@ const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
     ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
+    id: 'beautifulGameAuthenticBoard',
+    label: 'Authentic',
     light: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.light,
     dark: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.dark,
     frameLight: '#c7a16c',
@@ -439,8 +441,8 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
 const BEAUTIFUL_GAME_BOARD_VARIANTS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
-      id: `${config.id}Board`,
-      label: `ABeautifulGame (${config.name})`,
+      id: config.id,
+      label: config.name,
       light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
       dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
       frameLight: BEAUTIFUL_GAME_THEME.frameLight,
@@ -1532,6 +1534,8 @@ function createSandTimer(accentColor = '#f4b400') {
 function buildBoardTheme(option) {
   const source = option || {};
   return {
+    id: source.id,
+    label: source.label ?? source.name,
     light: source.light ?? BASE_BOARD_THEME.light,
     dark: source.dark ?? BASE_BOARD_THEME.dark,
     frameLight: source.frameLight ?? BASE_BOARD_THEME.frameLight,
@@ -1543,7 +1547,9 @@ function buildBoardTheme(option) {
     surfaceMetalness: clamp01(source.surfaceMetalness, BASE_BOARD_THEME.surfaceMetalness),
     frameRoughness: clamp01(source.frameRoughness, BASE_BOARD_THEME.frameRoughness),
     frameMetalness: clamp01(source.frameMetalness, BASE_BOARD_THEME.frameMetalness),
-    preserveOriginalMaterials: Boolean(source.preserveOriginalMaterials)
+    preserveOriginalMaterials: Boolean(
+      source.preserveOriginalMaterials ?? source.preserveOriginal
+    )
   };
 }
 
