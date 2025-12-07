@@ -2138,7 +2138,17 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
 function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!meshes) return;
   const list = Array.isArray(meshes) ? meshes : [meshes];
-
+  if (pieceStyle?.preserveOriginalMaterials) {
+    list.forEach((mesh) => {
+      mesh?.traverse?.((child) => {
+        if (child?.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
+      });
+    });
+    return;
+  }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
   const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
@@ -2225,176 +2235,11 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
     });
   };
 
-  const setMatProps = (mesh, colorHex, metal, rough, emissiveHex) => {
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    mats.forEach((m) => {
-      if (!m) return;
-      if (colorHex !== undefined && m.color) m.color.set(colorHex);
-      if (emissiveHex !== undefined && m.emissive) m.emissive.set(emissiveHex);
-      if (metal !== undefined && typeof m.metalness === 'number') m.metalness = metal;
-      if (rough !== undefined && typeof m.roughness === 'number') m.roughness = rough;
-    });
-  };
-
-  const bounds = (obj) => {
-    const b = new THREE.Box3().setFromObject(obj);
-    const size = b.getSize(new THREE.Vector3());
-    return { b, size, height: size.y, top: b.max.y };
-  };
-
-  const meshesNearTop = (root, topFrac = 0.2) => {
-    const pb = bounds(root);
-    const cutoff = pb.top - pb.height * topFrac;
-    const out = [];
-    root.traverse((node) => {
-      if (node?.isMesh) {
-        const mb = new THREE.Box3().setFromObject(node);
-        if (mb.max.y >= cutoff) out.push(node);
-      }
-    });
-    return out;
-  };
-
-  const isSphereLike = (mesh, tolerance = 0.3) => {
-    const size = new THREE.Vector3();
-    new THREE.Box3().setFromObject(mesh).getSize(size);
-    const avg = (size.x + size.y + size.z) / 3;
-    if (avg === 0) return false;
-    const dx = Math.abs(size.x - avg) / avg;
-    const dy = Math.abs(size.y - avg) / avg;
-    const dz = Math.abs(size.z - avg) / avg;
-    return dx < tolerance && dy < tolerance && dz < tolerance;
-  };
-
-  const nameIncludes = (node, regex) => regex.test((node?.name || '').toLowerCase());
-
-  const styleRookOrKnight = (piece) => {
-    piece?.traverse?.((child) => {
-      if (child?.isMesh) setMatProps(child, 0xeee8d5, 0.2, 0.5);
-    });
-  };
-
-  const styleBishop = (piece) => {
-    const near = meshesNearTop(piece, 0.28);
-    const spheres = near.filter((m) => isSphereLike(m, 0.35));
-    const tinySphere = spheres
-      .map((m) => {
-        const size = new THREE.Vector3();
-        new THREE.Box3().setFromObject(m).getSize(size);
-        return { m, size };
-      })
-      .sort((a, b) => a.size.length() - b.size.length())[0]?.m;
-    if (tinySphere) setMatProps(tinySphere, 0xd4af37, 1.0, 0.25);
-    const pb = bounds(piece);
-    const bulb = near
-      .filter((m) => m !== tinySphere)
-      .filter((m) => {
-        const mb = new THREE.Box3().setFromObject(m);
-        const size = new THREE.Vector3();
-        mb.getSize(size);
-        const centerY = (mb.min.y + mb.max.y) / 2;
-        return (
-          isSphereLike(m, 0.5) &&
-          size.y > pb.height * 0.08 &&
-          centerY > pb.top - pb.height * 0.32
-        );
-      })
-      .map((m) => {
-        const size = new THREE.Vector3();
-        new THREE.Box3().setFromObject(m).getSize(size);
-        return { m, size };
-      })
-      .sort((a, b) => b.size.length() - a.size.length())[0]?.m;
-    if (bulb) setMatProps(bulb, 0x0a0a0a, 0.2, 0.5);
-  };
-
-  const styleQueen = (piece) => {
-    const near = meshesNearTop(piece, 0.3);
-    const pb = bounds(piece);
-    const topSpheres = near.filter((m) => isSphereLike(m, 0.35));
-    const orb = topSpheres
-      .map((m) => ({
-        m,
-        maxY: new THREE.Box3().setFromObject(m).max.y
-      }))
-      .sort((a, b) => b.maxY - a.maxY)[0]?.m;
-    if (orb) setMatProps(orb, 0x9b111e, 0.05, 0.25);
-    let crown = near.find((m) => nameIncludes(m, /(crown|tiara|corona|spike|prong)/));
-    if (!crown) {
-      crown = near
-        .filter((m) => m !== orb)
-        .filter((m) => !isSphereLike(m, 0.3))
-        .map((m) => {
-          const size = new THREE.Vector3();
-          new THREE.Box3().setFromObject(m).getSize(size);
-          return { m, size };
-        })
-        .sort((a, b) => b.size.length() - a.size.length())[0]?.m;
-    }
-    if (crown) setMatProps(crown, 0xd4af37, 1.0, 0.25);
-    const cap = near
-      .filter((m) => m !== orb && m !== crown)
-      .map((m) => {
-        const mb = new THREE.Box3().setFromObject(m);
-        return { m, centerY: (mb.min.y + mb.max.y) / 2, maxY: mb.max.y };
-      })
-      .filter((entry) => entry.centerY > pb.top - pb.height * 0.35)
-      .sort((a, b) => b.maxY - a.maxY)[0]?.m;
-    if (cap) setMatProps(cap, 0x0a0a0a, 0.2, 0.5);
-  };
-
-  const stylePawn = (piece) => {
-    const pb = bounds(piece);
-    const near = meshesNearTop(piece, 0.5);
-    const ring = near
-      .map((m) => ({ m, box: new THREE.Box3().setFromObject(m) }))
-      .filter(({ box }) => {
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const width = (size.x + size.z) / 2;
-        const ratio = width > 0 ? size.y / width : 1;
-        const centerY = (box.min.y + box.max.y) / 2;
-        return (
-          ratio < 0.25 &&
-          centerY > pb.top - pb.height * 0.45 &&
-          centerY < pb.top - pb.height * 0.12
-        );
-      })
-      .sort((a, b) => b.box.max.y - a.box.max.y)[0]?.m;
-    if (ring) setMatProps(ring, 0xd4af37, 1.0, 0.28);
-  };
-
-  const applyDetailStyling = (mesh) => {
-    if (!mesh) return;
-    const t = (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '')
-      .toString()
-      .toLowerCase();
-    if (t === 'r' || t === 'rook' || t === 'n' || t === 'knight') {
-      styleRookOrKnight(mesh);
-    } else if (t === 'b' || t === 'bishop') {
-      styleBishop(mesh);
-    } else if (t === 'q' || t === 'queen') {
-      styleQueen(mesh);
-    } else if (t === 'p' || t === 'pawn') {
-      stylePawn(mesh);
-    }
-  };
-
   list.forEach((mesh) => {
     if (!mesh) return;
     const colorKey = mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
-    if (!pieceStyle?.preserveOriginalMaterials) {
-      recolorMesh(mesh, colorKey);
-      accentize(mesh, colorKey);
-    } else {
-      mesh.traverse((child) => {
-        if (child?.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-    }
-    applyDetailStyling(mesh);
+    recolorMesh(mesh, colorKey);
+    accentize(mesh, colorKey);
   });
 }
 
