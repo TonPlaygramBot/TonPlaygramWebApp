@@ -438,7 +438,7 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BOARD_COLOR_OPTIONS = Object.freeze(
+const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze(
   BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
       // Board palettes lifted directly from the ABeautifulGame presets (no extra colors)
@@ -955,7 +955,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'whitePieceStyle', label: 'White Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'blackPieceStyle', label: 'Black Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'headStyle', label: 'Heads (Pawn & Bishop)', options: HEAD_PRESET_OPTIONS },
-  { key: 'boardColor', label: 'Chess Board', options: BOARD_COLOR_OPTIONS },
+  { key: 'boardColor', label: 'Chess Board', options: BEAUTIFUL_GAME_BOARD_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
@@ -974,7 +974,7 @@ function normalizeAppearance(value = {}) {
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['boardColor', BOARD_COLOR_OPTIONS.length],
+    ['boardColor', BEAUTIFUL_GAME_BOARD_OPTIONS.length],
     ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
     ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
     ['headStyle', HEAD_PRESET_OPTIONS.length]
@@ -1711,7 +1711,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const blackPieceOption =
     PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
-  const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+  const boardOption = BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
   const headOption = HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
   return {
