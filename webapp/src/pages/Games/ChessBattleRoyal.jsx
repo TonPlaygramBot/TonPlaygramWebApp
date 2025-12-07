@@ -208,11 +208,11 @@ const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
-const TARGET_FPS = 75;
+const TARGET_FPS = 90;
 const TARGET_FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
-const RENDER_PIXEL_RATIO_CAP = 1.35;
-const RENDER_PIXEL_RATIO_SCALE = 0.9;
-const MIN_RENDER_PIXEL_RATIO = 1;
+const RENDER_PIXEL_RATIO_CAP = 1.1;
+const RENDER_PIXEL_RATIO_SCALE = 0.85;
+const MIN_RENDER_PIXEL_RATIO = 0.9;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -541,6 +541,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
   })
 );
 
+const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
+
 const DEFAULT_PIECE_STYLE =
   BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
   BEAUTIFUL_GAME_PIECE_STYLE;
@@ -745,12 +747,19 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 });
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
-  BEAUTIFUL_GAME_COLOR_VARIANTS.map((variant) => ({
-    id: variant.id,
-    label: variant.label,
-    style: variant.style,
-    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-  }))
+  BEAUTIFUL_GAME_COLOR_VARIANTS.reduce((list, variant) => {
+    const signature = pieceStyleSignature(variant.style);
+    if (list.some((option) => pieceStyleSignature(option.style) === signature)) {
+      return list;
+    }
+    list.push({
+      id: variant.id,
+      label: variant.label,
+      style: variant.style,
+      loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+    });
+    return list;
+  }, [])
 );
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
@@ -4697,6 +4706,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   });
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
+  const [activeCustomizationKey, setActiveCustomizationKey] = useState(
+    CUSTOMIZATION_SECTIONS[0]?.key ?? 'whitePieceStyle'
+  );
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
     if (initialFlag && FLAG_EMOJIS.includes(initialFlag)) {
@@ -4847,6 +4859,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     });
     return map;
   }, [seatAnchors]);
+
+  const activeCustomizationSection =
+    CUSTOMIZATION_SECTIONS.find(({ key }) => key === activeCustomizationKey) ?? CUSTOMIZATION_SECTIONS[0];
 
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
@@ -6748,13 +6763,34 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                       Reset
                     </button>
                   </div>
-                  <div className="mt-3 max-h-72 space-y-4 overflow-y-auto pr-1">
-                    {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
-                      <div key={key} className="space-y-1.5">
-                        <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">{label}</p>
+                  <div className="mt-3 max-h-72 space-y-3">
+                    <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
+                      {CUSTOMIZATION_SECTIONS.map(({ key, label }) => {
+                        const selectedSection = key === activeCustomizationKey;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => setActiveCustomizationKey(key)}
+                            className={`whitespace-nowrap rounded-full border px-3 py-2 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              selectedSection
+                                ? 'border-sky-400/70 bg-sky-500/10 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {activeCustomizationSection && (
+                      <div className="max-h-60 space-y-1.5 overflow-y-auto pr-1">
+                        <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
+                          {activeCustomizationSection.label}
+                        </p>
                         <div className="space-y-1.5">
-                          {options.map((option, idx) => {
-                            const selected = appearance[key] === idx;
+                          {activeCustomizationSection.options.map((option, idx) => {
+                            const selected = appearance[activeCustomizationSection.key] === idx;
                             return (
                               <button
                                 key={option.id}
@@ -6763,7 +6799,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                   setAppearance((prev) =>
                                     normalizeAppearance({
                                       ...prev,
-                                      [key]: idx
+                                      [activeCustomizationSection.key]: idx
                                     })
                                   )
                                 }
@@ -6775,13 +6811,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                 }`}
                               >
                                 <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
-                                {renderCustomizationPreview(key, option)}
+                                {renderCustomizationPreview(activeCustomizationSection.key, option)}
                               </button>
                             );
                           })}
                         </div>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
