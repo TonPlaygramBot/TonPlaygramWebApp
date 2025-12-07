@@ -1,6 +1,4 @@
-import { buildWestEndDistrict } from './tirana-2040-westend.js';
-
-const GAME_NAME = 'London 1990 • Baker Street District';
+const GAME_NAME = 'Dual Range • Two-Player Shooting Gallery';
 document.title = GAME_NAME;
 
 export async function startTirana2040(){
@@ -67,11 +65,11 @@ export async function startTirana2040(){
   window.addSceneChunked=addSceneChunked;
 
   const params = new URLSearchParams(window.location.search);
-  const entrants = parseInt(params.get('players') || '10', 10);
+  const entrants = parseInt(params.get('players') || '2', 10);
   const stakeToken = params.get('token') || 'TPC';
   const stakeAmount = params.get('amount');
   if(!Number.isNaN(entrants)){
-    $('br').textContent = `Entrants: ${entrants} • AI`;
+    $('br').textContent = `Mode: ${entrants} shooters • Hot-seat`;
   }
   if(stakeAmount){
     $('status').textContent = `${GAME_NAME} • ${stakeAmount} ${stakeToken}`;
@@ -86,7 +84,7 @@ export async function startTirana2040(){
     if(statusEl) statusEl.textContent = message;
   }
 
-  window.addEventListener('unhandledrejection',(evt)=>{ console.error('Unhandled promise in London 1990', evt.reason); updateStatus('Retrying after interruption…'); });
+  window.addEventListener('unhandledrejection',(evt)=>{ console.error('Unhandled promise in Dual Range', evt.reason); updateStatus('Retrying after interruption…'); });
 
   async function importWithFallback(label, sources){
     for(const url of sources){
@@ -425,15 +423,21 @@ export async function startTirana2040(){
   window.perimeterWalls=perimeterWalls;
   window.institutions=institutions;
   window.bots=bots;
-  const mapRoads=[]; const mapBuildings=[]; const mapParks=[]; const mapLandmarks=[];
-  const USE_LONDON_1990_MASTERPLAN = true;
+  const mapRoads=[]; const mapBuildings=[]; const mapParks=[]; const mapLandmarks=[]; const rangeState={};
+  const RANGE_MODE = true;
+  const RANGE_LANES = 6;
+  const RANGE_LENGTH = 180;
+  const RANGE_WIDTH = 72;
+  const USE_LONDON_1990_MASTERPLAN = false;
   const BLOCKS_X=5, BLOCKS_Z=4; const CELL=112; const ROAD=24; const PLOT=CELL-ROAD*2; const startX = -(BLOCKS_X*CELL)/2 + CELL/2; const startZ = -(BLOCKS_Z*CELL)/2 + CELL/2; const cityHalfX = BLOCKS_X*CELL*0.5; const cityHalfZ = BLOCKS_Z*CELL*0.5;
   const northSouthStreets=['Gloucester Place','Baker Street','Marylebone High Street','Harley Street','Park Lane','Edgware Road'];
   const eastWestStreets=['Marylebone Road','George Street','Oxford Street','Hyde Park Place','Marble Arch'];
   const ringRoadName='Inner Ring Road (1990)';
 
-  const groundGeo = new THREE.PlaneGeometry((CELL)*BLOCKS_X + ROAD*2, (CELL)*BLOCKS_Z + ROAD*2);
-  const groundMat = new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.95, metalness:0.08, side:THREE.DoubleSide });
+  const groundGeo = new THREE.PlaneGeometry(RANGE_MODE ? RANGE_WIDTH : (CELL)*BLOCKS_X + ROAD*2, RANGE_MODE ? RANGE_LENGTH : (CELL)*BLOCKS_Z + ROAD*2);
+  const groundMat = RANGE_MODE
+    ? new THREE.MeshStandardMaterial({ map: trackTex(1024, 2048), color: 0x0f172a, roughness:0.92, metalness:0.06, side:THREE.DoubleSide })
+    : new THREE.MeshStandardMaterial({ map: asphaltTex, roughness:0.95, metalness:0.08, side:THREE.DoubleSide });
   const gnd = new THREE.Mesh(groundGeo, groundMat); gnd.rotation.x=-Math.PI/2; gnd.receiveShadow=allowShadows; city.add(gnd);
 
   const ROAD_SURFACE_Y = 0.035;
@@ -743,6 +747,55 @@ export async function startTirana2040(){
     });
   }
 
+  function buildShootingRangeLayout(){
+    while(city.children.length){ city.remove(city.children[0]); }
+    city.add(gnd);
+    gnd.position.set(0,0,0);
+    gnd.rotation.x = -Math.PI/2;
+    if(gnd.material) gnd.material.needsUpdate=true;
+
+    const firingLineZ = -RANGE_LENGTH*0.5 + 12;
+    const laneSpacing = RANGE_WIDTH/(RANGE_LANES+1);
+    rangeState.firingLineZ = firingLineZ;
+    rangeState.laneSpacing = laneSpacing;
+    rangeState.depth = RANGE_LENGTH;
+    rangeState.width = RANGE_WIDTH;
+
+    const bermMat=new THREE.MeshStandardMaterial({ color:0x374151, roughness:0.88, metalness:0.08 });
+    const berm=makePrefabBox(RANGE_WIDTH,5,3.6,bermMat); berm.position.set(0,2.5,RANGE_LENGTH/2 - 1.8); city.add(berm);
+    const canopy=makePrefabBox(RANGE_WIDTH*0.94,0.4,4,new THREE.MeshStandardMaterial({ color:0x111827, roughness:0.6, metalness:0.16 }));
+    canopy.position.set(0,2.9,firingLineZ-1.5); city.add(canopy);
+    const bench=makePrefabBox(RANGE_WIDTH*0.92,0.6,0.8,new THREE.MeshStandardMaterial({ color:0x0f172a, roughness:0.4, metalness:0.22 }));
+    bench.position.set(0,0.3,firingLineZ-2.2); city.add(bench);
+
+    const stripeMat=new THREE.MeshBasicMaterial({ color:0xfbbf24, transparent:true, opacity:0.82, side:THREE.DoubleSide });
+    const firingLine=new THREE.Mesh(new THREE.PlaneGeometry(RANGE_WIDTH*0.94,0.65), stripeMat);
+    firingLine.rotation.x=-Math.PI/2;
+    firingLine.position.set(0,ROAD_SURFACE_Y+0.002,firingLineZ);
+    city.add(firingLine);
+
+    for(let i=1;i<=RANGE_LANES;i++){
+      const x=-RANGE_WIDTH/2 + i*laneSpacing;
+      const divider=makePrefabBox(0.22,1.1,RANGE_LENGTH*0.94,new THREE.MeshStandardMaterial({ color:0x0b1220, roughness:0.52, metalness:0.2 }));
+      divider.position.set(x,0.55,0);
+      city.add(divider);
+      mapLandmarks.push({x, z:firingLineZ-4, label:`Lane ${i}`});
+    }
+
+    const racksMat=new THREE.MeshStandardMaterial({ color:0x0f172a, roughness:0.42, metalness:0.2 });
+    const rack=makePrefabBox(4,1.4,0.6,racksMat); rack.position.set(-RANGE_WIDTH/2 + 4,0.7,firingLineZ-3.4); city.add(rack);
+    const rack2=rack.clone(); rack2.position.x = RANGE_WIDTH/2 - 4; city.add(rack2);
+
+    const coverMat=new THREE.MeshStandardMaterial({ color:0x111827, roughness:0.8, metalness:0.06 });
+    const sideWall=makePrefabBox(0.6,3,RANGE_LENGTH,new THREE.MeshStandardMaterial({ color:0x0f172a, roughness:0.78, metalness:0.08 }));
+    sideWall.position.set(-RANGE_WIDTH/2-0.3,1.5,0); city.add(sideWall);
+    const sideWall2=sideWall.clone(); sideWall2.position.x = RANGE_WIDTH/2+0.3; city.add(sideWall2);
+    const rearWall=makePrefabBox(RANGE_WIDTH+1.2,2.6,0.6,coverMat); rearWall.position.set(0,1.3,-RANGE_LENGTH/2-0.3); city.add(rearWall);
+
+    mapLandmarks.push({x:0,z:RANGE_LENGTH/2 - 2,label:'🛡 Berm'});
+    mapLandmarks.push({x:0,z:firingLineZ,label:'🎯 Firing line'});
+  }
+
   function buildLondon1990Plan(){
     gnd.scale.set(1.08,1,1.12);
     const roads=[
@@ -771,7 +824,9 @@ export async function startTirana2040(){
     mapLandmarks.push({x:-160,z:12,label:'Sherlock Holmes Museum'});
   }
 
-  if(USE_LONDON_1990_MASTERPLAN){
+  if(RANGE_MODE){
+    buildShootingRangeLayout();
+  } else if(USE_LONDON_1990_MASTERPLAN){
     buildLondon1990Plan();
     applyWestEndPlan(buildWestEndDistrict());
   } else {
@@ -1323,25 +1378,27 @@ export async function startTirana2040(){
   commitWindows();
   for(let i=-BLOCKS_X;i<=BLOCKS_X;i+=2){ addTrafficLight(i*CELL*0.5, -BLOCKS_Z*CELL*0.5, 0); addTrafficLight(i*CELL*0.5, BLOCKS_Z*CELL*0.5, Math.PI); }
 
-  const ringR = Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.65;
-  const ringRoadWidth = ROAD*1.2;
-  const ringRoad=new THREE.Mesh(new THREE.RingGeometry(ringR-ringRoadWidth*0.5, ringR+ringRoadWidth*0.5, 128), new THREE.MeshStandardMaterial({ map:asphaltTex, side:THREE.DoubleSide, roughness:0.86 })); ringRoad.rotation.x=-Math.PI/2; ringRoad.position.y=0.011; city.add(ringRoad);
-  const ringStripe=new THREE.Mesh(new THREE.RingGeometry(ringR-2, ringR-1.4, 128), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.22, side:THREE.DoubleSide })); ringStripe.rotation.x=-Math.PI/2; ringStripe.position.y=0.012; city.add(ringStripe);
-  mapRoads.push({type:'ring', name:ringRoadName, from:{x:0,z:0}, to:{x:0,z:0}, width:ringRoadWidth, radius:ringR});
-  mapLandmarks.push({x:ringR*0.75,z:0,label:`🛣 ${ringRoadName}`});
-  const connectorTargets=[
-    {from:{x:cityHalfX+ROAD*0.5, z:0}, to:{x:ringR-8, z:0}},
-    {from:{x:-cityHalfX-ROAD*0.5, z:0}, to:{x:-ringR+8, z:0}},
-    {from:{x:0, z:cityHalfZ+ROAD*0.5}, to:{x:0, z:ringR-8}},
-    {from:{x:0, z:-cityHalfZ-ROAD*0.5}, to:{x:0, z:-ringR+8}},
-    {from:{x:cityHalfX+ROAD*0.5, z:cityHalfZ*0.6}, to:{x:ringR-10, z:ringR*0.6}},
-    {from:{x:-cityHalfX-ROAD*0.5, z:-cityHalfZ*0.6}, to:{x:-ringR+10, z:-ringR*0.6}},
-    {from:{x:cityHalfX*0.25, z:cityHalfZ+ROAD*0.5}, to:{x:ringR*0.25, z:ringR-10}},
-    {from:{x:-cityHalfX*0.25, z:-cityHalfZ-ROAD*0.5}, to:{x:-ringR*0.25, z:-ringR+10}}
-  ];
-  connectorTargets.forEach((c)=>{ const dx=c.to.x-c.from.x, dz=c.to.z-c.from.z; const len=Math.hypot(dx,dz); if(len<1) return; const mesh=new THREE.Mesh(new THREE.PlaneGeometry(len, ROAD), roadMat); mesh.rotation.x=-Math.PI/2; mesh.rotation.y=Math.atan2(dz,dx); mesh.position.set((c.from.x+c.to.x)/2, ROAD_SURFACE_Y + 0.001, (c.from.z+c.to.z)/2); city.add(mesh); mapRoads.push({name:ringRoadName, from:c.from, to:c.to, width:ROAD}); });
-  addAirport(ringR*0.9,  -ringR*0.6);
-  addTrainStation(-ringR*0.6, ringR*0.85);
+  const ringR = RANGE_MODE ? Math.max(RANGE_LENGTH,RANGE_WIDTH)*0.35 : Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.65;
+  const ringRoadWidth = RANGE_MODE ? 10 : ROAD*1.2;
+  if(!RANGE_MODE){
+    const ringRoad=new THREE.Mesh(new THREE.RingGeometry(ringR-ringRoadWidth*0.5, ringR+ringRoadWidth*0.5, 128), new THREE.MeshStandardMaterial({ map:asphaltTex, side:THREE.DoubleSide, roughness:0.86 })); ringRoad.rotation.x=-Math.PI/2; ringRoad.position.y=0.011; city.add(ringRoad);
+    const ringStripe=new THREE.Mesh(new THREE.RingGeometry(ringR-2, ringR-1.4, 128), new THREE.MeshBasicMaterial({ color:0xffffff, transparent:true, opacity:0.22, side:THREE.DoubleSide })); ringStripe.rotation.x=-Math.PI/2; ringStripe.position.y=0.012; city.add(ringStripe);
+    mapRoads.push({type:'ring', name:ringRoadName, from:{x:0,z:0}, to:{x:0,z:0}, width:ringRoadWidth, radius:ringR});
+    mapLandmarks.push({x:ringR*0.75,z:0,label:`🛣 ${ringRoadName}`});
+    const connectorTargets=[
+      {from:{x:cityHalfX+ROAD*0.5, z:0}, to:{x:ringR-8, z:0}},
+      {from:{x:-cityHalfX-ROAD*0.5, z:0}, to:{x:-ringR+8, z:0}},
+      {from:{x:0, z:cityHalfZ+ROAD*0.5}, to:{x:0, z:ringR-8}},
+      {from:{x:0, z:-cityHalfZ-ROAD*0.5}, to:{x:0, z:-ringR+8}},
+      {from:{x:cityHalfX+ROAD*0.5, z:cityHalfZ*0.6}, to:{x:ringR-10, z:ringR*0.6}},
+      {from:{x:-cityHalfX-ROAD*0.5, z:-cityHalfZ*0.6}, to:{x:-ringR+10, z:-ringR*0.6}},
+      {from:{x:cityHalfX*0.25, z:cityHalfZ+ROAD*0.5}, to:{x:ringR*0.25, z:ringR-10}},
+      {from:{x:-cityHalfX*0.25, z:-cityHalfZ-ROAD*0.5}, to:{x:-ringR*0.25, z:-ringR+10}}
+    ];
+    connectorTargets.forEach((c)=>{ const dx=c.to.x-c.from.x, dz=c.to.z-c.from.z; const len=Math.hypot(dx,dz); if(len<1) return; const mesh=new THREE.Mesh(new THREE.PlaneGeometry(len, ROAD), roadMat); mesh.rotation.x=-Math.PI/2; mesh.rotation.y=Math.atan2(dz,dx); mesh.position.set((c.from.x+c.to.x)/2, ROAD_SURFACE_Y + 0.001, (c.from.z+c.to.z)/2); city.add(mesh); mapRoads.push({name:ringRoadName, from:c.from, to:c.to, width:ROAD}); });
+    addAirport(ringR*0.9,  -ringR*0.6);
+    addTrainStation(-ringR*0.6, ringR*0.85);
+  }
 
   addInstitution('police',   startX+CELL*0.9, startZ+CELL*0.6);
   addInstitution('hospital', startX+CELL*3.4, startZ+CELL*1.6);
@@ -1349,7 +1406,7 @@ export async function startTirana2040(){
   addInstitution('fire',     startX+CELL*1.2, startZ+CELL*2.4);
   addInstitution('mall',     startX+CELL*3.0, startZ+CELL*0.8);
 
-  const playerRadius=0.32; const player=new CANNON.Body({ mass:72, material:matPlayer, shape:new CANNON.Sphere(playerRadius), position:new CANNON.Vec3(0,0.94,10), linearDamping:0.18, angularDamping:0.9 });
+  const playerRadius=0.32; const player=new CANNON.Body({ mass:72, material:matPlayer, shape:new CANNON.Sphere(playerRadius), position:new CANNON.Vec3(0,0.94,-RANGE_LENGTH*0.5 + 10), linearDamping:0.18, angularDamping:0.9 });
   player.fixedRotation=true; player.allowSleep=false; world.addBody(player);
   let yaw=0;
   // Start with a slight downward pitch so the city grid is visible immediately
@@ -1564,6 +1621,19 @@ export async function startTirana2040(){
   armoryPrev?.addEventListener('click',()=>setArmoryIndex(getCurrentWeaponIndex()-1));
   armoryNext?.addEventListener('click',()=>setArmoryIndex(getCurrentWeaponIndex()+1));
   buildGallery();
+
+  const shooters=[{label:'Shooter 1', score:0, hits:0},{label:'Shooter 2', score:0, hits:0}];
+  let activeShooter=0;
+  const scoreEls={ p1: $('p1Score'), p2: $('p2Score'), active: $('activePlayer'), swap: $('swapPlayerBtn') };
+  function updateScores(){
+    if(scoreEls.p1) scoreEls.p1.textContent=`${shooters[0].label} • ${shooters[0].score} pts`;
+    if(scoreEls.p2) scoreEls.p2.textContent=`${shooters[1].label} • ${shooters[1].score} pts`;
+    if(scoreEls.active) scoreEls.active.textContent=`Active: ${shooters[activeShooter].label}`;
+  }
+  function awardPoints(points=10){ shooters[activeShooter].score += points; shooters[activeShooter].hits++; updateScores(); }
+  function swapShooter(){ activeShooter=(activeShooter+1)%shooters.length; updateScores(); setTimeout(()=>{ player.velocity.set(0,0,0); },10); }
+  scoreEls.swap?.addEventListener('click', swapShooter);
+  updateScores();
 
     const ammoLabel=$('ammo');
     const weaponBadge=$('weaponName');
@@ -2074,12 +2144,16 @@ export async function startTirana2040(){
   }
 
   window.__phase='pre-emergency';
-  await spawnParkedEmergency();
-  window.__phase='after-emergency';
-  await spawnParkedCommons();
-  window.__phase='after-commons';
-  await spawnTraffic(18);
-  window.__phase='after-traffic';
+  if(!RANGE_MODE){
+    await spawnParkedEmergency();
+    window.__phase='after-emergency';
+    await spawnParkedCommons();
+    window.__phase='after-commons';
+    await spawnTraffic(18);
+    window.__phase='after-traffic';
+  } else {
+    window.__phase='range-ready';
+  }
 
   function dispatchEmergency(pos){ const total=Math.max(1, emergencyUnits.length); emergencyUnits.forEach((unit,idx)=>{ const offsetAngle=(idx/total)*Math.PI*2; const offset=new THREE.Vector3(Math.cos(offsetAngle)*2.4,0,Math.sin(offsetAngle)*2.4); unit.target=pos.clone().add(offset); unit.state='responding'; unit.arrivalTimer=0; if(unit.siren){ unit.siren.phase=0; unit.siren.left.material.opacity=0.9; unit.siren.right.material.opacity=0.9; if(unit.siren.light){ unit.siren.light.intensity=14; } } }); }
 
@@ -2119,20 +2193,35 @@ export async function startTirana2040(){
   const ENEMY_BASE_HP=72;
   function dropEnemyWeapon(e){ if(!e?.weaponKey) return; const pos=new THREE.Vector3(e.body.position.x, Math.max(ROAD_SURFACE_Y+0.06,e.body.position.y+0.1), e.body.position.z); spawnWeaponPickupAt(pos, e.weaponKey, true); }
   async function safeCloneSkinned(src){ try{ if(src && SkeletonUtils?.clone){ return SkeletonUtils.clone(src); } if(src?.clone){ return src.clone(true); } }catch(_){ } return makeCapsulePlaceholder(); }
-  async function spawnEnemy(x,z,key='Soldier'){ if(enemies.size>=12) return null; const base=await getCharacter(key); const clone=await safeCloneSkinned(base?.root); clone.traverse(o=>{ o.castShadow=allowShadows; }); clone.position.set(x,0,z); clone.userData.enemy=true; scene.add(clone); const r=0.32,h=1.45; const shape=new CANNON.Cylinder(r,r,h,8); const q=new CANNON.Quaternion(); q.setFromEuler(Math.PI/2,0,0); const body=new CANNON.Body({ mass:80, material:matEnemy, linearDamping:0.3, angularDamping:0.9 }); body.fixedRotation=true; body.addShape(shape,new CANNON.Vec3(0,h/2,0),q); body.position.set(x,0.82,z); world.addBody(body); const hpBar=makeBillboardBar(); scene.add(hpBar); const weaponKey = ENEMY_WEAPONS_POOL[Math.floor(Math.random()*ENEMY_WEAPONS_POOL.length)] || 'Uzi'; enemies.set(clone.uuid,{root:clone, body, hp:ENEMY_BASE_HP, dead:false, hpBar, cooldown:0, bleed:0, bleedTimer:0, weaponKey}); return clone; }
+  async function spawnEnemy(x,z,key='Soldier', opts={}){ if(enemies.size>=32) return null; const { ai=true, isTarget=false } = opts; const base=await getCharacter(key); const clone=await safeCloneSkinned(base?.root); clone.traverse(o=>{ o.castShadow=allowShadows; }); clone.position.set(x,0,z); clone.userData.enemy=true; scene.add(clone); const r=0.32,h=1.45; const shape=new CANNON.Cylinder(r,r,h,8); const q=new CANNON.Quaternion(); q.setFromEuler(Math.PI/2,0,0); const body=new CANNON.Body({ mass:ai?80:0, type: ai? CANNON.Body.DYNAMIC : CANNON.Body.STATIC, material:matEnemy, linearDamping:0.3, angularDamping:0.9 }); body.fixedRotation=true; body.addShape(shape,new CANNON.Vec3(0,h/2,0),q); body.position.set(x,0.82,z); world.addBody(body); const hpBar=makeBillboardBar(); hpBar.visible=!isTarget; scene.add(hpBar); const weaponKey = ai? (ENEMY_WEAPONS_POOL[Math.floor(Math.random()*ENEMY_WEAPONS_POOL.length)] || 'Uzi') : null; enemies.set(clone.uuid,{root:clone, body, hp:ENEMY_BASE_HP, dead:false, hpBar, cooldown:0, bleed:0, bleedTimer:0, weaponKey, isTarget, home:new CANNON.Vec3(x,0.82,z)}); return clone; }
+  function resetTarget(e){ if(!e) return; e.dead=false; e.hp=ENEMY_BASE_HP; e.bleed=0; e.bleedTimer=0; e.downTimer=null; e.respawnTimer=null; e.body.position.copy(e.home||new CANNON.Vec3(0,0.82,0)); e.body.velocity.set(0,0,0); e.body.angularVelocity.set(0,0,0); e.root.position.set(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); e.root.rotation.set(0,0,0); if(e.hpBar) e.hpBar.visible=false; }
   function enemyRoots(){ return Array.from(enemies.values()).map(e=>e.root); }
-  function knockDownEnemy(e, hitPoint=null, hitNormal=new THREE.Vector3(0,1,0)){ if(!e) return; e.dead=true; e.downTimer=1.4; e.body.mass=0; e.body.updateMassProperties(); e.body.velocity.set(0,0,0); e.body.angularVelocity.set(0,0,0); if(e.hpBar) e.hpBar.visible=false; const basePos=new THREE.Vector3(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); e.root.position.copy(basePos); e.root.rotation.set(-Math.PI/2, e.root.rotation.y, 0); if(hitPoint) addBlood(hitPoint.clone(), hitNormal||new THREE.Vector3(0,1,0)); dropEnemyWeapon(e); }
+  function knockDownEnemy(e, hitPoint=null, hitNormal=new THREE.Vector3(0,1,0)){ if(!e) return; e.dead=true; e.downTimer=1.4; e.body.mass=0; e.body.updateMassProperties(); e.body.velocity.set(0,0,0); e.body.angularVelocity.set(0,0,0); if(e.hpBar) e.hpBar.visible=false; const basePos=new THREE.Vector3(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); e.root.position.copy(basePos); e.root.rotation.set(-Math.PI/2, e.root.rotation.y, 0); if(hitPoint) addBlood(hitPoint.clone(), hitNormal||new THREE.Vector3(0,1,0)); if(e.isTarget){ e.respawnTimer=2.6; awardPoints(hitPoint?20:12); } else { dropEnemyWeapon(e); } }
   function woundEnemy(e, dmg, bleed=0.25, hitPoint=null, hitNormal=new THREE.Vector3(0,1,0)){ if(!e||e.dead) return; e.hp -= dmg; e.bleed=Math.max(e.bleed||0, bleed); e.bleedTimer=0; if(hitPoint) addBlood(hitPoint, hitNormal||new THREE.Vector3(0,1,0)); if(e.hp<=0){ knockDownEnemy(e, hitPoint, hitNormal); return; } updateBillboardBar(e.hpBar, e.hp/ENEMY_BASE_HP); }
   function enemyPos(e){ return new THREE.Vector3(e.body.position.x, e.body.position.y, e.body.position.z); }
   function findTargetForEnemy(e){ const selfPos=enemyPos(e); const playerPos=new THREE.Vector3(player.position.x, player.position.y, player.position.z); let best={ type:'player', pos:playerPos, dist:selfPos.distanceTo(playerPos) }; enemies.forEach((other)=>{ if(other===e || other.dead) return; const p=enemyPos(other); const d=selfPos.distanceTo(p); if(d<best.dist*0.85){ best={ type:'enemy', pos:p, dist:d, ref:other }; } }); return best; }
-  function enemyTryFire(e, dt, target){ if(e.dead||!target) return; e.cooldown -= dt; if(target.dist>55) return; if(e.cooldown>0) return; const origin = new THREE.Vector3(e.body.position.x, e.body.position.y+1.1, e.body.position.z); const aimPos = target.pos.clone(); aimPos.y += 0.9; const dir = aimPos.clone().sub(origin).normalize(); dir.x += (Math.random()-0.5)*0.02; dir.y += (Math.random()-0.5)*0.01; dir.z += (Math.random()-0.5)*0.02; dir.normalize(); const to = origin.clone().addScaledVector(dir, 150); tracer(origin,to,0xff8888); const weaponStats=ARMORY.find((a)=>a.key===e.weaponKey)?.stats; const shotDmg=Math.max(12, (weaponStats?.dmg||18)*0.75); if(target.type==='player'){ const luckyHead=Math.random()<0.08; hurtPlayer(luckyHead? 120 : shotDmg); } else if(target.ref){ woundEnemy(target.ref, (weaponStats?.dmg||14), 0.35, target.pos.clone(), new THREE.Vector3(0,1,0)); }
+  function enemyTryFire(e, dt, target){ if(e.dead||!target||e.isTarget||!e.weaponKey) return; e.cooldown -= dt; if(target.dist>55) return; if(e.cooldown>0) return; const origin = new THREE.Vector3(e.body.position.x, e.body.position.y+1.1, e.body.position.z); const aimPos = target.pos.clone(); aimPos.y += 0.9; const dir = aimPos.clone().sub(origin).normalize(); dir.x += (Math.random()-0.5)*0.02; dir.y += (Math.random()-0.5)*0.01; dir.z += (Math.random()-0.5)*0.02; dir.normalize(); const to = origin.clone().addScaledVector(dir, 150); tracer(origin,to,0xff8888); const weaponStats=ARMORY.find((a)=>a.key===e.weaponKey)?.stats; const shotDmg=Math.max(12, (weaponStats?.dmg||18)*0.75); if(target.type==='player'){ const luckyHead=Math.random()<0.08; hurtPlayer(luckyHead? 120 : shotDmg); } else if(target.ref){ woundEnemy(target.ref, (weaponStats?.dmg||14), 0.35, target.pos.clone(), new THREE.Vector3(0,1,0)); }
     const rpm=weaponStats?.rpm||620; e.cooldown = Math.max(0.24, 60/(rpm||600)) + Math.random()*0.18; }
 
   function makeBillboardBar(){ const c=document.createElement('canvas'); c.width=128; c.height=16; const t=new THREE.CanvasTexture(c); const m=new THREE.SpriteMaterial({ map:t, depthWrite:false }); const s=new THREE.Sprite(m); s.scale.set(0.9, 0.12, 1); s.userData.canvas=c; s.userData.tex=t; updateBillboardBar(s,1); return s; }
   function updateBillboardBar(s,ratio){ const c=s.userData.canvas; const x=c.getContext('2d'); x.clearRect(0,0,c.width,c.height); x.fillStyle='rgba(0,0,0,0.6)'; x.fillRect(0,0,c.width,c.height); x.fillStyle= ratio>0.6? '#29ff9a' : ratio>0.3? '#ffd966':'#ff4d4f'; x.fillRect(2,2,(c.width-4)*Math.max(0,Math.min(1,ratio)), c.height-4); s.userData.tex.needsUpdate=true; }
 
-  function startBR(){ for(let i=0;i<8;i++){ const a=(i/8)*Math.PI*2; const r=ringR*0.6; spawnEnemy(Math.cos(a)*r, Math.sin(a)*r, ['Soldier','Xbot','Ybot','RobotExpressive'][i%4]); } }
-  scatterCityPickups();
+  function startBR(){
+    if(RANGE_MODE){
+      const baseZ = rangeState.firingLineZ ?? (-RANGE_LENGTH*0.5+12);
+      const rows=[baseZ+26, baseZ+54, baseZ+94];
+      const presets=['Soldier','Xbot','Ybot','RobotExpressive'];
+      rows.forEach((z,ri)=>{ for(let lane=1; lane<=RANGE_LANES; lane++){ const x=-RANGE_WIDTH/2 + lane*(rangeState.laneSpacing||10); spawnEnemy(x, z, presets[(ri+lane)%presets.length], { ai:false, isTarget:true }); } });
+    } else {
+      for(let i=0;i<8;i++){ const a=(i/8)*Math.PI*2; const r=ringR*0.6; spawnEnemy(Math.cos(a)*r, Math.sin(a)*r, ['Soldier','Xbot','Ybot','RobotExpressive'][i%4]); }
+    }
+  }
+  function spawnRangePickups(){ const z=(rangeState.firingLineZ ?? -RANGE_LENGTH*0.5+12) - 2.4; const offsets=[-RANGE_WIDTH*0.32,0,RANGE_WIDTH*0.32]; ARMORY.forEach((w,idx)=>{ const lane=offsets[idx%offsets.length]; spawnWeaponPickupAt(new THREE.Vector3(lane, ROAD_SURFACE_Y+0.08, z - Math.floor(idx/offsets.length)*1.6), w.key, true); }); }
+  if(RANGE_MODE){
+    spawnRangePickups();
+  } else {
+    scatterCityPickups();
+  }
   startBR();
   updateStatus(`${GAME_NAME} • Ready`);
   window.__phase='ready';
@@ -2198,9 +2287,18 @@ export async function startTirana2040(){
   function setMapZoom(v){ const clamped=THREE.MathUtils.clamp(v||1, MAP_ZOOM_MIN, MAP_ZOOM_MAX); mapZoom=clamped; if(mapZoomSlider) mapZoomSlider.value=String(clamped); if(mapZoomLabel) mapZoomLabel.textContent=`Zoom ${clamped.toFixed(2)}x`; }
   setMapZoom(1);
   function resizeMap(){ if(!mapCanvas||!mctx) return; mapCanvas.width=mapCanvas.clientWidth; mapCanvas.height=mapCanvas.clientHeight; }
-  function mapProjection(){ if(!mapCanvas||!mctx) return null; resizeMap(); const w=mapCanvas.width,h=mapCanvas.height; const cx=w/2, cy=h/2; const extent=Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.5 + ringR*0.7; const baseScale=Math.min(w,h)/(extent*2.05); const zoomedScale=baseScale*mapZoom; const focusX=player?.position?.x||0; const focusZ=player?.position?.z||0; return {w,h,cx,cy,zoomedScale,focusX,focusZ}; }
+  function mapProjection(){ if(!mapCanvas||!mctx) return null; resizeMap(); const w=mapCanvas.width,h=mapCanvas.height; const cx=w/2, cy=h/2; const extent=RANGE_MODE? Math.max(RANGE_LENGTH,RANGE_WIDTH)*0.65 : Math.max(BLOCKS_X,BLOCKS_Z)*CELL*0.5 + ringR*0.7; const baseScale=Math.min(w,h)/(extent*2.05); const zoomedScale=baseScale*mapZoom; const focusX=player?.position?.x||0; const focusZ=player?.position?.z||0; return {w,h,cx,cy,zoomedScale,focusX,focusZ}; }
   function drawMap(){ if(!mapCanvas||!mctx) return; const proj=mapProjection(); if(!proj) return; const grad=mctx.createLinearGradient(0,0,0,proj.h); grad.addColorStop(0,'#0f172a'); grad.addColorStop(1,'#111827'); mctx.fillStyle=grad; mctx.fillRect(0,0,proj.w,proj.h); const toScreen=(x,z)=>({x:proj.cx + (x-proj.focusX)*proj.zoomedScale, y:proj.cy + (z-proj.focusZ)*proj.zoomedScale});
-    const ringCenter=toScreen(0,0); mctx.strokeStyle='rgba(57,66,88,0.9)'; mctx.lineWidth=ROAD*proj.zoomedScale*2; mctx.beginPath(); mctx.arc(ringCenter.x, ringCenter.y, ringR*proj.zoomedScale, 0, Math.PI*2); mctx.stroke();
+    if(!RANGE_MODE){
+      const ringCenter=toScreen(0,0); mctx.strokeStyle='rgba(57,66,88,0.9)'; mctx.lineWidth=ROAD*proj.zoomedScale*2; mctx.beginPath(); mctx.arc(ringCenter.x, ringCenter.y, ringR*proj.zoomedScale, 0, Math.PI*2); mctx.stroke();
+    } else {
+      const halfW=(RANGE_WIDTH*0.5)*proj.zoomedScale; const halfD=(RANGE_LENGTH*0.5)*proj.zoomedScale; const center=toScreen(0,0);
+      mctx.strokeStyle='rgba(248,180,34,0.4)'; mctx.lineWidth=3; mctx.strokeRect(center.x-halfW, center.y-halfD, halfW*2, halfD*2);
+      const firingZ=rangeState.firingLineZ??(-RANGE_LENGTH*0.5+12); const fireScreen=toScreen(0,firingZ);
+      mctx.strokeStyle='rgba(255,255,255,0.6)'; mctx.setLineDash([10,6]);
+      mctx.beginPath(); mctx.moveTo(center.x-halfW, fireScreen.y); mctx.lineTo(center.x+halfW, fireScreen.y); mctx.stroke();
+      mctx.setLineDash([]);
+    }
     mapRoads.forEach((road)=>{ const p1=toScreen(road.from.x, road.from.z); const p2=toScreen(road.to.x, road.to.z); mctx.strokeStyle='rgba(76,86,106,0.92)'; mctx.lineWidth=Math.max(3, (road.width||ROAD)*proj.zoomedScale*1.15); mctx.beginPath(); mctx.moveTo(p1.x,p1.y); mctx.lineTo(p2.x,p2.y); mctx.stroke(); mctx.strokeStyle='rgba(255,255,255,0.16)'; mctx.lineWidth=Math.max(1, (road.width||ROAD)*proj.zoomedScale*0.35); mctx.beginPath(); mctx.moveTo(p1.x,p1.y); mctx.lineTo(p2.x,p2.y); mctx.stroke(); });
     mctx.font='13px 600 system-ui'; mctx.fillStyle='rgba(226,232,240,0.86)'; mapRoads.forEach((road)=>{ if(!road.name) return; const p1=toScreen(road.from.x, road.from.z); const p2=toScreen(road.to.x, road.to.z); if(Math.hypot(p2.x-p1.x,p2.y-p1.y)<12) return; const midX=(p1.x+p2.x)/2; const midY=(p1.y+p2.y)/2; const ang=Math.atan2(p2.y-p1.y,p2.x-p1.x); mctx.save(); mctx.translate(midX,midY); mctx.rotate(ang); const textW=mctx.measureText(road.name).width; mctx.fillText(road.name,-textW/2,-6); mctx.restore(); });
     mapParks.forEach((park)=>{ const center=toScreen(park.x, park.z); const wpx=park.w*proj.zoomedScale; const hpx=park.d*proj.zoomedScale; mctx.fillStyle=park.type==='fountain'?'rgba(59,130,246,0.35)': park.type==='basket'?'rgba(239,68,68,0.32)':'rgba(34,197,94,0.32)'; mctx.fillRect(center.x-wpx/2, center.y-hpx/2, wpx, hpx); mctx.strokeStyle='rgba(255,255,255,0.12)'; mctx.strokeRect(center.x-wpx/2, center.y-hpx/2, wpx, hpx); });
@@ -2271,7 +2369,7 @@ export async function startTirana2040(){
 
     for(let i=0;i<weaponPickups.length;i++){ const w=weaponPickups[i]; if(!w) continue; w.rotation.y += dt*(w.userData.spin||1); const dx=w.position.x-player.position.x; const dz=w.position.z-player.position.z; if(Math.hypot(dx,dz)<1.1){ collectWeaponPickup(w); i--; } }
 
-    enemies.forEach((e)=>{ if(e.dead){ e.root.position.set(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); if(e.downTimer!=null){ const tilt=Math.min(Math.PI/2, (1 - Math.max(0,(e.downTimer||0))/1.4)*Math.PI/2); e.root.rotation.x = -tilt; e.downTimer=Math.max(0,(e.downTimer||0)-dt); } return; } if(e.bleed>0){ e.bleedTimer=(e.bleedTimer||0)+dt; e.hp -= e.bleed*dt*18; if(e.bleedTimer>0.55){ e.bleedTimer=0; addBlood(new THREE.Vector3(e.body.position.x, Math.max(0.18,e.body.position.y+0.2), e.body.position.z), new THREE.Vector3(0,1,0)); } if(e.hp<=0){ knockDownEnemy(e, new THREE.Vector3(e.body.position.x, e.body.position.y+0.2, e.body.position.z)); return; } updateBillboardBar(e.hpBar, e.hp/ENEMY_BASE_HP); }
+    enemies.forEach((e)=>{ if(e.isTarget){ e.body.velocity.set(0,0,0); e.body.angularVelocity.set(0,0,0); e.root.position.set(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); if(e.dead){ e.respawnTimer=(e.respawnTimer??2.6)-dt; if(e.respawnTimer<=0){ resetTarget(e); } } return; } if(e.dead){ e.root.position.set(e.body.position.x, Math.max(0,e.body.position.y-0.1), e.body.position.z); if(e.downTimer!=null){ const tilt=Math.min(Math.PI/2, (1 - Math.max(0,(e.downTimer||0))/1.4)*Math.PI/2); e.root.rotation.x = -tilt; e.downTimer=Math.max(0,(e.downTimer||0)-dt); } return; } if(e.bleed>0){ e.bleedTimer=(e.bleedTimer||0)+dt; e.hp -= e.bleed*dt*18; if(e.bleedTimer>0.55){ e.bleedTimer=0; addBlood(new THREE.Vector3(e.body.position.x, Math.max(0.18,e.body.position.y+0.2), e.body.position.z), new THREE.Vector3(0,1,0)); } if(e.hp<=0){ knockDownEnemy(e, new THREE.Vector3(e.body.position.x, e.body.position.y+0.2, e.body.position.z)); return; } updateBillboardBar(e.hpBar, e.hp/ENEMY_BASE_HP); }
       const target=findTargetForEnemy(e); const toT = target? new THREE.Vector3(target.pos.x-e.body.position.x, 0, target.pos.z-e.body.position.z):new THREE.Vector3(); const d = toT.length(); if(d>0.01){ toT.normalize(); const sp=d>12?2.4:1.6; e.body.velocity.x = toT.x*sp; e.body.velocity.z = toT.z*sp; } enemyTryFire(e, dt, target); e.root.position.set(e.body.position.x, 0, e.body.position.z); e.hpBar.position.set(e.body.position.x, 1.9, e.body.position.z); e.hpBar.lookAt(camera.position); });
 
     // traffic move: v = 3x run speed
@@ -2323,7 +2421,7 @@ export async function startTirana2040(){
     console.assert(typeof GLTFLoader==='function', 'GLTFLoader OK');
   }, 800);
   } catch(err){
-    console.error('London 1990 failed to bootstrap', err);
+    console.error('Dual Range failed to bootstrap', err);
     window.__phase = `error:${err?.message||err}`;
     try { updateStatus(`${GAME_NAME} • Failed to load`); } catch(_){ }
     throw err;
