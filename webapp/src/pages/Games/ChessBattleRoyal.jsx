@@ -2147,6 +2147,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
         }
       });
     });
+    applyBeautifulGameDetailing(list);
     return;
   }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
@@ -2241,6 +2242,197 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
     recolorMesh(mesh, colorKey);
     accentize(mesh, colorKey);
   });
+
+  applyBeautifulGameDetailing(list);
+}
+
+const BEAUTIFUL_GAME_IVORY = 0xEEE8D5;
+const BEAUTIFUL_GAME_EBONY = 0x0A0A0A;
+const BEAUTIFUL_GAME_GOLD = 0xD4AF37;
+const BEAUTIFUL_GAME_RUBY = 0x9B111E;
+
+function applyBeautifulGameDetailing(meshes) {
+  const list = Array.isArray(meshes) ? meshes : [meshes];
+  list.forEach((mesh) => {
+    if (!mesh) return;
+    const styleId = (mesh.userData?.__pieceStyleId || '').toString().toLowerCase();
+    if (!styleId.includes('beautifulgame')) return;
+    const t = (mesh?.userData?.__pieceType || mesh?.userData?.t || mesh?.userData?.type || '')
+      .toString()
+      .toLowerCase();
+    switch (t) {
+      case 'r':
+        styleRookOrKnight(mesh);
+        break;
+      case 'n':
+        styleRookOrKnight(mesh);
+        break;
+      case 'b':
+        styleBishop(mesh);
+        break;
+      case 'q':
+        styleQueen(mesh);
+        break;
+      case 'p':
+        stylePawn(mesh);
+        break;
+      default:
+        break;
+    }
+  });
+}
+
+function tweakMaterials(mesh, colorHex, metal = null, rough = null, emissiveHex = null) {
+  if (!mesh || !mesh.material) return;
+  const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+  mats.forEach((mat) => {
+    if (!mat) return;
+    if (colorHex !== undefined && mat.color) mat.color.set(colorHex);
+    if (emissiveHex !== null && mat.emissive) mat.emissive.set(emissiveHex);
+    if (metal !== null && typeof mat.metalness === 'number') mat.metalness = metal;
+    if (rough !== null && typeof mat.roughness === 'number') mat.roughness = rough;
+  });
+}
+
+function traverseMeshes(root, fn) {
+  root?.traverse?.((node) => {
+    if (node?.isMesh) fn(node);
+  });
+}
+
+function meshBounds(obj) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  return { box, size, height: size.y, top: box.max.y, bottom: box.min.y };
+}
+
+function meshesNearTop(root, topFrac = 0.2) {
+  const pb = meshBounds(root);
+  const cutoff = pb.top - pb.height * topFrac;
+  const results = [];
+  traverseMeshes(root, (m) => {
+    const mb = new THREE.Box3().setFromObject(m);
+    if (mb.max.y >= cutoff) results.push(m);
+  });
+  return results;
+}
+
+function isSphereLike(mesh, tolerance = 0.3) {
+  const size = new THREE.Vector3();
+  new THREE.Box3().setFromObject(mesh).getSize(size);
+  const avg = (size.x + size.y + size.z) / 3;
+  if (avg === 0) return false;
+  const dx = Math.abs(size.x - avg) / avg;
+  const dy = Math.abs(size.y - avg) / avg;
+  const dz = Math.abs(size.z - avg) / avg;
+  return dx < tolerance && dy < tolerance && dz < tolerance;
+}
+
+function nameIncludes(node, re) {
+  return re.test((node?.name || '').toLowerCase());
+}
+
+function styleRookOrKnight(piece) {
+  traverseMeshes(piece, (m) => tweakMaterials(m, BEAUTIFUL_GAME_IVORY, 0.2, 0.5));
+}
+
+function styleBishop(piece) {
+  const near = meshesNearTop(piece, 0.28);
+  const spheres = near.filter((m) => isSphereLike(m, 0.35));
+  const tinySphere = spheres
+    .sort((a, b) => {
+      const sa = new THREE.Vector3();
+      const sb = new THREE.Vector3();
+      new THREE.Box3().setFromObject(a).getSize(sa);
+      new THREE.Box3().setFromObject(b).getSize(sb);
+      return sa.length() - sb.length();
+    })[0];
+  if (tinySphere) tweakMaterials(tinySphere, BEAUTIFUL_GAME_GOLD, 1.0, 0.25);
+
+  const pb = meshBounds(piece);
+  const bulb = near
+    .filter((m) => m !== tinySphere)
+    .filter((m) => {
+      const mb = new THREE.Box3().setFromObject(m);
+      const size = new THREE.Vector3();
+      mb.getSize(size);
+      const centerY = (mb.min.y + mb.max.y) / 2;
+      return isSphereLike(m, 0.5) && size.y > pb.height * 0.08 && centerY > pb.top - pb.height * 0.32;
+    })
+    .sort((a, b) => {
+      const sa = new THREE.Vector3();
+      const sb = new THREE.Vector3();
+      new THREE.Box3().setFromObject(a).getSize(sa);
+      new THREE.Box3().setFromObject(b).getSize(sb);
+      return sb.length() - sa.length();
+    })[0];
+  if (bulb) tweakMaterials(bulb, BEAUTIFUL_GAME_EBONY, 0.2, 0.5);
+}
+
+function styleQueen(piece) {
+  const near = meshesNearTop(piece, 0.3);
+  const pb = meshBounds(piece);
+
+  const topSpheres = near.filter((m) => isSphereLike(m, 0.35));
+  const orb = topSpheres.sort((a, b) => {
+    const ab = new THREE.Box3().setFromObject(a);
+    const bb = new THREE.Box3().setFromObject(b);
+    return bb.max.y - ab.max.y;
+  })[0];
+  if (orb) tweakMaterials(orb, BEAUTIFUL_GAME_RUBY, 0.05, 0.25);
+
+  let crown;
+  for (const m of near) {
+    if (nameIncludes(m, /(crown|tiara|corona|spike|prong)/)) {
+      crown = m;
+      break;
+    }
+  }
+  if (!crown) {
+    crown = near
+      .filter((m) => m !== orb)
+      .filter((m) => !isSphereLike(m, 0.3))
+      .sort((a, b) => {
+        const sa = new THREE.Vector3();
+        const sb = new THREE.Vector3();
+        new THREE.Box3().setFromObject(a).getSize(sa);
+        new THREE.Box3().setFromObject(b).getSize(sb);
+        return sb.length() - sa.length();
+      })[0];
+  }
+  if (crown) tweakMaterials(crown, BEAUTIFUL_GAME_GOLD, 1.0, 0.25);
+
+  const cap = near
+    .filter((m) => m !== orb && m !== crown)
+    .filter((m) => {
+      const mb = new THREE.Box3().setFromObject(m);
+      const centerY = (mb.min.y + mb.max.y) / 2;
+      return centerY > pb.top - pb.height * 0.35;
+    })
+    .sort((a, b) => {
+      const ab = new THREE.Box3().setFromObject(a);
+      const bb = new THREE.Box3().setFromObject(b);
+      return bb.max.y - ab.max.y;
+    })[0];
+  if (cap) tweakMaterials(cap, BEAUTIFUL_GAME_EBONY, 0.2, 0.5);
+}
+
+function stylePawn(piece) {
+  const pb = meshBounds(piece);
+  const near = meshesNearTop(piece, 0.5);
+  const ring = near
+    .map((m) => ({ m, box: new THREE.Box3().setFromObject(m) }))
+    .filter(({ box }) => {
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      const width = (size.x + size.z) / 2;
+      const ratio = width > 0 ? size.y / width : 1;
+      const centerY = (box.min.y + box.max.y) / 2;
+      return ratio < 0.25 && centerY > pb.top - pb.height * 0.45 && centerY < pb.top - pb.height * 0.12;
+    })
+    .sort((a, b) => b.box.max.y - a.box.max.y)[0]?.m;
+  if (ring) tweakMaterials(ring, BEAUTIFUL_GAME_GOLD, 1.0, 0.28);
 }
 
 function makeHeadMaterial(preset) {
