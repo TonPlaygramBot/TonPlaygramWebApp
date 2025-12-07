@@ -2040,70 +2040,71 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         });
       });
     });
-  } else {
-    const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
-    const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
-    const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
-    const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
-    const goldAccent = pieceStyle.goldAccent || '#d7b24a';
-    const shouldStripTextures = !pieceStyle.keepTextures;
+    return;
+  }
+  const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
+  const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
+  const accentLight = pieceStyle.whiteAccent?.color ?? pieceStyle.accent ?? BEAUTIFUL_GAME_THEME.accent;
+  const darkAccent = pieceStyle.blackAccent ?? pieceStyle.accent ?? accentLight;
+  const goldAccent = pieceStyle.goldAccent || '#d7b24a';
+  const shouldStripTextures = !pieceStyle.keepTextures;
 
-    const applySurface = (material, config) => {
-      if (!material) return;
-      if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
-      if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
-      if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
-      if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
-      if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
-      if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
-      if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
-    };
+  const applySurface = (material, config) => {
+    if (!material) return;
+    if (Number.isFinite(config.roughness)) material.roughness = clamp01(config.roughness);
+    if (Number.isFinite(config.metalness)) material.metalness = clamp01(config.metalness);
+    if (Number.isFinite(config.clearcoat)) material.clearcoat = clamp01(config.clearcoat);
+    if (Number.isFinite(config.clearcoatRoughness)) material.clearcoatRoughness = clamp01(config.clearcoatRoughness);
+    if (Number.isFinite(config.sheen)) material.sheen = clamp01(config.sheen);
+    if (config.sheenColor) material.sheenColor = new THREE.Color(config.sheenColor);
+    if (Number.isFinite(config.specularIntensity)) material.specularIntensity = clamp01(config.specularIntensity);
+  };
 
-    const applyColor = (piece, colorHex) => {
-      if (!piece) return;
-      piece.traverse((child) => {
-        if (!child?.isMesh) return;
-        const mats = Array.isArray(child.material) ? child.material : [child.material];
-        mats.forEach((mat, idx) => {
-          if (!mat) return;
-          const applied = mat.clone ? mat.clone() : mat;
-          if (shouldStripTextures) {
-            stripMaterialTextures(applied);
-          }
-          applied.color = new THREE.Color(colorHex);
-          applied.emissive?.set?.(0x000000);
-          applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
-          if (Array.isArray(child.material)) {
-            child.material[idx] = applied;
-          } else {
-            child.material = applied;
-          }
-          child.castShadow = true;
-          child.receiveShadow = true;
-        });
+  const applyColor = (piece, colorHex) => {
+    if (!piece) return;
+    piece.traverse((child) => {
+      if (!child?.isMesh) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat, idx) => {
+        if (!mat) return;
+        const applied = mat.clone ? mat.clone() : mat;
+        if (shouldStripTextures) {
+          stripMaterialTextures(applied);
+        }
+        applied.color = new THREE.Color(colorHex);
+        applied.emissive?.set?.(0x000000);
+        applySurface(applied, colorHex === lightColor ? pieceStyle.white : pieceStyle.black);
+        if (Array.isArray(child.material)) {
+          child.material[idx] = applied;
+        } else {
+          child.material = applied;
+        }
+        child.castShadow = true;
+        child.receiveShadow = true;
       });
-    };
-
-    ['white', 'black'].forEach((colorKey) => {
-      const targetColor = colorKey === 'white' ? lightColor : darkColor;
-      Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
     });
+  };
 
-    const accentize = (piece, colorKey) => {
-      if (!piece) return;
-      const shouldStripTextures = !pieceStyle.keepTextures;
-      piece.traverse((child) => {
-        if (!child?.isMesh) return;
-        const name = child.name?.toLowerCase?.() ?? '';
-        const shouldAccent =
-          name.includes('collar') ||
-          name.includes('crown') ||
-          name.includes('ring') ||
-          name.includes('cross') ||
-          name.includes('band') ||
-          name.includes('rim');
-        if (!shouldAccent) return;
-        const mats = Array.isArray(child.material) ? child.material : [child.material];
+  ['white', 'black'].forEach((colorKey) => {
+    const targetColor = colorKey === 'white' ? lightColor : darkColor;
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, targetColor));
+  });
+
+  const accentize = (piece, colorKey) => {
+    if (!piece) return;
+    const shouldStripTextures = !pieceStyle.keepTextures;
+    piece.traverse((child) => {
+      if (!child?.isMesh) return;
+      const name = child.name?.toLowerCase?.() ?? '';
+      const shouldAccent =
+        name.includes('collar') ||
+        name.includes('crown') ||
+        name.includes('ring') ||
+        name.includes('cross') ||
+        name.includes('band') ||
+        name.includes('rim');
+      if (!shouldAccent) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
         mats.forEach((mat, idx) => {
           if (!mat) return;
           const applied = mat.clone ? mat.clone() : mat;
@@ -2112,29 +2113,26 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
           }
           const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
           applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
-          applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
-          applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
-          applySurface(
-            applied,
-            colorKey === 'white'
-              ? pieceStyle.whiteAccent || pieceStyle.white
-              : pieceStyle.blackAccent || pieceStyle.black
-          );
-          if (Array.isArray(child.material)) {
-            child.material[idx] = applied;
-          } else {
-            child.material = applied;
-          }
-        });
+        applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
+        applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
+        applySurface(
+          applied,
+          colorKey === 'white'
+            ? pieceStyle.whiteAccent || pieceStyle.white
+            : pieceStyle.blackAccent || pieceStyle.black
+        );
+        if (Array.isArray(child.material)) {
+          child.material[idx] = applied;
+        } else {
+          child.material = applied;
+        }
       });
-    };
-
-    ['white', 'black'].forEach((colorKey) => {
-      Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece, colorKey));
     });
-  }
+  };
 
-  applyBeautifulGameDetailAccents(piecePrototypes);
+  ['white', 'black'].forEach((colorKey) => {
+    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece, colorKey));
+  });
 }
 
 function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
@@ -2149,6 +2147,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
         }
       });
     });
+    return;
   }
   const lightColor = pieceStyle.white?.color ?? BEAUTIFUL_GAME_THEME.light;
   const darkColor = pieceStyle.black?.color ?? BEAUTIFUL_GAME_THEME.dark;
@@ -2239,220 +2238,9 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
   list.forEach((mesh) => {
     if (!mesh) return;
     const colorKey = mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
-    if (!pieceStyle?.preserveOriginalMaterials) {
-      recolorMesh(mesh, colorKey);
-      accentize(mesh, colorKey);
-    }
+    recolorMesh(mesh, colorKey);
+    accentize(mesh, colorKey);
   });
-
-  applyBeautifulGameDetailAccents(list);
-}
-
-const BEAUTIFUL_GAME_DETAIL_COLORS = Object.freeze({
-  ivory: '#eee8d5',
-  ebony: '#0a0a0a',
-  gold: '#d4af37',
-  ruby: '#9b111e'
-});
-
-function applyBeautifulGameDetailAccents(meshes) {
-  if (!meshes) return;
-  const list = Array.isArray(meshes)
-    ? meshes
-    : meshes?.white || meshes?.black
-      ? [...Object.values(meshes.white || {}), ...Object.values(meshes.black || {})]
-      : [meshes];
-
-  const eachMaterial = (mesh, fn) => {
-    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    mats.forEach((mat) => {
-      if (!mat) return;
-      fn(mat);
-    });
-  };
-
-  const setMatProps = (mesh, { color, metalness, roughness }) => {
-    eachMaterial(mesh, (mat) => {
-      if (color && mat.color) mat.color.set(color);
-      if (Number.isFinite(metalness) && typeof mat.metalness === 'number') {
-        mat.metalness = clamp01(metalness);
-      }
-      if (Number.isFinite(roughness) && typeof mat.roughness === 'number') {
-        mat.roughness = clamp01(roughness);
-      }
-    });
-  };
-
-  const bounds = (obj) => {
-    const box = new THREE.Box3().setFromObject(obj);
-    const size = box.getSize(new THREE.Vector3());
-    return { box, size, height: size.y, top: box.max.y, bottom: box.min.y };
-  };
-
-  const meshesNearTop = (root, frac = 0.2) => {
-    const pb = bounds(root);
-    const cutoff = pb.top - pb.height * frac;
-    const near = [];
-    root.traverse((node) => {
-      if (!node?.isMesh) return;
-      const mb = new THREE.Box3().setFromObject(node);
-      if (mb.max.y >= cutoff) near.push(node);
-    });
-    return near;
-  };
-
-  const isSphereLike = (mesh, tolerance = 0.3) => {
-    const size = new THREE.Vector3();
-    new THREE.Box3().setFromObject(mesh).getSize(size);
-    const avg = (size.x + size.y + size.z) / 3;
-    if (avg === 0) return false;
-    const dx = Math.abs(size.x - avg) / avg;
-    const dy = Math.abs(size.y - avg) / avg;
-    const dz = Math.abs(size.z - avg) / avg;
-    return dx < tolerance && dy < tolerance && dz < tolerance;
-  };
-
-  const detectType = (mesh) => {
-    const direct =
-      mesh?.userData?.__pieceType ||
-      mesh?.userData?.t ||
-      mesh?.userData?.type ||
-      (mesh?.parent?.userData ? mesh.parent.userData.__pieceType : null);
-    if (direct) return direct.toString().toUpperCase();
-    let found = null;
-    mesh?.traverse?.((child) => {
-      if (found) return;
-      const t = child?.userData?.__pieceType || child?.userData?.t || child?.userData?.type;
-      if (t) found = t.toString().toUpperCase();
-    });
-    if (found) return found;
-    return pieceTypeFromName(mesh?.name || '') || null;
-  };
-
-  const styleRookKnight = (piece) => {
-    piece.traverse((child) => {
-      if (!child?.isMesh) return;
-      setMatProps(child, { color: BEAUTIFUL_GAME_DETAIL_COLORS.ivory, metalness: 0.2, roughness: 0.5 });
-    });
-  };
-
-  const styleBishop = (piece) => {
-    const near = meshesNearTop(piece, 0.28);
-    const pb = bounds(piece);
-    const spheres = near.filter((m) => isSphereLike(m, 0.35));
-    const tinySphere = spheres.sort((a, b) => {
-      const sa = new THREE.Vector3();
-      const sb = new THREE.Vector3();
-      new THREE.Box3().setFromObject(a).getSize(sa);
-      new THREE.Box3().setFromObject(b).getSize(sb);
-      return sa.length() - sb.length();
-    })[0];
-    if (tinySphere) setMatProps(tinySphere, { color: BEAUTIFUL_GAME_DETAIL_COLORS.gold, metalness: 1, roughness: 0.25 });
-
-    const bulb = near
-      .filter((m) => m !== tinySphere)
-      .filter((m) => {
-        const mb = new THREE.Box3().setFromObject(m);
-        const size = new THREE.Vector3();
-        mb.getSize(size);
-        const centerY = (mb.min.y + mb.max.y) / 2;
-        return (
-          isSphereLike(m, 0.5) &&
-          size.y > pb.height * 0.08 &&
-          centerY > pb.top - pb.height * 0.32
-        );
-      })
-      .sort((a, b) => {
-        const sa = new THREE.Vector3();
-        const sb = new THREE.Vector3();
-        new THREE.Box3().setFromObject(a).getSize(sa);
-        new THREE.Box3().setFromObject(b).getSize(sb);
-        return sb.length() - sa.length();
-      })[0];
-    if (bulb) setMatProps(bulb, { color: BEAUTIFUL_GAME_DETAIL_COLORS.ebony, metalness: 0.2, roughness: 0.5 });
-  };
-
-  const styleQueen = (piece) => {
-    const near = meshesNearTop(piece, 0.3);
-    const pb = bounds(piece);
-    const topSpheres = near.filter((m) => isSphereLike(m, 0.35));
-    const orb = topSpheres.sort((a, b) => {
-      const ab = new THREE.Box3().setFromObject(a);
-      const bb = new THREE.Box3().setFromObject(b);
-      return bb.max.y - ab.max.y;
-    })[0];
-    if (orb) setMatProps(orb, { color: BEAUTIFUL_GAME_DETAIL_COLORS.ruby, metalness: 0.05, roughness: 0.25 });
-
-    let crown;
-    for (const mesh of near) {
-      const name = mesh.name?.toLowerCase?.() ?? '';
-      if (/(crown|tiara|corona|spike|prong)/.test(name)) {
-        crown = mesh;
-        break;
-      }
-    }
-    if (!crown) {
-      crown = near
-        .filter((m) => m !== orb)
-        .filter((m) => !isSphereLike(m, 0.3))
-        .sort((a, b) => {
-          const sa = new THREE.Vector3();
-          const sb = new THREE.Vector3();
-          new THREE.Box3().setFromObject(a).getSize(sa);
-          new THREE.Box3().setFromObject(b).getSize(sb);
-          return sb.length() - sa.length();
-        })[0];
-    }
-    if (crown) setMatProps(crown, { color: BEAUTIFUL_GAME_DETAIL_COLORS.gold, metalness: 1, roughness: 0.25 });
-
-    const cap = near
-      .filter((m) => m !== orb && m !== crown)
-      .filter((m) => {
-        const mb = new THREE.Box3().setFromObject(m);
-        const centerY = (mb.min.y + mb.max.y) / 2;
-        return centerY > pb.top - pb.height * 0.35;
-      })
-      .sort((a, b) => {
-        const ab = new THREE.Box3().setFromObject(a);
-        const bb = new THREE.Box3().setFromObject(b);
-        return bb.max.y - ab.max.y;
-      })[0];
-    if (cap) setMatProps(cap, { color: BEAUTIFUL_GAME_DETAIL_COLORS.ebony, metalness: 0.2, roughness: 0.5 });
-  };
-
-  const stylePawn = (piece) => {
-    const pb = bounds(piece);
-    const near = meshesNearTop(piece, 0.5);
-    const ring = near
-      .map((m) => ({ mesh: m, box: new THREE.Box3().setFromObject(m) }))
-      .filter(({ box }) => {
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const width = (size.x + size.z) / 2;
-        const ratio = width > 0 ? size.y / width : 1;
-        const centerY = (box.min.y + box.max.y) / 2;
-        return ratio < 0.25 && centerY > pb.top - pb.height * 0.45 && centerY < pb.top - pb.height * 0.12;
-      })
-      .sort((a, b) => b.box.max.y - a.box.max.y)[0]?.mesh;
-    if (ring) setMatProps(ring, { color: BEAUTIFUL_GAME_DETAIL_COLORS.gold, metalness: 1, roughness: 0.28 });
-  };
-
-  const styleSingle = (mesh) => {
-    if (!mesh) return;
-    const type = detectType(mesh);
-    if (!type) return;
-    if (type === 'R' || type === 'N') {
-      styleRookKnight(mesh);
-    } else if (type === 'B') {
-      styleBishop(mesh);
-    } else if (type === 'Q') {
-      styleQueen(mesh);
-    } else if (type === 'P') {
-      stylePawn(mesh);
-    }
-  };
-
-  list.forEach((mesh) => styleSingle(mesh));
 }
 
 function makeHeadMaterial(preset) {
