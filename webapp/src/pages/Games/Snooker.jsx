@@ -10271,7 +10271,7 @@ function SnookerGame() {
         const clamped = clampInHandPosition(raw);
         if (!clamped) return false;
         if (!free(clamped.x, clamped.y)) return false;
-        cue.active = true;
+        cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
         if (commit) {
@@ -10339,7 +10339,7 @@ function SnookerGame() {
       if (hudRef.current?.inHand) {
         const startPos = clampInHandPosition(new THREE.Vector2(0, baulkZ));
         if (startPos) {
-          cue.active = true;
+          cue.active = false;
           updateCuePlacement(startPos);
         }
       }
@@ -11274,6 +11274,7 @@ function SnookerGame() {
         if (
           allStopped(balls) &&
           currentHud?.turn === 0 &&
+          !(currentHud?.inHand) &&
           cue?.active &&
           !(currentHud?.over)
         ) {
