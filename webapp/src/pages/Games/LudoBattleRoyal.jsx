@@ -43,6 +43,24 @@ import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.j
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
+const ABG_MODEL_URLS = Object.freeze([
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+]);
+const ABG_TYPES = Object.freeze(['p', 'r', 'n', 'b', 'q', 'k']);
+const ABG_TYPE_ALIASES = Object.freeze([
+  ['p', /pawn/],
+  ['r', /rook|castle/],
+  ['n', /knight|horse/],
+  ['b', /bishop/],
+  ['q', /queen/],
+  ['k', /king/]
+]);
+const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
+const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
+
+const TOKEN_TYPE_SEQUENCE = ['k', 'q', 'b', 'n', 'r', 'p'];
+
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
 const ARENA_GROWTH = 1.45;
@@ -109,102 +127,6 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 
 const colorNumberToHex = (value) => `#${value.toString(16).padStart(6, '0')}`;
-
-const boardTileTextureCache = new Map();
-
-function createBoardTileTexture(baseColor, accentColor) {
-  if (typeof document === 'undefined') return null;
-  const base = new THREE.Color(baseColor);
-  const accent = new THREE.Color(accentColor ?? baseColor);
-  const key = `${base.getHexString()}-${accent.getHexString()}`;
-  if (boardTileTextureCache.has(key)) {
-    return boardTileTextureCache.get(key);
-  }
-
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return null;
-
-  const highlight = base.clone().lerp(new THREE.Color(0xffffff), 0.35);
-  const shadow = base.clone().lerp(new THREE.Color(0x000000), 0.22);
-  const accentTone = accent.clone().lerp(base, 0.5);
-  const edge = accent.clone().lerp(new THREE.Color(0x000000), 0.25);
-
-  ctx.fillStyle = `#${base.getHexString()}`;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const diag = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-  diag.addColorStop(0, `#${highlight.getHexString()}`);
-  diag.addColorStop(0.45, `#${base.getHexString()}`);
-  diag.addColorStop(1, `#${shadow.getHexString()}`);
-  ctx.fillStyle = diag;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const radial = ctx.createRadialGradient(
-    canvas.width * 0.25,
-    canvas.height * 0.25,
-    canvas.width * 0.05,
-    canvas.width * 0.55,
-    canvas.height * 0.6,
-    canvas.width * 0.65
-  );
-  radial.addColorStop(0, `#${highlight.clone().lerp(new THREE.Color(0xffffff), 0.25).getHexString()}`);
-  radial.addColorStop(0.6, `#${base.getHexString()}`);
-  radial.addColorStop(1, `#${shadow.getHexString()}`);
-  ctx.fillStyle = radial;
-  ctx.globalAlpha = 0.8;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.globalAlpha = 1;
-
-  ctx.strokeStyle = `#${edge.getHexString()}`;
-  ctx.lineWidth = canvas.width * 0.08;
-  ctx.strokeRect(canvas.width * 0.06, canvas.height * 0.06, canvas.width * 0.88, canvas.height * 0.88);
-
-  ctx.save();
-  ctx.lineWidth = canvas.width * 0.04;
-  ctx.strokeStyle = `#${accentTone.getHexString()}`;
-  ctx.strokeRect(canvas.width * 0.12, canvas.height * 0.12, canvas.width * 0.76, canvas.height * 0.76);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalAlpha = 0.3;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.ellipse(canvas.width * 0.32, canvas.height * 0.28, canvas.width * 0.18, canvas.height * 0.12, -0.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 4;
-  texture.needsUpdate = true;
-  if ('colorSpace' in texture) {
-    texture.colorSpace = THREE.SRGBColorSpace;
-  }
-  boardTileTextureCache.set(key, texture);
-  return texture;
-}
-
-function createBoardTileMaterial(baseColor, accentColor) {
-  const base = new THREE.Color(baseColor);
-  const accent = new THREE.Color(accentColor ?? baseColor);
-  const texture = createBoardTileTexture(base, accent);
-  const material = new THREE.MeshPhysicalMaterial({
-    color: base,
-    map: texture ?? null,
-    roughness: 0.42,
-    metalness: 0.12,
-    clearcoat: 0.55,
-    clearcoatRoughness: 0.45,
-    sheen: 0.2,
-    sheenColor: base.clone().lerp(new THREE.Color(0xffffff), 0.12),
-    envMapIntensity: 0.55
-  });
-  material.emissive = accent.clone().multiplyScalar(0.16);
-  material.emissiveIntensity = 0.32;
-  return material;
-}
 
 const CAMERA_FOV = ARENA_CAMERA_DEFAULTS.fov;
 const CAMERA_NEAR = ARENA_CAMERA_DEFAULTS.near;
@@ -321,6 +243,226 @@ function adjustHexColor(hex, amount) {
   const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
+}
+
+function abgNodePath(node) {
+  const names = [];
+  let current = node;
+  while (current) {
+    if (current.name) names.push(current.name);
+    current = current.parent;
+  }
+  return names.reverse().join('/');
+}
+
+function abgDetectType(path) {
+  const lower = path.toLowerCase();
+  for (const [t, re] of ABG_TYPE_ALIASES) {
+    if (re.test(lower)) return t;
+  }
+  return undefined;
+}
+
+function abgDetectColor(path, luminanceHint = 0.6) {
+  if (ABG_COLOR_W.test(path)) return 'w';
+  if (ABG_COLOR_B.test(path)) return 'b';
+  return luminanceHint >= 0.5 ? 'w' : 'b';
+}
+
+function abgAverageLuminance(root) {
+  let sum = 0;
+  let count = 0;
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (mat?.color) {
+        const c = mat.color;
+        sum += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        count += 1;
+      }
+    });
+  });
+  return count ? sum / count : 0.5;
+}
+
+function abgCloneWithMats(src) {
+  const clone = src.clone(true);
+  clone.traverse((node) => {
+    if (node.isMesh) {
+      if (Array.isArray(node.material)) {
+        node.material = node.material.map((m) => m?.clone?.() ?? m);
+      } else if (node.material) {
+        node.material = node.material.clone();
+      }
+      node.castShadow = true;
+      node.receiveShadow = false;
+    }
+  });
+  return clone;
+}
+
+function abgBbox(obj) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  return { box, size };
+}
+
+function abgPreparePiece(src) {
+  const clone = abgCloneWithMats(src);
+  const { size } = abgBbox(clone);
+  const footprint = Math.max(size.x, size.z) || 1;
+  const target = LUDO_TILE * 0.7;
+  const scale = target / footprint;
+  clone.scale.setScalar(scale);
+  const { box } = abgBbox(clone);
+  const baseLift = -box.min.y + TOKEN_TRACK_HEIGHT;
+  const group = new THREE.Group();
+  group.add(clone);
+  group.position.y = baseLift;
+  group.traverse((node) => {
+    if (node.isMesh) node.castShadow = true;
+  });
+  return group;
+}
+
+function abgApplyPalette(node, palette) {
+  if (!Array.isArray(palette) || !palette.length) return;
+  node.traverse((child) => {
+    if (!child.isMesh) return;
+    const mats = Array.isArray(child.material) ? child.material : [child.material];
+    const next = mats.map((_, idx) => palette[idx % palette.length].clone());
+    child.material = Array.isArray(child.material) ? next : next[0];
+  });
+}
+
+function abgTintPalette(palette, color) {
+  const tint = new THREE.Color(color);
+  return (palette || []).map((mat) => {
+    const clone = mat?.clone?.() ?? mat;
+    if (clone?.color) {
+      clone.color.copy(tint);
+    }
+    if (clone?.emissive) {
+      clone.emissive.set(0x000000);
+    }
+    return clone;
+  });
+}
+
+function abgSnapshotBoardPalette(root) {
+  const swatches = [];
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    const mats = Array.isArray(node.material) ? node.material : [node.material];
+    mats.forEach((mat) => {
+      if (mat?.color) swatches.push(mat);
+    });
+  });
+  if (!swatches.length) return { light: null, dark: null };
+  const withLum = swatches.map((mat) => {
+    const c = mat.color;
+    const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+    return { mat, lum };
+  });
+  withLum.sort((a, b) => b.lum - a.lum);
+  return {
+    light: withLum[0]?.mat?.clone?.() ?? null,
+    dark: withLum[withLum.length - 1]?.mat?.clone?.() ?? null
+  };
+}
+
+let abgAssetPromise = null;
+async function getAbgAssets() {
+  if (abgAssetPromise) return abgAssetPromise;
+  abgAssetPromise = (async () => {
+    const loader = new GLTFLoader();
+    loader.setCrossOrigin('anonymous');
+    const draco = new DRACOLoader();
+    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(draco);
+
+    let root = null;
+    for (const url of ABG_MODEL_URLS) {
+      try {
+        const gltf = await loader.loadAsync(url);
+        root = gltf?.scene;
+        if (root) break;
+      } catch (error) {
+        console.warn('ABG load failed', url, error);
+      }
+    }
+    if (!root) return null;
+    root.updateMatrixWorld(true);
+
+    const proto = { w: {}, b: {} };
+    const palettes = { w: [], b: [] };
+    const boards = [];
+
+    root.traverse((node) => {
+      const path = abgNodePath(node);
+      const type = abgDetectType(path);
+      if (node.isMesh) {
+        const mats = Array.isArray(node.material) ? node.material : [node.material];
+        let lum = 0;
+        let cnt = 0;
+        mats.forEach((mat) => {
+          if (mat?.map) applySRGBColorSpace(mat.map);
+          if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
+          if (mat?.color) {
+            const c = mat.color;
+            lum += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+            cnt += 1;
+          }
+        });
+        const lumAvg = cnt ? lum / cnt : 0.6;
+        const colorKey = abgDetectColor(path, lumAvg);
+        mats.forEach((mat) => {
+          if (mat?.isMaterial) palettes[colorKey].push(mat.clone());
+        });
+        if (/board|table|chessboard/i.test(node.name || '')) boards.push(node);
+      }
+      if (!type) return;
+      const color = abgDetectColor(path, abgAverageLuminance(node));
+      if (!proto[color][type]) {
+        proto[color][type] = node;
+      }
+    });
+
+    const boardNode = boards[0] || root;
+    const boardPalette = abgSnapshotBoardPalette(boardNode);
+
+    (['w', 'b']).forEach((color) => {
+      ABG_TYPES.forEach((type) => {
+        if (!proto[color][type]) {
+          const other = color === 'w' ? 'b' : 'w';
+          if (proto[other][type]) {
+            const clone = abgCloneWithMats(proto[other][type]);
+            abgApplyPalette(clone, palettes[color]);
+            proto[color][type] = clone;
+          }
+        }
+        if (proto[color][type]) {
+          proto[color][type] = abgPreparePiece(proto[color][type]);
+        }
+      });
+    });
+
+    return { proto, palettes, boardPalette };
+  })();
+  return abgAssetPromise;
+}
+
+function cloneBoardMaterial(base, color) {
+  const mat = base?.clone?.() ?? new THREE.MeshStandardMaterial({ color });
+  if (mat.color) {
+    mat.color.set(color);
+  }
+  if (mat.emissive) {
+    mat.emissive.set(0x000000);
+  }
+  return mat;
 }
 
 function fitChairModelToFootprint(model) {
@@ -660,9 +802,9 @@ const HOME_COLUMN_COORDS = Object.freeze([
 const RING_STEPS = TRACK_COORDS.length;
 const HOME_STEPS = HOME_COLUMN_COORDS[0].length;
 const GOAL_PROGRESS = RING_STEPS + HOME_STEPS;
-const COLOR_NAMES = ['Red', 'Green', 'Yellow', 'Blue'];
-const BOARD_COLORS = Object.freeze([0xfef08a, 0x22c55e, 0xef4444, 0x3b82f6]);
-const PLAYER_COLOR_ORDER = Object.freeze([2, 1, 0, 3]);
+const COLOR_NAMES = ['Red', 'White', 'Blue', 'Green'];
+const BOARD_COLORS = Object.freeze([0xef4444, 0xffffff, 0x3b82f6, 0x22c55e]);
+const PLAYER_COLOR_ORDER = Object.freeze([0, 1, 2, 3]);
 const PLAYER_COLORS = Object.freeze(
   PLAYER_COLOR_ORDER.map((boardIndex) => BOARD_COLORS[boardIndex])
 );
@@ -2656,7 +2798,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       chairs.push({ group, anchor: avatarAnchor });
     }
 
-    const boardData = buildLudoBoard(boardGroup, activePlayerCount);
+    const boardData = await buildLudoBoard(boardGroup, activePlayerCount);
     diceRef.current = boardData.dice;
     turnIndicatorRef.current = boardData.turnIndicator;
     configureDiceAnchors({ dice: boardData.dice, boardGroup, chairs, tableInfo });
@@ -3691,8 +3833,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   );
 }
 
-function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
+async function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   const scene = boardGroup;
+
+  const abgAssets = await getAbgAssets();
+  const boardPalette = abgAssets?.boardPalette ?? { light: null, dark: null };
+  const lightBoardMat = cloneBoardMaterial(boardPalette.light, 0xfef9ef);
+  const darkBoardMat = cloneBoardMaterial(boardPalette.dark ?? boardPalette.light, 0xdccfb0);
+  const playerPalettes = PLAYER_COLORS.map((color, idx) => {
+    const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
+    return abgTintPalette(src, color);
+  });
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -3764,8 +3915,7 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
       }
       if (columnIndex !== -1 && columnIndex < playerCount) {
         const baseColor = PLAYER_COLORS[columnIndex];
-        const accent = adjustHexColor(colorNumberToHex(baseColor), 0.2);
-        const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
+        const mesh = new THREE.Mesh(tileGeo, cloneBoardMaterial(darkBoardMat, baseColor));
         mesh.position.copy(pos);
         registerTile(mesh);
         const stepIndex = HOME_COLUMN_KEY_TO_STEP.get(key);
@@ -3778,8 +3928,7 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
       if (TRACK_KEY_SET.has(key)) {
         const isSafe = SAFE_TRACK_KEY_SET.has(key);
         const baseColor = isSafe ? 0xf4e3bd : 0xfef9ef;
-        const accent = isSafe ? '#f59e0b' : '#fbbf24';
-        const mesh = new THREE.Mesh(tileGeo, createBoardTileMaterial(baseColor, accent));
+        const mesh = new THREE.Mesh(tileGeo, cloneBoardMaterial(isSafe ? darkBoardMat : lightBoardMat, baseColor));
         mesh.position.copy(pos);
         registerTile(mesh);
         const trackIndex = TRACK_INDEX_BY_KEY.get(key);
@@ -3799,24 +3948,38 @@ function buildLudoBoard(boardGroup, playerCount = DEFAULT_PLAYER_COUNT) {
   addBoardMarkers(scene, cellToWorld);
 
   const tokens = TOKEN_COLORS.slice(0, playerCount).map((color, playerIdx) => {
+    const palette = playerPalettes[playerIdx] ?? [];
     return Array.from({ length: 4 }, (_, i) => {
-      const rook = makeRook(makeTokenMaterial(color));
-      rook.userData = {
-        ...(rook.userData || {}),
-        playerIndex: playerIdx,
-        tokenIndex: i
-      };
-      rook.traverse((node) => {
+      const type = TOKEN_TYPE_SEQUENCE[i % TOKEN_TYPE_SEQUENCE.length];
+      const baseProto =
+        abgAssets?.proto?.w?.[type] ||
+        abgAssets?.proto?.b?.[type] ||
+        null;
+      const token = baseProto ? baseProto.clone(true) : makeRook(makeTokenMaterial(color));
+      if (baseProto && palette.length) {
+        abgApplyPalette(token, palette);
+      }
+      const label = createTokenCountLabel();
+      if (label) {
+        token.add(label);
+        token.userData.countLabel = label;
+      }
+      if (!token.userData) token.userData = {};
+      token.userData.tokenColor = colorNumberToHex(color);
+      token.userData.tokenType = type;
+      token.userData.playerIndex = playerIdx;
+      token.userData.tokenIndex = i;
+      token.traverse((node) => {
         if (!node.userData) node.userData = {};
-        node.userData.tokenGroup = rook;
+        node.userData.tokenGroup = token;
         node.userData.playerIndex = playerIdx;
         node.userData.tokenIndex = i;
       });
       const homePos = startPads[playerIdx][i].clone();
       homePos.y = getTokenRailHeight(playerIdx);
-      rook.position.copy(homePos);
-      scene.add(rook);
-      return rook;
+      token.position.copy(homePos);
+      scene.add(token);
+      return token;
     });
   });
 
