@@ -106,6 +106,7 @@ const POT_OFFSET = new THREE.Vector3(0, TABLE_HEIGHT + CARD_SURFACE_OFFSET, 0);
 const DECK_POSITION = new THREE.Vector3(-TABLE_RADIUS * 0.55, TABLE_HEIGHT + CARD_SURFACE_OFFSET, TABLE_RADIUS * 0.55);
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
+const CAMERA_AUTO_FOCUS_TURNS = false; // Keep camera control manual for the player
 const TURN_DURATION = 30;
 const DEAL_DURATION = 420;
 const DEAL_STAGGER = 110;
@@ -2328,6 +2329,7 @@ function BlackJackArena({ search }) {
   const currentTurnIndex = gameState?.currentIndex;
 
   useEffect(() => {
+    if (!CAMERA_AUTO_FOCUS_TURNS) return;
     if (currentStage !== 'player-turns') return;
     if (typeof currentTurnIndex !== 'number' || currentTurnIndex < 0) return;
     const pointerState = pointerStateRef.current;
