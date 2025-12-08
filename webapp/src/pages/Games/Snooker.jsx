@@ -2973,13 +2973,6 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // match Pool Royale aim-line headroom
-const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // keep aim guide thickness aligned with Pool Royale
-const AIM_DASH_SIZE = Math.max(BALL_R * 0.7, 0.035);
-const AIM_GAP_SIZE = Math.max(BALL_R * 0.35, 0.02);
-const AIM_TICK_HALF_LENGTH = BALL_R * 1.4;
-const CUE_VIEW_AIM_LINE_LERP = 0.1;
-const STANDING_VIEW_AIM_LINE_LERP = 0.2;
-const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
@@ -9749,8 +9742,8 @@ function SnookerGame() {
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
-        color: 0x7ce7ff,
-        linewidth: AIM_LINE_WIDTH,
+        color: 0xffffff,
+        linewidth: 2,
         transparent: true,
         opacity: 0.9
       });
@@ -9772,24 +9765,6 @@ function SnookerGame() {
       tick.visible = false;
       table.add(tick);
 
-      const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(),
-        new THREE.Vector3()
-      ]);
-      const cueAfter = new THREE.Line(
-        cueAfterGeom,
-        new THREE.LineDashedMaterial({
-          color: 0x7ce7ff,
-          linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE * 0.9,
-          gapSize: AIM_GAP_SIZE,
-          transparent: true,
-          opacity: 0.45
-        })
-      );
-      cueAfter.visible = false;
-      table.add(cueAfter);
-
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
@@ -9797,12 +9772,11 @@ function SnookerGame() {
       const target = new THREE.Line(
         targetGeom,
         new THREE.LineDashedMaterial({
-          color: 0xffd166,
-          linewidth: AIM_LINE_WIDTH,
-          dashSize: AIM_DASH_SIZE,
-          gapSize: AIM_GAP_SIZE,
+          color: 0xffffff,
+          dashSize: 1,
+          gapSize: 1,
           transparent: true,
-          opacity: 0.65
+          opacity: 0.5
         })
       );
       target.visible = false;
@@ -10252,17 +10226,13 @@ function SnookerGame() {
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
-        if (!point) return false;
-        const clearance = BALL_R * clearanceMultiplier;
-        for (const ball of balls) {
-          if (!ball.active || ball === cue) continue;
-          if (point.distanceTo(ball.pos) <= clearance) {
-            return false;
-          }
-        }
-        return true;
-      };
+      const free = (x, z) =>
+        balls.every(
+          (b) =>
+            !b.active ||
+            b === cue ||
+            new THREE.Vector2(x, z).distanceTo(b.pos) > BALL_R * 2.1
+        );
       const clampInHandPosition = (point) => {
         if (!point) return null;
         const clamped = point.clone();
@@ -10280,8 +10250,6 @@ function SnookerGame() {
         }
         return clamped;
       };
-      const defaultInHandPosition = () =>
-        clampInHandPosition(new THREE.Vector2(0, baulkZ));
       const inHandDrag = {
         active: false,
         pointerId: null,
@@ -10302,16 +10270,14 @@ function SnookerGame() {
         if (!(currentHud?.inHand)) return false;
         const clamped = clampInHandPosition(raw);
         if (!clamped) return false;
-        if (!isSpotFree(clamped)) return false;
+        if (!free(clamped.x, clamped.y)) return false;
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
-          const nextHud = { ...(hudRef.current ?? hud), inHand: false };
-          hudRef.current = nextHud;
-          setHud(nextHud);
+          setHud((s) => ({ ...s, inHand: false }));
         }
         return true;
       };
@@ -10371,7 +10337,7 @@ function SnookerGame() {
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = defaultInHandPosition();
+        const startPos = clampInHandPosition(new THREE.Vector2(0, baulkZ));
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
@@ -11293,31 +11259,14 @@ function SnookerGame() {
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
-        const cameraBlend = THREE.MathUtils.clamp(
-          cameraBlendRef.current ?? 1,
-          0,
-          1
-        );
-        const baseAimLerp = THREE.MathUtils.lerp(
-          CUE_VIEW_AIM_LINE_LERP,
-          STANDING_VIEW_AIM_LINE_LERP,
-          cameraBlend
-        );
         const aimLerpFactor = chalkAssistTargetRef.current
-          ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
-          : baseAimLerp;
+          ? CHALK_AIM_LERP_SLOW
+          : 0.2;
         if (!lookModeRef.current && !spinDragActiveRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
         const appliedSpin = applySpinConstraints(aimDir, true);
         const ranges = spinRangeRef.current || {};
-        let spinSide = appliedSpin.x * (ranges.side ?? 0);
-        let spinTop = -appliedSpin.y * (ranges.forward ?? 0);
-        if (appliedSpin.y > 0) {
-          spinTop *= BACKSPIN_MULTIPLIER;
-        } else if (appliedSpin.y < 0) {
-          spinTop *= TOPSPIN_MULTIPLIER;
-        }
         const newCollisions = new Set();
         let shouldSlowAim = false;
         // Aiming vizual
@@ -11334,12 +11283,9 @@ function SnookerGame() {
             aimDir,
             balls
           );
-          const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
-          if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
-          else baseAimDir.normalize();
           const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
           let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
-          const dir = baseAimDir.clone();
+          const dir = new THREE.Vector3(aimDir.x, 0, aimDir.y).normalize();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
           }
@@ -11379,23 +11325,18 @@ function SnookerGame() {
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
-          const powerStrength = THREE.MathUtils.clamp(
-            powerRef.current ?? 0,
-            0,
-            1
+          aim.material.color.set(
+            aimingWrong
+              ? 0xff3333
+              : targetBall && !railNormal
+                ? 0xffff00
+                : 0xffffff
           );
-          const primaryColor = aimingWrong
-            ? 0xff3333
-            : targetBall && !railNormal
-              ? 0xffd166
-              : 0x7ce7ff;
-          aim.material.color.set(primaryColor);
-          aim.material.opacity = 0.55 + 0.35 * powerStrength;
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
-            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
+            end.clone().add(perp.clone().multiplyScalar(1.4)),
+            end.clone().add(perp.clone().multiplyScalar(-1.4))
           ]);
           tick.visible = true;
           if (lookModeRef.current) {
@@ -11406,7 +11347,8 @@ function SnookerGame() {
           } else {
             aimFocusRef.current = null;
           }
-          const desiredPull = powerStrength * BALL_R * 10 * 0.65 * 1.2;
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
+          const desiredPull = clampedPower * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
             aimDir.clone().multiplyScalar(-1),
@@ -11450,37 +11392,6 @@ function SnookerGame() {
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          const cueFollowDir = afterDir
-            ? new THREE.Vector3(afterDir.x, 0, afterDir.y).normalize()
-            : dir.clone();
-          const spinSideInfluence = (appliedSpin.x || 0) * (0.4 + 0.42 * powerStrength);
-          const spinVerticalInfluence = (appliedSpin.y || 0) *
-            (0.68 + 0.45 * powerStrength);
-          const cueFollowDirSpinAdjusted = cueFollowDir
-            .clone()
-            .add(perp.clone().multiplyScalar(spinSideInfluence))
-            .add(dir.clone().multiplyScalar(spinVerticalInfluence * 0.16));
-          if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
-            cueFollowDirSpinAdjusted.normalize();
-          }
-          const backSpinWeight = Math.max(0, appliedSpin.y || 0);
-          if (backSpinWeight > 1e-8) {
-            const drawLerp = Math.min(1, backSpinWeight * BACKSPIN_DIRECTION_PREVIEW);
-            const drawDir = dir.clone().negate();
-            cueFollowDirSpinAdjusted.lerp(drawDir, drawLerp);
-            if (cueFollowDirSpinAdjusted.lengthSq() > 1e-8) {
-              cueFollowDirSpinAdjusted.normalize();
-            }
-          }
-          const cueFollowLength = BALL_R * (12 + powerStrength * 18) *
-            (1 + spinVerticalInfluence * 0.4);
-          const followEnd = end
-            .clone()
-            .add(cueFollowDirSpinAdjusted.clone().multiplyScalar(cueFollowLength));
-          cueAfterGeom.setFromPoints([end, followEnd]);
-          cueAfter.visible = true;
-          cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
-          cueAfter.computeLineDistances();
           TMP_VEC3_BUTT.set(
             cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
@@ -11592,7 +11503,7 @@ function SnookerGame() {
           let previewDir = impactPreviewForward.clone();
           if (spinPreview.lengthSq() > 1e-8) {
             const spinPreviewScale = POST_IMPACT_PREVIEW_SPIN_SCALE *
-              (0.6 + powerStrength * 0.4);
+              (0.6 + clampedPower * 0.4);
             previewDir
               .add(spinPreview.multiplyScalar(spinPreviewScale))
               .normalize();
@@ -11614,7 +11525,6 @@ function SnookerGame() {
           aimFocusRef.current = null;
           aim.visible = false;
           tick.visible = false;
-          cueAfter.visible = false;
           target.visible = false;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -12427,7 +12337,7 @@ function SnookerGame() {
 
       <div className="absolute bottom-4 left-4 z-50 flex flex-col items-start gap-2">
         <div
-          className="pointer-events-auto flex flex-col gap-2"
+          className="pointer-events-none flex flex-col gap-2"
           style={{ transform: `scale(${UI_SCALE})`, transformOrigin: 'bottom left' }}
         >
           <button
