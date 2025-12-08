@@ -3639,6 +3639,49 @@ function extractChessSetAssets(scene, options = {}) {
 
   ensurePrototypes();
 
+  const harmonizePiecesToPawnTone = (colorKey) => {
+    const pawn = proto?.[colorKey]?.P;
+    if (!pawn) return;
+
+    let pawnColor = null;
+    pawn.traverse((child) => {
+      if (pawnColor || !child?.isMesh) return;
+      const mat = Array.isArray(child.material)
+        ? child.material.find(Boolean)
+        : child.material;
+      if (mat?.color) {
+        pawnColor = mat.color?.clone ? mat.color.clone() : new THREE.Color(mat.color);
+      }
+    });
+    if (!pawnColor) return;
+
+    const harmonizePiece = (piece) => {
+      if (!piece) return;
+      piece.traverse((child) => {
+        if (!child?.isMesh) return;
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        mats.forEach((mat, idx) => {
+          if (!mat) return;
+          const applied = mat.clone ? mat.clone() : mat;
+          if (applied.color) {
+            applied.color.copy(pawnColor);
+          }
+          applied.emissive?.set?.(0x000000);
+          if (Array.isArray(child.material)) {
+            child.material[idx] = applied;
+          } else {
+            child.material = applied;
+          }
+        });
+      });
+    };
+
+    ['R', 'N', 'B', 'Q', 'K'].forEach((type) => harmonizePiece(proto?.[colorKey]?.[type]));
+  };
+
+  harmonizePiecesToPawnTone('white');
+  harmonizePiecesToPawnTone('black');
+
   const assets = { boardModel, piecePrototypes: proto, tileSize, pieceYOffset: preferredPieceYOffset };
   return assets;
 }
