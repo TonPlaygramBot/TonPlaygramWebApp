@@ -8219,15 +8219,28 @@ function SnookerGame() {
             broadcastArgs.targetWorld = resolvedTarget.clone();
             broadcastArgs.lerp = 0.08;
           } else if (topViewRef.current) {
-            lookTarget = getDefaultOrbitTarget().multiplyScalar(
+            const focusTarget = getDefaultOrbitTarget().multiplyScalar(
               worldScaleFactor
             );
-            camera.position.set(lookTarget.x, sph.radius, lookTarget.z);
-            camera.lookAt(lookTarget);
+            const topRadius = clampOrbitRadius(
+              Math.max(
+                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
+                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+              )
+            );
+            const topTheta = sph.theta;
+            const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+            TMP_SPH.set(topRadius, topPhi, topTheta);
+            camera.up.set(0, 1, 0);
+            camera.position.setFromSpherical(TMP_SPH);
+            camera.position.add(focusTarget);
+            camera.lookAt(focusTarget);
+            lookTarget = focusTarget.clone();
             renderCamera = camera;
             broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-            broadcastArgs.targetWorld = null;
+              broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
+            broadcastArgs.targetWorld = focusTarget.clone();
+            broadcastArgs.lerp = 0.12;
           } else if (activeShotView?.mode === 'action') {
             const ballsList = ballsRef.current || [];
             const cueBall = ballsList.find((b) => b.id === activeShotView.cueId);
@@ -10250,6 +10263,17 @@ function SnookerGame() {
         }
         return clamped;
       };
+      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
+        if (!point) return false;
+        const clearance = BALL_R * clearanceMultiplier;
+        for (const ball of balls) {
+          if (!ball.active || ball === cue) continue;
+          if (point.distanceTo(ball.pos) <= clearance) {
+            return false;
+          }
+        }
+        return true;
+      };
       const inHandDrag = {
         active: false,
         pointerId: null,
@@ -10270,7 +10294,7 @@ function SnookerGame() {
         if (!(currentHud?.inHand)) return false;
         const clamped = clampInHandPosition(raw);
         if (!clamped) return false;
-        if (!free(clamped.x, clamped.y)) return false;
+        if (!isSpotFree(clamped)) return false;
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
