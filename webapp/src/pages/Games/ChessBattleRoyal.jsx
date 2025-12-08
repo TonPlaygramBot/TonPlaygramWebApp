@@ -1914,112 +1914,21 @@ function applyLocalBeautifulGameMaterials(assets) {
   const { boardModel, piecePrototypes } = assets;
   if (typeof document === 'undefined') return assets;
 
-  harmonizeBeautifulGamePieces(piecePrototypes);
-
-  const graniteLight = createGraniteTexture('#d9d7d1', 17, 2.1);
-  const graniteDark = createGraniteTexture('#6c6963', 29, 2.1);
-  const graniteEdge = createGraniteTexture('#2b2a32', 47, 1.6);
-
-  const makeGlassMaterial = (colorHex) =>
-    new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(colorHex),
-      roughness: 0.08,
-      metalness: 0.08,
-      transparent: true,
-      opacity: 1,
-      transmission: 0.94,
-      thickness: 0.65,
-      attenuationColor: new THREE.Color(colorHex),
-      attenuationDistance: 0.5,
-      ior: 1.52,
-      clearcoat: 0.82,
-      clearcoatRoughness: 0.1,
-      reflectivity: 0.82
-    });
-
-  const makeAccentMaterial = (colorHex) =>
-    new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color(colorHex),
-      roughness: 0.2,
-      metalness: 0.52,
-      clearcoat: 0.48,
-      clearcoatRoughness: 0.14,
-      sheen: 0.24,
-      sheenColor: new THREE.Color('#fdf6e3'),
-      specularIntensity: 0.76
-    });
-
-  if (boardModel) {
-    const frameMat = new THREE.MeshPhysicalMaterial({
-      color: new THREE.Color('#111118'),
-      roughness: 0.42,
-      metalness: 0.16,
-      clearcoat: 0.34,
-      clearcoatRoughness: 0.2,
-      map: graniteEdge,
-      normalMap: graniteEdge,
-      normalScale: new THREE.Vector2(0.46, 0.46)
-    });
-    const topMat = frameMat.clone();
-    topMat.color = new THREE.Color('#1c1c23');
-    topMat.roughness = 0.32;
-    topMat.metalness = 0.12;
-    topMat.clearcoatRoughness = 0.16;
-
-    boardModel.traverse((node) => {
-      if (!node?.isMesh) return;
-      if (node.name === 'BoardFrame') {
-        node.material = frameMat.clone();
-      } else if (node.name === 'BoardTop') {
-        node.material = topMat.clone();
-      } else if (node.name?.startsWith?.('Tile_')) {
-        const [, r, c] = node.name.split('_');
-        const isDark = (Number(r) + Number(c)) % 2 === 1;
-        const tileMat = new THREE.MeshPhysicalMaterial({
-          color: new THREE.Color(isDark ? '#5b5a5e' : '#f2efe8'),
-          roughness: 0.32,
-          metalness: 0.18,
-          clearcoat: 0.22,
-          clearcoatRoughness: 0.12,
-          sheen: 0.18,
-          sheenColor: new THREE.Color('#ffffff'),
-          specularIntensity: 0.56,
-          map: isDark ? graniteDark : graniteLight,
-          normalMap: isDark ? graniteDark : graniteLight,
-          normalScale: new THREE.Vector2(0.34, 0.34)
-        });
-        node.material = tileMat;
-      }
-      node.castShadow = true;
-      node.receiveShadow = true;
-    });
-  }
-
-  const applyPieces = (group, baseColor, accentColor) => {
-    Object.values(group || {}).forEach((piece) => {
-      if (!piece) return;
-      piece.traverse((child) => {
-        if (!child?.isMesh) return;
-        const name = child.name?.toLowerCase?.() ?? '';
-        const useAccent =
-          name.includes('collar') || name.includes('crown') || name.includes('cross') || name.includes('ring');
-        child.material = (useAccent ? makeAccentMaterial(accentColor) : makeGlassMaterial(baseColor)).clone();
-        child.castShadow = true;
-        child.receiveShadow = true;
-      });
-    });
+  const enforceOriginalLook = (object) => {
+    if (!object) return;
+    object.traverse(applyMaterialSettingsWithSRGB);
   };
 
-  applyPieces(
-    piecePrototypes?.white,
-    BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb',
-    BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#caa472'
-  );
-  applyPieces(
-    piecePrototypes?.black,
-    BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f',
-    BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#b58f4f'
-  );
+  enforceOriginalLook(boardModel);
+
+  ['white', 'black'].forEach((colorKey) => {
+    Object.values(piecePrototypes?.[colorKey] || {}).forEach((piece) => enforceOriginalLook(piece));
+  });
+
+  harmonizeBeautifulGamePieces(piecePrototypes, {
+    preserveOriginalMaterials: true,
+    keepTextures: true
+  });
 
   return assets;
 }
