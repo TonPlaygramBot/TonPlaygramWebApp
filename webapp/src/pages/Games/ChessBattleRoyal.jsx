@@ -438,8 +438,8 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze([
-  ...BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
+const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze(
+  BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
     buildBoardTheme({
       // Board palettes lifted directly from the ABeautifulGame presets (no extra colors)
       id: `${config.id}Board`,
@@ -457,69 +457,8 @@ const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze([
       capture: BEAUTIFUL_GAME_THEME.capture,
       preserveOriginalMaterials: Boolean(config.board?.preserveOriginal)
     })
-  ),
-  buildBoardTheme({
-    id: 'stauntonWalnutBoard',
-    label: 'Walnut Classic',
-    light: '#e9ddc5',
-    dark: '#6b4a2b',
-    frameLight: '#c49b6b',
-    frameDark: '#3b2816',
-    accent: '#d8b07a',
-    highlight: '#8ef0c6',
-    capture: '#ff9280',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.08,
-    frameRoughness: 0.74,
-    frameMetalness: 0.16
-  }),
-  buildBoardTheme({
-    id: 'marbleOnyxBoard',
-    label: 'Marble & Onyx',
-    light: '#f1efe9',
-    dark: '#1e2025',
-    frameLight: '#c0c6cf',
-    frameDark: '#101114',
-    accent: '#b1c4cf',
-    highlight: '#88ffe0',
-    capture: '#ff7a7a',
-    surfaceRoughness: 0.44,
-    surfaceMetalness: 0.18,
-    frameRoughness: 0.58,
-    frameMetalness: 0.24,
-    preserveOriginalMaterials: true
-  }),
-  buildBoardTheme({
-    id: 'kenneyMapleBoard',
-    label: 'Maple Arcade',
-    light: '#f2e0c5',
-    dark: '#3b2a1c',
-    frameLight: '#caa87a',
-    frameDark: '#2a1b12',
-    accent: '#d7b07a',
-    highlight: '#82f5b5',
-    capture: '#ff9b6b',
-    surfaceRoughness: 0.56,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.66,
-    frameMetalness: 0.16
-  }),
-  buildBoardTheme({
-    id: 'graphiteSlateBoard',
-    label: 'Graphite Slate',
-    light: '#d6dbe4',
-    dark: '#1f2431',
-    frameLight: '#9ea7b8',
-    frameDark: '#141821',
-    accent: '#7ce3ff',
-    highlight: '#7ee1ff',
-    capture: '#ff8fa3',
-    surfaceRoughness: 0.48,
-    surfaceMetalness: 0.26,
-    frameRoughness: 0.6,
-    frameMetalness: 0.32
-  })
-]);
+  )
+);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -606,6 +545,11 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
 );
 
 const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
+
+const DEFAULT_PIECE_STYLE =
+  BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
+  BEAUTIFUL_GAME_PIECE_STYLE;
+const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_AUTHENTIC_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
@@ -806,50 +750,25 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 });
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
-  [
-    {
-      id: STAUNTON_CLASSIC_STYLE.id,
-      label: STAUNTON_CLASSIC_STYLE.label,
-      style: STAUNTON_CLASSIC_STYLE,
-      loader: (targetBoardSize) => loadWalnutStauntonAssets(targetBoardSize)
-    },
-    {
-      id: MARBLE_ONYX_STYLE.id,
-      label: MARBLE_ONYX_STYLE.label,
-      style: MARBLE_ONYX_STYLE,
-      loader: (targetBoardSize) => loadMarbleOnyxStauntonAssets(targetBoardSize)
-    },
-    {
-      id: KENNEY_WOOD_STYLE.id,
-      label: KENNEY_WOOD_STYLE.label,
-      style: KENNEY_WOOD_STYLE,
-      loader: (targetBoardSize) => loadKenneyAssets(targetBoardSize)
-    },
-    {
-      id: POLYGONAL_GRAPHITE_STYLE.id,
-      label: POLYGONAL_GRAPHITE_STYLE.label,
-      style: POLYGONAL_GRAPHITE_STYLE,
-      loader: (targetBoardSize) => loadPolygonalAssets(targetBoardSize)
-    },
-    ...BEAUTIFUL_GAME_COLOR_VARIANTS.reduce((list, variant) => {
-      const signature = pieceStyleSignature(variant.style);
-      if (list.some((option) => pieceStyleSignature(option.style) === signature)) {
-        return list;
-      }
-      list.push({
-        id: variant.id,
-        label: `ABeautifulGame (${variant.label})`,
-        style: variant.style,
-        loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-      });
+  BEAUTIFUL_GAME_COLOR_VARIANTS.reduce((list, variant) => {
+    const signature = pieceStyleSignature(variant.style);
+    if (list.some((option) => pieceStyleSignature(option.style) === signature)) {
       return list;
-    }, [])
-  ]
+    }
+    list.push({
+      id: variant.id,
+      label: variant.label,
+      style: variant.style,
+      loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+    });
+    return list;
+  }, [])
 );
 
-const DEFAULT_PIECE_STYLE = PIECE_STYLE_OPTIONS[0].style;
-const DEFAULT_PIECE_SET_ID = PIECE_STYLE_OPTIONS[0].id;
-const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(0, PIECE_STYLE_OPTIONS.findIndex((option) => option.id === DEFAULT_PIECE_SET_ID));
+const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
+  0,
+  PIECE_STYLE_OPTIONS.findIndex((option) => option.id === DEFAULT_PIECE_SET_ID)
+);
 
 const HEAD_PRESET_OPTIONS = Object.freeze([
   {
@@ -974,15 +893,11 @@ const CAM = {
 
 const PLAYER_FLAG_STORAGE_KEY = 'chessBattleRoyalPlayerFlag';
 const FALLBACK_FLAG = '🇺🇸';
-const DEFAULT_BOARD_INDEX = Math.max(
-  0,
-  BEAUTIFUL_GAME_BOARD_OPTIONS.findIndex((option) => option.id === 'stauntonWalnutBoard')
-);
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
   tableShape: 0,
-  boardColor: DEFAULT_BOARD_INDEX,
+  boardColor: 0,
   whitePieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
   blackPieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
   headStyle: 0
@@ -5195,8 +5110,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader =
-      pieceSetOption?.loader || ((size) => resolveBeautifulGameAssets(size));
+    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
