@@ -5,7 +5,7 @@ public class BilliardLighting : MonoBehaviour
 {
     void Start()
     {
-        // Create three spot lights to highlight the D, blue and black spots on a snooker table
+        // Create three spot lights to highlight the D, blue and black spots on the table
         Vector3[] lightPositions =
         {
             new Vector3(0f, 5f, -3.5f), // D spot at baulk end

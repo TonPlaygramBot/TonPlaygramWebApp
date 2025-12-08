@@ -7,9 +7,8 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
-// Snooker uses its own slimmer power slider
-import { SnookerPowerSlider } from '../../../../snooker-power-slider.js';
-import '../../../../snooker-power-slider.css';
+import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
+import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   getTelegramUsername,
@@ -16318,7 +16317,7 @@ function PoolRoyaleGame({
     }
     const mount = sliderRef.current;
     if (!mount) return undefined;
-    const slider = new SnookerPowerSlider({
+    const slider = new PoolRoyalePowerSlider({
       mount,
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',

@@ -9,7 +9,6 @@ const gamesCatalog = [
   { name: 'Domino Royal 3D', route: '/games/domino-royal/lobby' },
   { name: 'Black Jack Multiplayer', route: '/games/blackjack/lobby' },
   { name: 'Pool Royale', route: '/games/poolroyale/lobby' },
-  { name: '3D Snooker', route: '/games/snooker/lobby' },
   { name: 'Goal Rush', route: '/games/goalrush/lobby' },
   { name: 'Air Hockey', route: '/games/airhockey/lobby' },
   { name: 'Table Tennis', route: '/games/tabletennis/lobby' },
@@ -28,9 +27,6 @@ export default function Games() {
     <div className="relative space-y-4 text-text">
       <h2 className="text-2xl font-bold text-center mt-4">Games</h2>
       <p className="text-center text-sm text-subtext">Online games are under construction and will be available soon.</p>
-      <div className="mx-auto max-w-md rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm text-primary text-center">
-        Classic snooker tables from the first build are back in the lobby: Pearl Cream, Charred Timber, and Carbon Midnight.
-      </div>
       <div className="space-y-4">
         <div className="relative bg-surface border border-border rounded-xl p-6 shadow-lg overflow-hidden wide-card space-y-4 text-center">
           <div className="space-y-2">

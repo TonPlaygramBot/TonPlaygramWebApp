@@ -1,6 +1,6 @@
 # 3D Billiards Mode Specifications
 
-These notes capture the shared expectations for the upcoming 3D billiards experiences so every build of the table (mobile portrait first) stays aligned. The same baseline applies whether we ship the classic snooker frame, Pool Royal, UK 8 Ball, 9 Ball, or American Billiards.
+These notes capture the shared expectations for the upcoming 3D billiards experiences so every build of the table (mobile portrait first) stays aligned. The same baseline applies whether we ship Pool Royal, UK 8 Ball, 9 Ball, or American Billiards.
 
 ## Shared 3D Table Requirements
 
@@ -14,11 +14,6 @@ These notes capture the shared expectations for the upcoming 3D billiards experi
 Exactly **four** chalk blocks are visible at all times—one centred on each wooden rail of the table. The chalk meshes should sit near (but not overlapping) the pocket leather so that when a pocket is in frame the nearby chalk remains readable. Highlight the closest chalk when the cue tip is recharged so players always know which block was used.
 
 ## Mode Snapshots
-
-### 3D Snooker
-- Standard 12 ft × 6 ft snooker table with the full 15-red triangle.
-- Honour the traditional break-off camera: start high above the baulk end, looking towards the pack.
-- Scoring, fouls, and end-of-frame logic continue to live in `SnookerGameState`.
 
 ### Pool Royal (Arcade)
 - Same table geometry as American Billiards but with neon accent lighting.
@@ -41,10 +36,10 @@ Exactly **four** chalk blocks are visible at all times—one centred on each woo
 
 ## Asset Checklist
 
-- ✅ Mode-specific ball textures (UK red/yellow, stripes/solids, numbered 1–9, snooker colours).
+- ✅ Mode-specific ball textures (UK red/yellow, stripes/solids, numbered 1–9).
 - ✅ Reusable wooden rail prefab with mounting points for chalk and optional power-up pads.
 - ✅ Pocket proximity triggers so chalk visibility can be boosted when the camera frames a hole.
 - ✅ Rule-card UI snippets for each mode.
 - ✅ QA pass ensuring the chalk objects never clip through cue animations or player avatars.
 
-These guidelines ensure every 3D billiards variant feels consistent while still highlighting the differences players expect between snooker, Pool Royal, UK 8 Ball, 9 Ball, and American Billiards.
+These guidelines ensure every 3D billiards variant feels consistent while still highlighting the differences players expect between Pool Royal, UK 8 Ball, 9 Ball, and American Billiards.
