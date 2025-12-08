@@ -4154,6 +4154,7 @@ const CAMERA = {
 };
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
+const AIM_LINE_Y = BALL_CENTER_Y + BALL_R * 0.08; // lift guides off the cloth to avoid z-fighting
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
 const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
@@ -12825,13 +12826,16 @@ function PoolRoyaleGame({
         color: 0x7ce7ff,
         linewidth: AIM_LINE_WIDTH,
         transparent: true,
-        opacity: 0.9
+        opacity: 0.9,
+        depthTest: false,
+        depthWrite: false
       });
       const aimGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
+      aim.renderOrder = 5;
       aim.visible = false;
       table.add(aim);
       const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
@@ -12846,9 +12850,12 @@ function PoolRoyaleGame({
           dashSize: AIM_DASH_SIZE * 0.9,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.45
+          opacity: 0.45,
+          depthTest: false,
+          depthWrite: false
         })
       );
+      cueAfter.renderOrder = 5;
       cueAfter.visible = false;
       table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
@@ -12857,8 +12864,13 @@ function PoolRoyaleGame({
       ]);
       const tick = new THREE.Line(
         tickGeom,
-        new THREE.LineBasicMaterial({ color: 0xffffff })
+        new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          depthTest: false,
+          depthWrite: false
+        })
       );
+      tick.renderOrder = 5;
       tick.visible = false;
       table.add(tick);
 
@@ -12874,9 +12886,12 @@ function PoolRoyaleGame({
           dashSize: AIM_DASH_SIZE,
           gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.65
+          opacity: 0.65,
+          depthTest: false,
+          depthWrite: false
         })
       );
+      target.renderOrder = 5;
       target.visible = false;
       table.add(target);
       const impactRingEnabled = false;
@@ -15261,8 +15276,8 @@ function PoolRoyaleGame({
             aimDir2D,
             balls
           );
-          const start = new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y);
-          let end = new THREE.Vector3(impact.x, BALL_CENTER_Y, impact.y);
+          const start = new THREE.Vector3(cue.pos.x, AIM_LINE_Y, cue.pos.y);
+          let end = new THREE.Vector3(impact.x, AIM_LINE_Y, impact.y);
           const dir = baseAimDir.clone();
           if (start.distanceTo(end) < 1e-4) {
             end = start.clone().add(dir.clone().multiplyScalar(BALL_R));
@@ -15319,7 +15334,7 @@ function PoolRoyaleGame({
           tick.visible = true;
           if (lookModeRef.current) {
             const lookFocus = targetBall
-              ? new THREE.Vector3(targetBall.pos.x, BALL_CENTER_Y, targetBall.pos.y)
+              ? new THREE.Vector3(targetBall.pos.x, AIM_LINE_Y, targetBall.pos.y)
               : end.clone();
             aimFocusRef.current = lookFocus;
           } else {
@@ -15524,7 +15539,7 @@ function PoolRoyaleGame({
             }
             const targetStart = new THREE.Vector3(
               targetBall.pos.x,
-              BALL_CENTER_Y,
+              AIM_LINE_Y,
               targetBall.pos.y
             );
             const distanceScale = travelScale;
