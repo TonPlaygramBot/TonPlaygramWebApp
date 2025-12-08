@@ -11,6 +11,8 @@ public class DemoBehaviour : MonoBehaviour
     public LineRenderer Circle;
     // Optional line showing the cue ball's direction after the first impact.
     public LineRenderer CuePostLine;
+    // Optional line showing the target ball's direction after the first impact.
+    public LineRenderer TargetPostLine;
     // Reference to the cue ball so the aim direction can be calculated
     public Transform CueBall;
     // How quickly the aiming line follows camera movement.  Lower values make
@@ -109,6 +111,34 @@ public class DemoBehaviour : MonoBehaviour
                     CuePostLine.positionCount = 0;
                 }
             }
+
+            if (TargetPostLine != null)
+            {
+                // Draw a helper line showing the predicted direction of the target ball.
+                if (preview.TargetPostVelocity.HasValue && preview.Path.Length > 0)
+                {
+                    var targetVelocity = preview.TargetPostVelocity.Value;
+                    if (targetVelocity.Length > PhysicsConstants.Epsilon)
+                    {
+                        Vec2 start = preview.Path[preview.Path.Length - 1];
+                        Vec2 dir2D = targetVelocity.Normalized();
+                        float postLength = Mathf.Max((float)PhysicsConstants.BallRadius * 2f, (float)targetVelocity.Length);
+                        Vector3 a = new Vector3((float)start.X, CueBall.position.y, (float)start.Y);
+                        Vector3 b = a + new Vector3((float)dir2D.X, 0f, (float)dir2D.Y) * postLength;
+                        TargetPostLine.positionCount = 2;
+                        TargetPostLine.SetPosition(0, a);
+                        TargetPostLine.SetPosition(1, b);
+                    }
+                    else
+                    {
+                        TargetPostLine.positionCount = 0;
+                    }
+                }
+                else
+                {
+                    TargetPostLine.positionCount = 0;
+                }
+            }
         }
     }
 
@@ -125,6 +155,10 @@ public class DemoBehaviour : MonoBehaviour
             if (CuePostLine != null)
             {
                 CuePostLine.positionCount = 0;
+            }
+            if (TargetPostLine != null)
+            {
+                TargetPostLine.positionCount = 0;
             }
         }
     }
