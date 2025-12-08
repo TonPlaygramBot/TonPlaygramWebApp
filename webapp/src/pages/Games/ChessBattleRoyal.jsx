@@ -554,7 +554,7 @@ const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_AUTHENTIC_ID;
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
 const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.16;
-const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.995;
+const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.72;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
   id: 'stauntonClassic',
@@ -3321,12 +3321,7 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
   }
 
-  console.warn('Chess Battle Royal: falling back to procedural assets for ABeautifulGame');
-  return buildPolygonalFallbackAssets(
-    targetBoardSize,
-    BEAUTIFUL_GAME_PIECE_STYLE,
-    'beautifulGameFallback'
-  );
+  throw new Error('ABeautifulGame assets are unavailable');
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
@@ -4068,13 +4063,6 @@ const BUILDERS = {
 
 // ======================= Game logic ========================
 const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
-let WHITE_PAWN_HOME_ROW = 6;
-let BLACK_PAWN_HOME_ROW = 1;
-
-function setPawnHomeRows(whiteRow = WHITE_PAWN_HOME_ROW, blackRow = BLACK_PAWN_HOME_ROW) {
-  WHITE_PAWN_HOME_ROW = whiteRow;
-  BLACK_PAWN_HOME_ROW = blackRow;
-}
 
 function parseFEN(fen) {
   const rows = fen.split('/');
@@ -4140,7 +4128,7 @@ function genMoves(board, r, c) {
 
   if (t === 'P') {
     const dir = w ? -1 : 1;
-    const start = w ? WHITE_PAWN_HOME_ROW : BLACK_PAWN_HOME_ROW;
+    const start = w ? 6 : 1;
     const f1 = [r + dir, c];
     if (inBoard(...f1) && !board[f1[0]][f1[1]]) {
       moves.push(f1);
@@ -4719,7 +4707,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const timerRef = useRef(null);
-  const swapPawnsRef = useRef(() => {});
   const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const moveSoundRef = useRef(null);
@@ -5998,86 +5985,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     };
 
     // Pieces — meshes + state
-    setPawnHomeRows(6, 1);
     let board = parseFEN(START_FEN);
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
-    let pawnsSwapped = false;
-    let initialPawnSwapDone = false;
-    let sel = null;
-    let legal = [];
-
-    function swapPawnsSides() {
-      const whiteByFile = Array(8).fill(null);
-      const blackByFile = Array(8).fill(null);
-
-      for (let r = 0; r < 8; r += 1) {
-        for (let c = 0; c < 8; c += 1) {
-          const piece = board[r][c];
-          if (!piece || piece.t !== 'P') continue;
-          if (piece.w && !whiteByFile[c]) whiteByFile[c] = { r, c };
-          if (!piece.w && !blackByFile[c]) blackByFile[c] = { r, c };
-        }
-      }
-
-      let swappedFiles = 0;
-      for (let file = 0; file < 8; file += 1) {
-        const whitePos = whiteByFile[file];
-        const blackPos = blackByFile[file];
-        if (!whitePos || !blackPos) continue;
-        const whitePiece = board[whitePos.r][whitePos.c];
-        board[whitePos.r][whitePos.c] = board[blackPos.r][blackPos.c];
-        board[blackPos.r][blackPos.c] = whitePiece;
-
-        const whiteMesh = pieceMeshes[whitePos.r][whitePos.c];
-        const blackMesh = pieceMeshes[blackPos.r][blackPos.c];
-        pieceMeshes[whitePos.r][whitePos.c] = blackMesh;
-        pieceMeshes[blackPos.r][blackPos.c] = whiteMesh;
-
-        const whiteTarget = { r: blackPos.r, c: blackPos.c };
-        const blackTarget = { r: whitePos.r, c: whitePos.c };
-        const pieceY = Number.isFinite(currentPieceYOffset) ? currentPieceYOffset : 0;
-
-        if (whiteMesh) {
-          whiteMesh.userData.r = whiteTarget.r;
-          whiteMesh.userData.c = whiteTarget.c;
-          whiteMesh.position.set(
-            whiteTarget.c * tile - half + tile / 2,
-            pieceY,
-            whiteTarget.r * tile - half + tile / 2
-          );
-        }
-        if (blackMesh) {
-          blackMesh.userData.r = blackTarget.r;
-          blackMesh.userData.c = blackTarget.c;
-          blackMesh.position.set(
-            blackTarget.c * tile - half + tile / 2,
-            pieceY,
-            blackTarget.r * tile - half + tile / 2
-          );
-        }
-        swappedFiles += 1;
-      }
-
-      if (swappedFiles > 0) {
-        pawnsSwapped = !pawnsSwapped;
-        initialPawnSwapDone = true;
-        setPawnHomeRows(pawnsSwapped ? 1 : 6, pawnsSwapped ? 6 : 1);
-        clearHighlightsRef.current?.();
-        sel = null;
-        legal = [];
-        setUi((prev) => ({ ...prev, status: `Pawns swapped (${swappedFiles}/8 files)` }));
-      }
-      swapPawnsRef.current = swapPawnsSides;
-    }
-
-    swapPawnsRef.current = swapPawnsSides;
-    if (host) {
-      host.__chessApi__ = { swapPawns: swapPawnsSides };
-    }
-    if (typeof window !== 'undefined') {
-      window.__CHESS_API__ = { swapPawns: swapPawnsSides };
-    }
 
     const paintPiecesFromPrototypes = (prototypes, styleId = currentPieceSetId) => {
       if (!prototypes) return;
@@ -6167,9 +6077,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        const preserveOriginalMaterials =
-          (setId || '').startsWith('beautifulGame') ||
-          Boolean(pieceStyleOption?.preserveOriginalMaterials);
+        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
         if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
           harmonizeBeautifulGamePieces(
             currentPiecePrototypes,
@@ -6180,10 +6088,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         paintPiecesFromPrototypes(piecePrototypes, setId);
         applyHeadPresetToMeshes(allPieceMeshes, headPreset);
-        if (!initialPawnSwapDone) {
-          swapPawnsSides();
-          initialPawnSwapDone = true;
-        }
       }
       if (arenaRef.current) {
         arenaRef.current.boardModel = currentBoardModel;
@@ -6262,7 +6166,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         piecePrototypes: currentPiecePrototypes,
         activePieceSetId: currentPieceSetId,
         applyPieceSetAssets,
-        swapPawns: swapPawnsSides,
         setProceduralBoardVisible,
         usingProceduralBoard: proceduralBoardVisible
       };
@@ -6292,6 +6195,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       pointer.x = ((cx - rect.left) / rect.width) * 2 - 1;
       pointer.y = -(((cy - rect.top) / rect.height) * 2 - 1);
     };
+
+    // Selection
+    let sel = null;
+    let legal = [];
 
     function startTimer(isWhite) {
       clearInterval(timerRef.current);
@@ -6787,26 +6694,17 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       moveSoundRef.current?.pause();
       checkSoundRef.current?.pause();
       mateSoundRef.current?.pause();
-      swapPawnsRef.current = () => {};
-      if (host) host.__chessApi__ = undefined;
     };
   }, []);
 
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
-            <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
-              <div className="font-semibold">{ui.status}</div>
-            </div>
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+          <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
+            <div className="font-semibold">{ui.status}</div>
+          </div>
           <div className="pointer-events-auto flex gap-2">
-            <button
-              type="button"
-              onClick={() => swapPawnsRef.current?.()}
-              className="rounded-lg border border-white/20 bg-black/70 px-3 py-2 text-[0.75rem] font-semibold text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-            >
-              Swap Pawns Sides
-            </button>
             <button
               type="button"
               onClick={() => setConfigOpen((open) => !open)}
