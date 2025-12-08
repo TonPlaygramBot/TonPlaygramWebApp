@@ -2090,11 +2090,6 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   const accentize = (piece, colorKey) => {
     if (!piece) return;
     const shouldStripTextures = !pieceStyle.keepTextures;
-    const accentFallback = colorKey === 'black' ? darkAccent : accentLight;
-    const accentFromStyle = colorKey === 'white'
-      ? pieceStyle.whiteAccent?.color || pieceStyle.white?.color || accentFallback
-      : pieceStyle.blackAccent?.color || pieceStyle.black?.color || accentFallback;
-
     piece.traverse((child) => {
       if (!child?.isMesh) return;
       const name = child.name?.toLowerCase?.() ?? '';
@@ -2107,14 +2102,14 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
         name.includes('rim');
       if (!shouldAccent) return;
       const mats = Array.isArray(child.material) ? child.material : [child.material];
-      mats.forEach((mat, idx) => {
-        if (!mat) return;
-        const applied = mat.clone ? mat.clone() : mat;
-        if (shouldStripTextures) {
-          stripMaterialTextures(applied);
-        }
-        const accentColor = accentFromStyle || accentFallback;
-        applied.color = new THREE.Color(accentColor);
+        mats.forEach((mat, idx) => {
+          if (!mat) return;
+          const applied = mat.clone ? mat.clone() : mat;
+          if (shouldStripTextures) {
+            stripMaterialTextures(applied);
+          }
+          const accentColor = goldAccent || (colorKey === 'black' ? darkAccent : accentLight);
+          applied.color = new THREE.Color(accentColor || darkAccent || accentLight);
         applied.metalness = clamp01((applied.metalness ?? 0.35) + 0.2);
         applied.roughness = clamp01((applied.roughness ?? 0.3) * 0.7);
         applySurface(
