@@ -9750,9 +9750,7 @@ function SnookerGame() {
         color: 0xffffff,
         linewidth: 2,
         transparent: true,
-        opacity: 0.9,
-        depthWrite: false,
-        depthTest: false
+        opacity: 0.9
       });
       const aimGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -9760,7 +9758,6 @@ function SnookerGame() {
       ]);
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
-      aim.renderOrder = 2;
       table.add(aim);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
@@ -9768,14 +9765,9 @@ function SnookerGame() {
       ]);
       const tick = new THREE.Line(
         tickGeom,
-        new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          depthWrite: false,
-          depthTest: false
-        })
+        new THREE.LineBasicMaterial({ color: 0xffffff })
       );
       tick.visible = false;
-      tick.renderOrder = 2;
       table.add(tick);
 
       const targetGeom = new THREE.BufferGeometry().setFromPoints([
@@ -9789,13 +9781,10 @@ function SnookerGame() {
           dashSize: 1,
           gapSize: 1,
           transparent: true,
-          opacity: 0.5,
-          depthWrite: false,
-          depthTest: false
+          opacity: 0.5
         })
       );
       target.visible = false;
-      target.renderOrder = 2;
       table.add(target);
 
       chalkAreaRef.current = null;
@@ -11341,15 +11330,13 @@ function SnookerGame() {
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
-          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
-          const primaryColor = aimingWrong
-            ? 0xff3333
-            : targetBall && !railNormal
-              ? 0xffd166
-              : 0x7ce7ff;
-          aim.material.color.set(primaryColor);
-          aim.material.opacity = 0.65 + 0.25 * clampedPower;
-          aim.material.needsUpdate = true;
+          aim.material.color.set(
+            aimingWrong
+              ? 0xff3333
+              : targetBall && !railNormal
+                ? 0xffff00
+                : 0xffffff
+          );
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
@@ -11365,6 +11352,7 @@ function SnookerGame() {
           } else {
             aimFocusRef.current = null;
           }
+          const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           const desiredPull = clampedPower * BALL_R * 10 * 0.65 * 1.2;
           const backInfo = calcTarget(
             cue,
