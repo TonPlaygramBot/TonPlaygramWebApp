@@ -1701,6 +1701,11 @@ function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = 
   };
 }
 
+function ensureBeautifulGameOriginalMaterials(pieceStyle, setId) {
+  if (!setId?.startsWith('beautifulGame')) return pieceStyle;
+  return { ...pieceStyle, preserveOriginalMaterials: true, keepTextures: true };
+}
+
 function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const normalized = normalizeAppearance(appearance);
   const whitePieceOption =
@@ -5108,7 +5113,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
+    const pieceStyleOption = ensureBeautifulGameOriginalMaterials(
+      palette.pieces ?? DEFAULT_PIECE_STYLE,
+      nextPieceSetId
+    );
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
     const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
@@ -5310,32 +5318,35 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     const setup = async () => {
 
-    const normalizedAppearance = normalizeAppearance(appearanceRef.current);
-    const palette = createChessPalette(normalizedAppearance);
-    paletteRef.current = palette;
-    const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetOption =
-      PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
-    const initialPlayerFlag =
-      playerFlag ||
-      resolvedInitialFlag ||
-      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
-    const initialAiFlagValue =
-      aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
-    const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalizedAppearance.tableShape);
-    const pieceMaterials = createPieceMaterials(pieceStyleOption);
-    disposers.push(() => {
-      disposePieceMaterials(pieceMaterials);
-    });
-    const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
+      const normalizedAppearance = normalizeAppearance(appearanceRef.current);
+      const palette = createChessPalette(normalizedAppearance);
+      paletteRef.current = palette;
+      const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
+      const pieceSetOption =
+        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
+      const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
+      const pieceStyleOption = ensureBeautifulGameOriginalMaterials(
+        palette.pieces ?? DEFAULT_PIECE_STYLE,
+        initialPieceSetId
+      );
+      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+      const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
+      const initialPlayerFlag =
+        playerFlag ||
+        resolvedInitialFlag ||
+        (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
+      const initialAiFlagValue =
+        aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
+      const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+      const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+      const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalizedAppearance.tableShape);
+      const pieceMaterials = createPieceMaterials(pieceStyleOption);
+      disposers.push(() => {
+        disposePieceMaterials(pieceMaterials);
+      });
+      const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
     const playAudio = (audioRef) => {
       if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
       try {
@@ -6049,6 +6060,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     const applyPieceSetAssets = (assets, setId = currentPieceSetId, pieceStyleOption = paletteRef.current?.pieces) => {
       const { boardModel, piecePrototypes } = assets || {};
+      const normalizedPieceStyle = ensureBeautifulGameOriginalMaterials(pieceStyleOption, setId);
       currentPieceSetId = setId;
       currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
         ? assets.pieceYOffset
@@ -6077,11 +6089,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
+        const preserveOriginalMaterials = Boolean(normalizedPieceStyle?.preserveOriginalMaterials);
         if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
           harmonizeBeautifulGamePieces(
             currentPiecePrototypes,
-            pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
+            normalizedPieceStyle || BEAUTIFUL_GAME_PIECE_STYLE
           );
         }
         applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
