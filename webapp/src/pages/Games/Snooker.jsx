@@ -7004,10 +7004,15 @@ function SnookerGame() {
       const world = new THREE.Group();
       scene.add(world);
       let worldScaleFactor = 1;
+      let placementPlane = null;
+
       const applyWorldScale = (scale) => {
         worldScaleFactor = scale;
         baseSurfaceWorldY = tableSurfaceY * scale;
         world.scale.setScalar(scale);
+        if (placementPlane) {
+          placementPlane.constant = -TABLE_Y * worldScaleFactor;
+        }
         if (broadcastCamerasRef.current) {
           const rig = broadcastCamerasRef.current;
           const focusWorld = rig.defaultFocus
@@ -10148,7 +10153,7 @@ function SnookerGame() {
       // Pointer → XZ plane
       const pointer = new THREE.Vector2();
       const ray = new THREE.Raycaster();
-      const plane = new THREE.Plane(
+      placementPlane = new THREE.Plane(
         new THREE.Vector3(0, 1, 0),
         -TABLE_Y * worldScaleFactor
       );
@@ -10167,7 +10172,7 @@ function SnookerGame() {
         const activeCamera = activeRenderCameraRef.current ?? camera;
         ray.setFromCamera(pointer, activeCamera);
         const pt = new THREE.Vector3();
-        ray.ray.intersectPlane(plane, pt);
+        ray.ray.intersectPlane(placementPlane, pt);
         return new THREE.Vector2(
           pt.x / worldScaleFactor,
           pt.z / worldScaleFactor
