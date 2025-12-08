@@ -62,12 +62,12 @@ const clamp01 = (value, fallback = 0) => {
 };
 
 const BASE_BOARD_THEME = Object.freeze({
-  light: '#eee8d5',
-  dark: '#2b2f36',
-  frameLight: '#d5c5a8',
-  frameDark: '#3a2f1f',
-  accent: '#f59e0b',
-  highlight: '#7ef9a1',
+  light: '#e7e2d3',
+  dark: '#776a5a',
+  frameLight: '#d2b48c',
+  frameDark: '#3a2d23',
+  accent: '#00e5ff',
+  highlight: '#6ee7b7',
   capture: '#f87171',
   surfaceRoughness: 0.74,
   surfaceMetalness: 0.04,
@@ -271,46 +271,64 @@ const CHECKMATE_SOUND_URL =
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
-    id: 'beautifulGameClassic',
-    name: 'Classic',
-    piece: { white: '#ffffff', black: '#111827', accent: '#f59e0b' },
-    board: { light: '#EEE8D5', dark: '#2B2F36', accent: '#f59e0b' }
+    id: 'beautifulGameAuroraMetal',
+    name: 'Aurora Metal',
+    piece: { white: '#dce6ff', black: '#111827', accent: '#7dd3fc' },
+    board: { light: '#d9f5ff', dark: '#0b1220', accent: '#7dd3fc' }
   },
   {
-    id: 'beautifulGameMono',
-    name: 'Mono',
-    piece: { white: '#E5E7EB', black: '#111827', accent: '#10b981' },
-    board: { light: '#E5E7EB', dark: '#111827', accent: '#10b981' }
+    id: 'beautifulGameObsidianGold',
+    name: 'Obsidian / Gold',
+    piece: { white: '#f8ead4', black: '#141414', accent: '#d4a017' },
+    board: { light: '#f4e8d2', dark: '#1e1e1e', accent: '#d4a017' }
   },
   {
-    id: 'beautifulGameBlue',
-    name: 'Blue',
-    piece: { white: '#f8fbff', black: '#111827', accent: '#3b82f6' },
-    board: { light: '#93C5FD', dark: '#1E293B', accent: '#3b82f6' }
+    id: 'beautifulGameGlacierMint',
+    name: 'Glacier / Mint',
+    piece: { white: '#ecfeff', black: '#0f172a', accent: '#34d399' },
+    board: { light: '#d1fae5', dark: '#0f172a', accent: '#34d399' }
   },
   {
-    id: 'beautifulGameAmber',
-    name: 'Amber',
-    piece: { white: '#fef3c7', black: '#111827', accent: '#f59e0b' },
-    board: { light: '#FDE68A', dark: '#1F2937', accent: '#f59e0b' }
+    id: 'beautifulGameSakuraSlate',
+    name: 'Sakura / Slate',
+    piece: { white: '#ffe4ec', black: '#2b3040', accent: '#fb7185' },
+    board: { light: '#ffd8e3', dark: '#1f2635', accent: '#fb7185' }
   },
   {
-    id: 'beautifulGameMint',
-    name: 'Mint',
-    piece: { white: '#ecfeff', black: '#065F46', accent: '#10b981' },
-    board: { light: '#A7F3D0', dark: '#065F46', accent: '#10b981' }
+    id: 'beautifulGameVoltTeal',
+    name: 'Volt / Teal',
+    piece: { white: '#faffb5', black: '#0f766e', accent: '#22d3ee' },
+    board: { light: '#e8ffb5', dark: '#0b3b3c', accent: '#22d3ee' }
   },
   {
-    id: 'beautifulGamePink',
-    name: 'Pink',
-    piece: { white: '#fdf2f8', black: '#312E81', accent: '#ef4444' },
-    board: { light: '#FBCFE8', dark: '#312E81', accent: '#ef4444' }
+    id: 'beautifulGameCopperIvory',
+    name: 'Copper / Ivory',
+    piece: { white: '#f5f0e5', black: '#5a2c1f', accent: '#e38b29' },
+    board: { light: '#f4ede1', dark: '#3b241a', accent: '#e38b29' }
   },
   {
-    id: 'beautifulGameTeal',
-    name: 'Teal',
-    piece: { white: '#e0f2fe', black: '#0F172A', accent: '#8b5cf6' },
-    board: { light: '#99F6E4', dark: '#0F172A', accent: '#8b5cf6' }
+    id: 'beautifulGameNoirNeon',
+    name: 'Noir / Neon',
+    piece: { white: '#e5e7eb', black: '#0a0d14', accent: '#06f0ff' },
+    board: { light: '#c7d2fe', dark: '#0a0d14', accent: '#06f0ff' }
+  },
+  {
+    id: 'beautifulGameCinderRose',
+    name: 'Cinder / Rose',
+    piece: { white: '#f5d0c5', black: '#1f1b29', accent: '#f43f5e' },
+    board: { light: '#f8d7cc', dark: '#1b1524', accent: '#f43f5e' }
+  },
+  {
+    id: 'beautifulGameHarborFog',
+    name: 'Harbor Fog',
+    piece: { white: '#e2e8f0', black: '#1e293b', accent: '#38bdf8' },
+    board: { light: '#dbeafe', dark: '#0b1220', accent: '#38bdf8' }
+  },
+  {
+    id: 'beautifulGameDesertStorm',
+    name: 'Desert Storm',
+    piece: { white: '#fef3c7', black: '#4b3421', accent: '#fbbf24' },
+    board: { light: '#fde68a', dark: '#2d1f12', accent: '#fbbf24' }
   }
 ]);
 
@@ -318,13 +336,14 @@ const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => 
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
+    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'slateJade') ?? {}),
     id: 'beautifulGameAuthenticBoard',
-    label: 'Classic',
+    label: 'Aurora Metal',
     light: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.light,
     dark: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.dark,
-    frameLight: BASE_BOARD_THEME.frameLight,
-    frameDark: BASE_BOARD_THEME.frameDark,
-    accent: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.accent ?? BASE_BOARD_THEME.accent,
+    frameLight: '#c5d8ff',
+    frameDark: '#141b2f',
+    accent: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.accent ?? '#7dd3fc',
     highlight: '#7ef9a1',
     capture: '#ff8e6e',
     surfaceRoughness: 0.62,
@@ -382,10 +401,10 @@ const SCULPTED_DRAG_STYLE = Object.freeze({
 });
 
 const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
-  id: 'beautifulGameClassic',
-  label: 'Classic White / Ebony',
+  id: 'beautifulGameAuroraMetal',
+  label: 'Aurora Metal',
   white: {
-    color: '#ffffff',
+    color: '#e5edff',
     roughness: 0.22,
     metalness: 0.42,
     sheen: 0.32,
@@ -395,7 +414,7 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     specularIntensity: 0.78
   },
   black: {
-    color: '#111827',
+    color: '#0f172a',
     roughness: 0.24,
     metalness: 0.44,
     sheen: 0.28,
@@ -406,14 +425,14 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
     emissive: '#0a1020',
     emissiveIntensity: 0.18
   },
-  accent: '#f59e0b',
-  goldAccent: '#f59e0b',
-  whiteAccent: { color: '#ffffff' },
-  blackAccent: '#f59e0b'
+  accent: '#7dd3fc',
+  goldAccent: '#9cc3ff',
+  whiteAccent: { color: '#e5edff' },
+  blackAccent: '#7dd3fc'
 });
 
-const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameClassic';
-const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassicSet';
+const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuroraMetal';
+const BEAUTIFUL_GAME_SET_ID = 'beautifulGameAuroraMetalSet';
 
 const BASE_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
 
