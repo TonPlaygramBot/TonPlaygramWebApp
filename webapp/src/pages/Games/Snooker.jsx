@@ -2973,6 +2973,10 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // match Pool Royale aim-line headroom
+const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // mirror Pool Royale guide thickness
+const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
+const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
+const AIM_GAP_SIZE = Math.max(0.45, BALL_R * 0.5);
 const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
 const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
@@ -2993,6 +2997,8 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const CUE_VIEW_RADIUS_RATIO = 0.04;
+const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
+const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.16;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
@@ -6334,6 +6340,12 @@ function SnookerGame() {
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const cueBallPlacedFromHandRef = useRef(false);
+  useEffect(() => {
+    const placing = Boolean(hud.inHand && hud.turn === 0);
+    setInHandPlacementMode(placing);
+    if (hud.inHand) cueBallPlacedFromHandRef.current = false;
+  }, [hud.inHand, hud.turn]);
   useEffect(() => {
     const sph = sphRef.current;
     const bounds = cameraBoundsRef.current;
@@ -6417,6 +6429,11 @@ function SnookerGame() {
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const [topView, setTopView] = useState(false);
+  const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
+  const inHandPlacementModeRef = useRef(inHandPlacementMode);
+  useEffect(() => {
+    inHandPlacementModeRef.current = inHandPlacementMode;
+  }, [inHandPlacementMode]);
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
@@ -6824,8 +6841,8 @@ function SnookerGame() {
   const toggleView = () => {
     const cam = cameraRef.current;
     const sph = sphRef.current;
-    const fit = fitRef.current;
-    if (!cam || !sph || !fit) return;
+    const fit = typeof fitRef.current === 'function' ? fitRef.current : null;
+    if (!cam || !sph) return;
     const next = !topViewRef.current;
     const start = {
       radius: sph.radius,
@@ -6881,7 +6898,8 @@ function SnookerGame() {
             ? 'scale(0.9)'
             : 'scale(1)';
         }
-        fit(targetMargin);
+        if (fit) fit(targetMargin);
+        else updateCameraRef.current?.();
       }
     }
     requestAnimationFrame(anim);
@@ -9742,8 +9760,8 @@ function SnookerGame() {
 
       // Aiming visuals
       const aimMat = new THREE.LineBasicMaterial({
-        color: 0xffffff,
-        linewidth: 2,
+        color: 0x7ce7ff,
+        linewidth: AIM_LINE_WIDTH,
         transparent: true,
         opacity: 0.9
       });
@@ -9754,6 +9772,23 @@ function SnookerGame() {
       const aim = new THREE.Line(aimGeom, aimMat);
       aim.visible = false;
       table.add(aim);
+      const cueAfterGeom = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(),
+        new THREE.Vector3()
+      ]);
+      const cueAfter = new THREE.Line(
+        cueAfterGeom,
+        new THREE.LineDashedMaterial({
+          color: 0x7ce7ff,
+          linewidth: AIM_LINE_WIDTH,
+          dashSize: AIM_DASH_SIZE * 0.9,
+          gapSize: AIM_GAP_SIZE,
+          transparent: true,
+          opacity: 0.45
+        })
+      );
+      cueAfter.visible = false;
+      table.add(cueAfter);
       const tickGeom = new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(),
         new THREE.Vector3()
@@ -9772,11 +9807,12 @@ function SnookerGame() {
       const target = new THREE.Line(
         targetGeom,
         new THREE.LineDashedMaterial({
-          color: 0xffffff,
-          dashSize: 1,
-          gapSize: 1,
+          color: 0xffd166,
+          linewidth: AIM_LINE_WIDTH,
+          dashSize: AIM_DASH_SIZE,
+          gapSize: AIM_GAP_SIZE,
           transparent: true,
-          opacity: 0.5
+          opacity: 0.65
         })
       );
       target.visible = false;
@@ -10226,13 +10262,15 @@ function SnookerGame() {
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const free = (x, z) =>
-        balls.every(
-          (b) =>
-            !b.active ||
-            b === cue ||
-            new THREE.Vector2(x, z).distanceTo(b.pos) > BALL_R * 2.1
-        );
+      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
+        if (!point) return false;
+        const clearance = BALL_R * clearanceMultiplier;
+        for (const ball of balls) {
+          if (!ball.active || ball === cue) continue;
+          if (point.distanceTo(ball.pos) <= clearance) return false;
+        }
+        return true;
+      };
       const clampInHandPosition = (point) => {
         if (!point) return null;
         const clamped = point.clone();
@@ -10250,6 +10288,8 @@ function SnookerGame() {
         }
         return clamped;
       };
+      const defaultInHandPosition = () =>
+        clampInHandPosition(new THREE.Vector2(0, baulkZ));
       const inHandDrag = {
         active: false,
         pointerId: null,
@@ -10268,22 +10308,28 @@ function SnookerGame() {
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
+        if (!inHandPlacementModeRef.current) return false;
         const clamped = clampInHandPosition(raw);
         if (!clamped) return false;
-        if (!free(clamped.x, clamped.y)) return false;
+        if (!isSpotFree(clamped)) return false;
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
+          cueBallPlacedFromHandRef.current = true;
+          setInHandPlacementMode(false);
           setHud((s) => ({ ...s, inHand: false }));
+          autoAimRequestRef.current = true;
         }
         return true;
       };
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
+        if (currentHud?.turn === 1) return;
+        if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
@@ -10337,10 +10383,12 @@ function SnookerGame() {
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+        const startPos = defaultInHandPosition();
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
+          cue.active = true;
+          cueBallPlacedFromHandRef.current = true;
         }
       }
 
@@ -11196,6 +11244,7 @@ function SnookerGame() {
           } else {
             cue.mesh.visible = true;
           }
+          cueBallPlacedFromHandRef.current = false;
           cue.vel.set(0, 0);
           cue.spin?.set(0, 0);
           cue.pendingSpin?.set(0, 0);
@@ -11203,6 +11252,7 @@ function SnookerGame() {
           cue.impacted = false;
           cue.launchDir = null;
         }
+        setInHandPlacementMode(Boolean(awardInHand && hudRef.current?.turn === 0));
         setHud((prev) => ({ ...prev, inHand: awardInHand }));
         setShootingState(false);
         shotPrediction = null;
@@ -11259,9 +11309,19 @@ function SnookerGame() {
         lastStepTime = now;
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
+        const cameraBlend = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        );
+        const baseAimLerp = THREE.MathUtils.lerp(
+          CUE_VIEW_AIM_LINE_LERP,
+          STANDING_VIEW_AIM_LINE_LERP,
+          cameraBlend
+        );
         const aimLerpFactor = chalkAssistTargetRef.current
-          ? CHALK_AIM_LERP_SLOW
-          : 0.2;
+          ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
+          : baseAimLerp;
         if (!lookModeRef.current && !spinDragActiveRef.current) {
           aimDir.lerp(tmpAim, aimLerpFactor);
         }
@@ -11271,13 +11331,15 @@ function SnookerGame() {
         let shouldSlowAim = false;
         // Aiming vizual
         const currentHud = hudRef.current;
-        if (
+        const isPlayerTurn = currentHud?.turn === 0;
+        const canShowCue =
           allStopped(balls) &&
-          currentHud?.turn === 0 &&
-          !(currentHud?.inHand) &&
           cue?.active &&
-          !(currentHud?.over)
-        ) {
+          !(currentHud?.over) &&
+          !inHandPlacementModeRef.current &&
+          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
+        if (canShowCue && isPlayerTurn) {
+          const powerStrength = THREE.MathUtils.clamp(powerRef.current ?? 0, 0, 1);
           const { impact, afterDir, targetBall, railNormal } = calcTarget(
             cue,
             aimDir,
@@ -11325,18 +11387,19 @@ function SnookerGame() {
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
-          aim.material.color.set(
-            aimingWrong
-              ? 0xff3333
-              : targetBall && !railNormal
-                ? 0xffff00
-                : 0xffffff
-          );
+          const primaryColor = aimingWrong
+            ? 0xff3333
+            : targetBall && !railNormal
+              ? 0xffd166
+              : 0x7ce7ff;
+          aim.material.color.setHex(primaryColor);
+          aim.material.opacity = 0.55 + 0.35 * powerStrength;
+          aim.material.needsUpdate = true;
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
-            end.clone().add(perp.clone().multiplyScalar(1.4)),
-            end.clone().add(perp.clone().multiplyScalar(-1.4))
+            end.clone().add(perp.clone().multiplyScalar(AIM_TICK_HALF_LENGTH)),
+            end.clone().add(perp.clone().multiplyScalar(-AIM_TICK_HALF_LENGTH))
           ]);
           tick.visible = true;
           if (lookModeRef.current) {
@@ -11517,15 +11580,38 @@ function SnookerGame() {
             );
             targetGeom.setFromPoints([end, tEnd]);
             target.visible = true;
+            target.material.opacity = 0.65;
+            target.material.needsUpdate = true;
             target.computeLineDistances();
+            const cueFollowDir = new THREE.Vector3(dir.x, 0, dir.z);
+            if (cueFollowDir.lengthSq() < 1e-8) cueFollowDir.set(0, 0, 1);
+            const drawWeight = Math.max(0, appliedSpin.y || 0);
+            if (drawWeight > 1e-6) {
+              const drawDir = cueFollowDir.clone().negate();
+              cueFollowDir.lerp(drawDir, Math.min(1, drawWeight * 0.35));
+            }
+            if (cueFollowDir.lengthSq() > 1e-8) cueFollowDir.normalize();
+            const cueFollowLength = BALL_R * (12 + powerStrength * 18);
+            const followEnd = end
+              .clone()
+              .add(cueFollowDir.multiplyScalar(cueFollowLength));
+            cueAfterGeom.setFromPoints([end, followEnd]);
+            cueAfter.visible = true;
+            cueAfter.computeLineDistances();
+            if (cueAfter.material) {
+              cueAfter.material.opacity = 0.35 + 0.35 * powerStrength;
+              cueAfter.material.needsUpdate = true;
+            }
           } else {
             target.visible = false;
+            cueAfter.visible = false;
           }
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
           tick.visible = false;
           target.visible = false;
+          cueAfter.visible = false;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
