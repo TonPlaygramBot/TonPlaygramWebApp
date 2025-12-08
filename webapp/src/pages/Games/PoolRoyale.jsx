@@ -5197,12 +5197,14 @@ function calcTarget(cue, dir, balls) {
   let targetDir = null;
   let cueDir = null;
   if (targetBall) {
-    const contactPoint = impact.clone().add(dirNorm.clone().multiplyScalar(BALL_R));
-    targetDir = targetBall.pos.clone().sub(contactPoint).normalize();
-    const projected = dirNorm.dot(targetDir);
-    cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
-    if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
-    else cueDir = null;
+    const collisionNormal = targetBall.pos.clone().sub(impact);
+    if (collisionNormal.lengthSq() > 1e-8) {
+      targetDir = collisionNormal.clone().normalize();
+      const projected = dirNorm.dot(targetDir);
+      cueDir = dirNorm.clone().sub(targetDir.clone().multiplyScalar(projected));
+      if (cueDir.lengthSq() > 1e-8) cueDir.normalize();
+      else cueDir = null;
+    }
   } else if (railNormal) {
     const n = railNormal.clone().normalize();
     cueDir = dirNorm
@@ -15521,8 +15523,15 @@ function PoolRoyaleGame({
               tDir.copy(dir);
             }
             const distanceScale = travelScale;
-            const tEnd = end.clone().add(tDir.clone().multiplyScalar(distanceScale));
-            targetGeom.setFromPoints([end, tEnd]);
+            const targetStart = new THREE.Vector3(
+              targetBall.pos.x,
+              BALL_CENTER_Y,
+              targetBall.pos.y
+            );
+            const tEnd = targetStart
+              .clone()
+              .add(tDir.clone().multiplyScalar(distanceScale));
+            targetGeom.setFromPoints([targetStart, tEnd]);
             target.material.color.setHex(0xffd166);
             target.material.opacity = 0.65 + 0.3 * powerStrength;
             target.visible = true;
