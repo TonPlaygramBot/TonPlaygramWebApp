@@ -25,6 +25,7 @@ function getGameFromTableId(id) {
       'fallingball',
       'goalrush',
       'poolroyale',
+      'pooluk',
     ].includes(prefix)
   )
     return prefix;
