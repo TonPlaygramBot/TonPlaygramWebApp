@@ -6315,6 +6315,7 @@ function SnookerGame() {
   const stopAiThinkingRef = useRef(() => {});
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
+  const autoPlaceAiCueBallRef = useRef(() => false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const [hud, setHud] = useState({
     power: 0.65,
@@ -6326,6 +6327,11 @@ function SnookerGame() {
     inHand: true,
     over: false
   });
+  const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
+  const inHandPlacementModeRef = useRef(inHandPlacementMode);
+  useEffect(() => {
+    inHandPlacementModeRef.current = inHandPlacementMode;
+  }, [inHandPlacementMode]);
   const powerRef = useRef(hud.power);
   useEffect(() => {
     powerRef.current = hud.power;
@@ -6334,6 +6340,22 @@ function SnookerGame() {
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const cueBallPlacedFromHandRef = useRef(false);
+  useEffect(() => {
+    const playerTurn = (hud.turn ?? 0) === 0;
+    const placing = Boolean(hud.inHand && playerTurn);
+    setInHandPlacementMode(placing);
+    if (placing) {
+      cueBallPlacedFromHandRef.current = false;
+    } else if (!hud.inHand) {
+      cueBallPlacedFromHandRef.current = true;
+    }
+  }, [hud.inHand, hud.turn]);
+  useEffect(() => {
+    if (hud.turn === 1 && hud.inHand) {
+      autoPlaceAiCueBallRef.current?.();
+    }
+  }, [hud.turn, hud.inHand]);
   useEffect(() => {
     const sph = sphRef.current;
     const bounds = cameraBoundsRef.current;
@@ -10226,30 +10248,45 @@ function SnookerGame() {
       const tmpAim = new THREE.Vector2();
 
       // In-hand placement
-      const free = (x, z) =>
-        balls.every(
-          (b) =>
-            !b.active ||
-            b === cue ||
-            new THREE.Vector2(x, z).distanceTo(b.pos) > BALL_R * 2.1
-        );
+      const allowFullTableInHand = () => false;
+
+      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
+        if (!point) return false;
+        const clearance = BALL_R * clearanceMultiplier;
+        for (const ball of balls) {
+          if (!ball.active || ball === cue) continue;
+          if (point.distanceTo(ball.pos) <= clearance) {
+            return false;
+          }
+        }
+        return true;
+      };
       const clampInHandPosition = (point) => {
         if (!point) return null;
         const clamped = point.clone();
         const limitX = PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
-        const maxForward = baulkZ + BALL_R * 0.1;
-        if (clamped.y > maxForward) clamped.y = maxForward;
-        const deltaY = clamped.y - baulkZ;
-        const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
-        const insideSq = clamped.x * clamped.x + deltaY * deltaY;
-        if (insideSq > maxRadius * maxRadius) {
-          const angle = Math.atan2(deltaY, clamped.x);
-          clamped.x = Math.cos(angle) * maxRadius;
-          clamped.y = baulkZ + Math.sin(angle) * maxRadius;
+        if (allowFullTableInHand()) {
+          const limitZ = PLAY_H / 2 - BALL_R;
+          clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
+        } else {
+          const maxForward = baulkZ + BALL_R * 0.1;
+          if (clamped.y > maxForward) clamped.y = maxForward;
+          const deltaY = clamped.y - baulkZ;
+          const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+          const insideSq = clamped.x * clamped.x + deltaY * deltaY;
+          if (insideSq > maxRadius * maxRadius) {
+            const angle = Math.atan2(deltaY, clamped.x);
+            clamped.x = Math.cos(angle) * maxRadius;
+            clamped.y = baulkZ + Math.sin(angle) * maxRadius;
+          }
         }
         return clamped;
       };
+      const defaultInHandPosition = () =>
+        clampInHandPosition(
+          new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
+        );
       const inHandDrag = {
         active: false,
         pointerId: null,
@@ -10270,20 +10307,26 @@ function SnookerGame() {
         if (!(currentHud?.inHand)) return false;
         const clamped = clampInHandPosition(raw);
         if (!clamped) return false;
-        if (!free(clamped.x, clamped.y)) return false;
+        if (!isSpotFree(clamped)) return false;
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
-          setHud((s) => ({ ...s, inHand: false }));
+          cueBallPlacedFromHandRef.current = true;
+          if (hudRef.current?.inHand) {
+            const nextHud = { ...hudRef.current, inHand: false };
+            hudRef.current = nextHud;
+            setHud(nextHud);
+          }
         }
         return true;
       };
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
+        if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
@@ -10328,6 +10371,8 @@ function SnookerGame() {
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
+          setInHandPlacementMode(false);
+          autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
       };
@@ -10336,11 +10381,32 @@ function SnookerGame() {
       window.addEventListener('pointerup', endInHandDrag);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
+      const autoPlaceAiCueBall = () => {
+        const currentHud = hudRef.current;
+        if (!currentHud) return false;
+        if (currentHud.turn !== 1 || !currentHud.inHand) return false;
+        if (!cue) return false;
+        if (!allStopped(balls)) return false;
+        const pos = defaultInHandPosition();
+        if (!pos) return false;
+        if (!isSpotFree(pos)) return false;
+        cue.active = false;
+        updateCuePlacement(pos);
+        cue.active = true;
+        cueBallPlacedFromHandRef.current = true;
+        hudRef.current = { ...currentHud, inHand: false };
+        setHud((prev) => ({ ...prev, inHand: false }));
+        return true;
+      };
+      autoPlaceAiCueBallRef.current = autoPlaceAiCueBall;
+
       if (hudRef.current?.inHand) {
-        const startPos = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+        const startPos = defaultInHandPosition();
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
+          cue.active = true;
+          cueBallPlacedFromHandRef.current = true;
         }
       }
 
@@ -11190,7 +11256,7 @@ function SnookerGame() {
         if (awardInHand) {
           cue.active = false;
           pocketDropRef.current.delete(cue.id);
-          const fallback = clampInHandPosition(new THREE.Vector2(0, baulkZ));
+          const fallback = defaultInHandPosition();
           if (fallback) {
             updateCuePlacement(fallback);
           } else {
@@ -11202,6 +11268,7 @@ function SnookerGame() {
           cue.spinMode = 'standard';
           cue.impacted = false;
           cue.launchDir = null;
+          cueBallPlacedFromHandRef.current = false;
         }
         setHud((prev) => ({ ...prev, inHand: awardInHand }));
         setShootingState(false);
