@@ -273,7 +273,14 @@ const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
     id: 'beautifulGameAuthentic',
     name: 'Authentic',
-    piece: { preserveOriginal: true },
+    piece: {
+      white: '#f6f7fb',
+      black: '#3f5f46',
+      accent: '#d7b24a',
+      goldAccent: '#d7b24a',
+      whiteAccent: '#f6f7fb',
+      blackAccent: '#b7892c'
+    },
     board: { light: '#e4d2b3', dark: '#2f3526', preserveOriginal: true }
   },
   {
