@@ -10150,7 +10150,7 @@ function SnookerGame() {
       const ray = new THREE.Raycaster();
       const plane = new THREE.Plane(
         new THREE.Vector3(0, 1, 0),
-        -TABLE_Y * worldScaleFactor
+        -BALL_CENTER_Y * worldScaleFactor
       );
       project = (ev) => {
         const r = dom.getBoundingClientRect();
