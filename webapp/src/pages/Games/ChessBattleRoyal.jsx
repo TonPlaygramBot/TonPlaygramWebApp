@@ -770,7 +770,7 @@ const SNOOKER_ROOM_WIDTH = SNOOKER_TABLE_W + SNOOKER_SIDE_CLEARANCE * 2;
 const SNOOKER_SIZE_REDUCTION = 0.7;
 const SNOOKER_GLOBAL_SIZE_FACTOR = 0.85 * SNOOKER_SIZE_REDUCTION;
 const SNOOKER_WORLD_SCALE = 0.85 * SNOOKER_GLOBAL_SIZE_FACTOR * 0.7;
-// Match half of the scaled snooker arena footprint
+// Match half of the scaled billiards arena footprint
 const CHESS_ARENA = Object.freeze({
   width: (SNOOKER_ROOM_WIDTH * SNOOKER_WORLD_SCALE) / 2,
   depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2

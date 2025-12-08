@@ -1,8 +1,0 @@
-3D Snooker preload bundle (tekst)
-
-Summary of the core physics classes and spin calculation parameters for 3D Snooker.
-Keep it next to the final build to swap in minified modules once they are ready.
-
-- Gravity -9.81 with a realistic ball-to-table ratio.
-- Pinch-to-zoom control, yaw/pitch orbiting, and clamped extreme angles.
-- Cloth shaders and divider lines for the snooker HUD.

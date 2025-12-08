@@ -59,7 +59,7 @@ export class PowerSlider {
     this.tooltip.className = 'ps-tooltip';
     this.el.appendChild(this.tooltip);
 
-    if (this.theme === 'snooker') {
+    if (this.theme === 'pool-royale') {
       this.handle.style.left = '50%';
       this.tooltip.style.left = '50%';
     }
@@ -150,7 +150,7 @@ export class PowerSlider {
     const trackH = this.el.clientHeight;
     const handleH = this.handle.offsetHeight;
     const y = ratio * (trackH - handleH);
-    const translateX = this.theme === 'snooker' ? '-50%' : '0';
+    const translateX = this.theme === 'pool-royale' ? '-50%' : '0';
     this.handle.style.transform = `translate(${translateX}, ${y}px)`;
     const ttH = this.tooltip.offsetHeight;
     this.tooltip.style.transform = `translate(${translateX}, ${y - ttH - 8}px)`;
@@ -161,7 +161,7 @@ export class PowerSlider {
     this.el.setAttribute('aria-valuenow', String(Math.round(this.value)));
     if (ratio >= 0.9) this.el.classList.add('ps-hot');
     else this.el.classList.remove('ps-hot');
-    if (this.theme === 'snooker') {
+    if (this.theme === 'pool-royale') {
       const drop = ratio * 28;
       const tilt = -8 - ratio * 10;
       this.cueImg.style.transform = `translateY(${drop}px) rotate(${tilt}deg)`;

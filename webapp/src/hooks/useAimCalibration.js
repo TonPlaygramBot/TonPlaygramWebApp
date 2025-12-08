@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import * as THREE from 'three';
 
-const PREFIX = 'snooker.calib.';
+const PREFIX = 'billiards.calib.';
 
 function loadFlag(key, def) {
   try {

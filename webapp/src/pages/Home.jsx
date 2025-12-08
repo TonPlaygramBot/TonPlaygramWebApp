@@ -46,11 +46,6 @@ export default function Home() {
       name: 'Pool Royale preload',
       description: 'Text bundle of code for Pool Royale animations and HUD.',
       href: `${baseUrl}game-preloads/pool-royale-preload.txt`
-    },
-    {
-      name: '3D Snooker preload',
-      description: 'Key snippets for billiards physics and +Y mobile controls.',
-      href: `${baseUrl}game-preloads/3d-snooker-preload.txt`
     }
   ];
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();

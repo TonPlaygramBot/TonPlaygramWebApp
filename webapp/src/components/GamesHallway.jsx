@@ -10,7 +10,7 @@ const fallbackGameNames = [
   'Dice Duel',
   'Snake & Ladder',
   'Horse Racing',
-  'Snooker',
+  'Pool Royale',
   'Free Kick',
   'Table Tennis',
   'Texas Holdem',

@@ -8,7 +8,7 @@
     "prestart": "npm run build",
     "start": "node bot/server.js",
     "install-all": "npm install && npm install --prefix bot && npm install --prefix webapp",
-    "build": "tsc -p tsconfig.snooker.json",
+    "build": "tsc -p tsconfig.build.json",
     "test": "jest",
     "demo": "node dist/demo.js demo/demo.json",
     "lint": "eslint .",
