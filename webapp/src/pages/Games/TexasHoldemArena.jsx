@@ -220,7 +220,6 @@ const CAMERA_WALL_MARGIN = THREE.MathUtils.degToRad(2.5);
 const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const CAMERA_TURN_FOCUS_LIFT = 0.6 * MODEL_SCALE;
 const CAMERA_AUTO_YAW_SMOOTHING = 0.085;
-const TURN_FOCUS_DURATION_MS = 520;
 
 const CHAIR_CLOTH_TEXTURE_SIZE = 512;
 const CHAIR_CLOTH_REPEAT = 7;
@@ -1835,7 +1834,6 @@ function TexasHoldemArena({ search }) {
   const potDisplayRef = useRef(0);
   const potTargetRef = useRef(0);
   const lastFrameRef = useRef(null);
-  const turnSweepRef = useRef({ active: false });
   const showdownAnimationRef = useRef({
     handId: null,
     active: false,
@@ -1973,29 +1971,13 @@ function TexasHoldemArena({ search }) {
       const baseRight = basis.baseRight.clone().projectOnPlane(basis.baseUp).normalize();
       const yaw = Math.atan2(projected.dot(baseRight), projected.dot(baseForward));
       const clampedYaw = THREE.MathUtils.clamp(yaw, -CAMERA_HEAD_TURN_LIMIT, CAMERA_HEAD_TURN_LIMIT);
-      const indicator = threeRef.current?.turnIndicator;
       if (immediate) {
-        turnSweepRef.current = { active: false };
         headAnglesRef.current.yaw = clampedYaw;
         headAnglesRef.current.pitch = 0;
         cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
-        if (indicator) {
-          indicator.rotation.y = clampedYaw;
-        }
         applyHeadOrientation();
       } else {
-        turnSweepRef.current = {
-          active: true,
-          startYaw: headAnglesRef.current.yaw,
-          targetYaw: clampedYaw,
-          startIndicatorYaw: indicator?.rotation?.y ?? headAnglesRef.current.yaw,
-          targetIndicatorYaw: clampedYaw,
-          startTime: performance.now(),
-          duration: TURN_FOCUS_DURATION_MS,
-          seatIndex
-        };
         cameraAutoTargetRef.current = { yaw: clampedYaw, activeIndex: seatIndex };
-        headAnglesRef.current.pitch = 0;
       }
     },
     [applyHeadOrientation]
@@ -2901,7 +2883,6 @@ function TexasHoldemArena({ search }) {
         buttonAction: null,
         dragged: false
       };
-      turnSweepRef.current = { active: false };
       element.setPointerCapture(event.pointerId);
       element.style.cursor = 'grabbing';
     };
@@ -2995,24 +2976,6 @@ function TexasHoldemArena({ search }) {
       lastFrameRef.current = time;
       three.chipFactory.update(deltaSeconds);
       if (!pointerState.active || pointerState.mode !== 'camera') {
-        const sweep = turnSweepRef.current;
-        if (sweep?.active) {
-          const progress = sweep.duration > 0 ? (performance.now() - sweep.startTime) / sweep.duration : 1;
-          const clamped = Math.min(1, Math.max(0, progress));
-          const eased = clamped * (2 - clamped);
-          const yaw = THREE.MathUtils.lerp(sweep.startYaw, sweep.targetYaw, eased);
-          headAnglesRef.current.yaw = yaw;
-          if (three.turnIndicator) {
-            three.turnIndicator.rotation.y = THREE.MathUtils.lerp(
-              sweep.startIndicatorYaw ?? yaw,
-              sweep.targetIndicatorYaw ?? yaw,
-              eased
-            );
-          }
-          if (progress >= 1) {
-            turnSweepRef.current = { active: false };
-          }
-        }
         const targetYaw = cameraAutoTargetRef.current?.yaw;
         if (typeof targetYaw === 'number') {
           const currentYaw = headAnglesRef.current.yaw;
@@ -3352,12 +3315,19 @@ function TexasHoldemArena({ search }) {
     const pointerState = pointerStateRef.current;
     const isCameraDragged = pointerState?.active && pointerState.mode === 'camera';
     if (!isCameraDragged) {
-      focusCameraOnSeat(focusIndex, false);
-      if (seat?.isHuman && !overheadView) {
-        const mount = mountRef.current;
-        const width = mount?.clientWidth ?? window.innerWidth;
-        const height = mount?.clientHeight ?? window.innerHeight;
-        viewControlsRef.current.applySeatedCamera?.(width, height, { animate: false });
+      if (seat?.isHuman) {
+        headAnglesRef.current.yaw = 0;
+        headAnglesRef.current.pitch = 0;
+        cameraAutoTargetRef.current = { yaw: 0, activeIndex: seat.index ?? focusIndex };
+        applyHeadOrientation();
+        if (!overheadView) {
+          const mount = mountRef.current;
+          const width = mount?.clientWidth ?? window.innerWidth;
+          const height = mount?.clientHeight ?? window.innerHeight;
+          viewControlsRef.current.applySeatedCamera?.(width, height, { animate: false });
+        }
+      } else {
+        focusCameraOnSeat(focusIndex, false);
       }
     }
     if (seat?.isHuman) {
