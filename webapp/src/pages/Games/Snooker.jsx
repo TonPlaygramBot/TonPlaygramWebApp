@@ -232,137 +232,70 @@ function createDefaultPocketJawMaterial() {
   });
 }
 
-// --------------------------------------------------
-// Base table scaling (snooker footprint with Pool Royale proportions)
-// --------------------------------------------------
-const TABLE_SIZE_SHRINK = 0.92; // match Pool Royale shrink so silhouettes align
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
-const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale to the official 12 ft snooker bed while keeping pool proportions
-const SIZE_REDUCTION = 0.7;
-const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
-const TABLE_DISPLAY_SCALE = 0.88;
-const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
-const TABLE_GROWTH_MULTIPLIER = 1.5;
-const TABLE_GROWTH_DURATION_MS = 1200;
-const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
-const TABLE_BASE_SCALE = 1.17;
-const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
-const TABLE = {
-  W: 66 * TABLE_SCALE,
-  H: 132 * TABLE_SCALE,
-  THICK: 1.8 * TABLE_SCALE,
-  WALL: 2.6 * TABLE_SCALE
-};
-const RAIL_HEIGHT = TABLE.THICK * 1.96; // mirror Pool Royale rail stack height
-const FRAME_TOP_Y = -TABLE.THICK + 0.01;
-const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-
-const POCKET_VISUAL_EXPANSION = 1.028;
-const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
-const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
-const CORNER_POCKET_EXTRA_SCALE = 1.02; // further relax the corner mouth while leaving side pockets unchanged
+const POCKET_VISUAL_EXPANSION = 1.018;
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
-const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
-const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // pull corner reliefs further into the rail
+const CHROME_CORNER_EXPANSION_SCALE = 1.002;
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002;
+const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03;
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // extend the fascia slightly farther along the arc so the chrome starts flush with the pocket curve
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034; // mirror the extension along the second axis so the rounded arc ends stay covered
-const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
-const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
-const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
-const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.982; // shave the chrome plate slightly so it ends at the jaw line on the long rail
-const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align corner fascia offset with the snooker chrome plates
-const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
-const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
-const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
-const CHROME_SIDE_POCKET_RADIUS_SCALE =
-  CORNER_POCKET_INWARD_SCALE *
-  CHROME_CORNER_POCKET_RADIUS_SCALE *
-  1.016; // mirror snooker side arches so the middle chrome cut matches its rounded radius and position
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
-const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
-const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // align chrome fascia trim with Pool Royale geometry
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034;
+const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1;
+const CHROME_CORNER_WIDTH_SCALE = 0.982;
+const CHROME_CORNER_HEIGHT_SCALE = 0.962;
+const CHROME_CORNER_FIELD_FILLET_SCALE = 0;
+const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0;
+const CHROME_CORNER_DIMENSION_SCALE = 1; // keep fascia proportions aligned with Pool Royale plates
+const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02;
+const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0;
+const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0;
+const CHROME_CORNER_EDGE_TRIM_SCALE = 0;
+const CHROME_OUTER_FLUSH_TRIM_SCALE = 0;
+const CHROME_SIDE_POCKET_RADIUS_SCALE = 1.026; // mirror the Pool Royale middle pocket arch radius so chrome hugs the same curve
+const CHROME_SIDE_NOTCH_THROAT_SCALE = 0;
+const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85;
+const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1;
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
-const CHROME_SIDE_NOTCH_DEPTH_SCALE = 1; // keep the notch depth identical to the pocket cylinder so the chrome kisses the jaw edge
 const CHROME_SIDE_FIELD_PULL_SCALE = 0;
-const CHROME_PLATE_REFLECTION_SCALE = 0.28; // kill pocket-cut reflections by damping env-map intensity on fascia cuts
-const CHROME_PLATE_ROUGHNESS_LIFT = 0.08; // lift roughness on fascia cuts so pocket arches stop casting hot spots on cloth
-const CHROME_PLATE_THICKNESS_SCALE = 0.0306; // match diamond thickness on the wooden rails for fascia depth
-const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.18; // thicken the middle fascia so its depth now matches the corner plates
-const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical to snooker
-const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
-const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
-const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
-const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.14; // trim fascia span slightly so the middle plates sit closer to the pocket centres without widening the rounded pocket edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.28; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
-const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
+const CHROME_PLATE_THICKNESS_SCALE = 0.034;
+const CHROME_SIDE_PLATE_THICKNESS_BOOST = 1.24;
+const CHROME_PLATE_RENDER_ORDER = 3.5;
+const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 1.58;
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 1.52;
+const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0;
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 0.56;
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
-const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // pull the middle chrome arch farther toward centre so the rounded fascia cut tracks the shifted pocket more aggressively
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
-const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
-  (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // pinch the middle rail arches slightly tighter so the rounded cut radius comes in further toward the jaws
+const CHROME_SIDE_PLATE_THREE_SIDE_EXPANSION = 0.34;
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // match Pool Royale by pulling the chrome arches further toward centre
 const WOOD_CORNER_CUT_SCALE = 0.976; // pull wood reliefs inward so the rounded cuts tuck toward centre
 const WOOD_SIDE_CUT_SCALE = 0.986; // slightly shrink side rail apertures so the rounded cuts sit tighter to centre
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
-const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
-const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.92; // preserve the playable mouth while matching the longer corner jaw fascia
-const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
-const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
-const POCKET_JAW_DEPTH_SCALE = 1.02; // push the jaw bodies further down so the underside reaches the pocket floor
-const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
-const POCKET_JAW_BOTTOM_CLEARANCE = 0; // allow the jaw extrusion to run right down to the pocket base without a visible gap
-const POCKET_JAW_FLOOR_CONTACT_LIFT = TABLE.THICK * 0.12; // align the jaw underside to the same height as the pocket base plate
-const POCKET_JAW_EDGE_FLUSH_START = 0.22; // start trimming the fascia shoulders early so they finish flush with the cushion line
-const POCKET_JAW_EDGE_FLUSH_END = 1; // keep the fascia running the full length of the jaw toward the pocket edge
-const POCKET_JAW_EDGE_TAPER_SCALE = 0.16; // taper the fascia toward the outer edge to mirror Pool Royale chrome alignment
-const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 0.64; // ease the taper curve to match Pool Royale fascia falloff
-const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42; // keep the lean inner profile used in Pool Royale so jaws stay slim
-const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74; // mirror the pronounced middle section from Pool Royale
-const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58; // controls arc falloff toward the chrome rim
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // align middle pocket wood cuts with Pool Royale's centred arches
+const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.004;
+const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE = POCKET_JAW_CORNER_OUTER_LIMIT_SCALE;
+const POCKET_JAW_CORNER_INNER_SCALE = 1.472;
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE;
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.76;
+const POCKET_JAW_SIDE_OUTER_SCALE = POCKET_JAW_CORNER_OUTER_SCALE;
+const POCKET_JAW_DEPTH_SCALE = 0.68;
+const POCKET_JAW_EDGE_FLUSH_START = 0.22;
+const POCKET_JAW_EDGE_FLUSH_END = 1;
+const POCKET_JAW_EDGE_TAPER_SCALE = 0.16;
+const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42;
+const POCKET_JAW_CENTER_THICKNESS_MAX = 0.66;
+const POCKET_JAW_OUTER_EXPONENT_MIN = 0.58;
 const POCKET_JAW_OUTER_EXPONENT_MAX = 1.2;
-const POCKET_JAW_INNER_EXPONENT_MIN = 0.78; // controls inner lip easing toward the cushion
+const POCKET_JAW_INNER_EXPONENT_MIN = 0.78;
 const POCKET_JAW_INNER_EXPONENT_MAX = 1.34;
-const POCKET_JAW_SEGMENT_MIN = 144; // higher tessellation for crisper high-res pocket jaws
-const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner jaw shoulders carry the same mass as the photographed reference
-const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
-const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
-const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9; // widen the middle jaw span slightly so the wooden rail cut breathes more like the corners
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92; // relax the side jaw radius a touch so the middle pocket arc reads larger while still moving outward
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.036; // lower the middle jaws slightly less so the fascia trims down from the top
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.004; // pull the middle pocket jaws inward so the lips sit closer to centre
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
-const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
-const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
-const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
-const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
-const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02; // lift the rim slightly so the taller parts avoid z-fighting while staying aligned
-const POCKET_RIM_SURFACE_ABSOLUTE_LIFT = TABLE.THICK * 0.052; // ensure the rim clears the jaw top even when the rails compress
-const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; // reuse the corner elevation so the middle rims sit flush
-const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
+const POCKET_JAW_SEGMENT_MIN = 144;
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.66;
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.986;
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.08;
+const SIDE_POCKET_JAW_SIDE_TRIM_SCALE = 0.82;
+const SIDE_POCKET_JAW_MIDDLE_TRIM_SCALE = 0.86;
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592;
+const CORNER_JAW_ARC_DEG = 120;
+const SIDE_JAW_ARC_DEG = 120;
 
 function buildChromePlateGeometry({
   width,
@@ -567,7 +500,29 @@ function addPocketCuts(parent, clothPlane) {
 // --------------------------------------------------
 // Config
 // --------------------------------------------------
-// Base table scaling is defined above to mirror Pool Royale proportions on a 12 ft snooker bed.
+// separate scales for table and balls
+// Match the Pool Royale arena footprint so pockets, rails, and ball sizing align 1:1
+const TABLE_SIZE_SHRINK = 0.78;
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK;
+const OFFICIAL_TABLE_SCALE = 3569 / 2540; // scale up to the official snooker dimensions while keeping ball/pocket sizing intact
+const SIZE_REDUCTION = 0.7;
+const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
+const TABLE_DISPLAY_SCALE = 0.88;
+const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
+const TABLE_GROWTH_MULTIPLIER = 1.5;
+const TABLE_GROWTH_DURATION_MS = 1200;
+const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
+const TABLE_BASE_SCALE = 1.17;
+const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION * OFFICIAL_TABLE_SCALE;
+const TABLE = {
+  W: 66 * TABLE_SCALE,
+  H: 132 * TABLE_SCALE,
+  THICK: 1.8 * TABLE_SCALE,
+  WALL: 2.6 * TABLE_SCALE
+};
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // match Pool Royale rail stack height
+const FRAME_TOP_Y = -TABLE.THICK + 0.01;
+const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
 // reuse Pool Royale rail inset so cushion noses share the same spacing
 const WIDTH_REF = 3569;
 const HEIGHT_REF = 1778;
@@ -578,6 +533,7 @@ const D_RADIUS_REF = 292;
 const BLACK_FROM_TOP_REF = 558.8;
 const CORNER_MOUTH_REF = 114.3;
 const SIDE_MOUTH_REF = 127;
+const CORNER_POCKET_SCALE_BOOST = 1.01;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002;
 const SIDE_RAIL_INNER_REDUCTION = 0.72;
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
@@ -793,7 +749,7 @@ const ACTION_CAM = Object.freeze({
  * • Kur një top bie në xhep → Potting Shot.
  * • Pas çdo raundi → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 20; // mirror Pool Royale framing so the table fill matches broadcast coverage
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 22; // mirror Pool Royale framing so the table fill matches broadcast coverage
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -802,19 +758,19 @@ const CAMERA_LATERAL_CLAMP = Object.freeze({
 const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
-const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295;
-const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
+const SPIN_STRENGTH = BALL_R * 0.03125 * 1.2;
+const SPIN_DECAY = 0.88;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 1.2;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
-const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
-const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
-const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
+const SWERVE_THRESHOLD = 0.85; // outer 15% of the spin control activates swerve behaviour
+const SWERVE_TRAVEL_MULTIPLIER = 0.66; // dampen sideways drift while swerve is active so it stays believable
+const PRE_IMPACT_SPIN_DRIFT = 0.072; // reapply stored sideways swerve once the cue ball is rolling after impact
 const POST_IMPACT_PREVIEW_SPIN_SCALE = 0.45; // influence strength for the dashed cue-ball path preview
+// Mirror Pool Royale's tuned shot power and lift it by 30% for a livelier snooker break.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
-const SHOT_BREAK_MULTIPLIER = 1.5;
+const POOL_ROYALE_SHOT_FORCE = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
+const SHOT_FORCE_BOOST = POOL_ROYALE_SHOT_FORCE * 1.3;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
@@ -824,45 +780,40 @@ const RAIL_HIT_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.2;
 const RAIL_HIT_SOUND_COOLDOWN_MS = 140;
 const CROWD_VOLUME_SCALE = 1;
 const POCKET_SOUND_TAIL = 1;
-// Pool Royale previously lifted the table surface dramatically; trim the legs so the playfield sits lower
+// Make the four round legs dramatically taller so the table surface rides higher
 const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_HEIGHT_REDUCTION = 0.8;
-const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after 20% reduction
-const TABLE_LIFT =
+const LEG_HEIGHT_BOOST = 1.15; // lift the playfield by extending the legs 15%
+const TABLE_H = 0.75 * LEG_SCALE; // physical height of table used for legs/skirt
+const TABLE_LIFT_BASE =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
 const LEG_RADIUS_SCALE = 1.2; // 20% thicker cylindrical legs
-const BASE_LEG_LENGTH_SCALE = 0.72; // previous leg extension factor used for baseline stance
-const LEG_ELEVATION_SCALE = 0.96; // shorten the current leg extension by 20% to lower the playfield
-const LEG_LENGTH_SCALE = BASE_LEG_LENGTH_SCALE * LEG_ELEVATION_SCALE;
+const LEG_LENGTH_SCALE = 0.72; // lengthen the visible legs by 20% to elevate the table stance
 const LEG_HEIGHT_OFFSET = FRAME_TOP_Y - 0.3; // relationship between leg room and visible leg height
-const LEG_ROOM_HEIGHT_RAW = BASE_LEG_HEIGHT + TABLE_LIFT;
-const BASE_LEG_ROOM_HEIGHT =
-  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * BASE_LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_ROOM_HEIGHT =
-  (LEG_ROOM_HEIGHT_RAW + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
-const LEG_ELEVATION_DELTA = LEG_ROOM_HEIGHT - BASE_LEG_ROOM_HEIGHT;
+const LEG_ROOM_HEIGHT_RAW_BASE = BASE_LEG_HEIGHT + TABLE_LIFT_BASE;
+const LEG_ROOM_HEIGHT_BASE =
+  (LEG_ROOM_HEIGHT_RAW_BASE + LEG_HEIGHT_OFFSET) * LEG_LENGTH_SCALE - LEG_HEIGHT_OFFSET;
+const LEG_ROOM_HEIGHT = LEG_ROOM_HEIGHT_BASE * LEG_HEIGHT_BOOST;
+const TABLE_LIFT = TABLE_LIFT_BASE + (LEG_ROOM_HEIGHT - LEG_ROOM_HEIGHT_BASE);
+// raise overall table position so the longer legs are visible and the playfield sits higher off the floor
+const TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const LEG_TOP_OVERLAP = TABLE.THICK * 0.25; // sink legs slightly into the apron so they appear connected
 const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads much deeper beneath the rails
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
-const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
-// adjust overall table position so the shorter legs bring the playfield closer to floor level
-const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
+const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.04; // lift the apron to close the gap beneath the rails
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 0.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
-const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.85; // shrink cue ball dots by 15%
-const CUE_MARKER_DEPTH = CUE_MARKER_RADIUS * (0.25 / 1.2);
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 0.85; // shrink cue ball dots by 15%
+const CUE_MARKER_DEPTH = CUE_MARKER_RADIUS * 0.2;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
