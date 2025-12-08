@@ -46,6 +46,8 @@ import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
+import PoolUk from './pages/Games/PoolUk.jsx';
+import PoolUkLobby from './pages/Games/PoolUkLobby.jsx';
 
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
@@ -131,6 +133,8 @@ export default function App() {
               element={<PoolRoyaleLobby />}
             />
             <Route path="/games/poolroyale" element={<PoolRoyale />} />
+            <Route path="/games/pooluk/lobby" element={<PoolUkLobby />} />
+            <Route path="/games/pooluk" element={<PoolUk />} />
             <Route
               path="/games/pollroyale/lobby"
               element={<Navigate to="/games/poolroyale/lobby" replace />}

@@ -8311,7 +8311,7 @@ function PoolRoyaleGame({
       }
       const telegramId = tgIdRef.current || getTelegramId();
       await addTransaction(telegramId, -50, 'cue_fee', {
-        game: 'poolroyale',
+        game: activeGameId,
         reason: 'cue_switch',
         accountId: id
       });
@@ -9302,8 +9302,8 @@ function PoolRoyaleGame({
     [stopActiveCrowdSound]
   );
   useEffect(() => {
-    document.title = 'Pool Royale 3D';
-  }, []);
+    document.title = `${activeGameName} 3D`;
+  }, [activeGameName]);
   useEffect(() => {
     setPlayer({
       name: getTelegramUsername() || 'Player',
@@ -9469,12 +9469,12 @@ function PoolRoyaleGame({
           : 'Frame tied!';
     window.alert(`${announcement} Returning to the lobby...`);
     const winnerParam = winnerId === 'A' ? '1' : '0';
-    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
+    const lobbyUrl = `${activeLobbyPath}?winner=${winnerParam}`;
     const redirectTimer = window.setTimeout(() => {
       window.location.assign(lobbyUrl);
     }, 1200);
     return () => window.clearTimeout(redirectTimer);
-  }, [frameState.frameOver, frameState.winner, isTraining, player.name]);
+  }, [activeLobbyPath, frameState.frameOver, frameState.winner, isTraining, player.name]);
 
   useEffect(() => {
     let wakeLock;
@@ -9930,7 +9930,7 @@ function PoolRoyaleGame({
             ctx.font = 'bold 42px "Segoe UI", "Helvetica Neue", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText('Pool Royale Match of the Day', width / 2, 60);
+            ctx.fillText(`${activeGameName} Match of the Day`, width / 2, 60);
             const drawCompetitor = ({
               x,
               name,
@@ -14949,7 +14949,7 @@ function PoolRoyaleGame({
               fire();
             }, previewDelayMs);
           } catch (err) {
-            console.error('Pool Royale AI shot failed:', err);
+            console.error(`${activeGameName} AI shot failed:`, err);
             stopAiThinking();
             setAiPlanning(null);
             aiPlanRef.current = null;
@@ -15006,7 +15006,7 @@ function PoolRoyaleGame({
           }
           shotResolved = true;
         } catch (err) {
-          console.error('Pool Royale shot resolution failed:', err);
+          console.error(`${activeGameName} shot resolution failed:`, err);
         }
         if (isTraining) {
           if (!trainingRulesRef.current) {
@@ -15124,7 +15124,7 @@ function PoolRoyaleGame({
             }
           }
         } catch (err) {
-          console.error('Pool Royale post-resolution update failed:', err);
+          console.error(`${activeGameName} post-resolution update failed:`, err);
         } finally {
           frameRef.current = safeState;
           setFrameState(safeState);
@@ -17049,9 +17049,20 @@ function PoolRoyaleGame({
   );
 }
 
-export default function PoolRoyale() {
+export default function PoolRoyale({
+  gameId = 'poolroyale',
+  gameName = 'Pool Royale',
+  lobbyPath = '/games/poolroyale/lobby'
+}) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { gameId: activeGameId, gameName: activeGameName, lobbyPath: activeLobbyPath } = useMemo(
+    () =>
+      location.pathname.includes('/games/pooluk')
+        ? { gameId: 'pooluk', gameName: '8 Pool UK', lobbyPath: '/games/pooluk/lobby' }
+        : { gameId, gameName, lobbyPath },
+    [gameId, gameName, lobbyPath, location.pathname]
+  );
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('variant');
@@ -17141,7 +17152,7 @@ export default function PoolRoyale() {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate('/games/poolroyale/lobby');
+        navigate(activeLobbyPath);
       }
     });
   });
@@ -17156,7 +17167,7 @@ export default function PoolRoyale() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate('/games/poolroyale/lobby');
+          navigate(activeLobbyPath);
         }
       });
     };
