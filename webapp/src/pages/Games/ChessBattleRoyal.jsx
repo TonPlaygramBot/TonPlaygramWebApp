@@ -3259,38 +3259,187 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
 }
 
 async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
-  const timeoutMs = 35000;
-  const withTimeout = (promise) =>
-    Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
-      )
-    ]);
-  const tryExtract = async (sceneLoader, sceneExtractor = extractor) => {
-    const gltf = await withTimeout(sceneLoader());
-    if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
-    const source = gltf.scene.userData?.beautifulGameSource;
-    return (sceneExtractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
+  return loadStrictABeautifulGameAssets(targetBoardSize);
+}
+
+async function loadStrictABeautifulGameAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const MODEL_URLS = [
+    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+    'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  ];
+
+  const tileSize = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const TARGET_FOOTPRINT = tileSize * 0.995;
+  const Y_SEAT = PIECE_PLACEMENT_Y_OFFSET || 0.08;
+
+  const bbox = (obj) => {
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    return { box, size, bottom: box.min.y };
   };
 
-  try {
-    return await tryExtract(() => loadBeautifulGameSet());
-  } catch (error) {
-    console.warn('Chess Battle Royal: remote ABeautifulGame set failed', error);
-  }
-
-  try {
-    const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
-    if (touchAssets?.boardModel || touchAssets?.piecePrototypes) {
-      return touchAssets;
+  const detectTypeFromPath = (path) => {
+    const map = [
+      ['P', /pawn/],
+      ['R', /rook|castle/],
+      ['N', /knight|horse/],
+      ['B', /bishop/],
+      ['Q', /queen/],
+      ['K', /king/]
+    ];
+    const lower = (path || '').toLowerCase();
+    for (const [t, re] of map) {
+      if (re.test(lower)) return t;
     }
-  } catch (error) {
-    console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
-  }
+    return null;
+  };
 
-  console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
-  return buildBattleRoyalProceduralAssets(targetBoardSize);
+  const nodePath = (node) => {
+    const names = [];
+    let cur = node;
+    while (cur) {
+      if (cur.name) names.push(cur.name);
+      cur = cur.parent;
+    }
+    return names.reverse().join('/');
+  };
+
+  const promoteRoot = (node, type) => {
+    let current = node;
+    let parent = current?.parent;
+    while (parent) {
+      const t = detectTypeFromPath(nodePath(parent));
+      if (t === type) {
+        current = parent;
+        parent = current.parent;
+      } else break;
+    }
+    return current;
+  };
+
+  const normalizeAndSeatClone = (object) => {
+    const baseBox = bbox(object);
+    const footprint = Math.max(baseBox.size.x, baseBox.size.z) || 1;
+    const scale = TARGET_FOOTPRINT / footprint;
+    object.scale.multiplyScalar(scale);
+    const b = bbox(object);
+    object.position.y -= b.bottom;
+    const holder = new THREE.Group();
+    holder.add(object);
+    holder.position.y = Y_SEAT;
+    return holder;
+  };
+
+  const withTimeout = (promise, ms, label) =>
+    new Promise((resolve, reject) => {
+      const to = setTimeout(() => reject(new Error(`${label || 'op'} timeout after ${ms}ms`)), ms);
+      promise
+        .then((v) => {
+          clearTimeout(to);
+          resolve(v);
+        })
+        .catch((err) => {
+          clearTimeout(to);
+          reject(err);
+        });
+    });
+
+  const tryLoadUrl = async (url, loader) => {
+    try {
+      return await withTimeout(loader.loadAsync(url), 8000, `loadAsync ${url}`);
+    } catch (error) {}
+    try {
+      if (/\.glb($|\?)/i.test(url)) {
+        const resp = await withTimeout(fetch(url, { mode: 'cors' }), 8000, `fetch ${url}`);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const buf = await resp.arrayBuffer();
+        const gltf = await new Promise((resolve, reject) => {
+          loader.parse(buf, url.substring(0, url.lastIndexOf('/') + 1), (g) => resolve(g), (err) => reject(err));
+        });
+        return gltf;
+      }
+    } catch (error) {}
+    throw new Error(`All attempts failed for ${url}`);
+  };
+
+  const loader = new GLTFLoader();
+  loader.setCrossOrigin('anonymous');
+  let gltf = null;
+  let lastErr = null;
+  for (const url of MODEL_URLS) {
+    try {
+      gltf = await tryLoadUrl(url, loader);
+      break;
+    } catch (error) {
+      lastErr = error;
+    }
+  }
+  if (!gltf?.scene) throw new Error(lastErr?.message || 'ABeautifulGame unavailable');
+
+  const src = gltf.scene;
+  src.updateMatrixWorld(true);
+
+  const boards = [];
+  src.traverse((o) => {
+    const n = (o.name || '').toLowerCase();
+    if (/\b(board|chessboard|table)\b/.test(n)) boards.push(o);
+  });
+  const boardNode = boards[0] || src;
+  const boardClone = boardNode.clone(true);
+  boardClone.traverse((n) => {
+    if (n?.isMesh) {
+      n.receiveShadow = true;
+      n.castShadow = false;
+    }
+    if (/(pawn|rook|castle|knight|horse|bishop|queen|king)/i.test(n.name || '')) n.visible = false;
+  });
+  const { box: boardBox, size: boardSize } = bbox(boardClone);
+  const srcBoardW = Math.max(boardSize.x, boardSize.z) || 1;
+  const boardScale = (targetBoardSize + tileSize * 0.05) / srcBoardW;
+  boardClone.scale.setScalar(boardScale);
+  const center = boardBox.getCenter(new THREE.Vector3());
+  boardClone.position.sub(center.multiplyScalar(boardScale));
+  boardClone.position.y = BOARD.baseH + BOARD_MODEL_Y_OFFSET;
+
+  const prototypes = { white: {}, black: {} };
+  const visited = new Set();
+  src.traverse((node) => {
+    const type = detectTypeFromPath(nodePath(node));
+    if (!type) return;
+    const promoted = promoteRoot(node, type);
+    if (visited.has(promoted.uuid)) return;
+    visited.add(promoted.uuid);
+    const colorPath = nodePath(promoted).toLowerCase();
+    const color = /\b(black|ebony|dark)\b/.test(colorPath) ? 'black' : 'white';
+    if (prototypes[color][type]) return;
+    const holder = normalizeAndSeatClone(promoted.clone(true));
+    holder.traverse((n) => {
+      if (n?.isMesh) {
+        n.castShadow = true;
+        n.receiveShadow = false;
+      }
+    });
+    holder.userData = { ...(holder.userData || {}), __pieceColor: color, __pieceType: type };
+    prototypes[color][type] = holder;
+  });
+
+  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+    const w = prototypes.white[type];
+    const b = prototypes.black[type];
+    if (!w && b) prototypes.white[type] = b;
+    if (!b && w) prototypes.black[type] = w;
+  });
+
+  return {
+    boardModel: boardClone,
+    piecePrototypes: prototypes,
+    tileSize,
+    pieceYOffset: PIECE_PLACEMENT_Y_OFFSET,
+    userData: { preserveOriginalMaterials: true, setId: 'beautifulGameStrict' }
+  };
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
@@ -5976,7 +6125,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     const applyPieceSetAssets = (assets, setId = currentPieceSetId, pieceStyleOption = paletteRef.current?.pieces) => {
       const { boardModel, piecePrototypes } = assets || {};
-      currentPieceSetId = setId;
+      const effectiveSetId = assets?.userData?.setId || setId;
+      currentPieceSetId = effectiveSetId;
       currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
         ? assets.pieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
@@ -6004,8 +6154,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
-        if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
+        const preserveOriginalMaterials =
+          Boolean(pieceStyleOption?.preserveOriginalMaterials) ||
+          Boolean(assets?.userData?.preserveOriginalMaterials);
+        const shouldHarmonize =
+          (setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials;
+        if (shouldHarmonize) {
           harmonizeBeautifulGamePieces(
             currentPiecePrototypes,
             pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
@@ -6013,7 +6167,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         }
         applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
-        paintPiecesFromPrototypes(piecePrototypes, setId);
+        paintPiecesFromPrototypes(piecePrototypes, effectiveSetId);
         applyHeadPresetToMeshes(allPieceMeshes, headPreset);
       }
       if (arenaRef.current) {
