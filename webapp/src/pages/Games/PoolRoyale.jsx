@@ -418,7 +418,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.14; // trim fascia span slightly so the middle plates sit closer to the pocket centres without widening the rounded pocket edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.34; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.28; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
@@ -728,7 +728,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
-  W: 72 * TABLE_SCALE,
+  W: 66 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
@@ -787,16 +787,15 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPBSA snooker specifications (playing surface 3569 mm × 1778 mm)
-const WIDTH_REF = 3556;
-const HEIGHT_REF = 1778;
-const BALL_D_REF = 52.5;
-const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
+// Dimensions reflect WPA specifications (playing surface 100" × 50")
+const WIDTH_REF = 2540;
+const HEIGHT_REF = 1270;
+const BALL_D_REF = 57.15;
+const BAULK_FROM_BAULK_REF = 558.8; // WPA head string distance from the head cushion (22")
 const D_RADIUS_REF = 292;
-const PINK_FROM_TOP_REF = 737;
-const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
-const CORNER_MOUTH_REF = 86;
-const SIDE_MOUTH_REF = 92;
+const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
+const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
+const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -836,7 +835,6 @@ const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
-const PINK_FROM_TOP = PINK_FROM_TOP_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
@@ -1138,18 +1136,7 @@ const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
-const SNOOKER_RED = 0xc3092f;
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
-  snooker: {
-    id: 'snooker',
-    label: 'Snooker',
-    cueColor: 0xffffff,
-    rackLayout: 'triangle',
-    disableSnookerMarkings: false,
-    objectColors: new Array(15).fill(SNOOKER_RED),
-    objectNumbers: new Array(15).fill(null),
-    objectPatterns: new Array(15).fill('solid')
-  },
   uk: {
     id: 'uk',
     label: '8-Ball UK',
@@ -1293,9 +1280,7 @@ function normalizeVariantKey(value) {
 function resolvePoolVariant(variantId) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
-  if (normalized === 'snooker' || normalized === 'snookerclub') {
-    key = 'snooker';
-  } else if (normalized === '9' || normalized === 'nineball') {
+  if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
   } else if (
     normalized === '8balluk' ||
@@ -1480,9 +1465,6 @@ function getPoolBallPattern(variant, index) {
 
 function getPoolBallId(variant, index) {
   if (!variant) return `ball_${index + 1}`;
-  if (variant.id === 'snooker') {
-    return `red_${index + 1}`;
-  }
   if (variant.id === 'uk') {
     const color = getPoolBallColor(variant, index);
     if (color === UK_POOL_BLACK) return 'black_8';
@@ -4025,7 +4007,7 @@ const createTripodBroadcastCamera = (() => {
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
-  const pinkZ = topCushion - PINK_FROM_TOP;
+  const pinkZ = (topCushion + 0) / 2;
   const blackZ = topCushion - BLACK_FROM_TOP;
   return {
     yellow: [-D_RADIUS, baulkZ],
@@ -4092,7 +4074,7 @@ function applySnookerScaling({
       if (green) green.position.set(D_RADIUS, spotY, baulkZ);
       if (blue) blue.position.set(0, spotY, center.z);
       const topCushion = halfWidth;
-      const pinkZ = topCushion - PINK_FROM_TOP_REF * mmToUnits;
+      const pinkZ = (topCushion + center.z) / 2;
       const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
       if (pink) pink.position.set(0, spotY, pinkZ);
       if (black) black.position.set(0, spotY, blackZ);
@@ -4127,7 +4109,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0205; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
@@ -5997,7 +5979,7 @@ function Table3D(
   addSpot(D_RADIUS, baulkLineZ);
   addSpot(0, 0);
   const topCushionZ = PLAY_H / 2;
-  addSpot(0, topCushionZ - PINK_FROM_TOP);
+  addSpot(0, (topCushionZ + 0) / 2);
   addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
@@ -8137,7 +8119,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-export function PoolRoyaleGame({
+function PoolRoyaleGame({
   variantKey,
   tableSizeKey,
   playType = 'regular',
@@ -8147,10 +8129,7 @@ export function PoolRoyaleGame({
   accountId,
   tgId,
   playerName,
-  opponentName,
-  gameId = 'poolroyale',
-  lobbyPath = '/games/poolroyale/lobby',
-  tableResolver = resolveTableSize
+  opponentName
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8163,8 +8142,8 @@ export function PoolRoyaleGame({
     [variantKey]
   );
   const activeTableSize = useMemo(
-    () => tableResolver(tableSizeKey),
-    [tableResolver, tableSizeKey]
+    () => resolveTableSize(tableSizeKey),
+    [tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const [tableFinishId, setTableFinishId] = useState(() => {
@@ -8332,7 +8311,7 @@ export function PoolRoyaleGame({
       }
       const telegramId = tgIdRef.current || getTelegramId();
       await addTransaction(telegramId, -50, 'cue_fee', {
-        game: gameId,
+        game: 'poolroyale',
         reason: 'cue_switch',
         accountId: id
       });
@@ -9490,7 +9469,7 @@ export function PoolRoyaleGame({
           : 'Frame tied!';
     window.alert(`${announcement} Returning to the lobby...`);
     const winnerParam = winnerId === 'A' ? '1' : '0';
-    const lobbyUrl = `${lobbyPath}?winner=${winnerParam}`;
+    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
     const redirectTimer = window.setTimeout(() => {
       window.location.assign(lobbyUrl);
     }, 1200);
@@ -14567,13 +14546,6 @@ export function PoolRoyaleGame({
           const upper = colorId.toUpperCase();
           if (upper === 'CUE') return 'cue';
           if (upper.startsWith('YELLOW') || upper.startsWith('BLUE')) return 'blue';
-          if (
-            upper.startsWith('GREEN') ||
-            upper.startsWith('BROWN') ||
-            upper.startsWith('PINK')
-          ) {
-            return 'blue';
-          }
           if (upper.startsWith('RED')) return 'red';
           if (upper.startsWith('BLACK')) return 'black';
           return null;
@@ -15198,81 +15170,80 @@ export function PoolRoyaleGame({
       // Loop
       let lastStepTime = performance.now();
       const step = (now) => {
-        try {
-          const frameTiming = frameTimingRef.current;
-          const targetFrameTime =
-            frameTiming && Number.isFinite(frameTiming.targetMs)
-              ? frameTiming.targetMs
-              : 1000 / 60;
-          const maxFrameTime =
-            frameTiming && Number.isFinite(frameTiming.maxMs)
-              ? frameTiming.maxMs
-              : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
-          const rawDelta = Math.max(now - lastStepTime, 0);
-          const deltaMs = Math.min(rawDelta, maxFrameTime);
-          const appliedDeltaMs = deltaMs;
-          const deltaSeconds = appliedDeltaMs / 1000;
-          coinTicker.update(deltaSeconds);
-          dynamicTextureEntries.forEach((entry) => {
-            entry.accumulator += deltaSeconds;
-            if (entry.accumulator < entry.minInterval) {
-              return;
-            }
-            const elapsed = entry.accumulator;
-            entry.accumulator = 0;
-            entry.update(elapsed);
-          });
-          const frameScaleBase =
-            targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
-          const frameScale = Math.min(
-            MAX_FRAME_SCALE,
-            Math.max(frameScaleBase, MIN_FRAME_SCALE)
-          );
-          const physicsSubsteps = Math.min(
-            MAX_PHYSICS_SUBSTEPS,
-            Math.max(1, Math.ceil(frameScale))
-          );
-          const subStepScale = frameScale / physicsSubsteps;
-          lastStepTime = now;
-          camera.getWorldDirection(camFwd);
-          tmpAim.set(camFwd.x, camFwd.z).normalize();
-          const cameraBlend = THREE.MathUtils.clamp(
-            cameraBlendRef.current ?? 1,
-            0,
-            1
-          );
-          const baseAimLerp = THREE.MathUtils.lerp(
-            CUE_VIEW_AIM_LINE_LERP,
-            STANDING_VIEW_AIM_LINE_LERP,
-            cameraBlend
-          );
-          const aimLerpFactor = chalkAssistTargetRef.current
-            ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
-            : baseAimLerp;
-          if (!lookModeRef.current) {
-            aimDir.lerp(tmpAim, aimLerpFactor);
+        const frameTiming = frameTimingRef.current;
+        const targetFrameTime =
+          frameTiming && Number.isFinite(frameTiming.targetMs)
+            ? frameTiming.targetMs
+            : 1000 / 60;
+        const maxFrameTime =
+          frameTiming && Number.isFinite(frameTiming.maxMs)
+            ? frameTiming.maxMs
+            : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+        const rawDelta = Math.max(now - lastStepTime, 0);
+        const deltaMs = Math.min(rawDelta, maxFrameTime);
+        const appliedDeltaMs = deltaMs;
+        const deltaSeconds = appliedDeltaMs / 1000;
+        coinTicker.update(deltaSeconds);
+        dynamicTextureEntries.forEach((entry) => {
+          entry.accumulator += deltaSeconds;
+          if (entry.accumulator < entry.minInterval) {
+            return;
           }
-          const appliedSpin = applySpinConstraints(aimDir, true);
-          const ranges = spinRangeRef.current || {};
-          const newCollisions = new Set();
-          let shouldSlowAim = false;
-          // Aiming vizual
-          const currentHud = hudRef.current;
-          const isPlayerTurn = currentHud?.turn === 0;
-          const isAiTurn = currentHud?.turn === 1;
-          const previewingAiShot = aiShotPreviewRef.current;
-          if (isAiTurn) {
-            autoPlaceAiCueBall();
-          }
-          const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
-          const canShowCue =
-            allStopped(balls) &&
-            cue?.active &&
-            !(currentHud?.over) &&
-            !(inHandPlacementModeRef.current) &&
-            (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
+          const elapsed = entry.accumulator;
+          entry.accumulator = 0;
+          entry.update(elapsed);
+        });
+        const frameScaleBase =
+          targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
+        const frameScale = Math.min(
+          MAX_FRAME_SCALE,
+          Math.max(frameScaleBase, MIN_FRAME_SCALE)
+        );
+        const physicsSubsteps = Math.min(
+          MAX_PHYSICS_SUBSTEPS,
+          Math.max(1, Math.ceil(frameScale))
+        );
+        const subStepScale = frameScale / physicsSubsteps;
+        lastStepTime = now;
+        camera.getWorldDirection(camFwd);
+        tmpAim.set(camFwd.x, camFwd.z).normalize();
+        const cameraBlend = THREE.MathUtils.clamp(
+          cameraBlendRef.current ?? 1,
+          0,
+          1
+        );
+        const baseAimLerp = THREE.MathUtils.lerp(
+          CUE_VIEW_AIM_LINE_LERP,
+          STANDING_VIEW_AIM_LINE_LERP,
+          cameraBlend
+        );
+        const aimLerpFactor = chalkAssistTargetRef.current
+          ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
+          : baseAimLerp;
+        if (!lookModeRef.current) {
+          aimDir.lerp(tmpAim, aimLerpFactor);
+        }
+        const appliedSpin = applySpinConstraints(aimDir, true);
+        const ranges = spinRangeRef.current || {};
+        const newCollisions = new Set();
+        let shouldSlowAim = false;
+        // Aiming vizual
+        const currentHud = hudRef.current;
+        const isPlayerTurn = currentHud?.turn === 0;
+        const isAiTurn = currentHud?.turn === 1;
+        const previewingAiShot = aiShotPreviewRef.current;
+        if (isAiTurn) {
+          autoPlaceAiCueBall();
+        }
+        const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
+        const canShowCue =
+          allStopped(balls) &&
+          cue?.active &&
+          !(currentHud?.over) &&
+          !(inHandPlacementModeRef.current) &&
+          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
-          if (canShowCue && (isPlayerTurn || previewingAiShot)) {
+        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
@@ -16223,13 +16194,9 @@ export function PoolRoyaleGame({
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
-        } catch (err) {
-          console.error('Pool Royale render step failed:', err);
-        } finally {
           rafRef.current = requestAnimationFrame(step);
-        }
-      };
-      step(performance.now());
+        };
+        step(performance.now());
 
       // Resize
         const onResize = () => {
@@ -17082,7 +17049,7 @@ export function PoolRoyaleGame({
   );
 }
 
-export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
+export default function PoolRoyale() {
   const navigate = useNavigate();
   const location = useLocation();
   const variantKey = useMemo(() => {
@@ -17174,10 +17141,10 @@ export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate(lobbyPath);
+        navigate('/games/poolroyale/lobby');
       }
     });
-  }, [confirmExit, lobbyPath, navigate]);
+  });
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       event.preventDefault();
@@ -17189,7 +17156,7 @@ export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate(lobbyPath);
+          navigate('/games/poolroyale/lobby');
         }
       });
     };
@@ -17200,7 +17167,7 @@ export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [confirmExit, exitMessage, lobbyPath, navigate]);
+  }, [confirmExit, exitMessage, navigate]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
@@ -17217,9 +17184,6 @@ export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
       tgId={tgId}
       playerName={playerName}
       opponentName={opponentName}
-      lobbyPath={lobbyPath}
     />
   );
 }
-
-export default PoolRoyale;

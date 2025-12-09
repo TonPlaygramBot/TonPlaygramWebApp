@@ -211,13 +211,7 @@ export class PoolRoyaleRules {
 
   constructor(variantKey: string | null | undefined) {
     const normalized = normalizeVariantId(variantKey);
-    if (
-      normalized === 'uk' ||
-      normalized === '8balluk' ||
-      normalized === 'eightballuk' ||
-      normalized === 'uk8' ||
-      normalized === 'snooker'
-    ) {
+    if (normalized === 'uk' || normalized === '8balluk' || normalized === 'eightballuk' || normalized === 'uk8') {
       this.variant = 'uk';
     } else if (normalized === '9ball' || normalized === 'nineball' || normalized === '9') {
       this.variant = '9ball';
