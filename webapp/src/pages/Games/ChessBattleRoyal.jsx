@@ -227,6 +227,9 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+  'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -3338,30 +3341,10 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
         setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
       )
     ]);
-  const tryExtract = async (sceneLoader, sceneExtractor = extractor) => {
-    const gltf = await withTimeout(sceneLoader());
-    if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
-    const source = gltf.scene.userData?.beautifulGameSource;
-    return (sceneExtractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
-  };
-
-  try {
-    return await tryExtract(() => loadBeautifulGameSet());
-  } catch (error) {
-    console.warn('Chess Battle Royal: remote ABeautifulGame set failed', error);
-  }
-
-  try {
-    const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
-    if (touchAssets?.boardModel || touchAssets?.piecePrototypes) {
-      return touchAssets;
-    }
-  } catch (error) {
-    console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
-  }
-
-  console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
-  return buildBattleRoyalProceduralAssets(targetBoardSize);
+  const gltf = await withTimeout(loadBeautifulGameSet());
+  if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
+  const source = gltf.scene.userData?.beautifulGameSource;
+  return (extractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
@@ -3433,6 +3416,80 @@ function recolorObject(root, hex) {
     mats.forEach((mat) => {
       if (mat?.color) mat.color.copy(color);
       if (mat?.emissive) mat.emissive.set(0x000000);
+    });
+  });
+}
+
+function annotatePrototype(root) {
+  if (!root) return;
+  const relPath = (node) => {
+    const stack = [];
+    let current = node;
+    while (current && current !== root) {
+      if (current.name) stack.push(current.name);
+      current = current.parent;
+    }
+    return stack.reverse().join('/');
+  };
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    node.userData = { ...(node.userData || {}), __rel: relPath(node) };
+  });
+}
+
+function snapshotPaletteFromPrototype(root) {
+  const map = new Map();
+  if (!root) return map;
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const key = node.userData?.__rel;
+    if (!key) return;
+    const src = node.material;
+    const cloneMat = Array.isArray(src)
+      ? src.map((m) => (m?.clone ? m.clone() : m))
+      : src?.clone
+        ? src.clone()
+        : src;
+    map.set(key, cloneMat);
+  });
+  return map;
+}
+
+function applyPaletteSnapshot(root, palette) {
+  if (!root || !palette) return;
+  root.traverse((node) => {
+    if (!node?.isMesh) return;
+    const key = node.userData?.__rel;
+    if (!key) return;
+    const saved = palette.get(key);
+    if (!saved) return;
+    node.material = Array.isArray(saved)
+      ? saved.map((m) => (m?.clone ? m.clone() : m))
+      : saved?.clone
+        ? saved.clone()
+        : saved;
+  });
+}
+
+function applyWhitePaletteToPrototypes(prototypes) {
+  if (!prototypes?.white) return;
+  const whitePalette = new Map();
+  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+    if (prototypes.white[type]) {
+      annotatePrototype(prototypes.white[type]);
+      whitePalette.set(type, snapshotPaletteFromPrototype(prototypes.white[type]));
+    }
+    if (prototypes.black?.[type]) {
+      annotatePrototype(prototypes.black[type]);
+    }
+  });
+
+  ['white', 'black'].forEach((colorKey) => {
+    ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+      const palette = whitePalette.get(type);
+      const proto = prototypes[colorKey]?.[type];
+      if (!palette || !proto) return;
+      applyPaletteSnapshot(proto, palette);
     });
   });
 }
@@ -4825,6 +4882,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [moveMode, setMoveMode] = useState('drag');
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
+  const [loaderStatus, setLoaderStatus] = useState('Starting…');
+  const [loaderBanner, setLoaderBanner] = useState('Loading ABeautifulGame…');
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -5349,52 +5408,54 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let onClick = null;
 
     const setup = async () => {
+      setLoaderStatus('Loading ABeautifulGame…');
+      setLoaderBanner('Loading ABeautifulGame…');
 
-    const normalizedAppearance = normalizeAppearance(appearanceRef.current);
-    const palette = createChessPalette(normalizedAppearance);
-    paletteRef.current = palette;
-    const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetOption =
-      PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
-    const initialPlayerFlag =
-      playerFlag ||
-      resolvedInitialFlag ||
-      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
-    const initialAiFlagValue =
-      aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
-    const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalizedAppearance.tableShape);
-    const pieceMaterials = createPieceMaterials(pieceStyleOption);
-    disposers.push(() => {
-      disposePieceMaterials(pieceMaterials);
-    });
-    const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
-    const playAudio = (audioRef) => {
-      if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
-      try {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {});
-      } catch {}
-    };
-    const playMoveSound = () => playAudio(moveSoundRef);
-    const playCheckSound = () => playAudio(checkSoundRef);
-    const playMateSound = () => playAudio(mateSoundRef);
-    const chairTheme = mapChairOptionToTheme(chairOption);
-    const chairBuild = await buildChessChairTemplate(chairTheme);
-    if (cancelled) return;
-    const chairTemplate = chairBuild?.chairTemplate ?? null;
-    const chairMaterials = chairBuild?.materials ?? null;
-    applyChairThemeMaterials({ chairMaterials }, chairTheme);
-    disposers.push(() => {
-      disposeChessChairMaterials(chairMaterials);
-    });
+      const normalizedAppearance = normalizeAppearance(appearanceRef.current);
+      const palette = createChessPalette(normalizedAppearance);
+      paletteRef.current = palette;
+      const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
+      const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
+      const pieceSetOption =
+        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
+      const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
+      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+      const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
+      const initialPlayerFlag =
+        playerFlag ||
+        resolvedInitialFlag ||
+        (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
+      const initialAiFlagValue =
+        aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
+      const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+      const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+      const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalizedAppearance.tableShape);
+      const pieceMaterials = createPieceMaterials(pieceStyleOption);
+      disposers.push(() => {
+        disposePieceMaterials(pieceMaterials);
+      });
+      const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
+      const playAudio = (audioRef) => {
+        if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
+        try {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {});
+        } catch {}
+      };
+      const playMoveSound = () => playAudio(moveSoundRef);
+      const playCheckSound = () => playAudio(checkSoundRef);
+      const playMateSound = () => playAudio(mateSoundRef);
+      const chairTheme = mapChairOptionToTheme(chairOption);
+      const chairBuild = await buildChessChairTemplate(chairTheme);
+      if (cancelled) return;
+      const chairTemplate = chairBuild?.chairTemplate ?? null;
+      const chairMaterials = chairBuild?.materials ?? null;
+      applyChairThemeMaterials({ chairMaterials }, chairTheme);
+      disposers.push(() => {
+        disposeChessChairMaterials(chairMaterials);
+      });
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -6080,6 +6141,54 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           allPieceMeshes.push(clone);
         }
       }
+      const snapshotMaterials = (root) => {
+        const snap = new Map();
+        root.traverse((node) => {
+          if (!node?.isMesh) return;
+          const key = node.userData?.__rel;
+          if (!key) return;
+          const src = node.material;
+          snap.set(
+            key,
+            Array.isArray(src)
+              ? src.map((m) => (m?.clone ? m.clone() : m))
+              : src?.clone
+                ? src.clone()
+                : src
+          );
+        });
+        return snap;
+      };
+      const applyMaterials = (root, snap) => {
+        if (!root || !snap) return;
+        root.traverse((node) => {
+          if (!node?.isMesh) return;
+          const saved = node.userData?.__rel ? snap.get(node.userData.__rel) : null;
+          if (!saved) return;
+          node.material = Array.isArray(saved)
+            ? saved.map((m) => (m?.clone ? m.clone() : m))
+            : saved?.clone
+              ? saved.clone()
+              : saved;
+        });
+      };
+      const swapMaterialsBetween = (a, b) => {
+        if (!a || !b) return;
+        const ma = snapshotMaterials(a);
+        const mb = snapshotMaterials(b);
+        applyMaterials(a, mb);
+        applyMaterials(b, ma);
+      };
+      const swapRankMaterialsOnly = () => {
+        for (let c = 0; c < 8; c += 1) {
+          const top = pieceMeshes[0][c];
+          const bottom = pieceMeshes[7][c];
+          if (top && bottom) swapMaterialsBetween(top, bottom);
+        }
+      };
+      swapRankMaterialsOnly();
+      setLoaderStatus('Ready – GLTF active, 1↔8 materials swapped, both sides white');
+      setLoaderBanner('Materials swapped between ranks 1 and 8 (materials only)');
       if (arenaRef.current) {
         arenaRef.current.allPieceMeshes = allPieceMeshes;
         arenaRef.current.piecePrototypes = prototypes;
@@ -6103,6 +6212,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         boardModel.visible = true;
         boardGroup.add(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
+        setLoaderBanner('Board & pieces loaded from GLTF');
         setProceduralBoardVisible(false);
         currentBoardModel = boardModel;
         currentBoardCleanup = () => {
@@ -6117,13 +6227,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
-        if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
-          harmonizeBeautifulGamePieces(
-            currentPiecePrototypes,
-            pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
-          );
-        }
+        applyWhitePaletteToPrototypes(currentPiecePrototypes);
+        const preserveOriginalMaterials = true;
         applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         paintPiecesFromPrototypes(piecePrototypes, setId);
@@ -6171,6 +6276,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       })
       .catch((error) => {
         console.error('Chess Battle Royal: failed to resolve chess set', error);
+        setLoaderStatus('GLTF load failed – GLTF-only mode');
+        setLoaderBanner('GLTF unavailable – chess set not loaded');
       });
 
     if (typeof window !== 'undefined' && import.meta?.env?.DEV) {
@@ -6778,6 +6885,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             >
               {viewMode === '3d' ? '2D view' : '3D view'}
             </button>
+          </div>
+          <div className="pointer-events-none rounded-xl border border-white/10 bg-[rgba(12,14,16,0.75)] px-3 py-2 text-[0.72rem] leading-tight shadow-lg">
+            <div className="font-semibold text-white">{loaderStatus}</div>
+            {loaderBanner && <div className="text-white/80">{loaderBanner}</div>}
           </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
