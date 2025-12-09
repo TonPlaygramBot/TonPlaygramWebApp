@@ -273,12 +273,7 @@ const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
     id: 'beautifulGameAuroraMetal',
     name: 'Classic',
-    piece: {
-      white: '#f6f1e6',
-      black: '#0f1217',
-      accent: '#d7b24a',
-      preserveOriginal: true
-    },
+    piece: { white: '#ffffff', black: '#ffffff', accent: '#ffffff' },
     board: { light: '#EEE8D5', dark: '#2B2F36', accent: '#ffffff' }
   },
   {
@@ -653,42 +648,28 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
   [
-    {
-      id: 'beautifulGameClassic',
-      label: 'Classic (Ivory vs Ebony)',
-      color: '#f6f1e6',
-      blackColor: '#0f1217',
-      accent: '#d7b24a',
-      preserveOriginal: true
-    },
+    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
     { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
     { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
     { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
     { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
     { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
     { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
-  ].map((preset) => {
-    const whiteColor = preset.color ?? BASE_PIECE_STYLE.white.color;
-    const blackColor = preset.blackColor ?? preset.color ?? BASE_PIECE_STYLE.black.color;
-    const accent = preset.accent ?? BASE_PIECE_STYLE.accent;
-    const preserveOriginalMaterials = Boolean(preset.preserveOriginal);
-    const keepTextures = preserveOriginalMaterials || (preset.keepTextures ?? true);
-    return {
-      ...preset,
-      style: {
-        ...BASE_PIECE_STYLE,
-        preserveOriginalMaterials,
-        keepTextures,
-        white: { ...BASE_PIECE_STYLE.white, color: whiteColor, preserveOriginalMaterials },
-        black: { ...BASE_PIECE_STYLE.black, color: blackColor, preserveOriginalMaterials },
-        accent,
-        goldAccent: preset.goldAccent ?? BASE_PIECE_STYLE.goldAccent,
-        whiteAccent: preset.whiteAccent ?? BASE_PIECE_STYLE.whiteAccent,
-        blackAccent: preset.blackAccent ?? BASE_PIECE_STYLE.blackAccent
-      },
-      loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-    };
-  })
+  ].map((preset) => ({
+    ...preset,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: preset.color },
+      black: { ...BASE_PIECE_STYLE.black, color: preset.color },
+      accent: BASE_PIECE_STYLE.accent,
+      goldAccent: BASE_PIECE_STYLE.goldAccent,
+      whiteAccent: BASE_PIECE_STYLE.whiteAccent,
+      blackAccent: BASE_PIECE_STYLE.blackAccent
+    },
+    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+  }))
 );
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
