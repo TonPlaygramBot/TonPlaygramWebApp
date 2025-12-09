@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
-import TableSelector from '../../components/TableSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   ensureAccountId,
@@ -11,7 +10,7 @@ import {
 } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
-import { resolveTableSize, TABLE_SIZE_LIST } from '../../config/snookerClubTables.js';
+import { resolveTableSize } from '../../config/snookerClubTables.js';
 import { socket } from '../../utils/socket.js';
 
 export default function SnookerClubLobby() {
@@ -65,6 +64,19 @@ export default function SnookerClubLobby() {
     if (playType !== 'training') return;
     setTrainingVariant((current) => current || variant);
   }, [playType, variant]);
+
+  const promptAvatarRefresh = () => {
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.showPopup) {
+      tg.showPopup({
+        title: 'Update avatar',
+        message: 'Change your Telegram profile photo to refresh your lobby portrait.',
+        buttons: [{ id: 'ok', type: 'default', text: 'Got it' }]
+      });
+      return;
+    }
+    alert('Change your Telegram profile photo to refresh your lobby portrait.');
+  };
 
   const startGame = async () => {
     let tgId;
@@ -176,14 +188,9 @@ export default function SnookerClubLobby() {
     };
   }, []);
 
-  const tableOptions = useMemo(
-    () => TABLE_SIZE_LIST.map((entry) => ({ id: entry.id, label: entry.label })),
-    []
-  );
-
   return (
-    <div className="p-4 space-y-4 text-text">
-      <div className="flex items-center justify-between">
+    <div className="relative p-4 space-y-4 text-text min-h-screen tetris-grid-bg">
+      <div className="flex items-center justify-between gap-3">
         <button
           type="button"
           className="text-sm text-primary"
@@ -191,7 +198,7 @@ export default function SnookerClubLobby() {
         >
           Back
         </button>
-        <h2 className="text-xl font-semibold">Snooker Club Lobby</h2>
+        <h2 className="text-xl font-bold text-center flex-1">Snooker Club Lobby</h2>
         <div className="w-10 h-10 rounded-full overflow-hidden border border-border bg-surface">
           {avatar ? (
             <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
@@ -201,52 +208,87 @@ export default function SnookerClubLobby() {
         </div>
       </div>
 
-      <div className="space-y-4 bg-surface rounded-xl border border-border p-4">
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <button
-            type="button"
-            className={`lobby-pill ${playType === 'regular' ? 'lobby-selected' : ''}`}
-            onClick={() => setPlayType('regular')}
-          >
-            Staking
-          </button>
-          <button
-            type="button"
-            className={`lobby-pill ${playType === 'training' ? 'lobby-selected' : ''}`}
-            onClick={() => setPlayType('training')}
-          >
-            Training
-          </button>
-          <button
-            type="button"
-            className={`lobby-pill ${playType === 'tournament' ? 'lobby-selected' : ''}`}
-            onClick={() => setPlayType('tournament')}
-          >
-            Tournament
-          </button>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Type</h3>
+        <div className="flex gap-2 flex-wrap">
+          {[{ id: 'regular', label: 'Staking' }, { id: 'training', label: 'Training' }, { id: 'tournament', label: 'Tournament' }].map(
+            ({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPlayType(id)}
+                className={`lobby-tile ${playType === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
+            )
+          )}
         </div>
+      </div>
 
-        <RoomSelector
-          title="Mode"
-          options={[
-            { id: 'ai', label: 'VS AI' },
-            { id: 'online', label: 'Online' },
-            { id: 'local', label: 'Local Multiplayer' }
-          ]}
-          selected={mode}
-          onChange={setMode}
-        />
-
+      {playType !== 'training' && (
         <div className="space-y-2">
-          <p className="text-sm font-semibold">Table</p>
-          <TableSelector
-            tables={tableOptions}
-            selected={tableOptions.find((t) => t.id === tableSize)}
-            onSelect={(t) => setTableSize(t.id)}
-          />
+          <h3 className="font-semibold">Mode</h3>
+          <div className="flex gap-2 flex-wrap">
+            {[{ id: 'ai', label: 'Vs AI' }, { id: 'online', label: 'Online' }, { id: 'local', label: 'Local Multiplayer' }].map(
+              ({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setMode(id)}
+                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
         </div>
+      )}
 
-        {playType !== 'training' && (
+      {playType === 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Training options</h3>
+          <div className="lobby-tile flex flex-col gap-4">
+            <div>
+              <p className="text-sm font-semibold">Opponent</p>
+              <p className="text-xs text-subtext">Solo practice or alternate turns with the AI.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[{ id: 'solo', label: 'Solo' }, { id: 'ai', label: 'Vs AI' }].map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setTrainingMode(id)}
+                    className={`lobby-tile ${trainingMode === id ? 'lobby-selected' : ''}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold">Rules</p>
+              <p className="text-xs text-subtext">Play with standard fouls or open practice.</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[{ id: 'on', label: 'Follow Rules' }, { id: 'off', label: 'Free Table' }].map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setTrainingRulesEnabled(id === 'on')}
+                    className={`lobby-tile ${trainingRulesEnabled === (id === 'on') ? 'lobby-selected' : ''}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {playType !== 'training' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Stake</h3>
           <div className="grid grid-cols-2 gap-2 text-sm">
             <label className="flex flex-col">
               <span className="text-subtext text-xs">Token</span>
@@ -266,79 +308,85 @@ export default function SnookerClubLobby() {
               />
             </label>
           </div>
-        )}
+        </div>
+      )}
 
-        {playType === 'tournament' && (
-          <div className="space-y-1">
-            <p className="text-sm">Players</p>
-            <input
-              type="number"
-              className="lobby-input"
-              min={4}
-              max={32}
-              value={players}
-              onChange={(e) => setPlayers(Number(e.target.value))}
-            />
+      {playType === 'tournament' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Players</h3>
+          <div className="flex gap-2 flex-wrap">
+            {[8, 12, 16, 24, 32].map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPlayers(p)}
+                className={`lobby-tile ${players === p ? 'lobby-selected' : ''}`}
+              >
+                {p}
+              </button>
+            ))}
           </div>
-        )}
+          <p className="text-xs text-subtext">Winner takes the pot minus developer fee.</p>
+        </div>
+      )}
 
-        {playType === 'training' && (
-          <div className="space-y-2">
-            <RoomSelector
-              title="Training Mode"
-              options={[
-                { id: 'solo', label: 'Solo' },
-                { id: 'ai', label: 'VS AI' }
-              ]}
-              selected={trainingMode}
-              onChange={setTrainingMode}
-            />
-            <RoomSelector
-              title="Rules"
-              options={[
-                { id: 'on', label: 'Follow Rules' },
-                { id: 'off', label: 'Free Practice' }
-              ]}
-              selected={trainingRulesEnabled ? 'on' : 'off'}
-              onChange={(val) => setTrainingRulesEnabled(val === 'on')}
-            />
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={startGame}
-          disabled={isSearching}
-          className="w-full lobby-button"
-        >
-          {isSearching ? 'Finding Table…' : 'Start'}
-        </button>
-
-        {matching && (
-          <div className="p-3 rounded-lg bg-surface/70 border border-border space-y-2">
-            <p className="text-sm font-semibold">Matching…</p>
-            <p className="text-xs text-subtext">
-              Waiting for your opponent to confirm. Table {matchTableId || 'pending'}
-            </p>
-            {matchPlayers.length > 0 && (
-              <ul className="text-xs list-disc list-inside text-subtext">
-                {matchPlayers.map((p) => (
-                  <li key={p.accountId || p.id}>{p.name || p.accountId}</li>
-                ))}
-              </ul>
-            )}
-            {readyList.length > 0 && (
-              <p className="text-xs text-primary">Ready: {readyList.length}</p>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Avatar</h3>
+        <div className="lobby-tile flex items-center gap-3">
+          <div className="h-12 w-12 rounded-full overflow-hidden border border-border bg-surface">
+            {avatar ? (
+              <img src={avatar} alt="avatar" className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full bg-border" />
             )}
           </div>
-        )}
-
-        {matchingError && (
-          <div className="text-xs text-red-400 bg-red-900/20 border border-red-700 rounded-lg p-2">
-            {matchingError}
+          <div className="flex-1 text-sm">
+            <p className="font-semibold">Match intro portrait</p>
+            <p className="text-xs text-subtext">Updates when you change your Telegram photo.</p>
           </div>
-        )}
+          <button
+            type="button"
+            className="px-3 py-2 rounded-lg border border-border bg-background/60 text-sm"
+            onClick={promptAvatarRefresh}
+          >
+            Change
+          </button>
+        </div>
       </div>
+
+      <button
+        type="button"
+        onClick={startGame}
+        disabled={isSearching}
+        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
+      >
+        {isSearching ? 'Finding Table…' : 'Start'}
+      </button>
+
+      {matching && (
+        <div className="p-3 rounded-lg bg-surface/70 border border-border space-y-2">
+          <p className="text-sm font-semibold">Matching…</p>
+          <p className="text-xs text-subtext">
+            Waiting for your opponent to confirm. Table {matchTableId || 'pending'}
+          </p>
+          {matchPlayers.length > 0 && (
+            <ul className="text-xs list-disc list-inside text-subtext">
+              {matchPlayers.map((p) => (
+                <li key={p.accountId || p.id}>{p.name || p.accountId}</li>
+              ))}
+            </ul>
+          )}
+          {readyList.length > 0 && (
+            <p className="text-xs text-primary">Ready: {readyList.length}</p>
+          )}
+        </div>
+      )}
+
+      {matchingError && (
+        <div className="text-xs text-red-400 bg-red-900/20 border border-red-700 rounded-lg p-2">
+          {matchingError}
+        </div>
+      )}
     </div>
   );
 }
