@@ -8,7 +8,6 @@ const GAME_NAME_MAP = {
   goalrush: 'Goal Rush',
   fallingball: 'Falling Ball',
   pool: 'Pool Royale',
-  snooker: 'Snooker Club',
   texas: "Texas Hold'em",
   domino: 'Domino Royal 3D',
   blackjack: 'Black Jack Multiplayer',
