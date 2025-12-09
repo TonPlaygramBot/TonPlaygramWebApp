@@ -1,0 +1,59 @@
+@import './power-slider.css';
+
+.ps.ps-theme-snooker-club {
+  --ps-width: 28px;
+  --ps-height: 702px;
+  --ps-radius: 18px;
+}
+
+.ps.ps-theme-snooker-club .ps-handle {
+  width: calc(var(--ps-width) * 1.3);
+  padding: 12px 6px 10px;
+  left: 50% !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.28);
+  gap: 6px;
+}
+
+.ps.ps-theme-snooker-club .ps-handle-text {
+  font-size: 16px;
+  letter-spacing: 0.08em;
+  margin-top: 6px;
+}
+
+.ps.ps-theme-snooker-club .ps-tooltip {
+  left: 50% !important;
+}
+
+.ps.ps-theme-snooker-club .ps-label {
+  right: auto;
+  left: 50%;
+  margin-right: 0;
+  transform: translate(-50%, -50%);
+}
+
+.ps.ps-theme-snooker-club .ps-label-0 {
+  top: 0;
+}
+
+.ps.ps-theme-snooker-club .ps-label-50 {
+  top: 50%;
+}
+
+.ps.ps-theme-snooker-club .ps-label-100 {
+  top: auto;
+  bottom: 0;
+  transform: translate(-50%, 50%);
+}
+
+.ps.ps-theme-snooker-club .ps-power-bar {
+  margin-top: 10px;
+}
+
+.ps.ps-theme-snooker-club .ps-cue-img {
+  margin: 0;
+  margin-bottom: 4px;
+  width: 128%;
+  max-width: none;
+  transform-origin: 50% 0%;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.25));
+}
