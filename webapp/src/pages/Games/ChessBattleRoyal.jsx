@@ -331,7 +331,8 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
     surfaceRoughness: 0.62,
     surfaceMetalness: 0.12,
     frameRoughness: 0.74,
-    frameMetalness: 0.14
+    frameMetalness: 0.14,
+    preserveOriginalMaterials: true
   })
 );
 
@@ -451,7 +452,7 @@ const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SWAP_SET_ID;
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
 const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.16;
-const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.995;
+const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.72;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
   id: 'stauntonClassic',
@@ -3398,11 +3399,7 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
     try {
       const gltf = await loadGltfResilient(resolved, loader);
       if (gltf?.scene) {
-        return extractBeautifulGameAssets(gltf.scene, targetBoardSize, {
-          source: gltf.scene.userData?.beautifulGameSource,
-          preserveOriginalMaterials: true,
-          styleId: BEAUTIFUL_GAME_SWAP_SET_ID
-        });
+        return buildBeautifulGameSwapPrototypes(gltf.scene, targetBoardSize);
       }
     } catch (error) {
       lastError = error;
@@ -3703,15 +3700,13 @@ function extractChessSetAssets(scene, options = {}) {
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
   const assetScale = options?.assetScale ?? BEAUTIFUL_GAME_ASSET_SCALE;
-  const preserveOriginalMaterials = options?.preserveOriginalMaterials ?? true;
-  const styleId = options?.styleId ?? BEAUTIFUL_GAME_SWAP_SET_ID;
   const authenticStyle =
     BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
     BEAUTIFUL_GAME_PIECE_STYLE;
   const assets = extractChessSetAssets(scene, {
     targetBoardSize,
     pieceStyle: authenticStyle,
-    styleId,
+    styleId: 'beautifulGame',
     assetScale,
     name: 'ABeautifulGame',
     pieceFootprintRatio: BEAUTIFUL_GAME_FOOTPRINT_RATIO
@@ -3729,34 +3724,9 @@ function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
     finalBox = new THREE.Box3().setFromObject(assets.boardModel);
     const boardTop = finalBox.max.y;
     assets.pieceYOffset = Math.max(boardTop + 0.04, PIECE_PLACEMENT_Y_OFFSET);
-    assets.boardModel.userData = {
-      ...(assets.boardModel.userData || {}),
-      __pieceStyleId: styleId,
-      preserveOriginalMaterials
-    };
   }
-  if (!preserveOriginalMaterials) {
-    harmonizeBeautifulGamePieces(assets.piecePrototypes, authenticStyle);
-  }
-  ['white', 'black'].forEach((colorKey) => {
-    Object.values(assets.piecePrototypes?.[colorKey] || {}).forEach((piece) => {
-      if (!piece) return;
-      piece.userData = { ...(piece.userData || {}), __pieceStyleId: styleId };
-      piece.traverse((child) => {
-        if (child?.isMesh) {
-          child.userData = { ...(child.userData || {}), __pieceStyleId: styleId };
-          child.castShadow = true;
-          child.receiveShadow = true;
-        }
-      });
-    });
-  });
-  assets.userData = {
-    ...(assets.userData || {}),
-    styleId,
-    preserveOriginalMaterials
-  };
-  if (options?.source === 'local' && !preserveOriginalMaterials) {
+  harmonizeBeautifulGamePieces(assets.piecePrototypes, authenticStyle);
+  if (options?.source === 'local') {
     return applyLocalBeautifulGameMaterials(assets);
   }
   return assets;
