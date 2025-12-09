@@ -77,94 +77,94 @@ const BASE_BOARD_THEME = Object.freeze({
 
 const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
   {
-    id: 'frostedSteel',
-    label: 'Frosted Steel',
-    light: '#e4f0ff',
-    dark: '#1c2738',
-    frameLight: '#c8d5e8',
-    frameDark: '#101827',
-    accent: '#7dd3fc',
-    highlight: '#7cf4c4',
-    capture: '#ff8ba7',
-    surfaceRoughness: 0.44,
-    surfaceMetalness: 0.28,
-    frameRoughness: 0.6,
-    frameMetalness: 0.32
+    id: 'royaleNight',
+    label: 'Royale Nightfall',
+    light: '#f0d9b5',
+    dark: '#8b5a2b',
+    frameLight: '#1b243b',
+    frameDark: '#0b1220',
+    accent: '#22c55e',
+    highlight: '#22c55e',
+    capture: '#f97316',
+    surfaceRoughness: 0.58,
+    surfaceMetalness: 0.22,
+    frameRoughness: 0.76,
+    frameMetalness: 0.24
   },
   {
-    id: 'desertCopper',
-    label: 'Desert Copper',
-    light: '#f4e3c3',
-    dark: '#4b2e1b',
-    frameLight: '#d29d6a',
-    frameDark: '#2a1b10',
-    accent: '#e38b29',
-    highlight: '#fcd34d',
-    capture: '#f97316',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.22,
-    frameRoughness: 0.78,
+    id: 'classicWalnut',
+    label: 'Dru Klasik',
+    light: '#f3dfc1',
+    dark: '#9a6636',
+    frameLight: '#bb8451',
+    frameDark: '#4c2e18',
+    accent: '#d8b280',
+    highlight: '#4ce0c3',
+    capture: '#ff6f78',
+    surfaceRoughness: 0.72,
+    surfaceMetalness: 0.16,
+    frameRoughness: 0.84,
     frameMetalness: 0.18
   },
   {
-    id: 'nebulaGlass',
-    label: 'Nebula Glass',
-    light: '#e0f2fe',
-    dark: '#0b1024',
-    frameLight: '#a5b4fc',
-    frameDark: '#0a0d14',
-    accent: '#8b5cf6',
-    highlight: '#34d399',
-    capture: '#fb7185',
-    surfaceRoughness: 0.34,
-    surfaceMetalness: 0.52,
+    id: 'arcticMarble',
+    label: 'Mermer Arktik',
+    light: '#f1f4f9',
+    dark: '#6a88a6',
+    frameLight: '#cbd5e1',
+    frameDark: '#455468',
+    accent: '#6fbdf2',
+    highlight: '#76e5fc',
+    capture: '#ff7b9b',
+    surfaceRoughness: 0.42,
+    surfaceMetalness: 0.24,
+    frameRoughness: 0.58,
+    frameMetalness: 0.32
+  },
+  {
+    id: 'onyxGold',
+    label: 'Oniks & Ar',
+    light: '#f7d18b',
+    dark: '#2a2521',
+    frameLight: '#9f7a3c',
+    frameDark: '#1a1411',
+    accent: '#f2c57c',
+    highlight: '#7ef9a1',
+    capture: '#ff8975',
+    surfaceRoughness: 0.55,
+    surfaceMetalness: 0.4,
+    frameRoughness: 0.48,
+    frameMetalness: 0.52
+  },
+  {
+    id: 'neonMatrix',
+    label: 'Neon Futuristik',
+    light: '#3ef8ff',
+    dark: '#1b1d36',
+    frameLight: '#2d2f5a',
+    frameDark: '#0c0d18',
+    accent: '#a855f7',
+    highlight: '#59ffa5',
+    capture: '#ff5f87',
+    surfaceRoughness: 0.36,
+    surfaceMetalness: 0.48,
     frameRoughness: 0.42,
     frameMetalness: 0.56
   },
   {
-    id: 'harborMist',
-    label: 'Harbor Mist',
-    light: '#dbeafe',
-    dark: '#1f2937',
-    frameLight: '#94a3b8',
-    frameDark: '#0f172a',
-    accent: '#38bdf8',
-    highlight: '#7ef9a1',
-    capture: '#f43f5e',
-    surfaceRoughness: 0.5,
-    surfaceMetalness: 0.18,
-    frameRoughness: 0.64,
-    frameMetalness: 0.22
-  },
-  {
-    id: 'emberRose',
-    label: 'Ember Rose',
-    light: '#ffe4e6',
-    dark: '#311424',
-    frameLight: '#f9c5d5',
-    frameDark: '#1b0d17',
-    accent: '#f43f5e',
-    highlight: '#fda4af',
-    capture: '#fb7185',
-    surfaceRoughness: 0.56,
-    surfaceMetalness: 0.26,
-    frameRoughness: 0.7,
-    frameMetalness: 0.24
-  },
-  {
-    id: 'slateJade',
-    label: 'Slate & Jade',
-    light: '#e0f2f1',
-    dark: '#1c2625',
-    frameLight: '#9bc8b3',
-    frameDark: '#15201e',
-    accent: '#34d399',
-    highlight: '#67e8f9',
+    id: 'stoneMarbleJade',
+    label: 'Stone & Jade',
+    light: '#e4e3dd',
+    dark: '#60605b',
+    frameLight: '#9ea09b',
+    frameDark: '#4a4d51',
+    accent: '#7ed3a0',
+    highlight: '#7ed3a0',
     capture: '#dc5c5c',
-    surfaceRoughness: 0.54,
+    surfaceRoughness: 0.52,
     surfaceMetalness: 0.16,
-    frameRoughness: 0.66,
-    frameMetalness: 0.18
+    frameRoughness: 0.64,
+    frameMetalness: 0.2
   }
 ]);
 
@@ -271,46 +271,148 @@ const CHECKMATE_SOUND_URL =
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
-    id: 'beautifulGameAuroraMetal',
-    name: 'Classic',
-    piece: { white: '#ffffff', black: '#ffffff', accent: '#ffffff' },
-    board: { light: '#EEE8D5', dark: '#2B2F36', accent: '#ffffff' }
+    id: 'beautifulGameAuthentic',
+    name: 'Authentic',
+    piece: { preserveOriginal: true },
+    board: { light: '#e4d2b3', dark: '#2f3526', preserveOriginal: true }
+  },
+  {
+    id: 'beautifulGameSwapPalettes',
+    name: 'Swap Palettes',
+    piece: { white: '#2f3526', black: '#e4d2b3' },
+    board: { light: '#EEE8D5', dark: '#2B2F36' }
+  },
+  {
+    id: 'beautifulGameBlueOrange',
+    name: 'Blue / Orange',
+    piece: { white: '#5B8DEF', black: '#F59E0B' },
+    board: { light: '#93C5FD', dark: '#1E293B' }
+  },
+  {
+    id: 'beautifulGameRedTeal',
+    name: 'Red / Teal',
+    piece: { white: '#EF4444', black: '#14B8A6' },
+    board: { light: '#FCA5A5', dark: '#0F766E' }
+  },
+  {
+    id: 'beautifulGamePurpleLime',
+    name: 'Purple / Lime',
+    piece: { white: '#8B5CF6', black: '#84CC16' },
+    board: { light: '#C4B5FD', dark: '#365314' }
+  },
+  {
+    id: 'beautifulGamePinkCyan',
+    name: 'Pink / Cyan',
+    piece: { white: '#EC4899', black: '#06B6D4' },
+    board: { light: '#F9A8D4', dark: '#164E63' }
+  },
+  {
+    id: 'beautifulGameGoldSlate',
+    name: 'Gold / Slate',
+    piece: { white: '#F59E0B', black: '#64748B' },
+    board: { light: '#FDE68A', dark: '#0F172A' }
+  },
+  {
+    id: 'beautifulGameEmeraldFuchsia',
+    name: 'Emerald / Fuchsia',
+    piece: { white: '#10B981', black: '#A21CAF' },
+    board: { light: '#6EE7B7', dark: '#4A044E' }
+  },
+  {
+    id: 'beautifulGameSilverGraphite',
+    name: 'Silver / Graphite',
+    piece: { white: '#D1D5DB', black: '#111827' },
+    board: { light: '#E5E7EB', dark: '#111827' }
+  },
+  {
+    id: 'beautifulGameForestSand',
+    name: 'Forest / Sand',
+    piece: { white: '#22C55E', black: '#E9D5A1' },
+    board: { light: '#FDEAD7', dark: '#064E3B' }
+  },
+  {
+    id: 'beautifulGameCoffeeCream',
+    name: 'Coffee / Cream',
+    piece: { white: '#9D6B53', black: '#EEE0D5' },
+    board: { light: '#D6BFA9', dark: '#6B4F3A' }
+  },
+  {
+    id: 'beautifulGameMidnightIce',
+    name: 'Midnight / Ice',
+    piece: { white: '#C7D2FE', black: '#111827' },
+    board: { light: '#E5E7EB', dark: '#0B1220' }
+  },
+  {
+    id: 'beautifulGameNavyCoral',
+    name: 'Navy / Coral',
+    piece: { white: '#1D4ED8', black: '#FB7185' },
+    board: { light: '#93C5FD', dark: '#0F172A' }
+  },
+  {
+    id: 'beautifulGameMintCharcoal',
+    name: 'Mint / Charcoal',
+    piece: { white: '#34D399', black: '#374151' },
+    board: { light: '#A7F3D0', dark: '#111827' }
+  },
+  {
+    id: 'beautifulGameRoseIndigo',
+    name: 'Rose / Indigo',
+    piece: { white: '#F43F5E', black: '#4338CA' },
+    board: { light: '#FBCFE8', dark: '#1E1B4B' }
+  },
+  {
+    id: 'beautifulGameAmberStone',
+    name: 'Amber / Stone',
+    piece: { white: '#F59E0B', black: '#78716C' },
+    board: { light: '#FDE68A', dark: '#292524' }
+  },
+  {
+    id: 'beautifulGameVioletAmber',
+    name: 'Violet / Amber',
+    piece: { white: '#7C3AED', black: '#F59E0B' },
+    board: { light: '#DDD6FE', dark: '#1F1147' }
+  },
+  {
+    id: 'beautifulGameAquaMaroon',
+    name: 'Aqua / Maroon',
+    piece: { white: '#22D3EE', black: '#7F1D1D' },
+    board: { light: '#A5F3FC', dark: '#3F0E0E' }
+  },
+  {
+    id: 'beautifulGameBronzeCoal',
+    name: 'Bronze / Coal',
+    piece: { white: '#CD7F32', black: '#0A0A0A' },
+    board: { light: '#E9D5A1', dark: '#262626' }
+  },
+  {
+    id: 'beautifulGameSteelPlum',
+    name: 'Steel / Plum',
+    piece: { white: '#94A3B8', black: '#581C87' },
+    board: { light: '#CBD5E1', dark: '#2D1B4E' }
+  },
+  {
+    id: 'beautifulGameOceanSandstone',
+    name: 'Ocean / Sandstone',
+    piece: { white: '#3B82F6', black: '#F5DEB3' },
+    board: { light: '#BFDBFE', dark: '#7C3F00' }
+  },
+  {
+    id: 'beautifulGameTealOrange',
+    name: 'Teal / Orange',
+    piece: { white: '#14B8A6', black: '#F97316' },
+    board: { light: '#99F6E4', dark: '#1F2937' }
+  },
+  {
+    id: 'beautifulGameWineIvory',
+    name: 'Wine / Ivory',
+    piece: { white: '#991B1B', black: '#ECECEC' },
+    board: { light: '#F5EDE0', dark: '#3B1C1C' }
   },
   {
     id: 'beautifulGameMono',
     name: 'Mono',
-    piece: { white: '#111827', black: '#111827', accent: '#111827' },
-    board: { light: '#E5E7EB', dark: '#111827', accent: '#111827' }
-  },
-  {
-    id: 'beautifulGameBlue',
-    name: 'Blue',
-    piece: { white: '#3b82f6', black: '#3b82f6', accent: '#3b82f6' },
-    board: { light: '#93C5FD', dark: '#1E293B', accent: '#3b82f6' }
-  },
-  {
-    id: 'beautifulGameAmber',
-    name: 'Amber',
-    piece: { white: '#f59e0b', black: '#f59e0b', accent: '#f59e0b' },
-    board: { light: '#FDE68A', dark: '#1F2937', accent: '#f59e0b' }
-  },
-  {
-    id: 'beautifulGameMint',
-    name: 'Mint',
-    piece: { white: '#10b981', black: '#10b981', accent: '#10b981' },
-    board: { light: '#A7F3D0', dark: '#065F46', accent: '#10b981' }
-  },
-  {
-    id: 'beautifulGamePink',
-    name: 'Pink',
-    piece: { white: '#ef4444', black: '#ef4444', accent: '#ef4444' },
-    board: { light: '#FBCFE8', dark: '#312E81', accent: '#ef4444' }
-  },
-  {
-    id: 'beautifulGameTeal',
-    name: 'Teal',
-    piece: { white: '#8b5cf6', black: '#8b5cf6', accent: '#8b5cf6' },
-    board: { light: '#99F6E4', dark: '#0F172A', accent: '#8b5cf6' }
+    piece: { white: '#E5E7EB', black: '#1F2937' },
+    board: { light: '#E5E7EB', dark: '#111827' }
   }
 ]);
 
@@ -318,20 +420,20 @@ const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => 
 
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
-    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'slateJade') ?? {}),
+    ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'stoneMarbleJade') ?? {}),
     id: 'beautifulGameAuthenticBoard',
-    label: 'Aurora Metal',
+    label: 'Authentic',
     light: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.light,
     dark: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.dark,
-    frameLight: '#c5d8ff',
-    frameDark: '#141b2f',
-    accent: BEAUTIFUL_GAME_THEME_CONFIGS[0].board.accent ?? '#7dd3fc',
+    frameLight: '#c7a16c',
+    frameDark: '#3a2c20',
+    accent: '#4f7f5c',
     highlight: '#7ef9a1',
-    capture: '#ff8e6e',
-    surfaceRoughness: 0.62,
-    surfaceMetalness: 0.12,
-    frameRoughness: 0.74,
-    frameMetalness: 0.14,
+    capture: '#ff8975',
+    surfaceRoughness: 0.74,
+    surfaceMetalness: 0.04,
+    frameRoughness: 0.86,
+    frameMetalness: 0.05,
     preserveOriginalMaterials: true
   })
 );
@@ -383,39 +485,38 @@ const SCULPTED_DRAG_STYLE = Object.freeze({
 });
 
 const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
-  id: 'beautifulGameAuroraMetal',
-  label: 'Classic',
-  keepTextures: true,
+  id: 'beautifulGameAuthentic',
+  label: 'Classic Olive',
   white: {
-    color: '#ffffff',
-    roughness: 0.22,
-    metalness: 0.42,
-    sheen: 0.32,
-    sheenColor: '#f7fbff',
-    clearcoat: 0.4,
-    clearcoatRoughness: 0.18,
-    specularIntensity: 0.78
+    color: '#f6f7fb',
+    roughness: 0.28,
+    metalness: 0.3,
+    sheen: 0.3,
+    sheenColor: '#ffffff',
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.22,
+    specularIntensity: 0.72
   },
   black: {
-    color: '#111827',
-    roughness: 0.24,
-    metalness: 0.44,
-    sheen: 0.28,
-    sheenColor: '#b8c6ff',
-    clearcoat: 0.42,
-    clearcoatRoughness: 0.2,
-    specularIntensity: 0.78,
-    emissive: '#0a1020',
-    emissiveIntensity: 0.18
+    color: '#3f5f46',
+    roughness: 0.28,
+    metalness: 0.36,
+    sheen: 0.24,
+    sheenColor: '#d7c49b',
+    clearcoat: 0.3,
+    clearcoatRoughness: 0.28,
+    specularIntensity: 0.72,
+    emissive: '#25291c',
+    emissiveIntensity: 0.22
   },
-  accent: '#ffffff',
-  goldAccent: '#ffffff',
-  whiteAccent: { color: '#ffffff' },
-  blackAccent: '#ffffff'
+  accent: '#d7b24a',
+  goldAccent: '#d7b24a',
+  whiteAccent: { color: '#f6f7fb' },
+  blackAccent: '#b7892c'
 });
 
-const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuroraMetal';
-const BEAUTIFUL_GAME_SET_ID = 'beautifulGameAuroraMetalSet';
+const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuthentic';
+const BEAUTIFUL_GAME_SET_ID = 'beautifulGameClassic';
 
 const BASE_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
 
@@ -445,9 +546,10 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
 
 const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
 
-const DEFAULT_PIECE_STYLE = { ...BASE_PIECE_STYLE };
-const BEAUTIFUL_GAME_SWAP_SET_ID = 'beautifulGameSwapRanks';
-const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SWAP_SET_ID;
+const DEFAULT_PIECE_STYLE =
+  BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
+  BEAUTIFUL_GAME_PIECE_STYLE;
+const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_AUTHENTIC_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
@@ -648,29 +750,19 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 });
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
-  [
-    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
-    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
-    { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
-    { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
-    { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
-    { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
-    { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
-  ].map((preset) => ({
-    ...preset,
-    style: {
-      ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: false,
-      keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color: preset.color },
-      black: { ...BASE_PIECE_STYLE.black, color: preset.color },
-      accent: BASE_PIECE_STYLE.accent,
-      goldAccent: BASE_PIECE_STYLE.goldAccent,
-      whiteAccent: BASE_PIECE_STYLE.whiteAccent,
-      blackAccent: BASE_PIECE_STYLE.blackAccent
-    },
-    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-  }))
+  BEAUTIFUL_GAME_COLOR_VARIANTS.reduce((list, variant) => {
+    const signature = pieceStyleSignature(variant.style);
+    if (list.some((option) => pieceStyleSignature(option.style) === signature)) {
+      return list;
+    }
+    list.push({
+      id: variant.id,
+      label: variant.label,
+      style: variant.style,
+      loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+    });
+    return list;
+  }, [])
 );
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
@@ -762,7 +854,7 @@ const SNOOKER_ROOM_WIDTH = SNOOKER_TABLE_W + SNOOKER_SIDE_CLEARANCE * 2;
 const SNOOKER_SIZE_REDUCTION = 0.7;
 const SNOOKER_GLOBAL_SIZE_FACTOR = 0.85 * SNOOKER_SIZE_REDUCTION;
 const SNOOKER_WORLD_SCALE = 0.85 * SNOOKER_GLOBAL_SIZE_FACTOR * 0.7;
-// Match half of the scaled billiards arena footprint
+// Match half of the scaled snooker arena footprint
 const CHESS_ARENA = Object.freeze({
   width: (SNOOKER_ROOM_WIDTH * SNOOKER_WORLD_SCALE) / 2,
   depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
@@ -806,8 +898,8 @@ const DEFAULT_APPEARANCE = {
   chairColor: 0,
   tableShape: 0,
   boardColor: 0,
-  whitePieceStyle: 0,
-  blackPieceStyle: 1,
+  whitePieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
+  blackPieceStyle: Math.max(0, BEAUTIFUL_GAME_PIECE_INDEX),
   headStyle: 0
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
@@ -857,9 +949,13 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
+const PRESERVE_NATIVE_PIECE_IDS = new Set();
 
 const CUSTOMIZATION_SECTIONS = [
+  { key: 'whitePieceStyle', label: 'White Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'blackPieceStyle', label: 'Black Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'headStyle', label: 'Heads (Pawn & Bishop)', options: HEAD_PRESET_OPTIONS },
+  { key: 'boardColor', label: 'Chess Board', options: BEAUTIFUL_GAME_BOARD_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
@@ -877,7 +973,11 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
+    ['boardColor', BEAUTIFUL_GAME_BOARD_OPTIONS.length],
+    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
+    ['headStyle', HEAD_PRESET_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -886,10 +986,6 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
-  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
-  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
-  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
-  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -2372,30 +2468,6 @@ function detectPieceColor(node) {
   return null;
 }
 
-function detectColorFromMaterialNames(node) {
-  const MATERIAL_W = /(\b|_)(ivory)(\b|_)/i;
-  const MATERIAL_B = /(\b|_)(dark\s*ebony|ebony)(\b|_)/i;
-  let detected = null;
-
-  node.traverse((child) => {
-    if (detected || !child?.isMesh) return;
-    const materials = Array.isArray(child.material) ? child.material : [child.material];
-    for (const mat of materials) {
-      const matName = (mat?.name || '').toString();
-      if (MATERIAL_W.test(matName)) {
-        detected = 'white';
-        break;
-      }
-      if (MATERIAL_B.test(matName)) {
-        detected = 'black';
-        break;
-      }
-    }
-  });
-
-  return detected;
-}
-
 function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
   const baseRadius = 0.38 * scale;
   const baseHeight = 0.18 * scale;
@@ -3218,207 +3290,38 @@ function buildPolygonalFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
-  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
-  const boardSize = tile * 8;
-  const half = boardSize / 2;
-  const boardGroup = new THREE.Group();
-
-  const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x5e4529, metalness: 0.2, roughness: 0.6 });
-  for (let r = 0; r < 8; r += 1) {
-    for (let c = 0; c < 8; c += 1) {
-      const isLight = (r + c) % 2 === 0;
-      const tileMesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), isLight ? light : dark);
-      tileMesh.rotation.x = -Math.PI / 2;
-      tileMesh.position.set(-half + c * tile + tile / 2, 0.001, -half + r * tile + tile / 2);
-      tileMesh.name = `tile_${r}_${c}`;
-      tileMesh.userData = { r, c };
-      tileMesh.receiveShadow = true;
-      boardGroup.add(tileMesh);
-    }
-  }
-
-  const border = new THREE.Mesh(
-    new THREE.BoxGeometry(boardSize + tile * 0.2, tile * 0.08, boardSize + tile * 0.2),
-    new THREE.MeshStandardMaterial({ color: 0x3a2f1f, metalness: 0.2, roughness: 0.7 })
-  );
-  border.position.y = -tile * 0.04;
-  border.name = 'frame';
-  border.receiveShadow = true;
-  boardGroup.add(border);
-
-  boardGroup.userData = { ...(boardGroup.userData || {}), proceduralAssets: true, styleId: 'proceduralBattle' };
-
-  return {
-    boardModel: boardGroup,
-    piecePrototypes: { white: {}, black: {} },
-    tileSize: tile,
-    pieceYOffset: BOARD.baseH + PIECE_PLACEMENT_Y_OFFSET,
-    userData: { proceduralAssets: true, styleId: 'proceduralBattle' }
-  };
-}
-
-function normalizeBeautifulGamePiece(object, targetFootprint = BOARD.tile) {
-  const clone = cloneWithMaterials(object);
-  clone.traverse((child) => {
-    if (child?.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = false;
-    }
-  });
-  const initialBox = new THREE.Box3().setFromObject(clone);
-  const size = initialBox.getSize(new THREE.Vector3());
-  const footprint = Math.max(size.x, size.z) || 1;
-  const scale = targetFootprint / footprint;
-  clone.scale.multiplyScalar(scale);
-  const finalBox = new THREE.Box3().setFromObject(clone);
-  clone.position.y -= finalBox.min.y;
-  clone.userData = { ...(clone.userData || {}), __pieceStyleId: BEAUTIFUL_GAME_SWAP_SET_ID };
-  return clone;
-}
-
-function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
-  const root = scene.clone(true);
-  root.updateMatrixWorld(true);
-
-  const tileSize = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
-  const targetFootprint = tileSize * 0.995;
-  const prototypes = { white: {}, black: {} };
-
-  const nodePath = (node) => {
-    const names = [];
-    let current = node;
-    while (current) {
-      if (current.name) names.push(current.name);
-      current = current.parent;
-    }
-    return names.reverse().join('/');
+async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
+  const timeoutMs = 35000;
+  const withTimeout = (promise) =>
+    Promise.race([
+      promise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
+      )
+    ]);
+  const tryExtract = async (sceneLoader, sceneExtractor = extractor) => {
+    const gltf = await withTimeout(sceneLoader());
+    if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
+    const source = gltf.scene.userData?.beautifulGameSource;
+    return (sceneExtractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
   };
 
-  const detectTypeFromPath = (path = '') => {
-    const hints = [
-      ['P', /(pawn)/i],
-      ['R', /(rook|castle)/i],
-      ['N', /(knight|horse)/i],
-      ['B', /(bishop)/i],
-      ['Q', /(queen)/i],
-      ['K', /(king)/i]
-    ];
-    const target = path.toLowerCase();
-    const hit = hints.find(([, regex]) => regex.test(target));
-    return hit ? hit[0] : null;
-  };
-
-  const promoteToPieceRoot = (node, type) => {
-    let current = node;
-    while (current?.parent && detectTypeFromPath(nodePath(current.parent)) === type) {
-      current = current.parent;
-    }
-    return current || node;
-  };
-
-  const buckets = {
-    P: { w: [], b: [], any: [] },
-    R: { w: [], b: [], any: [] },
-    N: { w: [], b: [], any: [] },
-    B: { w: [], b: [], any: [] },
-    Q: { w: [], b: [], any: [] },
-    K: { w: [], b: [], any: [] }
-  };
-  const NAME_W = /(^|[\W_])(white|ivory|light)([\W_]|$)/i;
-  const NAME_B = /(^|[\W_])(black|ebony|dark)([\W_]|$)/i;
-  const visited = new Set();
-
-  root.traverse((node) => {
-    const type = detectTypeFromPath(nodePath(node));
-    if (!type) return;
-    const ascended = promoteToPieceRoot(node, type);
-    if (visited.has(ascended.uuid)) return;
-    visited.add(ascended.uuid);
-    const path = nodePath(ascended).toLowerCase();
-    const bucket = buckets[type];
-    const asWhite = NAME_W.test(path);
-    const asBlack = NAME_B.test(path);
-    const entry = { root: ascended };
-    if (asWhite) bucket.w.push(entry);
-    if (asBlack) bucket.b.push(entry);
-    if (!asWhite && !asBlack) bucket.any.push(entry);
-  });
-
-  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
-    const bucket = buckets[type];
-    const whiteSource = bucket.w[0]?.root || bucket.any[0]?.root || bucket.b[0]?.root;
-    const blackSource = bucket.b[0]?.root || bucket.any[bucket.any.length - 1]?.root || bucket.w[0]?.root;
-    if (whiteSource) prototypes.white[type] = normalizeBeautifulGamePiece(whiteSource, targetFootprint);
-    if (blackSource) prototypes.black[type] = normalizeBeautifulGamePiece(blackSource, targetFootprint);
-    if (!prototypes.white[type] && prototypes.black[type]) {
-      prototypes.white[type] = normalizeBeautifulGamePiece(prototypes.black[type], targetFootprint);
-    }
-    if (!prototypes.black[type] && prototypes.white[type]) {
-      prototypes.black[type] = normalizeBeautifulGamePiece(prototypes.white[type], targetFootprint);
-    }
-  });
-
-  return {
-    boardModel: null,
-    piecePrototypes: prototypes,
-    tileSize,
-    pieceYOffset: PIECE_PLACEMENT_Y_OFFSET,
-    userData: { styleId: BEAUTIFUL_GAME_SWAP_SET_ID, preserveOriginalMaterials: true }
-  };
-}
-
-async function loadGltfResilient(url, loader) {
   try {
-    return await loader.loadAsync(url);
-  } catch (primaryError) {
-    try {
-      const response = await fetch(url, { mode: 'cors' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const buffer = await response.arrayBuffer();
-      return await new Promise((resolve, reject) => {
-        loader.parse(buffer, url.substring(0, url.lastIndexOf('/') + 1), resolve, reject);
-      });
-    } catch (fallbackError) {
-      throw primaryError || fallbackError;
-    }
-  }
-}
-
-async function loadBeautifulGamePiecesOnly(targetBoardSize) {
-  const loader = createConfiguredGLTFLoader();
-  const tried = new Set();
-  let lastError = null;
-  const urls = [...BEAUTIFUL_GAME_URLS, ...BEAUTIFUL_GAME_TOUCH_URLS];
-
-  for (const raw of urls) {
-    const resolved = new URL(raw, window.location.href).href;
-    if (tried.has(resolved)) continue;
-    tried.add(resolved);
-    try {
-      const gltf = await loadGltfResilient(resolved, loader);
-      if (gltf?.scene) {
-        return buildBeautifulGameSwapPrototypes(gltf.scene, targetBoardSize);
-      }
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  if (lastError) throw lastError;
-  throw new Error('ABeautifulGame pieces unavailable');
-}
-
-async function resolveBeautifulGameAssets(targetBoardSize) {
-  try {
-    return await loadBeautifulGamePiecesOnly(targetBoardSize);
+    return await tryExtract(() => loadBeautifulGameSet());
   } catch (error) {
-    console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
+    console.warn('Chess Battle Royal: remote ABeautifulGame set failed', error);
   }
 
-  console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
-  return buildBattleRoyalProceduralAssets(targetBoardSize);
+  try {
+    const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
+    if (touchAssets?.boardModel || touchAssets?.piecePrototypes) {
+      return touchAssets;
+    }
+  } catch (error) {
+    console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
+  }
+
+  throw new Error('ABeautifulGame assets are unavailable');
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
@@ -3529,15 +3432,18 @@ function extractChessSetAssets(scene, options = {}) {
 
   const TYPES = ['P', 'R', 'N', 'B', 'Q', 'K'];
   const TYPE_ALIASES = [
-    ['p', /pawn/],
-    ['r', /rook|castle/],
-    ['n', /knight|horse/],
-    ['b', /bishop/],
-    ['q', /queen/],
-    ['k', /king/]
+    ['P', /pawn/i],
+    ['R', /rook|castle/i],
+    ['N', /knight|horse/i],
+    ['B', /bishop/i],
+    ['Q', /queen/i],
+    ['K', /king/i]
   ];
-  const COLOR_W = /(\b|_)(white|ivory|light)(\b|_)/i;
-  const COLOR_B = /(\b|_)(black|ebony|dark)(\b|_)/i;
+  const COLOR_W = /(\b|_)(white|ivory|light|w)(\b|_)/i;
+  const COLOR_B = /(\b|_)(black|ebony|dark|b)(\b|_)/i;
+
+  const proto = { white: {}, black: {} };
+  const palettes = { white: [], black: [] };
 
   const nodePath = (node) => {
     const names = [];
@@ -3549,60 +3455,39 @@ function extractChessSetAssets(scene, options = {}) {
     return names.reverse().join('/');
   };
 
-  const detectTypeFromPath = (path) => {
+  const detectType = (path) => {
     const lower = (path || '').toLowerCase();
     for (const [t, regex] of TYPE_ALIASES) {
-      if (regex.test(lower)) return t.toUpperCase();
+      if (regex.test(lower)) return t;
     }
     return pieceTypeFromName(path) || null;
   };
 
-  const detectColorFromPath = (path, node) => {
+  const detectColor = (path, node) => {
     const explicit = detectPieceColor(node);
     if (explicit) return explicit;
-    const matTagged = detectColorFromMaterialNames(node);
-    if (matTagged) return matTagged;
     if (COLOR_W.test(path)) return 'white';
     if (COLOR_B.test(path)) return 'black';
     const L = averageLuminance(node);
     return L >= 0.45 ? 'white' : 'black';
   };
 
-  const promotePieceRoot = (node, type) => {
-    let current = node;
-    let parent = current?.parent;
-    while (parent) {
-      const parentType = detectTypeFromPath(nodePath(parent));
-      if (parentType === type) {
-        current = parent;
-        parent = current.parent;
-      } else {
-        break;
-      }
-    }
-    return current;
-  };
-
-  const proto = { white: {}, black: {} };
-  const visited = new Set();
-
   root.traverse((node) => {
     if (!node) return;
-    const type = detectTypeFromPath(nodePath(node));
+    const path = nodePath(node);
+    if (node.isMesh) {
+      const colorForPalette = detectColor(path, node);
+      if (colorForPalette && Array.isArray(node.material)) {
+        palettes[colorForPalette].push(...node.material.filter(Boolean).map((m) => (m.clone ? m.clone() : m)));
+      } else if (colorForPalette && node.material) {
+        palettes[colorForPalette].push(node.material.clone ? node.material.clone() : node.material);
+      }
+    }
+    const type = detectType(path);
     if (!type) return;
-    const color = detectColorFromPath(nodePath(node), node);
+    const color = detectColor(path, node);
     if (!color || proto[color][type]) return;
-    const promoted = promotePieceRoot(node, type);
-    if (visited.has(promoted.uuid)) return;
-    visited.add(promoted.uuid);
-    proto[color][type] = promoted;
-  });
-
-  TYPES.forEach((type) => {
-    const w = proto.white[type];
-    const b = proto.black[type];
-    if (!w && b) proto.white[type] = b;
-    if (!b && w) proto.black[type] = w;
+    proto[color][type] = node;
   });
 
   const boards = [];
@@ -3619,7 +3504,15 @@ function extractChessSetAssets(scene, options = {}) {
       node.castShadow = false;
     }
     const path = nodePath(node);
-    if (detectTypeFromPath(path)) node.visible = false;
+    if (detectType(path)) node.visible = false;
+  });
+
+  const nodesToCull = [];
+  boardModel.traverse((node) => {
+    if (detectType(nodePath(node))) nodesToCull.push(node);
+  });
+  nodesToCull.forEach((node) => {
+    if (node?.parent) node.parent.remove(node);
   });
   boardModel.updateMatrixWorld(true);
 
@@ -3638,64 +3531,116 @@ function extractChessSetAssets(scene, options = {}) {
     -boardCenter.z
   );
 
-  const boardBox = new THREE.Box3().setFromObject(boardModel);
-  const boardTop = boardBox.max.y;
   const tileSize = Math.max(0.001, targetSize / 8);
-  const footprintRatio = Number.isFinite(pieceFootprintRatio) ? pieceFootprintRatio : 0.995;
+  const footprintRatio = Number.isFinite(pieceFootprintRatio) ? pieceFootprintRatio : 0.82;
   const preferredPieceYOffset = Number.isFinite(pieceYOffset)
     ? pieceYOffset
-    : Math.max(boardTop + PIECE_PLACEMENT_Y_OFFSET, PIECE_PLACEMENT_Y_OFFSET);
-
-  const normalizeAndSeatClone = (source) => {
-    const clone = source.clone(true);
-    clone.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true;
-        child.receiveShadow = false;
-      }
+    : PIECE_PLACEMENT_Y_OFFSET;
+  const applyPalette = (node, palette) => {
+    if (!node || !palette?.length) return;
+    const copyColor = (dst, src) => {
+      if (!dst || !src) return;
+      if (dst.color?.copy && src.color) dst.color.copy(src.color);
+      if (dst.emissive?.set) dst.emissive.set(0x000000);
+    };
+    node.traverse((child) => {
+      if (!child?.isMesh) return;
+      const base = Array.isArray(child.material) ? child.material : [child.material];
+      base.forEach((mat, idx) => {
+        const src = palette[idx % palette.length];
+        copyColor(mat, src);
+      });
     });
-    const box = new THREE.Box3().setFromObject(clone);
-    const size = box.getSize(new THREE.Vector3());
-    const footprint = Math.max(size.x, size.z) || 1;
-    const targetFootprint = tileSize * footprintRatio;
-    const scale = targetFootprint / footprint;
-    clone.scale.multiplyScalar(scale);
-    const scaledBox = new THREE.Box3().setFromObject(clone);
-    const lift = -scaledBox.min.y;
-    clone.position.y += lift;
-    const holder = new THREE.Group();
-    holder.add(clone);
-    holder.position.y = preferredPieceYOffset;
-    return holder;
   };
 
-  const piecePrototypes = { white: {}, black: {} };
-  TYPES.forEach((type) => {
-    const srcW = proto.white[type];
-    const srcB = proto.black[type];
-    if (srcW) {
-      const holder = normalizeAndSeatClone(srcW);
-      holder.userData = {
-        ...(holder.userData || {}),
-        __pieceStyleId: styleId,
-        __pieceType: type,
-        __pieceColor: 'white'
-      };
-      piecePrototypes.white[type] = holder;
-    }
-    if (srcB) {
-      const holder = normalizeAndSeatClone(srcB);
-      holder.userData = {
-        ...(holder.userData || {}),
-        __pieceStyleId: styleId,
-        __pieceType: type,
-        __pieceColor: 'black'
-      };
-      piecePrototypes.black[type] = holder;
-    }
-  });
+  const swapTypesBetweenColors = (types) => {
+    types.forEach((type) => {
+      const w = proto.white[type];
+      const b = proto.black[type];
+      if (w && b) {
+        const wFromB = cloneWithMaterials(b);
+        applyPalette(wFromB, palettes.white);
+        const bFromW = cloneWithMaterials(w);
+        applyPalette(bFromW, palettes.black);
+        proto.white[type] = wFromB;
+        proto.black[type] = bFromW;
+      } else if (w && !b) {
+        const bFromW = cloneWithMaterials(w);
+        applyPalette(bFromW, palettes.black);
+        proto.black[type] = bFromW;
+      } else if (!w && b) {
+        const wFromB = cloneWithMaterials(b);
+        applyPalette(wFromB, palettes.white);
+        proto.white[type] = wFromB;
+      }
+    });
+  };
 
-  return { boardModel, piecePrototypes, tileSize, pieceYOffset: preferredPieceYOffset };
+  const unifyWhiteToBlackForms = () => {
+    TYPES.forEach((type) => {
+      const bProto = proto.black[type];
+      if (!bProto) return;
+      const whitePalette = palettes.white.length ? palettes.white : palettes.black;
+      const wFromB = cloneWithMaterials(bProto);
+      applyPalette(wFromB, whitePalette);
+      proto.white[type] = wFromB;
+    });
+  };
+
+  const ensurePrototypes = () => {
+    ['white', 'black'].forEach((colorKey) => {
+      TYPES.forEach((type) => {
+        if (proto[colorKey][type]) return;
+        const other = colorKey === 'white' ? 'black' : 'white';
+        if (proto[other][type]) {
+          const c = cloneWithMaterials(proto[other][type]);
+          applyPalette(c, palettes[colorKey]);
+          proto[colorKey][type] = c;
+          return;
+        }
+        const anySame = TYPES.map((t) => proto[colorKey][t]).find(Boolean);
+        const anyOther = TYPES.map((t) => proto[other][t]).find(Boolean);
+        const source = anySame || anyOther;
+        if (source) {
+          const c = cloneWithMaterials(source);
+          applyPalette(c, palettes[colorKey].length ? palettes[colorKey] : palettes[other]);
+          proto[colorKey][type] = c;
+        }
+      });
+    });
+
+    swapTypesBetweenColors(['R', 'N', 'B']);
+    unifyWhiteToBlackForms();
+
+    ['white', 'black'].forEach((colorKey) => {
+      TYPES.forEach((type) => {
+        if (!proto[colorKey][type]) return;
+        const src = cloneWithMaterials(proto[colorKey][type]);
+        applyPalette(src, palettes[colorKey]);
+        const box = new THREE.Box3().setFromObject(src);
+        const size = box.getSize(new THREE.Vector3());
+        const footprint = Math.max(size.x, size.z) || 1;
+        const scale = (tileSize * footprintRatio) / footprint;
+        src.scale.setScalar(scale);
+        const scaledBox = new THREE.Box3().setFromObject(src);
+        const center = scaledBox.getCenter(new THREE.Vector3());
+        src.position.sub(center);
+        src.position.y -= scaledBox.min.y;
+        src.userData = { ...(src.userData || {}), __pieceStyleId: styleId, __pieceType: type };
+        src.traverse((child) => {
+          if (!child.isMesh) return;
+          child.castShadow = true;
+          child.userData = { ...(child.userData || {}), __pieceStyleId: styleId, __pieceType: type };
+        });
+        proto[colorKey][type] = src;
+      });
+    });
+  };
+
+  ensurePrototypes();
+
+  const assets = { boardModel, piecePrototypes: proto, tileSize, pieceYOffset: preferredPieceYOffset };
+  return assets;
 }
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
@@ -4117,7 +4062,7 @@ const BUILDERS = {
 };
 
 // ======================= Game logic ========================
-const START_FEN = 'RNBQKBNR/pppppppp/8/8/8/8/PPPPPPPP/rnbqkbnr';
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
 
 function parseFEN(fen) {
   const rows = fen.split('/');
@@ -4791,7 +4736,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
-    CUSTOMIZATION_SECTIONS[0]?.key ?? 'tableWood'
+    CUSTOMIZATION_SECTIONS[0]?.key ?? 'whitePieceStyle'
   );
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
@@ -5155,7 +5100,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
+    const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -5372,7 +5317,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
+    const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
     const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
     const initialPlayerFlag =
@@ -6102,24 +6047,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     };
 
-    const applyPieceSetAssets = (
-      assets,
-      setId = currentPieceSetId,
-      pieceStyleOption = paletteRef.current?.pieces
-    ) => {
+    const applyPieceSetAssets = (assets, setId = currentPieceSetId, pieceStyleOption = paletteRef.current?.pieces) => {
       const { boardModel, piecePrototypes } = assets || {};
-      const resolvedSetId = assets?.userData?.styleId || setId || currentPieceSetId;
-      currentPieceSetId = resolvedSetId;
+      currentPieceSetId = setId;
       currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
         ? assets.pieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
       const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
-      const preserveOriginalMaterials = Boolean(
-        pieceStyleOption?.preserveOriginalMaterials ||
-          assets?.userData?.preserveOriginalMaterials ||
-          PRESERVE_NATIVE_PIECE_IDS.has(resolvedSetId)
-      );
       if (currentBoardCleanup) {
         currentBoardCleanup();
         currentBoardCleanup = null;
@@ -6142,20 +6077,17 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        if (!preserveOriginalMaterials) {
-          if ((resolvedSetId || '').startsWith('beautifulGame')) {
-            harmonizeBeautifulGamePieces(
-              currentPiecePrototypes,
-              pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
-            );
-          }
-          applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
-          adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
+        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
+        if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
+          harmonizeBeautifulGamePieces(
+            currentPiecePrototypes,
+            pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
+          );
         }
-        paintPiecesFromPrototypes(piecePrototypes, resolvedSetId);
-        if (!preserveOriginalMaterials) {
-          applyHeadPresetToMeshes(allPieceMeshes, headPreset);
-        }
+        applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
+        adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
+        paintPiecesFromPrototypes(piecePrototypes, setId);
+        applyHeadPresetToMeshes(allPieceMeshes, headPreset);
       }
       if (arenaRef.current) {
         arenaRef.current.boardModel = currentBoardModel;
@@ -6813,7 +6745,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
                     <p className="mt-1 text-[0.7rem] text-white/70">
-                      Personalize the chairs and table finish.
+                    Personalize the board, pieces, chairs, and table finish.
                     </p>
                   </div>
                 <button
@@ -6850,7 +6782,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, board palette, and chess pieces.</p>
                     </div>
                     <button
                       type="button"
