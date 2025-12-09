@@ -303,14 +303,10 @@ const BASE_TENNIS_DIMENSIONS = { length: 23.77, width: 9.2 };
 const BASE_ARCADE_CAMERA = { height: 9, offset: 16 };
 const BASE_ARCADE_APRON = 4;
 const BASE_PLAYER_DEPTH = 1.5;
-const ARCADE_PHYSICS = {
+const SIMULATION_TICK = {
   baseStep: 1 / 120,
   maxSubsteps: 8,
-  gravity: -16.5,
-  airDecay: 0.9945,
-  restitution: 0.92,
-  wallRebound: 0.7,
-  floorFriction: 0.935
+  wallRebound: 0.7
 };
 
 function buildRoyalGrandstand() {
@@ -1380,18 +1376,21 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let cpuSwing = null;
     function respondToCourtImpact(impactSpeed) {
       const incoming = Math.max(0, impactSpeed);
-      const restitution = ARCADE_PHYSICS.restitution;
+      const restitution = physics.bounceRestitution ?? 0.92;
       vel.y = incoming * restitution;
 
       tangentVel.set(vel.x, 0, vel.z);
       spinSurfaceVel.set(-spin.z * ballR, 0, spin.x * ballR);
-      tangentVel.addScaledVector(spinSurfaceVel, 0.35);
-      tangentVel.multiplyScalar(ARCADE_PHYSICS.floorFriction);
+      const slipBlend = THREE.MathUtils.clamp((physics.spinSlip ?? 0.52) * 0.7, 0, 1);
+      tangentVel.addScaledVector(spinSurfaceVel, slipBlend);
+      const friction = THREE.MathUtils.clamp(1 - (physics.courtFriction ?? 0.18) * 0.65, 0.6, 0.98);
+      tangentVel.multiplyScalar(friction);
       if (tangentVel.lengthSq() < 0.01) tangentVel.set(0, 0, 0);
       vel.x = tangentVel.x;
       vel.z = tangentVel.z;
 
-      spin.multiplyScalar(physics.spinDamping);
+      const spinDamping = THREE.MathUtils.clamp(physics.spinDamping ?? 0.86, 0.6, 1);
+      spin.multiplyScalar(spinDamping);
     }
     let lastHitter = 'player';
     ball.position.copy(pos);
@@ -1646,27 +1645,36 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
 
     function placeCamera(dt = 0) {
       const broadcastProfile = broadcastProfileRef.current || BROADCAST_TECHNIQUES[0];
-      const pivot = new THREE.Vector3(0, 1.05, 0);
+      const pivot = new THREE.Vector3(0, 1.05 + (broadcastProfile.horizonLift ?? 0), 0);
       const orbitNormal = new THREE.Vector3(0, 1, 0);
-      const followStrength = 0.18;
+      const followStrength = broadcastProfile.followBlend ?? 0.7;
+      const rigYaw = broadcastProfile.rig?.yaw ?? 0;
+      const rigDir = new THREE.Vector3(Math.sin(rigYaw), 0, Math.cos(rigYaw));
+      const leadTime = broadcastProfile.leadTime ?? 0.32;
+      const leadPos = ball.position.clone().addScaledVector(vel, leadTime);
       const yLift = THREE.MathUtils.lerp(
         camHeight,
-        camHeight * 0.65,
-        Math.min((ball.position.y - 0.8) * 0.4, 1)
+        camHeight * (broadcastProfile.heightBoost ?? 0.5),
+        Math.min((ball.position.y - 0.8) * 0.35, 1)
       );
-      const depthLead = state.live ? THREE.MathUtils.clamp(vel.z * 0.22, -2.4, 3.6) : 0;
-      const cameraDepth = Math.max(ball.position.z + depthLead, 0) + camBack * (broadcastProfile.backMultiplier ?? 0.95);
-      const maxDepth = halfL - playerZ + camBack * 0.35;
-      cameraTarget.set(
-        THREE.MathUtils.clamp(ball.position.x * 0.9 + (broadcastProfile.sideBias ?? 0), -halfW, halfW),
+      const depthLead = state.live ? THREE.MathUtils.clamp(vel.z * 0.24, -2.8, 4.2) : 0;
+      const backOffset = camBack * (broadcastProfile.backMultiplier ?? 1) + (broadcastProfile.backOffset ?? 0);
+      const baseTarget = new THREE.Vector3(
+        THREE.MathUtils.clamp(ball.position.x * 0.92 + (broadcastProfile.sideBias ?? 0), -halfW, halfW),
         yLift,
-        THREE.MathUtils.clamp(cameraDepth, cameraMinZ, maxDepth)
+        Math.max(leadPos.z + depthLead, 0)
       );
+      cameraTarget.copy(baseTarget).addScaledVector(rigDir, -backOffset);
+      cameraTarget.y = Math.max(cameraTarget.y, 1.15);
+      const maxDepth = halfL - playerZ + camBack * 0.45;
+      cameraTarget.z = THREE.MathUtils.clamp(cameraTarget.z, cameraMinZ, maxDepth);
+
       const targetFromPivot = cameraTarget.clone().sub(pivot);
       targetFromPivot.applyAxisAngle(orbitNormal, orbitYaw);
       targetFromPivot.y = Math.max(targetFromPivot.y + orbitPitch * 0.8, 1.2);
       const targetWithOrbit = pivot.clone().add(targetFromPivot);
-      smoothCameraPos.lerp(targetWithOrbit, lerpBlend(followStrength, dt || FIXED));
+      const cameraBlend = lerpBlend((broadcastProfile.cameraLerp ?? 5.2) / 10, dt || FIXED);
+      smoothCameraPos.lerp(targetWithOrbit, cameraBlend);
       camera.position.copy(smoothCameraPos);
 
       const lookOffset = cameraLook.set(
@@ -1678,10 +1686,24 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       lookFromPivot.applyAxisAngle(orbitNormal, orbitYaw * 0.95);
       lookFromPivot.y = Math.max(lookFromPivot.y + orbitPitch * 0.6, 0.9);
       const lookWithOrbit = pivot.clone().add(lookFromPivot);
-      smoothCameraLook.lerp(lookWithOrbit, lerpBlend(followStrength, dt || FIXED));
+      const lookBlend = lerpBlend((broadcastProfile.lookLerp ?? followStrength), dt || FIXED);
+      smoothCameraLook.lerp(lookWithOrbit, lookBlend);
       camera.lookAt(smoothCameraLook);
 
-      const targetFov = THREE.MathUtils.clamp(60 + Math.abs(vel.z) * 0.12, 58, 72);
+      if (broadcastProfile.dynamicOrbit) {
+        const dyn = broadcastProfile.dynamicOrbit;
+        const targetYaw = THREE.MathUtils.clamp((ball.position.x / halfW) * (dyn.yawLimit ?? 0.5), -dyn.yawLimit, dyn.yawLimit);
+        orbitYaw = THREE.MathUtils.damp(orbitYaw, targetYaw * (dyn.yawScale ?? 0.4), dyn.smoothing ?? 3.5, dt || FIXED);
+        const heightRatio = THREE.MathUtils.clamp(ball.position.y / 3.2, 0, 1);
+        const targetPitch = THREE.MathUtils.clamp(
+          (dyn.pitchBase ?? 0.1) + heightRatio * (dyn.pitchRange ?? 0.28),
+          -(dyn.pitchLimit ?? 0.52),
+          dyn.pitchLimit ?? 0.52
+        );
+        orbitPitch = THREE.MathUtils.damp(orbitPitch, targetPitch, dyn.smoothing ?? 3.5, dt || FIXED);
+      }
+
+      const targetFov = THREE.MathUtils.clamp(60 + Math.abs(vel.z) * 0.12 + Math.abs(ball.position.y - 1.2) * 1.5, 58, 74);
       smoothFov = THREE.MathUtils.damp(smoothFov, targetFov, 3.5, dt || FIXED);
       camera.fov = smoothFov;
       camera.updateProjectionMatrix();
@@ -1832,6 +1854,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let lx = 0;
     let ly = 0;
     let st = 0;
+    let swipeSamples = [];
     const playerMoveTarget = new THREE.Vector2(0, playerZ);
 
     const playerCourtMinZ = 0.85;
@@ -1871,33 +1894,33 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     function swipeToShot(distX, distY, swipeTime, towardsEnemy = true) {
       const lateralScale = courtW / BASE_TENNIS_DIMENSIONS.width;
       const forwardScale = courtL / BASE_TENNIS_DIMENSIONS.length;
+      const touchProfile = touchProfileRef.current;
 
       const forwardMin = 4.8 * forwardScale;
       const forwardMax = 14.2 * forwardScale;
       const liftMin = 3.2;
       const liftMax = 9.4;
-      const lateralClampBase = 1.6 * lateralScale;
-      const lateralScaleFactor = 0.22;
+      const lateralClampBase = 1.6 * lateralScale * (touchProfile?.lateralAssist ?? 1);
+      const lateralScaleFactor = 0.22 * (touchProfile?.lateralAssist ?? 1);
 
-      const swipeT = Math.max(swipeTime, 0.08);
-      const speed = Math.hypot(distX, distY) / swipeT;
-      const clampedSpeed = THREE.MathUtils.clamp(speed, MIN_SWIPE_SPEED * 0.6, MAX_SWIPE_SPEED * 1.05);
-      const normalized = THREE.MathUtils.clamp(
-        (clampedSpeed - MIN_SWIPE_SPEED * 0.6) / (MAX_SWIPE_SPEED * 1.05 - MIN_SWIPE_SPEED * 0.6),
-        0,
-        1
-      );
+      const minSpeed = MIN_SWIPE_SPEED * (touchProfile?.minSwipeScale ?? 1);
+      const maxSpeed = MAX_SWIPE_SPEED * (touchProfile?.maxSwipeScale ?? 1);
+      const swipeT = Math.max(swipeTime, 0.06);
+      const speed = (Math.hypot(distX, distY) / swipeT) * (touchProfile?.swipeSensitivity ?? 1);
+      const clampedSpeed = THREE.MathUtils.clamp(speed, minSpeed * 0.6, maxSpeed * 1.05);
+      const normalized = THREE.MathUtils.clamp((clampedSpeed - minSpeed * 0.6) / (maxSpeed * 1.05 - minSpeed * 0.6), 0, 1);
 
-      const forward = THREE.MathUtils.lerp(forwardMin, forwardMax, normalized);
-      const lift = THREE.MathUtils.lerp(liftMin, liftMax, normalized);
-      const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 80), -lateralClampBase, lateralClampBase);
+      const forward = THREE.MathUtils.lerp(forwardMin, forwardMax, normalized) * (touchProfile?.forceAssist ?? 1);
+      const lift = THREE.MathUtils.lerp(liftMin, liftMax, normalized) * (touchProfile?.liftBias ?? 1);
+      const lateralInfluence = THREE.MathUtils.clamp(distX / Math.max(Math.abs(distY), 60), -lateralClampBase, lateralClampBase);
       const lateral = THREE.MathUtils.clamp(lateralInfluence * forward * lateralScaleFactor, -3.1 * lateralScale, 3.1 * lateralScale);
+      const curve = THREE.MathUtils.clamp(lateralInfluence * 140 * (touchProfile?.curveBias ?? 1), -180, 180);
 
       const direction = towardsEnemy ? -1 : 1;
-      return { forward: direction * forward, lift, lateral, normalized };
+      return { forward: direction * forward, lift, lateral, curve, normalized };
     }
 
-    function shotToSwing(shot) {
+    function shotToSwing(shot, contactPos) {
       const touchProfile = touchProfileRef.current;
       const depthScale = THREE.MathUtils.clamp((playerCourtMaxZ - playerCourtMinZ) / halfL, 0.82, 1.18);
       const courtScale = THREE.MathUtils.clamp(courtL / 23.77, 0.86, 1.16);
@@ -1908,14 +1931,21 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       const speed = dir.length();
       const normal = dir.normalize();
       const sideCurve = shot.curve ?? 0;
-      const topspin = THREE.MathUtils.lerp(6, 20, shot.normalized) * (touchProfile.topspinBias ?? 1) * (physics.spinBias ?? 1) * depthScale;
+      const topspin =
+        THREE.MathUtils.lerp(6, 20, shot.normalized) * (touchProfile.topspinBias ?? 1) * (physics.spinBias ?? 1) * depthScale;
       const curveAim = normal.clone();
-      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01 * aimAssist, -0.22, 0.22);
+      const contactBias = contactPos ? THREE.MathUtils.clamp((contactPos.x / halfW) * 0.18, -0.18, 0.18) : 0;
+      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01 * aimAssist + contactBias, -0.32, 0.32);
       curveAim.x = THREE.MathUtils.clamp(curveAim.x, -0.36 * aimTightness, 0.36 * aimTightness);
-      curveAim.z = Math.sign(curveAim.z || -1) * Math.max(Math.abs(curveAim.z), 0.62 + (depthScale - 1) * 0.18);
+      const forwardBias = contactPos ? THREE.MathUtils.clamp((contactPos.z / halfL) * 0.14, -0.12, 0.18) : 0;
+      curveAim.z = Math.sign(curveAim.z || -1) * Math.max(Math.abs(curveAim.z + forwardBias), 0.62 + (depthScale - 1) * 0.18);
       const forceAssist = (touchProfile.forceAssist ?? 1) * (physics.forceScale ?? 1) * courtScale * 0.94;
-      const liftBoost = -0.08 + ((touchProfile.liftBias ?? 1) - 1) * 0.35 + (depthScale - 1) * 0.12;
-      const aimBias = THREE.MathUtils.lerp(0.68, 0.95, Math.min(1, shot.normalized + 0.12));
+      const liftBoost =
+        -0.08 +
+        ((touchProfile.liftBias ?? 1) - 1) * 0.35 +
+        (depthScale - 1) * 0.12 +
+        (contactPos ? Math.max(0, contactPos.y - ballR) * 0.1 : 0);
+      const aimBias = THREE.MathUtils.lerp(0.68, 0.95, Math.min(1, shot.normalized + 0.12 + Math.abs(contactBias) * 0.3));
       return {
         normal,
         speed: speed * THREE.MathUtils.clamp(courtScale, 0.9, 1.14),
@@ -1935,6 +1965,12 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       };
     }
 
+    function recordSwipeSample(x, y) {
+      const now = performance.now();
+      swipeSamples.push({ x, y, t: now });
+      if (swipeSamples.length > 12) swipeSamples.shift();
+    }
+
     function onDown(e) {
       if (usingTouch && e.pointerType === 'touch') return;
       touching = true;
@@ -1946,6 +1982,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       sx = lx = e.clientX;
       sy = ly = e.clientY;
       st = performance.now();
+      swipeSamples = [];
+      recordSwipeSample(sx, sy);
       player.userData.swing = -0.55;
       player.userData.swingLR = 0;
     }
@@ -1954,6 +1992,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       if (usingTouch && e.pointerType === 'touch') return;
       lx = e.clientX;
       ly = e.clientY;
+      recordSwipeSample(lx, ly);
       const targetX = screenToCourt(e.clientX);
       const targetZ = screenToCourtZ(e.clientY);
       playerMoveTarget.set(targetX, targetZ);
@@ -2066,14 +2105,25 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       touching = false;
       const endX = evt?.clientX ?? lx;
       const endY = evt?.clientY ?? ly;
-      const distX = endX - sx;
-      const distY = sy - endY;
+      const now = performance.now();
+      recordSwipeSample(endX, endY);
+      const endSample = { x: endX, y: endY, t: now };
+      const windowStart = endSample.t - 160;
+      let first = swipeSamples.length ? swipeSamples[0] : { x: sx, y: sy, t: st };
+      for (let i = swipeSamples.length - 1; i >= 0; i -= 1) {
+        if (swipeSamples[i].t <= windowStart) {
+          first = swipeSamples[i];
+          break;
+        }
+      }
+      const distX = endSample.x - first.x;
+      const distY = first.y - endSample.y;
       if (distY < 18) return;
-      const duration = Math.max((performance.now() - st) / 1000, 0.12);
+      const duration = Math.max((endSample.t - first.t) / 1000, 0.08);
       if (!state.live) {
         if (state.serveBy === 'player') {
           const shot = swipeToShot(distX, distY, duration, true);
-          playerSwing = shotToSwing(shot);
+          playerSwing = shotToSwing(shot, pos.clone());
           markTrainingStep('swipeServe');
           setMsg(formatMsg(`Serve · ${playerLabel}`));
           player.userData.swing = 0.65 + 0.95 * (playerSwing.force || 0.5);
@@ -2093,7 +2143,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
         const reachableHeight = pos.y <= 3.6;
         if (ballOnPlayerSide && horizontalReach && reachableHeight) {
           const shot = swipeToShot(distX, distY, duration, true);
-          playerSwing = shotToSwing(shot);
+          playerSwing = shotToSwing(shot, pos.clone());
           player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
           player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
           lastHitter = 'player';
@@ -2344,16 +2394,18 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     function advanceBallState(dt) {
       const prevZ = pos.z;
       const prevY = pos.y;
-      const damping = Math.pow(ARCADE_PHYSICS.airDecay, dt / ARCADE_PHYSICS.baseStep);
-
-      vel.multiplyScalar(damping);
-      vel.y += ARCADE_PHYSICS.gravity * dt;
+      const drag = Math.exp(-(physics.airDrag ?? 0.13) * dt);
+      vel.multiplyScalar(drag);
+      const magnus = new THREE.Vector3().crossVectors(spin, vel).multiplyScalar((physics.lift ?? 0.1) * dt);
+      vel.add(magnus);
+      vel.y += (state.gravity ?? physics.gravity) * dt;
       pos.addScaledVector(vel, dt);
-      spin.multiplyScalar(Math.exp(-dt * 1.8));
+      const spinDamp = Math.pow(physics.spinDamping ?? 0.86, dt / SIMULATION_TICK.baseStep);
+      spin.multiplyScalar(spinDamp);
 
       if (Math.abs(pos.x) > halfW - ballR * 1.2) {
         pos.x = clampX(pos.x);
-        vel.x *= -ARCADE_PHYSICS.wallRebound;
+        vel.x *= -SIMULATION_TICK.wallRebound;
       }
 
       if (pos.y <= ballR) {
@@ -2418,15 +2470,15 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     }
 
     function simulateBallMotion(dt) {
-      const steps = Math.min(ARCADE_PHYSICS.maxSubsteps, Math.max(1, Math.ceil(dt / ARCADE_PHYSICS.baseStep)));
-      const stepDt = Math.min(dt / steps, ARCADE_PHYSICS.baseStep);
+      const steps = Math.min(SIMULATION_TICK.maxSubsteps, Math.max(1, Math.ceil(dt / SIMULATION_TICK.baseStep)));
+      const stepDt = Math.min(dt / steps, SIMULATION_TICK.baseStep);
       for (let i = 0; i < steps; i += 1) {
         if (!advanceBallState(stepDt)) return false;
       }
       return true;
     }
 
-    const FIXED = 1 / 120;
+    const FIXED = SIMULATION_TICK.baseStep;
     let acc = 0;
     let last = performance.now();
     let raf = 0;
