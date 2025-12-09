@@ -3479,8 +3479,9 @@ function extractChessSetAssets(scene, options = {}) {
     ['Q', /queen/i],
     ['K', /king/i]
   ];
-  const COLOR_W = /(\b|_)(white|ivory|light|w)(\b|_)/i;
-  const COLOR_B = /(\b|_)(black|ebony|dark|b)(\b|_)/i;
+  // Avoid single-letter tokens so piece names (e.g., bishop) are not misclassified by color.
+  const COLOR_W = /(\b|_)(white|ivory|light)(\b|_)/i;
+  const COLOR_B = /(\b|_)(black|ebony|dark)(\b|_)/i;
 
   const proto = { white: {}, black: {} };
   const palettes = { white: [], black: [] };
