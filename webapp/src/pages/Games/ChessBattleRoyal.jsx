@@ -2042,6 +2042,8 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
 function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!meshes) return;
   const list = Array.isArray(meshes) ? meshes : [meshes];
+  const resolveColorKey = (mesh) =>
+    mesh?.userData?.__pieceColor === 'black' || mesh?.userData?.w === false ? 'black' : 'white';
   if (pieceStyle?.preserveOriginalMaterials) {
     list.forEach((mesh) => {
       mesh?.traverse?.((child) => {
@@ -2137,7 +2139,7 @@ function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIE
 
   list.forEach((mesh) => {
     if (!mesh) return;
-    const colorKey = mesh.userData?.__pieceColor === 'black' ? 'black' : 'white';
+    const colorKey = resolveColorKey(mesh);
     recolorMesh(mesh, colorKey);
     accentize(mesh, colorKey);
   });
@@ -5280,7 +5282,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         arena.allPieceMeshes.forEach((group) => {
           const meshStyleId = group.userData?.__pieceStyleId;
           if (meshStyleId && PRESERVE_NATIVE_PIECE_IDS.has(meshStyleId)) return;
-          const colorKey = group.userData?.__pieceColor === 'black' ? 'black' : 'white';
+          const colorKey =
+            group.userData?.__pieceColor === 'black' || group.userData?.w === false
+              ? 'black'
+              : 'white';
           const materialSet = nextPieceMaterials[colorKey];
           if (!materialSet) return;
           group.traverse((child) => {
