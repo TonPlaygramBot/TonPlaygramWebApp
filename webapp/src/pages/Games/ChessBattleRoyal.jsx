@@ -2039,6 +2039,55 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
   });
 }
 
+function meshBase(root) {
+  let found = null;
+  root?.traverse?.((node) => {
+    if (found) return;
+    if (node?.isMesh) {
+      found = node.parent || root;
+    }
+  });
+  return found || root;
+}
+
+function relPath(base, node) {
+  const names = [];
+  let current = node;
+  while (current && current !== base) {
+    if (current.name) names.push(current.name);
+    current = current.parent;
+  }
+  return names.reverse().join('/');
+}
+
+function snapshotMaterialsRel(root) {
+  const base = meshBase(root);
+  const snapshot = new Map();
+  base?.traverse?.((node) => {
+    if (!node?.isMesh) return;
+    const key = relPath(base, node);
+    const material = node.material;
+    const cloneMaterial = (mat) => (mat?.clone ? mat.clone() : mat);
+    snapshot.set(key, Array.isArray(material) ? material.map(cloneMaterial) : cloneMaterial(material));
+  });
+  return snapshot;
+}
+
+function applyMaterialsRel(root, snapshot) {
+  if (!snapshot) return;
+  const base = meshBase(root);
+  base?.traverse?.((node) => {
+    if (!node?.isMesh) return;
+    const key = relPath(base, node);
+    if (!snapshot.has(key)) return;
+    const stored = snapshot.get(key);
+    const cloneMaterial = (mat) => (mat?.clone ? mat.clone() : mat);
+    node.material = Array.isArray(stored)
+      ? stored.map(cloneMaterial)
+      : cloneMaterial(stored);
+  });
+}
+
 function applyBeautifulGameStyleToMeshes(meshes, pieceStyle = BEAUTIFUL_GAME_PIECE_STYLE) {
   if (!meshes) return;
   const list = Array.isArray(meshes) ? meshes : [meshes];
@@ -3483,6 +3532,7 @@ function extractChessSetAssets(scene, options = {}) {
   const COLOR_B = /(\b|_)(black|ebony|dark|b)(\b|_)/i;
 
   const proto = { white: {}, black: {} };
+  const materialSnapshots = { white: {}, black: {} };
   const palettes = { white: [], black: [] };
 
   const nodePath = (node) => {
@@ -3528,6 +3578,7 @@ function extractChessSetAssets(scene, options = {}) {
     const color = detectColor(path, node);
     if (!color || proto[color][type]) return;
     proto[color][type] = node;
+    materialSnapshots[color][type] = snapshotMaterialsRel(node);
   });
 
   const boards = [];
@@ -3593,24 +3644,35 @@ function extractChessSetAssets(scene, options = {}) {
     });
   };
 
+  const applyColorMaterials = (node, colorKey, type) => {
+    if (!node) return;
+    const snapshot = materialSnapshots?.[colorKey]?.[type];
+    if (snapshot) {
+      applyMaterialsRel(node, snapshot);
+      return;
+    }
+    const palette = palettes[colorKey]?.length ? palettes[colorKey] : palettes[colorKey === 'white' ? 'black' : 'white'];
+    applyPalette(node, palette);
+  };
+
   const swapTypesBetweenColors = (types) => {
     types.forEach((type) => {
       const w = proto.white[type];
       const b = proto.black[type];
       if (w && b) {
         const wFromB = cloneWithMaterials(b);
-        applyPalette(wFromB, palettes.white);
+        applyColorMaterials(wFromB, 'white', type);
         const bFromW = cloneWithMaterials(w);
-        applyPalette(bFromW, palettes.black);
+        applyColorMaterials(bFromW, 'black', type);
         proto.white[type] = wFromB;
         proto.black[type] = bFromW;
       } else if (w && !b) {
         const bFromW = cloneWithMaterials(w);
-        applyPalette(bFromW, palettes.black);
+        applyColorMaterials(bFromW, 'black', type);
         proto.black[type] = bFromW;
       } else if (!w && b) {
         const wFromB = cloneWithMaterials(b);
-        applyPalette(wFromB, palettes.white);
+        applyColorMaterials(wFromB, 'white', type);
         proto.white[type] = wFromB;
       }
     });
@@ -3620,9 +3682,8 @@ function extractChessSetAssets(scene, options = {}) {
     TYPES.forEach((type) => {
       const bProto = proto.black[type];
       if (!bProto) return;
-      const whitePalette = palettes.white.length ? palettes.white : palettes.black;
       const wFromB = cloneWithMaterials(bProto);
-      applyPalette(wFromB, whitePalette);
+      applyColorMaterials(wFromB, 'white', type);
       proto.white[type] = wFromB;
     });
   };
@@ -3634,7 +3695,7 @@ function extractChessSetAssets(scene, options = {}) {
         const other = colorKey === 'white' ? 'black' : 'white';
         if (proto[other][type]) {
           const c = cloneWithMaterials(proto[other][type]);
-          applyPalette(c, palettes[colorKey]);
+          applyColorMaterials(c, colorKey, type);
           proto[colorKey][type] = c;
           return;
         }
@@ -3643,7 +3704,7 @@ function extractChessSetAssets(scene, options = {}) {
         const source = anySame || anyOther;
         if (source) {
           const c = cloneWithMaterials(source);
-          applyPalette(c, palettes[colorKey].length ? palettes[colorKey] : palettes[other]);
+          applyColorMaterials(c, colorKey, type);
           proto[colorKey][type] = c;
         }
       });
@@ -3656,7 +3717,10 @@ function extractChessSetAssets(scene, options = {}) {
       TYPES.forEach((type) => {
         if (!proto[colorKey][type]) return;
         const src = cloneWithMaterials(proto[colorKey][type]);
-        applyPalette(src, palettes[colorKey]);
+        applyColorMaterials(src, colorKey, type);
+        if (!materialSnapshots[colorKey][type]) {
+          materialSnapshots[colorKey][type] = snapshotMaterialsRel(src);
+        }
         const box = new THREE.Box3().setFromObject(src);
         const size = box.getSize(new THREE.Vector3());
         const footprint = Math.max(size.x, size.z) || 1;
