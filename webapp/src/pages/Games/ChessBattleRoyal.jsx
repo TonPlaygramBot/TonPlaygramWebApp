@@ -3217,89 +3217,6 @@ function buildPolygonalFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-function makeProceduralPieceMaterial(hex, name) {
-  const mat = new THREE.MeshStandardMaterial({ color: hex, metalness: 0.1, roughness: 0.45 });
-  mat.name = name;
-  return mat;
-}
-
-function normalizeAndSeatProceduralPiece(group, targetFootprint, seatY) {
-  const box = new THREE.Box3().setFromObject(group);
-  const size = box.getSize(new THREE.Vector3());
-  const footprint = Math.max(size.x, size.z) || 1;
-  const scale = targetFootprint / footprint;
-  group.scale.multiplyScalar(scale);
-  const adjusted = new THREE.Box3().setFromObject(group);
-  const lift = -adjusted.min.y;
-  group.position.y += lift;
-  const holder = new THREE.Group();
-  holder.add(group);
-  holder.position.y = seatY;
-  holder.traverse((child) => {
-    if (child.isMesh) {
-      child.castShadow = true;
-      child.receiveShadow = false;
-    }
-  });
-  return holder;
-}
-
-function buildBattleRoyalProceduralPiece(type, color, targetFootprint, seatY) {
-  const material =
-    color === 'white' ? makeProceduralPieceMaterial(0xe7e9ee, 'Ivory') : makeProceduralPieceMaterial(0x111418, 'Dark Ebony');
-  const g = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.12, 24), material);
-  base.position.y = 0.06;
-  g.add(base);
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.65, 24), material);
-  body.position.y = 0.43;
-  g.add(body);
-
-  if (type === 'P') {
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 18), material);
-    head.position.y = 0.92;
-    g.add(head);
-  }
-  if (type === 'R') {
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 12), material);
-    top.position.y = 0.95;
-    g.add(top);
-  }
-  if (type === 'N') {
-    const head = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15, 0.05, 50, 8), material);
-    head.position.y = 1.0;
-    g.add(head);
-  }
-  if (type === 'B') {
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.35, 24), material);
-    cone.position.y = 1.0;
-    g.add(cone);
-  }
-  if (type === 'Q') {
-    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 24, 1, true), material);
-    crown.position.y = 1.05;
-    g.add(crown);
-  }
-  if (type === 'K') {
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.15, 24), material);
-    cap.position.y = 1.0;
-    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), material);
-    crossV.position.y = 1.2;
-    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), material);
-    crossH.position.y = 1.2;
-    g.add(cap, crossV, crossH);
-  }
-
-  const holder = normalizeAndSeatProceduralPiece(g, targetFootprint, seatY);
-  holder.userData = {
-    ...(holder.userData || {}),
-    __pieceColor: color,
-    __pieceStyleId: 'proceduralBattle',
-    type
-  };
-  return holder;
-}
-
 function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
   const boardSize = tile * 8;
@@ -3330,21 +3247,13 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   border.receiveShadow = true;
   boardGroup.add(border);
 
-  const targetFootprint = tile * 0.995;
-  const seatY = tile * 0.18;
-  const piecePrototypes = { white: {}, black: {} };
-  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
-    piecePrototypes.white[type] = buildBattleRoyalProceduralPiece(type, 'white', targetFootprint, seatY);
-    piecePrototypes.black[type] = buildBattleRoyalProceduralPiece(type, 'black', targetFootprint, seatY);
-  });
-
   boardGroup.userData = { ...(boardGroup.userData || {}), proceduralAssets: true, styleId: 'proceduralBattle' };
 
   return {
     boardModel: boardGroup,
-    piecePrototypes,
+    piecePrototypes: { white: {}, black: {} },
     tileSize: tile,
-    pieceYOffset: seatY,
+    pieceYOffset: BOARD.baseH + PIECE_PLACEMENT_Y_OFFSET,
     userData: { proceduralAssets: true, styleId: 'proceduralBattle' }
   };
 }
@@ -3492,19 +3401,15 @@ function extractChessSetAssets(scene, options = {}) {
 
   const TYPES = ['P', 'R', 'N', 'B', 'Q', 'K'];
   const TYPE_ALIASES = [
-    ['P', /pawn/i],
-    ['R', /rook|castle/i],
-    ['N', /knight|horse/i],
-    ['B', /bishop/i],
-    ['Q', /queen/i],
-    ['K', /king/i]
+    ['p', /pawn/],
+    ['r', /rook|castle/],
+    ['n', /knight|horse/],
+    ['b', /bishop/],
+    ['q', /queen/],
+    ['k', /king/]
   ];
-  // Avoid single-letter tokens so piece names (e.g., bishop) are not misclassified by color.
   const COLOR_W = /(\b|_)(white|ivory|light)(\b|_)/i;
   const COLOR_B = /(\b|_)(black|ebony|dark)(\b|_)/i;
-
-  const proto = { white: {}, black: {} };
-  const palettes = { white: [], black: [] };
 
   const nodePath = (node) => {
     const names = [];
@@ -3516,15 +3421,15 @@ function extractChessSetAssets(scene, options = {}) {
     return names.reverse().join('/');
   };
 
-  const detectType = (path) => {
+  const detectTypeFromPath = (path) => {
     const lower = (path || '').toLowerCase();
     for (const [t, regex] of TYPE_ALIASES) {
-      if (regex.test(lower)) return t;
+      if (regex.test(lower)) return t.toUpperCase();
     }
     return pieceTypeFromName(path) || null;
   };
 
-  const detectColor = (path, node) => {
+  const detectColorFromPath = (path, node) => {
     const explicit = detectPieceColor(node);
     if (explicit) return explicit;
     const matTagged = detectColorFromMaterialNames(node);
@@ -3535,22 +3440,41 @@ function extractChessSetAssets(scene, options = {}) {
     return L >= 0.45 ? 'white' : 'black';
   };
 
-  root.traverse((node) => {
-    if (!node) return;
-    const path = nodePath(node);
-    if (node.isMesh) {
-      const colorForPalette = detectColor(path, node);
-      if (colorForPalette && Array.isArray(node.material)) {
-        palettes[colorForPalette].push(...node.material.filter(Boolean).map((m) => (m.clone ? m.clone() : m)));
-      } else if (colorForPalette && node.material) {
-        palettes[colorForPalette].push(node.material.clone ? node.material.clone() : node.material);
+  const promotePieceRoot = (node, type) => {
+    let current = node;
+    let parent = current?.parent;
+    while (parent) {
+      const parentType = detectTypeFromPath(nodePath(parent));
+      if (parentType === type) {
+        current = parent;
+        parent = current.parent;
+      } else {
+        break;
       }
     }
-    const type = detectType(path);
+    return current;
+  };
+
+  const proto = { white: {}, black: {} };
+  const visited = new Set();
+
+  root.traverse((node) => {
+    if (!node) return;
+    const type = detectTypeFromPath(nodePath(node));
     if (!type) return;
-    const color = detectColor(path, node);
+    const color = detectColorFromPath(nodePath(node), node);
     if (!color || proto[color][type]) return;
-    proto[color][type] = node;
+    const promoted = promotePieceRoot(node, type);
+    if (visited.has(promoted.uuid)) return;
+    visited.add(promoted.uuid);
+    proto[color][type] = promoted;
+  });
+
+  TYPES.forEach((type) => {
+    const w = proto.white[type];
+    const b = proto.black[type];
+    if (!w && b) proto.white[type] = b;
+    if (!b && w) proto.black[type] = w;
   });
 
   const boards = [];
@@ -3567,15 +3491,7 @@ function extractChessSetAssets(scene, options = {}) {
       node.castShadow = false;
     }
     const path = nodePath(node);
-    if (detectType(path)) node.visible = false;
-  });
-
-  const nodesToCull = [];
-  boardModel.traverse((node) => {
-    if (detectType(nodePath(node))) nodesToCull.push(node);
-  });
-  nodesToCull.forEach((node) => {
-    if (node?.parent) node.parent.remove(node);
+    if (detectTypeFromPath(path)) node.visible = false;
   });
   boardModel.updateMatrixWorld(true);
 
@@ -3594,116 +3510,64 @@ function extractChessSetAssets(scene, options = {}) {
     -boardCenter.z
   );
 
+  const boardBox = new THREE.Box3().setFromObject(boardModel);
+  const boardTop = boardBox.max.y;
   const tileSize = Math.max(0.001, targetSize / 8);
-  const footprintRatio = Number.isFinite(pieceFootprintRatio) ? pieceFootprintRatio : 0.82;
+  const footprintRatio = Number.isFinite(pieceFootprintRatio) ? pieceFootprintRatio : 0.995;
   const preferredPieceYOffset = Number.isFinite(pieceYOffset)
     ? pieceYOffset
-    : PIECE_PLACEMENT_Y_OFFSET;
-  const applyPalette = (node, palette) => {
-    if (!node || !palette?.length) return;
-    const copyColor = (dst, src) => {
-      if (!dst || !src) return;
-      if (dst.color?.copy && src.color) dst.color.copy(src.color);
-      if (dst.emissive?.set) dst.emissive.set(0x000000);
-    };
-    node.traverse((child) => {
-      if (!child?.isMesh) return;
-      const base = Array.isArray(child.material) ? child.material : [child.material];
-      base.forEach((mat, idx) => {
-        const src = palette[idx % palette.length];
-        copyColor(mat, src);
-      });
-    });
-  };
+    : Math.max(boardTop + PIECE_PLACEMENT_Y_OFFSET, PIECE_PLACEMENT_Y_OFFSET);
 
-  const swapTypesBetweenColors = (types) => {
-    types.forEach((type) => {
-      const w = proto.white[type];
-      const b = proto.black[type];
-      if (w && b) {
-        const wFromB = cloneWithMaterials(b);
-        applyPalette(wFromB, palettes.white);
-        const bFromW = cloneWithMaterials(w);
-        applyPalette(bFromW, palettes.black);
-        proto.white[type] = wFromB;
-        proto.black[type] = bFromW;
-      } else if (w && !b) {
-        const bFromW = cloneWithMaterials(w);
-        applyPalette(bFromW, palettes.black);
-        proto.black[type] = bFromW;
-      } else if (!w && b) {
-        const wFromB = cloneWithMaterials(b);
-        applyPalette(wFromB, palettes.white);
-        proto.white[type] = wFromB;
+  const normalizeAndSeatClone = (source) => {
+    const clone = source.clone(true);
+    clone.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true;
+        child.receiveShadow = false;
       }
     });
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = box.getSize(new THREE.Vector3());
+    const footprint = Math.max(size.x, size.z) || 1;
+    const targetFootprint = tileSize * footprintRatio;
+    const scale = targetFootprint / footprint;
+    clone.scale.multiplyScalar(scale);
+    const scaledBox = new THREE.Box3().setFromObject(clone);
+    const lift = -scaledBox.min.y;
+    clone.position.y += lift;
+    const holder = new THREE.Group();
+    holder.add(clone);
+    holder.position.y = preferredPieceYOffset;
+    return holder;
   };
 
-  const unifyWhiteToBlackForms = () => {
-    TYPES.forEach((type) => {
-      const bProto = proto.black[type];
-      if (!bProto) return;
-      const whitePalette = palettes.white.length ? palettes.white : palettes.black;
-      const wFromB = cloneWithMaterials(bProto);
-      applyPalette(wFromB, whitePalette);
-      proto.white[type] = wFromB;
-    });
-  };
+  const piecePrototypes = { white: {}, black: {} };
+  TYPES.forEach((type) => {
+    const srcW = proto.white[type];
+    const srcB = proto.black[type];
+    if (srcW) {
+      const holder = normalizeAndSeatClone(srcW);
+      holder.userData = {
+        ...(holder.userData || {}),
+        __pieceStyleId: styleId,
+        __pieceType: type,
+        __pieceColor: 'white'
+      };
+      piecePrototypes.white[type] = holder;
+    }
+    if (srcB) {
+      const holder = normalizeAndSeatClone(srcB);
+      holder.userData = {
+        ...(holder.userData || {}),
+        __pieceStyleId: styleId,
+        __pieceType: type,
+        __pieceColor: 'black'
+      };
+      piecePrototypes.black[type] = holder;
+    }
+  });
 
-  const ensurePrototypes = () => {
-    ['white', 'black'].forEach((colorKey) => {
-      TYPES.forEach((type) => {
-        if (proto[colorKey][type]) return;
-        const other = colorKey === 'white' ? 'black' : 'white';
-        if (proto[other][type]) {
-          const c = cloneWithMaterials(proto[other][type]);
-          applyPalette(c, palettes[colorKey]);
-          proto[colorKey][type] = c;
-          return;
-        }
-        const anySame = TYPES.map((t) => proto[colorKey][t]).find(Boolean);
-        const anyOther = TYPES.map((t) => proto[other][t]).find(Boolean);
-        const source = anySame || anyOther;
-        if (source) {
-          const c = cloneWithMaterials(source);
-          applyPalette(c, palettes[colorKey].length ? palettes[colorKey] : palettes[other]);
-          proto[colorKey][type] = c;
-        }
-      });
-    });
-
-    swapTypesBetweenColors(['R', 'N', 'B']);
-    unifyWhiteToBlackForms();
-
-    ['white', 'black'].forEach((colorKey) => {
-      TYPES.forEach((type) => {
-        if (!proto[colorKey][type]) return;
-        const src = cloneWithMaterials(proto[colorKey][type]);
-        applyPalette(src, palettes[colorKey]);
-        const box = new THREE.Box3().setFromObject(src);
-        const size = box.getSize(new THREE.Vector3());
-        const footprint = Math.max(size.x, size.z) || 1;
-        const scale = (tileSize * footprintRatio) / footprint;
-        src.scale.setScalar(scale);
-        const scaledBox = new THREE.Box3().setFromObject(src);
-        const center = scaledBox.getCenter(new THREE.Vector3());
-        src.position.sub(center);
-        src.position.y -= scaledBox.min.y;
-        src.userData = { ...(src.userData || {}), __pieceStyleId: styleId, __pieceType: type };
-        src.traverse((child) => {
-          if (!child.isMesh) return;
-          child.castShadow = true;
-          child.userData = { ...(child.userData || {}), __pieceStyleId: styleId, __pieceType: type };
-        });
-        proto[colorKey][type] = src;
-      });
-    });
-  };
-
-  ensurePrototypes();
-
-  const assets = { boardModel, piecePrototypes: proto, tileSize, pieceYOffset: preferredPieceYOffset };
-  return assets;
+  return { boardModel, piecePrototypes, tileSize, pieceYOffset: preferredPieceYOffset };
 }
 
 function extractBeautifulGameAssets(scene, targetBoardSize, options = {}) {
