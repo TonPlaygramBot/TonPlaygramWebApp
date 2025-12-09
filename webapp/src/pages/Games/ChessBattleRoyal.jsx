@@ -445,10 +445,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
 
 const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
 
-const DEFAULT_PIECE_STYLE =
-  BEAUTIFUL_GAME_COLOR_VARIANTS.find((variant) => variant.id === BEAUTIFUL_GAME_AUTHENTIC_ID)?.style ||
-  BEAUTIFUL_GAME_PIECE_STYLE;
-const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_AUTHENTIC_ID;
+const DEFAULT_PIECE_STYLE = { ...BASE_PIECE_STYLE };
+const DEFAULT_PIECE_SET_ID = 'beautifulGameClassic';
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
@@ -649,19 +647,29 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 });
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
-  BEAUTIFUL_GAME_COLOR_VARIANTS.reduce((list, variant) => {
-    const signature = pieceStyleSignature(variant.style);
-    if (list.some((option) => pieceStyleSignature(option.style) === signature)) {
-      return list;
-    }
-    list.push({
-      id: variant.id,
-      label: variant.label,
-      style: variant.style,
-      loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-    });
-    return list;
-  }, [])
+  [
+    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
+    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
+    { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
+    { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
+    { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
+    { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
+    { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
+  ].map((preset) => ({
+    ...preset,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: preset.color },
+      black: { ...BASE_PIECE_STYLE.black, color: preset.color },
+      accent: BASE_PIECE_STYLE.accent,
+      goldAccent: BASE_PIECE_STYLE.goldAccent,
+      whiteAccent: BASE_PIECE_STYLE.whiteAccent,
+      blackAccent: BASE_PIECE_STYLE.blackAccent
+    },
+    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+  }))
 );
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
@@ -3189,6 +3197,138 @@ function buildPolygonalFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
+function makeProceduralPieceMaterial(hex, name) {
+  const mat = new THREE.MeshStandardMaterial({ color: hex, metalness: 0.1, roughness: 0.45 });
+  mat.name = name;
+  return mat;
+}
+
+function normalizeAndSeatProceduralPiece(group, targetFootprint, seatY) {
+  const box = new THREE.Box3().setFromObject(group);
+  const size = box.getSize(new THREE.Vector3());
+  const footprint = Math.max(size.x, size.z) || 1;
+  const scale = targetFootprint / footprint;
+  group.scale.multiplyScalar(scale);
+  const adjusted = new THREE.Box3().setFromObject(group);
+  const lift = -adjusted.min.y;
+  group.position.y += lift;
+  const holder = new THREE.Group();
+  holder.add(group);
+  holder.position.y = seatY;
+  holder.traverse((child) => {
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = false;
+    }
+  });
+  return holder;
+}
+
+function buildBattleRoyalProceduralPiece(type, color, targetFootprint, seatY) {
+  const material =
+    color === 'white' ? makeProceduralPieceMaterial(0xe7e9ee, 'Ivory') : makeProceduralPieceMaterial(0x111418, 'Dark Ebony');
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.12, 24), material);
+  base.position.y = 0.06;
+  g.add(base);
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.65, 24), material);
+  body.position.y = 0.43;
+  g.add(body);
+
+  if (type === 'P') {
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 18), material);
+    head.position.y = 0.92;
+    g.add(head);
+  }
+  if (type === 'R') {
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 12), material);
+    top.position.y = 0.95;
+    g.add(top);
+  }
+  if (type === 'N') {
+    const head = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15, 0.05, 50, 8), material);
+    head.position.y = 1.0;
+    g.add(head);
+  }
+  if (type === 'B') {
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.35, 24), material);
+    cone.position.y = 1.0;
+    g.add(cone);
+  }
+  if (type === 'Q') {
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 24, 1, true), material);
+    crown.position.y = 1.05;
+    g.add(crown);
+  }
+  if (type === 'K') {
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.15, 24), material);
+    cap.position.y = 1.0;
+    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), material);
+    crossV.position.y = 1.2;
+    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), material);
+    crossH.position.y = 1.2;
+    g.add(cap, crossV, crossH);
+  }
+
+  const holder = normalizeAndSeatProceduralPiece(g, targetFootprint, seatY);
+  holder.userData = {
+    ...(holder.userData || {}),
+    __pieceColor: color,
+    __pieceStyleId: 'proceduralBattle',
+    type
+  };
+  return holder;
+}
+
+function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const boardSize = tile * 8;
+  const half = boardSize / 2;
+  const boardGroup = new THREE.Group();
+
+  const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x5e4529, metalness: 0.2, roughness: 0.6 });
+  for (let r = 0; r < 8; r += 1) {
+    for (let c = 0; c < 8; c += 1) {
+      const isLight = (r + c) % 2 === 0;
+      const tileMesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), isLight ? light : dark);
+      tileMesh.rotation.x = -Math.PI / 2;
+      tileMesh.position.set(-half + c * tile + tile / 2, 0.001, -half + r * tile + tile / 2);
+      tileMesh.name = `tile_${r}_${c}`;
+      tileMesh.userData = { r, c };
+      tileMesh.receiveShadow = true;
+      boardGroup.add(tileMesh);
+    }
+  }
+
+  const border = new THREE.Mesh(
+    new THREE.BoxGeometry(boardSize + tile * 0.2, tile * 0.08, boardSize + tile * 0.2),
+    new THREE.MeshStandardMaterial({ color: 0x3a2f1f, metalness: 0.2, roughness: 0.7 })
+  );
+  border.position.y = -tile * 0.04;
+  border.name = 'frame';
+  border.receiveShadow = true;
+  boardGroup.add(border);
+
+  const targetFootprint = tile * 0.995;
+  const seatY = tile * 0.18;
+  const piecePrototypes = { white: {}, black: {} };
+  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+    piecePrototypes.white[type] = buildBattleRoyalProceduralPiece(type, 'white', targetFootprint, seatY);
+    piecePrototypes.black[type] = buildBattleRoyalProceduralPiece(type, 'black', targetFootprint, seatY);
+  });
+
+  boardGroup.userData = { ...(boardGroup.userData || {}), proceduralAssets: true, styleId: 'proceduralBattle' };
+
+  return {
+    boardModel: boardGroup,
+    piecePrototypes,
+    tileSize: tile,
+    pieceYOffset: seatY,
+    userData: { proceduralAssets: true, styleId: 'proceduralBattle' }
+  };
+}
+
 async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
   const timeoutMs = 35000;
   const withTimeout = (promise) =>
@@ -3220,7 +3360,8 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
   }
 
-  throw new Error('ABeautifulGame assets are unavailable');
+  console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
+  return buildBattleRoyalProceduralAssets(targetBoardSize);
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
