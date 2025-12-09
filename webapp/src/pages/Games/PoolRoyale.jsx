@@ -418,7 +418,7 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.14; // trim fascia span slightly so the middle plates sit closer to the pocket centres without widening the rounded pocket edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.28; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.34; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
@@ -4109,7 +4109,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.0205; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
@@ -15170,80 +15170,81 @@ function PoolRoyaleGame({
       // Loop
       let lastStepTime = performance.now();
       const step = (now) => {
-        const frameTiming = frameTimingRef.current;
-        const targetFrameTime =
-          frameTiming && Number.isFinite(frameTiming.targetMs)
-            ? frameTiming.targetMs
-            : 1000 / 60;
-        const maxFrameTime =
-          frameTiming && Number.isFinite(frameTiming.maxMs)
-            ? frameTiming.maxMs
-            : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
-        const rawDelta = Math.max(now - lastStepTime, 0);
-        const deltaMs = Math.min(rawDelta, maxFrameTime);
-        const appliedDeltaMs = deltaMs;
-        const deltaSeconds = appliedDeltaMs / 1000;
-        coinTicker.update(deltaSeconds);
-        dynamicTextureEntries.forEach((entry) => {
-          entry.accumulator += deltaSeconds;
-          if (entry.accumulator < entry.minInterval) {
-            return;
+        try {
+          const frameTiming = frameTimingRef.current;
+          const targetFrameTime =
+            frameTiming && Number.isFinite(frameTiming.targetMs)
+              ? frameTiming.targetMs
+              : 1000 / 60;
+          const maxFrameTime =
+            frameTiming && Number.isFinite(frameTiming.maxMs)
+              ? frameTiming.maxMs
+              : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+          const rawDelta = Math.max(now - lastStepTime, 0);
+          const deltaMs = Math.min(rawDelta, maxFrameTime);
+          const appliedDeltaMs = deltaMs;
+          const deltaSeconds = appliedDeltaMs / 1000;
+          coinTicker.update(deltaSeconds);
+          dynamicTextureEntries.forEach((entry) => {
+            entry.accumulator += deltaSeconds;
+            if (entry.accumulator < entry.minInterval) {
+              return;
+            }
+            const elapsed = entry.accumulator;
+            entry.accumulator = 0;
+            entry.update(elapsed);
+          });
+          const frameScaleBase =
+            targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
+          const frameScale = Math.min(
+            MAX_FRAME_SCALE,
+            Math.max(frameScaleBase, MIN_FRAME_SCALE)
+          );
+          const physicsSubsteps = Math.min(
+            MAX_PHYSICS_SUBSTEPS,
+            Math.max(1, Math.ceil(frameScale))
+          );
+          const subStepScale = frameScale / physicsSubsteps;
+          lastStepTime = now;
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z).normalize();
+          const cameraBlend = THREE.MathUtils.clamp(
+            cameraBlendRef.current ?? 1,
+            0,
+            1
+          );
+          const baseAimLerp = THREE.MathUtils.lerp(
+            CUE_VIEW_AIM_LINE_LERP,
+            STANDING_VIEW_AIM_LINE_LERP,
+            cameraBlend
+          );
+          const aimLerpFactor = chalkAssistTargetRef.current
+            ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
+            : baseAimLerp;
+          if (!lookModeRef.current) {
+            aimDir.lerp(tmpAim, aimLerpFactor);
           }
-          const elapsed = entry.accumulator;
-          entry.accumulator = 0;
-          entry.update(elapsed);
-        });
-        const frameScaleBase =
-          targetFrameTime > 0 ? appliedDeltaMs / targetFrameTime : 1;
-        const frameScale = Math.min(
-          MAX_FRAME_SCALE,
-          Math.max(frameScaleBase, MIN_FRAME_SCALE)
-        );
-        const physicsSubsteps = Math.min(
-          MAX_PHYSICS_SUBSTEPS,
-          Math.max(1, Math.ceil(frameScale))
-        );
-        const subStepScale = frameScale / physicsSubsteps;
-        lastStepTime = now;
-        camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z).normalize();
-        const cameraBlend = THREE.MathUtils.clamp(
-          cameraBlendRef.current ?? 1,
-          0,
-          1
-        );
-        const baseAimLerp = THREE.MathUtils.lerp(
-          CUE_VIEW_AIM_LINE_LERP,
-          STANDING_VIEW_AIM_LINE_LERP,
-          cameraBlend
-        );
-        const aimLerpFactor = chalkAssistTargetRef.current
-          ? Math.min(baseAimLerp, CHALK_AIM_LERP_SLOW)
-          : baseAimLerp;
-        if (!lookModeRef.current) {
-          aimDir.lerp(tmpAim, aimLerpFactor);
-        }
-        const appliedSpin = applySpinConstraints(aimDir, true);
-        const ranges = spinRangeRef.current || {};
-        const newCollisions = new Set();
-        let shouldSlowAim = false;
-        // Aiming vizual
-        const currentHud = hudRef.current;
-        const isPlayerTurn = currentHud?.turn === 0;
-        const isAiTurn = currentHud?.turn === 1;
-        const previewingAiShot = aiShotPreviewRef.current;
-        if (isAiTurn) {
-          autoPlaceAiCueBall();
-        }
-        const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
-        const canShowCue =
-          allStopped(balls) &&
-          cue?.active &&
-          !(currentHud?.over) &&
-          !(inHandPlacementModeRef.current) &&
-          (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
+          const appliedSpin = applySpinConstraints(aimDir, true);
+          const ranges = spinRangeRef.current || {};
+          const newCollisions = new Set();
+          let shouldSlowAim = false;
+          // Aiming vizual
+          const currentHud = hudRef.current;
+          const isPlayerTurn = currentHud?.turn === 0;
+          const isAiTurn = currentHud?.turn === 1;
+          const previewingAiShot = aiShotPreviewRef.current;
+          if (isAiTurn) {
+            autoPlaceAiCueBall();
+          }
+          const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
+          const canShowCue =
+            allStopped(balls) &&
+            cue?.active &&
+            !(currentHud?.over) &&
+            !(inHandPlacementModeRef.current) &&
+            (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
 
-        if (canShowCue && (isPlayerTurn || previewingAiShot)) {
+          if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
           if (baseAimDir.lengthSq() < 1e-8) baseAimDir.set(0, 0, 1);
           else baseAimDir.normalize();
@@ -16194,9 +16195,13 @@ function PoolRoyaleGame({
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
+        } catch (err) {
+          console.error('Pool Royale render step failed:', err);
+        } finally {
           rafRef.current = requestAnimationFrame(step);
-        };
-        step(performance.now());
+        }
+      };
+      step(performance.now());
 
       // Resize
         const onResize = () => {
