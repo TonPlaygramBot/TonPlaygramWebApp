@@ -2375,6 +2375,30 @@ function detectPieceColor(node) {
   return null;
 }
 
+function detectColorFromMaterialNames(node) {
+  const MATERIAL_W = /(\b|_)(ivory)(\b|_)/i;
+  const MATERIAL_B = /(\b|_)(dark\s*ebony|ebony)(\b|_)/i;
+  let detected = null;
+
+  node.traverse((child) => {
+    if (detected || !child?.isMesh) return;
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const mat of materials) {
+      const matName = (mat?.name || '').toString();
+      if (MATERIAL_W.test(matName)) {
+        detected = 'white';
+        break;
+      }
+      if (MATERIAL_B.test(matName)) {
+        detected = 'black';
+        break;
+      }
+    }
+  });
+
+  return detected;
+}
+
 function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
   const baseRadius = 0.38 * scale;
   const baseHeight = 0.18 * scale;
@@ -3507,6 +3531,8 @@ function extractChessSetAssets(scene, options = {}) {
   const detectColor = (path, node) => {
     const explicit = detectPieceColor(node);
     if (explicit) return explicit;
+    const matTagged = detectColorFromMaterialNames(node);
+    if (matTagged) return matTagged;
     if (COLOR_W.test(path)) return 'white';
     if (COLOR_B.test(path)) return 'black';
     const L = averageLuminance(node);
