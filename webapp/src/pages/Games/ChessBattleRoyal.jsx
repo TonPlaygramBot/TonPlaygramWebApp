@@ -859,10 +859,6 @@ const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.i
 const PRESERVE_NATIVE_PIECE_IDS = new Set();
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'whitePieceStyle', label: 'Pieces P1 (bottom)', options: PIECE_STYLE_OPTIONS },
-  { key: 'blackPieceStyle', label: 'Pieces P2 (top)', options: PIECE_STYLE_OPTIONS },
-  { key: 'headStyle', label: 'Heads (Pawn & Bishop)', options: HEAD_PRESET_OPTIONS },
-  { key: 'boardColor', label: 'Chess Board', options: BEAUTIFUL_GAME_BOARD_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
@@ -880,11 +876,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['boardColor', BEAUTIFUL_GAME_BOARD_OPTIONS.length],
-    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['headStyle', HEAD_PRESET_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -893,6 +885,10 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
+  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
+  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -4803,7 +4799,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
-    CUSTOMIZATION_SECTIONS[0]?.key ?? 'whitePieceStyle'
+    CUSTOMIZATION_SECTIONS[0]?.key ?? 'tableWood'
   );
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
@@ -6812,7 +6808,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
                     <p className="mt-1 text-[0.7rem] text-white/70">
-                    Personalize the board, pieces, chairs, and table finish.
+                      Personalize the chairs and table finish.
                     </p>
                   </div>
                 <button
@@ -6849,7 +6845,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, board palette, and chess pieces.</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
                     </div>
                     <button
                       type="button"
