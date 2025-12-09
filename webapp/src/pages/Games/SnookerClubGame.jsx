@@ -18,7 +18,7 @@ import {
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
+import { SnookerClubRules as PoolRoyaleRules } from '../../../../src/rules/SnookerClubRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
@@ -728,7 +728,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
-  W: 66 * TABLE_SCALE,
+  W: 72 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
@@ -787,15 +787,16 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPA specifications (playing surface 100" × 50")
-const WIDTH_REF = 2540;
-const HEIGHT_REF = 1270;
-const BALL_D_REF = 57.15;
-const BAULK_FROM_BAULK_REF = 558.8; // WPA head string distance from the head cushion (22")
+// Dimensions reflect WPBSA snooker specifications (playing surface 3569 mm × 1778 mm)
+const WIDTH_REF = 3556;
+const HEIGHT_REF = 1778;
+const BALL_D_REF = 52.5;
+const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
-const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
-const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
+const PINK_FROM_TOP_REF = 737;
+const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
+const CORNER_MOUTH_REF = 86;
+const SIDE_MOUTH_REF = 92;
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -835,6 +836,7 @@ const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
+const PINK_FROM_TOP = PINK_FROM_TOP_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
@@ -1136,7 +1138,18 @@ const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
+const SNOOKER_RED = 0xc3092f;
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
+  snooker: {
+    id: 'snooker',
+    label: 'Snooker',
+    cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: false,
+    objectColors: new Array(15).fill(SNOOKER_RED),
+    objectNumbers: new Array(15).fill(null),
+    objectPatterns: new Array(15).fill('solid')
+  },
   uk: {
     id: 'uk',
     label: '8-Ball UK',
@@ -1280,7 +1293,9 @@ function normalizeVariantKey(value) {
 function resolvePoolVariant(variantId) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
-  if (normalized === '9' || normalized === 'nineball') {
+  if (normalized === 'snooker' || normalized === 'snookerclub') {
+    key = 'snooker';
+  } else if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
   } else if (
     normalized === '8balluk' ||
@@ -1465,6 +1480,9 @@ function getPoolBallPattern(variant, index) {
 
 function getPoolBallId(variant, index) {
   if (!variant) return `ball_${index + 1}`;
+  if (variant.id === 'snooker') {
+    return `red_${index + 1}`;
+  }
   if (variant.id === 'uk') {
     const color = getPoolBallColor(variant, index);
     if (color === UK_POOL_BLACK) return 'black_8';
@@ -4007,7 +4025,7 @@ const createTripodBroadcastCamera = (() => {
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
-  const pinkZ = (topCushion + 0) / 2;
+  const pinkZ = topCushion - PINK_FROM_TOP;
   const blackZ = topCushion - BLACK_FROM_TOP;
   return {
     yellow: [-D_RADIUS, baulkZ],
@@ -4074,7 +4092,7 @@ function applySnookerScaling({
       if (green) green.position.set(D_RADIUS, spotY, baulkZ);
       if (blue) blue.position.set(0, spotY, center.z);
       const topCushion = halfWidth;
-      const pinkZ = (topCushion + center.z) / 2;
+      const pinkZ = topCushion - PINK_FROM_TOP_REF * mmToUnits;
       const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
       if (pink) pink.position.set(0, spotY, pinkZ);
       if (black) black.position.set(0, spotY, blackZ);
@@ -5979,7 +5997,7 @@ function Table3D(
   addSpot(D_RADIUS, baulkLineZ);
   addSpot(0, 0);
   const topCushionZ = PLAY_H / 2;
-  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, topCushionZ - PINK_FROM_TOP);
   addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
@@ -8119,7 +8137,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({
+export function PoolRoyaleGame({
   variantKey,
   tableSizeKey,
   playType = 'regular',
@@ -8129,7 +8147,10 @@ function PoolRoyaleGame({
   accountId,
   tgId,
   playerName,
-  opponentName
+  opponentName,
+  gameId = 'poolroyale',
+  lobbyPath = '/games/poolroyale/lobby',
+  tableResolver = resolveTableSize
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8142,8 +8163,8 @@ function PoolRoyaleGame({
     [variantKey]
   );
   const activeTableSize = useMemo(
-    () => resolveTableSize(tableSizeKey),
-    [tableSizeKey]
+    () => tableResolver(tableSizeKey),
+    [tableResolver, tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const [tableFinishId, setTableFinishId] = useState(() => {
@@ -8311,7 +8332,7 @@ function PoolRoyaleGame({
       }
       const telegramId = tgIdRef.current || getTelegramId();
       await addTransaction(telegramId, -50, 'cue_fee', {
-        game: 'poolroyale',
+        game: gameId,
         reason: 'cue_switch',
         accountId: id
       });
@@ -9469,7 +9490,7 @@ function PoolRoyaleGame({
           : 'Frame tied!';
     window.alert(`${announcement} Returning to the lobby...`);
     const winnerParam = winnerId === 'A' ? '1' : '0';
-    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
+    const lobbyUrl = `${lobbyPath}?winner=${winnerParam}`;
     const redirectTimer = window.setTimeout(() => {
       window.location.assign(lobbyUrl);
     }, 1200);
@@ -14546,6 +14567,13 @@ function PoolRoyaleGame({
           const upper = colorId.toUpperCase();
           if (upper === 'CUE') return 'cue';
           if (upper.startsWith('YELLOW') || upper.startsWith('BLUE')) return 'blue';
+          if (
+            upper.startsWith('GREEN') ||
+            upper.startsWith('BROWN') ||
+            upper.startsWith('PINK')
+          ) {
+            return 'blue';
+          }
           if (upper.startsWith('RED')) return 'red';
           if (upper.startsWith('BLACK')) return 'black';
           return null;
@@ -17049,7 +17077,7 @@ function PoolRoyaleGame({
   );
 }
 
-export default function PoolRoyale() {
+export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const variantKey = useMemo(() => {
@@ -17141,10 +17169,10 @@ export default function PoolRoyale() {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate('/games/poolroyale/lobby');
+        navigate(lobbyPath);
       }
     });
-  });
+  }, [confirmExit, lobbyPath, navigate]);
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       event.preventDefault();
@@ -17156,7 +17184,7 @@ export default function PoolRoyale() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate('/games/poolroyale/lobby');
+          navigate(lobbyPath);
         }
       });
     };
@@ -17167,7 +17195,7 @@ export default function PoolRoyale() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [confirmExit, exitMessage, navigate]);
+  }, [confirmExit, exitMessage, lobbyPath, navigate]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
@@ -17184,6 +17212,9 @@ export default function PoolRoyale() {
       tgId={tgId}
       playerName={playerName}
       opponentName={opponentName}
+      lobbyPath={lobbyPath}
     />
   );
 }
+
+export default PoolRoyale;

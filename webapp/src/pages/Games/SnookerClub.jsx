@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { PoolRoyaleGame } from './PoolRoyale.jsx';
+import { PoolRoyaleGame as SnookerClubGame } from './SnookerClubGame.jsx';
 import { getTelegramUsername, getTelegramId } from '../../utils/telegram.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { resolveTableSize as resolveSnookerTableSize } from '../../config/snookerClubTables.js';
@@ -163,7 +163,7 @@ export default function SnookerClub() {
   }, [location.search]);
 
   return (
-    <PoolRoyaleGame
+    <SnookerClubGame
       variantKey={variantKey}
       tableSizeKey={tableSizeKey}
       playType={playType}
