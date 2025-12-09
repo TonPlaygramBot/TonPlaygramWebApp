@@ -227,15 +227,15 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_TOUCH_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const STAUNTON_SET_URLS = [
@@ -273,43 +273,43 @@ const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
     id: 'beautifulGameAuroraMetal',
     name: 'Classic',
-    piece: { white: '#e7e9ee', black: '#111418', accent: '#ffffff' },
+    piece: { white: '#ffffff', black: '#ffffff', accent: '#ffffff' },
     board: { light: '#EEE8D5', dark: '#2B2F36', accent: '#ffffff' }
   },
   {
     id: 'beautifulGameMono',
     name: 'Mono',
-    piece: { white: '#e7e9ee', black: '#111418', accent: '#e7e9ee' },
-    board: { light: '#E5E7EB', dark: '#111827', accent: '#e7e9ee' }
+    piece: { white: '#111827', black: '#111827', accent: '#111827' },
+    board: { light: '#E5E7EB', dark: '#111827', accent: '#111827' }
   },
   {
     id: 'beautifulGameBlue',
     name: 'Blue',
-    piece: { white: '#e7e9ee', black: '#111418', accent: '#3b82f6' },
+    piece: { white: '#3b82f6', black: '#3b82f6', accent: '#3b82f6' },
     board: { light: '#93C5FD', dark: '#1E293B', accent: '#3b82f6' }
   },
   {
     id: 'beautifulGameAmber',
     name: 'Amber',
-    piece: { white: '#e7e9ee', black: '#111418', accent: '#f59e0b' },
+    piece: { white: '#f59e0b', black: '#f59e0b', accent: '#f59e0b' },
     board: { light: '#FDE68A', dark: '#1F2937', accent: '#f59e0b' }
   },
   {
     id: 'beautifulGameMint',
     name: 'Mint',
-    piece: { white: '#e7e9ee', black: '#111418', accent: '#10b981' },
+    piece: { white: '#10b981', black: '#10b981', accent: '#10b981' },
     board: { light: '#A7F3D0', dark: '#065F46', accent: '#10b981' }
   },
   {
     id: 'beautifulGamePink',
     name: 'Pink',
-    piece: { white: '#e7e9ee', black: '#111418', accent: '#ef4444' },
+    piece: { white: '#ef4444', black: '#ef4444', accent: '#ef4444' },
     board: { light: '#FBCFE8', dark: '#312E81', accent: '#ef4444' }
   },
   {
     id: 'beautifulGameTeal',
     name: 'Teal',
-    piece: { white: '#e7e9ee', black: '#111418', accent: '#8b5cf6' },
+    piece: { white: '#8b5cf6', black: '#8b5cf6', accent: '#8b5cf6' },
     board: { light: '#99F6E4', dark: '#0F172A', accent: '#8b5cf6' }
   }
 ]);
@@ -387,31 +387,31 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   label: 'Classic',
   keepTextures: true,
   white: {
-    color: '#e7e9ee',
-    roughness: 0.45,
-    metalness: 0.1,
-    sheen: 0,
-    sheenColor: '#e7e9ee',
-    clearcoat: 0,
-    clearcoatRoughness: 0.45,
-    specularIntensity: 0.18
+    color: '#ffffff',
+    roughness: 0.22,
+    metalness: 0.42,
+    sheen: 0.32,
+    sheenColor: '#f7fbff',
+    clearcoat: 0.4,
+    clearcoatRoughness: 0.18,
+    specularIntensity: 0.78
   },
   black: {
-    color: '#111418',
-    roughness: 0.45,
-    metalness: 0.1,
-    sheen: 0,
-    sheenColor: '#111418',
-    clearcoat: 0,
-    clearcoatRoughness: 0.45,
-    specularIntensity: 0.18,
-    emissive: '#0a0a0a',
-    emissiveIntensity: 0.05
+    color: '#111827',
+    roughness: 0.24,
+    metalness: 0.44,
+    sheen: 0.28,
+    sheenColor: '#b8c6ff',
+    clearcoat: 0.42,
+    clearcoatRoughness: 0.2,
+    specularIntensity: 0.78,
+    emissive: '#0a1020',
+    emissiveIntensity: 0.18
   },
   accent: '#ffffff',
   goldAccent: '#ffffff',
-  whiteAccent: { color: '#e7e9ee' },
-  blackAccent: '#111418'
+  whiteAccent: { color: '#ffffff' },
+  blackAccent: '#ffffff'
 });
 
 const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuroraMetal';
@@ -2364,21 +2364,6 @@ function detectPieceColor(node) {
     if (name.includes('black')) return 'black';
     current = current.parent;
   }
-  const checkMaterialNames = (mesh) => {
-    if (!mesh?.material) return null;
-    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-    for (const mat of materials) {
-      const matName = mat?.name?.toLowerCase?.() ?? '';
-      if (matName.includes('ivory')) return 'white';
-      if (matName.includes('dark ebony')) return 'black';
-      if (matName.includes('ebony')) return 'black';
-    }
-    return null;
-  };
-  if (node?.isMesh) {
-    const matColor = checkMaterialNames(node);
-    if (matColor) return matColor;
-  }
   return null;
 }
 
@@ -2552,131 +2537,94 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
 }
 
 function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME_THEME) {
-  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
-  const half = (BOARD.N * tile) / 2;
   const boardModel = new THREE.Group();
   boardModel.name = 'ABeautifulGameLocal';
+  const tile = BOARD.tile;
+  const N = BOARD.N;
+  const half = (N * tile) / 2;
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      targetBoardSize || N * tile + BOARD.rim * 2,
+      BOARD.baseH * 1.05,
+      targetBoardSize || N * tile + BOARD.rim * 2
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
+      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
+      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
+      clearcoat: 0,
+      reflectivity: 0
+    })
+  );
+  base.position.y = BOARD.baseH * 0.5;
+  boardModel.add(base);
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
+      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+      clearcoat: 0,
+      reflectivity: 0
+    })
+  );
+  top.position.y = BOARD.baseH + 0.07;
+  boardModel.add(top);
 
-  const lightMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(boardTheme.light ?? BASE_BOARD_THEME.light),
-    metalness: 0.1,
-    roughness: 0.7
-  });
-  const darkMat = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(boardTheme.dark ?? BASE_BOARD_THEME.dark),
-    metalness: 0.2,
-    roughness: 0.6
-  });
-
-  for (let r = 0; r < BOARD.N; r += 1) {
-    for (let c = 0; c < BOARD.N; c += 1) {
-      const isLight = (r + c) % 2 === 0;
-      const tileMesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), isLight ? lightMat : darkMat);
-      tileMesh.rotation.x = -Math.PI / 2;
-      tileMesh.position.set(c * tile - half + tile / 2, 0.001, r * tile - half + tile / 2);
-      tileMesh.receiveShadow = true;
-      boardModel.add(tileMesh);
+  const tiles = new THREE.Group();
+  boardModel.add(tiles);
+  for (let r = 0; r < N; r += 1) {
+    for (let c = 0; c < N; c += 1) {
+      const isDark = (r + c) % 2 === 1;
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
+        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+        clearcoat: 0,
+        reflectivity: 0,
+        specularIntensity: 0.18
+      });
+      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
+      tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
+      tiles.add(tileMesh);
     }
   }
 
-  const border = new THREE.Mesh(
-    new THREE.BoxGeometry(BOARD.N * tile + tile * 0.2, tile * 0.08, BOARD.N * tile + tile * 0.2),
-    new THREE.MeshStandardMaterial({
-      color: new THREE.Color(boardTheme.frameDark ?? 0x3a2f1f),
-      metalness: 0.2,
-      roughness: 0.7
-    })
-  );
-  border.position.y = -tile * 0.04;
-  border.receiveShadow = true;
-  boardModel.add(border);
-
-  const MAT_W = new THREE.MeshStandardMaterial({ color: 0xe7e9ee, metalness: 0.1, roughness: 0.45 });
-  MAT_W.name = 'Ivory';
-  const MAT_B = new THREE.MeshStandardMaterial({ color: 0x111418, metalness: 0.1, roughness: 0.45 });
-  MAT_B.name = 'Dark Ebony';
-
-  const TARGET_FOOTPRINT = tile * 0.995;
-  const Y_SEAT = tile * 0.18;
-
-  const normalizeAndSeatClone = (g) => {
-    const initialBox = new THREE.Box3().setFromObject(g);
-    const size = initialBox.getSize(new THREE.Vector3());
-    const footprint = Math.max(size.x, size.z) || 1;
-    const sc = TARGET_FOOTPRINT / footprint;
-    g.scale.multiplyScalar(sc);
-    const box = new THREE.Box3().setFromObject(g);
-    g.position.y -= box.min.y;
-    const holder = new THREE.Group();
-    holder.add(g);
-    holder.position.y = Y_SEAT;
-    return holder;
-  };
-
-  const protoFallback = (type, mat) => {
-    const g = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.12, 24), mat);
-    base.position.y = 0.06;
-    g.add(base);
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.65, 24), mat);
-    body.position.y = 0.43;
-    g.add(body);
-    if (type === 'P') {
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 18), mat);
-      head.position.y = 0.92;
-      g.add(head);
-    }
-    if (type === 'R') {
-      const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 12), mat);
-      top.position.y = 0.95;
-      g.add(top);
-    }
-    if (type === 'N') {
-      const head = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15, 0.05, 50, 8), mat);
-      head.position.y = 1.0;
-      g.add(head);
-    }
-    if (type === 'B') {
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.35, 24), mat);
-      cone.position.y = 1.0;
-      g.add(cone);
-    }
-    if (type === 'Q') {
-      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 24, 1, true), mat);
-      crown.position.y = 1.05;
-      g.add(crown);
-    }
-    if (type === 'K') {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.15, 24), mat);
-      cap.position.y = 1.0;
-      const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), mat);
-      crossV.position.y = 1.2;
-      const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), mat);
-      crossH.position.y = 1.2;
-      g.add(cap, crossV, crossH);
-    }
-    g.traverse((n) => {
-      if (n.isMesh) {
-        n.castShadow = true;
-        n.receiveShadow = false;
-        if (n.material && !Array.isArray(n.material)) n.material.name = mat.name;
-      }
-    });
-    return g;
-  };
-
   const piecePrototypes = { white: {}, black: {} };
-  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
-    piecePrototypes.white[type] = normalizeAndSeatClone(protoFallback(type, MAT_W.clone()));
-    piecePrototypes.black[type] = normalizeAndSeatClone(protoFallback(type, MAT_B.clone()));
-    piecePrototypes.white[type].userData = { __pieceStyleId: 'beautifulGame', __pieceType: type };
-    piecePrototypes.black[type].userData = { __pieceStyleId: 'beautifulGame', __pieceType: type };
+  const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
+  const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
+  const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
+  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
+  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
+  piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
+  piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
+  piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
+  piecePrototypes.white.B = buildBeautifulGamePiece('B', authenticWhite, accentLight, scale);
+  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', authenticWhite, accentLight, scale);
+  piecePrototypes.white.K = buildBeautifulGamePiece('K', authenticWhite, accentLight, scale);
+  piecePrototypes.black.P = buildBeautifulGamePiece('P', authenticBlack, accentDark, scale);
+  piecePrototypes.black.R = buildBeautifulGamePiece('R', authenticBlack, accentDark, scale);
+  piecePrototypes.black.N = buildBeautifulGamePiece('N', authenticBlack, accentDark, scale);
+  piecePrototypes.black.B = buildBeautifulGamePiece('B', authenticBlack, accentDark, scale);
+  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
+  piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
+
+  Object.entries(piecePrototypes).forEach(([, byColor]) => {
+    Object.entries(byColor).forEach(([type, proto]) => {
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+      proto.traverse((child) => {
+        if (!child.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+      });
+    });
   });
 
   const boardBox = new THREE.Box3().setFromObject(boardModel);
   const boardTop = boardBox.max.y;
 
-  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: Math.max(Y_SEAT, boardTop + 0.02) };
+  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: boardTop + 0.02 };
 }
 
 function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
@@ -3243,7 +3191,6 @@ function buildPolygonalFallbackAssets(
 
 async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
   const timeoutMs = 35000;
-  const fallbackAssets = buildBeautifulGameFallback(targetBoardSize);
   const withTimeout = (promise) =>
     Promise.race([
       promise,
@@ -3273,7 +3220,7 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
   }
 
-  return fallbackAssets;
+  throw new Error('ABeautifulGame assets are unavailable');
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
