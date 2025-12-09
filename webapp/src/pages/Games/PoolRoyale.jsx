@@ -1139,6 +1139,16 @@ const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
+  snooker: {
+    id: 'snooker',
+    label: 'Snooker',
+    cueColor: BASE_BALL_COLORS.cue,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: false,
+    objectColors: new Array(15).fill(BASE_BALL_COLORS.red),
+    objectNumbers: new Array(15).fill(null),
+    objectPatterns: new Array(15).fill('solid')
+  },
   uk: {
     id: 'uk',
     label: '8-Ball UK',
@@ -1282,6 +1292,9 @@ function normalizeVariantKey(value) {
 function resolvePoolVariant(variantId) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
+  if (normalized === 'snooker' || normalized === 'snookerclub') {
+    key = 'snooker';
+  }
   if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
   } else if (
@@ -1306,6 +1319,9 @@ function deriveInHandFromFrame(frame) {
   }
   if (meta.variant === 'uk' && meta.state) {
     return Boolean(meta.state.mustPlayFromBaulk);
+  }
+  if (meta.variant === 'snooker' && meta.state) {
+    return Boolean(meta.state.ballInHand);
   }
   return false;
 }
@@ -1467,6 +1483,9 @@ function getPoolBallPattern(variant, index) {
 
 function getPoolBallId(variant, index) {
   if (!variant) return `ball_${index + 1}`;
+  if (variant.id === 'snooker') {
+    return `red_${index + 1}`;
+  }
   if (variant.id === 'uk') {
     const color = getPoolBallColor(variant, index);
     if (color === UK_POOL_BLACK) return 'black_8';
