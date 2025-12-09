@@ -648,38 +648,28 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
   [
-    {
-      id: 'beautifulGameClassic',
-      label: 'Classic (Ivory / Ebony)',
-      color: '#ffffff',
-      whiteColor: '#ffffff',
-      blackColor: '#111827'
-    },
+    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
     { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
     { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
     { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
     { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
     { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
     { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
-  ].map((preset) => {
-    const whiteColor = preset.whiteColor ?? preset.color ?? BASE_PIECE_STYLE.white.color;
-    const blackColor = preset.blackColor ?? preset.color ?? BASE_PIECE_STYLE.black.color;
-    return {
-      ...preset,
-      style: {
-        ...BASE_PIECE_STYLE,
-        preserveOriginalMaterials: false,
-        keepTextures: true,
-        white: { ...BASE_PIECE_STYLE.white, color: whiteColor },
-        black: { ...BASE_PIECE_STYLE.black, color: blackColor },
-        accent: BASE_PIECE_STYLE.accent,
-        goldAccent: BASE_PIECE_STYLE.goldAccent,
-        whiteAccent: BASE_PIECE_STYLE.whiteAccent,
-        blackAccent: BASE_PIECE_STYLE.blackAccent
-      },
-      loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
-    };
-  })
+  ].map((preset) => ({
+    ...preset,
+    style: {
+      ...BASE_PIECE_STYLE,
+      preserveOriginalMaterials: false,
+      keepTextures: true,
+      white: { ...BASE_PIECE_STYLE.white, color: preset.color },
+      black: { ...BASE_PIECE_STYLE.black, color: preset.color },
+      accent: BASE_PIECE_STYLE.accent,
+      goldAccent: BASE_PIECE_STYLE.goldAccent,
+      whiteAccent: BASE_PIECE_STYLE.whiteAccent,
+      blackAccent: BASE_PIECE_STYLE.blackAccent
+    },
+    loader: (targetBoardSize) => resolveBeautifulGameAssets(targetBoardSize)
+  }))
 );
 
 const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
