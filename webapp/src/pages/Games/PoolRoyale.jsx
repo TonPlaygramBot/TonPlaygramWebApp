@@ -8119,7 +8119,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 // NEW Engine (no globals). Camera feels like standing at the side.
 // --------------------------------------------------
-function PoolRoyaleGame({
+export function PoolRoyaleGame({
   variantKey,
   tableSizeKey,
   playType = 'regular',
@@ -8129,7 +8129,10 @@ function PoolRoyaleGame({
   accountId,
   tgId,
   playerName,
-  opponentName
+  opponentName,
+  gameId = 'poolroyale',
+  lobbyPath = '/games/poolroyale/lobby',
+  tableResolver = resolveTableSize
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8142,8 +8145,8 @@ function PoolRoyaleGame({
     [variantKey]
   );
   const activeTableSize = useMemo(
-    () => resolveTableSize(tableSizeKey),
-    [tableSizeKey]
+    () => tableResolver(tableSizeKey),
+    [tableResolver, tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const [tableFinishId, setTableFinishId] = useState(() => {
@@ -8311,7 +8314,7 @@ function PoolRoyaleGame({
       }
       const telegramId = tgIdRef.current || getTelegramId();
       await addTransaction(telegramId, -50, 'cue_fee', {
-        game: 'poolroyale',
+        game: gameId,
         reason: 'cue_switch',
         accountId: id
       });
@@ -9469,7 +9472,7 @@ function PoolRoyaleGame({
           : 'Frame tied!';
     window.alert(`${announcement} Returning to the lobby...`);
     const winnerParam = winnerId === 'A' ? '1' : '0';
-    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
+    const lobbyUrl = `${lobbyPath}?winner=${winnerParam}`;
     const redirectTimer = window.setTimeout(() => {
       window.location.assign(lobbyUrl);
     }, 1200);
@@ -17049,7 +17052,7 @@ function PoolRoyaleGame({
   );
 }
 
-export default function PoolRoyale() {
+export function PoolRoyale({ lobbyPath = '/games/poolroyale/lobby' }) {
   const navigate = useNavigate();
   const location = useLocation();
   const variantKey = useMemo(() => {
@@ -17141,10 +17144,10 @@ export default function PoolRoyale() {
   useTelegramBackButton(() => {
     confirmExit().then((confirmed) => {
       if (confirmed) {
-        navigate('/games/poolroyale/lobby');
+        navigate(lobbyPath);
       }
     });
-  });
+  }, [confirmExit, lobbyPath, navigate]);
   useEffect(() => {
     const handleBeforeUnload = (event) => {
       event.preventDefault();
@@ -17156,7 +17159,7 @@ export default function PoolRoyale() {
         if (!confirmed) {
           window.history.pushState(null, '', window.location.href);
         } else {
-          navigate('/games/poolroyale/lobby');
+          navigate(lobbyPath);
         }
       });
     };
@@ -17167,7 +17170,7 @@ export default function PoolRoyale() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       window.removeEventListener('popstate', handlePopState);
     };
-  }, [confirmExit, exitMessage, navigate]);
+  }, [confirmExit, exitMessage, lobbyPath, navigate]);
   const opponentName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
@@ -17184,6 +17187,9 @@ export default function PoolRoyale() {
       tgId={tgId}
       playerName={playerName}
       opponentName={opponentName}
+      lobbyPath={lobbyPath}
     />
   );
 }
+
+export default PoolRoyale;
