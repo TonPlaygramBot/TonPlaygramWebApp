@@ -2365,11 +2365,31 @@ function ascendWhile(node, predicate) {
 }
 
 function detectPieceColor(node) {
+  const MATERIAL_WHITE = /(\b|_)(ivory|white)(\b|_)/i;
+  const MATERIAL_BLACK = /(\b|_)(dark\s*ebony|ebony|black)(\b|_)/i;
+
+  const detectFromMaterials = (target) => {
+    let detected = null;
+    target?.traverse?.((child) => {
+      if (detected || !child?.isMesh) return;
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      mats.forEach((mat) => {
+        if (!mat?.name || detected) return;
+        const name = mat.name.toLowerCase();
+        if (MATERIAL_WHITE.test(name)) detected = 'white';
+        if (MATERIAL_BLACK.test(name)) detected = 'black';
+      });
+    });
+    return detected;
+  };
+
   let current = node;
   for (let i = 0; i < 4 && current; i += 1) {
     const name = current.name?.toLowerCase?.() ?? '';
     if (name.includes('white')) return 'white';
     if (name.includes('black')) return 'black';
+    const materialColor = detectFromMaterials(current);
+    if (materialColor) return materialColor;
     current = current.parent;
   }
   return null;
