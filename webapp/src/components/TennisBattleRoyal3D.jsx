@@ -296,8 +296,8 @@ const RACKET_ORIENTATIONS = [
 
 const BASE_MIN_SWIPE = 220;
 const BASE_MAX_SWIPE = 1400;
-// Reduce the baseline strike force so ball launches are 20% softer overall
-const BASE_HIT_FORCE = 4.6 * 0.35 * 0.8;
+// Slightly soften the baseline strike force to tame outgoing power
+const BASE_HIT_FORCE = 4.6 * 0.35 * 0.76;
 const BASE_SPEED_CAP = 22.5 * BASE_HIT_FORCE;
 const BASE_TENNIS_DIMENSIONS = { length: 23.77, width: 9.2 };
 const BASE_ARCADE_CAMERA = { height: 9, offset: 16 };
@@ -536,6 +536,7 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   const [physicsId, setPhysicsId] = useState(PHYSICS_PROFILES[0].id);
   const [touchId, setTouchId] = useState(TOUCH_TECHNIQUES[0].id);
   const [racketOrientationId, setRacketOrientationId] = useState(RACKET_ORIENTATIONS[0].id);
+  const cameraResetRef = useRef(null);
   const broadcastProfileRef = useRef(BROADCAST_TECHNIQUES[0]);
   const physicsProfileRef = useRef(PHYSICS_PROFILES[0]);
   const touchProfileRef = useRef(TOUCH_TECHNIQUES[0]);
@@ -651,6 +652,8 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
   useEffect(() => {
     const profile = BROADCAST_TECHNIQUES.find((p) => p.id === broadcastId) || BROADCAST_TECHNIQUES[0];
     broadcastProfileRef.current = profile;
+    cameraResetRef.current?.(profile);
+    setConfigMenuOpen(false);
   }, [broadcastId]);
 
   useEffect(() => {
@@ -707,6 +710,16 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
     let smoothFov = camera.fov;
     let orbitYaw = 0;
     let orbitPitch = 0.18;
+
+    const resetCameraRig = () => {
+      camBack = baseCamBack;
+      camHeight = isNarrow ? baseCamHeight * 0.92 : baseCamHeight;
+      orbitYaw = 0;
+      orbitPitch = 0.18;
+      smoothCameraPos.copy(camera.position);
+      smoothCameraLook.set(0, 1.1, 0);
+    };
+    cameraResetRef.current = resetCameraRig;
 
     const courtL = BASE_TENNIS_DIMENSIONS.length;
     const courtW = BASE_TENNIS_DIMENSIONS.width;
@@ -2256,32 +2269,37 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
       cpu.position.z = THREE.MathUtils.damp(cpu.position.z, targetZ, 6.2, dt);
 
       const interceptY = pos.y + vel.y * t + 0.5 * state.gravity * t * t;
+      const serveReturn = state.awaitingServeBounce && lastHitter === 'player';
       const bounceConfirmed = state.bounceSide === 'cpu' || !state.awaitingServeBounce;
-      const planningWindow = bounceConfirmed ? 0.55 : 0.28;
-      const heightAllowance = bounceConfirmed ? 3.05 : 2.35;
+      const planningWindow = bounceConfirmed || serveReturn ? 0.55 : 0.32;
+      const heightAllowance = bounceConfirmed || serveReturn ? 3.05 : 2.5;
       const close = t < planningWindow && Math.abs(predictedX - cpu.position.x) < 1.6 && interceptY <= heightAllowance;
-      const readyAfterBounce = bounceConfirmed && !cpuPlan && landT < 0.7 && interceptY <= 3.2;
+      const readyAfterBounce = (bounceConfirmed || serveReturn) && !cpuPlan && landT < (serveReturn ? 1.0 : 0.7) && interceptY <= 3.3;
       const emergencyBlock = t < 0.22 && interceptY < 2.2 && Math.abs(predictedX - cpu.position.x) < 2.4;
       if ((close || readyAfterBounce) && cpuWind <= 0 && !cpuPlan) {
         const playerDepth = THREE.MathUtils.clamp(player.position.z / (halfL + apron), 0, 1);
-        const aggression = THREE.MathUtils.clamp(Math.max(Math.abs(player.position.x) / halfW, 0.45 + playerDepth * 0.25), 0.35, 0.92);
+        const aggression = serveReturn
+          ? 0.42
+          : THREE.MathUtils.clamp(Math.max(Math.abs(player.position.x) / halfW, 0.45 + playerDepth * 0.25), 0.35, 0.92);
         const anticipation = THREE.MathUtils.clamp(playerMoveTarget.x - player.position.x, -1.2, 1.2);
         const corner = player.position.x > 0 ? -halfW + 0.35 : halfW - 0.35;
         const mix = THREE.MathUtils.lerp(predictedX, corner, aggression + Math.abs(anticipation) * 0.3);
         const tx = THREE.MathUtils.clamp(mix + anticipation * 0.45, -halfW + 0.28, halfW - 0.28);
-        const dropShot = landT < 0.36 && player.position.z > halfL - 1.2;
-        const netRush = player.position.z < halfL * 0.45;
+        const dropShot = !serveReturn && landT < 0.36 && player.position.z > halfL - 1.2;
+        const netRush = !serveReturn && player.position.z < halfL * 0.45;
         const lobShot = netRush && interceptY > 1.65;
-        let tz = dropShot
-          ? halfL - 0.42
-          : lobShot
-            ? halfL - 0.35
-            : THREE.MathUtils.mapLinear(Math.min(halfW, Math.abs(player.position.x)), 0, halfW, halfL - 1.7, halfL - 0.82);
+        let tz = serveReturn
+          ? halfL - 1.05
+          : dropShot
+            ? halfL - 0.42
+            : lobShot
+              ? halfL - 0.35
+              : THREE.MathUtils.mapLinear(Math.min(halfW, Math.abs(player.position.x)), 0, halfW, halfL - 1.7, halfL - 0.82);
         if (!dropShot && !lobShot && player.position.z < halfL - 2.4) tz = halfL - 0.7;
-        tz = THREE.MathUtils.clamp(tz + THREE.MathUtils.randFloatSpread(lobShot ? 0.08 : 0.14), halfL - 1.75, halfL - 0.45);
-        cpuPlan = { tx, tz, dropShot, lobShot, aggression, bias: THREE.MathUtils.clamp((tx - player.position.x) / halfW, -1, 1) };
-        cpuWind = 0.08 + Math.random() * 0.05;
-        cpu.userData.swing = -0.7;
+        tz = THREE.MathUtils.clamp(tz + THREE.MathUtils.randFloatSpread(lobShot ? 0.08 : 0.12), halfL - 1.75, halfL - 0.45);
+        cpuPlan = { tx, tz, dropShot, lobShot, aggression, bias: THREE.MathUtils.clamp((tx - player.position.x) / halfW, -1, 1), serveReturn };
+        cpuWind = (serveReturn ? 0.06 : 0.08) + Math.random() * 0.05;
+        cpu.userData.swing = serveReturn ? -0.55 : -0.7;
       } else if (emergencyBlock && cpuWind <= 0 && !cpuPlan) {
         const tx = THREE.MathUtils.clamp(predictedX, -halfW + 0.4, halfW - 0.4);
         const tz = THREE.MathUtils.clamp(pos.z + 0.2, cpuCourtMinZ + 0.4, cpuCourtMaxZ - 0.4);
@@ -2315,9 +2333,9 @@ export default function TennisBattleRoyal3D({ playerName, stakeLabel, trainingMo
           cpuSwing = {
             normal: v0.clone().normalize(),
             speed: v0.length(),
-            ttl: cpuPlan.dropShot ? 0.32 : cpuPlan.lobShot ? 0.36 : 0.28,
+            ttl: cpuPlan.dropShot ? 0.32 : cpuPlan.lobShot ? 0.36 : cpuPlan.serveReturn ? 0.3 : 0.28,
             extraSpin: craftCpuSpin(v0.z * (cpuPlan.dropShot ? 0.45 : cpuPlan.lobShot ? 0.35 : 1), aggression, bias),
-            friction: cpuPlan.dropShot ? 0.32 : 0.24,
+            friction: cpuPlan.dropShot ? 0.32 : cpuPlan.serveReturn ? 0.22 : 0.24,
             restitution: cpuPlan.lobShot ? 1.02 : 1.08,
             reach: ballR + 0.34
           };
