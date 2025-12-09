@@ -728,7 +728,7 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
-  W: 66 * TABLE_SCALE,
+  W: 72 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
@@ -787,15 +787,16 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPA specifications (playing surface 100" × 50")
-const WIDTH_REF = 2540;
-const HEIGHT_REF = 1270;
-const BALL_D_REF = 57.15;
-const BAULK_FROM_BAULK_REF = 558.8; // WPA head string distance from the head cushion (22")
+// Dimensions reflect WPBSA snooker specifications (playing surface 3569 mm × 1778 mm)
+const WIDTH_REF = 3556;
+const HEIGHT_REF = 1778;
+const BALL_D_REF = 52.5;
+const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
-const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
-const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
+const PINK_FROM_TOP_REF = 737;
+const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
+const CORNER_MOUTH_REF = 86;
+const SIDE_MOUTH_REF = 92;
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -835,6 +836,7 @@ const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
+const PINK_FROM_TOP = PINK_FROM_TOP_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
@@ -4007,7 +4009,7 @@ const createTripodBroadcastCamera = (() => {
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
-  const pinkZ = (topCushion + 0) / 2;
+  const pinkZ = topCushion - PINK_FROM_TOP;
   const blackZ = topCushion - BLACK_FROM_TOP;
   return {
     yellow: [-D_RADIUS, baulkZ],
@@ -4074,7 +4076,7 @@ function applySnookerScaling({
       if (green) green.position.set(D_RADIUS, spotY, baulkZ);
       if (blue) blue.position.set(0, spotY, center.z);
       const topCushion = halfWidth;
-      const pinkZ = (topCushion + center.z) / 2;
+      const pinkZ = topCushion - PINK_FROM_TOP_REF * mmToUnits;
       const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
       if (pink) pink.position.set(0, spotY, pinkZ);
       if (black) black.position.set(0, spotY, blackZ);
@@ -5979,7 +5981,7 @@ function Table3D(
   addSpot(D_RADIUS, baulkLineZ);
   addSpot(0, 0);
   const topCushionZ = PLAY_H / 2;
-  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, topCushionZ - PINK_FROM_TOP);
   addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
