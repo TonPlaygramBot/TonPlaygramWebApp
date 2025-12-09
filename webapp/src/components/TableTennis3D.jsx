@@ -1160,19 +1160,19 @@ export default function TableTennis3D({ player, ai }){
       const scaledMax = MAX_SWIPE_SPEED * THREE.MathUtils.lerp(0.92, 1.12, viewportScale - 0.76);
       const clampedSpeed = THREE.MathUtils.clamp(speed * viewportScale, scaledMin, scaledMax);
       const normalized = (clampedSpeed - scaledMin) / (scaledMax - scaledMin);
-      const forward = towardsEnemy ? -1 : 1;
-      const lateralScale = (swipeProfile.lateralScale ?? 1.65) * THREE.MathUtils.clamp((bounds.x * 2) / T.W, 0.9, 1.12);
-      const liftRange = swipeProfile.liftRange ?? [0.32, 1.08];
-      const forwardRange = swipeProfile.forwardRange ?? [0.88, 1.52];
-      const depthScale = THREE.MathUtils.clamp(T.L / 2.74, 0.86, 1.18);
-      const curveScale = swipeProfile.curveScale ?? 1;
-      const chopScale = swipeProfile.chopScale ?? 1;
-      const lateral = THREE.MathUtils.clamp(distX / Math.max(rect?.width || 1, 1), -lateralScale, lateralScale) * forward;
-      const lift = THREE.MathUtils.mapLinear(normalized, 0, 1, liftRange[0], liftRange[1]);
-      const forwardPower = THREE.MathUtils.mapLinear(normalized, 0, 1, forwardRange[0], forwardRange[1]) * forward * depthScale;
-      const curve = THREE.MathUtils.clamp((distX / Math.max(rect?.width || 240, 180)) * 18 * curveScale, -9, 9);
-      const chop = THREE.MathUtils.clamp(((distY - Math.abs(distX) * 0.35) / Math.max(rect?.height || 360, 260)) * chopScale, -0.6, 0.9);
-      const topspin = THREE.MathUtils.lerp(12, 34, normalized + chop * 0.25);
+      const forwardDir = towardsEnemy ? 1 : -1;
+      const liftRange = swipeProfile.liftRange ?? [0.32, 1.02];
+      const forwardRange = swipeProfile.forwardRange ?? [0.82, 1.4];
+      const lateralScale = swipeProfile.lateralScale ?? 1.2;
+      const curveScale = swipeProfile.curveScale ?? 0.8;
+      const chopScale = swipeProfile.chopScale ?? 0.72;
+      const lift = THREE.MathUtils.lerp(liftRange[0], liftRange[1], normalized);
+      const forwardPower = forwardDir * THREE.MathUtils.lerp(forwardRange[0], forwardRange[1], normalized);
+      const lateral = THREE.MathUtils.clamp((distX / Math.max(20, swipeLength)) * lateralScale, -1, 1);
+      const curve = THREE.MathUtils.clamp((distX / Math.max(40, swipeLength)) * curveScale, -1.2, 1.2);
+      const chop = THREE.MathUtils.clamp(((distY < 0 ? -distY : 0) / Math.max(20, swipeLength)) * chopScale, 0, 1);
+      const topspin = THREE.MathUtils.clamp((distY > 0 ? distY : 0) / Math.max(40, swipeLength), 0, 1);
+      const dirAngle = Math.atan2(distX, distY || 1e-6);
       return {
         lateral,
         lift,
@@ -1182,32 +1182,42 @@ export default function TableTennis3D({ player, ai }){
         swipeSpeed: clampedSpeed,
         chop,
         topspin,
+        angle: dirAngle,
       };
     }
 
     function shotToSwing(shot) {
       const courtScale = THREE.MathUtils.clamp(T.L / 2.74, 0.86, 1.2);
-      const dir = new THREE.Vector3(shot.lateral, shot.lift + shot.chop * 0.12, shot.forward * courtScale);
-      const speed = dir.length();
-      const normal = dir.normalize();
+      const aimSide = THREE.MathUtils.clamp((shot.lateral ?? 0) * 0.55 + (shot.curve ?? 0) * 0.35, -1.3, 1.3);
+      const aimDepth = THREE.MathUtils.lerp(-T.L / 2 + 0.18, -0.16, THREE.MathUtils.smoothstep(shot.normalized, 0, 1));
+      const aimX = THREE.MathUtils.clamp(ball.position.x + aimSide * 0.42, -T.W / 2 + 0.12, T.W / 2 - 0.12);
+      const aimTarget = new THREE.Vector3(
+        aimX,
+        TABLE_TOP + 0.28 + (shot.lift ?? 0) * 0.18,
+        aimDepth
+      );
+      const origin = new THREE.Vector3(ball.position.x, ball.position.y, ball.position.z);
+      const desired = aimTarget.clone().sub(origin);
+      const baseDir = desired.clone().normalize();
+      const speedScale = THREE.MathUtils.lerp(3.4, 6.7, THREE.MathUtils.clamp(shot.normalized * courtScale, 0.08, 1));
+      const baseVelocity = baseDir.multiplyScalar(speedScale);
+      ensureNetClear(origin, baseVelocity, Sx.gravity.y, NET_TOP + 0.02, BALL_R * 0.92);
       const sideCurve = shot.curve ?? 0;
       const topspin = shot.topspin ?? THREE.MathUtils.lerp(12, 30, shot.normalized);
-      const curveAim = normal.clone();
-      curveAim.x += THREE.MathUtils.clamp(sideCurve * 0.01, -0.32, 0.32);
-      const power = THREE.MathUtils.clamp(shot.normalized * courtScale + Math.abs(shot.chop) * 0.18, 0.12, 1.08);
-      const speedScale = THREE.MathUtils.clamp(courtScale, 0.88, 1.16);
+      const power = THREE.MathUtils.clamp(shot.normalized * courtScale + Math.abs(shot.chop) * 0.18, 0.18, 1.12);
+      const aimDir = baseVelocity.clone().normalize();
       return {
-        normal,
-        speed: speed * speedScale,
+        normal: aimDir,
+        speed: baseVelocity.length(),
         ttl: 0.34,
-        extraSpin: new THREE.Vector3(sideCurve * 0.26, sideCurve * 0.72 - shot.chop * 6, topspin * Math.sign(shot.forward || -1)),
+        extraSpin: new THREE.Vector3(sideCurve * 0.32, sideCurve * 0.78 - shot.chop * 6.5, topspin * Math.sign(shot.forward || -1)),
         friction: 0.2,
         restitution: 1.08,
         reach: BALL_R + 0.34,
-        force: Math.min(1.15, power * (1 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 6))) * speedScale,
+        force: Math.min(1.2, power * (1 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 5.5))) * courtScale,
         power,
-        aimDirection: curveAim.normalize(),
-        liftBoost: shot.chop > 0 ? shot.chop * 0.3 : 0
+        aimDirection: aimDir,
+        liftBoost: shot.chop > 0 ? shot.chop * 0.34 : 0
       };
     }
 
@@ -1334,14 +1344,16 @@ export default function TableTennis3D({ player, ai }){
         camRig.curYaw += (yawTarget - camRig.curYaw) * camRig.yawDamping;
       }
 
+      const flightEnergy = THREE.MathUtils.clamp(Sx.v.length() / 10, 0, 1.1);
+      const spinEnergy = THREE.MathUtils.clamp(Sx.w.length() / 80, 0, 0.65);
       const heightBoost = Math.max(0, (ball.position.y - TABLE_TOP) * 0.32);
       const distTarget = THREE.MathUtils.clamp(
-        camRig.dist - Math.abs(lateralInfluence) * 0.18 - heightBoost * 0.18,
+        camRig.dist - Math.abs(lateralInfluence) * 0.18 - heightBoost * 0.18 - flightEnergy * 0.2,
         camRig.minDist,
         camRig.dist + 0.6
       );
       const heightTarget = THREE.MathUtils.clamp(
-        camRig.height - Math.abs(lateralInfluence) * 0.04 + heightBoost * 0.38 + camRig.pitchUser * 0.9,
+        camRig.height - Math.abs(lateralInfluence) * 0.04 + heightBoost * 0.38 + camRig.pitchUser * 0.9 + spinEnergy * 0.18,
         camRig.minHeight,
         camRig.height + 0.9
       );
@@ -1354,9 +1366,9 @@ export default function TableTennis3D({ player, ai }){
       }
 
       lookTarget.set(
-        THREE.MathUtils.lerp(camFollow.x, ball.position.x, 0.38) * S,
-        Math.max((T.H - 0.04) * S, (ball.position.y + 0.06) * S),
-        (camFollow.z - camRig.forwardBias) * S
+        THREE.MathUtils.lerp(camFollow.x, ball.position.x, 0.46 + flightEnergy * 0.08) * S,
+        Math.max((T.H - 0.04) * S, (ball.position.y + 0.06 + spinEnergy * 0.08) * S),
+        (camFollow.z - camRig.forwardBias - flightEnergy * 0.06) * S
       );
 
       backVec.set(Math.sin(camRig.curYaw), 0, Math.cos(camRig.curYaw)).multiplyScalar(camRig.curDist);
@@ -1896,10 +1908,17 @@ export default function TableTennis3D({ player, ai }){
       const damping = orientationSign === 1 ? 0.22 : 0.18;
       visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, damping);
 
+      if (paddle.userData.swing !== undefined){
+        const swingAmt = paddle.userData.swing;
+        visualWrapper.rotation.x = THREE.MathUtils.lerp(visualWrapper.rotation.x, swingAmt * 0.18, 0.35);
+        visualWrapper.rotation.y += (paddle.userData.swingLR || 0) * 0.04;
+      }
+
       if (wrist){
         const heightFactor = THREE.MathUtils.clamp((ball.position.y - TABLE_TOP) * 0.85, -0.4, 0.52);
-        const tiltTarget = baseTilt + heightFactor + (velocity.z || 0) * -0.02 * orientationSign;
-        const rollTarget = baseRoll + (velocity.x || 0) * 0.04;
+        const swingAssist = THREE.MathUtils.clamp(paddle.userData.swing ?? 0, -0.6, 1.4);
+        const tiltTarget = baseTilt + heightFactor + (velocity.z || 0) * -0.02 * orientationSign + swingAssist * 0.35;
+        const rollTarget = baseRoll + (velocity.x || 0) * 0.04 + (paddle.userData.swingLR || 0) * 0.2;
         wrist.rotation.x += (tiltTarget - wrist.rotation.x) * 0.22;
         wrist.rotation.z += (rollTarget - wrist.rotation.z) * 0.24;
       }
@@ -1970,6 +1989,9 @@ export default function TableTennis3D({ player, ai }){
         if (playerSwing){
           playerSwing.ttl -= frameDt;
           if (playerSwing.ttl <= 0) playerSwing = null;
+        } else {
+          player.userData.swing = THREE.MathUtils.lerp(player.userData.swing ?? 0, 0, 0.2);
+          player.userData.swingLR = THREE.MathUtils.lerp(player.userData.swingLR ?? 0, 0, 0.22);
         }
 
         if (Sx.state !== 'dead'){
