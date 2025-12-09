@@ -14,12 +14,7 @@ const TABLE_PHYSICAL_SPECS = Object.freeze({
       side: 127
     }),
     cushionCutAngleDeg: 35,
-    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 }),
-    scaleOverrides: Object.freeze({
-      scale: 1.56,
-      mobileScale: 1.72,
-      compactScale: 1.48
-    })
+    cushionPocketAnglesDeg: Object.freeze({ corner: 142, side: 104 })
   },
   '8ft': {
     id: '8ft',
