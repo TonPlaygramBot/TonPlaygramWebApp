@@ -648,8 +648,8 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
   [
-    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff', preserve: true },
-    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827', preserve: true },
+    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
+    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
     { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
     { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
     { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
@@ -659,7 +659,7 @@ const PIECE_STYLE_OPTIONS = Object.freeze(
     ...preset,
     style: {
       ...BASE_PIECE_STYLE,
-      preserveOriginalMaterials: Boolean(preset.preserve),
+      preserveOriginalMaterials: false,
       keepTextures: true,
       white: { ...BASE_PIECE_STYLE.white, color: preset.color },
       black: { ...BASE_PIECE_STYLE.black, color: preset.color },
@@ -3409,74 +3409,6 @@ function cloneWithMaterials(object) {
   return clone;
 }
 
-function meshBase(root) {
-  let found = null;
-  root.traverse((node) => {
-    if (found) return;
-    if (node?.isMesh) {
-      found = node.parent || root;
-    }
-  });
-  return found || root;
-}
-
-function relativePath(base, node) {
-  const names = [];
-  let current = node;
-  while (current && current !== base) {
-    if (current.name) names.push(current.name);
-    current = current.parent;
-  }
-  return names.reverse().join('/');
-}
-
-function snapshotMaterialsRel(root) {
-  const base = meshBase(root);
-  const snapshot = new Map();
-  base.traverse((node) => {
-    if (!node?.isMesh) return;
-    const key = relativePath(base, node);
-    const material = node.material;
-    if (Array.isArray(material)) {
-      snapshot.set(
-        key,
-        material.map((mat) => (mat?.clone ? mat.clone() : mat))
-      );
-    } else if (material?.clone) {
-      snapshot.set(key, material.clone());
-    } else if (material) {
-      snapshot.set(key, material);
-    }
-  });
-  return snapshot;
-}
-
-function applyMaterialsRel(target, snapshot) {
-  if (!target || !snapshot?.size) return;
-  const base = meshBase(target);
-  base.traverse((node) => {
-    if (!node?.isMesh) return;
-    const key = relativePath(base, node);
-    if (!snapshot.has(key)) return;
-    const saved = snapshot.get(key);
-    if (Array.isArray(saved)) {
-      node.material = saved.map((mat) => (mat?.clone ? mat.clone() : mat));
-    } else {
-      node.material = saved?.clone ? saved.clone() : saved;
-    }
-  });
-}
-
-function snapshotPrototypeMaterials(prototypes) {
-  const snapshots = { white: {}, black: {} };
-  ['white', 'black'].forEach((side) => {
-    Object.entries(prototypes?.[side] || {}).forEach(([type, proto]) => {
-      snapshots[side][type] = snapshotMaterialsRel(proto);
-    });
-  });
-  return snapshots;
-}
-
 function averageLuminance(root) {
   let sum = 0;
   let count = 0;
@@ -6096,8 +6028,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let board = parseFEN(START_FEN);
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
-    let currentMaterialSnapshots = null;
-    let currentPieceStyleOption = paletteRef.current?.pieces;
 
     const paintPiecesFromPrototypes = (prototypes, styleId = currentPieceSetId) => {
       if (!prototypes) return;
@@ -6106,7 +6036,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const yOffset = Number.isFinite(currentPieceYOffset)
         ? currentPieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
-      const preserveOriginal = Boolean(currentPieceStyleOption?.preserveOriginalMaterials);
 
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
@@ -6124,10 +6053,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const proto = build(p);
           if (!proto) continue;
           const clone = cloneWithShadows(proto);
-          if (preserveOriginal) {
-            const snap = currentMaterialSnapshots?.[colorKey(p)]?.[p.t];
-            applyMaterialsRel(clone, snap);
-          }
           clone.position.set(
             c * tile - half + tile / 2,
             yOffset,
@@ -6169,7 +6094,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         ? assets.pieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
-      currentPieceStyleOption = pieceStyleOption || paletteRef.current?.pieces;
       const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
       if (currentBoardCleanup) {
         currentBoardCleanup();
@@ -6202,7 +6126,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         }
         applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
-        currentMaterialSnapshots = snapshotPrototypeMaterials(currentPiecePrototypes);
         paintPiecesFromPrototypes(piecePrototypes, setId);
         applyHeadPresetToMeshes(allPieceMeshes, headPreset);
       }
