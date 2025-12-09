@@ -269,37 +269,68 @@ const CHECK_SOUND_URL =
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
 
-const PIECE_COLOR_PRESETS = Object.freeze([
-  { id: 'pieceColorWhite', name: 'Pure White', hex: '#ffffff' },
-  { id: 'pieceColorMidnight', name: 'Shadow', hex: '#111827' },
-  { id: 'pieceColorAmber', name: 'Amber', hex: '#f59e0b' },
-  { id: 'pieceColorEmerald', name: 'Mint', hex: '#10b981' },
-  { id: 'pieceColorAzure', name: 'Azure', hex: '#3b82f6' },
-  { id: 'pieceColorCrimson', name: 'Crimson', hex: '#ef4444' },
-  { id: 'pieceColorViolet', name: 'Violet', hex: '#8b5cf6' }
+const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
+  {
+    id: 'beautifulGameAuroraMetal',
+    name: 'Aurora Metal',
+    piece: { white: '#dce6ff', black: '#111827', accent: '#7dd3fc' },
+    board: { light: '#d9f5ff', dark: '#0b1220', accent: '#7dd3fc' }
+  },
+  {
+    id: 'beautifulGameObsidianGold',
+    name: 'Obsidian / Gold',
+    piece: { white: '#f8ead4', black: '#141414', accent: '#d4a017' },
+    board: { light: '#f4e8d2', dark: '#1e1e1e', accent: '#d4a017' }
+  },
+  {
+    id: 'beautifulGameGlacierMint',
+    name: 'Glacier / Mint',
+    piece: { white: '#ecfeff', black: '#0f172a', accent: '#34d399' },
+    board: { light: '#d1fae5', dark: '#0f172a', accent: '#34d399' }
+  },
+  {
+    id: 'beautifulGameSakuraSlate',
+    name: 'Sakura / Slate',
+    piece: { white: '#ffe4ec', black: '#2b3040', accent: '#fb7185' },
+    board: { light: '#ffd8e3', dark: '#1f2635', accent: '#fb7185' }
+  },
+  {
+    id: 'beautifulGameVoltTeal',
+    name: 'Volt / Teal',
+    piece: { white: '#faffb5', black: '#0f766e', accent: '#22d3ee' },
+    board: { light: '#e8ffb5', dark: '#0b3b3c', accent: '#22d3ee' }
+  },
+  {
+    id: 'beautifulGameCopperIvory',
+    name: 'Copper / Ivory',
+    piece: { white: '#f5f0e5', black: '#5a2c1f', accent: '#e38b29' },
+    board: { light: '#f4ede1', dark: '#3b241a', accent: '#e38b29' }
+  },
+  {
+    id: 'beautifulGameNoirNeon',
+    name: 'Noir / Neon',
+    piece: { white: '#e5e7eb', black: '#0a0d14', accent: '#06f0ff' },
+    board: { light: '#c7d2fe', dark: '#0a0d14', accent: '#06f0ff' }
+  },
+  {
+    id: 'beautifulGameCinderRose',
+    name: 'Cinder / Rose',
+    piece: { white: '#f5d0c5', black: '#1f1b29', accent: '#f43f5e' },
+    board: { light: '#f8d7cc', dark: '#1b1524', accent: '#f43f5e' }
+  },
+  {
+    id: 'beautifulGameHarborFog',
+    name: 'Harbor Fog',
+    piece: { white: '#e2e8f0', black: '#1e293b', accent: '#38bdf8' },
+    board: { light: '#dbeafe', dark: '#0b1220', accent: '#38bdf8' }
+  },
+  {
+    id: 'beautifulGameDesertStorm',
+    name: 'Desert Storm',
+    piece: { white: '#fef3c7', black: '#4b3421', accent: '#fbbf24' },
+    board: { light: '#fde68a', dark: '#2d1f12', accent: '#fbbf24' }
+  }
 ]);
-
-const BEAUTIFUL_GAME_BOARD_PRESETS = Object.freeze([
-  { id: 'boardClassic', name: 'Classic', light: '#EEE8D5', dark: '#2B2F36' },
-  { id: 'boardMono', name: 'Mono', light: '#E5E7EB', dark: '#111827' },
-  { id: 'boardBlue', name: 'Blue', light: '#93C5FD', dark: '#1E293B' },
-  { id: 'boardAmber', name: 'Amber', light: '#FDE68A', dark: '#1F2937' },
-  { id: 'boardMint', name: 'Mint', light: '#A7F3D0', dark: '#065F46' },
-  { id: 'boardPink', name: 'Pink', light: '#FBCFE8', dark: '#312E81' },
-  { id: 'boardTeal', name: 'Teal', light: '#99F6E4', dark: '#0F172A' }
-]);
-
-const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze(
-  BEAUTIFUL_GAME_BOARD_PRESETS.map((preset, index) => {
-    const pieceColor = PIECE_COLOR_PRESETS[index % PIECE_COLOR_PRESETS.length];
-    return {
-      id: preset.id,
-      name: preset.name,
-      piece: { white: pieceColor.hex, black: pieceColor.hex, accent: pieceColor.hex },
-      board: { light: preset.light, dark: preset.dark, accent: pieceColor.hex }
-    };
-  })
-);
 
 const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => config.name);
 
@@ -400,8 +431,8 @@ const BEAUTIFUL_GAME_PIECE_STYLE = Object.freeze({
   blackAccent: '#7dd3fc'
 });
 
-const BEAUTIFUL_GAME_AUTHENTIC_ID = 'boardClassic';
-const BEAUTIFUL_GAME_SET_ID = 'boardClassicSet';
+const BEAUTIFUL_GAME_AUTHENTIC_ID = 'beautifulGameAuroraMetal';
+const BEAUTIFUL_GAME_SET_ID = 'beautifulGameAuroraMetalSet';
 
 const BASE_PIECE_STYLE = BEAUTIFUL_GAME_PIECE_STYLE;
 
@@ -837,8 +868,8 @@ const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.i
 const PRESERVE_NATIVE_PIECE_IDS = new Set();
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'whitePieceStyle', label: 'Pieces P1 (bottom)', options: PIECE_STYLE_OPTIONS },
-  { key: 'blackPieceStyle', label: 'Pieces P2 (top)', options: PIECE_STYLE_OPTIONS },
+  { key: 'whitePieceStyle', label: 'White Pieces', options: PIECE_STYLE_OPTIONS },
+  { key: 'blackPieceStyle', label: 'Black Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'headStyle', label: 'Heads (Pawn & Bishop)', options: HEAD_PRESET_OPTIONS },
   { key: 'boardColor', label: 'Chess Board', options: BEAUTIFUL_GAME_BOARD_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
