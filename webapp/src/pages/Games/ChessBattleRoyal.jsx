@@ -227,11 +227,10 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  // JSON + external resources (kept last)
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_TOUCH_URLS = [
@@ -239,11 +238,20 @@ const BEAUTIFUL_GAME_TOUCH_URLS = [
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
-// Legacy set placeholders now point to the ABeautifulGame binary so every load path
-// resolves to the same modern pieces and materials.
-const STAUNTON_SET_URLS = BEAUTIFUL_GAME_URLS;
-const KENNEY_SET_URLS = BEAUTIFUL_GAME_URLS;
-const POLYGONAL_SET_URLS = BEAUTIFUL_GAME_URLS;
+const STAUNTON_SET_URLS = [
+  'https://raw.githubusercontent.com/cx20/gltf-test/master/sampleModels/Chess/glTF-Binary/Chess.glb',
+  'https://cdn.jsdelivr.net/gh/cx20/gltf-test@master/sampleModels/Chess/glTF-Binary/Chess.glb'
+];
+
+const KENNEY_SET_URLS = [
+  'https://raw.githubusercontent.com/KenneyNL/boardgame-kit/main/Models/GLTF/boardgame-kit.glb',
+  'https://cdn.jsdelivr.net/gh/KenneyNL/boardgame-kit@main/Models/GLTF/boardgame-kit.glb'
+];
+
+const POLYGONAL_SET_URLS = [
+  'https://raw.githubusercontent.com/quaterniusdev/ChessSet/master/Source/GLTF/ChessSet.glb',
+  'https://cdn.jsdelivr.net/gh/quaterniusdev/ChessSet@master/Source/GLTF/ChessSet.glb'
+];
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -1643,19 +1651,6 @@ function createConfiguredGLTFLoader(renderer = null) {
 
 async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
   const loader = createConfiguredGLTFLoader();
-  const withTimeout = (promise, ms = 8000, label = 'op') =>
-    new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
-      promise
-        .then((value) => {
-          clearTimeout(timer);
-          resolve(value);
-        })
-        .catch((error) => {
-          clearTimeout(timer);
-          reject(error);
-        });
-    });
   let lastError = null;
   for (const url of urls) {
     try {
@@ -1665,39 +1660,15 @@ async function loadBeautifulGameSet(urls = BEAUTIFUL_GAME_URLS) {
       const isAbsolute = /^https?:\/\//i.test(resolvedUrl);
       loader.setResourcePath(resourcePath);
       loader.setPath(isAbsolute ? '' : resourcePath);
-      const loadAsync = loader.loadAsync
-        ? (u) => loader.loadAsync(u)
-        : (u) => new Promise((resolve, reject) => loader.load(u, resolve, undefined, reject));
-      let gltf = null;
-      try {
-        // eslint-disable-next-line no-await-in-loop
-        gltf = await withTimeout(loadAsync(resolvedUrl), 8000, `load ${resolvedUrl}`);
-      } catch (loadError) {
-        if (/\.glb($|\?)/i.test(resolvedUrl)) {
-          try {
-            // eslint-disable-next-line no-await-in-loop
-            const response = await withTimeout(
-              fetch(resolvedUrl, { mode: 'cors' }),
-              8000,
-              `fetch ${resolvedUrl}`
-            );
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const buffer = await response.arrayBuffer();
-            gltf = await new Promise((resolve, reject) =>
-              loader.parse(buffer, resourcePath, resolve, reject)
-            );
-          } catch (fetchError) {
-            lastError = fetchError;
-          }
-        } else {
-          lastError = loadError;
-        }
-      }
+      // eslint-disable-next-line no-await-in-loop
+      const gltf = await new Promise((resolve, reject) => {
+        loader.load(resolvedUrl, resolve, undefined, reject);
+      });
       if (gltf?.scene) {
         gltf.userData = { ...(gltf.userData || {}), beautifulGameSource: isLocal ? 'local' : 'remote' };
         gltf.scene.userData = { ...(gltf.scene.userData || {}), beautifulGameSource: gltf.userData.beautifulGameSource };
       }
-      if (gltf) return gltf;
+      return gltf;
     } catch (error) {
       lastError = error;
     }
@@ -2397,72 +2368,265 @@ function detectPieceColor(node) {
 }
 
 function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
-  const material = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(colorHex),
-    metalness: 0.1,
-    roughness: 0.45
-  });
+  const baseRadius = 0.38 * scale;
+  const baseHeight = 0.18 * scale;
+  const collarRadius = 0.26 * scale;
+  const collarHeight = 0.16 * scale;
+  const bodyRadius = 0.3 * scale;
+  const bodyHeight = 0.82 * scale;
+  const crownRadius = 0.22 * scale;
   const g = new THREE.Group();
   g.name = `${colorHex}-${type}`;
-
-  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * scale, 0.5 * scale, 0.12 * scale, 24), material);
-  base.position.y = 0.06 * scale;
+  const base = new THREE.Mesh(
+    buildLathe([
+      new THREE.Vector2(0, 0),
+      new THREE.Vector2(baseRadius, 0),
+      new THREE.Vector2(baseRadius * 1.05, baseHeight * 0.4),
+      new THREE.Vector2(baseRadius * 0.9, baseHeight),
+      new THREE.Vector2(baseRadius * 0.15, baseHeight * 1.02),
+      new THREE.Vector2(0, baseHeight * 1.05)
+    ]),
+    makeSmoothMaterial(colorHex, { metalness: 0.22, roughness: 0.28 })
+  );
   g.add(base);
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3 * scale, 0.38 * scale, 0.65 * scale, 24), material);
-  body.position.y = 0.43 * scale;
-  g.add(body);
+  const buildBody = (radius, height, roughness = 0.25) =>
+    new THREE.Mesh(
+      buildLathe([
+        new THREE.Vector2(radius * 0.55, 0),
+        new THREE.Vector2(radius, height * 0.12),
+        new THREE.Vector2(radius * 0.68, height * 0.5),
+        new THREE.Vector2(radius * 0.9, height * 0.78),
+        new THREE.Vector2(radius * 0.5, height)
+      ]),
+      makeSmoothMaterial(colorHex, { roughness, metalness: 0.2 })
+    );
+
+  const collar = new THREE.Mesh(
+    buildLathe([
+      new THREE.Vector2(0, 0),
+      new THREE.Vector2(collarRadius * 1.1, 0),
+      new THREE.Vector2(collarRadius * 1.2, collarHeight * 0.4),
+      new THREE.Vector2(collarRadius * 0.65, collarHeight * 0.7),
+      new THREE.Vector2(collarRadius * 0.4, collarHeight)
+    ]),
+    makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.22 })
+  );
 
   if (type === 'P') {
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.2 * scale, 24, 18), material);
-    head.position.y = 0.92 * scale;
+    const body = buildBody(bodyRadius * 0.82, bodyHeight * 0.65, 0.3);
+    body.position.y = baseHeight;
+    g.add(body);
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 * scale, 24, 16),
+      makeSmoothMaterial(colorHex, { roughness: 0.26, metalness: 0.24 })
+    );
+    head.position.y = baseHeight + bodyHeight * 0.68;
     g.add(head);
-  }
-
-  if (type === 'R') {
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34 * scale, 0.34 * scale, 0.2 * scale, 12), material);
-    top.position.y = 0.95 * scale;
-    g.add(top);
-  }
-
-  if (type === 'N') {
-    const head = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15 * scale, 0.05 * scale, 50, 8), material);
-    head.position.y = 1 * scale;
+  } else if (type === 'R') {
+    const body = buildBody(bodyRadius * 0.9, bodyHeight * 0.7, 0.26);
+    body.position.y = baseHeight;
+    g.add(body);
+    const crenel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26 * scale, 0.28 * scale, 0.22 * scale, 32, 1, false),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.24, metalness: 0.26 })
+    );
+    crenel.position.y = baseHeight + bodyHeight * 0.72 + 0.1 * scale;
+    g.add(crenel);
+  } else if (type === 'N') {
+    const body = buildBody(bodyRadius * 0.88, bodyHeight * 0.7, 0.28);
+    body.position.y = baseHeight;
+    g.add(body);
+    const shape = new THREE.Shape();
+    shape.moveTo(0, 0);
+    shape.quadraticCurveTo(0.05 * scale, 0.1 * scale, -0.02 * scale, 0.22 * scale);
+    shape.quadraticCurveTo(-0.08 * scale, 0.35 * scale, 0.05 * scale, 0.48 * scale);
+    shape.quadraticCurveTo(0.25 * scale, 0.72 * scale, 0.12 * scale, 0.9 * scale);
+    shape.quadraticCurveTo(0.02 * scale, 1.05 * scale, -0.06 * scale, 0.88 * scale);
+    shape.quadraticCurveTo(-0.18 * scale, 0.65 * scale, -0.12 * scale, 0.35 * scale);
+    shape.quadraticCurveTo(-0.2 * scale, 0.1 * scale, 0, 0);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: 0.22 * scale,
+      bevelEnabled: true,
+      bevelThickness: 0.04 * scale,
+      bevelSize: 0.05 * scale,
+      bevelSegments: 4
+    });
+    geo.translate(-0.12 * scale, 0, -0.1 * scale);
+    const head = new THREE.Mesh(geo, makeSmoothMaterial(colorHex, { roughness: 0.3, metalness: 0.26 }));
+    head.rotation.y = Math.PI / 2;
+    head.position.y = baseHeight + bodyHeight * 0.55;
     g.add(head);
-  }
-
-  if (type === 'B') {
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26 * scale, 0.35 * scale, 24), material);
-    cone.position.y = 1 * scale;
-    g.add(cone);
-  }
-
-  if (type === 'Q') {
-    const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * scale, 0.3 * scale, 0.45 * scale, 24, 1, true), material);
-    crown.position.y = 1.05 * scale;
+  } else if (type === 'B') {
+    const body = buildBody(bodyRadius * 0.92, bodyHeight * 0.78, 0.24);
+    body.position.y = baseHeight;
+    g.add(body);
+    collar.position.y = baseHeight + bodyHeight * 0.8;
+    g.add(collar);
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(0.18 * scale, 24, 16),
+      makeSmoothMaterial(colorHex, { roughness: 0.24, metalness: 0.24 })
+    );
+    dome.position.y = collar.position.y + 0.22 * scale;
+    g.add(dome);
+  } else if (type === 'Q') {
+    const body = buildBody(bodyRadius * 1.02, bodyHeight * 0.88, 0.22);
+    body.position.y = baseHeight;
+    g.add(body);
+    collar.position.y = baseHeight + bodyHeight * 0.9;
+    g.add(collar);
+    const crown = new THREE.Group();
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(crownRadius, 0.05 * scale, 12, 32),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.22, metalness: 0.24 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.1 * scale, 24, 16),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.26 })
+    );
+    orb.position.y = 0.16 * scale;
+    crown.add(ring, orb);
+    crown.position.y = collar.position.y + 0.28 * scale;
+    g.add(crown);
+  } else if (type === 'K') {
+    const body = buildBody(bodyRadius * 1.08, bodyHeight * 0.95, 0.2);
+    body.position.y = baseHeight;
+    g.add(body);
+    collar.position.y = baseHeight + bodyHeight * 0.98;
+    g.add(collar);
+    const crown = new THREE.Group();
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(crownRadius * 1.05, 0.048 * scale, 12, 32),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.2, metalness: 0.26 })
+    );
+    ring.rotation.x = Math.PI / 2;
+    const orb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.11 * scale, 24, 16),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.16, metalness: 0.28 })
+    );
+    orb.position.y = 0.18 * scale;
+    const crossVert = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08 * scale, 0.36 * scale, 0.08 * scale),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
+    );
+    crossVert.position.y = 0.25 * scale;
+    const crossHoriz = new THREE.Mesh(
+      new THREE.BoxGeometry(0.32 * scale, 0.08 * scale, 0.08 * scale),
+      makeSmoothMaterial(accentHex ?? colorHex, { roughness: 0.18, metalness: 0.3 })
+    );
+    crossHoriz.position.y = 0.35 * scale;
+    crown.add(ring, orb, crossVert, crossHoriz);
+    crown.position.y = collar.position.y + 0.32 * scale;
     g.add(crown);
   }
 
-  if (type === 'K') {
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.26 * scale, 0.3 * scale, 0.15 * scale, 24), material);
-    cap.position.y = 1 * scale;
-    g.add(cap);
-    const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04 * scale, 0.24 * scale, 0.04 * scale), material);
-    crossV.position.y = 1.2 * scale;
-    g.add(crossV);
-    const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16 * scale, 0.04 * scale, 0.04 * scale), material);
-    crossH.position.y = 1.2 * scale;
-    g.add(crossH);
-  }
-
   g.traverse((child) => {
-    if (!child.isMesh) return;
-    child.castShadow = true;
-    child.receiveShadow = false;
+    if (child.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = true;
+    }
   });
 
-  return finalizePrototype(g, scale, DEFAULT_PIECE_SET_ID);
+  const box = new THREE.Box3().setFromObject(g);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  g.position.sub(center);
+  g.position.y -= box.min.y;
+  return g;
 }
+
+function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME_THEME) {
+  const boardModel = new THREE.Group();
+  boardModel.name = 'ABeautifulGameLocal';
+  const tile = BOARD.tile;
+  const N = BOARD.N;
+  const half = (N * tile) / 2;
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      targetBoardSize || N * tile + BOARD.rim * 2,
+      BOARD.baseH * 1.05,
+      targetBoardSize || N * tile + BOARD.rim * 2
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
+      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
+      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
+      clearcoat: 0,
+      reflectivity: 0
+    })
+  );
+  base.position.y = BOARD.baseH * 0.5;
+  boardModel.add(base);
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
+      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+      clearcoat: 0,
+      reflectivity: 0
+    })
+  );
+  top.position.y = BOARD.baseH + 0.07;
+  boardModel.add(top);
+
+  const tiles = new THREE.Group();
+  boardModel.add(tiles);
+  for (let r = 0; r < N; r += 1) {
+    for (let c = 0; c < N; c += 1) {
+      const isDark = (r + c) % 2 === 1;
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
+        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+        clearcoat: 0,
+        reflectivity: 0,
+        specularIntensity: 0.18
+      });
+      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
+      tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
+      tiles.add(tileMesh);
+    }
+  }
+
+  const piecePrototypes = { white: {}, black: {} };
+  const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
+  const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
+  const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
+  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
+  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
+  piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
+  piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
+  piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
+  piecePrototypes.white.B = buildBeautifulGamePiece('B', authenticWhite, accentLight, scale);
+  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', authenticWhite, accentLight, scale);
+  piecePrototypes.white.K = buildBeautifulGamePiece('K', authenticWhite, accentLight, scale);
+  piecePrototypes.black.P = buildBeautifulGamePiece('P', authenticBlack, accentDark, scale);
+  piecePrototypes.black.R = buildBeautifulGamePiece('R', authenticBlack, accentDark, scale);
+  piecePrototypes.black.N = buildBeautifulGamePiece('N', authenticBlack, accentDark, scale);
+  piecePrototypes.black.B = buildBeautifulGamePiece('B', authenticBlack, accentDark, scale);
+  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
+  piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
+
+  Object.entries(piecePrototypes).forEach(([, byColor]) => {
+    Object.entries(byColor).forEach(([type, proto]) => {
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+      proto.traverse((child) => {
+        if (!child.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+      });
+    });
+  });
+
+  const boardBox = new THREE.Box3().setFromObject(boardModel);
+  const boardTop = boardBox.max.y;
+
+  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: boardTop + 0.02 };
+}
+
 function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
   const box = new THREE.Box3().setFromObject(group);
   const center = new THREE.Vector3();
@@ -2474,7 +2638,7 @@ function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
   group.traverse((child) => {
     if (child.isMesh) {
       child.castShadow = true;
-      child.receiveShadow = false;
+      child.receiveShadow = true;
       child.userData = { ...(child.userData || {}), __pieceStyleId: styleId };
     }
   });
@@ -3468,8 +3632,6 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
 
   const piecePrototypes = { white: {}, black: {} };
   const fallbackTile = Math.max(0.001, targetSize / 8);
-  const targetFootprint = fallbackTile * 0.995;
-  const seatHeight = 0.18;
   const buildPrototype = (colorKey, type) => {
     const source = colorKey === 'black' ? pool.black[type] : pool.white[type];
     const opposite = colorKey === 'black' ? pool.white[type] : pool.black[type];
@@ -3484,14 +3646,9 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
       }
       proto.scale.multiplyScalar(totalScale);
       const protoBox = new THREE.Box3().setFromObject(proto);
-      const protoSize = protoBox.getSize(new THREE.Vector3());
-      const footprint = Math.max(protoSize.x, protoSize.z) || 1;
-      const scale = targetFootprint / footprint;
-      proto.scale.multiplyScalar(scale);
-      const scaledBox = new THREE.Box3().setFromObject(proto);
-      const protoCenter = scaledBox.getCenter(new THREE.Vector3());
+      const protoCenter = protoBox.getCenter(new THREE.Vector3());
       proto.position.sub(protoCenter);
-      proto.position.y -= scaledBox.min.y;
+      proto.position.y -= protoBox.min.y;
       proto.userData = {
         ...(proto.userData || {}),
         __pieceStyleId: DEFAULT_PIECE_SET_ID,
@@ -3502,19 +3659,10 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     }
     const fallback = buildBeautifulGamePiece(
       type,
-      colorKey === 'black' ? '#111418' : '#e7e9ee',
-      colorKey === 'black' ? '#111418' : '#e7e9ee',
-      1
+      colorKey === 'black' ? '#1a1c21' : '#e9ebef',
+      colorKey === 'black' ? '#caa472' : '#caa472',
+      fallbackTile / 0.9
     );
-    const box = new THREE.Box3().setFromObject(fallback);
-    const size = box.getSize(new THREE.Vector3());
-    const footprint = Math.max(size.x, size.z) || 1;
-    const scale = targetFootprint / footprint;
-    fallback.scale.multiplyScalar(scale);
-    const scaled = new THREE.Box3().setFromObject(fallback);
-    const center = scaled.getCenter(new THREE.Vector3());
-    fallback.position.sub(center);
-    fallback.position.y -= scaled.min.y;
     fallback.userData = {
       ...(fallback.userData || {}),
       __pieceStyleId: DEFAULT_PIECE_SET_ID,
@@ -3533,7 +3681,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     boardModel,
     piecePrototypes,
     tileSize,
-    pieceYOffset: boardTop + seatHeight
+    pieceYOffset: boardTop + 0.02
   };
   harmonizeBeautifulGamePieces(assets.piecePrototypes);
   if (options?.source === 'local') {
