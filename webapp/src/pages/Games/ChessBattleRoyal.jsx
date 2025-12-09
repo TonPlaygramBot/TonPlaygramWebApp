@@ -3394,6 +3394,105 @@ function cloneWithShadows(object) {
   return clone;
 }
 
+const PIECE_TYPES = ['P', 'R', 'N', 'B', 'Q', 'K'];
+
+function relPath(root, node) {
+  const names = [];
+  let current = node;
+  while (current && current !== root) {
+    names.push(current.name || current.uuid || 'node');
+    current = current.parent;
+  }
+  return names.reverse().join('/');
+}
+
+function snapshotPaletteFromPrototype(protoRoot) {
+  const map = new Map();
+  if (!protoRoot) return map;
+  protoRoot.traverse((child) => {
+    if (!child?.isMesh) return;
+    const key = child.userData?.__rel || relPath(protoRoot, child);
+    const src = child.material;
+    const cloneMat = (mat) => (mat?.clone ? mat.clone() : mat);
+    map.set(key, Array.isArray(src) ? src.map(cloneMat) : cloneMat(src));
+  });
+  return map;
+}
+
+function applyPaletteToPrototype(protoRoot, palette) {
+  if (!protoRoot || !palette) return;
+  protoRoot.traverse((child) => {
+    if (!child?.isMesh) return;
+    const key = child.userData?.__rel || relPath(protoRoot, child);
+    const saved = palette.get(key);
+    if (!saved) return;
+    const cloneMat = (mat) => (mat?.clone ? mat.clone() : mat);
+    child.material = Array.isArray(saved) ? saved.map(cloneMat) : cloneMat(saved);
+  });
+}
+
+function applyWhitePaletteToPrototypes(piecePrototypes) {
+  if (!piecePrototypes?.white) return;
+  const palettesByType = new Map();
+  PIECE_TYPES.forEach((type) => {
+    const proto = piecePrototypes.white?.[type];
+    if (proto) {
+      palettesByType.set(type, snapshotPaletteFromPrototype(proto));
+    }
+  });
+
+  PIECE_TYPES.forEach((type) => {
+    const palette = palettesByType.get(type);
+    if (!palette) return;
+    ['white', 'black'].forEach((colorKey) => {
+      const target = piecePrototypes[colorKey]?.[type];
+      if (target) applyPaletteToPrototype(target, palette);
+    });
+  });
+}
+
+function snapshotMaterials(root) {
+  const snap = new Map();
+  if (!root) return snap;
+  root.traverse((child) => {
+    if (!child?.isMesh) return;
+    const key = child.userData?.__rel || relPath(root, child);
+    const src = child.material;
+    const cloneMat = (mat) => (mat?.clone ? mat.clone() : mat);
+    snap.set(key, Array.isArray(src) ? src.map(cloneMat) : cloneMat(src));
+  });
+  return snap;
+}
+
+function applyMaterialSnapshot(root, snapshot) {
+  if (!root || !snapshot) return;
+  root.traverse((child) => {
+    if (!child?.isMesh) return;
+    const key = child.userData?.__rel || relPath(root, child);
+    const saved = snapshot.get(key);
+    if (!saved) return;
+    const cloneMat = (mat) => (mat?.clone ? mat.clone() : mat);
+    child.material = Array.isArray(saved) ? saved.map(cloneMat) : cloneMat(saved);
+  });
+}
+
+function swapMaterialsBetweenPieces(a, b) {
+  if (!a || !b) return;
+  const snapA = snapshotMaterials(a);
+  const snapB = snapshotMaterials(b);
+  applyMaterialSnapshot(a, snapB);
+  applyMaterialSnapshot(b, snapA);
+}
+
+function swapRankMaterials(pieceGrid, rankA, rankB) {
+  if (!pieceGrid?.length) return;
+  for (let c = 0; c < 8; c += 1) {
+    const a = pieceGrid?.[rankA]?.[c];
+    const b = pieceGrid?.[rankB]?.[c];
+    if (a && b) swapMaterialsBetweenPieces(a, b);
+  }
+}
+
 function cloneWithMaterials(object) {
   const clone = object.clone(true);
   clone.traverse((child) => {
@@ -5907,6 +6006,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let currentPieceYOffset = PIECE_PLACEMENT_Y_OFFSET;
     let currentTileSize = tile;
     let currentPieceSetId = initialPieceSetId;
+    let enforceWhitePalette = false;
     let currentBoardCleanup = null;
     const base = new THREE.Mesh(
       new THREE.BoxGeometry(N * tile + BOARD.rim * 2, BOARD.baseH, N * tile + BOARD.rim * 2),
@@ -6037,6 +6137,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         ? currentPieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
 
+      if (enforceWhitePalette) {
+        applyWhitePaletteToPrototypes(prototypes);
+      }
+
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
           boardGroup.remove(m);
@@ -6080,6 +6184,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           allPieceMeshes.push(clone);
         }
       }
+      if (enforceWhitePalette) {
+        swapRankMaterials(pieceMeshes, 7, 0);
+      }
       if (arenaRef.current) {
         arenaRef.current.allPieceMeshes = allPieceMeshes;
         arenaRef.current.piecePrototypes = prototypes;
@@ -6095,6 +6202,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
       const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
+      const isBeautifulGameSet = (setId || '').startsWith('beautifulGame');
+      enforceWhitePalette = isBeautifulGameSet;
       if (currentBoardCleanup) {
         currentBoardCleanup();
         currentBoardCleanup = null;
@@ -6117,12 +6226,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
-        if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
+        const preserveOriginalMaterials =
+          enforceWhitePalette || Boolean(pieceStyleOption?.preserveOriginalMaterials);
+        if (isBeautifulGameSet && !preserveOriginalMaterials) {
           harmonizeBeautifulGamePieces(
             currentPiecePrototypes,
             pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
           );
+        }
+        if (enforceWhitePalette) {
+          applyWhitePaletteToPrototypes(currentPiecePrototypes);
         }
         applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
