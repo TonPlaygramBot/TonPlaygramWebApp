@@ -628,9 +628,6 @@ const MARBLE_ONYX_STYLE = Object.freeze({
   accent: '#b1c4cf'
 });
 
-const IVORY_HEX = '#f6f1e6';
-const ONYX_HEX = '#0f1217';
-
 const KENNEY_WOOD_STYLE = Object.freeze({
   id: 'kenneyWood',
   label: 'Kenney Woodcut',
@@ -2039,35 +2036,6 @@ function harmonizeBeautifulGamePieces(piecePrototypes, pieceStyle = BEAUTIFUL_GA
 
   ['white', 'black'].forEach((colorKey) => {
     Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => accentize(piece, colorKey));
-  });
-}
-
-function enforcePlayerPieceMaterials(piecePrototypes, whiteColor = IVORY_HEX, blackColor = ONYX_HEX) {
-  if (!piecePrototypes) return;
-  const applyColor = (piece, colorHex) => {
-    if (!piece) return;
-    piece.traverse((child) => {
-      if (!child?.isMesh) return;
-      const materials = Array.isArray(child.material) ? child.material : [child.material];
-      materials.forEach((mat, idx) => {
-        if (!mat) return;
-        const applied = mat.clone ? mat.clone() : mat;
-        applied.color = new THREE.Color(colorHex);
-        if (applied?.emissive?.set) applied.emissive.set(0x000000);
-        if (Array.isArray(child.material)) {
-          child.material[idx] = applied;
-        } else {
-          child.material = applied;
-        }
-      });
-      child.castShadow = true;
-      child.receiveShadow = true;
-    });
-  };
-
-  ['white', 'black'].forEach((colorKey) => {
-    const target = colorKey === 'white' ? whiteColor : blackColor;
-    Object.values(piecePrototypes[colorKey] || {}).forEach((piece) => applyColor(piece, target));
   });
 }
 
@@ -6158,7 +6126,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         }
         applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
         adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
-        enforcePlayerPieceMaterials(currentPiecePrototypes, IVORY_HEX, ONYX_HEX);
         paintPiecesFromPrototypes(piecePrototypes, setId);
         applyHeadPresetToMeshes(allPieceMeshes, headPreset);
       }
