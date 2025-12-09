@@ -3189,57 +3189,347 @@ function buildPolygonalFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
-  const timeoutMs = 35000;
-  const withTimeout = (promise) =>
-    Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
-      )
-    ]);
-  const tryExtract = async (sceneLoader, sceneExtractor = extractor) => {
-    const gltf = await withTimeout(sceneLoader());
-    if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
-    const source = gltf.scene.userData?.beautifulGameSource;
-    return (sceneExtractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
+async function resolveBeautifulGameAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const MODEL_URLS = [
+    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+    'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+    'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
+    'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  ];
+  const TARGET_FOOTPRINT = (targetBoardSize / 8) * 0.995;
+  const PIECE_Y_SEAT = (targetBoardSize / 8) * 0.18;
+
+  const bbox = (obj) => {
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    return { box, size, top: box.max.y, bottom: box.min.y };
+  };
+
+  const nodePath = (node) => {
+    const names = [];
+    let current = node;
+    while (current) {
+      if (current.name) names.push(current.name);
+      current = current.parent;
+    }
+    return names.reverse().join('/');
+  };
+
+  const detectTypeFromPath = (path = '') => {
+    const tests = [
+      ['P', /pawn/],
+      ['R', /rook|castle/],
+      ['N', /knight|horse/],
+      ['B', /bishop/],
+      ['Q', /queen/],
+      ['K', /king/]
+    ];
+    const lower = path.toLowerCase();
+    for (const [t, re] of tests) {
+      if (re.test(lower)) return t;
+    }
+    return null;
+  };
+
+  const promoteToPieceRoot = (node, type) => {
+    let current = node;
+    let parent = current?.parent;
+    while (parent) {
+      const detected = detectTypeFromPath(nodePath(parent));
+      if (detected === type) {
+        current = parent;
+        parent = parent.parent;
+      } else {
+        break;
+      }
+    }
+    return current;
+  };
+
+  const averageLuminance = (root) => {
+    let sum = 0;
+    let count = 0;
+    root?.traverse?.((node) => {
+      if (!node?.isMesh) return;
+      const mats = Array.isArray(node.material) ? node.material : [node.material];
+      mats.forEach((mat) => {
+        if (!mat?.color) return;
+        const { r, g, b } = mat.color;
+        sum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        count += 1;
+      });
+    });
+    return count ? sum / count : 0.5;
+  };
+
+  const normalizeAndSeatClone = (group) => {
+    const { size, bottom } = bbox(group);
+    const footprint = Math.max(size.x, size.z) || 1;
+    const scale = TARGET_FOOTPRINT / footprint;
+    group.scale.multiplyScalar(scale);
+    const after = bbox(group);
+    group.position.y -= after.bottom;
+    group.traverse((node) => {
+      if (!node?.isMesh) return;
+      node.castShadow = true;
+      node.receiveShadow = false;
+    });
+    return group;
+  };
+
+  const cloneProto = (proto) => normalizeAndSeatClone(proto.clone(true));
+
+  const buildBoardFallback = () => {
+    const tile = targetBoardSize / 8;
+    const half = (tile * 8) / 2;
+    const group = new THREE.Group();
+    const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
+    const dark = new THREE.MeshStandardMaterial({ color: 0x5e4529, metalness: 0.2, roughness: 0.6 });
+    for (let r = 0; r < 8; r += 1) {
+      for (let c = 0; c < 8; c += 1) {
+        const isLight = (r + c) % 2 === 0;
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), isLight ? light : dark);
+        mesh.rotation.x = -Math.PI / 2;
+        mesh.position.set(-half + c * tile + tile / 2, 0.001, -half + r * tile + tile / 2);
+        mesh.receiveShadow = true;
+        group.add(mesh);
+      }
+    }
+    const border = new THREE.Mesh(
+      new THREE.BoxGeometry(tile * 8 + 0.2 * tile, 0.08 * tile, tile * 8 + 0.2 * tile),
+      new THREE.MeshStandardMaterial({ color: 0x3a2f1f, metalness: 0.2, roughness: 0.7 })
+    );
+    border.position.y = -0.04 * tile;
+    border.receiveShadow = true;
+    group.add(border);
+    return group;
+  };
+
+  const buildFallbackPieces = () => {
+    const tile = targetBoardSize / 8;
+    const MAT_W = new THREE.MeshStandardMaterial({ color: 0xe7e9ee, metalness: 0.1, roughness: 0.45 });
+    const MAT_B = new THREE.MeshStandardMaterial({ color: 0x111418, metalness: 0.1, roughness: 0.45 });
+    const protoFallback = (type, color) => {
+      const mat = color === 'white' ? MAT_W : MAT_B;
+      const g = new THREE.Group();
+      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42 * tile, 0.5 * tile, 0.12 * tile, 24), mat);
+      base.position.y = 0.06 * tile;
+      g.add(base);
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3 * tile, 0.38 * tile, 0.65 * tile, 24), mat);
+      body.position.y = 0.43 * tile;
+      g.add(body);
+      if (type === 'P') {
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.2 * tile, 24, 18), mat);
+        head.position.y = 0.92 * tile;
+        g.add(head);
+      }
+      if (type === 'R') {
+        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34 * tile, 0.34 * tile, 0.2 * tile, 12), mat);
+        top.position.y = 0.95 * tile;
+        g.add(top);
+      }
+      if (type === 'N') {
+        const head = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15 * tile, 0.05 * tile, 50, 8), mat);
+        head.position.y = 1 * tile;
+        g.add(head);
+      }
+      if (type === 'B') {
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26 * tile, 0.35 * tile, 24), mat);
+        cone.position.y = 1 * tile;
+        g.add(cone);
+      }
+      if (type === 'Q') {
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22 * tile, 0.3 * tile, 0.45 * tile, 24, 1, true), mat);
+        crown.position.y = 1.05 * tile;
+        g.add(crown);
+      }
+      if (type === 'K') {
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.26 * tile, 0.3 * tile, 0.15 * tile, 24), mat);
+        cap.position.y = 1 * tile;
+        g.add(cap);
+        const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04 * tile, 0.24 * tile, 0.04 * tile), mat);
+        crossV.position.y = 1.2 * tile;
+        g.add(crossV);
+        const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16 * tile, 0.04 * tile, 0.04 * tile), mat);
+        crossH.position.y = 1.2 * tile;
+        g.add(crossH);
+      }
+      g.traverse((n) => {
+        if (n.isMesh) {
+          n.castShadow = true;
+          n.receiveShadow = false;
+        }
+      });
+      g.userData = { isPiece: true, type, color };
+      return normalizeAndSeatClone(g);
+    };
+
+    const piecePrototypes = { white: {}, black: {} };
+    ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+      piecePrototypes.white[type] = protoFallback(type, 'white');
+      piecePrototypes.black[type] = protoFallback(type, 'black');
+    });
+    return piecePrototypes;
+  };
+
+  const buildFallbackAssets = () => ({
+    boardModel: buildBoardFallback(),
+    piecePrototypes: buildFallbackPieces(),
+    pieceYOffset: PIECE_Y_SEAT,
+    tileSize: targetBoardSize / 8,
+    userData: { styleId: 'beautifulGameSnippetFallback' }
+  });
+
+  const withTimeout = (promise, ms, label) =>
+    new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`${label || 'op'} timeout after ${ms}ms`)), ms);
+      promise
+        .then((value) => {
+          clearTimeout(timer);
+          resolve(value);
+        })
+        .catch((error) => {
+          clearTimeout(timer);
+          reject(error);
+        });
+    });
+
+  const tryLoadUrl = async (url, loader) => {
+    try {
+      return await withTimeout(
+        new Promise((resolve, reject) => loader.load(url, resolve, undefined, reject)),
+        8000,
+        `load ${url}`
+      );
+    } catch (error) {
+      if (/\.glb($|\?)/i.test(url)) {
+        const response = await withTimeout(fetch(url, { mode: 'cors' }), 8000, `fetch ${url}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const buffer = await response.arrayBuffer();
+        return new Promise((resolve, reject) => {
+          loader.parse(buffer, url.substring(0, url.lastIndexOf('/') + 1), resolve, reject);
+        });
+      }
+      throw error;
+    }
   };
 
   try {
-    return await tryExtract(() => loadBeautifulGameSet());
-  } catch (error) {
-    console.warn('Chess Battle Royal: remote ABeautifulGame set failed', error);
-  }
-
-  try {
-    const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
-    if (touchAssets?.boardModel || touchAssets?.piecePrototypes) {
-      return touchAssets;
+    const loader = createConfiguredGLTFLoader();
+    loader.setCrossOrigin('anonymous');
+    let gltf = null;
+    let lastError = null;
+    for (const url of MODEL_URLS) {
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        gltf = await tryLoadUrl(url, loader);
+        if (gltf) break;
+      } catch (error) {
+        lastError = error;
+      }
     }
+
+    if (!gltf?.scene) {
+      if (lastError) console.warn('Chess Battle Royal: ABeautifulGame snippet load failed', lastError);
+      return buildFallbackAssets();
+    }
+
+    const source = gltf.scene;
+    source.updateMatrixWorld(true);
+
+    const boards = [];
+    source.traverse((node) => {
+      const n = (node?.name || '').toLowerCase();
+      if (/\b(board|chessboard|table)\b/.test(n)) boards.push(node);
+    });
+    const boardNode = boards[0] || source;
+    const boardClone = boardNode.clone(true);
+    boardClone.traverse((node) => {
+      if (node.isMesh) {
+        node.receiveShadow = true;
+        node.castShadow = false;
+      }
+      const isPiece = /(pawn|rook|castle|knight|horse|bishop|queen|king)/i.test(node.name || '');
+      if (isPiece) node.visible = false;
+    });
+    const { size } = bbox(boardClone);
+    const srcBoardSize = Math.max(size.x, size.z) || 1;
+    const scale = (targetBoardSize + (targetBoardSize / 8) * 0.2) / srcBoardSize;
+    boardClone.scale.setScalar(scale);
+    const center = new THREE.Vector3();
+    bbox(boardClone).box.getCenter(center);
+    boardClone.position.sub(center.multiplyScalar(scale));
+    boardClone.position.y = 0;
+
+    const buckets = { P: { white: [], black: [], any: [] }, R: { white: [], black: [], any: [] }, N: { white: [], black: [], any: [] }, B: { white: [], black: [], any: [] }, Q: { white: [], black: [], any: [] }, K: { white: [], black: [], any: [] } };
+    const NAME_W = /(^|[\W_])(white|ivory|light)([\W_]|$)/i;
+    const NAME_B = /(^|[\W_])(black|ebony|dark)([\W_]|$)/i;
+    const visited = new Set();
+
+    source.traverse((node) => {
+      const type = detectTypeFromPath(nodePath(node));
+      if (!type) return;
+      const root = promoteToPieceRoot(node, type);
+      if (visited.has(root.uuid)) return;
+      visited.add(root.uuid);
+      const path = nodePath(root).toLowerCase();
+      const isWhite = NAME_W.test(path);
+      const isBlack = NAME_B.test(path);
+      const luminance = averageLuminance(root);
+      const entry = { root, luminance };
+      if (isWhite) buckets[type].white.push(entry);
+      if (isBlack) buckets[type].black.push(entry);
+      if (!isWhite && !isBlack) buckets[type].any.push(entry);
+    });
+
+    const choose = (list, preferBright = true) => {
+      if (!list.length) return null;
+      const sorted = [...list].sort((a, b) => (preferBright ? b.luminance - a.luminance : a.luminance - b.luminance));
+      return sorted[0].root;
+    };
+
+    const prototypes = { white: {}, black: {} };
+    ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+      const bucket = buckets[type];
+      prototypes.white[type] =
+        choose(bucket.white, true) ||
+        choose(bucket.any, true) ||
+        choose(bucket.black, true) ||
+        null;
+      prototypes.black[type] =
+        choose(bucket.black, false) ||
+        choose(bucket.any, false) ||
+        choose(bucket.white, false) ||
+        null;
+      if (!prototypes.white[type] && prototypes.black[type]) prototypes.white[type] = prototypes.black[type];
+      if (!prototypes.black[type] && prototypes.white[type]) prototypes.black[type] = prototypes.white[type];
+    });
+
+    const fallbackPieces = buildFallbackPieces();
+    const piecePrototypes = { white: {}, black: {} };
+    ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+      piecePrototypes.white[type] = prototypes.white[type]
+        ? cloneProto(prototypes.white[type])
+        : fallbackPieces.white[type];
+      piecePrototypes.black[type] = prototypes.black[type]
+        ? cloneProto(prototypes.black[type])
+        : fallbackPieces.black[type];
+      piecePrototypes.white[type].userData = { ...piecePrototypes.white[type].userData, color: 'white', type };
+      piecePrototypes.black[type].userData = { ...piecePrototypes.black[type].userData, color: 'black', type };
+    });
+
+    return {
+      boardModel: boardClone,
+      piecePrototypes,
+      pieceYOffset: PIECE_Y_SEAT,
+      tileSize: targetBoardSize / 8,
+      userData: { styleId: 'beautifulGameSnippet' }
+    };
   } catch (error) {
-    console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
+    console.warn('Chess Battle Royal: BeautifulGame snippet loader failed, using fallback', error);
+    return buildFallbackAssets();
   }
-
-  throw new Error('ABeautifulGame assets are unavailable');
-}
-
-async function resolveBeautifulGameTouchAssets(targetBoardSize) {
-  const timeoutMs = 15000;
-  const withTimeout = (promise) =>
-    Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ABeautifulGame touch load timed out')), timeoutMs)
-      )
-    ]);
-
-  const gltf = await withTimeout(loadBeautifulGameTouchSet());
-  if (!gltf?.scene) {
-    throw new Error('ABeautifulGame touch edition failed to load');
-  }
-
-  const source = gltf.scene.userData?.beautifulGameSource;
-  return extractBeautifulGameTouchAssets(gltf.scene, targetBoardSize, { source });
 }
 
 function cloneWithShadows(object) {
