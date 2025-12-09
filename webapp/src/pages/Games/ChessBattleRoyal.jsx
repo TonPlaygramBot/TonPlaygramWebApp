@@ -227,10 +227,10 @@ const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
 
 const BEAUTIFUL_GAME_URLS = [
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://rawcdn.githack.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf',
+  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF/ABeautifulGame.gltf'
 ];
 
 const BEAUTIFUL_GAME_TOUCH_URLS = [
@@ -2266,9 +2266,12 @@ async function loadMarbleOnyxStauntonAssets(targetBoardSize = RAW_BOARD_SIZE) {
 }
 
 async function resolveBeautifulGameBoardStrict(targetBoardSize) {
-  const assets = await resolveBeautifulGameAssets(targetBoardSize);
-  if (!assets?.boardModel) throw new Error('A Beautiful Game board failed to load');
-  return assets;
+  const gltf = await loadBeautifulGameSet();
+  if (!gltf?.scene) throw new Error('A Beautiful Game board failed to load');
+  return extractBeautifulGameAssets(gltf.scene, targetBoardSize, {
+    source: 'remote',
+    assetScale: 1
+  });
 }
 
 async function loadKenneyAssets(targetBoardSize = RAW_BOARD_SIZE) {
@@ -3186,7 +3189,7 @@ function buildPolygonalFallbackAssets(
   return { boardModel: null, piecePrototypes };
 }
 
-async function resolveBeautifulGameAssets(targetBoardSize) {
+async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
   const timeoutMs = 35000;
   const withTimeout = (promise) =>
     Promise.race([
@@ -3195,256 +3198,27 @@ async function resolveBeautifulGameAssets(targetBoardSize) {
         setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
       )
     ]);
-
-  const applyMaterialIsolation = (node) => {
-    if (!node?.isMesh) return;
-    if (Array.isArray(node.material)) {
-      node.material = node.material.map((mat) => (mat?.clone ? mat.clone() : mat));
-    } else if (node.material?.clone) {
-      node.material = node.material.clone();
-    }
-    node.castShadow = true;
-    node.receiveShadow = false;
-  };
-
-  const nodePath = (node) => {
-    const names = [];
-    let current = node;
-    while (current) {
-      if (current.name) names.push(current.name);
-      current = current.parent;
-    }
-    return names.reverse().join('/');
-  };
-
-  const detectTypeFromPath = (path) => {
-    const lower = (path || '').toLowerCase();
-    if (/pawn/.test(lower)) return 'P';
-    if (/rook|castle/.test(lower)) return 'R';
-    if (/knight|horse/.test(lower)) return 'N';
-    if (/bishop/.test(lower)) return 'B';
-    if (/queen/.test(lower)) return 'Q';
-    if (/king/.test(lower)) return 'K';
-    return null;
-  };
-
-  const promoteToPieceRoot = (node, type) => {
-    let current = node;
-    let parent = current?.parent;
-    while (parent) {
-      const detected = detectTypeFromPath(nodePath(parent));
-      if (detected === type) {
-        current = parent;
-        parent = parent.parent;
-      } else {
-        break;
-      }
-    }
-    return current;
-  };
-
-  const normalizePrototype = (root, tileSize, type) => {
-    if (!root) return null;
-    const clone = root.clone(true);
-    clone.traverse(applyMaterialIsolation);
-    const box = new THREE.Box3().setFromObject(clone);
-    const size = box.getSize(new THREE.Vector3());
-    const footprint = Math.max(size.x, size.z) || 1;
-    const targetFootprint = tileSize * 0.995;
-    const scale = targetFootprint / footprint;
-    clone.scale.multiplyScalar(scale);
-    const scaledBox = new THREE.Box3().setFromObject(clone);
-    const center = scaledBox.getCenter(new THREE.Vector3());
-    clone.position.sub(center);
-    clone.position.y -= scaledBox.min.y;
-    clone.userData = { ...(clone.userData || {}), __pieceStyleId: 'beautifulGameSnippet', __pieceType: type };
-    clone.traverse((child) => {
-      if (!child.isMesh) return;
-      child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGameSnippet', __pieceType: type };
-    });
-    return clone;
-  };
-
-  const detectColor = (path, node) => {
-    const lower = (path || '').toLowerCase();
-    if (/(^|\b)(white|ivory|light)(\b|$)/i.test(lower)) return 'white';
-    if (/(^|\b)(black|ebony|dark)(\b|$)/i.test(lower)) return 'black';
-    const L = averageLuminance(node);
-    return L >= 0.45 ? 'white' : 'black';
-  };
-
-  const extractBeautifulGameSnippetAssets = (scene, targetBoardSize = RAW_BOARD_SIZE) => {
-    if (!scene) return null;
-    const tileSize = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
-    const visited = new Set();
-    const buckets = {
-      P: { w: [], b: [], any: [] },
-      R: { w: [], b: [], any: [] },
-      N: { w: [], b: [], any: [] },
-      B: { w: [], b: [], any: [] },
-      Q: { w: [], b: [], any: [] },
-      K: { w: [], b: [], any: [] }
-    };
-
-    scene.traverse((node) => {
-      const type = detectTypeFromPath(nodePath(node));
-      if (!type) return;
-      const root = promoteToPieceRoot(node, type);
-      if (visited.has(root.uuid)) return;
-      visited.add(root.uuid);
-      const color = detectColor(nodePath(root), root);
-      const target = color === 'white' ? 'w' : color === 'black' ? 'b' : null;
-      const bucket = buckets[type];
-      if (!bucket) return;
-      const entry = { root, L: averageLuminance(root) };
-      if (target === 'w') bucket.w.push(entry);
-      else if (target === 'b') bucket.b.push(entry);
-      else bucket.any.push(entry);
-    });
-
-    Object.values(buckets).forEach((bucket) => {
-      bucket.w.sort((a, b) => b.L - a.L);
-      bucket.b.sort((a, b) => a.L - b.L);
-      bucket.any.sort((a, b) => b.L - a.L);
-    });
-
-    const piecePrototypes = { white: {}, black: {} };
-    (['P', 'R', 'N', 'B', 'Q', 'K']).forEach((type) => {
-      const bucket = buckets[type];
-      const pickW = bucket.w[0]?.root || bucket.any[0]?.root || null;
-      const pickB = bucket.b[0]?.root || bucket.any[bucket.any.length - 1]?.root || null;
-      if (pickW) piecePrototypes.white[type] = normalizePrototype(pickW, tileSize, type);
-      if (pickB) piecePrototypes.black[type] = normalizePrototype(pickB, tileSize, type);
-    });
-
-    // Attempt to mirror missing colors using existing forms
-    ['white', 'black'].forEach((colorKey) => {
-      const other = colorKey === 'white' ? 'black' : 'white';
-      ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
-        if (piecePrototypes[colorKey][type]) return;
-        const fallback = piecePrototypes[other][type];
-        if (fallback) {
-          piecePrototypes[colorKey][type] = normalizePrototype(fallback, tileSize, type);
-        }
-      });
-    });
-
-    const boardCandidates = [];
-    scene.traverse((node) => {
-      const name = (node?.name || '').toLowerCase();
-      if (/\b(board|chessboard|table)\b/.test(name)) boardCandidates.push(node);
-    });
-    const boardNode = boardCandidates[0] || scene;
-    const boardModel = boardNode.clone(true);
-    boardModel.traverse((child) => {
-      if (detectTypeFromPath(nodePath(child))) child.visible = false;
-      applyMaterialIsolation(child);
-      if (child.isMesh) {
-        child.receiveShadow = true;
-        child.castShadow = false;
-      }
-    });
-
-    const boardBox = new THREE.Box3().setFromObject(boardModel);
-    const size = boardBox.getSize(new THREE.Vector3());
-    const srcBoardSize = Math.max(size.x || 1, size.z || 1);
-    const scale = Math.max(targetBoardSize || RAW_BOARD_SIZE, 0.001) / srcBoardSize;
-    boardModel.scale.setScalar(scale);
-    const scaledBox = new THREE.Box3().setFromObject(boardModel);
-    const center = scaledBox.getCenter(new THREE.Vector3());
-    boardModel.position.set(
-      -center.x,
-      -scaledBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET),
-      -center.z
-    );
-    const boardTop = scaledBox.max.y;
-
-    return { boardModel, piecePrototypes, tileSize, pieceYOffset: boardTop + PIECE_PLACEMENT_Y_OFFSET };
-  };
-
-  const buildProceduralSnippetAssets = (targetBoardSize = RAW_BOARD_SIZE) => {
-    const tileSize = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
-    const piecePrototypes = { white: {}, black: {} };
-    const matWhite = new THREE.MeshStandardMaterial({ color: 0xe7e9ee, metalness: 0.1, roughness: 0.45 });
-    const matBlack = new THREE.MeshStandardMaterial({ color: 0x111418, metalness: 0.1, roughness: 0.45 });
-
-    const protoFallback = (type, color) => {
-      const mat = color === 'white' ? matWhite : matBlack;
-      const g = new THREE.Group();
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.12, 24), mat);
-      base.position.y = 0.06;
-      g.add(base);
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.65, 24), mat);
-      body.position.y = 0.43;
-      g.add(body);
-      if (type === 'P') {
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 18), mat);
-        head.position.y = 0.92;
-        g.add(head);
-      }
-      if (type === 'R') {
-        const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 12), mat);
-        top.position.y = 0.95;
-        g.add(top);
-      }
-      if (type === 'N') {
-        const head = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15, 0.05, 50, 8), mat);
-        head.position.y = 1.0;
-        g.add(head);
-      }
-      if (type === 'B') {
-        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.35, 24), mat);
-        cone.position.y = 1.0;
-        g.add(cone);
-      }
-      if (type === 'Q') {
-        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 24, 1, true), mat);
-        crown.position.y = 1.05;
-        g.add(crown);
-      }
-      if (type === 'K') {
-        const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.15, 24), mat);
-        cap.position.y = 1.0;
-        g.add(cap);
-        const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), mat);
-        crossV.position.y = 1.2;
-        g.add(crossV);
-        const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), mat);
-        crossH.position.y = 1.2;
-        g.add(crossH);
-      }
-      g.traverse((child) => {
-        if (child.isMesh) {
-          child.castShadow = true;
-          child.receiveShadow = false;
-        }
-      });
-      return normalizePrototype(g, tileSize, type);
-    };
-
-    ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
-      piecePrototypes.white[type] = protoFallback(type, 'white');
-      piecePrototypes.black[type] = protoFallback(type, 'black');
-    });
-
-    return { boardModel: null, piecePrototypes, tileSize, pieceYOffset: PIECE_PLACEMENT_Y_OFFSET };
-  };
-
-  const tryExtract = async () => {
-    const gltf = await withTimeout(loadBeautifulGameSet());
+  const tryExtract = async (sceneLoader, sceneExtractor = extractor) => {
+    const gltf = await withTimeout(sceneLoader());
     if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
-    return extractBeautifulGameSnippetAssets(gltf.scene, targetBoardSize);
+    const source = gltf.scene.userData?.beautifulGameSource;
+    return (sceneExtractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
   };
 
   try {
-    const assets = await tryExtract();
-    if (assets?.piecePrototypes) return assets;
+    return await tryExtract(() => loadBeautifulGameSet());
   } catch (error) {
-    console.warn('Chess Battle Royal: ABeautifulGame snippet load failed', error);
+    console.warn('Chess Battle Royal: remote ABeautifulGame set failed', error);
   }
 
-  const fallbackAssets = buildProceduralSnippetAssets(targetBoardSize);
-  if (fallbackAssets?.piecePrototypes) return fallbackAssets;
+  try {
+    const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
+    if (touchAssets?.boardModel || touchAssets?.piecePrototypes) {
+      return touchAssets;
+    }
+  } catch (error) {
+    console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
+  }
 
   throw new Error('ABeautifulGame assets are unavailable');
 }
