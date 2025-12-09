@@ -2836,6 +2836,121 @@ function buildSculptedAssets(
   return { boardModel: null, piecePrototypes };
 }
 
+function buildProceduralBeautifulGameBoard(targetBoardSize = RAW_BOARD_SIZE) {
+  const tile = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const boardSize = tile * 8;
+  const half = boardSize / 2;
+
+  const board = new THREE.Group();
+  const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x5e4529, metalness: 0.2, roughness: 0.6 });
+
+  for (let r = 0; r < 8; r += 1) {
+    for (let c = 0; c < 8; c += 1) {
+      const isLight = (r + c) % 2 === 0;
+      const mat = isLight ? light : dark;
+      const tileMesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), mat);
+      tileMesh.rotation.x = -Math.PI / 2;
+      tileMesh.position.set(-half + c * tile + tile / 2, 0.001, -half + r * tile + tile / 2);
+      tileMesh.receiveShadow = true;
+      board.add(tileMesh);
+    }
+  }
+
+  const border = new THREE.Mesh(
+    new THREE.BoxGeometry(boardSize + tile * 0.2, 0.08, boardSize + tile * 0.2),
+    new THREE.MeshStandardMaterial({ color: 0x3a2f1f, metalness: 0.2, roughness: 0.7 })
+  );
+  border.position.y = -0.04;
+  border.receiveShadow = true;
+  board.add(border);
+
+  board.position.y = BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET;
+  board.userData = { ...(board.userData || {}), __pieceStyleId: BEAUTIFUL_GAME_SET_ID };
+
+  const boardBox = new THREE.Box3().setFromObject(board);
+  const boardTop = boardBox.max.y;
+
+  return { boardModel: board, tileSize: tile, boardTop };
+}
+
+function buildProceduralBeautifulGamePiece(type, colorKey, tileSize) {
+  const mat = new THREE.MeshStandardMaterial({
+    color: colorKey === 'white' ? 0xe7e9ee : 0x111418,
+    metalness: 0.1,
+    roughness: 0.45
+  });
+
+  const g = new THREE.Group();
+  const addMesh = (geometry, position) => {
+    const mesh = new THREE.Mesh(geometry, mat);
+    if (position) mesh.position.copy(position);
+    mesh.castShadow = true;
+    mesh.receiveShadow = false;
+    g.add(mesh);
+    return mesh;
+  };
+
+  addMesh(new THREE.CylinderGeometry(0.42, 0.5, 0.12, 24), new THREE.Vector3(0, 0.06, 0));
+  addMesh(new THREE.CylinderGeometry(0.3, 0.38, 0.65, 24), new THREE.Vector3(0, 0.43, 0));
+
+  if (type === 'P') addMesh(new THREE.SphereGeometry(0.2, 24, 18), new THREE.Vector3(0, 0.92, 0));
+  if (type === 'R') addMesh(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 12), new THREE.Vector3(0, 0.95, 0));
+  if (type === 'N') addMesh(new THREE.TorusKnotGeometry(0.15, 0.05, 50, 8), new THREE.Vector3(0, 1, 0));
+  if (type === 'B') addMesh(new THREE.ConeGeometry(0.26, 0.35, 24), new THREE.Vector3(0, 1, 0));
+  if (type === 'Q') addMesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 24, 1, true), new THREE.Vector3(0, 1.05, 0));
+  if (type === 'K') {
+    addMesh(new THREE.CylinderGeometry(0.26, 0.3, 0.15, 24), new THREE.Vector3(0, 1, 0));
+    addMesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), new THREE.Vector3(0, 1.2, 0));
+    addMesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), new THREE.Vector3(0, 1.2, 0));
+  }
+
+  const holder = new THREE.Group();
+  const footprint = new THREE.Box3().setFromObject(g).getSize(new THREE.Vector3());
+  const largest = Math.max(footprint.x, footprint.z) || 1;
+  const scale = (tileSize * 0.995) / largest;
+  g.scale.setScalar(scale);
+  const scaledBox = new THREE.Box3().setFromObject(g);
+  g.position.y -= scaledBox.min.y;
+  holder.add(g);
+
+  holder.userData = {
+    ...(holder.userData || {}),
+    __pieceStyleId: BEAUTIFUL_GAME_SET_ID,
+    __pieceType: type,
+    __pieceColor: colorKey,
+    isPiece: true
+  };
+
+  holder.traverse((child) => {
+    if (!child.isMesh) return;
+    child.castShadow = true;
+    child.receiveShadow = false;
+    child.userData = {
+      ...(child.userData || {}),
+      __pieceStyleId: BEAUTIFUL_GAME_SET_ID,
+      __pieceType: type,
+      __pieceColor: colorKey
+    };
+  });
+
+  return holder;
+}
+
+function buildProceduralBeautifulGameAssets(targetBoardSize = RAW_BOARD_SIZE) {
+  const { boardModel, tileSize, boardTop } = buildProceduralBeautifulGameBoard(targetBoardSize);
+
+  const piecePrototypes = { white: {}, black: {} };
+  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+    piecePrototypes.white[type] = buildProceduralBeautifulGamePiece(type, 'white', tileSize);
+    piecePrototypes.black[type] = buildProceduralBeautifulGamePiece(type, 'black', tileSize);
+  });
+
+  const pieceYOffset = Math.max(boardTop + 0.04, PIECE_PLACEMENT_Y_OFFSET);
+
+  return { boardModel, piecePrototypes, tileSize, pieceYOffset };
+}
+
 function buildStauntonPiece(type, materials = {}, scale = 1, styleId = 'stauntonClassic') {
   const baseMat = materials.base;
   const accentMat = materials.accent ?? baseMat;
@@ -3220,7 +3335,8 @@ async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBe
     console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
   }
 
-  throw new Error('ABeautifulGame assets are unavailable');
+  console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback');
+  return buildProceduralBeautifulGameAssets(targetBoardSize);
 }
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
