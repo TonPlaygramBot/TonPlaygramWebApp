@@ -17,7 +17,8 @@ function resolveVariant(variantId) {
   const normalized = normalizeVariantKey(variantId);
   if (normalized === 'american' || normalized === 'us') return 'american';
   if (normalized === '9ball' || normalized === 'nineball' || normalized === '9') return '9ball';
-  return 'uk';
+  if (normalized === 'snooker' || normalized === 'snookerclub') return 'snooker';
+  return 'snooker';
 }
 
 export default function SnookerClub() {
