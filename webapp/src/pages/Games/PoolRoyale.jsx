@@ -8142,10 +8142,13 @@ export function PoolRoyaleGame({
   const rafRef = useRef(null);
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
-  const activeVariant = useMemo(
-    () => resolvePoolVariant(variantKey),
-    [variantKey]
-  );
+  const activeVariant = useMemo(() => {
+    const resolved = resolvePoolVariant(variantKey);
+    if (gameId === 'snookerclub') {
+      return { ...resolved, disableSnookerMarkings: false };
+    }
+    return resolved;
+  }, [gameId, variantKey]);
   const activeTableSize = useMemo(
     () => tableResolver(tableSizeKey),
     [tableResolver, tableSizeKey]

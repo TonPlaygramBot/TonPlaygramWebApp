@@ -33,7 +33,7 @@ export default function SnookerClubLobby() {
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const [trainingVariant, setTrainingVariant] = useState('uk');
-  const [trainingMode, setTrainingMode] = useState('solo');
+  const [trainingMode, setTrainingMode] = useState('ai');
   const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
   const [tableSize, setTableSize] = useState(() => resolveTableSize(searchParams.get('tableSize')).id);
   const [matching, setMatching] = useState(false);
