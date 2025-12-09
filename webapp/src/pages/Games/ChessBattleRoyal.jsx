@@ -3330,9 +3330,19 @@ function extractChessSetAssets(scene, options = {}) {
   root.updateMatrixWorld(true);
 
   const TYPES = ['P', 'R', 'N', 'B', 'Q', 'K'];
-  const TARGET_FOOTPRINT = Number.isFinite(pieceFootprintRatio)
-    ? pieceFootprintRatio
-    : 0.995;
+  const TYPE_ALIASES = [
+    ['P', /pawn/i],
+    ['R', /rook|castle/i],
+    ['N', /knight|horse/i],
+    ['B', /bishop/i],
+    ['Q', /queen/i],
+    ['K', /king/i]
+  ];
+  const COLOR_W = /(\b|_)(white|ivory|light|w)(\b|_)/i;
+  const COLOR_B = /(\b|_)(black|ebony|dark|b)(\b|_)/i;
+
+  const proto = { white: {}, black: {} };
+  const palettes = { white: [], black: [] };
 
   const nodePath = (node) => {
     const names = [];
@@ -3344,77 +3354,39 @@ function extractChessSetAssets(scene, options = {}) {
     return names.reverse().join('/');
   };
 
-  const detectTypeFromPath = (path) => {
-    const m = [
-      ['P', /pawn/],
-      ['R', /rook|castle/],
-      ['N', /knight|horse/],
-      ['B', /bishop/],
-      ['Q', /queen/],
-      ['K', /king/]
-    ];
-    const q = (path || '').toLowerCase();
-    for (const [type, re] of m) {
-      if (re.test(q)) return type;
+  const detectType = (path) => {
+    const lower = (path || '').toLowerCase();
+    for (const [t, regex] of TYPE_ALIASES) {
+      if (regex.test(lower)) return t;
     }
     return pieceTypeFromName(path) || null;
   };
 
-  const promoteToPieceRoot = (node, type) => {
-    let current = node;
-    let parent = current?.parent;
-    while (parent) {
-      const parentType = detectTypeFromPath(nodePath(parent));
-      if (parentType === type) {
-        current = parent;
-        parent = current.parent;
-      } else {
-        break;
-      }
-    }
-    return current;
+  const detectColor = (path, node) => {
+    const explicit = detectPieceColor(node);
+    if (explicit) return explicit;
+    if (COLOR_W.test(path)) return 'white';
+    if (COLOR_B.test(path)) return 'black';
+    const L = averageLuminance(node);
+    return L >= 0.45 ? 'white' : 'black';
   };
 
-  const buckets = TYPES.reduce((acc, type) => {
-    acc[type] = { w: [], b: [], any: [] };
-    return acc;
-  }, {});
-
-  const NAME_W = /(^|[\W_])(white|ivory|light)([\W_]|$)/i;
-  const NAME_B = /(^|[\W_])(black|ebony|dark)([\W_]|$)/i;
-
   root.traverse((node) => {
-    const type = detectTypeFromPath(nodePath(node));
-    if (!type) return;
-    const rootNode = promoteToPieceRoot(node, type);
-    const path = nodePath(rootNode).toLowerCase();
-    const entry = { root: rootNode, L: averageLuminance(rootNode) };
-    const byNameW = NAME_W.test(path);
-    const byNameB = NAME_B.test(path);
-    if (byNameW) buckets[type].w.push(entry);
-    if (byNameB) buckets[type].b.push(entry);
-    if (!byNameW && !byNameB) buckets[type].any.push(entry);
-  });
-
-  const proto = { white: {}, black: {} };
-  TYPES.forEach((type) => {
-    const bucket = buckets[type];
-    bucket.w.sort((a, b) => b.L - a.L);
-    bucket.b.sort((a, b) => a.L - b.L);
-    bucket.any.sort((a, b) => b.L - a.L);
-    const whitePick = bucket.w[0]?.root || bucket.any[0]?.root || null;
-    const blackPick = bucket.b[0]?.root || bucket.any[bucket.any.length - 1]?.root || null;
-    if (whitePick) proto.white[type] = whitePick;
-    if (blackPick) proto.black[type] = blackPick;
-  });
-
-  ['white', 'black'].forEach((colorKey) => {
-    TYPES.forEach((type) => {
-      const other = colorKey === 'white' ? 'black' : 'white';
-      if (!proto[colorKey][type] && proto[other][type]) {
-        proto[colorKey][type] = proto[other][type];
+    if (!node) return;
+    const path = nodePath(node);
+    if (node.isMesh) {
+      const colorForPalette = detectColor(path, node);
+      if (colorForPalette && Array.isArray(node.material)) {
+        palettes[colorForPalette].push(...node.material.filter(Boolean).map((m) => (m.clone ? m.clone() : m)));
+      } else if (colorForPalette && node.material) {
+        palettes[colorForPalette].push(node.material.clone ? node.material.clone() : node.material);
       }
-    });
+    }
+    const type = detectType(path);
+    if (!type) return;
+    const color = detectColor(path, node);
+    if (!color || proto[color][type]) return;
+    proto[color][type] = node;
   });
 
   const boards = [];
@@ -3431,12 +3403,12 @@ function extractChessSetAssets(scene, options = {}) {
       node.castShadow = false;
     }
     const path = nodePath(node);
-    if (detectTypeFromPath(path)) node.visible = false;
+    if (detectType(path)) node.visible = false;
   });
 
   const nodesToCull = [];
   boardModel.traverse((node) => {
-    if (detectTypeFromPath(nodePath(node))) nodesToCull.push(node);
+    if (detectType(nodePath(node))) nodesToCull.push(node);
   });
   nodesToCull.forEach((node) => {
     if (node?.parent) node.parent.remove(node);
@@ -3459,37 +3431,112 @@ function extractChessSetAssets(scene, options = {}) {
   );
 
   const tileSize = Math.max(0.001, targetSize / 8);
+  const footprintRatio = Number.isFinite(pieceFootprintRatio) ? pieceFootprintRatio : 0.82;
   const preferredPieceYOffset = Number.isFinite(pieceYOffset)
     ? pieceYOffset
-    : Math.max(scaledBox.max.y + 0.02, PIECE_PLACEMENT_Y_OFFSET);
-
-  const normalizePrototype = (source, type) => {
-    if (!source) return null;
-    const clone = cloneWithMaterials(source);
-    const baseBox = new THREE.Box3().setFromObject(clone);
-    const baseSize = baseBox.getSize(new THREE.Vector3());
-    const footprint = Math.max(baseSize.x, baseSize.z) || 1;
-    const scale = (tileSize * TARGET_FOOTPRINT) / footprint;
-    clone.scale.setScalar(scale);
-    const scaledBox = new THREE.Box3().setFromObject(clone);
-    const center = scaledBox.getCenter(new THREE.Vector3());
-    clone.position.sub(center);
-    clone.position.y -= scaledBox.min.y;
-    clone.userData = { ...(clone.userData || {}), __pieceStyleId: styleId, __pieceType: type };
-    clone.traverse((child) => {
+    : PIECE_PLACEMENT_Y_OFFSET;
+  const applyPalette = (node, palette) => {
+    if (!node || !palette?.length) return;
+    const copyColor = (dst, src) => {
+      if (!dst || !src) return;
+      if (dst.color?.copy && src.color) dst.color.copy(src.color);
+      if (dst.emissive?.set) dst.emissive.set(0x000000);
+    };
+    node.traverse((child) => {
       if (!child?.isMesh) return;
-      child.castShadow = true;
-      child.receiveShadow = false;
-      child.userData = { ...(child.userData || {}), __pieceStyleId: styleId, __pieceType: type };
+      const base = Array.isArray(child.material) ? child.material : [child.material];
+      base.forEach((mat, idx) => {
+        const src = palette[idx % palette.length];
+        copyColor(mat, src);
+      });
     });
-    return clone;
   };
 
-  ['white', 'black'].forEach((colorKey) => {
-    TYPES.forEach((type) => {
-      proto[colorKey][type] = normalizePrototype(proto[colorKey][type], type);
+  const swapTypesBetweenColors = (types) => {
+    types.forEach((type) => {
+      const w = proto.white[type];
+      const b = proto.black[type];
+      if (w && b) {
+        const wFromB = cloneWithMaterials(b);
+        applyPalette(wFromB, palettes.white);
+        const bFromW = cloneWithMaterials(w);
+        applyPalette(bFromW, palettes.black);
+        proto.white[type] = wFromB;
+        proto.black[type] = bFromW;
+      } else if (w && !b) {
+        const bFromW = cloneWithMaterials(w);
+        applyPalette(bFromW, palettes.black);
+        proto.black[type] = bFromW;
+      } else if (!w && b) {
+        const wFromB = cloneWithMaterials(b);
+        applyPalette(wFromB, palettes.white);
+        proto.white[type] = wFromB;
+      }
     });
-  });
+  };
+
+  const unifyWhiteToBlackForms = () => {
+    TYPES.forEach((type) => {
+      const bProto = proto.black[type];
+      if (!bProto) return;
+      const whitePalette = palettes.white.length ? palettes.white : palettes.black;
+      const wFromB = cloneWithMaterials(bProto);
+      applyPalette(wFromB, whitePalette);
+      proto.white[type] = wFromB;
+    });
+  };
+
+  const ensurePrototypes = () => {
+    ['white', 'black'].forEach((colorKey) => {
+      TYPES.forEach((type) => {
+        if (proto[colorKey][type]) return;
+        const other = colorKey === 'white' ? 'black' : 'white';
+        if (proto[other][type]) {
+          const c = cloneWithMaterials(proto[other][type]);
+          applyPalette(c, palettes[colorKey]);
+          proto[colorKey][type] = c;
+          return;
+        }
+        const anySame = TYPES.map((t) => proto[colorKey][t]).find(Boolean);
+        const anyOther = TYPES.map((t) => proto[other][t]).find(Boolean);
+        const source = anySame || anyOther;
+        if (source) {
+          const c = cloneWithMaterials(source);
+          applyPalette(c, palettes[colorKey].length ? palettes[colorKey] : palettes[other]);
+          proto[colorKey][type] = c;
+        }
+      });
+    });
+
+    swapTypesBetweenColors(['R', 'N', 'B']);
+    unifyWhiteToBlackForms();
+
+    ['white', 'black'].forEach((colorKey) => {
+      TYPES.forEach((type) => {
+        if (!proto[colorKey][type]) return;
+        const src = cloneWithMaterials(proto[colorKey][type]);
+        applyPalette(src, palettes[colorKey]);
+        const box = new THREE.Box3().setFromObject(src);
+        const size = box.getSize(new THREE.Vector3());
+        const footprint = Math.max(size.x, size.z) || 1;
+        const scale = (tileSize * footprintRatio) / footprint;
+        src.scale.setScalar(scale);
+        const scaledBox = new THREE.Box3().setFromObject(src);
+        const center = scaledBox.getCenter(new THREE.Vector3());
+        src.position.sub(center);
+        src.position.y -= scaledBox.min.y;
+        src.userData = { ...(src.userData || {}), __pieceStyleId: styleId, __pieceType: type };
+        src.traverse((child) => {
+          if (!child.isMesh) return;
+          child.castShadow = true;
+          child.userData = { ...(child.userData || {}), __pieceStyleId: styleId, __pieceType: type };
+        });
+        proto[colorKey][type] = src;
+      });
+    });
+  };
+
+  ensurePrototypes();
 
   const assets = { boardModel, piecePrototypes: proto, tileSize, pieceYOffset: preferredPieceYOffset };
   return assets;
