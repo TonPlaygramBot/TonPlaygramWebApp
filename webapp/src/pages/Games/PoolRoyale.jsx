@@ -1138,7 +1138,18 @@ const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
+const SNOOKER_RED = 0xc3092f;
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
+  snooker: {
+    id: 'snooker',
+    label: 'Snooker',
+    cueColor: 0xffffff,
+    rackLayout: 'triangle',
+    disableSnookerMarkings: false,
+    objectColors: new Array(15).fill(SNOOKER_RED),
+    objectNumbers: new Array(15).fill(null),
+    objectPatterns: new Array(15).fill('solid')
+  },
   uk: {
     id: 'uk',
     label: '8-Ball UK',
@@ -1282,7 +1293,9 @@ function normalizeVariantKey(value) {
 function resolvePoolVariant(variantId) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
-  if (normalized === '9' || normalized === 'nineball') {
+  if (normalized === 'snooker' || normalized === 'snookerclub') {
+    key = 'snooker';
+  } else if (normalized === '9' || normalized === 'nineball') {
     key = '9ball';
   } else if (
     normalized === '8balluk' ||
@@ -1467,6 +1480,9 @@ function getPoolBallPattern(variant, index) {
 
 function getPoolBallId(variant, index) {
   if (!variant) return `ball_${index + 1}`;
+  if (variant.id === 'snooker') {
+    return `red_${index + 1}`;
+  }
   if (variant.id === 'uk') {
     const color = getPoolBallColor(variant, index);
     if (color === UK_POOL_BLACK) return 'black_8';
@@ -14551,6 +14567,13 @@ export function PoolRoyaleGame({
           const upper = colorId.toUpperCase();
           if (upper === 'CUE') return 'cue';
           if (upper.startsWith('YELLOW') || upper.startsWith('BLUE')) return 'blue';
+          if (
+            upper.startsWith('GREEN') ||
+            upper.startsWith('BROWN') ||
+            upper.startsWith('PINK')
+          ) {
+            return 'blue';
+          }
           if (upper.startsWith('RED')) return 'red';
           if (upper.startsWith('BLACK')) return 'black';
           return null;

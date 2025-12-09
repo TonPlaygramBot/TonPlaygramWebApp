@@ -29,11 +29,11 @@ export default function SnookerClubLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [mode, setMode] = useState('ai');
   const [avatar, setAvatar] = useState('');
-  const variant = 'uk';
+  const variant = 'snooker';
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
-  const [trainingVariant, setTrainingVariant] = useState('uk');
-  const [trainingMode, setTrainingMode] = useState('solo');
+  const [trainingVariant, setTrainingVariant] = useState('snooker');
+  const [trainingMode, setTrainingMode] = useState('ai');
   const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
   const [tableSize, setTableSize] = useState(() => resolveTableSize(searchParams.get('tableSize')).id);
   const [matching, setMatching] = useState(false);
