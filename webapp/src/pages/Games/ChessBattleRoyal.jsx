@@ -1485,28 +1485,88 @@ function restoreBoardMaterials(boardModel) {
 function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_THEME) {
   if (!boardModel) return;
 
-  const light = new THREE.Color(boardTheme.light ?? BEAUTIFUL_GAME_THEME.light);
-  const dark = new THREE.Color(boardTheme.dark ?? BEAUTIFUL_GAME_THEME.dark);
+  snapshotBoardMaterials(boardModel);
+  restoreBoardMaterials(boardModel);
 
-  boardModel.traverse((child) => {
-    if (!child.isMesh) return;
-    const mats = Array.isArray(child.material) ? child.material : [child.material];
-    let luminance = 0;
+  const theme = buildBoardTheme(boardTheme);
+  if (theme.preserveOriginalMaterials) {
+    return;
+  }
+
+  const luminance = (color) => 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  const toArray = (value) => (Array.isArray(value) ? value : [value]);
+
+  const applyMaterial = (mesh, updater) => {
+    if (!mesh?.isMesh) return;
+    const materials = toArray(mesh.material);
+    materials.forEach((mat) => {
+      if (!mat) return;
+      updater(mat);
+      mat.needsUpdate = true;
+    });
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+  };
+
+  const applyFrame = (mesh, color) =>
+    applyMaterial(mesh, (mat) => {
+      if (mat?.color?.set) mat.color.set(color);
+      if (Number.isFinite(theme.frameRoughness)) mat.roughness = clamp01(theme.frameRoughness);
+      if (Number.isFinite(theme.frameMetalness)) mat.metalness = clamp01(theme.frameMetalness);
+      if ('clearcoat' in mat) mat.clearcoat = 0;
+      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.2);
+      if ('reflectivity' in mat) mat.reflectivity = 0;
+      if (mat?.emissive?.set) mat.emissive.set(0x000000);
+    });
+
+  const applySurface = (mesh, color) =>
+    applyMaterial(mesh, (mat) => {
+      if (mat?.color?.set) mat.color.set(color);
+      if (Number.isFinite(theme.surfaceRoughness)) mat.roughness = clamp01(theme.surfaceRoughness);
+      if (Number.isFinite(theme.surfaceMetalness)) mat.metalness = clamp01(theme.surfaceMetalness);
+      if ('clearcoat' in mat) mat.clearcoat = 0;
+      if ('clearcoatRoughness' in mat) mat.clearcoatRoughness = clamp01(mat.clearcoatRoughness ?? 0.16);
+      if ('reflectivity' in mat) mat.reflectivity = 0;
+      if (mat?.emissive?.set) mat.emissive.set(0x000000);
+    });
+
+  const frameNames = ['boardframe', 'frame', 'rim', 'border'];
+  const topHints = ['boardtop', 'top', 'cover'];
+  const tileHints = ['tile', 'square', 'cell', 'floor'];
+
+  boardModel.traverse((node) => {
+    if (!node?.isMesh) return;
+    const name = (node.name ?? '').toLowerCase();
+    const materials = toArray(node.material);
+    let avgLum = 0;
     let count = 0;
-    mats.forEach((mat) => {
+    materials.forEach((mat) => {
       if (mat?.color) {
-        const c = mat.color;
-        luminance += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+        avgLum += luminance(mat.color);
         count += 1;
       }
     });
-    const avg = count ? luminance / count : 0.5;
-    const target = avg >= 0.5 ? light : dark;
-    mats.forEach((mat) => {
-      if (!mat?.color) return;
-      mat.color.copy(target);
-      if (mat.emissive) mat.emissive.set(0x000000);
-    });
+    const lightness = count > 0 ? avgLum / count : 0.5;
+
+    if (frameNames.some((hint) => name.includes(hint))) {
+      applyFrame(node, lightness >= 0.55 ? theme.frameLight : theme.frameDark);
+      return;
+    }
+
+    if (topHints.some((hint) => name.includes(hint))) {
+      applyFrame(node, theme.frameLight);
+      return;
+    }
+
+    const isTile = tileHints.some((hint) => name.includes(hint)) || name.startsWith('tile_');
+    const targetColor = isTile
+      ? lightness >= 0.5
+        ? theme.light
+        : theme.dark
+      : lightness >= 0.55
+        ? theme.frameLight
+        : theme.frameDark;
+    applySurface(node, targetColor);
   });
 }
 
@@ -2477,136 +2537,94 @@ function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
 }
 
 function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME_THEME) {
+  const boardModel = new THREE.Group();
+  boardModel.name = 'ABeautifulGameLocal';
   const tile = BOARD.tile;
   const N = BOARD.N;
-  const boardSize = targetBoardSize || N * tile;
-  const half = boardSize / 2;
-  const boardModel = new THREE.Group();
-  boardModel.name = 'ABeautifulGameProcedural';
+  const half = (N * tile) / 2;
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      targetBoardSize || N * tile + BOARD.rim * 2,
+      BOARD.baseH * 1.05,
+      targetBoardSize || N * tile + BOARD.rim * 2
+    ),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameDark ?? BASE_BOARD_THEME.frameDark),
+      roughness: clamp01(boardTheme.frameRoughness ?? BASE_BOARD_THEME.frameRoughness),
+      metalness: clamp01(boardTheme.frameMetalness ?? BASE_BOARD_THEME.frameMetalness),
+      clearcoat: 0,
+      reflectivity: 0
+    })
+  );
+  base.position.y = BOARD.baseH * 0.5;
+  boardModel.add(base);
+  const top = new THREE.Mesh(
+    new THREE.BoxGeometry(N * tile + BOARD.rim * 1.2, 0.14, N * tile + BOARD.rim * 1.2),
+    new THREE.MeshPhysicalMaterial({
+      color: new THREE.Color(boardTheme.frameLight ?? BASE_BOARD_THEME.frameLight),
+      roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+      metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+      clearcoat: 0,
+      reflectivity: 0
+    })
+  );
+  top.position.y = BOARD.baseH + 0.07;
+  boardModel.add(top);
 
-  const light = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(boardTheme.light ?? BEAUTIFUL_GAME_THEME.light),
-    metalness: 0.2,
-    roughness: 0.65
-  });
-  const dark = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(boardTheme.dark ?? BEAUTIFUL_GAME_THEME.dark),
-    metalness: 0.25,
-    roughness: 0.6
-  });
-
+  const tiles = new THREE.Group();
+  boardModel.add(tiles);
   for (let r = 0; r < N; r += 1) {
     for (let c = 0; c < N; c += 1) {
-      const isLight = (r + c) % 2 === 0;
-      const tileMesh = new THREE.Mesh(new THREE.PlaneGeometry(tile, tile), isLight ? light : dark);
-      tileMesh.rotation.x = -Math.PI / 2;
-      tileMesh.position.set(c * tile - half + tile / 2, 0.001, r * tile - half + tile / 2);
-      tileMesh.receiveShadow = true;
-      boardModel.add(tileMesh);
+      const isDark = (r + c) % 2 === 1;
+      const mat = new THREE.MeshPhysicalMaterial({
+        color: new THREE.Color(isDark ? boardTheme.dark : boardTheme.light),
+        roughness: clamp01(boardTheme.surfaceRoughness ?? BASE_BOARD_THEME.surfaceRoughness),
+        metalness: clamp01(boardTheme.surfaceMetalness ?? BASE_BOARD_THEME.surfaceMetalness),
+        clearcoat: 0,
+        reflectivity: 0,
+        specularIntensity: 0.18
+      });
+      const tileMesh = new THREE.Mesh(new THREE.BoxGeometry(tile, 0.06, tile), mat);
+      tileMesh.position.set(c * tile - half + tile / 2, BOARD.baseH + 0.12, r * tile - half + tile / 2);
+      tiles.add(tileMesh);
     }
   }
 
-  const border = new THREE.Mesh(
-    new THREE.BoxGeometry(boardSize + 0.2, 0.08, boardSize + 0.2),
-    new THREE.MeshStandardMaterial({ color: 0x3a2f1f, metalness: 0.2, roughness: 0.7 })
-  );
-  border.position.y = -0.04;
-  border.receiveShadow = true;
-  boardModel.add(border);
-
-  const MAT_W = new THREE.MeshStandardMaterial({ color: 0xe7e9ee, metalness: 0.1, roughness: 0.45 });
-  MAT_W.name = 'Ivory';
-  const MAT_B = new THREE.MeshStandardMaterial({ color: 0x111418, metalness: 0.1, roughness: 0.45 });
-  MAT_B.name = 'Dark Ebony';
-
-  const bbox = (obj) => {
-    const box = new THREE.Box3().setFromObject(obj);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    return { box, size };
-  };
-
-  const normalizePrototype = (g, type, colorKey) => {
-    const TARGET_FOOTPRINT = tile * 0.995;
-    const Y_SEAT = 0.18;
-    const { box, size } = bbox(g);
-    const footprint = Math.max(size.x, size.z) || 1;
-    const scale = TARGET_FOOTPRINT / footprint;
-    g.scale.multiplyScalar(scale);
-    const boxScaled = new THREE.Box3().setFromObject(g);
-    const center = boxScaled.getCenter(new THREE.Vector3());
-    g.position.sub(center);
-    g.position.y -= boxScaled.min.y;
-    const holder = new THREE.Group();
-    holder.add(g);
-    holder.position.y = Y_SEAT;
-    holder.userData = { ...(holder.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type, __pieceColor: colorKey };
-    holder.traverse((child) => {
-      if (!child.isMesh) return;
-      child.castShadow = true;
-      child.receiveShadow = false;
-      child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type, __pieceColor: colorKey };
-    });
-    return holder;
-  };
-
-  const buildProto = (type, mat, colorKey) => {
-    const g = new THREE.Group();
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.5, 0.12, 24), mat);
-    base.position.y = 0.06;
-    g.add(base);
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.38, 0.65, 24), mat);
-    body.position.y = 0.43;
-    g.add(body);
-    if (type === 'P') {
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 24, 18), mat);
-      head.position.y = 0.92;
-      g.add(head);
-    }
-    if (type === 'R') {
-      const top = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.34, 0.2, 12), mat);
-      top.position.y = 0.95;
-      g.add(top);
-    }
-    if (type === 'N') {
-      const knot = new THREE.Mesh(new THREE.TorusKnotGeometry(0.15, 0.05, 50, 8), mat);
-      knot.position.y = 1.0;
-      g.add(knot);
-    }
-    if (type === 'B') {
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.35, 24), mat);
-      cone.position.y = 1.0;
-      g.add(cone);
-    }
-    if (type === 'Q') {
-      const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.3, 0.45, 24, 1, true), mat);
-      crown.position.y = 1.05;
-      g.add(crown);
-    }
-    if (type === 'K') {
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.15, 24), mat);
-      cap.position.y = 1.0;
-      g.add(cap);
-      const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.24, 0.04), mat);
-      crossV.position.y = 1.2;
-      g.add(crossV);
-      const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.04, 0.04), mat);
-      crossH.position.y = 1.2;
-      g.add(crossH);
-    }
-    return normalizePrototype(g, type, colorKey);
-  };
-
   const piecePrototypes = { white: {}, black: {} };
-  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
-    piecePrototypes.white[type] = buildProto(type, MAT_W, 'white');
-    piecePrototypes.black[type] = buildProto(type, MAT_B, 'black');
+  const scale = (tile / 0.9) * BEAUTIFUL_GAME_ASSET_SCALE;
+  const authenticWhite = BEAUTIFUL_GAME_PIECE_STYLE.white?.color ?? '#f6f7fb';
+  const authenticBlack = BEAUTIFUL_GAME_PIECE_STYLE.black?.color ?? '#0f131f';
+  const accentLight = BEAUTIFUL_GAME_PIECE_STYLE.whiteAccent?.color ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? '#d4af78';
+  const accentDark = BEAUTIFUL_GAME_PIECE_STYLE.blackAccent ?? BEAUTIFUL_GAME_PIECE_STYLE.accent ?? accentLight;
+  piecePrototypes.white.P = buildBeautifulGamePiece('P', authenticWhite, accentLight, scale);
+  piecePrototypes.white.R = buildBeautifulGamePiece('R', authenticWhite, accentLight, scale);
+  piecePrototypes.white.N = buildBeautifulGamePiece('N', authenticWhite, accentLight, scale);
+  piecePrototypes.white.B = buildBeautifulGamePiece('B', authenticWhite, accentLight, scale);
+  piecePrototypes.white.Q = buildBeautifulGamePiece('Q', authenticWhite, accentLight, scale);
+  piecePrototypes.white.K = buildBeautifulGamePiece('K', authenticWhite, accentLight, scale);
+  piecePrototypes.black.P = buildBeautifulGamePiece('P', authenticBlack, accentDark, scale);
+  piecePrototypes.black.R = buildBeautifulGamePiece('R', authenticBlack, accentDark, scale);
+  piecePrototypes.black.N = buildBeautifulGamePiece('N', authenticBlack, accentDark, scale);
+  piecePrototypes.black.B = buildBeautifulGamePiece('B', authenticBlack, accentDark, scale);
+  piecePrototypes.black.Q = buildBeautifulGamePiece('Q', authenticBlack, accentDark, scale);
+  piecePrototypes.black.K = buildBeautifulGamePiece('K', authenticBlack, accentDark, scale);
+
+  Object.entries(piecePrototypes).forEach(([, byColor]) => {
+    Object.entries(byColor).forEach(([type, proto]) => {
+      proto.userData = { ...(proto.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+      proto.traverse((child) => {
+        if (!child.isMesh) return;
+        child.castShadow = true;
+        child.receiveShadow = true;
+        child.userData = { ...(child.userData || {}), __pieceStyleId: 'beautifulGame', __pieceType: type };
+      });
+    });
   });
 
   const boardBox = new THREE.Box3().setFromObject(boardModel);
   const boardTop = boardBox.max.y;
 
-  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: Math.max(boardTop, 0.18) };
+  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: boardTop + 0.02 };
 }
 
 function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
