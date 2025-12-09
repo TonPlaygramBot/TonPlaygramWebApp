@@ -46,6 +46,11 @@ export default function Home() {
       name: 'Pool Royale preload',
       description: 'Text bundle of code for Pool Royale animations and HUD.',
       href: `${baseUrl}game-preloads/pool-royale-preload.txt`
+    },
+    {
+      name: 'Snooker Club preload',
+      description: 'Arena and HUD bundle derived from the Pool Royale materials.',
+      href: `${baseUrl}game-preloads/pool-royale-preload.txt`
     }
   ];
   const { tpcBalance, tonBalance, tpcWalletBalance } = useTokenBalances();
