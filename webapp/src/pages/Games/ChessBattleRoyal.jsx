@@ -446,7 +446,8 @@ const BEAUTIFUL_GAME_COLOR_VARIANTS = Object.freeze(
 const pieceStyleSignature = (style) => `${style?.white?.color ?? ''}|${style?.black?.color ?? ''}`;
 
 const DEFAULT_PIECE_STYLE = { ...BASE_PIECE_STYLE };
-const DEFAULT_PIECE_SET_ID = 'beautifulGameClassic';
+const BEAUTIFUL_GAME_SWAP_SET_ID = 'beautifulGameSwapRanks';
+const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SWAP_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
@@ -856,7 +857,7 @@ const CHAIR_COLOR_OPTIONS = Object.freeze([
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
-const PRESERVE_NATIVE_PIECE_IDS = new Set();
+const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
@@ -3258,35 +3259,162 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   };
 }
 
-async function resolveBeautifulGameAssets(targetBoardSize, extractor = extractBeautifulGameAssets) {
-  const timeoutMs = 35000;
-  const withTimeout = (promise) =>
-    Promise.race([
-      promise,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('ABeautifulGame load timed out')), timeoutMs)
-      )
-    ]);
-  const tryExtract = async (sceneLoader, sceneExtractor = extractor) => {
-    const gltf = await withTimeout(sceneLoader());
-    if (!gltf?.scene) throw new Error('ABeautifulGame scene missing');
-    const source = gltf.scene.userData?.beautifulGameSource;
-    return (sceneExtractor || extractBeautifulGameAssets)(gltf.scene, targetBoardSize, { source });
+function normalizeBeautifulGamePiece(object, targetFootprint = BOARD.tile) {
+  const clone = cloneWithMaterials(object);
+  clone.traverse((child) => {
+    if (child?.isMesh) {
+      child.castShadow = true;
+      child.receiveShadow = false;
+    }
+  });
+  const initialBox = new THREE.Box3().setFromObject(clone);
+  const size = initialBox.getSize(new THREE.Vector3());
+  const footprint = Math.max(size.x, size.z) || 1;
+  const scale = targetFootprint / footprint;
+  clone.scale.multiplyScalar(scale);
+  const finalBox = new THREE.Box3().setFromObject(clone);
+  clone.position.y -= finalBox.min.y;
+  clone.userData = { ...(clone.userData || {}), __pieceStyleId: BEAUTIFUL_GAME_SWAP_SET_ID };
+  return clone;
+}
+
+function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
+  const root = scene.clone(true);
+  root.updateMatrixWorld(true);
+
+  const tileSize = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
+  const targetFootprint = tileSize * 0.995;
+  const prototypes = { white: {}, black: {} };
+
+  const nodePath = (node) => {
+    const names = [];
+    let current = node;
+    while (current) {
+      if (current.name) names.push(current.name);
+      current = current.parent;
+    }
+    return names.reverse().join('/');
   };
 
+  const detectTypeFromPath = (path = '') => {
+    const hints = [
+      ['P', /(pawn)/i],
+      ['R', /(rook|castle)/i],
+      ['N', /(knight|horse)/i],
+      ['B', /(bishop)/i],
+      ['Q', /(queen)/i],
+      ['K', /(king)/i]
+    ];
+    const target = path.toLowerCase();
+    const hit = hints.find(([, regex]) => regex.test(target));
+    return hit ? hit[0] : null;
+  };
+
+  const promoteToPieceRoot = (node, type) => {
+    let current = node;
+    while (current?.parent && detectTypeFromPath(nodePath(current.parent)) === type) {
+      current = current.parent;
+    }
+    return current || node;
+  };
+
+  const buckets = {
+    P: { w: [], b: [], any: [] },
+    R: { w: [], b: [], any: [] },
+    N: { w: [], b: [], any: [] },
+    B: { w: [], b: [], any: [] },
+    Q: { w: [], b: [], any: [] },
+    K: { w: [], b: [], any: [] }
+  };
+  const NAME_W = /(^|[\W_])(white|ivory|light)([\W_]|$)/i;
+  const NAME_B = /(^|[\W_])(black|ebony|dark)([\W_]|$)/i;
+  const visited = new Set();
+
+  root.traverse((node) => {
+    const type = detectTypeFromPath(nodePath(node));
+    if (!type) return;
+    const ascended = promoteToPieceRoot(node, type);
+    if (visited.has(ascended.uuid)) return;
+    visited.add(ascended.uuid);
+    const path = nodePath(ascended).toLowerCase();
+    const bucket = buckets[type];
+    const asWhite = NAME_W.test(path);
+    const asBlack = NAME_B.test(path);
+    const entry = { root: ascended };
+    if (asWhite) bucket.w.push(entry);
+    if (asBlack) bucket.b.push(entry);
+    if (!asWhite && !asBlack) bucket.any.push(entry);
+  });
+
+  ['P', 'R', 'N', 'B', 'Q', 'K'].forEach((type) => {
+    const bucket = buckets[type];
+    const whiteSource = bucket.w[0]?.root || bucket.any[0]?.root || bucket.b[0]?.root;
+    const blackSource = bucket.b[0]?.root || bucket.any[bucket.any.length - 1]?.root || bucket.w[0]?.root;
+    if (whiteSource) prototypes.white[type] = normalizeBeautifulGamePiece(whiteSource, targetFootprint);
+    if (blackSource) prototypes.black[type] = normalizeBeautifulGamePiece(blackSource, targetFootprint);
+    if (!prototypes.white[type] && prototypes.black[type]) {
+      prototypes.white[type] = normalizeBeautifulGamePiece(prototypes.black[type], targetFootprint);
+    }
+    if (!prototypes.black[type] && prototypes.white[type]) {
+      prototypes.black[type] = normalizeBeautifulGamePiece(prototypes.white[type], targetFootprint);
+    }
+  });
+
+  return {
+    boardModel: null,
+    piecePrototypes: prototypes,
+    tileSize,
+    pieceYOffset: PIECE_PLACEMENT_Y_OFFSET,
+    userData: { styleId: BEAUTIFUL_GAME_SWAP_SET_ID, preserveOriginalMaterials: true }
+  };
+}
+
+async function loadGltfResilient(url, loader) {
   try {
-    return await tryExtract(() => loadBeautifulGameSet());
-  } catch (error) {
-    console.warn('Chess Battle Royal: remote ABeautifulGame set failed', error);
+    return await loader.loadAsync(url);
+  } catch (primaryError) {
+    try {
+      const response = await fetch(url, { mode: 'cors' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const buffer = await response.arrayBuffer();
+      return await new Promise((resolve, reject) => {
+        loader.parse(buffer, url.substring(0, url.lastIndexOf('/') + 1), resolve, reject);
+      });
+    } catch (fallbackError) {
+      throw primaryError || fallbackError;
+    }
+  }
+}
+
+async function loadBeautifulGamePiecesOnly(targetBoardSize) {
+  const loader = createConfiguredGLTFLoader();
+  const tried = new Set();
+  let lastError = null;
+  const urls = [...BEAUTIFUL_GAME_URLS, ...BEAUTIFUL_GAME_TOUCH_URLS];
+
+  for (const raw of urls) {
+    const resolved = new URL(raw, window.location.href).href;
+    if (tried.has(resolved)) continue;
+    tried.add(resolved);
+    try {
+      const gltf = await loadGltfResilient(resolved, loader);
+      if (gltf?.scene) {
+        return buildBeautifulGameSwapPrototypes(gltf.scene, targetBoardSize);
+      }
+    } catch (error) {
+      lastError = error;
+    }
   }
 
+  if (lastError) throw lastError;
+  throw new Error('ABeautifulGame pieces unavailable');
+}
+
+async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
-    const touchAssets = await withTimeout(resolveBeautifulGameTouchAssets(targetBoardSize));
-    if (touchAssets?.boardModel || touchAssets?.piecePrototypes) {
-      return touchAssets;
-    }
+    return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
-    console.warn('Chess Battle Royal: touch ABeautifulGame fallback failed', error);
+    console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
   }
 
   console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
@@ -3989,7 +4117,7 @@ const BUILDERS = {
 };
 
 // ======================= Game logic ========================
-const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+const START_FEN = 'RNBQKBNR/pppppppp/8/8/8/8/PPPPPPPP/rnbqkbnr';
 
 function parseFEN(fen) {
   const rows = fen.split('/');
@@ -5027,7 +5155,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = pieceSetOption?.id ?? palette.pieceSetId ?? DEFAULT_PIECE_SET_ID;
+    const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -5244,7 +5372,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const initialPieceSetId = pieceSetOption?.id ?? DEFAULT_PIECE_SET_ID;
+    const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
     const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
     const initialPlayerFlag =
@@ -5974,14 +6102,24 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
     };
 
-    const applyPieceSetAssets = (assets, setId = currentPieceSetId, pieceStyleOption = paletteRef.current?.pieces) => {
+    const applyPieceSetAssets = (
+      assets,
+      setId = currentPieceSetId,
+      pieceStyleOption = paletteRef.current?.pieces
+    ) => {
       const { boardModel, piecePrototypes } = assets || {};
-      currentPieceSetId = setId;
+      const resolvedSetId = assets?.userData?.styleId || setId || currentPieceSetId;
+      currentPieceSetId = resolvedSetId;
       currentPieceYOffset = Number.isFinite(assets?.pieceYOffset)
         ? assets.pieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
       const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
+      const preserveOriginalMaterials = Boolean(
+        pieceStyleOption?.preserveOriginalMaterials ||
+          assets?.userData?.preserveOriginalMaterials ||
+          PRESERVE_NATIVE_PIECE_IDS.has(resolvedSetId)
+      );
       if (currentBoardCleanup) {
         currentBoardCleanup();
         currentBoardCleanup = null;
@@ -6004,17 +6142,20 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
-        const preserveOriginalMaterials = Boolean(pieceStyleOption?.preserveOriginalMaterials);
-        if ((setId || '').startsWith('beautifulGame') && !preserveOriginalMaterials) {
-          harmonizeBeautifulGamePieces(
-            currentPiecePrototypes,
-            pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
-          );
+        if (!preserveOriginalMaterials) {
+          if ((resolvedSetId || '').startsWith('beautifulGame')) {
+            harmonizeBeautifulGamePieces(
+              currentPiecePrototypes,
+              pieceStyleOption || BEAUTIFUL_GAME_PIECE_STYLE
+            );
+          }
+          applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
+          adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
         }
-        applyHeadPresetToPrototypes(currentPiecePrototypes, headPreset);
-        adornPiecePrototypes(currentPiecePrototypes, currentTileSize);
-        paintPiecesFromPrototypes(piecePrototypes, setId);
-        applyHeadPresetToMeshes(allPieceMeshes, headPreset);
+        paintPiecesFromPrototypes(piecePrototypes, resolvedSetId);
+        if (!preserveOriginalMaterials) {
+          applyHeadPresetToMeshes(allPieceMeshes, headPreset);
+        }
       }
       if (arenaRef.current) {
         arenaRef.current.boardModel = currentBoardModel;
