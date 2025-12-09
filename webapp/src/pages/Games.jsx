@@ -8,6 +8,7 @@ const gamesCatalog = [
   { name: "Texas Hold'em", route: '/games/texasholdem/lobby' },
   { name: 'Domino Royal 3D', route: '/games/domino-royal/lobby' },
   { name: 'Black Jack Multiplayer', route: '/games/blackjack/lobby' },
+  { name: 'Snooker Club', route: '/games/snookerclub/lobby' },
   { name: 'Pool Royale', route: '/games/poolroyale/lobby' },
   { name: 'Goal Rush', route: '/games/goalrush/lobby' },
   { name: 'Air Hockey', route: '/games/airhockey/lobby' },
