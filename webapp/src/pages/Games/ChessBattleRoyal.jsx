@@ -3471,6 +3471,12 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
+    return await resolveBeautifulGameBoardStrict(targetBoardSize);
+  } catch (error) {
+    console.warn('Chess Battle Royal: GLTF board failed, trying swap pieces', error);
+  }
+
+  try {
     return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
     console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
