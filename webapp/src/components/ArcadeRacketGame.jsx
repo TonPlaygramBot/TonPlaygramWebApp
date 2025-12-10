@@ -137,7 +137,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     const MAX_SUBSTEPS = 8;
     const GRAVITY = mode === 'tabletennis' ? -9.81 : -16.5;
     const AIR_DRAG_K = mode === 'tabletennis' ? 0.15 : 0;
-    const MAGNUS_K = mode === 'tabletennis' ? 0.0012 : 0;
+    const MAGNUS_K = mode === 'tabletennis' ? 0.0007 : 0;
     const AIR_DECAY = mode === 'tabletennis' ? 1 : 0.9945;
     const TABLE_RESTITUTION = mode === 'tabletennis' ? 0.9 : 0.92;
     const WALL_REBOUND = mode === 'tabletennis' ? 0.82 : 0.7;
@@ -146,7 +146,7 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
 
     const MIN_SWIPE_SPEED = mode === 'tabletennis' ? 110 : 220;
     const MAX_SWIPE_SPEED = mode === 'tabletennis' ? 900 : 1400;
-    const BASE_POWER = mode === 'tabletennis' ? 10.8 : 12;
+    const BASE_POWER = mode === 'tabletennis' ? 9.6 : 12;
 
     let started = false;
     let queuedSwing = null;
@@ -272,12 +272,12 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const lateralScale = config.courtW / BASE_CONFIG.courtW;
       const forwardScale = config.courtL / BASE_CONFIG.courtL;
 
-      const forwardMin = mode === 'tabletennis' ? 4.2 : 4.8;
-      const forwardMax = mode === 'tabletennis' ? 12.2 : 14.2;
-      const liftMin = mode === 'tabletennis' ? 3.1 : 3.2;
-      const liftMax = mode === 'tabletennis' ? 8.4 : 9.4;
-      const lateralClampBase = mode === 'tabletennis' ? 1.35 : 1.6;
-      const lateralScaleFactor = mode === 'tabletennis' ? 0.2 : 0.22;
+      const forwardMin = mode === 'tabletennis' ? 3.6 : 4.8;
+      const forwardMax = mode === 'tabletennis' ? 10.6 : 14.2;
+      const liftMin = mode === 'tabletennis' ? 2.6 : 3.2;
+      const liftMax = mode === 'tabletennis' ? 7.6 : 9.4;
+      const lateralClampBase = mode === 'tabletennis' ? 1.2 : 1.6;
+      const lateralScaleFactor = mode === 'tabletennis' ? 0.18 : 0.22;
 
       const swipeT = Math.max(swipeTime, 0.08);
       const speed = Math.hypot(distX, distY) / swipeT;
@@ -306,27 +306,6 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       };
     }
 
-    function computeSpinFromSwipe(distX, distY, swipeTime) {
-      const swipeTimeSafe = Math.max(60, swipeTime || 1);
-      const sideSpin = THREE.MathUtils.clamp(-(distX / swipeTimeSafe) * 140, -180, 180);
-      const topSpin = THREE.MathUtils.clamp((distY / swipeTimeSafe) * 180, -110, 220);
-      const tiltSpin = THREE.MathUtils.clamp((Math.abs(distX) / Math.max(Math.abs(distY), 120)) * 70, 0, 120);
-      return { sideSpin, topSpin, tiltSpin };
-    }
-
-    function ensureNetClearance(vel, origin, clearanceScale = 1) {
-      if (Math.abs(vel.z) < 0.01) return;
-      const timeToNet = Math.abs(origin.z / vel.z);
-      if (timeToNet <= 0) return;
-      const safeHeight = config.tableHeight + config.netHeight + config.ballRadius * (1.2 * clearanceScale);
-      const predictedY = origin.y + vel.y * timeToNet + 0.5 * GRAVITY * timeToNet * timeToNet;
-      if (predictedY < safeHeight) {
-        const requiredVy =
-          (safeHeight - origin.y - 0.5 * GRAVITY * timeToNet * timeToNet) / Math.max(timeToNet, 0.01);
-        vel.y = Math.max(vel.y, requiredVy + 0.2);
-      }
-    }
-
     function nextServer() {
       server = server === 'player' ? 'enemy' : 'player';
     }
@@ -338,28 +317,18 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         const lateralScale = config.courtW / BASE_CONFIG.courtW;
         const forwardScale = config.courtL / BASE_CONFIG.courtL;
         const cornerBias = Math.random() > 0.5 ? 1 : -1;
-        const serveOrigin = clampX((Math.random() - 0.5 + cornerBias * 0.15) * halfW * 0.7);
-        enemy.position.x = serveOrigin;
-        ball.position.x = serveOrigin * 0.8;
         const targetX = clampX((cornerBias * 0.45 + (Math.random() - 0.5) * 0.25) * halfW);
-        const servePower = 15 + Math.random() * 7;
+        const servePower = 14 + Math.random() * 6;
         const powerScale = servePower / BASE_POWER;
         const forward = THREE.MathUtils.clamp(
-          THREE.MathUtils.mapLinear(servePower, 10, 24, 6.8 * forwardScale, 14 * forwardScale),
-          6.2 * forwardScale,
-          14 * forwardScale
+          THREE.MathUtils.mapLinear(servePower, 10, 22, 6.4 * forwardScale, 13.6 * forwardScale),
+          6 * forwardScale,
+          13.6 * forwardScale
         );
-        const lateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.15, -2.8 * lateralScale, 2.8 * lateralScale);
-        const lift = THREE.MathUtils.clamp(4 + powerScale * 1.45, 3.6, 8.8);
+        const lateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.05, -2.6 * lateralScale, 2.6 * lateralScale);
+        const lift = THREE.MathUtils.clamp(3.6 + powerScale * 1.35, 3.4, 8.2);
         ball.position.x = targetX * 0.35;
         velocity.set(lateral, lift, forward);
-        if (mode === 'tabletennis') {
-          const serveSideSpin = THREE.MathUtils.clamp((Math.random() - 0.5) * 200, -200, 200);
-          const serveTopSpin = THREE.MathUtils.clamp(140 + Math.random() * 100, 140, 240);
-          const serveTilt = THREE.MathUtils.clamp((Math.random() - 0.5) * 70, -70, 70);
-          spin.set(serveTilt, serveSideSpin, serveTopSpin);
-        }
-        ensureNetClearance(velocity, ball.position, 1.12);
         started = true;
         setToast('AI serving · defend!');
       }, 900);
@@ -420,10 +389,11 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         player.position.z + hitDir * hitOffset
       );
       if (mode === 'tabletennis') {
-        const { sideSpin, topSpin, tiltSpin } = computeSpinFromSwipe(distX, distY, swipeTime);
-        spin.set(tiltSpin, sideSpin, topSpin);
+        const swipeTimeSafe = Math.max(80, swipeTime || 1);
+        const sideSpin = THREE.MathUtils.clamp(-(distX / swipeTimeSafe) * 90, -120, 120);
+        const topSpin = THREE.MathUtils.clamp((distY / swipeTimeSafe) * 140, -90, 180);
+        spin.set(0, sideSpin, topSpin);
       }
-      ensureNetClearance(velocity, ball.position, 1.1);
       started = true;
       setToast('Rally in progress');
       playerSwing = 1.1;
@@ -519,25 +489,18 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const hitWindow = Math.max(halfW * 0.08, config.ballRadius * 8);
       const approachingEnemy = velocity.z < 0 && ball.position.z < enemy.position.z + hitWindow;
       if (approachingEnemy && ball.position.distanceTo(enemy.position) < hitWindow) {
-        const spinBias = THREE.MathUtils.clamp(spin.y * 0.0035, -0.8, 0.8);
-        const targetX = clampX(player.position.x + spinBias + (Math.random() - 0.5) * halfW * 0.32);
-        const aiPower = THREE.MathUtils.clamp(12.5 + Math.abs(velocity.z) * 0.46, 11, 24);
+        const targetX = clampX(player.position.x + (Math.random() - 0.5) * halfW * 0.28);
+        const aiPower = THREE.MathUtils.clamp(11.5 + Math.abs(velocity.z) * 0.42, 10, 22);
         const powerScale = aiPower / BASE_POWER;
-        const aimForward = THREE.MathUtils.clamp(
-          (Math.abs(velocity.z) + 4.5) * powerScale,
-          6.4 * (config.courtL / BASE_CONFIG.courtL),
-          13.6 * (config.courtL / BASE_CONFIG.courtL)
-        );
-        const aimLateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.1, -3.2, 3.2);
-        const lift = THREE.MathUtils.clamp(3.8 + powerScale * 1.35 + Math.random() * 1.25, 3.4, 9.8);
+        const aimForward = THREE.MathUtils.clamp((Math.abs(velocity.z) + 4) * powerScale, 6 * (config.courtL / BASE_CONFIG.courtL), 13.2 * (config.courtL / BASE_CONFIG.courtL));
+        const aimLateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.05, -2.8, 2.8);
+        const lift = THREE.MathUtils.clamp(3.6 + powerScale * 1.25 + Math.random() * 1.1, 3.2, 9.2);
         velocity.set(aimLateral, lift, Math.abs(aimForward));
         if (mode === 'tabletennis') {
-          const sideSpin = THREE.MathUtils.clamp((Math.random() - 0.5) * 200, -200, 200);
-          const topSpin = THREE.MathUtils.clamp((0.5 + Math.random()) * 180, 80, 220);
-          const tiltSpin = THREE.MathUtils.clamp((Math.random() - 0.5) * 90, -90, 90);
-          spin.set(tiltSpin, sideSpin, topSpin);
+          const sideSpin = THREE.MathUtils.clamp((Math.random() - 0.5) * 160, -160, 160);
+          const topSpin = THREE.MathUtils.clamp((0.5 + Math.random()) * 140, 60, 180);
+          spin.set(0, sideSpin, topSpin);
         }
-        ensureNetClearance(velocity, ball.position, 1.08);
         enemySwing = 1.05;
       }
     }
@@ -557,14 +520,15 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         swing.forward
       );
       if (mode === 'tabletennis') {
-        const { sideSpin, topSpin, tiltSpin } = computeSpinFromSwipe(swipe.distX, swipe.distY, swipe.swipeTime);
-        spin.set(tiltSpin, sideSpin, topSpin);
+        const swipeTimeSafe = Math.max(80, swipe.swipeTime || 1);
+        const sideSpin = THREE.MathUtils.clamp(-(swipe.distX / swipeTimeSafe) * 90, -120, 120);
+        const topSpin = THREE.MathUtils.clamp((swipe.distY / swipeTimeSafe) * 140, -90, 180);
+        spin.set(0, sideSpin, topSpin);
       }
       queuedSwing = null;
       setToast('Kthim perfekt!');
       started = true;
       playerSwing = 1.2;
-      ensureNetClearance(velocity, ball.position, 1.18);
     }
 
     function handleTableBounds(dt) {
