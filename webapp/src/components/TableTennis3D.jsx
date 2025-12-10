@@ -1,277 +1,2324 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import * as THREE from 'three';
-import { createArenaCarpetMaterial, createArenaWallMaterial } from '../utils/arenaDecor.js';
-import { applySRGBColorSpace } from '../utils/colorSpace.js';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import * as THREE from "three";
+import { createArenaCarpetMaterial, createArenaWallMaterial } from "../utils/arenaDecor.js";
+import { applySRGBColorSpace } from "../utils/colorSpace.js";
 
-const TABLE_SPEC = {
-  length: 2.74,
-  width: 1.525,
-  height: 0.76,
-  netHeight: 0.1525,
-  border: 0.018,
-  tableThickness: 0.024,
-};
-
-const CAMERA_PROFILES = {
-  broadcast: {
-    fov: 55,
-    height: 2.12,
-    distance: 3.8,
-    yaw: 0,
-    yawRange: 0.35,
-    pitch: 0.34,
-    followLerp: 0.2,
+const GAME_VARIANTS = [
+  {
+    id: "pro-arena",
+    name: "Pro Arena Broadcast",
+    badge: "Broadcast Classic",
+    tagline: "ACES-toned championship lighting with balanced bounce and spin.",
+    renderer: { exposure: 1.85 },
+    scene: { background: 0x0b0e14 },
+    lighting: {
+      hemisphere: { sky: 0xffffff, ground: 0x1b2233, intensity: 0.95 },
+      sun: { color: 0xffffff, intensity: 0.95, position: [-16, 28, 18] },
+      rim: { color: 0x99ccff, intensity: 0.35, position: [20, 14, -12] },
+      spotlights: [
+        { position: [-8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        { position: [8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        { position: [-8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        { position: [8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+      ],
+    },
+    materials: {
+      table: { color: 0x1e3a8a, roughness: 0.6 },
+      lines: { color: 0xffffff, roughness: 0.35 },
+      metal: { color: 0x9aa4b2, roughness: 0.45, metalness: 0.6 },
+      wheel: { color: 0x111111, roughness: 0.9 },
+      paddles: { player: 0xff4d6d, opponent: 0x49dcb1 },
+    },
+    carpet: { color: 0xb01224, emissive: 0x2d020a, emissiveIntensity: 0.18, bumpScale: 0.24 },
+    floor: { color: 0x0f1222 },
+    walls: { color: 0xeeeeee },
+    ball: {
+      color: 0xfff1cc,
+      emissive: 0xffd7a1,
+      emissiveIntensity: 0.55,
+      glowColor: 0xffd7a1,
+      glowIntensity: 0.85,
+      glowDistance: 4.2,
+      shadowColor: 0x000000,
+      shadowOpacity: 0.22,
+      roughness: 0.6,
+    },
+    trail: { color: 0xfff1cc, minOpacity: 0.18, maxOpacity: 0.62, speedFactor: 0.045, count: 18 },
+    camera: { dist: 3.46, minDist: 3.18, height: 2.04, minHeight: 1.82, pitch: 0.34, forwardBias: 0.06, yawBase: 0, yawRange: 0.38 },
+    physics: {
+      drag: 0.48,
+      tableRest: 0.84,
+      tableFriction: 0.22,
+      paddleRest: 1.02,
+      paddleAim: 0.58,
+      paddleLift: 0.18,
+      netRest: 0.37,
+      forceScale: 0.82,
+      serveTimers: { player: 0.45, opponent: 0.6 }
+    },
+    ai: { speed: 1, vertical: 1, react: 1 },
   },
-  sideline: {
-    fov: 60,
-    height: 1.86,
-    distance: 3.4,
-    yaw: -0.16,
-    yawRange: 0.52,
-    pitch: 0.3,
-    followLerp: 0.26,
+  {
+    id: "neon",
+    name: "Neon Synthwave Run",
+    badge: "Neon Velocity",
+    tagline: "Futuristic neon rig with extra spin and arcade-grade tempo.",
+    renderer: { exposure: 2.1 },
+    scene: { background: 0x040018 },
+    lighting: {
+      hemisphere: { sky: 0x7a9dff, ground: 0x12041f, intensity: 1.05 },
+      sun: { color: 0xff5fb7, intensity: 0.95, position: [-12, 24, 16] },
+      rim: { color: 0x4bf9ff, intensity: 0.65, position: [18, 12, -14] },
+      spotlights: [
+        { position: [-8, 6.5, -7], color: 0xff63d1, intensity: 0.92, angle: Math.PI / 4.4, penumbra: 0.55 },
+        { position: [8, 6.5, -7], color: 0x55f7ff, intensity: 0.92, angle: Math.PI / 4.6, penumbra: 0.55 },
+        { position: [-8, 6.5, 7], color: 0xff63d1, intensity: 0.88, angle: Math.PI / 4.3, penumbra: 0.5 },
+        { position: [8, 6.5, 7], color: 0x55f7ff, intensity: 0.88, angle: Math.PI / 4.3, penumbra: 0.5 },
+      ],
+    },
+    materials: {
+      table: { color: 0x1b1540, roughness: 0.38, metalness: 0.08 },
+      lines: { color: 0x7fffd4, roughness: 0.25 },
+      metal: { color: 0x293460, roughness: 0.32, metalness: 0.7 },
+      wheel: { color: 0x070b1a, roughness: 0.7 },
+      paddles: { player: 0xff5c8a, opponent: 0x4df3ff },
+    },
+    carpet: { color: 0x1a0835, emissive: 0x531575, emissiveIntensity: 0.35, bumpScale: 0.28 },
+    floor: { color: 0x05030d },
+    walls: { color: 0x1b1d45 },
+    ball: {
+      color: 0xfff8f0,
+      emissive: 0xff78f3,
+      emissiveIntensity: 0.9,
+      glowColor: 0xff78f3,
+      glowIntensity: 1.35,
+      glowDistance: 5.2,
+      shadowColor: 0x120416,
+      shadowOpacity: 0.28,
+      roughness: 0.45,
+    },
+    trail: { color: 0xff4bf1, minOpacity: 0.22, maxOpacity: 0.82, speedFactor: 0.06, count: 22 },
+    camera: { dist: 3.58, minDist: 3.22, height: 2.12, minHeight: 1.9, pitch: 0.36, forwardBias: 0.12, yawBase: 0, yawRange: 0.52 },
+    physics: {
+      drag: 0.46,
+      tableRest: 0.85,
+      tableFriction: 0.21,
+      paddleRest: 1.06,
+      paddleAim: 0.62,
+      paddleLift: 0.17,
+      netRest: 0.35,
+      forceScale: 0.88,
+      serveTimers: { player: 0.43, opponent: 0.58 }
+    },
+    ai: { speed: 1.08, vertical: 1.04, react: 0.94 },
   },
-  analytic: {
-    fov: 52,
-    height: 2.62,
-    distance: 3.2,
-    yaw: 0,
-    yawRange: 0.18,
-    pitch: 0.44,
-    followLerp: 0.16,
+  {
+    id: "zen",
+    name: "Zen Garden Invitational",
+    badge: "Zen Control",
+    tagline: "Warm studio palette with softer physics for technical rallies.",
+    renderer: { exposure: 1.72 },
+    scene: { background: 0x0e1b12 },
+    lighting: {
+      hemisphere: { sky: 0xfff7e6, ground: 0x1a2c1f, intensity: 0.98 },
+      sun: { color: 0xffd08a, intensity: 1.08, position: [-14, 26, 14] },
+      rim: { color: 0x90d4a8, intensity: 0.32, position: [16, 12, -10] },
+      spotlights: [
+        { position: [-7.5, 6.2, -7.5], color: 0xffc28a, intensity: 0.82, angle: Math.PI / 4.8, penumbra: 0.38 },
+        { position: [7.5, 6.2, -7.5], color: 0xffd6a3, intensity: 0.82, angle: Math.PI / 4.8, penumbra: 0.38 },
+        { position: [-7.5, 6.2, 7.5], color: 0xffc28a, intensity: 0.78, angle: Math.PI / 4.9, penumbra: 0.36 },
+        { position: [7.5, 6.2, 7.5], color: 0xffd6a3, intensity: 0.78, angle: Math.PI / 4.9, penumbra: 0.36 },
+      ],
+    },
+    materials: {
+      table: { color: 0x126b55, roughness: 0.58 },
+      lines: { color: 0xfdf8e1, roughness: 0.3 },
+      metal: { color: 0xc89f72, roughness: 0.52, metalness: 0.55 },
+      wheel: { color: 0x382f2a, roughness: 0.85 },
+      paddles: { player: 0xff8562, opponent: 0x4dbb84 },
+    },
+    carpet: { color: 0x214234, emissive: 0x11261c, emissiveIntensity: 0.22, bumpScale: 0.22 },
+    floor: { color: 0x1b2a20 },
+    walls: { color: 0xe4d8c4 },
+    ball: {
+      color: 0xfff6dd,
+      emissive: 0xffc9a1,
+      emissiveIntensity: 0.48,
+      glowColor: 0xffcfa4,
+      glowIntensity: 0.72,
+      glowDistance: 3.8,
+      shadowColor: 0x1a1309,
+      shadowOpacity: 0.24,
+      roughness: 0.58,
+    },
+    trail: { color: 0xfff1c0, minOpacity: 0.16, maxOpacity: 0.54, speedFactor: 0.036, count: 18 },
+    camera: { dist: 3.32, minDist: 3.05, height: 1.98, minHeight: 1.78, pitch: 0.32, forwardBias: 0.05, yawBase: 0, yawRange: 0.34 },
+    physics: {
+      drag: 0.5,
+      tableRest: 0.83,
+      tableFriction: 0.18,
+      paddleRest: 0.98,
+      paddleAim: 0.58,
+      paddleLift: 0.16,
+      netRest: 0.38,
+      forceScale: 0.76,
+      serveTimers: { player: 0.47, opponent: 0.62 }
+    },
+    ai: { speed: 0.94, vertical: 0.96, react: 1.05 },
   },
-};
-
-const TOUCH_PRESETS = {
-  precision: { minSpeed: 200, maxSpeed: 1650, lift: [0.34, 1.1], forward: [0.82, 1.5], lateralScale: 1.4, curveScale: 0.9 },
-  arcade: { minSpeed: 140, maxSpeed: 1900, lift: [0.42, 1.2], forward: [0.9, 1.68], lateralScale: 1.8, curveScale: 1.05 },
-  stable: { minSpeed: 190, maxSpeed: 1550, lift: [0.3, 1.0], forward: [0.78, 1.28], lateralScale: 1.15, curveScale: 0.7 },
-};
-
-const LIGHTING_PRESETS = {
-  pro: {
-    ambient: { color: 0xffffff, intensity: 0.55 },
-    hemi: { sky: 0xffffff, ground: 0x1b2233, intensity: 0.95 },
-    sun: { color: 0xffffff, intensity: 1, position: [-16, 28, 18] },
-    rim: { color: 0x99ccff, intensity: 0.35, position: [16, 12, -12] },
-    spots: [
-      { position: [-8, 6, -8], color: 0xffffff, intensity: 0.72, angle: Math.PI / 5, penumbra: 0.35 },
-      { position: [8, 6, -8], color: 0xffffff, intensity: 0.72, angle: Math.PI / 5, penumbra: 0.35 },
-      { position: [-8, 6, 8], color: 0xffffff, intensity: 0.72, angle: Math.PI / 5, penumbra: 0.35 },
-      { position: [8, 6, 8], color: 0xffffff, intensity: 0.72, angle: Math.PI / 5, penumbra: 0.35 },
-    ],
+  {
+    id: "midnight",
+    name: "Midnight Championship",
+    badge: "Midnight Finals",
+    tagline: "Theatre spotlights with explosive trails for dramatic finals.",
+    renderer: { exposure: 1.65 },
+    scene: { background: 0x030304 },
+    lighting: {
+      hemisphere: { sky: 0x6b768f, ground: 0x04050a, intensity: 0.88 },
+      sun: { color: 0xffe0c2, intensity: 0.75, position: [-10, 30, 12] },
+      rim: { color: 0x4a8bff, intensity: 0.48, position: [24, 18, -16] },
+      spotlights: [
+        { position: [-7.2, 7, -7.2], color: 0xffa35a, intensity: 0.96, angle: Math.PI / 5.2, penumbra: 0.44 },
+        { position: [7.2, 7, -7.2], color: 0xf0f4ff, intensity: 0.9, angle: Math.PI / 5.2, penumbra: 0.44 },
+        { position: [-7.2, 7, 7.2], color: 0xffa35a, intensity: 0.92, angle: Math.PI / 5.4, penumbra: 0.42 },
+        { position: [7.2, 7, 7.2], color: 0xf0f4ff, intensity: 0.92, angle: Math.PI / 5.4, penumbra: 0.42 },
+      ],
+    },
+    materials: {
+      table: { color: 0x0e1b37, roughness: 0.46 },
+      lines: { color: 0xffffff, roughness: 0.28 },
+      metal: { color: 0x5c6f8f, roughness: 0.35, metalness: 0.7 },
+      wheel: { color: 0x0c0f19, roughness: 0.78 },
+      paddles: { player: 0xff5f3d, opponent: 0x3fa0ff },
+    },
+    carpet: { color: 0x1c0c1c, emissive: 0x2f072f, emissiveIntensity: 0.28, bumpScale: 0.27 },
+    floor: { color: 0x07070a },
+    walls: { color: 0xcfd5e4 },
+    ball: {
+      color: 0xffe0c4,
+      emissive: 0xff9b42,
+      emissiveIntensity: 0.82,
+      glowColor: 0xff933b,
+      glowIntensity: 1.28,
+      glowDistance: 5,
+      shadowColor: 0x050304,
+      shadowOpacity: 0.3,
+      roughness: 0.5,
+    },
+    trail: { color: 0xff8b3d, minOpacity: 0.24, maxOpacity: 0.86, speedFactor: 0.055, count: 20 },
+    camera: { dist: 3.7, minDist: 3.32, height: 2.22, minHeight: 2, pitch: 0.35, forwardBias: 0.08, yawBase: 0, yawRange: 0.4 },
+    physics: {
+      drag: 0.45,
+      tableRest: 0.86,
+      tableFriction: 0.2,
+      paddleRest: 1.05,
+      paddleAim: 0.64,
+      paddleLift: 0.19,
+      netRest: 0.32,
+      forceScale: 0.85,
+      serveTimers: { player: 0.44, opponent: 0.59 }
+    },
+    ai: { speed: 1.12, vertical: 1.08, react: 0.92 },
   },
-  neon: {
-    ambient: { color: 0x7a9dff, intensity: 0.65 },
-    hemi: { sky: 0x7a9dff, ground: 0x12041f, intensity: 1.05 },
-    sun: { color: 0xff63d1, intensity: 0.95, position: [-12, 24, 16] },
-    rim: { color: 0x4bf9ff, intensity: 0.65, position: [18, 12, -14] },
-    spots: [
-      { position: [-8, 6.5, -7], color: 0xff63d1, intensity: 0.92, angle: Math.PI / 4.4, penumbra: 0.55 },
-      { position: [8, 6.5, -7], color: 0x55f7ff, intensity: 0.92, angle: Math.PI / 4.6, penumbra: 0.55 },
-      { position: [-8, 6.5, 7], color: 0xff63d1, intensity: 0.88, angle: Math.PI / 4.3, penumbra: 0.5 },
-      { position: [8, 6.5, 7], color: 0x55f7ff, intensity: 0.88, angle: Math.PI / 4.3, penumbra: 0.5 },
-    ],
+  {
+    id: "analytic",
+    name: "Analytic Coach Suite",
+    badge: "Coach Vision",
+    tagline: "Top-down tactical view with extended trails for match analysis.",
+    renderer: { exposure: 1.78 },
+    scene: { background: 0x0a1018 },
+    lighting: {
+      hemisphere: { sky: 0xc7d7ff, ground: 0x060b12, intensity: 1.02 },
+      sun: { color: 0xf5fbff, intensity: 0.68, position: [-18, 32, 10] },
+      rim: { color: 0x7fd9ff, intensity: 0.42, position: [14, 18, -18] },
+      spotlights: [
+        { position: [-8.5, 7.5, -6.5], color: 0xa3c4ff, intensity: 0.82, angle: Math.PI / 5, penumbra: 0.48 },
+        { position: [8.5, 7.5, -6.5], color: 0xb1f0ff, intensity: 0.82, angle: Math.PI / 5, penumbra: 0.48 },
+        { position: [-8.5, 7.5, 6.5], color: 0xa3c4ff, intensity: 0.78, angle: Math.PI / 5.2, penumbra: 0.46 },
+        { position: [8.5, 7.5, 6.5], color: 0xb1f0ff, intensity: 0.78, angle: Math.PI / 5.2, penumbra: 0.46 },
+      ],
+    },
+    materials: {
+      table: { color: 0x1f3d70, roughness: 0.42 },
+      lines: { color: 0xf2f7ff, roughness: 0.22 },
+      metal: { color: 0x6a7fab, roughness: 0.36, metalness: 0.65 },
+      wheel: { color: 0x1a2337, roughness: 0.68 },
+      paddles: { player: 0x4d9eff, opponent: 0x8df29b },
+    },
+    carpet: { color: 0x10223b, emissive: 0x0b1b32, emissiveIntensity: 0.25, bumpScale: 0.26 },
+    floor: { color: 0x0b0f19 },
+    walls: { color: 0xd3deff },
+    ball: {
+      color: 0xf5f7ff,
+      emissive: 0x64a6ff,
+      emissiveIntensity: 0.95,
+      glowColor: 0x64a6ff,
+      glowIntensity: 1.2,
+      glowDistance: 5.6,
+      shadowColor: 0x050a16,
+      shadowOpacity: 0.26,
+      roughness: 0.38,
+    },
+    trail: { color: 0x6cb8ff, minOpacity: 0.14, maxOpacity: 0.55, speedFactor: 0.034, count: 28 },
+    camera: { dist: 3.1, minDist: 2.9, height: 2.62, minHeight: 2.38, pitch: 0.48, forwardBias: 0.03, yawBase: 0, yawRange: 0.24 },
+    physics: {
+      drag: 0.52,
+      tableRest: 0.84,
+      tableFriction: 0.18,
+      paddleRest: 0.96,
+      paddleAim: 0.54,
+      paddleLift: 0.15,
+      netRest: 0.4,
+      forceScale: 0.74,
+      serveTimers: { player: 0.49, opponent: 0.64 }
+    },
+    ai: { speed: 0.9, vertical: 0.92, react: 1.08 },
   },
-  zen: {
-    ambient: { color: 0xfff7e6, intensity: 0.6 },
-    hemi: { sky: 0xfff7e6, ground: 0x1a2c1f, intensity: 0.98 },
-    sun: { color: 0xffd08a, intensity: 1.08, position: [-14, 26, 14] },
-    rim: { color: 0x90d4a8, intensity: 0.32, position: [16, 12, -10] },
-    spots: [
-      { position: [-7.5, 6.2, -7.5], color: 0xffc28a, intensity: 0.82, angle: Math.PI / 4.8, penumbra: 0.38 },
-      { position: [7.5, 6.2, -7.5], color: 0xffd6a3, intensity: 0.82, angle: Math.PI / 4.8, penumbra: 0.38 },
-      { position: [-7.5, 6.2, 7.5], color: 0xffc28a, intensity: 0.78, angle: Math.PI / 4.9, penumbra: 0.36 },
-      { position: [7.5, 6.2, 7.5], color: 0xffd6a3, intensity: 0.78, angle: Math.PI / 4.9, penumbra: 0.36 },
-    ],
+];
+
+const BROADCAST_PRESETS = [
+  {
+    id: "center-line",
+    name: "Center Line Classic",
+    badge: "Host Angle",
+    description: "Balanced orbit with gentle follow for broadcast neutral shots.",
+    camera: { yawRange: 0.36, pitch: 0.34, height: 2.04, dist: 3.46, forwardBias: 0.06 },
+    tracking: { followLerp: 0.2, rallyBlend: 0.55, yawDamping: 0.18, distDamping: 0.1 },
   },
-};
-
-const MATERIAL_PRESET = {
-  table: { color: 0x1e3a8a, roughness: 0.58 },
-  lines: { color: 0xffffff, roughness: 0.35 },
-  metal: { color: 0x9aa4b2, roughness: 0.45, metalness: 0.65 },
-  wheel: { color: 0x111111, roughness: 0.9 },
-  paddles: { player: 0xff4d6d, opponent: 0x49dcb1 },
-  ball: {
-    color: 0xfff1cc,
-    emissive: 0xffd7a1,
-    emissiveIntensity: 0.55,
-    glowColor: 0xffd7a1,
-    glowIntensity: 0.85,
-    glowDistance: 4,
+  {
+    id: "sideline-slide",
+    name: "Sideline Slide",
+    badge: "Low Track",
+    description: "Lower sideline dolly with wider yaw for dynamic highlight cuts.",
+    camera: { yawBase: -0.16, yawRange: 0.56, pitch: 0.28, height: 1.86, dist: 3.32, forwardBias: 0.04 },
+    tracking: { followLerp: 0.24, rallyBlend: 0.48, yawDamping: 0.14, distDamping: 0.12 },
   },
-};
+  {
+    id: "skybox-hawk",
+    name: "Skybox Hawk",
+    badge: "Aerial View",
+    description: "High tactical top cam for coaching-friendly replays.",
+    camera: { yawBase: 0, yawRange: 0.22, pitch: 0.46, height: 2.82, dist: 3.22, forwardBias: 0 },
+    tracking: { followLerp: 0.16, rallyBlend: 0.68, yawDamping: 0.2, distDamping: 0.14 },
+  },
+  {
+    id: "impact-reel",
+    name: "Impact Reel",
+    badge: "Punch-In",
+    description: "Tighter framing with aggressive yaw swing for power rallies.",
+    camera: { yawBase: 0.08, yawRange: 0.72, pitch: 0.32, height: 1.94, dist: 3.04, forwardBias: 0.02 },
+    tracking: { followLerp: 0.26, rallyBlend: 0.6, yawDamping: 0.22, distDamping: 0.12 },
+  },
+  {
+    id: "analytic-top",
+    name: "Analytic Deck",
+    badge: "Coach Cam",
+    description: "Stable tripod feel with slow yaw and steady follow for analysis.",
+    camera: { yawBase: 0, yawRange: 0.28, pitch: 0.4, height: 2.46, dist: 3.58, forwardBias: 0.05 },
+    tracking: { followLerp: 0.14, rallyBlend: 0.42, yawDamping: 0.12, distDamping: 0.08 },
+  },
+];
 
-const PHYSICS_BASELINE = {
-  gravity: new THREE.Vector3(0, -9.81, 0),
-  airDrag: 0.18,
-  magnus: 0.0006,
-  spinDecay: 0.92,
-  tableRest: 0.9,
-  tableFriction: 0.2,
-  paddleRest: 1.04,
-  paddleAim: 0.62,
-  paddleLift: 0.18,
-  netRest: 0.35,
-  wallRest: 0.7,
-  floorFriction: 0.94,
-};
+const BALL_TECHNIQUES = [
+  {
+    id: "olympic-pace",
+    name: "Olympic Pace",
+    badge: "Fast Control",
+    description: "Quick rallies with stable arcs and assertive paddle rebound.",
+    physics: { drag: 0.44, magnusCoeff: 0.46, spinDecay: 0.9, forceScale: 0.92, tableRest: 0.86, paddleRest: 1.08, paddleAim: 0.64 },
+  },
+  {
+    id: "spin-lab",
+    name: "Spin Lab",
+    badge: "Heavy Spin",
+    description: "Amplified Magnus and softer damping for dramatic curves.",
+    physics: { drag: 0.48, magnusCoeff: 0.62, spinDecay: 0.93, forceScale: 0.82, tableFriction: 0.24, paddleLift: 0.22 },
+  },
+  {
+    id: "defense-wall",
+    name: "Defense Wall",
+    badge: "Chop Play",
+    description: "Lower bounce, extra friction for controlled defensive chops.",
+    physics: { drag: 0.52, magnusCoeff: 0.38, spinDecay: 0.88, forceScale: 0.76, tableRest: 0.82, tableFriction: 0.28, netRest: 0.34 },
+  },
+  {
+    id: "arcade-rush",
+    name: "Arcade Rush",
+    badge: "Turbo",
+    description: "High-energy arcade tempo with bouncy paddle reactions.",
+    physics: { drag: 0.42, magnusCoeff: 0.5, spinDecay: 0.96, forceScale: 0.98, paddleRest: 1.12, paddleLift: 0.2 },
+  },
+  {
+    id: "studio-soft",
+    name: "Studio Soft",
+    badge: "Warmup",
+    description: "Gentle speed for practice with friendlier bounce envelope.",
+    physics: { drag: 0.54, magnusCoeff: 0.36, spinDecay: 0.94, forceScale: 0.7, tableRest: 0.8, paddleRest: 0.96, paddleAim: 0.56 },
+  },
+];
 
-const GAME_RULES = {
-  pointsToWin: 11,
-  winBy: 2,
-  serveRotate: 2,
-};
+const TOUCH_PRESETS = [
+  {
+    id: "precision-swipe",
+    name: "Precision Swipe",
+    badge: "Linear",
+    description: "Direct mapping for tournament players with minimal assist.",
+    swipe: { minSpeed: 200, maxSpeed: 1650, liftRange: [0.3, 1.08], forwardRange: [0.92, 1.54], lateralScale: 1.4, curveScale: 0.9, chopScale: 1 },
+    tracking: { targetLerp: { x: 0.52, z: 0.46 }, cameraBias: 0 },
+  },
+  {
+    id: "assist-glide",
+    name: "Assist Glide",
+    badge: "Assisted",
+    description: "Heavier smoothing with spin guard for consistent rallying.",
+    swipe: { minSpeed: 160, maxSpeed: 1500, liftRange: [0.34, 1.02], forwardRange: [0.86, 1.4], lateralScale: 1.2, curveScale: 0.7, chopScale: 0.72 },
+    tracking: { targetLerp: { x: 0.62, z: 0.58 }, cameraBias: 0.06 },
+  },
+  {
+    id: "arcade-flick",
+    name: "Arcade Flick",
+    badge: "Aggro",
+    description: "Quicker moves and exaggerated lift for mobile arcade feel.",
+    swipe: { minSpeed: 140, maxSpeed: 1900, liftRange: [0.4, 1.2], forwardRange: [0.98, 1.68], lateralScale: 1.8, curveScale: 1.1, chopScale: 1.1 },
+    tracking: { targetLerp: { x: 0.48, z: 0.38 }, cameraBias: -0.04 },
+  },
+  {
+    id: "aerial-touch",
+    name: "Aerial Touch",
+    badge: "Loft",
+    description: "Higher arc bias with softer lateral damping for lobs.",
+    swipe: { minSpeed: 180, maxSpeed: 1600, liftRange: [0.44, 1.16], forwardRange: [0.84, 1.32], lateralScale: 1.15, curveScale: 0.85, chopScale: 1.2 },
+    tracking: { targetLerp: { x: 0.58, z: 0.52 }, cameraBias: 0.02 },
+  },
+  {
+    id: "coach-stable",
+    name: "Coach Stable",
+    badge: "Stable",
+    description: "Extra stability and damped curves for analysis and drills.",
+    swipe: { minSpeed: 190, maxSpeed: 1550, liftRange: [0.32, 1], forwardRange: [0.78, 1.28], lateralScale: 1, curveScale: 0.6, chopScale: 0.65 },
+    tracking: { targetLerp: { x: 0.66, z: 0.62 }, cameraBias: 0.08 },
+  },
+];
 
-const BASE_STEP = 1 / 120;
-const MAX_SUB_STEPS = 8;
+/**
+ * TABLE TENNIS 3D — Mobile Portrait (1:1)
+ * --------------------------------------
+ * • Full-screen on phones (100dvh). Portrait-only experience; no overflow.
+ * • 3D table (official size ratio), white lines, center net with posts.
+ * • Controls: drag with one finger to move the racket; ball follows real-ish ping-pong physics.
+ * • Camera: fixed angle that keeps the entire table centered on screen.
+ * • AI opponent on the far side with adjustable difficulty and reaction delay.
+ * • Scoring: to 11, win by 2; service swaps every 2 points, auto-serve & rally logic.
+ */
 
-function clamp(v, min, max) {
-  return Math.min(Math.max(v, min), max);
-}
+export default function TableTennis3D({ player, ai }){
+  const hostRef = useRef(null);
+  const raf = useRef(0);
+  const audioRef = useRef({ ctx: null, buffers: {} });
+  const variant = GAME_VARIANTS[0];
+  const broadcastProfile = BROADCAST_PRESETS[0];
+  const ballProfile = BALL_TECHNIQUES[0];
+  const touchProfile = TOUCH_PRESETS[0];
 
-function lerp(a, b, t) {
-  return a + (b - a) * t;
-}
+  // Snippet-aligned ball physics
+  const GRAVITY_Y = -9.81;
+  const AIR_DRAG_K = 0.2;
+  const MAGNUS_K = 0.00065;
+  const TABLE_RESTITUTION = 0.9;
+  const TABLE_TANGENTIAL_DAMP = 0.88;
 
-function damp(current, target, lambda, dt) {
-  return lerp(current, target, 1 - Math.exp(-lambda * dt));
-}
-
-function makeRenderer(container) {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(container.clientWidth, container.clientHeight);
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  applySRGBColorSpace(renderer);
-  return renderer;
-}
-
-function makeCamera(profile, aspect) {
-  const cam = new THREE.PerspectiveCamera(profile.fov, aspect, 0.1, 200);
-  cam.position.set(0, profile.height, profile.distance);
-  cam.lookAt(0, TABLE_SPEC.height, 0);
-  return cam;
-}
-
-function makeTable(materials) {
-  const { length: L, width: W, height: H, netHeight: NET_H, border: B, tableThickness: T } = TABLE_SPEC;
-  const group = new THREE.Group();
-  const tableMat = new THREE.MeshStandardMaterial({ color: materials.table.color, roughness: materials.table.roughness });
-  const lineMat = new THREE.MeshStandardMaterial({ color: materials.lines.color, roughness: materials.lines.roughness });
-  const metalMat = new THREE.MeshStandardMaterial({ color: materials.metal.color, roughness: materials.metal.roughness, metalness: materials.metal.metalness });
-  const wheelMat = new THREE.MeshStandardMaterial({ color: materials.wheel.color, roughness: materials.wheel.roughness });
-
-  const top = new THREE.Mesh(new THREE.BoxGeometry(W, T, L), tableMat);
-  top.position.set(0, H - T / 2, 0);
-  top.receiveShadow = true;
-  top.castShadow = true;
-  group.add(top);
-
-  const railT = 0.018;
-  const mkLine = (w, h, d, x, y, z) => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), lineMat);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    group.add(mesh);
-  };
-  mkLine(B, 0.003, L, -W / 2 + B / 2, H + 0.002, 0);
-  mkLine(B, 0.003, L, W / 2 - B / 2, H + 0.002, 0);
-  mkLine(W, 0.003, B, 0, H + 0.002, L / 2 - B / 2);
-  mkLine(W, 0.003, B, 0, H + 0.002, -L / 2 + B / 2);
-  mkLine(B, 0.003, L - B * 2, 0, H + 0.002, 0);
-
-  const netGroup = new THREE.Group();
-  const netWidth = W + 0.05;
-  const netGeo = new THREE.PlaneGeometry(netWidth, NET_H);
-  const netAlpha = makeHexNetAlpha(512, 256, 9);
-  const netWeave = makeWeaveTex(256, 256);
-  const netMat = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    transparent: true,
-    alphaMap: netAlpha,
-    map: netWeave,
-    roughness: 0.9,
-    side: THREE.DoubleSide,
+  const playerLabel = player?.name || 'You';
+  const aiLabel = ai?.name || 'AI';
+  const initialServer = useMemo(() => (Math.random() < 0.5 ? 'P' : 'O'), []);
+  const createUiState = (serving = initialServer) => ({
+    pScore: 0,
+    oScore: 0,
+    serving,
+    msg: `${serving === 'P' ? playerLabel : aiLabel} to serve`,
+    gameOver: false,
+    winner: null,
   });
-  const netMesh = new THREE.Mesh(netGeo, netMat);
-  netMesh.position.set(0, H + NET_H / 2, 0);
-  netMesh.castShadow = false;
-  netMesh.receiveShadow = true;
-  netGroup.add(netMesh);
 
-  const bandT = 0.014;
-  const band = new THREE.Mesh(new THREE.BoxGeometry(netWidth, bandT, 0.004), lineMat);
-  band.position.set(0, H + NET_H - bandT / 2, 0);
-  netGroup.add(band);
+  const [ui, setUi] = useState(() => createUiState());
+  const [resetKey, setResetKey] = useState(0);
+  const uiRef = useRef(ui);
+  useEffect(() => { uiRef.current = ui; }, [ui]);
 
-  const postR = 0.012;
-  const postH = NET_H + 0.08;
-  const postGeo = new THREE.CylinderGeometry(postR, postR, postH, 24);
-  const postRMesh = new THREE.Mesh(postGeo, metalMat);
-  postRMesh.position.set(W / 2 + postR * 0.8, H + postH / 2, 0);
-  const postLMesh = postRMesh.clone();
-  postLMesh.position.x = -W / 2 - postR * 0.8;
-  postRMesh.castShadow = postLMesh.castShadow = true;
-  postRMesh.receiveShadow = postLMesh.receiveShadow = true;
-  group.add(postRMesh, postLMesh, netGroup);
+  const difficulty = useMemo(() => {
+    const tag = (ai?.difficulty || ai?.level || 'pro').toString().toLowerCase();
+    const presets = {
+      easy:   { speed: 3.1, vertical: 2.3, react: 0.055 },
+      medium: { speed: 3.6, vertical: 2.7, react: 0.042 },
+      normal: { speed: 3.6, vertical: 2.7, react: 0.042 },
+      pro:    { speed: 4.1, vertical: 3.1, react: 0.028 },
+      hard:   { speed: 4.1, vertical: 3.1, react: 0.028 },
+      legend: { speed: 4.5, vertical: 3.4, react: 0.022 },
+    };
+    return presets[tag] || presets.pro;
+  }, [ai?.difficulty, ai?.level]);
 
-  const clampGeo = new THREE.BoxGeometry(0.06, 0.025, 0.05);
-  const clampR = new THREE.Mesh(clampGeo, metalMat);
-  clampR.position.set(W / 2 + 0.03, H + 0.03, 0);
-  const clampL = clampR.clone();
-  clampL.position.x = -W / 2 - 0.03;
-  group.add(clampR, clampL);
+  useEffect(()=>{
+    const host = hostRef.current; if (!host) return;
+    const timers = [];
 
-  const legMat = metalMat;
-  const legGeo = new THREE.CylinderGeometry(0.015, 0.015, H, 14);
-  const legOffsetX = W * 0.35;
-  const legOffsetZ = L * 0.35;
-  const legs = [];
-  for (const sx of [-1, 1]) {
-    for (const sz of [-1, 1]) {
-      const leg = new THREE.Mesh(legGeo, legMat);
-      leg.position.set(legOffsetX * sx, H / 2, legOffsetZ * sz);
-      leg.castShadow = true;
-      leg.receiveShadow = true;
-      legs.push(leg);
+    // Procedural, license-free blips (no binary assets) for paddle + table hits
+    const ensureAudio = () => {
+      if (audioRef.current.ctx) return audioRef.current.ctx;
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if (!Ctor) return null;
+      audioRef.current.ctx = new Ctor();
+      return audioRef.current.ctx;
+    };
+
+    const resumeAudio = () => {
+      const ctx = ensureAudio();
+      if (ctx && ctx.state === 'suspended') ctx.resume().catch(() => {});
+    };
+
+    const makeHitBuffer = (freq = 420, duration = 0.14, noisy = false) => {
+      const ctx = ensureAudio();
+      if (!ctx) return null;
+      const len = Math.max(1, Math.floor(ctx.sampleRate * duration));
+      const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < len; i += 1){
+        const t = i / ctx.sampleRate;
+        const env = Math.pow(1 - t / duration, 3);
+        const osc = noisy ? (Math.random() * 2 - 1) * 0.6 : Math.sin(2 * Math.PI * freq * t);
+        data[i] = osc * env;
+      }
+      return buffer;
+    };
+
+    const playSfx = (name, gain = 0.9, rate = 1) => {
+      const ctx = ensureAudio();
+      const buffer = audioRef.current.buffers[name];
+      if (!ctx || !buffer) return;
+      const src = ctx.createBufferSource();
+      const g = ctx.createGain();
+      src.buffer = buffer;
+      src.playbackRate.value = rate;
+      g.gain.value = gain;
+      src.connect(g).connect(ctx.destination);
+      src.start();
+    };
+
+    const ctx = ensureAudio();
+    if (ctx && (!audioRef.current.buffers.bounce || !audioRef.current.buffers.paddle)){
+      audioRef.current.buffers.bounce = makeHitBuffer(360, 0.18, true);
+      audioRef.current.buffers.paddle = makeHitBuffer(920, 0.16, false);
     }
-  }
-  group.add(...legs);
 
-  const wheelGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.028, 18);
-  for (let i = 0; i < legs.length; i += 1) {
-    const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-    wheel.rotation.z = Math.PI / 2;
-    wheel.position.copy(legs[i].position.clone().setY(0.05));
-    wheel.castShadow = true;
-    wheel.receiveShadow = true;
-    group.add(wheel);
-  }
+    const rendererSettings = variant.renderer ?? {};
+    const sceneSettings = variant.scene ?? {};
+    const lightingSettings = variant.lighting ?? {};
+    const broadcastSettings = broadcastProfile ?? {};
+    const trackingSettings = broadcastSettings.tracking ?? {};
+    const hemiSettings = lightingSettings.hemisphere ?? {};
+    const sunSettings = lightingSettings.sun ?? {};
+    const rimSettings = lightingSettings.rim ?? {};
+    const spotlightSpecs = (lightingSettings.spotlights && lightingSettings.spotlights.length)
+      ? lightingSettings.spotlights
+      : [
+          { position: [-8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+          { position: [8, 6, -8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+          { position: [-8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+          { position: [8, 6, 8], color: 0xffffff, intensity: 0.7, angle: Math.PI / 5, penumbra: 0.3 },
+        ];
+    const materialsSettings = variant.materials ?? {};
+    const tableSettings = materialsSettings.table ?? {};
+    const lineSettings = materialsSettings.lines ?? {};
+    const metalSettings = materialsSettings.metal ?? {};
+    const wheelSettings = materialsSettings.wheel ?? {};
+    const paddleSettings = materialsSettings.paddles ?? {};
+    const carpetSettings = variant.carpet ?? {};
+    const floorSettings = variant.floor ?? {};
+    const wallSettings = variant.walls ?? {};
+    const ballSettings = variant.ball ?? {};
+    const trailSettings = variant.trail ?? {};
+    const cameraSettings = { ...(variant.camera ?? {}), ...(broadcastSettings.camera ?? {}) };
+    const physicsSettings = {
+      gravity: GRAVITY_Y,
+      drag: AIR_DRAG_K,
+      magnusCoeff: MAGNUS_K,
+      tableRest: TABLE_RESTITUTION,
+      tableFriction: 1 - TABLE_TANGENTIAL_DAMP,
+      spinDecay: 1,
+      ...(variant.physics ?? {}),
+      ...(ballProfile.physics ?? {}),
+    };
+    const aiSettings = variant.ai ?? {};
+    const serveTimers = physicsSettings.serveTimers ?? { player: 0.45, opponent: 0.6 };
+    const TRAIL_COUNT = trailSettings.count ?? 24;
+    const minTrailOpacity = trailSettings.minOpacity ?? 0.2;
+    const maxTrailOpacity = trailSettings.maxOpacity ?? 0.62;
+    const trailSpeedFactor = trailSettings.speedFactor ?? 0.04;
+    const baseShadowFactor = (ballSettings.shadowOpacity ?? 0.22) / 0.22;
 
-  group.userData = { netMat, lineMat, tableMat, metalMat, wheelMat };
-  return group;
+    // Prevent overscroll on mobile
+    const prevOver = document.documentElement.style.overscrollBehavior;
+    document.documentElement.style.overscrollBehavior = 'none';
+
+    // ---------- Renderer ----------
+    const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:'high-performance' });
+    renderer.setPixelRatio(Math.min(2.5, window.devicePixelRatio||1));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = rendererSettings.exposure ?? 1.85;
+    // Disable real-time shadow mapping to avoid dark artifacts on the
+    // arena walls and table surface. Shadow maps from the multiple
+    // spotlights were causing the entire scene to appear black in some
+    // devices/browsers. We render a fake ball shadow manually so real
+    // shadows are unnecessary here.
+    renderer.shadowMap.enabled = false;
+    // ensure canvas CSS size matches the host container
+    const setSize = () => renderer.setSize(host.clientWidth, host.clientHeight);
+    setSize();
+    renderer.domElement.style.touchAction = 'none';
+    host.appendChild(renderer.domElement);
+
+    // ---------- Scene & Lights ----------
+    const scene = new THREE.Scene(); scene.background = new THREE.Color(sceneSettings.background ?? 0x0b0e14);
+    const hemi = new THREE.HemisphereLight(
+      hemiSettings.sky ?? 0xffffff,
+      hemiSettings.ground ?? 0x1b2233,
+      hemiSettings.intensity ?? 0.95
+    );
+    scene.add(hemi);
+    // Directional key light. Shadow casting is disabled because shadow
+    // maps are turned off above; keeping it false prevents accidental
+    // blackening of surfaces.
+    const sun = new THREE.DirectionalLight(sunSettings.color ?? 0xffffff, sunSettings.intensity ?? 0.95);
+    sun.position.set(
+      ...(sunSettings.position ?? [-16, 28, 18])
+    );
+    sun.castShadow = false;
+    scene.add(sun);
+    const rim = new THREE.DirectionalLight(rimSettings.color ?? 0x99ccff, rimSettings.intensity ?? 0.35);
+    rim.position.set(...(rimSettings.position ?? [20, 14, -12]));
+    scene.add(rim);
+
+    // arena spotlights
+    spotlightSpecs.forEach(spec => {
+      const s = new THREE.SpotLight(spec.color ?? 0xffffff, spec.intensity ?? 0.7);
+      s.position.set(spec.position?.[0] ?? 0, spec.position?.[1] ?? 6, spec.position?.[2] ?? 0);
+      s.angle = spec.angle ?? Math.PI / 5;
+      s.penumbra = spec.penumbra ?? 0.3;
+      s.castShadow = false;
+      const target = spec.target ?? [0, 1, 0];
+      s.target.position.set(target[0], target[1], target[2]);
+      scene.add(s);
+      scene.add(s.target);
+    });
+
+    // ---------- Camera ----------
+    const camera = new THREE.PerspectiveCamera(60, host.clientWidth/host.clientHeight, 0.05, 500);
+    scene.add(camera);
+    const camRig = {
+      dist: cameraSettings.dist ?? 3.46,
+      minDist: cameraSettings.minDist ?? 3.18,
+      height: cameraSettings.height ?? 2.04,
+      minHeight: cameraSettings.minHeight ?? 1.82,
+      pitch: cameraSettings.pitch ?? 0.34,
+      forwardBias: (cameraSettings.forwardBias ?? 0.06) + (trackingSettings.cameraBias ?? 0),
+      yawBase: cameraSettings.yawBase ?? 0,
+      yawRange: cameraSettings.yawRange ?? 0.38,
+      curYaw: cameraSettings.yawBase ?? 0,
+      curDist: cameraSettings.dist ?? 3.46,
+      curHeight: cameraSettings.height ?? 2.04,
+      yawUser: 0,
+      pitchUser: 0,
+      followLerp: trackingSettings.followLerp ?? 0.28,
+      rallyBlend: trackingSettings.rallyBlend ?? 0.6,
+      yawDamping: trackingSettings.yawDamping ?? 0.2,
+      distDamping: trackingSettings.distDamping ?? 0.12,
+    };
+    const applyCam = () => {
+      camera.aspect = host.clientWidth / host.clientHeight;
+      camera.updateProjectionMatrix();
+    };
+
+    // ---------- Table dimensions (official footprint, slightly taller surface) ----------
+    const T = { L: 2.74, W: 1.525, H: 0.84, topT: 0.03, NET_H: 0.1525 };
+
+    // Enlarge the entire playfield (table, paddles, ball) for a more dramatic presentation
+    const S = 3 * 1.2;
+    const tableG = new THREE.Group();
+    tableG.scale.set(S, S, S);
+    scene.add(tableG);
+
+    const tableMat = new THREE.MeshStandardMaterial({
+      color: tableSettings.color ?? 0x1e3a8a,
+      roughness: tableSettings.roughness ?? 0.6,
+      metalness: tableSettings.metalness ?? 0,
+    });
+    const whiteMat = new THREE.MeshStandardMaterial({
+      color: lineSettings.color ?? 0xffffff,
+      roughness: lineSettings.roughness ?? 0.35,
+      metalness: lineSettings.metalness ?? 0,
+    });
+    const steelMat = new THREE.MeshStandardMaterial({
+      color: metalSettings.color ?? 0x9aa4b2,
+      roughness: metalSettings.roughness ?? 0.45,
+      metalness: metalSettings.metalness ?? 0.6,
+    });
+    const wheelMat = new THREE.MeshStandardMaterial({
+      color: wheelSettings.color ?? 0x111111,
+      roughness: wheelSettings.roughness ?? 0.9,
+      metalness: wheelSettings.metalness ?? 0,
+    });
+    const paddleWoodTex = makePaddleWoodTexture();
+    paddleWoodTex.anisotropy = 8;
+    applySRGBColorSpace(paddleWoodTex);
+    const paddleWoodMat = new THREE.MeshPhysicalMaterial({
+      map: paddleWoodTex,
+      color: 0xffffff,
+      roughness: 0.65,
+      metalness: 0.05,
+      clearcoat: 0.06,
+      clearcoatRoughness: 0.5,
+    });
+
+    // Table top
+    const top = new THREE.Mesh(new THREE.BoxGeometry(T.W, T.topT, T.L), tableMat);
+    top.position.set(0, T.H - T.topT / 2, 0);
+    top.castShadow = true;
+    tableG.add(top);
+
+    // Table border apron
+    const apronDepth = 0.025;
+    const apronGeo = new THREE.BoxGeometry(T.W + 0.04, apronDepth, 0.02);
+    const apronMat = new THREE.MeshStandardMaterial({ color: 0x10204d, roughness: 0.8 });
+    const apronFront = new THREE.Mesh(apronGeo, apronMat);
+    apronFront.position.set(0, T.H - T.topT - apronDepth / 2, T.L / 2 + 0.01);
+    const apronBack = apronFront.clone(); apronBack.position.z = -T.L / 2 - 0.01;
+    tableG.add(apronFront, apronBack);
+
+    const sideApronGeo = new THREE.BoxGeometry(0.02, apronDepth, T.L + 0.04);
+    const apronLeft = new THREE.Mesh(sideApronGeo, apronMat);
+    apronLeft.position.set(-T.W / 2 - 0.01, T.H - T.topT - apronDepth / 2, 0);
+    const apronRight = apronLeft.clone(); apronRight.position.x = T.W / 2 + 0.01;
+    tableG.add(apronLeft, apronRight);
+
+    // White lines
+    const borderT = 0.018;
+    const lineH = 0.0025;
+    const lineY = T.H + lineH / 2;
+    const mkLine = (w, h, d, x, y, z) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), whiteMat);
+      mesh.position.set(x, y, z);
+      tableG.add(mesh);
+    };
+    mkLine(borderT, lineH, T.L, -T.W / 2 + borderT / 2, lineY, 0);
+    mkLine(borderT, lineH, T.L, T.W / 2 - borderT / 2, lineY, 0);
+    mkLine(T.W, lineH, borderT, 0, lineY, T.L / 2 - borderT / 2);
+    mkLine(T.W, lineH, borderT, 0, lineY, -T.L / 2 + borderT / 2);
+    mkLine(borderT, lineH, T.L - borderT * 2, 0, lineY, 0);
+
+    // Net & posts
+    const netGroup = new THREE.Group();
+    tableG.add(netGroup);
+    const netAlpha = makeHexNetAlpha(512, 256, 9);
+    const netWeave = makeWeaveTex(256, 256);
+    const netMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      transparent: true,
+      alphaMap: netAlpha,
+      map: netWeave,
+      roughness: 0.9,
+      side: THREE.DoubleSide,
+    });
+    const postR = 0.012;
+    const netWidth = T.W + postR * 1.2;
+    const netPlane = new THREE.Mesh(new THREE.PlaneGeometry(netWidth, T.NET_H), netMat);
+    netPlane.position.set(0, T.H + T.NET_H / 2, 0);
+    netGroup.add(netPlane);
+
+    const bandT = 0.014;
+    const bandTop = new THREE.Mesh(new THREE.BoxGeometry(netWidth, bandT, 0.004), whiteMat);
+    bandTop.position.set(0, T.H + T.NET_H - bandT / 2, 0);
+    const bandBottom = bandTop.clone();
+    bandBottom.position.set(0, T.H + bandT / 2, 0);
+    netGroup.add(bandTop, bandBottom);
+
+    const postH = T.NET_H + 0.08;
+    const postGeo = new THREE.CylinderGeometry(postR, postR, postH, 28);
+    const postRight = new THREE.Mesh(postGeo, steelMat);
+    postRight.position.set(T.W / 2 + postR * 0.6, T.H + postH / 2, 0);
+    const postLeft = postRight.clone();
+    postLeft.position.x = -T.W / 2 - postR * 0.6;
+    tableG.add(postRight, postLeft);
+
+    const clampGeo = new THREE.BoxGeometry(0.06, 0.025, 0.05);
+    const clampRight = new THREE.Mesh(clampGeo, steelMat);
+    clampRight.position.set(T.W / 2 + 0.03, T.H + 0.03, 0);
+    const clampLeft = clampRight.clone();
+    clampLeft.position.x = -T.W / 2 - 0.03;
+    tableG.add(clampRight, clampLeft);
+
+    addTableLegs(tableG, T, steelMat, wheelMat);
+
+    // arena floor & carpet (match Chess Battle Royal aesthetics)
+    const floorSize = 30;
+    const carpetSize = 24;
+    const baseFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(floorSize, floorSize),
+      new THREE.MeshStandardMaterial({
+        color: floorSettings.color ?? 0x0f1222,
+        roughness: floorSettings.roughness ?? 0.95,
+        metalness: floorSettings.metalness ?? 0.05,
+      })
+    );
+    baseFloor.rotation.x = -Math.PI / 2;
+    baseFloor.position.y = 0;
+    baseFloor.receiveShadow = true;
+    scene.add(baseFloor);
+
+    const carpetMat = createArenaCarpetMaterial();
+    if (carpetSettings.color !== undefined) {
+      carpetMat.color.setHex(carpetSettings.color);
+    }
+    if (carpetSettings.bumpScale !== undefined) {
+      carpetMat.bumpScale = carpetSettings.bumpScale;
+    }
+    if (carpetSettings.emissive !== undefined) {
+      carpetMat.emissive.setHex(carpetSettings.emissive);
+    }
+    if (carpetSettings.emissiveIntensity !== undefined) {
+      carpetMat.emissiveIntensity = carpetSettings.emissiveIntensity;
+    }
+    const carpet = new THREE.Mesh(new THREE.PlaneGeometry(carpetSize, carpetSize), carpetMat);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = 0.01;
+    carpet.receiveShadow = true;
+    scene.add(carpet);
+
+    // Arena collision extents (local table space, compensate for scale)
+    const arenaBounds = {
+      halfX: floorSize * 0.5 / S - 0.3,
+      halfZ: floorSize * 0.5 / S - 0.3,
+      floorY: 0,
+    };
+
+    // walls (reuse Chess Battle Royal material)
+    const wallMat = createArenaWallMaterial();
+    if (wallSettings.color !== undefined) {
+      wallMat.color.setHex(wallSettings.color);
+    }
+    if (wallSettings.roughness !== undefined) {
+      wallMat.roughness = wallSettings.roughness;
+    }
+    if (wallSettings.metalness !== undefined) {
+      wallMat.metalness = wallSettings.metalness;
+    }
+    const wallHeight = 6;
+    const wallThickness = 0.2;
+    const wallOffset = floorSize / 2;
+    const wallGeoH = new THREE.BoxGeometry(floorSize, wallHeight, wallThickness);
+    const wallGeoV = new THREE.BoxGeometry(wallThickness, wallHeight, floorSize);
+
+    const wallBack = new THREE.Mesh(wallGeoH, wallMat);
+    wallBack.position.set(0, wallHeight / 2, -wallOffset);
+    scene.add(wallBack);
+
+    const wallFront = new THREE.Mesh(wallGeoH, wallMat);
+    wallFront.position.set(0, wallHeight / 2, wallOffset);
+    scene.add(wallFront);
+
+    const wallLeft = new THREE.Mesh(wallGeoV, wallMat);
+    wallLeft.position.set(-wallOffset, wallHeight / 2, 0);
+    scene.add(wallLeft);
+
+    const wallRight = new THREE.Mesh(wallGeoV, wallMat);
+    wallRight.position.set(wallOffset, wallHeight / 2, 0);
+    scene.add(wallRight);
+
+    // ---------- Rackets (paddles) ----------
+    const PADDLE_SCALE = 1.18;
+    const BALL_R = 0.02;
+    const TABLE_TOP = T.H + BALL_R;
+    const NET_TOP = TABLE_TOP + T.NET_H;
+    const BASE_HEAD_RADIUS = 0.4049601584672928;
+    const BASE_HEAD_CENTER_Y = 0.38700000643730165;
+    const BASE_HEAD_CENTER_Z = 0.02005380392074585;
+
+    const lerpAngle = (a, b, t) => {
+      const delta = THREE.MathUtils.euclideanModulo(b - a + Math.PI, Math.PI * 2) - Math.PI;
+      return a + delta * t;
+    };
+
+    function buildCurvedPaddle(frontHex, backHex, woodMat){
+      const bladeShape = new THREE.Shape();
+      const bladeR = 0.45;
+      const cutAngle = Math.PI / 7;
+      const startAngle = -Math.PI / 2 + cutAngle;
+      const endAngle = Math.PI + Math.PI / 2 - cutAngle;
+      bladeShape.absarc(0, 0, bladeR, startAngle, endAngle, false);
+
+      const HANDLE_DEPTH = 0.12;
+      const BLADE_DEPTH_EACH = HANDLE_DEPTH * 0.5;
+      const midY = 0.49;
+
+      const frontMat = new THREE.MeshStandardMaterial({ color: frontHex, roughness: 0.4, metalness: 0.05 });
+      const backMat = new THREE.MeshStandardMaterial({ color: backHex, roughness: 0.4, metalness: 0.05 });
+
+      const frontGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: BLADE_DEPTH_EACH, bevelEnabled: false, curveSegments: 64 });
+      frontGeo.rotateX(Math.PI / 2);
+      frontGeo.translate(0, midY - BLADE_DEPTH_EACH, 0);
+      const frontBlade = new THREE.Mesh(frontGeo, frontMat);
+
+      const backGeo = new THREE.ExtrudeGeometry(bladeShape, { depth: BLADE_DEPTH_EACH, bevelEnabled: false, curveSegments: 64 });
+      backGeo.rotateX(Math.PI / 2);
+      backGeo.translate(0, midY, 0);
+      const backBlade = new THREE.Mesh(backGeo, backMat);
+
+      const stemW = 0.14;
+      const stemH = 0.45;
+      const triOut = 0.14;
+      const forkDepth = 0.09;
+
+      const s = new THREE.Shape();
+      s.moveTo(-(stemW / 2 + triOut), 0);
+      s.quadraticCurveTo(0, 0.05, stemW / 2 + triOut, 0);
+      s.bezierCurveTo(
+        stemW / 2 + triOut * 0.8,
+        -forkDepth * 0.25,
+        stemW / 2 + triOut * 0.5,
+        -forkDepth * 0.6,
+        stemW / 2,
+        -forkDepth
+      );
+      s.lineTo(stemW * 0.6, -stemH * 0.8);
+      s.lineTo(-stemW * 0.6, -stemH * 0.8);
+      s.lineTo(-stemW / 2, -forkDepth);
+      s.bezierCurveTo(
+        -(stemW / 2 + triOut * 0.5),
+        -forkDepth * 0.6,
+        -(stemW / 2 + triOut * 0.8),
+        -forkDepth * 0.25,
+        -(stemW / 2 + triOut),
+        0
+      );
+      s.closePath();
+
+      const handleGeo = new THREE.ExtrudeGeometry(s, {
+        depth: HANDLE_DEPTH,
+        bevelEnabled: true,
+        bevelSize: 0.008,
+        bevelThickness: 0.008,
+        curveSegments: 64,
+        steps: 1,
+      });
+      handleGeo.rotateX(Math.PI / 2);
+      const handle = new THREE.Mesh(handleGeo, woodMat);
+
+      const thetaA = startAngle;
+      const thetaB = endAngle;
+      const ax = bladeR * Math.cos(thetaA);
+      const az = bladeR * Math.sin(thetaA);
+      const bx = bladeR * Math.cos(thetaB);
+      const bz = bladeR * Math.sin(thetaB);
+      const mx = (ax + bx) * 0.5;
+      const mz = (az + bz) * 0.5;
+      const vx = bx - ax;
+      const vz = bz - az;
+      const alpha = Math.atan2(vz, vx);
+      let nx = mx;
+      let nz = mz;
+      const nlen = Math.hypot(nx, nz) || 1;
+      nx /= nlen;
+      nz /= nlen;
+
+      handle.position.set(mx + nx * 0.001, midY, mz + nz * 0.001);
+      handle.rotation.y = alpha;
+      handle.scale.z = -1;
+
+      const group = new THREE.Group();
+      group.add(frontBlade);
+      group.add(backBlade);
+      group.add(handle);
+      group.scale.setScalar(0.9);
+      return group;
+    }
+
+    function makePaddle(color, orientation = 1){
+      const g = new THREE.Group();
+      const headRadius = 0.092 * PADDLE_SCALE;
+      const headYOffset = T.H + 0.072 * PADDLE_SCALE;
+
+      const headAnchor = new THREE.Object3D();
+      headAnchor.position.set(0, headYOffset, orientation === 1 ? -0.018 : 0.018);
+      headAnchor.visible = false;
+      g.add(headAnchor);
+
+      const frontColor = new THREE.Color(color);
+      const backColor = frontColor.clone();
+      backColor.offsetHSL(-0.05, -0.18, -0.18);
+
+      const visualWrapper = new THREE.Group();
+      const fancyPaddle = buildCurvedPaddle(frontColor.getHex(), backColor.getHex(), paddleWoodMat);
+      const uniformScale = headRadius / BASE_HEAD_RADIUS;
+      fancyPaddle.scale.setScalar(uniformScale);
+      fancyPaddle.position.set(
+        0,
+        headYOffset - BASE_HEAD_CENTER_Y * uniformScale,
+        -BASE_HEAD_CENTER_Z * uniformScale
+      );
+      fancyPaddle.children.forEach(child => { child.castShadow = true; });
+
+      const wrist = new THREE.Group();
+      const baseTilt = THREE.MathUtils.degToRad(orientation === 1 ? -18 : -22);
+      const baseRoll = THREE.MathUtils.degToRad(orientation === 1 ? 12 : -12);
+      wrist.rotation.set(baseTilt, 0, baseRoll);
+      wrist.add(fancyPaddle);
+      visualWrapper.add(wrist);
+      visualWrapper.rotation.y = orientation === 1 ? Math.PI : 0;
+      g.add(visualWrapper);
+
+      g.userData = {
+        headRadius,
+        headAnchor,
+        visualWrapper,
+        baseYaw: visualWrapper.rotation.y,
+        orientationSign: orientation,
+        wrist,
+        baseTilt,
+        baseRoll,
+      };
+      return g;
+    }
+
+    const player = makePaddle(paddleSettings.player ?? 0xff4d6d, 1); tableG.add(player);
+    const opp    = makePaddle(paddleSettings.opponent ?? 0x49dcb1, -1); tableG.add(opp);
+    const playerBaseZ = T.L/2 - 0.325;
+    const oppBaseZ = -T.L/2 + 0.325;
+    player.position.z =  playerBaseZ; player.position.x = 0;
+    opp.position.z    = oppBaseZ; opp.position.x    = 0;
+
+    const playerTarget = new THREE.Vector3(player.position.x, player.position.y, player.position.z);
+    player.userData.target = playerTarget;
+
+    const playerPrev = new THREE.Vector3().copy(player.position);
+    const oppPrev = new THREE.Vector3().copy(opp.position);
+    const playerVel = new THREE.Vector3();
+    const oppVel = new THREE.Vector3();
+    const prevBall = new THREE.Vector3();
+    const headWorld = new THREE.Vector3();
+
+    // ---------- Ball ----------
+    const ballMaterial = new THREE.MeshStandardMaterial({
+      color: ballSettings.color ?? 0xfff1cc,
+      roughness: ballSettings.roughness ?? 0.6,
+      metalness: ballSettings.metalness ?? 0,
+    });
+    if (ballSettings.emissive !== undefined) {
+      ballMaterial.emissive.setHex(ballSettings.emissive);
+    }
+    if (ballSettings.emissiveIntensity !== undefined) {
+      ballMaterial.emissiveIntensity = ballSettings.emissiveIntensity;
+    }
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(BALL_R, 42, 32),
+      ballMaterial
+    );
+    ball.castShadow = true;
+    const ballGlow = new THREE.PointLight(
+      ballSettings.glowColor ?? ballSettings.emissive ?? ballSettings.color ?? 0xffd7a1,
+      ballSettings.glowIntensity ?? 0.85,
+      ballSettings.glowDistance ?? 4.2
+    );
+    if (ballSettings.glowDecay !== undefined) {
+      ballGlow.decay = ballSettings.glowDecay;
+    }
+    ball.add(ballGlow);
+    tableG.add(ball);
+    const ballShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(BALL_R * (ballSettings.shadowScale ?? 1.6), 24),
+      new THREE.MeshBasicMaterial({
+        color: ballSettings.shadowColor ?? 0x000000,
+        transparent: true,
+        opacity: ballSettings.shadowOpacity ?? 0.22,
+      })
+    );
+    ballShadow.rotation.x = -Math.PI / 2;
+    ballShadow.position.y = T.H + 0.005;
+    tableG.add(ballShadow);
+
+    const trailPositions = new Float32Array(TRAIL_COUNT * 3);
+    const trailGeometry = new THREE.BufferGeometry();
+    trailGeometry.setAttribute('position', new THREE.BufferAttribute(trailPositions, 3));
+    const trailMaterial = new THREE.LineBasicMaterial({
+      color: trailSettings.color ?? 0xfff1cc,
+      transparent: true,
+      opacity: minTrailOpacity,
+    });
+    const ballTrail = new THREE.Line(trailGeometry, trailMaterial);
+    ballTrail.frustumCulled = false;
+    tableG.add(ballTrail);
+
+    // ---------- Physics State ----------
+    const Srv = { side: ui.serving };
+    const Sx = {
+      v: new THREE.Vector3(0, 0, 0),
+      w: new THREE.Vector3(0, 0, 0),
+      mass: 0.0027,
+      paddleMass: 0.16,
+      magnusCoeff: physicsSettings.magnusCoeff ?? 0.38,
+      spinDecay: physicsSettings.spinDecay ?? 0.955,
+      gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -13.5, 0),
+      drag: physicsSettings.drag ?? 0.42,
+      tableRest: physicsSettings.tableRest ?? 0.9,
+      tableFriction: physicsSettings.tableFriction ?? 0.2,
+      paddleRest: physicsSettings.paddleRest ?? 1.02,
+      paddleAim: physicsSettings.paddleAim ?? 0.62,
+      paddleLift: physicsSettings.paddleLift ?? 0.2,
+      netRest: physicsSettings.netRest ?? 0.34,
+      forceScale: (physicsSettings.forceScale ?? 0.76) * 1.08,
+      spinTransfer: physicsSettings.spinTransfer ?? 0.34,
+      netDrag: physicsSettings.netDrag ?? 0.18,
+      wallRest: physicsSettings.wallRest ?? 0.62,
+      wallFriction: physicsSettings.wallFriction ?? 0.1,
+      floorRest: physicsSettings.floorRest ?? 0.48,
+      floorFriction: physicsSettings.floorFriction ?? 0.18,
+      netKill: physicsSettings.netKill ?? 0.42,
+      state: 'serve',
+      lastTouch: null,
+      bounces: { P: 0, O: 0 },
+      serveProgress: 'awaitServeHit',
+      serveTimer: serveTimers.player,
+      tmpN: new THREE.Vector3(),
+      simPos: new THREE.Vector3(),
+      simVel: new THREE.Vector3(),
+      tmpV0: new THREE.Vector3(),
+      tmpV1: new THREE.Vector3(),
+      tmpV2: new THREE.Vector3(),
+      pendingFault: false,
+    };
+    let playerSwing = null;
+    let aiSwingPlan = null;
+    let aiServeAnchor = { x: 0, z: oppBaseZ };
+
+    function resetServe(){
+      Sx.v.set(0,0,0);
+      Sx.w.set(0,0,0);
+      Sx.state='serve';
+      Sx.lastTouch=null;
+      Sx.bounces.P = 0;
+      Sx.bounces.O = 0;
+      Sx.pendingFault = false;
+      Sx.serveProgress = 'awaitServeHit';
+      Sx.serveTimer = Srv.side === 'P' ? serveTimers.player : serveTimers.opponent;
+      aiSwingPlan = null;
+      const side = Srv.side;
+      if (side==='P'){
+        ball.position.set(player.position.x, TABLE_TOP + 0.12, playerBaseZ - 0.09);
+      } else {
+        const lateral = THREE.MathUtils.clamp((Math.random() - 0.5) * 1.05, -bounds.x, bounds.x);
+        const depth = THREE.MathUtils.clamp(oppBaseZ + THREE.MathUtils.randFloatSpread(0.18), oppBaseZ - 0.1, oppBaseZ + 0.1);
+        aiServeAnchor = { x: lateral, z: depth };
+        opp.position.x = lateral;
+        opp.position.z = depth;
+        ball.position.set(lateral, TABLE_TOP + 0.12, depth + 0.09);
+      }
+      playerTarget.set(player.position.x, player.position.y, player.position.z);
+      ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
+      ballShadow.scale.set(1, 1, 1);
+      for (let i = 0; i < TRAIL_COUNT; i++){
+        const idx = i * 3;
+        trailPositions[idx] = ball.position.x;
+        trailPositions[idx + 1] = ball.position.y;
+        trailPositions[idx + 2] = ball.position.z;
+      }
+      trailGeometry.attributes.position.needsUpdate = true;
+      trailMaterial.opacity = minTrailOpacity;
+      setUi(prev => ({
+        ...prev,
+        msg: `${side === 'P' ? playerLabel : aiLabel} to serve`,
+        gameOver: false,
+        winner: null,
+      }));
+    }
+
+    // ---------- Input: Swipe-to-hit (Battle Royal style) ----------
+    const bounds = {
+      x: T.W/2 - 0.06,
+      zNear: playerBaseZ + 0.08,
+      zFar: 0.06,
+    };
+    const swipeProfile = touchProfile.swipe ?? {};
+    const trackingProfile = touchProfile.tracking ?? {};
+    const targetLerpX = trackingProfile.targetLerp?.x ?? 0.5;
+    const targetLerpZ = trackingProfile.targetLerp?.z ?? 0.4;
+    const el = renderer.domElement;
+    el.style.touchAction = 'none';
+    const pointerRay = new THREE.Raycaster();
+    const touchPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(T.H + 0.12) * S);
+    let usingTouch = false;
+    let touching = false;
+    const swipeStart = { pos: new THREE.Vector3(), t: 0 };
+    let lx = 0;
+    let ly = 0;
+    const gesture = {
+      mode: 'idle',
+    };
+
+    function clampX(x) { return THREE.MathUtils.clamp(x, -bounds.x, bounds.x); }
+    function clampZ(z) { return THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear); }
+    function getWorldPoint(clientX, clientY) {
+      const rect = el.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+      pointerRay.setFromCamera({ x, y }, camera);
+      const hit = new THREE.Vector3();
+      pointerRay.ray.intersectPlane(touchPlane, hit);
+      hit.divideScalar(S);
+      hit.x = clampX(hit.x);
+      hit.z = clampZ(hit.z);
+      return { point: hit, rect };
+    }
+
+    const MIN_SWIPE_SPEED = swipeProfile.minSpeed ?? 180;
+    const MAX_SWIPE_SPEED = swipeProfile.maxSpeed ?? 1700;
+
+    function swipeToShot(distX, distY, swipeTime, towardsEnemy = true, rect) {
+      const swipeT = Math.max(swipeTime, 0.06);
+      const swipeLength = Math.hypot(distX, distY);
+      const speed = swipeLength / swipeT;
+      const viewportScale = rect ? THREE.MathUtils.clamp(Math.min(rect.width, rect.height) / 720, 0.76, 1.2) : 1;
+      const scaledMin = MIN_SWIPE_SPEED * THREE.MathUtils.lerp(0.9, 1.08, viewportScale - 0.76);
+      const scaledMax = MAX_SWIPE_SPEED * THREE.MathUtils.lerp(0.92, 1.12, viewportScale - 0.76);
+      const clampedSpeed = THREE.MathUtils.clamp(speed * viewportScale, scaledMin, scaledMax);
+      const normalized = (clampedSpeed - scaledMin) / (scaledMax - scaledMin);
+      const forwardDir = towardsEnemy ? 1 : -1;
+      const liftRange = swipeProfile.liftRange ?? [0.32, 1.02];
+      const forwardRange = swipeProfile.forwardRange ?? [0.82, 1.4];
+      const lateralScale = swipeProfile.lateralScale ?? 1.2;
+      const curveScale = swipeProfile.curveScale ?? 0.8;
+      const chopScale = swipeProfile.chopScale ?? 0.72;
+      const lift = THREE.MathUtils.lerp(liftRange[0], liftRange[1], normalized);
+      const forwardPower = forwardDir * THREE.MathUtils.lerp(forwardRange[0], forwardRange[1], normalized);
+      const lateral = THREE.MathUtils.clamp((distX / Math.max(20, swipeLength)) * lateralScale, -1, 1);
+      const curve = THREE.MathUtils.clamp((distX / Math.max(40, swipeLength)) * curveScale, -1.2, 1.2);
+      const chop = THREE.MathUtils.clamp(((distY < 0 ? -distY : 0) / Math.max(20, swipeLength)) * chopScale, 0, 1);
+      const topspin = THREE.MathUtils.clamp((distY > 0 ? distY : 0) / Math.max(40, swipeLength), 0, 1);
+      const dirAngle = Math.atan2(distX, distY || 1e-6);
+      return {
+        lateral,
+        lift,
+        forward: forwardPower,
+        normalized,
+        curve,
+        swipeSpeed: clampedSpeed,
+        chop,
+        topspin,
+        angle: dirAngle,
+      };
+    }
+
+    function shotToSwing(shot) {
+      const courtScale = THREE.MathUtils.clamp(T.L / 2.74, 0.86, 1.2);
+      const aimSide = THREE.MathUtils.clamp((shot.lateral ?? 0) * 0.62 + (shot.curve ?? 0) * 0.48, -1.4, 1.4);
+      const aimDepth = THREE.MathUtils.lerp(-T.L / 2 + 0.22, -0.12, THREE.MathUtils.smoothstep(shot.normalized, 0, 1));
+      const aimX = THREE.MathUtils.clamp(ball.position.x + aimSide * 0.42, -T.W / 2 + 0.12, T.W / 2 - 0.12);
+      const aimTarget = new THREE.Vector3(
+        aimX,
+        TABLE_TOP + 0.28 + (shot.lift ?? 0) * 0.18,
+        aimDepth
+      );
+      const origin = new THREE.Vector3(ball.position.x, ball.position.y, ball.position.z);
+      const desired = aimTarget.clone().sub(origin);
+      const baseDir = desired.clone().normalize();
+      const speedScale = THREE.MathUtils.lerp(3.6, 7.4, THREE.MathUtils.clamp(shot.normalized * courtScale, 0.08, 1));
+      const baseVelocity = baseDir.multiplyScalar(speedScale);
+      ensureNetClear(origin, baseVelocity, Sx.gravity.y, NET_TOP + 0.02, BALL_R * 0.92);
+      const sideCurve = shot.curve ?? 0;
+      const topspin = shot.topspin ?? THREE.MathUtils.lerp(12, 30, shot.normalized);
+      const power = THREE.MathUtils.clamp(shot.normalized * courtScale + Math.abs(shot.chop) * 0.18, 0.18, 1.12);
+      const aimDir = baseVelocity.clone().normalize();
+      const curveYaw = THREE.MathUtils.degToRad((sideCurve * 10) + (shot.lateral ?? 0) * 4);
+      aimDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), curveYaw);
+      return {
+        normal: aimDir,
+        speed: baseVelocity.length(),
+        ttl: 0.34,
+        extraSpin: new THREE.Vector3(sideCurve * 0.42, sideCurve * 0.92 - shot.chop * 7.2, topspin * Math.sign(shot.forward || -1)),
+        friction: 0.2,
+        restitution: 1.08,
+        reach: BALL_R + 0.34,
+        force: Math.min(1.2, power * (1 + (shot.swipeSpeed || 0) / (MAX_SWIPE_SPEED * 5.5))) * courtScale,
+        power,
+        aimDirection: aimDir,
+        liftBoost: shot.chop > 0 ? shot.chop * 0.34 : Math.max(0, sideCurve * 0.08)
+      };
+    }
+
+    function onDown(e) {
+      if (usingTouch && e.pointerType === 'touch') return;
+      resumeAudio();
+      touching = true;
+      const { point } = getWorldPoint(e.clientX, e.clientY);
+      player.position.x = point.x;
+      player.position.z = point.z;
+      swipeStart.pos.copy(point);
+      swipeStart.t = performance.now();
+      lx = e.clientX;
+      ly = e.clientY;
+      player.userData.swing = -0.35;
+      player.userData.swingLR = 0;
+    }
+    function onMove(e) {
+      if (!touching) return;
+      if (usingTouch && e.pointerType === 'touch') return;
+      lx = e.clientX;
+      ly = e.clientY;
+      const { point } = getWorldPoint(e.clientX, e.clientY);
+      player.position.x = point.x;
+      player.position.z = point.z;
+    }
+    function onUp(evt, { fromTouch = false } = {}) {
+      if (!touching) return;
+      if (!fromTouch && usingTouch && evt?.pointerType === 'touch') return;
+      touching = false;
+      const endX = evt?.clientX ?? lx;
+      const endY = evt?.clientY ?? ly;
+      const { point: endPoint } = getWorldPoint(endX, endY);
+      const dv = endPoint.clone().sub(swipeStart.pos);
+      const duration = Math.max((performance.now() - (swipeStart.t || performance.now())) / 1000, 0.05);
+      if (Sx.state === 'serve' && Srv.side === 'P' && !Sx.pendingFault) {
+        let vz = -THREE.MathUtils.clamp(Math.abs(dv.z) / duration, 1.6, 4.2);
+        if (dv.z > 0) vz = -Math.max(2.1, dv.length() / duration);
+        const vx = THREE.MathUtils.clamp(dv.x / duration, -3, 3) * 0.5;
+        const vy = THREE.MathUtils.clamp(-dv.y / duration, 0.8, 3.2) * 0.6 + 1.2;
+        Sx.v.set(vx, vy, vz);
+        Sx.serveProgress = 'awaitServerBounce';
+        Sx.lastTouch = 'P';
+        player.userData.swing = 0.9;
+      }
+    }
+
+    el.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onUp);
+
+    function onTouchStart(e) {
+      usingTouch = true;
+      const t = e.touches[0];
+      if (!t) return;
+      gesture.mode = 'paddle';
+      onDown({ clientX: t.clientX, clientY: t.clientY });
+    }
+    function onTouchMove(e) {
+      const t = e.touches[0];
+      if (t) onMove({ clientX: t.clientX, clientY: t.clientY });
+    }
+    function onTouchEnd(e) {
+      const t = e.changedTouches[0];
+      if (!t) {
+        usingTouch = false;
+        gesture.mode = 'idle';
+        return;
+      }
+      onUp({ clientX: t.clientX, clientY: t.clientY, pointerType: 'touch' }, { fromTouch: true });
+      usingTouch = e.touches.length > 0;
+      if (e.touches.length === 0){
+        gesture.mode = 'idle';
+      }
+    }
+
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: true });
+    el.addEventListener('touchend', onTouchEnd, { passive: true });
+    el.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+    const camPos = new THREE.Vector3();
+    const camFollow = new THREE.Vector3(player.position.x, 0, player.position.z);
+    const followTarget = new THREE.Vector3();
+    const lookTarget = new THREE.Vector3();
+    const focusVector = new THREE.Vector3();
+    const backVec = new THREE.Vector3();
+    function updateCamera(immediate = false, lockCenter = false){
+      if (lockCenter){
+        followTarget.set(0, 0, 0);
+      } else {
+        const lateral = THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x);
+        const depth = THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear);
+        const rallyBlend = THREE.MathUtils.clamp(
+          camRig.rallyBlend + Sx.v.length() * 0.18 + (Sx.state === 'rally' ? 0.22 : 0.06),
+          0.35,
+          0.95
+        );
+        focusVector.set(
+          THREE.MathUtils.clamp(ball.position.x, -bounds.x, bounds.x),
+          0,
+          THREE.MathUtils.clamp(ball.position.z, bounds.zFar, bounds.zNear)
+        );
+        const clampedBallZ = Math.min(focusVector.z, playerBaseZ - 0.02);
+        const paddleLeadZ = THREE.MathUtils.lerp(depth, playerBaseZ, 0.42);
+        const ballLeadZ = THREE.MathUtils.lerp(bounds.zNear, clampedBallZ, 0.85);
+        followTarget.set(
+          THREE.MathUtils.lerp(lateral * 1.06, focusVector.x, rallyBlend),
+          0,
+          THREE.MathUtils.lerp(paddleLeadZ, ballLeadZ, rallyBlend)
+        );
+      }
+
+      if (immediate){
+        camFollow.copy(followTarget);
+        camRig.curDist = camRig.dist;
+        camRig.curHeight = camRig.height;
+      } else {
+        camFollow.lerp(followTarget, camRig.followLerp);
+      }
+
+      const lateralInfluence = THREE.MathUtils.clamp(camFollow.x / (bounds.x * 1.12), -1, 1);
+      const yawTarget = camRig.yawBase + camRig.yawUser + camRig.yawRange * lateralInfluence;
+      if (immediate){
+        camRig.curYaw = yawTarget;
+      } else {
+        camRig.curYaw += (yawTarget - camRig.curYaw) * camRig.yawDamping;
+      }
+
+      const flightEnergy = THREE.MathUtils.clamp(Sx.v.length() / 10, 0, 1.1);
+      const spinEnergy = THREE.MathUtils.clamp(Sx.w.length() / 80, 0, 0.65);
+      const heightBoost = Math.max(0, (ball.position.y - TABLE_TOP) * 0.32);
+      const distTarget = THREE.MathUtils.clamp(
+        camRig.dist - Math.abs(lateralInfluence) * 0.18 - heightBoost * 0.18 - flightEnergy * 0.2,
+        camRig.minDist,
+        camRig.dist + 0.6
+      );
+      const heightTarget = THREE.MathUtils.clamp(
+        camRig.height - Math.abs(lateralInfluence) * 0.04 + heightBoost * 0.38 + camRig.pitchUser * 0.9 + spinEnergy * 0.18,
+        camRig.minHeight,
+        camRig.height + 0.9
+      );
+      if (immediate){
+        camRig.curDist = distTarget;
+        camRig.curHeight = heightTarget;
+      } else {
+        camRig.curDist += (distTarget - camRig.curDist) * camRig.distDamping;
+        camRig.curHeight += (heightTarget - camRig.curHeight) * camRig.distDamping;
+      }
+
+      lookTarget.set(
+        THREE.MathUtils.lerp(camFollow.x, ball.position.x, 0.46 + flightEnergy * 0.08) * S,
+        Math.max((T.H - 0.04) * S, (ball.position.y + 0.06 + spinEnergy * 0.08) * S),
+        (camFollow.z - camRig.forwardBias - flightEnergy * 0.06) * S
+      );
+
+      backVec.set(Math.sin(camRig.curYaw), 0, Math.cos(camRig.curYaw)).multiplyScalar(camRig.curDist);
+      camPos.copy(lookTarget).add(backVec);
+      camPos.y = camRig.curHeight + ((camRig.pitch + camRig.pitchUser) * 5.1);
+
+      camera.position.copy(camPos);
+      camera.lookAt(lookTarget);
+    }
+
+    // ensure table fits view similar to Air Hockey
+    const corners = [
+      new THREE.Vector3(-T.W/2 * S, T.H * S, -T.L/2 * S),
+      new THREE.Vector3(T.W/2 * S, T.H * S, -T.L/2 * S),
+      new THREE.Vector3(-T.W/2 * S, T.H * S, T.L/2 * S),
+      new THREE.Vector3(T.W/2 * S, T.H * S, T.L/2 * S)
+    ];
+    const toNDC = v => v.clone().project(camera);
+    const ensureFit = () => {
+      const savedFollow = camFollow.clone();
+      for (let i = 0; i < 20; i++) {
+        updateCamera(true, true);
+        const over = corners.some(c => {
+          const p = toNDC(c);
+          return Math.abs(p.x) > 1 || Math.abs(p.y) > 1;
+        });
+        if (!over) break;
+        camRig.dist += 0.18;
+        camRig.height += 0.06;
+      }
+      camRig.dist = Math.max(camRig.minDist, camRig.dist - 0.4);
+      camRig.height = Math.max(camRig.minHeight, camRig.height - 0.18);
+      camRig.curDist = camRig.dist;
+      camRig.curHeight = camRig.height;
+      camRig.curYaw = camRig.yawBase;
+      camFollow.copy(savedFollow);
+      updateCamera(true);
+    };
+
+    // ---------- AI ----------
+    const aiSpeedBase = difficulty.speed * (aiSettings.speed ?? 1);
+    const aiVerticalBase = difficulty.vertical * (aiSettings.vertical ?? 1);
+    const aiReactBase = difficulty.react * (aiSettings.react ?? 1);
+    const AI = {
+      baseSpeed: aiSpeedBase,
+      baseVertical: aiVerticalBase,
+      baseReact: aiReactBase,
+      speed: aiSpeedBase,
+      vertical: aiVerticalBase,
+      react: aiReactBase,
+      targetX: 0,
+      targetZ: oppBaseZ,
+      timer: 0,
+      prediction: null,
+    };
+
+    function solveShot(from, to, gravityY, flightTime){
+      const t = Math.max(0.18, flightTime);
+      const dx = to.x - from.x;
+      const dz = to.z - from.z;
+      const dy = to.y - from.y;
+      const vx = dx / t;
+      const vz = dz / t;
+      const vy = (dy - 0.5 * gravityY * t * t) / t;
+      return new THREE.Vector3(vx, vy, vz);
+    }
+
+    function ensureNetClear(from, velocity, gravityY, netTop, margin = BALL_R){
+      const vz = velocity.z;
+      const dzToNet = -from.z;
+      if (Math.abs(vz) < 1e-5) return velocity;
+      const tNet = dzToNet / vz;
+      if (tNet <= 0) return velocity;
+      const yNet = from.y + velocity.y * tNet + 0.5 * gravityY * tNet * tNet;
+      const need = netTop + margin;
+      if (yNet < need){
+        velocity.y += (need - yNet) / Math.max(0.15, tNet);
+        velocity.x *= 0.98;
+      }
+      return velocity;
+    }
+
+    function predictBallForSide(targetZ, direction){
+      Sx.simPos.copy(ball.position);
+      Sx.simVel.copy(Sx.v);
+      let time = 0;
+      const step = 1/240;
+      for (let i = 0; i < 960; i++){
+        time += step;
+        Sx.simVel.addScaledVector(Sx.gravity, step);
+        const simSpeed = Sx.simVel.length();
+        if (simSpeed > 1e-4){
+          const drag = 0.5 * Sx.drag * BALL_R * simSpeed * step;
+          Sx.simVel.addScaledVector(Sx.simVel, -drag);
+        }
+        Sx.simPos.addScaledVector(Sx.simVel, step);
+
+        if (Sx.simPos.y <= TABLE_TOP && Sx.simVel.y < 0){
+          Sx.simPos.y = TABLE_TOP;
+          Sx.simVel.y = -Sx.simVel.y * Sx.tableRest;
+          const damp = 1 - Sx.tableFriction * 0.5;
+          Sx.simVel.x *= damp;
+          Sx.simVel.z *= damp;
+        }
+
+        if (Math.abs(Sx.simPos.z) < 0.01 && Sx.simPos.y < NET_TOP){
+          Sx.simVel.z *= -Sx.netRest;
+          Sx.simVel.x *= 0.94;
+          Sx.simVel.y *= 0.7;
+        }
+
+        if ((direction > 0 && Sx.simPos.z >= targetZ) || (direction < 0 && Sx.simPos.z <= targetZ)){
+          return { pos: Sx.simPos.clone(), vel: Sx.simVel.clone(), time };
+        }
+
+        if (Sx.simPos.y < 0.01) break;
+      }
+      return null;
+    }
+
+    function stepAI(dt){
+      const scoreboard = uiRef.current;
+      const diff = scoreboard.oScore - scoreboard.pScore;
+      const pressure = THREE.MathUtils.clamp(diff / 6, -0.8, 0.8);
+      const targetSpeed = AI.baseSpeed + pressure * 1.1;
+      const targetVertical = AI.baseVertical + pressure * 0.7;
+      const targetReact = AI.baseReact - pressure * 0.012;
+      AI.speed += (targetSpeed - AI.speed) * 0.18;
+      AI.vertical += (targetVertical - AI.vertical) * 0.18;
+      AI.react += (targetReact - AI.react) * 0.22;
+      AI.react = THREE.MathUtils.clamp(AI.react, 0.018, 0.08);
+
+      AI.timer -= dt;
+      const baseZ = oppBaseZ - 0.015;
+      if (AI.timer <= 0){
+        AI.timer = AI.react + (Sx.state === 'serve' ? 0.015 : 0);
+        AI.prediction = null;
+        const movingTowardAI = Sx.v.z < -0.02;
+        if (movingTowardAI && (Sx.state === 'rally' || (Sx.state === 'serve' && Srv.side === 'P' && Sx.serveProgress !== 'awaitServeHit'))){
+          AI.prediction = predictBallForSide(baseZ + 0.04, -1);
+        }
+        if (AI.prediction){
+          const anticipation = THREE.MathUtils.clamp(1 - AI.prediction.time * 0.55, 0, 1);
+          const safeX = THREE.MathUtils.clamp(
+            AI.prediction.pos.x + AI.prediction.vel.x * 0.12,
+            -T.W/2 + 0.07,
+            T.W/2 - 0.07
+          );
+          const centerBlend = THREE.MathUtils.lerp(safeX, 0, 0.18 + (1 - anticipation) * 0.2);
+          AI.targetX = THREE.MathUtils.clamp(
+            centerBlend + (Math.random() - 0.5) * (0.09 + anticipation * 0.06),
+            -bounds.x,
+            bounds.x
+          );
+          const reach = THREE.MathUtils.clamp((AI.prediction.pos.y - TABLE_TOP) * 0.35, -0.12, 0.24);
+          const rallyBias = anticipation * 0.05;
+          const reactiveDepth = THREE.MathUtils.clamp(baseZ + reach - rallyBias + (Sx.v.x * 0.06), baseZ - 0.26, baseZ + 0.24);
+          AI.targetZ = reactiveDepth;
+          const precision = THREE.MathUtils.clamp(0.24 + anticipation * 0.32, 0.26, 0.6);
+          const edgeBias = THREE.MathUtils.clamp(diff / 10, -0.22, 0.22);
+          const aimX = THREE.MathUtils.clamp(
+            player.position.x * 0.58 + playerVel.x * 0.18 + (Math.random() - 0.5) * precision - edgeBias,
+            -T.W / 2 + 0.14,
+            T.W / 2 - 0.14
+          );
+          const aimZ = playerBaseZ - 0.12 - edgeBias * 0.35;
+          aiSwingPlan = {
+            target: new THREE.Vector3(aimX, TABLE_TOP + 0.32 + anticipation * 0.08, aimZ),
+            flightTime: THREE.MathUtils.clamp(0.46 - anticipation * 0.08, 0.34, 0.58)
+          };
+        } else {
+          aiSwingPlan = null;
+          const calm = 0.12 + (Sx.state === 'serve' ? 0.18 : 0.08);
+          AI.targetX = THREE.MathUtils.lerp(AI.targetX, 0, calm);
+          AI.targetZ = THREE.MathUtils.lerp(AI.targetZ, baseZ - 0.05, calm * 0.8);
+        }
+      }
+
+      opp.position.x += THREE.MathUtils.clamp(AI.targetX - opp.position.x, -AI.speed * dt, AI.speed * dt);
+      opp.position.z += THREE.MathUtils.clamp(AI.targetZ - opp.position.z, -AI.vertical * dt, AI.vertical * dt);
+
+      if (!AI.prediction && Sx.v.z > 0.06){
+        opp.position.x = THREE.MathUtils.lerp(opp.position.x, 0, 0.16);
+        opp.position.z = THREE.MathUtils.lerp(opp.position.z, baseZ - 0.04, 0.16);
+      }
+
+      if (Sx.state === 'serve' && Srv.side === 'P' && Sx.serveProgress === 'awaitReceiverBounce'){
+        AI.timer = Math.min(AI.timer, 0.02);
+      }
+    }
+
+    // ---------- Collisions ----------
+    const resolveSurfaceBounce = (normal, restitution, friction, spinElasticity = 0.78) => {
+      // Combine linear and rotational velocity at the contact patch so spin affects bounce
+      const contactVel = Sx.tmpV0.copy(Sx.v);
+      const spinVel = Sx.tmpV2.copy(Sx.w).cross(normal).multiplyScalar(BALL_R);
+      contactVel.add(spinVel);
+
+      const approachSpeed = contactVel.dot(normal);
+      if (approachSpeed >= 0) return false;
+
+      const speedFactor = THREE.MathUtils.clamp(-approachSpeed * 0.08, 0, 0.18);
+      const cor = THREE.MathUtils.clamp(restitution + speedFactor, 0.72, 1.1);
+      const normalImpulse = -(1 + cor) * approachSpeed;
+
+      // Tangential response with Coulomb friction and spin feedback
+      const tangent = Sx.tmpV1.copy(contactVel).addScaledVector(normal, -approachSpeed);
+      const tangMag = tangent.length();
+      let frictionImpulse = 0;
+      if (tangMag > 1e-6) {
+        frictionImpulse = Math.min(tangMag, friction * normalImpulse);
+        tangent.multiplyScalar(frictionImpulse / tangMag);
+      } else {
+        tangent.set(0, 0, 0);
+      }
+
+      Sx.v.addScaledVector(normal, normalImpulse).addScaledVector(tangent, -1);
+
+      if (frictionImpulse > 0) {
+        const spinImpulse = Sx.tmpV2.copy(normal).cross(tangent).multiplyScalar(1 / BALL_R);
+        Sx.w.add(spinImpulse);
+      }
+      const spinBrake = 1 - THREE.MathUtils.clamp(-approachSpeed * 0.045, 0, 0.28);
+      Sx.w.multiplyScalar(spinElasticity * spinBrake);
+      return true;
+    };
+
+    const queueFault = (winner, delay = 260) => {
+      if (Sx.pendingFault || Sx.state === 'dead') return;
+      Sx.pendingFault = true;
+      Sx.state = 'fault';
+      timers.push(setTimeout(() => pointTo(winner), delay));
+    };
+
+    function bounceTable(prev){
+      if (Sx.state === 'dead') return false;
+      if (prev.y > TABLE_TOP && ball.position.y <= TABLE_TOP){
+        const x = ball.position.x;
+        const z = ball.position.z;
+        const inBounds = Math.abs(x) <= T.W/2 + BALL_R && Math.abs(z) <= T.L/2 + BALL_R;
+        if (!inBounds){
+          const side = z >= 0 ? 'P' : 'O';
+          queueFault(side === 'P' ? 'O' : 'P', 200);
+          return true;
+        }
+
+        const n = Sx.tmpN.set(0, 1, 0);
+        resolveSurfaceBounce(n, Sx.tableRest, Sx.tableFriction, 0.86);
+        const spinSlip = Sx.tmpV1.copy(Sx.w).cross(n).multiplyScalar(BALL_R * 0.06);
+        Sx.v.add(spinSlip);
+        Sx.w.multiplyScalar(0.9);
+        Sx.v.x *= TABLE_TANGENTIAL_DAMP;
+        Sx.v.z *= TABLE_TANGENTIAL_DAMP;
+        ball.position.y = TABLE_TOP;
+        playSfx('bounce', 0.65 + Math.min(Math.abs(Sx.v.y), 1.4) * 0.15, THREE.MathUtils.clamp(0.9 + Math.abs(Sx.v.z) * 0.18, 0.86, 1.25));
+
+        const side = z >= 0 ? 'P' : 'O';
+        const other = side === 'P' ? 'O' : 'P';
+        Sx.bounces[side] = (Sx.bounces[side] || 0) + 1;
+
+        if (Sx.state === 'serve'){
+          if (Sx.serveProgress === 'awaitServerBounce'){
+            if (side === Srv.side){
+              Sx.serveProgress = 'awaitReceiverBounce';
+            } else {
+              queueFault(other, 160);
+              return true;
+            }
+          } else if (Sx.serveProgress === 'awaitReceiverBounce'){
+            if (side !== Srv.side){
+              Sx.state = 'rally';
+              Sx.serveProgress = 'live';
+              Sx.bounces[other] = 0;
+            } else {
+              queueFault(other, 160);
+              return true;
+            }
+          }
+        } else if (Sx.state === 'rally'){
+          if (Sx.lastTouch === side){
+            queueFault(other, 160);
+            return true;
+          } else {
+            Sx.bounces[other] = 0;
+          }
+        }
+      }
+      return false;
+    }
+
+    function bounceArenaSurfaces(){
+      let collided = false;
+      if (ball.position.y <= arenaBounds.floorY + BALL_R){
+        ball.position.y = arenaBounds.floorY + BALL_R;
+        resolveSurfaceBounce(Sx.tmpN.set(0, 1, 0), Sx.floorRest, Sx.floorFriction, 0.6);
+        Sx.v.multiplyScalar(0.98);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
+        collided = true;
+      }
+
+      if (Math.abs(ball.position.x) >= arenaBounds.halfX - BALL_R * 0.5){
+        const sign = ball.position.x >= 0 ? 1 : -1;
+        ball.position.x = sign * (arenaBounds.halfX - BALL_R * 0.5);
+        resolveSurfaceBounce(Sx.tmpN.set(sign, 0, 0), Sx.wallRest, Sx.wallFriction, 0.76);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
+        collided = true;
+      }
+
+      if (Math.abs(ball.position.z) >= arenaBounds.halfZ - BALL_R * 0.5){
+        const sign = ball.position.z >= 0 ? 1 : -1;
+        ball.position.z = sign * (arenaBounds.halfZ - BALL_R * 0.5);
+        resolveSurfaceBounce(Sx.tmpN.set(0, 0, sign), Sx.wallRest, Sx.wallFriction, 0.76);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 220);
+        collided = true;
+      }
+      return collided;
+    }
+
+    function hitPaddle(paddle, who, paddleVel){
+      if (Sx.state === 'dead' || Sx.pendingFault || Sx.state === 'fault') return false;
+      if (Sx.state === 'serve' && who !== Srv.side && Sx.serveProgress !== 'live') return false;
+      const { headAnchor, headRadius = (0.092 * PADDLE_SCALE) } = paddle.userData || {};
+      if (!headAnchor) return false;
+      headAnchor.getWorldPosition(headWorld);
+      headWorld.divideScalar(S);
+      const worldHeadX = headWorld.x;
+      const worldHeadY = headWorld.y;
+      const worldHeadZ = headWorld.z;
+      const dx = ball.position.x - worldHeadX;
+      const dy = ball.position.y - worldHeadY;
+      const dz = ball.position.z - worldHeadZ;
+      const detection = (headRadius + BALL_R) * 1.35;
+      if ((dx * dx + dy * dy + dz * dz) < detection * detection){
+        const attackSign = who === 'P' ? -1 : 1;
+        const n = Sx.tmpN.set(dx, dy, dz);
+        if (n.lengthSq() < 1e-6) n.set(0, 1, attackSign * 0.1);
+        n.normalize();
+
+        const contact = new THREE.Vector3(
+          worldHeadX + n.x * (headRadius + BALL_R * 0.12),
+          Math.max(worldHeadY + n.y * (headRadius + BALL_R * 0.12), T.H + BALL_R),
+          worldHeadZ + n.z * (headRadius + BALL_R * 0.12)
+        );
+        ball.position.copy(contact);
+
+        const relVel = Sx.tmpV0.copy(Sx.v);
+        if (paddleVel) relVel.sub(paddleVel);
+        const closing = relVel.dot(n);
+        if (closing >= 0) return false;
+
+        const invBall = 1 / Sx.mass;
+        const invPaddle = 1 / Sx.paddleMass;
+        const j = -(1 + Sx.paddleRest) * closing / (invBall + invPaddle);
+        const impulse = Sx.tmpV1.copy(n).multiplyScalar(j * invBall);
+        Sx.v.add(impulse);
+
+        // frictional component to add tangential velocity and spin
+        const tangent = relVel.addScaledVector(n, -closing);
+        const tanMag = tangent.length();
+        if (tanMag > 1e-5){
+          tangent.multiplyScalar(1 / tanMag);
+          const maxSlip = Math.abs(j) * 0.35;
+          const slipImpulse = Math.min(maxSlip, tanMag);
+          const tangentBoost = tangent.multiplyScalar(-slipImpulse * invBall);
+          Sx.v.add(tangentBoost);
+          const spinDir = Sx.tmpV0.copy(tangent).cross(n).normalize();
+          Sx.w.addScaledVector(spinDir, slipImpulse * 18 * (Sx.spinTransfer ?? 1));
+        }
+
+        // encourage purposeful shots while preserving physical impulse
+        const paddleActor = who === 'P' ? player : opp;
+        const aimBias = THREE.MathUtils.clamp(
+          paddleActor.position.x * Sx.paddleAim,
+          -T.W / 2 + 0.12,
+          T.W / 2 - 0.12
+        );
+        Sx.v.x = THREE.MathUtils.clamp(Sx.v.x + aimBias * 0.6, -4.2, 4.2);
+        const liftBonus = (paddleVel?.y || 0) * 0.18;
+        Sx.v.y = Math.max(Sx.v.y, Sx.paddleLift + Math.abs(closing) * 1.1 + liftBonus);
+        const forward = Math.max(0.9, Math.abs(Sx.v.z));
+        Sx.v.z = attackSign * THREE.MathUtils.clamp(forward, 0.9, 4.8);
+
+        if (who === 'P' && playerSwing){
+          const swing = playerSwing;
+          const aim = swing.aimDirection?.clone() || swing.normal.clone();
+          const power = THREE.MathUtils.clamp(swing.power ?? swing.force ?? 0.6, 0.15, 1.28);
+          const speed = THREE.MathUtils.lerp(3.1, 6.4, power) * Sx.forceScale;
+          Sx.v.copy(aim.multiplyScalar(speed));
+          Sx.v.y = Math.max(Sx.v.y, 1.22 + (swing.liftBoost || 0));
+          if (swing.extraSpin){
+            Sx.w.addScaledVector(swing.extraSpin, 0.08 * (Sx.spinTransfer ?? 1));
+          }
+          playerSwing = null;
+        } else if (who === 'O' && aiSwingPlan?.target){
+          const { target, flightTime } = aiSwingPlan;
+          const aiAim = solveShot(contact, target, Sx.gravity.y, flightTime || 0.46);
+          if (aiAim){
+            const tuned = aiAim.multiplyScalar(0.96 * Sx.forceScale);
+            Sx.v.copy(tuned);
+            Sx.v.y = Math.max(Sx.v.y, 1.12);
+            const sideSpin = Math.sign(tuned.x || 0) || 1;
+            Sx.w.add(new THREE.Vector3(0, -sideSpin * 2.8, 0));
+          }
+          aiSwingPlan = null;
+        }
+        const brush = Sx.tmpV0.set(paddleVel?.x || 0, paddleVel?.y || 0, paddleVel?.z || 0).cross(n).multiplyScalar(Sx.spinTransfer * 6.5);
+        Sx.w.add(brush);
+        const netMargin = who === 'O' ? BALL_R * 1.05 : BALL_R * 0.92;
+        ensureNetClear(contact, Sx.v, Sx.gravity.y, NET_TOP + (who === 'O' ? 0.04 : 0), netMargin);
+        playSfx('paddle', 0.78 + Math.min(Math.abs(closing), 3) * 0.08, THREE.MathUtils.clamp(1 + closing * -0.08, 0.82, 1.35));
+
+        if (Sx.state === 'serve' && who === Srv.side && Sx.serveProgress === 'awaitServeHit'){
+          Sx.serveProgress = 'awaitServerBounce';
+          Sx.lastTouch = who;
+        } else {
+          Sx.state = 'rally';
+          Sx.lastTouch = who;
+          Sx.bounces.P = 0;
+          Sx.bounces.O = 0;
+        }
+        return true;
+      }
+      return false;
+    }
+
+    function hitNet(prev){
+      if (Sx.pendingFault) return;
+      const prevZ = prev.z;
+      const currZ = ball.position.z;
+      const crossed = (prevZ > 0 && currZ <= 0) || (prevZ < 0 && currZ >= 0);
+      if (!crossed) return;
+      const denom = currZ - prevZ || 1e-6;
+      const t = THREE.MathUtils.clamp((0 - prevZ) / denom, 0, 1);
+      const yAtNet = THREE.MathUtils.lerp(prev.y, ball.position.y, t);
+      const xAtNet = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
+      if (Math.abs(xAtNet) <= T.W / 2 + BALL_R * 0.5 && yAtNet < NET_TOP + BALL_R * 0.4){
+        const push = BALL_R * 0.6;
+        const sign = prevZ > 0 ? 1 : -1;
+        ball.position.z = sign * push;
+        ball.position.x = THREE.MathUtils.lerp(prev.x, ball.position.x, t);
+        ball.position.y = Math.max(yAtNet, TABLE_TOP);
+        const n = Sx.tmpN.set(0, 0, sign);
+        resolveSurfaceBounce(n, Sx.netRest * 0.9, 0.52, 0.6);
+        Sx.v.multiplyScalar(1 - Sx.netDrag * 1.1);
+        Sx.v.y = Math.max(Sx.v.y - Sx.netKill * 1.2, -Math.abs(Sx.v.y) * 0.65);
+        Sx.w.multiplyScalar(0.35);
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 120);
+      }
+    }
+
+    // ---------- Scoring & Rules ----------
+    function pointTo(winner){
+      if (Sx.state === 'dead') return;
+      const state = uiRef.current;
+      const newP = state.pScore + (winner === 'P' ? 1 : 0);
+      const newO = state.oScore + (winner === 'O' ? 1 : 0);
+      const total = newP + newO;
+      const deuce = newP >= 10 && newO >= 10;
+      const shouldSwap = deuce ? true : (total % 2 === 0);
+      const currentServer = state.serving;
+      const nextServing = shouldSwap ? (currentServer === 'P' ? 'O' : 'P') : currentServer;
+      const gameOver = (newP >= 11 || newO >= 11) && Math.abs(newP - newO) >= 2;
+      const leader = newP === newO ? null : (newP > newO ? 'P' : 'O');
+      let statusMsg = 'Swipe up to serve and hit';
+      if (gameOver){
+        const winnerLabel = winner === 'P' ? playerLabel : aiLabel;
+        statusMsg = `${winnerLabel} wins — Tap Reset`;
+      } else if (deuce && Math.abs(newP - newO) === 1){
+        const edgeLabel = leader === 'P' ? playerLabel : aiLabel;
+        statusMsg = `${edgeLabel} has game point`;
+      }
+
+      setUi({
+        pScore: newP,
+        oScore: newO,
+        serving: nextServing,
+        msg: statusMsg,
+        gameOver,
+        winner: gameOver ? winner : null,
+      });
+
+      Sx.state = 'dead';
+      Sx.v.set(0,0,0);
+      Sx.w.set(0,0,0);
+      Sx.pendingFault = false;
+      Sx.lastTouch = null;
+      Sx.bounces.P = 0;
+      Sx.bounces.O = 0;
+      Srv.side = nextServing;
+
+      timers.forEach(clearTimeout);
+      timers.length = 0;
+
+      if (!gameOver){
+        timers.push(setTimeout(()=>{
+          if (uiRef.current.gameOver) return;
+          resetServe();
+        }, 520));
+      }
+    }
+
+    function checkFaults(){
+      if (Sx.state === 'dead' || Sx.pendingFault) return true;
+      const x = ball.position.x;
+      const z = ball.position.z;
+      const y = ball.position.y;
+      if (y < TABLE_TOP - BALL_R * 0.6){
+        if (Math.abs(x) > T.W/2 + BALL_R || Math.abs(z) > T.L/2 + BALL_R){
+          const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
+          queueFault(winner, 200);
+          return true;
+        }
+        if (y <= arenaBounds.floorY + BALL_R * 1.1){
+          const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
+          queueFault(winner, 180);
+          return true;
+        }
+      }
+      if (Math.abs(z) < BALL_R * 1.2 && y < TABLE_TOP + BALL_R * 0.1){
+        const winner = (Sx.lastTouch === 'P') ? 'O' : 'P';
+        queueFault(winner, 120);
+        return true;
+      }
+      if (Sx.state === 'serve' && Sx.serveProgress === 'awaitReceiverBounce'){
+        const receiver = Srv.side === 'P' ? 'O' : 'P';
+        const receiverSign = receiver === 'P' ? 1 : -1;
+        if (z * receiverSign > T.L/2 + BALL_R){
+          queueFault(receiver, 200);
+          return true;
+        }
+      }
+      return false;
+    }
+
+    // ---------- Loop ----------
+    const FIXED_STEP = 1 / 180;
+    let accumulator = 0;
+    let lastTime = performance.now();
+
+    const adjustPaddleYaw = (paddle, velocity) => {
+      const { visualWrapper, baseYaw, orientationSign = 1, wrist, baseTilt = 0, baseRoll = 0 } = paddle.userData || {};
+      if (!visualWrapper || !Number.isFinite(baseYaw)) return;
+
+      const dx = ball.position.x - paddle.position.x;
+      const dz = ball.position.z - paddle.position.z;
+      const forwardX = Math.sin(baseYaw);
+      const forwardZ = Math.cos(baseYaw);
+      const ahead = forwardX * dx + forwardZ * dz > 0.01;
+
+      const rightX = forwardZ;
+      const rightZ = -forwardX;
+      const velLateral = velocity.x * rightX + velocity.z * rightZ;
+      const cross = forwardX * dz - forwardZ * dx;
+
+      const swingBackhand = Math.max(0, -velLateral * orientationSign);
+      const swingForehand = Math.max(0, velLateral * orientationSign);
+      const backhandAim = ahead ? Math.max(0, -cross * orientationSign) : 0;
+
+      const offsetLeft = THREE.MathUtils.clamp(backhandAim * 0.7 + swingBackhand * 0.18, 0, 0.92);
+      const offsetRight = Math.min(swingForehand * 0.12, 0.35);
+
+      const leftRange = orientationSign === 1 ? 0.5 : 0.95;
+      const rightRange = orientationSign === 1 ? 0.95 : 0.5;
+      const targetYaw = THREE.MathUtils.clamp(
+        baseYaw + orientationSign * offsetLeft - orientationSign * offsetRight,
+        baseYaw - leftRange,
+        baseYaw + rightRange
+      );
+
+      const damping = orientationSign === 1 ? 0.22 : 0.18;
+      visualWrapper.rotation.y = lerpAngle(visualWrapper.rotation.y, targetYaw, damping);
+
+      if (paddle.userData.swing !== undefined){
+        const swingAmt = paddle.userData.swing;
+        visualWrapper.rotation.x = THREE.MathUtils.lerp(visualWrapper.rotation.x, swingAmt * 0.18, 0.35);
+        visualWrapper.rotation.y += (paddle.userData.swingLR || 0) * 0.04;
+      }
+
+      if (wrist){
+        const heightFactor = THREE.MathUtils.clamp((ball.position.y - TABLE_TOP) * 0.85, -0.4, 0.52);
+        const swingAssist = THREE.MathUtils.clamp(paddle.userData.swing ?? 0, -0.6, 1.4);
+        const tiltTarget = baseTilt + heightFactor + (velocity.z || 0) * -0.02 * orientationSign + swingAssist * 0.35;
+        const rollTarget = baseRoll + (velocity.x || 0) * 0.04 + (paddle.userData.swingLR || 0) * 0.2;
+        wrist.rotation.x += (tiltTarget - wrist.rotation.x) * 0.22;
+        wrist.rotation.z += (rollTarget - wrist.rotation.z) * 0.24;
+      }
+    };
+
+    function integrate(dt){
+      if (Sx.state === 'dead') return;
+      prevBall.copy(ball.position);
+      Sx.v.y += Sx.gravity.y * dt;
+      Sx.v.multiplyScalar(1 / (1 + Sx.drag * dt));
+      const magnus = Sx.tmpV1.copy(Sx.w).cross(Sx.v);
+      Sx.v.addScaledVector(magnus, Sx.magnusCoeff * dt);
+      Sx.w.multiplyScalar(Sx.spinDecay ?? 1);
+      ball.position.addScaledVector(Sx.v, dt);
+
+      const scored = bounceTable(prevBall);
+      if (!scored){
+        hitNet(prevBall);
+        bounceArenaSurfaces();
+        hitPaddle(player, 'P', playerVel);
+        hitPaddle(opp, 'O', oppVel);
+        checkFaults();
+      }
+    }
+
+    function step(){
+      const now = performance.now();
+      const frameDt = Math.min(0.05, (now - lastTime) / 1000 || 0);
+      lastTime = now;
+      accumulator = Math.min(accumulator + frameDt, 0.25);
+
+      // Camera follow
+      updateCamera();
+
+      // AI
+      stepAI(frameDt);
+
+      if (!ui.gameOver){
+        tableG.updateMatrixWorld(true);
+        if (player.userData?.target){
+          const lerpFactor = 1 - Math.exp(-frameDt * 20);
+          player.position.lerp(player.userData.target, lerpFactor);
+          player.position.x = THREE.MathUtils.clamp(player.position.x, -bounds.x, bounds.x);
+          player.position.z = THREE.MathUtils.clamp(player.position.z, bounds.zFar, bounds.zNear);
+        }
+        const invDt = frameDt > 0 ? 1 / frameDt : 0;
+        playerVel.copy(player.position).sub(playerPrev).multiplyScalar(invDt);
+        oppVel.copy(opp.position).sub(oppPrev).multiplyScalar(invDt);
+        playerPrev.copy(player.position);
+        oppPrev.copy(opp.position);
+
+        adjustPaddleYaw(player, playerVel);
+        adjustPaddleYaw(opp, oppVel);
+
+        if (playerSwing){
+          playerSwing.ttl -= frameDt;
+          if (playerSwing.ttl <= 0) playerSwing = null;
+        } else {
+          player.userData.swing = THREE.MathUtils.lerp(player.userData.swing ?? 0, 0, 0.2);
+          player.userData.swingLR = THREE.MathUtils.lerp(player.userData.swingLR ?? 0, 0, 0.22);
+        }
+
+        if (Sx.state !== 'dead'){
+          if (Sx.state === 'serve' && Sx.serveProgress === 'awaitServeHit'){
+            const server = Srv.side === 'P' ? player : opp;
+            const serverVel = Srv.side === 'P' ? playerVel : oppVel;
+            const targetZ = server.position.z + (Srv.side === 'P' ? -0.14 : 0.14);
+            ball.position.x = THREE.MathUtils.lerp(ball.position.x, server.position.x, 0.25);
+            ball.position.z = THREE.MathUtils.lerp(ball.position.z, targetZ, 0.22);
+            Sx.serveTimer -= frameDt;
+            if (Sx.serveProgress === 'awaitServeHit' && Sx.serveTimer <= 0){
+              const dir = Srv.side === 'P' ? -1 : 1;
+              const aiSideServe = Srv.side === 'O';
+              const edgePick = aiSideServe ? (Math.random() > 0.5 ? 1 : -1) : 0;
+              const anchorX = aiSideServe ? aiServeAnchor.x : server.position.x;
+              const aimX = THREE.MathUtils.clamp((anchorX + serverVel.x * 0.05) * 0.36 + edgePick * 0.32, -0.78, 0.78);
+              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.62, 0.98);
+              Sx.v.set(aimX * serveScale * 0.86, Math.max(1.85, 2.42 * serveScale), 1.32 * dir * serveScale);
+              ensureNetClear(ball.position, Sx.v, Sx.gravity.y, NET_TOP + 0.06, BALL_R * 1.05);
+              const twist = aiSideServe ? -edgePick * 3 : 0;
+              Sx.w.set(0, twist, 0);
+              Sx.serveProgress = 'awaitServerBounce';
+              Sx.lastTouch = Srv.side;
+            }
+          }
+        }
+      }
+
+      while (accumulator >= FIXED_STEP){
+        integrate(FIXED_STEP);
+        accumulator -= FIXED_STEP;
+      }
+
+      ballShadow.position.set(ball.position.x, T.H + 0.005, ball.position.z);
+      const heightAbove = Math.max(0, ball.position.y - TABLE_TOP);
+      const sh = THREE.MathUtils.clamp(1 - heightAbove * 3.8, 0.3, 1.05);
+      ballShadow.scale.set(sh, sh, 1);
+      const shadowOpacity = THREE.MathUtils.clamp(0.92 - heightAbove * 5.2, 0.24, 0.92);
+      ballShadow.material.opacity = THREE.MathUtils.clamp(shadowOpacity * baseShadowFactor, 0, 1);
+      for (let i = TRAIL_COUNT - 1; i > 0; i--){
+        const src = (i - 1) * 3;
+        const dst = i * 3;
+        trailPositions[dst] = trailPositions[src];
+        trailPositions[dst + 1] = trailPositions[src + 1];
+        trailPositions[dst + 2] = trailPositions[src + 2];
+      }
+      trailPositions[0] = ball.position.x;
+      trailPositions[1] = ball.position.y;
+      trailPositions[2] = ball.position.z;
+      trailGeometry.attributes.position.needsUpdate = true;
+      const velocityMag = Sx.v.length();
+      trailMaterial.opacity = THREE.MathUtils.clamp(
+        minTrailOpacity + velocityMag * trailSpeedFactor,
+        minTrailOpacity,
+        maxTrailOpacity
+      );
+
+      renderer.render(scene, camera);
+      raf.current = requestAnimationFrame(step);
+    }
+
+    ensureFit();
+    resetServe();
+    step();
+
+    // ---------- Resize ----------
+    const onResize = ()=>{ setSize(); applyCam(); ensureFit(); };
+    window.addEventListener('resize', onResize);
+
+    return ()=>{
+      cancelAnimationFrame(raf.current);
+      window.removeEventListener('resize', onResize);
+      el.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+      timers.forEach(clearTimeout);
+      document.documentElement.style.overscrollBehavior = prevOver;
+      try{ host.removeChild(renderer.domElement); }catch{}
+      paddleWoodTex.dispose();
+      paddleWoodMat.dispose();
+      trailGeometry.dispose();
+      trailMaterial.dispose();
+      renderer.dispose();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aiLabel, difficulty.react, difficulty.speed, difficulty.vertical, playerLabel, resetKey]);
+
+  const resetAll = ()=>{
+    const next = Math.random() < 0.5 ? 'P' : 'O';
+    setUi(createUiState(next));
+    setResetKey(k => k + 1);
+  };
+
+  const renderAvatarBadge = (avatarSrc, label, align = 'left') => {
+    const isImage = avatarSrc?.startsWith('http') || avatarSrc?.startsWith('/') || avatarSrc?.startsWith('data:');
+    const roleLabel = align === 'right' ? 'Opponent' : 'Player';
+    return (
+      <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
+        <div className="h-11 w-11 rounded-full border border-white/30 overflow-hidden bg-white/10 flex items-center justify-center text-lg">
+          {isImage ? (
+            <img src={avatarSrc} alt={`${label} avatar`} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-xl leading-none">{avatarSrc || '🙂'}</span>
+          )}
+        </div>
+        <div className="leading-tight">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-white/80">{roleLabel}</div>
+          <div className="text-sm font-semibold">{label}</div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
+      {/* HUD */}
+      <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 text-white min-w-[260px]">
+        <div className="inline-flex flex-col gap-2 rounded-2xl px-4 py-3 bg-[rgba(7,10,18,0.78)] border border-[rgba(255,215,0,0.25)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="flex items-center gap-4 justify-between">
+            {renderAvatarBadge(player?.avatar, playerLabel, 'left')}
+            <div className="text-center min-w-[96px]">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/80">Race to 11</div>
+              <div className="text-2xl font-bold drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">{ui.pScore} : {ui.oScore}</div>
+              <div className="text-[11px] text-white/80">
+                {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
+              </div>
+            </div>
+            {renderAvatarBadge(ai?.avatar, aiLabel, 'right')}
+          </div>
+        </div>
+      </div>
+      <div className="pointer-events-none absolute bottom-16 left-1/2 -translate-x-1/2 text-white">
+        <div className="px-3 py-1 rounded-full bg-black/50 border border-white/10 text-[11px] sm:text-[12px] shadow-lg">{ui.msg}</div>
+      </div>
+      {!ui.gameOver && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">
+          <button
+            onClick={resetAll}
+            className="text-white text-[11px] bg-[rgba(7,10,18,0.78)] border border-[rgba(255,215,0,0.25)] hover:bg-[rgba(12,18,30,0.92)] rounded-full px-3 py-1 shadow"
+          >
+            Reset
+          </button>
+        </div>
+      )}
+      {ui.gameOver && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center gap-3 px-6 text-center">
+          <p className="text-white text-sm sm:text-base font-semibold">{ui.winner === 'P' ? playerLabel : aiLabel} takes the game!</p>
+          <button onClick={resetAll} className="text-white text-sm bg-rose-500/80 hover:bg-rose-500 rounded-full px-5 py-2 shadow-lg">Play Again</button>
+        </div>
+      )}
+    </div>
+  );
 }
 
-function makeHexNetAlpha(w, h, density = 8) {
+function addTableLegs(tableG, T, steelMat, wheelMat) {
+  const tubeR = 0.02;
+  const wheelRadius = 0.035;
+  const wheelThickness = 0.02;
+  const legClearance = 0.004;
+  const legH = T.H - T.topT - legClearance - wheelRadius;
+  const offsetZ = T.L * 0.36;
+  const offsetX = T.W * 0.42;
+
+  const makeFrame = (zSign) => {
+    const g = new THREE.Group();
+    const uprightGeo = new THREE.CylinderGeometry(tubeR, tubeR, legH, 26);
+    const upLeft = new THREE.Mesh(uprightGeo, steelMat);
+    const upRight = new THREE.Mesh(uprightGeo, steelMat);
+    const cross = new THREE.Mesh(new THREE.CylinderGeometry(tubeR, tubeR, offsetX * 2, 26), steelMat);
+    upLeft.position.set(-offsetX, wheelRadius + legH / 2, zSign * offsetZ);
+    upRight.position.set(offsetX, wheelRadius + legH / 2, zSign * offsetZ);
+    cross.rotation.z = Math.PI / 2;
+    cross.position.set(0, wheelRadius + 0.11, zSign * offsetZ);
+    g.add(upLeft, upRight, cross);
+
+    const wheelGeo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelThickness, 24);
+    const wheelLeft = new THREE.Mesh(wheelGeo, wheelMat);
+    const wheelRight = new THREE.Mesh(wheelGeo, wheelMat);
+    wheelLeft.rotation.x = Math.PI / 2;
+    wheelRight.rotation.x = Math.PI / 2;
+    wheelLeft.position.set(-offsetX, wheelRadius, zSign * offsetZ);
+    wheelRight.position.set(offsetX, wheelRadius, zSign * offsetZ);
+    g.add(wheelLeft, wheelRight);
+    return g;
+  };
+
+  tableG.add(makeFrame(-1), makeFrame(1));
+}
+
+function makePaddleWoodTexture(w = 1024, h = 2048) {
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = 'black';
+
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, '#f4e9c8');
+  gradient.addColorStop(1, '#e8d3a1');
+  ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = 'white';
-  const step = w / density;
-  for (let y = 0; y < h; y += step) {
-    for (let x = 0; x < w; x += step) {
-      const isOdd = ((x / step) + (y / step)) % 2 > 0.5;
-      if (isOdd) ctx.fillRect(x, y, step * 0.65, step * 0.65);
+
+  ctx.globalAlpha = 0.22;
+  ctx.strokeStyle = '#c9ad7a';
+  for (let i = 0; i < 64; i++) {
+    const y = (i + 2) * (h / 80);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += 2) {
+      const yy = y + Math.sin(x * 0.012 + i * 0.55) * 8;
+      if (x === 0) ctx.moveTo(x, yy);
+      else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 0.1;
+  ctx.strokeStyle = '#bfa371';
+  for (let x = 0; x < w; x += 6) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, h);
+    ctx.stroke();
+  }
+
+  ctx.globalAlpha = 1;
+  return new THREE.CanvasTexture(canvas);
+}
+
+function makeHexNetAlpha(w, h, hexR) {
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#ffffff';
+  const dx = hexR * 1.732;
+  const dy = hexR * 1.5;
+
+  const drawHex = (cx, cy, r) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      const px = cx + r * Math.cos(a);
+      const py = cy + r * Math.sin(a);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  for (let y = 0; y < h + dy; y += dy) {
+    for (let x = 0; x < w + dx; x += dx) {
+      const offset = Math.floor(y / dy) % 2 ? dx / 2 : 0;
+      drawHex(x + offset, y, hexR);
     }
   }
-  return new THREE.CanvasTexture(canvas);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(6, 2);
+  tex.anisotropy = 8;
+  return tex;
 }
 
 function makeWeaveTex(w, h) {
@@ -279,702 +2326,15 @@ function makeWeaveTex(w, h) {
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#f1f5f9';
+  ctx.fillStyle = '#f7f7f7';
   ctx.fillRect(0, 0, w, h);
-  ctx.fillStyle = '#e2e8f0';
-  for (let y = 0; y < h; y += 12) {
-    ctx.fillRect(0, y, w, 6);
-  }
-  for (let x = 0; x < w; x += 12) {
-    ctx.fillRect(x, 0, 6, h);
-  }
-  return new THREE.CanvasTexture(canvas);
+  ctx.fillStyle = 'rgba(0,0,0,0.06)';
+  for (let y = 0; y < h; y += 2) ctx.fillRect(0, y, w, 1);
+  for (let x = 0; x < w; x += 2) ctx.fillRect(x, 0, 1, h);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(8, 8);
+  tex.anisotropy = 8;
+  return tex;
 }
 
-function makePaddle(color, isPlayer) {
-  const radius = 0.15;
-  const thickness = 0.02;
-  const group = new THREE.Group();
-  const face = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, thickness, 48), new THREE.MeshStandardMaterial({ color, roughness: 0.36 }));
-  face.rotation.z = Math.PI / 2;
-  face.rotation.y = Math.PI / 2;
-  face.castShadow = true;
-  face.receiveShadow = true;
-  group.add(face);
-
-  const handleGeo = new THREE.BoxGeometry(0.045, 0.22, 0.04);
-  const handle = new THREE.Mesh(handleGeo, new THREE.MeshStandardMaterial({ color: 0x6b4c32, roughness: 0.68 }));
-  handle.position.set(0, -0.18, 0);
-  handle.castShadow = true;
-  handle.receiveShadow = true;
-  group.add(handle);
-
-  group.position.set(0, TABLE_SPEC.height + 0.1, isPlayer ? TABLE_SPEC.length / 2 - 0.4 : -TABLE_SPEC.length / 2 + 0.4);
-  group.userData.radius = radius;
-  return group;
-}
-
-function makeBall(materials) {
-  const geo = new THREE.SphereGeometry(0.02, 32, 32);
-  const mat = new THREE.MeshPhysicalMaterial({
-    color: materials.ball.color,
-    roughness: 0.52,
-    metalness: 0,
-    emissive: new THREE.Color(materials.ball.emissive),
-    emissiveIntensity: materials.ball.emissiveIntensity,
-  });
-  const mesh = new THREE.Mesh(geo, mat);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  return mesh;
-}
-
-function makeTrail(color, count = 16) {
-  const geo = new THREE.BufferGeometry();
-  const positions = new Float32Array(count * 3);
-  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.6 });
-  const line = new THREE.Line(geo, mat);
-  line.frustumCulled = false;
-  return { line, positions };
-}
-
-function createLights(scene, preset) {
-  const ambient = new THREE.AmbientLight(preset.ambient.color, preset.ambient.intensity);
-  scene.add(ambient);
-
-  const hemi = new THREE.HemisphereLight(preset.hemi.sky, preset.hemi.ground, preset.hemi.intensity);
-  scene.add(hemi);
-
-  const dir = new THREE.DirectionalLight(preset.sun.color, preset.sun.intensity);
-  dir.position.fromArray(preset.sun.position);
-  dir.castShadow = true;
-  dir.shadow.mapSize.set(2048, 2048);
-  dir.shadow.camera.left = -5;
-  dir.shadow.camera.right = 5;
-  dir.shadow.camera.top = 5;
-  dir.shadow.camera.bottom = -5;
-  dir.shadow.camera.far = 30;
-  scene.add(dir);
-
-  const rim = new THREE.DirectionalLight(preset.rim.color, preset.rim.intensity);
-  rim.position.fromArray(preset.rim.position);
-  scene.add(rim);
-
-  const spots = [];
-  for (const s of preset.spots) {
-    const spot = new THREE.SpotLight(s.color, s.intensity, 30, s.angle, s.penumbra, 1);
-    spot.position.fromArray(s.position);
-    spot.target.position.set(0, TABLE_SPEC.height, 0);
-    spot.castShadow = true;
-    spot.shadow.mapSize.set(1024, 1024);
-    scene.add(spot);
-    scene.add(spot.target);
-    spots.push(spot);
-  }
-  return { ambient, hemi, dir, rim, spots };
-}
-
-function createArena(scene) {
-  const carpet = createArenaCarpetMaterial();
-  carpet.bumpScale = 0.28;
-  carpet.emissiveIntensity = 0.24;
-  const carpetMesh = new THREE.Mesh(new THREE.PlaneGeometry(24, 24), carpet);
-  carpetMesh.rotation.x = -Math.PI / 2;
-  carpetMesh.receiveShadow = true;
-  carpetMesh.position.y = 0.01;
-  scene.add(carpetMesh);
-
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(30, 30),
-    new THREE.MeshStandardMaterial({ color: 0x0f1222, roughness: 0.95, metalness: 0.05 })
-  );
-  floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
-  scene.add(floor);
-
-  const wallMat = createArenaWallMaterial();
-  wallMat.color.setHex(0xdce4ff);
-  const wallH = 4.4;
-  const wallGeo = new THREE.BoxGeometry(30, wallH, 30);
-  const wall = new THREE.Mesh(wallGeo, wallMat);
-  wall.position.y = wallH / 2 - 0.12;
-  wall.receiveShadow = true;
-  scene.add(wall);
-  return { carpet, floor, wall };
-}
-
-class AudioDirector {
-  constructor() {
-    this.ctx = null;
-    this.buffers = {};
-  }
-
-  ensure() {
-    if (this.ctx) return this.ctx;
-    const Ctor = window.AudioContext || window.webkitAudioContext;
-    if (!Ctor) return null;
-    this.ctx = new Ctor();
-    return this.ctx;
-  }
-
-  buffer(name, freq, duration, noise = false) {
-    const ctx = this.ensure();
-    if (!ctx || this.buffers[name]) return this.buffers[name];
-    const len = Math.max(1, Math.floor(ctx.sampleRate * duration));
-    const buf = ctx.createBuffer(1, len, ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    for (let i = 0; i < len; i += 1) {
-      const t = i / ctx.sampleRate;
-      const env = Math.pow(1 - t / duration, 3);
-      const osc = noise ? (Math.random() * 2 - 1) * 0.7 : Math.sin(2 * Math.PI * freq * t);
-      data[i] = osc * env;
-    }
-    this.buffers[name] = buf;
-    return buf;
-  }
-
-  play(name, gain = 0.9, rate = 1) {
-    const ctx = this.ensure();
-    const buffer = this.buffers[name];
-    if (!ctx || !buffer) return;
-    const src = ctx.createBufferSource();
-    const g = ctx.createGain();
-    src.buffer = buffer;
-    src.playbackRate.value = rate;
-    g.gain.value = gain;
-    src.connect(g).connect(ctx.destination);
-    src.start();
-  }
-}
-
-class TouchController {
-  constructor(target, preset, clampX) {
-    this.target = target;
-    this.preset = preset;
-    this.clampX = clampX;
-    this.active = false;
-    this.startX = 0;
-    this.startY = 0;
-    this.lastX = 0;
-    this.lastY = 0;
-    this.startT = 0;
-    this.lerp = { x: 0.54, z: 0.38 };
-  }
-
-  begin(x, y) {
-    this.active = true;
-    this.startX = x;
-    this.startY = y;
-    this.lastX = x;
-    this.lastY = y;
-    this.startT = performance.now();
-  }
-
-  track(x, y, converter) {
-    this.lastX = x;
-    this.lastY = y;
-    const tx = converter(x);
-    this.target.position.x += (tx - this.target.position.x) * this.lerp.x;
-  }
-
-  finish(x, y) {
-    const endX = x ?? this.lastX;
-    const endY = y ?? this.lastY;
-    const distX = endX - this.startX;
-    const distY = this.startY - endY;
-    const swipeTime = Math.max((performance.now() - this.startT) / 1000, 0.12);
-    this.active = false;
-    return { distX, distY, swipeTime };
-  }
-
-  metrics(x, y) {
-    const endX = x ?? this.lastX;
-    const endY = y ?? this.lastY;
-    const distX = endX - this.startX;
-    const distY = this.startY - endY;
-    const swipeTime = Math.max((performance.now() - this.startT) / 1000, 0.12);
-    return { distX, distY, swipeTime };
-  }
-}
-
-class TrailSystem {
-  constructor(scene, color, count = 18) {
-    const { line, positions } = makeTrail(color, count);
-    this.line = line;
-    this.positions = positions;
-    this.count = count;
-    this.index = 0;
-    scene.add(line);
-  }
-
-  update(position, velocity, dt) {
-    const speed = velocity.length();
-    const alpha = clamp(speed * 0.12, 0.2, 0.9);
-    this.line.material.opacity = alpha;
-    this.positions.copyWithin(3, 0);
-    this.positions[0] = position.x;
-    this.positions[1] = position.y;
-    this.positions[2] = position.z;
-    this.line.geometry.attributes.position.needsUpdate = true;
-  }
-
-  dispose(scene) {
-    scene.remove(this.line);
-    this.line.geometry.dispose();
-    this.line.material.dispose();
-  }
-}
-
-class ScoreManager {
-  constructor(playerName, aiName) {
-    this.playerName = playerName;
-    this.aiName = aiName;
-    this.reset();
-  }
-
-  reset(server = 'P') {
-    this.scoreP = 0;
-    this.scoreO = 0;
-    this.server = server;
-    this.gameOver = false;
-    this.winner = null;
-    this.toast = `${server === 'P' ? this.playerName : this.aiName} to serve`;
-  }
-
-  point(who) {
-    if (this.gameOver) return;
-    if (who === 'P') this.scoreP += 1; else this.scoreO += 1;
-    const total = this.scoreP + this.scoreO;
-    if (Math.max(this.scoreP, this.scoreO) >= GAME_RULES.pointsToWin && Math.abs(this.scoreP - this.scoreO) >= GAME_RULES.winBy) {
-      this.gameOver = true;
-      this.winner = this.scoreP > this.scoreO ? this.playerName : this.aiName;
-      this.toast = `${this.winner} wins!`;
-    } else {
-      if (total % GAME_RULES.serveRotate === 0) {
-        this.server = this.server === 'P' ? 'O' : 'P';
-      }
-      this.toast = `${this.server === 'P' ? this.playerName : this.aiName} to serve`;
-    }
-  }
-}
-
-class PhysicsState {
-  constructor(ball) {
-    this.ball = ball;
-    this.velocity = new THREE.Vector3();
-    this.spin = new THREE.Vector3();
-    this.prev = new THREE.Vector3();
-  }
-
-  step(dt, settings) {
-    this.prev.copy(this.ball.position);
-    this.velocity.addScaledVector(settings.gravity, dt);
-    this.velocity.multiplyScalar(1 / (1 + settings.airDrag * dt));
-    if (this.spin.lengthSq() > 0.0001) {
-      const magnus = new THREE.Vector3().copy(this.spin).cross(this.velocity).multiplyScalar(settings.magnus * dt);
-      this.velocity.add(magnus);
-      this.spin.multiplyScalar(Math.pow(settings.spinDecay, dt * 60));
-    }
-    this.ball.position.addScaledVector(this.velocity, dt);
-  }
-}
-
-class AIController {
-  constructor(paddle, difficulty) {
-    this.paddle = paddle;
-    this.diff = difficulty;
-    this.reaction = 0;
-  }
-
-  update(dt, ball, velocity) {
-    this.reaction = Math.max(0, this.reaction - dt);
-    if (this.reaction > 0) return;
-    const targetX = clamp(ball.position.x + velocity.x * 0.32, -TABLE_SPEC.width / 2 + 0.12, TABLE_SPEC.width / 2 - 0.12);
-    this.paddle.position.x = damp(this.paddle.position.x, targetX, this.diff.speed, dt);
-    const desiredY = damp(this.paddle.position.y, TABLE_SPEC.height + 0.35 + Math.abs(velocity.y) * 0.08, this.diff.vertical, dt);
-    this.paddle.position.y = desiredY;
-  }
-}
-
-class CameraDirector {
-  constructor(camera, profile) {
-    this.camera = camera;
-    this.profile = profile;
-    this.yaw = profile.yaw;
-  }
-
-  update(dt, ballPos, ballVel) {
-    const lead = clamp(ballVel.z * 0.12, -0.8, 1.2);
-    const targetYaw = clamp(ballPos.x * 0.4, -this.profile.yawRange, this.profile.yawRange) + this.profile.yaw;
-    this.yaw = damp(this.yaw, targetYaw, 6 * this.profile.followLerp, dt);
-    const dist = this.profile.distance + lead;
-    const height = this.profile.height + clamp(ballPos.y - TABLE_SPEC.height, -0.2, 0.6);
-    const offset = new THREE.Vector3(0, height, dist);
-    const rot = new THREE.Euler(-this.profile.pitch, this.yaw, 0, 'YXZ');
-    offset.applyEuler(rot);
-    const target = new THREE.Vector3(ballPos.x * 0.6, clamp(ballPos.y, TABLE_SPEC.height + 0.02, TABLE_SPEC.height + 1.8), ballPos.z * 0.5);
-    this.camera.position.lerp(target.clone().add(offset), damp(0, 1, this.profile.followLerp, dt));
-    this.camera.lookAt(target);
-  }
-}
-
-function swipeToShot(swipe, preset, towardsOpponent = true) {
-  const speed = Math.hypot(swipe.distX, swipe.distY) / swipe.swipeTime;
-  const normalized = clamp((speed - preset.minSpeed) / (preset.maxSpeed - preset.minSpeed), 0, 1);
-  const forward = lerp(preset.forward[0], preset.forward[1], normalized) * (towardsOpponent ? -1 : 1);
-  const lift = lerp(preset.lift[0], preset.lift[1], normalized);
-  const lateral = clamp((swipe.distX / Math.max(Math.abs(swipe.distY), 60)) * preset.lateralScale, -1.8, 1.8);
-  const curve = clamp((swipe.distX / swipe.swipeTime) * 0.35 * preset.curveScale, -160, 160);
-  const chop = clamp((swipe.distY / swipe.swipeTime) * 0.18, -90, 140);
-  return { forward, lift, lateral, curve, chop, normalized };
-}
-
-function screenToTableX(canvas, clientX) {
-  const rect = canvas.getBoundingClientRect();
-  const norm = clamp((clientX - rect.left) / rect.width, 0.02, 0.98) - 0.5;
-  return clamp(norm * TABLE_SPEC.width, -TABLE_SPEC.width / 2 + 0.1, TABLE_SPEC.width / 2 - 0.1);
-}
-
-export default function TableTennis3D({ player, ai }) {
-  const hostRef = useRef(null);
-  const [toast, setToast] = useState('Swipe upwards to serve');
-  const [score, setScore] = useState({ p: 0, o: 0, serving: 'P', over: false, winner: null });
-  const [profileKey] = useState('broadcast');
-  const [touchProfileKey] = useState('precision');
-  const rafRef = useRef(0);
-  const audio = useRef(new AudioDirector());
-  const scoreMgrRef = useRef(null);
-
-  const playerLabel = player?.name || 'You';
-  const aiLabel = ai?.name || 'AI';
-  const difficulty = useMemo(() => {
-    const level = (ai?.difficulty || ai?.level || 'pro').toString().toLowerCase();
-    const presets = {
-      easy: { speed: 3.2, vertical: 2.4, react: 0.12 },
-      medium: { speed: 3.6, vertical: 2.6, react: 0.08 },
-      pro: { speed: 4.1, vertical: 3, react: 0.05 },
-      legend: { speed: 4.6, vertical: 3.4, react: 0.04 },
-    };
-    return presets[level] || presets.pro;
-  }, [ai?.difficulty, ai?.level]);
-
-  useEffect(() => {
-    const host = hostRef.current;
-    if (!host) return undefined;
-    const renderer = makeRenderer(host);
-    host.appendChild(renderer.domElement);
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0b0e14);
-    const cameraProfile = CAMERA_PROFILES[profileKey];
-    const camera = makeCamera(cameraProfile, Math.max(1, host.clientWidth) / Math.max(1, host.clientHeight));
-    const camDirector = new CameraDirector(camera, cameraProfile);
-
-    const lights = createLights(scene, LIGHTING_PRESETS.pro);
-    const clock = new THREE.Clock();
-    createArena(scene);
-    const table = makeTable(MATERIAL_PRESET);
-    scene.add(table);
-
-    const paddleP = makePaddle(MATERIAL_PRESET.paddles.player, true);
-    const paddleO = makePaddle(MATERIAL_PRESET.paddles.opponent, false);
-    scene.add(paddleP, paddleO);
-
-    const ball = makeBall(MATERIAL_PRESET);
-    ball.position.set(0, TABLE_SPEC.height + 0.05, TABLE_SPEC.length / 2 - 0.35);
-    scene.add(ball);
-
-    const trail = new TrailSystem(scene, MATERIAL_PRESET.ball.color, 18);
-
-    const physics = new PhysicsState(ball);
-    const aiCtrl = new AIController(paddleO, difficulty);
-    const touchPreset = TOUCH_PRESETS[touchProfileKey];
-    const touchCtrl = new TouchController(paddleP, touchPreset, (x) => screenToTableX(renderer.domElement, x));
-
-    const scoreMgr = new ScoreManager(playerLabel, aiLabel);
-    scoreMgrRef.current = scoreMgr;
-    setScore({ p: scoreMgr.scoreP, o: scoreMgr.scoreO, serving: scoreMgr.server, over: scoreMgr.gameOver, winner: scoreMgr.winner });
-    setToast(scoreMgr.toast);
-
-    const sounds = audio.current;
-    sounds.buffer('bounce', 420, 0.16, true);
-    sounds.buffer('paddle', 920, 0.14, false);
-
-    const state = {
-      started: false,
-      awaitingServe: true,
-      server: scoreMgr.server,
-      serveTimer: null,
-      queuedSwing: null,
-    };
-
-    const bounds = {
-      minX: -TABLE_SPEC.width / 2 + 0.04,
-      maxX: TABLE_SPEC.width / 2 - 0.04,
-      minZ: -TABLE_SPEC.length / 2 + 0.06,
-      maxZ: TABLE_SPEC.length / 2 - 0.06,
-      floor: 0.02,
-    };
-
-    const physicsProfile = { ...PHYSICS_BASELINE, magnus: 0.00064, airDrag: 0.18 };
-
-    const clampBall = () => {
-      ball.position.x = clamp(ball.position.x, bounds.minX, bounds.maxX);
-      ball.position.z = clamp(ball.position.z, bounds.minZ, bounds.maxZ);
-    };
-
-    const resetBall = () => {
-      state.started = false;
-      physics.velocity.set(0, 0, 0);
-      physics.spin.set(0, 0, 0);
-      state.queuedSwing = null;
-      const serverIsP = scoreMgr.server === 'P';
-      const z = serverIsP ? bounds.maxZ - 0.08 : bounds.minZ + 0.08;
-      ball.position.set(0, TABLE_SPEC.height + 0.04, z);
-      paddleP.position.x = 0;
-      paddleO.position.x = 0;
-      camDirector.update(BASE_STEP, ball.position, physics.velocity);
-      setToast(serverIsP ? 'Swipe to serve' : `${aiLabel} serving`);
-      state.awaitingServe = true;
-      if (!serverIsP) scheduleAiServe();
-    };
-
-    const applyShot = (swipe) => {
-      const towardsOpponent = ball.position.z >= 0;
-      const shot = swipeToShot(swipe, touchPreset, towardsOpponent);
-      physics.velocity.set(shot.lateral, shot.lift, shot.forward * 6.4);
-      physics.spin.set(0, shot.curve, shot.chop);
-      ball.position.set(clamp(paddleP.position.x, bounds.minX, bounds.maxX), TABLE_SPEC.height + 0.12, paddleP.position.z - 0.14);
-      state.started = true;
-      state.awaitingServe = false;
-      setToast('Rally on');
-      sounds.play('paddle', 0.8 + shot.normalized * 0.3, 0.98 + shot.normalized * 0.1);
-    };
-
-    const scheduleAiServe = () => {
-      clearTimeout(state.serveTimer);
-      state.serveTimer = setTimeout(() => {
-        const lateral = (Math.random() - 0.5) * 0.6;
-        physics.velocity.set(lateral, 3.6 + Math.random(), 7 + Math.random() * 2);
-        physics.spin.set(0, (Math.random() - 0.5) * 80, 120 + Math.random() * 40);
-        state.started = true;
-        state.awaitingServe = false;
-        sounds.play('paddle', 0.82, 1.05);
-        setToast('Defend the serve!');
-      }, 600 + Math.random() * 480);
-    };
-
-    const handlePaddleBounce = (paddle, towardOpponent) => {
-      const swing = state.queuedSwing || touchCtrl.metrics(touchCtrl.lastX, touchCtrl.lastY);
-      const shot = swipeToShot(swing, touchPreset, towardOpponent);
-      const aimCorrection = clamp(ball.position.x - paddle.position.x, -0.7, 0.7);
-      physics.velocity.set(
-        shot.lateral + aimCorrection * PHYSICS_BASELINE.paddleAim,
-        shot.lift + PHYSICS_BASELINE.paddleLift,
-        shot.forward * 6.8
-      );
-      physics.spin.set(0, shot.curve, shot.chop + Math.abs(physics.velocity.z) * 2.4);
-      state.started = true;
-      state.awaitingServe = false;
-      state.queuedSwing = null;
-      sounds.play('paddle', 0.86, 1.02 + shot.normalized * 0.08);
-    };
-
-    const awardPoint = (who) => {
-      scoreMgr.point(who);
-      setScore({ p: scoreMgr.scoreP, o: scoreMgr.scoreO, serving: scoreMgr.server, over: scoreMgr.gameOver, winner: scoreMgr.winner });
-      setToast(scoreMgr.toast);
-      if (!scoreMgr.gameOver) {
-        state.server = scoreMgr.server;
-        resetBall();
-      }
-    };
-
-    const processTableCollision = () => {
-      const { height: H, netHeight: NET_H, width: W } = TABLE_SPEC;
-      if (ball.position.y < H && ball.position.y > H - 0.05 && Math.abs(ball.position.x) <= W / 2 + 0.05) {
-        if (ball.position.y < H) {
-          ball.position.y = H + 0.005;
-          physics.velocity.y = -physics.velocity.y * PHYSICS_BASELINE.tableRest;
-          physics.velocity.x *= PHYSICS_BASELINE.tableFriction;
-          physics.velocity.z *= PHYSICS_BASELINE.tableFriction;
-          audio.current.play('bounce', 0.7, 1);
-        }
-      }
-      if (Math.abs(ball.position.z) < 0.05 && ball.position.y < H + NET_H) {
-        physics.velocity.z = -physics.velocity.z * PHYSICS_BASELINE.netRest;
-        physics.velocity.x *= 0.85;
-        sounds.play('bounce', 0.5, 0.8);
-      }
-    };
-
-    const processBounds = () => {
-      if (ball.position.x <= bounds.minX || ball.position.x >= bounds.maxX) {
-        physics.velocity.x = -physics.velocity.x * PHYSICS_BASELINE.wallRest;
-        ball.position.x = clamp(ball.position.x, bounds.minX, bounds.maxX);
-      }
-      if (ball.position.z <= bounds.minZ || ball.position.z >= bounds.maxZ) {
-        physics.velocity.z = -physics.velocity.z * PHYSICS_BASELINE.wallRest;
-        ball.position.z = clamp(ball.position.z, bounds.minZ, bounds.maxZ);
-      }
-      if (ball.position.y < bounds.floor) {
-        ball.position.y = bounds.floor;
-        physics.velocity.y = -physics.velocity.y * 0.35;
-        physics.velocity.multiplyScalar(PHYSICS_BASELINE.floorFriction);
-        if (Math.abs(physics.velocity.y) < 0.4) awardPoint(ball.position.z > 0 ? 'O' : 'P');
-      }
-    };
-
-    const detectPaddleContact = () => {
-      const distP = ball.position.distanceTo(paddleP.position);
-      if (distP < paddleP.userData.radius + 0.04 && ball.position.z > 0) {
-        handlePaddleBounce(paddleP, true);
-      }
-      const distO = ball.position.distanceTo(paddleO.position);
-      if (distO < paddleO.userData.radius + 0.04 && ball.position.z < 0) {
-        handlePaddleBounce(paddleO, false);
-      }
-    };
-
-    const aiLogic = (dt) => {
-      aiCtrl.update(dt, ball, physics.velocity);
-      const approachingAI = physics.velocity.z < 0 && ball.position.z < 0;
-      if (approachingAI && Math.abs(ball.position.z - paddleO.position.z) < 0.24) {
-        handlePaddleBounce(paddleO, false);
-        aiCtrl.reaction = difficulty.react;
-      }
-    };
-
-    const playerAuto = (dt) => {
-      if (!touchCtrl.active) {
-        const target = clamp(ball.position.x * 0.7, bounds.minX, bounds.maxX);
-        paddleP.position.x = damp(paddleP.position.x, target, 4.6, dt);
-      }
-      paddleP.position.y = damp(paddleP.position.y, TABLE_SPEC.height + 0.24, 6, dt);
-    };
-
-    const physicsTick = (dt) => {
-      const steps = Math.min(MAX_SUB_STEPS, Math.max(1, Math.ceil(dt / BASE_STEP)));
-      const stepDt = Math.min(dt / steps, BASE_STEP);
-      for (let i = 0; i < steps; i += 1) {
-        physics.step(stepDt, physicsProfile);
-        processTableCollision();
-        processBounds();
-        detectPaddleContact();
-        aiLogic(stepDt);
-        playerAuto(stepDt);
-      }
-      clampBall();
-      trail.update(ball.position, physics.velocity, dt);
-      camDirector.update(dt, ball.position, physics.velocity);
-    };
-
-    const animate = () => {
-      const dt = Math.min(0.05, clock.getDelta() || BASE_STEP);
-      physicsTick(dt);
-      renderer.render(scene, camera);
-      rafRef.current = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    const onResize = () => {
-      const w = Math.max(1, host.clientWidth);
-      const h = Math.max(1, host.clientHeight);
-      renderer.setSize(w, h);
-      camera.aspect = w / h;
-      camera.updateProjectionMatrix();
-    };
-
-    window.addEventListener('resize', onResize);
-
-    const handlePointerDown = (e) => {
-      const t = e.touches ? e.touches[0] : e;
-      touchCtrl.begin(t.clientX, t.clientY);
-      audio.current.ensure()?.resume?.();
-    };
-    const handlePointerMove = (e) => {
-      const t = e.touches ? e.touches[0] : e;
-      if (!t) return;
-      touchCtrl.track(t.clientX, t.clientY, (x) => screenToTableX(renderer.domElement, x));
-    };
-    const handlePointerUp = (e) => {
-      const t = e.changedTouches ? e.changedTouches[0] : e;
-      if (!touchCtrl.active) return;
-      const swipe = touchCtrl.finish(t.clientX, t.clientY);
-      if (swipe.distY < 28) return;
-      if (state.awaitingServe || !state.started) {
-        applyShot(swipe);
-      } else {
-        state.queuedSwing = swipe;
-      }
-    };
-
-    renderer.domElement.addEventListener('pointerdown', handlePointerDown);
-    renderer.domElement.addEventListener('pointermove', handlePointerMove);
-    renderer.domElement.addEventListener('pointerup', handlePointerUp);
-    renderer.domElement.addEventListener('touchstart', handlePointerDown, { passive: true });
-    renderer.domElement.addEventListener('touchmove', handlePointerMove, { passive: true });
-    renderer.domElement.addEventListener('touchend', handlePointerUp, { passive: true });
-
-    resetBall();
-
-    return () => {
-      cancelAnimationFrame(rafRef.current);
-      window.removeEventListener('resize', onResize);
-      renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
-      renderer.domElement.removeEventListener('pointermove', handlePointerMove);
-      renderer.domElement.removeEventListener('pointerup', handlePointerUp);
-      renderer.domElement.removeEventListener('touchstart', handlePointerDown);
-      renderer.domElement.removeEventListener('touchmove', handlePointerMove);
-      renderer.domElement.removeEventListener('touchend', handlePointerUp);
-      clearTimeout(state.serveTimer);
-      host.removeChild(renderer.domElement);
-      renderer.dispose();
-      trail.dispose(scene);
-      [table, ball, paddleP, paddleO].forEach((m) => m?.geometry?.dispose?.());
-      [table, ball, paddleP, paddleO].forEach((m) => m?.material?.dispose?.());
-      lights.spots.forEach((s) => s.dispose?.());
-    };
-  }, [aiLabel, difficulty, playerLabel, profileKey, touchProfileKey]);
-
-  return (
-    <div className="relative w-full h-[100dvh] bg-[#05070d] overflow-hidden select-none">
-      <div ref={hostRef} className="w-full h-full" />
-      <div className="pointer-events-none absolute inset-0 flex items-start justify-center pt-3">
-        <div
-          className="rounded-2xl px-4 py-2 text-white shadow-lg"
-          style={{
-            background: 'rgba(7,10,18,0.8)',
-            border: '1px solid #13203a',
-            fontFamily: "'Luckiest Guy','Comic Sans MS',cursive",
-            letterSpacing: 0.2,
-            textShadow: '0 2px 8px rgba(0,0,0,0.45)',
-          }}
-        >
-          Table Tennis Pro
-        </div>
-      </div>
-      <div className="pointer-events-none absolute top-3 right-3 flex items-center gap-2 text-xs text-white/80">
-        <div className="rounded-full bg-white/10 px-3 py-1 border border-white/15">Serve: {score.serving === 'P' ? 'You' : aiLabel}</div>
-        <div className="rounded-full bg-white/10 px-3 py-1 border border-white/15">{playerLabel} {score.p} : {score.o} {aiLabel}</div>
-      </div>
-      {toast && (
-        <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-8">
-          <div
-            className="rounded-xl px-4 py-3 text-white text-center max-w-[320px]"
-            style={{
-              background: 'rgba(5,7,13,0.8)',
-              border: '1px solid #1a253b',
-              fontFamily: "'Luckiest Guy','Comic Sans MS',cursive",
-              textShadow: '-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000',
-            }}
-          >
-            {score.over ? `${score.winner} wins the game!` : toast}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
