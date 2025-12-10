@@ -175,6 +175,7 @@ const CARD_SCALE = 0.95;
 const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
+const PIECE_SCALE_FACTOR = 0.8;
 const BOARD_GROUP_Y_OFFSET = -0.01;
 const BOARD_MODEL_Y_OFFSET = -0.04;
 
@@ -6413,6 +6414,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const proto = build(p);
           if (!proto) continue;
           const clone = cloneWithShadows(proto);
+          clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
           clone.position.set(
             c * tile - half + tile / 2,
             yOffset,
