@@ -177,6 +177,7 @@ const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const BOARD_GROUP_Y_OFFSET = -0.01;
 const BOARD_MODEL_Y_OFFSET = -0.04;
+const BOARD_MODEL_SCALE_BIAS = 1.12;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.063;
@@ -1611,7 +1612,7 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
   const box = new THREE.Box3().setFromObject(boardModel);
   const size = box.getSize(new THREE.Vector3());
   const largest = Math.max(size.x || 0.001, size.z || 0.001);
-  const scale = safeTarget / largest;
+  const scale = (safeTarget * BOARD_MODEL_SCALE_BIAS) / largest;
   if (Number.isFinite(scale) && scale > 0) {
     boardModel.scale.multiplyScalar(scale);
   }
