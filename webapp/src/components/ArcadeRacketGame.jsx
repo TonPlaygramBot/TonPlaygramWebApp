@@ -144,9 +144,9 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
     const FLOOR_FRICTION = 0.935;
     const NET_THICKNESS = mode === 'tabletennis' ? 0.012 : 0.1;
 
-    const MIN_SWIPE_SPEED = mode === 'tabletennis' ? 85 : 220;
-    const MAX_SWIPE_SPEED = mode === 'tabletennis' ? 650 : 1400;
-    const BASE_POWER = mode === 'tabletennis' ? 7.8 : 12;
+    const MIN_SWIPE_SPEED = mode === 'tabletennis' ? 110 : 220;
+    const MAX_SWIPE_SPEED = mode === 'tabletennis' ? 900 : 1400;
+    const BASE_POWER = mode === 'tabletennis' ? 9.6 : 12;
 
     let started = false;
     let queuedSwing = null;
@@ -272,12 +272,12 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const lateralScale = config.courtW / BASE_CONFIG.courtW;
       const forwardScale = config.courtL / BASE_CONFIG.courtL;
 
-      const forwardMin = mode === 'tabletennis' ? 2.6 : 4.8;
-      const forwardMax = mode === 'tabletennis' ? 7.8 : 14.2;
-      const liftMin = mode === 'tabletennis' ? 2.2 : 3.2;
-      const liftMax = mode === 'tabletennis' ? 6.2 : 9.4;
-      const lateralClampBase = mode === 'tabletennis' ? 0.9 : 1.6;
-      const lateralScaleFactor = mode === 'tabletennis' ? 0.14 : 0.22;
+      const forwardMin = mode === 'tabletennis' ? 3.6 : 4.8;
+      const forwardMax = mode === 'tabletennis' ? 10.6 : 14.2;
+      const liftMin = mode === 'tabletennis' ? 2.6 : 3.2;
+      const liftMax = mode === 'tabletennis' ? 7.6 : 9.4;
+      const lateralClampBase = mode === 'tabletennis' ? 1.2 : 1.6;
+      const lateralScaleFactor = mode === 'tabletennis' ? 0.18 : 0.22;
 
       const swipeT = Math.max(swipeTime, 0.08);
       const speed = Math.hypot(distX, distY) / swipeT;
@@ -318,25 +318,15 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
         const forwardScale = config.courtL / BASE_CONFIG.courtL;
         const cornerBias = Math.random() > 0.5 ? 1 : -1;
         const targetX = clampX((cornerBias * 0.45 + (Math.random() - 0.5) * 0.25) * halfW);
-        const servePower = (mode === 'tabletennis' ? 10 : 14) + Math.random() * (mode === 'tabletennis' ? 4 : 6);
+        const servePower = 14 + Math.random() * 6;
         const powerScale = servePower / BASE_POWER;
         const forward = THREE.MathUtils.clamp(
-          THREE.MathUtils.mapLinear(
-            servePower,
-            mode === 'tabletennis' ? 8 : 10,
-            mode === 'tabletennis' ? 16 : 22,
-            (mode === 'tabletennis' ? 4.2 : 6.4) * forwardScale,
-            (mode === 'tabletennis' ? 9.2 : 13.6) * forwardScale
-          ),
-          (mode === 'tabletennis' ? 3.8 : 6) * forwardScale,
-          (mode === 'tabletennis' ? 9.2 : 13.6) * forwardScale
+          THREE.MathUtils.mapLinear(servePower, 10, 22, 6.4 * forwardScale, 13.6 * forwardScale),
+          6 * forwardScale,
+          13.6 * forwardScale
         );
-        const lateral = THREE.MathUtils.clamp(
-          (targetX - ball.position.x) * (mode === 'tabletennis' ? 0.9 : 1.05),
-          -2.1 * lateralScale,
-          2.1 * lateralScale
-        );
-        const lift = THREE.MathUtils.clamp(3.1 + powerScale * (mode === 'tabletennis' ? 0.95 : 1.35), 2.9, 7.4);
+        const lateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.05, -2.6 * lateralScale, 2.6 * lateralScale);
+        const lift = THREE.MathUtils.clamp(3.6 + powerScale * 1.35, 3.4, 8.2);
         ball.position.x = targetX * 0.35;
         velocity.set(lateral, lift, forward);
         started = true;
@@ -496,27 +486,15 @@ export default function ArcadeRacketGame({ mode = 'tennis', title, stakeLabel, t
       const predictedX = clampX(ball.position.x + velocity.x * travel * 0.9);
       enemy.position.x += (predictedX - enemy.position.x) * blend(0.2, dt);
 
-      const hitWindow = Math.max(halfW * (mode === 'tabletennis' ? 0.1 : 0.08), config.ballRadius * 8);
+      const hitWindow = Math.max(halfW * 0.08, config.ballRadius * 8);
       const approachingEnemy = velocity.z < 0 && ball.position.z < enemy.position.z + hitWindow;
       if (approachingEnemy && ball.position.distanceTo(enemy.position) < hitWindow) {
         const targetX = clampX(player.position.x + (Math.random() - 0.5) * halfW * 0.28);
-        const aiPower = THREE.MathUtils.clamp(
-          10.2 + Math.abs(velocity.z) * (mode === 'tabletennis' ? 0.32 : 0.42),
-          mode === 'tabletennis' ? 8 : 10,
-          mode === 'tabletennis' ? 16 : 22
-        );
+        const aiPower = THREE.MathUtils.clamp(11.5 + Math.abs(velocity.z) * 0.42, 10, 22);
         const powerScale = aiPower / BASE_POWER;
         const aimForward = THREE.MathUtils.clamp((Math.abs(velocity.z) + 4) * powerScale, 6 * (config.courtL / BASE_CONFIG.courtL), 13.2 * (config.courtL / BASE_CONFIG.courtL));
-        const aimLateral = THREE.MathUtils.clamp(
-          (targetX - ball.position.x) * (mode === 'tabletennis' ? 0.9 : 1.05),
-          -2.4,
-          2.4
-        );
-        const lift = THREE.MathUtils.clamp(
-          3.3 + powerScale * (mode === 'tabletennis' ? 0.9 : 1.25) + Math.random() * 0.9,
-          3.0,
-          mode === 'tabletennis' ? 7.6 : 9.2
-        );
+        const aimLateral = THREE.MathUtils.clamp((targetX - ball.position.x) * 1.05, -2.8, 2.8);
+        const lift = THREE.MathUtils.clamp(3.6 + powerScale * 1.25 + Math.random() * 1.1, 3.2, 9.2);
         velocity.set(aimLateral, lift, Math.abs(aimForward));
         if (mode === 'tabletennis') {
           const sideSpin = THREE.MathUtils.clamp((Math.random() - 0.5) * 160, -160, 160);
