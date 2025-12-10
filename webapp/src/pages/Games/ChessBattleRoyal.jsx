@@ -753,8 +753,6 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
   }
 ]);
 
-const DARK_FOREST_HEX = 0x065f46;
-
 const QUICK_SIDE_COLORS = [
   0xffffff,
   0x111827,
@@ -767,27 +765,6 @@ const QUICK_SIDE_COLORS = [
   0x22c55e,
   0xf43f5e
 ];
-
-const QUICK_SIDE_COLOR_LABELS = [
-  'White',
-  'Onyx',
-  'Amber',
-  'Emerald',
-  'Blue',
-  'Crimson',
-  'Violet',
-  'Cyan',
-  'Jade',
-  'Rose'
-];
-
-const resolveP1QuickColor = (idx = 0) => QUICK_SIDE_COLORS[idx % QUICK_SIDE_COLORS.length];
-const resolveP2QuickColor = (idx = 0) =>
-  idx === 0 ? DARK_FOREST_HEX : QUICK_SIDE_COLORS[idx % QUICK_SIDE_COLORS.length];
-const getQuickColorLabel = (idx = 0, side = 'p1') => {
-  if (side === 'p2' && idx === 0) return 'Dark Forest';
-  return QUICK_SIDE_COLOR_LABELS[idx] || `Color ${idx + 1}`;
-};
 
 const QUICK_HEAD_PRESETS = [
   { id: 'current', label: 'Current' },
@@ -3494,12 +3471,6 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
-    return await resolveBeautifulGameBoardStrict(targetBoardSize);
-  } catch (error) {
-    console.warn('Chess Battle Royal: GLTF board load failed, trying swap set', error);
-  }
-
-  try {
     return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
     console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
@@ -4921,7 +4892,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     return getAIOpponentFlag(baseFlag);
   });
   const [p1QuickIdx, setP1QuickIdx] = useState(0);
-  const [p2QuickIdx, setP2QuickIdx] = useState(0);
+  const [p2QuickIdx, setP2QuickIdx] = useState(1);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
@@ -5239,14 +5210,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    const color = resolveP1QuickColor(p1QuickIdx);
-    if (apply) apply('white', color);
+    if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]);
   }, [p1QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    const color = resolveP2QuickColor(p2QuickIdx);
-    if (apply) apply('black', color);
+    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]);
   }, [p2QuickIdx]);
 
   useEffect(() => {
@@ -7298,10 +7267,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P1</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => {
-                          const colorHex = resolveP1QuickColor(idx);
-                          const label = getQuickColorLabel(idx, 'p1');
-                          return (
+                        {QUICK_SIDE_COLORS.map((color, idx) => (
                           <button
                             key={`p1-${color}-${idx}`}
                             type="button"
@@ -7311,21 +7277,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                 ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
                                 : 'border-white/20 hover:border-white/40'
                             }`}
-                            style={{ backgroundColor: `#${colorHex.toString(16).padStart(6, '0')}` }}
-                            title={label}
-                            aria-label={`Set player one color ${label}`}
+                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
+                            aria-label={`Set player one color ${idx + 1}`}
                           />
-                        );
-                        })}
+                        ))}
                       </div>
                     </div>
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P2</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => {
-                          const colorHex = resolveP2QuickColor(idx);
-                          const label = getQuickColorLabel(idx, 'p2');
-                          return (
+                        {QUICK_SIDE_COLORS.map((color, idx) => (
                           <button
                             key={`p2-${color}-${idx}`}
                             type="button"
@@ -7335,12 +7296,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                 ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
                                 : 'border-white/20 hover:border-white/40'
                             }`}
-                            style={{ backgroundColor: `#${colorHex.toString(16).padStart(6, '0')}` }}
-                            title={label}
-                            aria-label={`Set player two color ${label}`}
+                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
+                            aria-label={`Set player two color ${idx + 1}`}
                           />
-                        );
-                        })}
+                        ))}
                       </div>
                     </div>
                     <div>
