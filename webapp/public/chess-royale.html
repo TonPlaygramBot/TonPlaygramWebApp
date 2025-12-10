@@ -198,6 +198,7 @@ const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
+const BOARD_GROWTH=1.06;
 
 const files='abcdefgh';
 function rcToSq(r,c){ return files[c]+(8-r); }
@@ -296,6 +297,8 @@ function onModel(gltf){
   modelRoot=gltf.scene; modelRoot.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
   const bb0=new THREE.Box3().setFromObject(modelRoot); const ctr0=new THREE.Vector3(); bb0.getCenter(ctr0); const size0=new THREE.Vector3(); bb0.getSize(size0);
   const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=.02; scene.add(modelRoot);
+  const boards=[]; modelRoot.traverse(node=>{ const n=(node.name||'').toLowerCase(); if(/board|chessboard/.test(n)) boards.push(node); });
+  boards.forEach(node=>{ node.scale.x*=BOARD_GROWTH; node.scale.z*=BOARD_GROWTH; });
   const bb2=new THREE.Box3().setFromObject(modelRoot); boardY=(bb2.min.y+bb2.max.y)/2;
   const pool={w:{p:[],r:[],n:[],b:[],q:[],k:[]}, b:{p:[],r:[],n:[],b:[],q:[],k:[]}}; const whiteRooks=[], blackRooks=[]; const seen=new Set();
   modelRoot.traverse(node=>{ const t=pieceTypeFromName(node.name); if(!t) return; const c=colorFromNameOrAnc(node); if(!c) return; const root=ascendWhile(node,p=>pieceTypeFromName(p.name)===t); if(seen.has(root)) return; seen.add(root); pool[c][t].push(root); if(t==='r'){ if(c==='w') whiteRooks.push(root); else blackRooks.push(root);} if(!proto[c][t]) proto[c][t]=root; });
