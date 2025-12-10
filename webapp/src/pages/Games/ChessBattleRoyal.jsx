@@ -1604,6 +1604,36 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
   });
 }
 
+function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZE) {
+  if (!boardModel) return { span: 0, top: 0 };
+
+  const safeTarget = Math.max(targetSize || RAW_BOARD_SIZE, 0.001);
+  const box = new THREE.Box3().setFromObject(boardModel);
+  const size = box.getSize(new THREE.Vector3());
+  const largest = Math.max(size.x || 0.001, size.z || 0.001);
+  const scale = safeTarget / largest;
+  if (Number.isFinite(scale) && scale > 0) {
+    boardModel.scale.multiplyScalar(scale);
+  }
+
+  const scaledBox = new THREE.Box3().setFromObject(boardModel);
+  const center = scaledBox.getCenter(new THREE.Vector3());
+  boardModel.position.set(
+    -center.x,
+    -scaledBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET),
+    -center.z
+  );
+
+  const normalizedBox = new THREE.Box3().setFromObject(boardModel);
+  const span = Math.max(
+    normalizedBox.max.x - normalizedBox.min.x,
+    normalizedBox.max.z - normalizedBox.min.z
+  );
+  const top = normalizedBox.max.y;
+
+  return { span, top };
+}
+
 function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = DEFAULT_PIECE_STYLE) {
   const white = whiteStyle.white ?? DEFAULT_PIECE_STYLE.white;
   const black = blackStyle.black ?? DEFAULT_PIECE_STYLE.black;
@@ -6426,6 +6456,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (boardModel) {
         boardModel.visible = true;
+        const { top: boardTop } = normalizeBoardModelToDisplaySize(boardModel, RAW_BOARD_SIZE);
+        const preferredYOffset = Math.max(
+          boardTop + PIECE_PLACEMENT_Y_OFFSET,
+          currentPieceYOffset
+        );
+        currentPieceYOffset = preferredYOffset;
         boardGroup.add(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
@@ -7116,7 +7152,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             </button>
           </div>
           {configOpen && (
-            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
