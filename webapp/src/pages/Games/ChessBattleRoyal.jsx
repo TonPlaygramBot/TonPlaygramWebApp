@@ -174,7 +174,6 @@ const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
-const PIECE_SCALE_FACTOR = 0.8; // shrink pieces by 20%
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const BOARD_GROUP_Y_OFFSET = -0.01;
 const BOARD_MODEL_Y_OFFSET = -0.04;
@@ -358,8 +357,6 @@ const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze(
     })
   )
 );
-
-const BOARD_COLOR_OPTIONS = BEAUTIFUL_GAME_BOARD_OPTIONS.slice(0, 5);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -867,10 +864,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS },
-  { key: 'boardColor', label: 'Board Colors', options: BOARD_COLOR_OPTIONS },
-  { key: 'whitePieceStyle', label: 'P1 Pieces', options: PIECE_STYLE_OPTIONS },
-  { key: 'blackPieceStyle', label: 'P2 Pieces', options: PIECE_STYLE_OPTIONS }
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
 ];
 
 function normalizeAppearance(value = {}) {
@@ -883,10 +877,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['boardColor', BOARD_COLOR_OPTIONS.length],
-    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -895,6 +886,9 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
+  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
   normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
@@ -1618,7 +1612,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const blackPieceOption =
     PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
-  const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+  const boardOption = BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
   const headOption = HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
   return {
@@ -4884,9 +4878,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       </span>
     );
     if (key === 'whitePieceStyle' || key === 'blackPieceStyle') {
-      const whiteColor = option.style?.white?.color || option.color || '#f5f5f7';
-      const blackColor = option.style?.black?.color || option.color || '#111827';
-      return dualSwatch(whiteColor, blackColor);
+      return dualSwatch(option.white?.color || '#f5f5f7', option.black?.color || '#111827');
     }
     if (key === 'headStyle') {
       const color = option.preset?.color || '#ffffff';
@@ -5173,14 +5165,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader = async (size) => {
-      try {
-        return await resolveBeautifulGameTouchAssets(size);
-      } catch (error) {
-        console.warn('Chess Battle Royal: touch set failed, falling back to swap assets', error);
-        return resolveBeautifulGameAssets(size);
-      }
-    };
+    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
@@ -5388,14 +5373,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-    const pieceSetLoader = async (size) => {
-      try {
-        return await resolveBeautifulGameTouchAssets(size);
-      } catch (error) {
-        console.warn('Chess Battle Royal: touch set failed, falling back to swap assets', error);
-        return resolveBeautifulGameAssets(size);
-      }
-    };
+    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
     const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
     const initialPlayerFlag =
       playerFlag ||
@@ -6090,12 +6068,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const proto = build(p);
           if (!proto) continue;
           const clone = cloneWithShadows(proto);
-          clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
-          const cloneBox = new THREE.Box3().setFromObject(clone);
-          const groundedOffset = Number.isFinite(cloneBox.min.y) ? yOffset - cloneBox.min.y : yOffset;
           clone.position.set(
             c * tile - half + tile / 2,
-            groundedOffset,
+            yOffset,
             r * tile - half + tile / 2
           );
           clone.userData = {
@@ -6342,10 +6317,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         return;
       }
       startTimer(nextWhite);
-      if (!nextWhite) {
-        const delayMs = 3000 + Math.random() * 3000;
-        setTimeout(aiMove, delayMs);
-      }
+      if (!nextWhite) setTimeout(aiMove, 200);
     }
 
     const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
