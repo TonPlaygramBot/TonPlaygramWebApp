@@ -18,7 +18,7 @@ import {
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { SnookerClubRules as PoolRoyaleRules } from '../../../../src/rules/SnookerClubRules.ts';
+import { SnookerClubRules as PoolRoyaleRules } from '../../../../src/rules/SnookerClubRules.js';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
