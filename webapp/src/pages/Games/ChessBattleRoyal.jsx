@@ -314,6 +314,8 @@ const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   }
 ]);
 
+const BEAUTIFUL_GAME_THEME_NAMES = BEAUTIFUL_GAME_THEME_CONFIGS.map((config) => config.name);
+
 const BEAUTIFUL_GAME_THEME = Object.freeze(
   buildBoardTheme({
     ...(BOARD_COLOR_BASE_OPTIONS.find((option) => option.id === 'slateJade') ?? {}),
@@ -334,22 +336,27 @@ const BEAUTIFUL_GAME_THEME = Object.freeze(
   })
 );
 
-const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze([
-  buildBoardTheme({ id: 'classicBoard', label: 'Classic', light: '#EEE8D5', dark: '#2B2F36' }),
-  buildBoardTheme({ id: 'ivorySlateBoard', label: 'Ivory/Slate', light: '#E5E7EB', dark: '#111827' }),
-  buildBoardTheme({ id: 'forestBoard', label: 'Forest', light: '#A7F3D0', dark: '#065F46' }),
-  buildBoardTheme({ id: 'sandBrownBoard', label: 'Sand/Brown', light: '#DDD0B8', dark: '#6B4F3A' }),
-  buildBoardTheme({ id: 'oceanBoard', label: 'Ocean', light: '#A4C8E1', dark: '#1E3A5F' }),
-  buildBoardTheme({ id: 'violetBoard', label: 'Violet', light: '#DDD6FE', dark: '#3B2A6E' }),
-  buildBoardTheme({
-    id: 'chromeBoard',
-    label: 'Chrome',
-    light: '#B0B0B0',
-    dark: '#6E6E6E',
-    surfaceMetalness: 0.15,
-    frameMetalness: 0.22
-  })
-]);
+const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze(
+  BEAUTIFUL_GAME_THEME_CONFIGS.map((config) =>
+    buildBoardTheme({
+      // Board palettes lifted directly from the ABeautifulGame presets (no extra colors)
+      id: `${config.id}Board`,
+      label: config.name,
+      light: config.board?.light ?? BEAUTIFUL_GAME_THEME.light,
+      dark: config.board?.dark ?? BEAUTIFUL_GAME_THEME.dark,
+      frameLight: BEAUTIFUL_GAME_THEME.frameLight,
+      frameDark: BEAUTIFUL_GAME_THEME.frameDark,
+      surfaceRoughness: BEAUTIFUL_GAME_THEME.surfaceRoughness,
+      surfaceMetalness: BEAUTIFUL_GAME_THEME.surfaceMetalness,
+      frameRoughness: BEAUTIFUL_GAME_THEME.frameRoughness,
+      frameMetalness: BEAUTIFUL_GAME_THEME.frameMetalness,
+      accent: BEAUTIFUL_GAME_THEME.accent,
+      highlight: BEAUTIFUL_GAME_THEME.highlight,
+      capture: BEAUTIFUL_GAME_THEME.capture,
+      preserveOriginalMaterials: Boolean(config.board?.preserveOriginal)
+    })
+  )
+);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -640,30 +647,23 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
   blackAccent: '#50b8d8'
 });
 
-const PIECE_COLOR_SWATCHES = [
-  '#ffffff',
-  '#111827',
-  '#f59e0b',
-  '#10b981',
-  '#3b82f6',
-  '#ef4444',
-  '#8b5cf6',
-  '#06b6d4',
-  '#22c55e',
-  '#f43f5e'
-];
-
 const PIECE_STYLE_OPTIONS = Object.freeze(
-  PIECE_COLOR_SWATCHES.map((color, index) => ({
-    id: `beautifulGameColor${index}`,
-    label: `Color ${index + 1}`,
-    color,
+  [
+    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
+    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
+    { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
+    { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
+    { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
+    { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
+    { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
+  ].map((preset) => ({
+    ...preset,
     style: {
       ...BASE_PIECE_STYLE,
       preserveOriginalMaterials: false,
       keepTextures: true,
-      white: { ...BASE_PIECE_STYLE.white, color },
-      black: { ...BASE_PIECE_STYLE.black, color },
+      white: { ...BASE_PIECE_STYLE.white, color: preset.color },
+      black: { ...BASE_PIECE_STYLE.black, color: preset.color },
       accent: BASE_PIECE_STYLE.accent,
       goldAccent: BASE_PIECE_STYLE.goldAccent,
       whiteAccent: BASE_PIECE_STYLE.whiteAccent,
@@ -679,16 +679,77 @@ const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
 );
 
 const HEAD_PRESET_OPTIONS = Object.freeze([
-  { id: 'headCurrent', label: 'Current', preset: null },
+  {
+    id: 'headGlass',
+    label: 'Glass',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.05,
+      transmission: 0.95,
+      ior: 1.5,
+      thickness: 0.5
+    }
+  },
   {
     id: 'headRuby',
     label: 'Ruby',
-    preset: { color: '#9b111e', metalness: 0.05, roughness: 0.08, transmission: 0.92, ior: 2.4, thickness: 0.6 }
+    preset: {
+      color: '#9b111e',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.92,
+      ior: 2.4,
+      thickness: 0.6
+    }
+  },
+  {
+    id: 'headPearl',
+    label: 'Pearl',
+    preset: {
+      color: '#f5f5f5',
+      metalness: 0.05,
+      roughness: 0.25,
+      transmission: 0,
+      ior: 1.3,
+      thickness: 0.2
+    }
   },
   {
     id: 'headSapphire',
     label: 'Sapphire',
-    preset: { color: '#0f52ba', metalness: 0.05, roughness: 0.08, transmission: 0.9, ior: 1.8, thickness: 0.7 }
+    preset: {
+      color: '#0f52ba',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headEmerald',
+    label: 'Emerald',
+    preset: {
+      color: '#046a38',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headDiamond',
+    label: 'Diamond',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.03,
+      transmission: 0.98,
+      ior: 2.4,
+      thickness: 0.8
+    }
   }
 ]);
 
@@ -816,11 +877,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['boardColor', BEAUTIFUL_GAME_BOARD_OPTIONS.length],
-    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['headStyle', HEAD_PRESET_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -829,6 +886,10 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
+  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
+  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -6852,108 +6913,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                             );
                           })}
                         </div>
-                        </div>
-                      )}
-                  </div>
-                </div>
-                <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Pieces & Board</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">Match Battle Royal colors for both players.</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div>
-                      <p className="text-[0.65rem] font-semibold text-gray-100">Pieces P1</p>
-                      <div className="mt-1 flex gap-2 overflow-x-auto pb-1">
-                        {PIECE_COLOR_SWATCHES.map((color, idx) => (
-                          <button
-                            key={`p1-${color}`}
-                            type="button"
-                            onClick={() =>
-                              setAppearance((prev) => normalizeAppearance({ ...prev, whitePieceStyle: idx }))
-                            }
-                            className={`h-8 w-8 rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              appearance.whitePieceStyle === idx
-                                ? 'border-white shadow-[0_0_0_2px_rgba(255,255,255,0.3)]'
-                                : 'border-white/20'
-                            }`}
-                            style={{ background: color }}
-                            aria-label={`P1 color ${idx + 1}`}
-                          />
-                        ))}
                       </div>
-                    </div>
-                    <div>
-                      <p className="text-[0.65rem] font-semibold text-gray-100">Pieces P2</p>
-                      <div className="mt-1 flex gap-2 overflow-x-auto pb-1">
-                        {PIECE_COLOR_SWATCHES.map((color, idx) => (
-                          <button
-                            key={`p2-${color}`}
-                            type="button"
-                            onClick={() =>
-                              setAppearance((prev) => normalizeAppearance({ ...prev, blackPieceStyle: idx }))
-                            }
-                            className={`h-8 w-8 rounded-lg border transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              appearance.blackPieceStyle === idx
-                                ? 'border-white shadow-[0_0_0_2px_rgba(255,255,255,0.3)]'
-                                : 'border-white/20'
-                            }`}
-                            style={{ background: color }}
-                            aria-label={`P2 color ${idx + 1}`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[0.65rem] font-semibold text-gray-100">Pawn Heads</p>
-                      <div className="mt-1 flex gap-2 overflow-x-auto pb-1">
-                        {HEAD_PRESET_OPTIONS.map((option, idx) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() =>
-                              setAppearance((prev) => normalizeAppearance({ ...prev, headStyle: idx }))
-                            }
-                            className={`flex h-8 items-center justify-center rounded-full border px-3 text-[0.65rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              appearance.headStyle === idx
-                                ? 'border-white bg-white/20 text-white'
-                                : 'border-white/20 bg-black/40 text-white/80'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-[0.65rem] font-semibold text-gray-100">Board</p>
-                      <div className="mt-1 flex gap-2 overflow-x-auto pb-1">
-                        {BEAUTIFUL_GAME_BOARD_OPTIONS.map((option, idx) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() =>
-                              setAppearance((prev) => normalizeAppearance({ ...prev, boardColor: idx }))
-                            }
-                            className={`h-10 w-10 rounded-lg border text-[0.65rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              appearance.boardColor === idx
-                                ? 'border-white shadow-[0_0_0_2px_rgba(255,255,255,0.3)]'
-                                : 'border-white/20'
-                            }`}
-                            style={{
-                              background:
-                                option.label === 'Chrome'
-                                  ? '#b0b0b0'
-                                  : `linear-gradient(135deg, ${option.light} 50%, ${option.dark} 50%)`
-                            }}
-                            aria-label={`Board ${option.label}`}
-                            title={option.label}
-                          />
-                        ))}
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               </div>
