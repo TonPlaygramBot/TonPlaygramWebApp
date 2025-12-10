@@ -3,6 +3,15 @@ import * as THREE from "three";
 import { createArenaCarpetMaterial, createArenaWallMaterial } from "../utils/arenaDecor.js";
 import { applySRGBColorSpace } from "../utils/colorSpace.js";
 
+// Physics constants aligned to the reference touch/ball behaviour
+const GRAVITY = -9.81;
+const AIR_DRAG_K = 0.15;
+const MAGNUS_K = 0.0007;
+const TABLE_RESTITUTION = 0.9;
+const TABLE_TANGENTIAL_DAMP = 0.88;
+const NET_THICKNESS = 0.012;
+const WORLD_Y_FLOOR = -0.1;
+
 const GAME_VARIANTS = [
   {
     id: "pro-arena",
@@ -1226,27 +1235,23 @@ export default function TableTennis3D({ player, ai }){
     }
 
     function onDown(e) {
-      if (usingTouch && e.pointerType === 'touch') return;
-      resumeAudio();
       touching = true;
       const { point } = getWorldPoint(e.clientX, e.clientY);
-      playerTarget.x = point.x;
-      playerTarget.z = point.z;
       swipeStart.pos.copy(point);
       swipeStart.t = performance.now();
       lx = e.clientX;
       ly = e.clientY;
-      player.userData.swing = -0.35;
-      player.userData.swingLR = 0;
     }
     function onMove(e) {
       if (!touching) return;
       if (usingTouch && e.pointerType === 'touch') return;
       lx = e.clientX;
       ly = e.clientY;
-      const { point } = getWorldPoint(e.clientX, e.clientY);
-      playerTarget.x += (point.x - playerTarget.x) * targetLerpX;
-      playerTarget.z += (point.z - playerTarget.z) * targetLerpZ;
+      const hit = getWorldPoint(e.clientX, e.clientY).point;
+      const x = THREE.MathUtils.clamp(hit.x, -T.W / 2 + HEAD_RADIUS_WORLD, T.W / 2 - HEAD_RADIUS_WORLD);
+      const z = THREE.MathUtils.clamp(hit.z, 0.06, T.L / 2 - 0.06);
+      player.position.set(x, T.H + 0.13, z);
+      playerTarget.set(x, player.position.y, z);
     }
     function onUp(evt, { fromTouch = false } = {}) {
       if (!touching) return;
@@ -1254,7 +1259,7 @@ export default function TableTennis3D({ player, ai }){
       touching = false;
       const endX = evt?.clientX ?? lx;
       const endY = evt?.clientY ?? ly;
-      const { point: endPoint, rect } = getWorldPoint(endX, endY);
+      const { point: endPoint } = getWorldPoint(endX, endY);
       const dist = endPoint.clone().sub(swipeStart.pos);
       const duration = Math.max((performance.now() - (swipeStart.t || performance.now())) / 1000, 0.05);
       if (Sx.state === 'serve' && Srv.side === 'P' && !Sx.pendingFault) {
@@ -1266,16 +1271,6 @@ export default function TableTennis3D({ player, ai }){
         Sx.serveProgress = 'awaitServerBounce';
         Sx.lastTouch = 'P';
         return;
-      }
-      const distX = dist.x;
-      const distY = -dist.z;
-      if (distY < 0.02) return;
-      const onPlayerSide = ball.position.z > 0 && Math.abs(ball.position.z - (playerBaseZ - 0.2)) < 1.6;
-      if (onPlayerSide && ball.position.y <= 2.2) {
-        const shot = swipeToShot(distX * 320, distY * 320, duration, true, rect);
-        playerSwing = shotToSwing(shot);
-        player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
-        player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
       }
     }
 
@@ -1941,37 +1936,64 @@ export default function TableTennis3D({ player, ai }){
       }
     };
 
+    function performPaddleHits(){
+      const tryHit = (paddle, side) => {
+        const hr = HEAD_RADIUS_WORLD + BALL_R;
+        const d = ball.position.distanceTo(paddle.position);
+        if (d >= hr + 0.02) return;
+        const user = paddle.userData || {};
+        const now = performance.now();
+        const last = user._lastPos || paddle.position.clone();
+        const lastT = user._lastT || now;
+        const dtMs = Math.max(1, now - lastT);
+        const swipeV = paddle.position.clone().sub(last).multiplyScalar(1000 / dtMs);
+        user._lastPos = paddle.position.clone();
+        user._lastT = now;
+        const dir = ball.position.clone().sub(paddle.position).normalize();
+        const base = side === 'P' ? 1.8 : 2.2;
+        Sx.v.add(dir.multiplyScalar(base)).add(swipeV.multiplyScalar(side === 'P' ? 0.02 : 0.01));
+        const top = THREE.MathUtils.clamp(swipeV.z, -6, 6) * (side === 'P' ? 8 : 10);
+        const sSpin = THREE.MathUtils.clamp(-swipeV.x, -6, 6) * 6;
+        Sx.w.add(new THREE.Vector3(0, sSpin, top));
+        Sx.lastTouch = side;
+      };
+      tryHit(player, 'P');
+      tryHit(opp, 'O');
+    }
+
     function integrate(dt){
       if (Sx.state === 'dead') return;
       prevBall.copy(ball.position);
-      Sx.v.y += Sx.gravity.y * dt;
-      const speed = Sx.v.length();
-      if (speed > 1e-4){
-        const drag = Sx.drag * speed * speed * dt * 0.14;
-        Sx.v.addScaledVector(Sx.v, -drag / (1 + Sx.mass));
-      }
-      const magnus = Sx.tmpV1.copy(Sx.w).cross(Sx.v).multiplyScalar(Sx.magnusCoeff);
-      Sx.v.addScaledVector(magnus, dt);
-      const spinDamp = Math.pow(Sx.spinDecay, dt * 60);
-      Sx.w.multiplyScalar(spinDamp);
-      const maxSpeed = 18;
-      if (Sx.v.length() > maxSpeed){
-        Sx.v.setLength(maxSpeed);
-      }
-      const maxSpin = 140;
-      if (Sx.w.length() > maxSpin){
-        Sx.w.setLength(maxSpin);
-      }
-      ball.position.addScaledVector(Sx.v, dt);
+      Sx.v.y += GRAVITY * dt;
+      Sx.v.multiplyScalar(1 / (1 + AIR_DRAG_K * dt));
+      const magnus = Sx.tmpV1.copy(Sx.w).cross(Sx.v);
+      Sx.v.addScaledVector(magnus, MAGNUS_K * dt);
+      const next = ball.position.clone().addScaledVector(Sx.v, dt);
 
-      const scored = bounceTable(prevBall);
-      if (!scored){
-        hitNet(prevBall);
-        bounceArenaSurfaces();
-        hitPaddle(player, 'P', playerVel);
-        hitPaddle(opp, 'O', oppVel);
-        checkFaults();
+      if (next.y - BALL_R <= T.H && Math.abs(next.x) <= T.W / 2 && Math.abs(next.z) <= T.L / 2 && Sx.v.y < 0){
+        next.y = T.H + BALL_R;
+        Sx.v.y *= -TABLE_RESTITUTION;
+        Sx.v.x *= TABLE_TANGENTIAL_DAMP;
+        Sx.v.z *= TABLE_TANGENTIAL_DAMP;
+        Sx.w.multiplyScalar(0.85);
+        bounceTable(prevBall);
       }
+
+      if (Math.abs(next.z) <= NET_THICKNESS * 0.5 + BALL_R * 0.6 && next.y <= T.H + T.NET_H + BALL_R * 0.3){
+        Sx.v.z *= -0.35;
+        Sx.v.multiplyScalar(0.94);
+        Sx.w.multiplyScalar(0.9);
+      }
+
+      performPaddleHits();
+
+      if (Math.abs(next.x) > T.W / 2 + 0.06 || Math.abs(next.z) > T.L / 2 + 0.06 || next.y < WORLD_Y_FLOOR){
+        queueFault(Sx.lastTouch === 'P' ? 'O' : 'P', 200);
+        return;
+      }
+
+      ball.position.copy(next);
+      checkFaults();
     }
 
     function step(){
