@@ -37,6 +37,29 @@ import {
 } from '../../utils/woodMaterials.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
+function safePolygonUnion(...parts) {
+  const valid = parts.filter(Boolean);
+  if (!valid.length) return [];
+  try {
+    return polygonClipping.union(...valid);
+  } catch (err) {
+    console.error('Pool Royale polygon union failed', err);
+    return valid[0];
+  }
+}
+
+function safePolygonDifference(subject, ...clips) {
+  const validSubject = subject || [];
+  const validClips = clips.filter(Boolean);
+  if (!validSubject?.length || !validClips.length) return validSubject;
+  try {
+    return polygonClipping.difference(validSubject, ...validClips);
+  } catch (err) {
+    console.error('Pool Royale polygon difference failed', err);
+    return validSubject;
+  }
+}
+
 function applyTablePhysicsSpec(meta) {
   const cushionAngle = Number.isFinite(meta?.cushionCutAngleDeg)
     ? meta.cushionCutAngleDeg
@@ -598,7 +621,7 @@ function buildChromePlateGeometry({
           baseRing.push([baseRing[0][0], baseRing[0][1]]);
         }
         const baseMP = [[baseRing]];
-        const clipped = polygonClipping.difference(baseMP, notchMP);
+        const clipped = safePolygonDifference(baseMP, notchMP);
         const clippedShapes = multiPolygonToShapes(clipped);
         if (clippedShapes.length) {
           shapesToExtrude = clippedShapes;
@@ -5843,7 +5866,7 @@ function Table3D(
 
     let shapeMP = baseMP;
     if (pocketSectors.length) {
-      shapeMP = polygonClipping.difference(baseMP, ...pocketSectors);
+    shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
     }
     const shapes = multiPolygonToShapes(shapeMP);
     if (shapes.length === 1) {
@@ -6425,7 +6448,7 @@ function Table3D(
         ]
       ]);
     }
-    const union = polygonClipping.union(...unionParts);
+    const union = safePolygonUnion(...unionParts);
     const adjusted = adjustCornerNotchDepth(union, cz, sz);
     if (CHROME_CORNER_NOTCH_EXPANSION_SCALE === 1) {
       return adjusted;
@@ -6459,7 +6482,7 @@ function Table3D(
       throatRadius,
       192
     );
-    const union = polygonClipping.union(circle, throat);
+    const union = safePolygonUnion(circle, throat);
     return adjustSideNotchDepth(union);
   };
 
@@ -7109,12 +7132,12 @@ function Table3D(
   }
 
   // Rail openings simply reuse the chrome plate cuts; wood never dictates alternate pocket sizing.
-  let openingMP = polygonClipping.union(
+  let openingMP = safePolygonUnion(
     rectPoly(innerHalfW * 2, innerHalfH * 2),
     ...scaleWoodRailSidePocketCut(sideNotchMP(-1), -1),
     ...scaleWoodRailSidePocketCut(sideNotchMP(1), 1)
   );
-  openingMP = polygonClipping.union(
+  openingMP = safePolygonUnion(
     openingMP,
     ...translatePocketCutMP(
       scaleWoodRailCornerPocketCut(cornerNotchMP(1, 1)),
