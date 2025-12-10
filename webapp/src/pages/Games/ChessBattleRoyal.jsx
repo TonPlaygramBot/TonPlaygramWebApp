@@ -4760,10 +4760,6 @@ const formatTime = (t) =>
 
 // ======================= Main Component =======================
 function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
-  const [p1Idx, setP1Idx] = useState(0);
-  const [p2Idx, setP2Idx] = useState(0);
-  const [headsIdx, setHeadsIdx] = useState(0);
-  const [boardIdx, setBoardIdx] = useState(0);
   const wrapRef = useRef(null);
   const rafRef = useRef(0);
   const timerRef = useRef(null);
@@ -4782,12 +4778,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'drag' });
-  const materialControlsRef = useRef({
-    setP1: null,
-    setP2: null,
-    setHeads: null,
-    setBoard: null
-  });
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -4801,29 +4791,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   });
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
-  const boardIdxRef = useRef(boardIdx);
-  const UI_SIDE_COLORS = [
-    '#ffffff',
-    '#111827',
-    '#f59e0b',
-    '#10b981',
-    '#3b82f6',
-    '#ef4444',
-    '#8b5cf6',
-    '#06b6d4',
-    '#22c55e',
-    '#f43f5e'
-  ];
-  const HEAD_SWATCH = ['#999999', '#9b111e', '#0f52ba'];
-  const BOARD_SWATCH = [
-    { name: 'Classic', light: '#EEE8D5', dark: '#2B2F36' },
-    { name: 'Ivory/Slate', light: '#E5E7EB', dark: '#111827' },
-    { name: 'Forest', light: '#A7F3D0', dark: '#065F46' },
-    { name: 'Sand/Brown', light: '#DDD0B8', dark: '#6B4F3A' },
-    { name: 'Ocean', light: '#A4C8E1', dark: '#1E3A5F' },
-    { name: 'Violet', light: '#DDD6FE', dark: '#3B2A6E' },
-    { name: 'Chrome', light: '#B0B0B0', dark: '#6E6E6E' }
-  ];
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
     CUSTOMIZATION_SECTIONS[0]?.key ?? 'tableWood'
   );
@@ -4901,26 +4868,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     setMoveMode(viewMode === '3d' ? 'click' : 'drag');
   }, [viewMode]);
-
-  useEffect(() => {
-    boardIdxRef.current = boardIdx;
-  }, [boardIdx]);
-
-  useEffect(() => {
-    materialControlsRef.current?.setP1?.(p1Idx);
-  }, [p1Idx]);
-
-  useEffect(() => {
-    materialControlsRef.current?.setP2?.(p2Idx);
-  }, [p2Idx]);
-
-  useEffect(() => {
-    materialControlsRef.current?.setHeads?.(headsIdx);
-  }, [headsIdx]);
-
-  useEffect(() => {
-    materialControlsRef.current?.setBoard?.(boardIdx);
-  }, [boardIdx]);
 
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
@@ -6194,10 +6141,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         setProceduralBoardVisible(true);
         currentBoardModel = null;
       }
-      if (materialControlsRef.current?.refreshBoard) {
-        materialControlsRef.current.refreshBoard();
-        materialControlsRef.current.setBoard?.(boardIdxRef.current || 0);
-      }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
         if (!preserveOriginalMaterials) {
@@ -6214,10 +6157,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         if (!preserveOriginalMaterials) {
           applyHeadPresetToMeshes(allPieceMeshes, headPreset);
         }
-        materialControlsRef.current?.swapRanks?.();
-        materialControlsRef.current?.setP1?.(p1Idx);
-        materialControlsRef.current?.setP2?.(p2Idx);
-        materialControlsRef.current?.setHeads?.(headsIdx);
       }
       if (arenaRef.current) {
         arenaRef.current.boardModel = currentBoardModel;
@@ -6306,287 +6245,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arena.palette = palette;
       arena.playerFlag = initialPlayerFlag;
       arena.aiFlag = initialAiFlagValue;
-
-      // ===== Custom material controls (P1/P2 colors, Pawn heads, Board themes) =====
-      const boardMatCache = new Map();
-      const snapshotBoardMaterials = () => {
-        boardMatCache.clear();
-        boardGroup.traverse((node) => {
-          if (!node?.isMesh) return;
-          const src = node.material;
-          boardMatCache.set(
-            node.uuid,
-            Array.isArray(src)
-              ? src.map((m) => (m?.clone ? m.clone() : m))
-              : src?.clone
-              ? src.clone()
-              : src
-          );
-        });
-      };
-
-      const isGoldName = (name = '') => /(gold|ring|band|crown)/i.test(name);
-
-      const tintBoardTheme = (theme) => {
-        if (!theme) return;
-        if (boardMatCache.size === 0) snapshotBoardMaterials();
-        boardGroup.traverse((node) => {
-          if (!node?.isMesh) return;
-          const original = boardMatCache.get(node.uuid);
-          if (!original) return;
-          const base = Array.isArray(original) ? original[0] : original;
-          const mat = base?.clone ? base.clone() : base;
-          if (!mat) return;
-          if (theme.special === 'chrome') {
-            if (mat.metalness !== undefined) mat.metalness = 0.95;
-            if (mat.roughness !== undefined) mat.roughness = 0.15;
-            mat.color?.setHex(0xb0b0b0);
-          } else {
-            if (isGoldName(mat?.name)) {
-              node.material = mat;
-              return;
-            }
-            const color = mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1);
-            const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-            const target = new THREE.Color(luminance >= 0.5 ? theme.light : theme.dark);
-            mat.color?.copy(target);
-          }
-          mat.emissive?.set(0x000000);
-          node.material = mat;
-        });
-      };
-
-      const isGoldLike = (mat) => {
-        try {
-          const name = (mat?.name || '').toLowerCase();
-          if (/gold|crown|ring|band/.test(name)) return true;
-          return typeof mat?.metalness === 'number' && typeof mat?.roughness === 'number'
-            ? mat.metalness >= 0.6 && mat.roughness <= 0.4
-            : false;
-        } catch (error) {
-          return false;
-        }
-      };
-
-      const isolateMeshMaterials = (mesh) => {
-        if (!mesh?.isMesh) return;
-        const data = mesh.userData || (mesh.userData = {});
-        if (data.__iso__) return;
-        const src = mesh.material;
-        mesh.material = Array.isArray(src)
-          ? src.map((m) => (m?.clone ? m.clone() : m))
-          : src?.clone
-          ? src.clone()
-          : src;
-        data.__iso__ = true;
-      };
-
-      const applySideColorHex = (isWhite, hex) => {
-        const color = new THREE.Color(hex);
-        allPieceMeshes.forEach((piece) => {
-          if (!piece?.userData) return;
-          if (!!piece.userData.w !== isWhite) return;
-          piece.traverse((node) => {
-            if (!node?.isMesh) return;
-            isolateMeshMaterials(node);
-            const arr = Array.isArray(node.material) ? node.material : [node.material];
-            arr.forEach((mat, idx) => {
-              if (isGoldLike(mat)) return;
-              const clone = mat?.clone ? mat.clone() : mat;
-              clone?.color?.copy(color);
-              clone?.emissive?.set(0x000000);
-              if (Array.isArray(node.material)) node.material[idx] = clone;
-              else node.material = clone;
-            });
-          });
-        });
-      };
-
-      const collectPawnHeads = (holder) => {
-        if (holder?.userData?.t !== 'P') return [];
-        const bounds = new THREE.Box3().setFromObject(holder);
-        const size = bounds.getSize(new THREE.Vector3());
-        const height = size.y || 1;
-        const cutoff = bounds.max.y - height * 0.22;
-        const heads = [];
-        holder.traverse((node) => {
-          if (!node?.isMesh) return;
-          const nodeBox = new THREE.Box3().setFromObject(node);
-          const nodeSize = nodeBox.getSize(new THREE.Vector3());
-          const nearTop = nodeBox.max.y >= cutoff;
-          const notTall = nodeSize.y <= height * 0.45;
-          const name = (node.name || '').toLowerCase();
-          const hint = /(head|top|cap|crown|finial|ball)/.test(name);
-          const gold = /(gold|ring|band)/.test(name);
-          if (((nearTop && notTall) || hint) && !gold) heads.push(node);
-        });
-        return heads;
-      };
-
-      const pawnHeadMaterialCache = new WeakMap();
-
-      const applyPawnHeadsPreset = (preset) => {
-        if (!preset) return;
-        const makeGemMaterial = () =>
-          new THREE.MeshPhysicalMaterial({
-            color: preset.color,
-            metalness: preset.metalness,
-            roughness: preset.roughness,
-            transparent: preset.transmission > 0,
-            transmission: preset.transmission,
-            ior: preset.ior,
-            thickness: preset.thickness,
-            clearcoat: 0.5,
-            clearcoatRoughness: 0.06
-          });
-
-        allPieceMeshes.forEach((piece) => {
-          if (!piece?.userData || piece.userData.t !== 'P') return;
-          const targets = collectPawnHeads(piece);
-          targets.forEach((mesh) => {
-            if (!pawnHeadMaterialCache.has(mesh)) {
-              const src = mesh.material;
-              pawnHeadMaterialCache.set(
-                mesh,
-                Array.isArray(src)
-                  ? src.map((m) => (m?.clone ? m.clone() : m))
-                  : src?.clone
-                  ? src.clone()
-                  : src
-              );
-            }
-          });
-
-          if (preset.mode === 'restore') {
-            targets.forEach((mesh) => {
-              const original = pawnHeadMaterialCache.get(mesh);
-              if (!original) return;
-              mesh.material = Array.isArray(original)
-                ? original.map((m) => (m?.clone ? m.clone() : m))
-                : original?.clone
-                ? original.clone()
-                : original;
-            });
-            return;
-          }
-
-          const gem = makeGemMaterial();
-          targets.forEach((mesh) => {
-            mesh.material = Array.isArray(mesh.material)
-              ? mesh.material.map(() => gem.clone())
-              : gem.clone();
-          });
-        });
-      };
-
-      const collectMeshes = (root) => {
-        const meshes = [];
-        root?.traverse((node) => {
-          if (node?.isMesh) meshes.push(node);
-        });
-        return meshes;
-      };
-
-      const snapshotMatsByOrder = (root) =>
-        collectMeshes(root).map((mesh) => {
-          const src = mesh.material;
-          return Array.isArray(src)
-            ? src.map((m) => (m?.clone ? m.clone() : m))
-            : src?.clone
-            ? src.clone()
-            : src;
-        });
-
-      const applyMatsByOrder = (root, snap) => {
-        const meshes = collectMeshes(root);
-        const limit = Math.min(meshes.length, snap.length);
-        for (let i = 0; i < limit; i += 1) {
-          const saved = snap[i];
-          meshes[i].material = Array.isArray(saved)
-            ? saved.map((m) => (m?.clone ? m.clone() : m))
-            : saved?.clone
-            ? saved.clone()
-            : saved;
-        }
-      };
-
-      const swapMaterialsBetweenStrict = (a, b) => {
-        if (!a || !b) return;
-        const snapA = snapshotMatsByOrder(a);
-        const snapB = snapshotMatsByOrder(b);
-        applyMatsByOrder(a, snapB);
-        applyMatsByOrder(b, snapA);
-      };
-
-      const swapRankMaterials = () => {
-        for (let c = 0; c < 8; c += 1) {
-          const top = pieceMeshes[0]?.[c];
-          const bottom = pieceMeshes[7]?.[c];
-          if (top && bottom) swapMaterialsBetweenStrict(top, bottom);
-        }
-      };
-
-      const SIDE_COLORS = [
-        0xffffff,
-        0x111827,
-        0xf59e0b,
-        0x10b981,
-        0x3b82f6,
-        0xef4444,
-        0x8b5cf6,
-        0x06b6d4,
-        0x22c55e,
-        0xf43f5e
-      ];
-
-      const HEAD_PRESETS = [
-        { name: 'Current', mode: 'restore' },
-        {
-          name: 'Ruby',
-          mode: 'gem',
-          color: 0x9b111e,
-          metalness: 0.05,
-          roughness: 0.08,
-          transmission: 0.92,
-          ior: 2.4,
-          thickness: 0.6
-        },
-        {
-          name: 'Sapphire',
-          mode: 'gem',
-          color: 0x0f52ba,
-          metalness: 0.05,
-          roughness: 0.08,
-          transmission: 0.9,
-          ior: 1.8,
-          thickness: 0.7
-        }
-      ];
-
-      const BOARD_THEMES = [
-        { name: 'Classic', light: 0xeee8d5, dark: 0x2b2f36 },
-        { name: 'Ivory/Slate', light: 0xe5e7eb, dark: 0x111827 },
-        { name: 'Forest', light: 0xa7f3d0, dark: 0x065f46 },
-        { name: 'Sand/Brown', light: 0xddd0b8, dark: 0x6b4f3a },
-        { name: 'Ocean', light: 0xa4c8e1, dark: 0x1e3a5f },
-        { name: 'Violet', light: 0xddd6fe, dark: 0x3b2a6e },
-        { name: 'Chrome', light: 0xb0b0b0, dark: 0x6e6e6e, special: 'chrome' }
-      ];
-
-      snapshotBoardMaterials();
-      tintBoardTheme(BOARD_THEMES[boardIdxRef.current || 0]);
-
-      materialControlsRef.current = {
-        setP1: (i = 0) => applySideColorHex(true, SIDE_COLORS[i % SIDE_COLORS.length]),
-        setP2: (i = 0) => applySideColorHex(false, SIDE_COLORS[i % SIDE_COLORS.length]),
-        setHeads: (i = 0) => applyPawnHeadsPreset(HEAD_PRESETS[i % HEAD_PRESETS.length]),
-        setBoard: (i = 0) => tintBoardTheme(BOARD_THEMES[i % BOARD_THEMES.length]),
-        refreshBoard: snapshotBoardMaterials,
-        swapRanks: swapRankMaterials
-      };
-
-      // Ensure initial ranks swap their materials without moving pieces
-      swapRankMaterials();
 
     // Raycaster for picking
     ray = new THREE.Raycaster();
@@ -7263,89 +6921,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               </div>
             </div>
           )}
-
-          <div className="pointer-events-auto mt-2 w-[min(90vw,360px)] rounded-2xl border border-white/15 bg-black/80 p-3 text-xs text-white shadow-2xl backdrop-blur">
-            <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Materials</p>
-            <div className="mt-2 flex flex-col gap-2">
-              <div>
-                <div className="mb-1 text-[0.7rem] font-semibold">Pieces P1</div>
-                <div className="flex flex-wrap gap-2">
-                  {UI_SIDE_COLORS.map((c, i) => (
-                    <button
-                      key={`p1-${i}`}
-                      type="button"
-                      onClick={() => setP1Idx(i)}
-                      className={`h-7 w-7 rounded-lg border border-white/25 shadow-inner transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        p1Idx === i ? 'ring-2 ring-white' : ''
-                      }`}
-                      style={{ background: c }}
-                      aria-pressed={p1Idx === i}
-                      aria-label={`Set P1 color ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="mb-1 text-[0.7rem] font-semibold">Pieces P2</div>
-                <div className="flex flex-wrap gap-2">
-                  {UI_SIDE_COLORS.map((c, i) => (
-                    <button
-                      key={`p2-${i}`}
-                      type="button"
-                      onClick={() => setP2Idx(i)}
-                      className={`h-7 w-7 rounded-lg border border-white/25 shadow-inner transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        p2Idx === i ? 'ring-2 ring-white' : ''
-                      }`}
-                      style={{ background: c }}
-                      aria-pressed={p2Idx === i}
-                      aria-label={`Set P2 color ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="mb-1 text-[0.7rem] font-semibold">Pawn Heads</div>
-                <div className="flex gap-2">
-                  {HEAD_SWATCH.map((c, i) => (
-                    <button
-                      key={`hd-${i}`}
-                      type="button"
-                      onClick={() => setHeadsIdx(i)}
-                      className={`h-7 w-7 rounded-full border border-white/25 shadow-inner transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        headsIdx === i ? 'ring-2 ring-white' : ''
-                      }`}
-                      style={{ background: c }}
-                      aria-pressed={headsIdx === i}
-                      aria-label={`Set pawn head preset ${i + 1}`}
-                    />
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="mb-1 text-[0.7rem] font-semibold">Board</div>
-                <div className="flex flex-wrap gap-2">
-                  {BOARD_SWATCH.map((theme, i) => (
-                    <button
-                      key={`bd-${theme.name}`}
-                      type="button"
-                      onClick={() => setBoardIdx(i)}
-                      className={`h-7 w-7 rounded-lg border border-white/25 shadow-inner transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                        boardIdx === i ? 'ring-2 ring-white' : ''
-                      }`}
-                      style={{
-                        background:
-                          theme.name === 'Chrome'
-                            ? '#b0b0b0'
-                            : `linear-gradient(135deg, ${theme.light} 50%, ${theme.dark} 50%)`
-                      }}
-                      aria-pressed={boardIdx === i}
-                      aria-label={`Set board theme ${theme.name}`}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
