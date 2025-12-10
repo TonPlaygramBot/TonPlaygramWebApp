@@ -420,6 +420,13 @@ export default function TableTennis3D({ player, ai }){
   const ballProfile = BALL_TECHNIQUES[0];
   const touchProfile = TOUCH_PRESETS[0];
 
+  // Snippet-aligned ball physics
+  const GRAVITY_Y = -9.81;
+  const AIR_DRAG_K = 0.15;
+  const MAGNUS_K = 0.0007;
+  const TABLE_RESTITUTION = 0.9;
+  const TABLE_TANGENTIAL_DAMP = 0.88;
+
   const playerLabel = player?.name || 'You';
   const aiLabel = ai?.name || 'AI';
   const initialServer = useMemo(() => (Math.random() < 0.5 ? 'P' : 'O'), []);
@@ -530,7 +537,16 @@ export default function TableTennis3D({ player, ai }){
     const ballSettings = variant.ball ?? {};
     const trailSettings = variant.trail ?? {};
     const cameraSettings = { ...(variant.camera ?? {}), ...(broadcastSettings.camera ?? {}) };
-    const physicsSettings = { ...(variant.physics ?? {}), ...(ballProfile.physics ?? {}) };
+    const physicsSettings = {
+      gravity: GRAVITY_Y,
+      drag: AIR_DRAG_K,
+      magnusCoeff: MAGNUS_K,
+      tableRest: TABLE_RESTITUTION,
+      tableFriction: 1 - TABLE_TANGENTIAL_DAMP,
+      spinDecay: 1,
+      ...(variant.physics ?? {}),
+      ...(ballProfile.physics ?? {}),
+    };
     const aiSettings = variant.ai ?? {};
     const serveTimers = physicsSettings.serveTimers ?? { player: 0.45, opponent: 0.6 };
     const TRAIL_COUNT = trailSettings.count ?? 18;
@@ -1230,8 +1246,8 @@ export default function TableTennis3D({ player, ai }){
       resumeAudio();
       touching = true;
       const { point } = getWorldPoint(e.clientX, e.clientY);
-      playerTarget.x = point.x;
-      playerTarget.z = point.z;
+      player.position.x = point.x;
+      player.position.z = point.z;
       swipeStart.pos.copy(point);
       swipeStart.t = performance.now();
       lx = e.clientX;
@@ -1245,8 +1261,8 @@ export default function TableTennis3D({ player, ai }){
       lx = e.clientX;
       ly = e.clientY;
       const { point } = getWorldPoint(e.clientX, e.clientY);
-      playerTarget.x += (point.x - playerTarget.x) * targetLerpX;
-      playerTarget.z += (point.z - playerTarget.z) * targetLerpZ;
+      player.position.x = point.x;
+      player.position.z = point.z;
     }
     function onUp(evt, { fromTouch = false } = {}) {
       if (!touching) return;
@@ -1254,28 +1270,18 @@ export default function TableTennis3D({ player, ai }){
       touching = false;
       const endX = evt?.clientX ?? lx;
       const endY = evt?.clientY ?? ly;
-      const { point: endPoint, rect } = getWorldPoint(endX, endY);
-      const dist = endPoint.clone().sub(swipeStart.pos);
+      const { point: endPoint } = getWorldPoint(endX, endY);
+      const dv = endPoint.clone().sub(swipeStart.pos);
       const duration = Math.max((performance.now() - (swipeStart.t || performance.now())) / 1000, 0.05);
       if (Sx.state === 'serve' && Srv.side === 'P' && !Sx.pendingFault) {
-        let vz = -THREE.MathUtils.clamp(Math.abs(dist.z) / duration, 1.6, 4.2);
-        if (dist.z > 0) vz = -Math.max(2.1, dist.length() / duration);
-        const vx = THREE.MathUtils.clamp(dist.x / duration, -3, 3) * 0.5;
-        const vy = THREE.MathUtils.clamp(-dist.y / duration, 0.8, 3.2) * 0.6 + 1.2;
+        let vz = -THREE.MathUtils.clamp(Math.abs(dv.z) / duration, 1.6, 4.2);
+        if (dv.z > 0) vz = -Math.max(2.1, dv.length() / duration);
+        const vx = THREE.MathUtils.clamp(dv.x / duration, -3, 3) * 0.5;
+        const vy = THREE.MathUtils.clamp(-dv.y / duration, 0.8, 3.2) * 0.6 + 1.2;
         Sx.v.set(vx, vy, vz);
         Sx.serveProgress = 'awaitServerBounce';
         Sx.lastTouch = 'P';
-        return;
-      }
-      const distX = dist.x;
-      const distY = -dist.z;
-      if (distY < 0.02) return;
-      const onPlayerSide = ball.position.z > 0 && Math.abs(ball.position.z - (playerBaseZ - 0.2)) < 1.6;
-      if (onPlayerSide && ball.position.y <= 2.2) {
-        const shot = swipeToShot(distX * 320, distY * 320, duration, true, rect);
-        playerSwing = shotToSwing(shot);
-        player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
-        player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
+        player.userData.swing = 0.9;
       }
     }
 
@@ -1618,6 +1624,8 @@ export default function TableTennis3D({ player, ai }){
         const spinSlip = Sx.tmpV1.copy(Sx.w).cross(n).multiplyScalar(BALL_R * 0.06);
         Sx.v.add(spinSlip);
         Sx.w.multiplyScalar(0.9);
+        Sx.v.x *= TABLE_TANGENTIAL_DAMP;
+        Sx.v.z *= TABLE_TANGENTIAL_DAMP;
         ball.position.y = TABLE_TOP;
         playSfx('bounce', 0.65 + Math.min(Math.abs(Sx.v.y), 1.4) * 0.15, THREE.MathUtils.clamp(0.9 + Math.abs(Sx.v.z) * 0.18, 0.86, 1.25));
 
@@ -1945,23 +1953,10 @@ export default function TableTennis3D({ player, ai }){
       if (Sx.state === 'dead') return;
       prevBall.copy(ball.position);
       Sx.v.y += Sx.gravity.y * dt;
-      const speed = Sx.v.length();
-      if (speed > 1e-4){
-        const drag = Sx.drag * speed * speed * dt * 0.14;
-        Sx.v.addScaledVector(Sx.v, -drag / (1 + Sx.mass));
-      }
-      const magnus = Sx.tmpV1.copy(Sx.w).cross(Sx.v).multiplyScalar(Sx.magnusCoeff);
-      Sx.v.addScaledVector(magnus, dt);
-      const spinDamp = Math.pow(Sx.spinDecay, dt * 60);
-      Sx.w.multiplyScalar(spinDamp);
-      const maxSpeed = 18;
-      if (Sx.v.length() > maxSpeed){
-        Sx.v.setLength(maxSpeed);
-      }
-      const maxSpin = 140;
-      if (Sx.w.length() > maxSpin){
-        Sx.w.setLength(maxSpin);
-      }
+      Sx.v.multiplyScalar(1 / (1 + Sx.drag * dt));
+      const magnus = Sx.tmpV1.copy(Sx.w).cross(Sx.v);
+      Sx.v.addScaledVector(magnus, Sx.magnusCoeff * dt);
+      Sx.w.multiplyScalar(Sx.spinDecay ?? 1);
       ball.position.addScaledVector(Sx.v, dt);
 
       const scored = bounceTable(prevBall);
