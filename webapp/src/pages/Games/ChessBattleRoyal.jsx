@@ -4117,7 +4117,8 @@ const BUILDERS = {
 };
 
 // ======================= Game logic ========================
-const START_FEN = 'RNBQKBNR/pppppppp/8/8/8/8/PPPPPPPP/rnbqkbnr';
+// Standard starting position with black at the top and white at the bottom.
+const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
 
 function parseFEN(fen) {
   const rows = fen.split('/');
