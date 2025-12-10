@@ -1,4 +1,4 @@
-import { FrameState, Player, ShotContext, ShotEvent } from '../types.js';
+import { FrameState, Player, ShotContext, ShotEvent } from '../types';
 import { UkPool } from '../../lib/poolUk8Ball.js';
 import { AmericanBilliards } from '../../lib/americanBilliards.js';
 import { NineBall } from '../../lib/nineBall.js';
