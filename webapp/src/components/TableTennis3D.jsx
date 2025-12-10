@@ -1126,26 +1126,30 @@ export default function TableTennis3D({ player, ai }){
     const targetLerpZ = trackingProfile.targetLerp?.z ?? 0.4;
     const el = renderer.domElement;
     el.style.touchAction = 'none';
+    const pointerRay = new THREE.Raycaster();
+    const touchPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(T.H + 0.12) * S);
     let usingTouch = false;
     let touching = false;
-    let sx = 0;
-    let sy = 0;
+    const swipeStart = { pos: new THREE.Vector3(), t: 0 };
     let lx = 0;
     let ly = 0;
-    let st = 0;
     const gesture = {
       mode: 'idle',
     };
 
     function clampX(x) { return THREE.MathUtils.clamp(x, -bounds.x, bounds.x); }
     function clampZ(z) { return THREE.MathUtils.clamp(z, bounds.zFar, bounds.zNear); }
-    function screenToTable(clientX, clientY) {
+    function getWorldPoint(clientX, clientY) {
       const rect = el.getBoundingClientRect();
-      const nx = (clientX - rect.left) / rect.width;
-      const nz = 1 - (clientY - rect.top) / rect.height;
-      const x = clampX((nx - 0.5) * (bounds.x * 2));
-      const z = clampZ(bounds.zFar + nz * (bounds.zNear - bounds.zFar));
-      return { x, z, rect };
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -(((clientY - rect.top) / rect.height) * 2 - 1);
+      pointerRay.setFromCamera({ x, y }, camera);
+      const hit = new THREE.Vector3();
+      pointerRay.ray.intersectPlane(touchPlane, hit);
+      hit.divideScalar(S);
+      hit.x = clampX(hit.x);
+      hit.z = clampZ(hit.z);
+      return { point: hit, rect };
     }
 
     const MIN_SWIPE_SPEED = swipeProfile.minSpeed ?? 180;
@@ -1225,12 +1229,13 @@ export default function TableTennis3D({ player, ai }){
       if (usingTouch && e.pointerType === 'touch') return;
       resumeAudio();
       touching = true;
-      const target = screenToTable(e.clientX, e.clientY);
-      playerTarget.x = target.x;
-      playerTarget.z = target.z;
-      sx = lx = e.clientX;
-      sy = ly = e.clientY;
-      st = performance.now();
+      const { point } = getWorldPoint(e.clientX, e.clientY);
+      playerTarget.x = point.x;
+      playerTarget.z = point.z;
+      swipeStart.pos.copy(point);
+      swipeStart.t = performance.now();
+      lx = e.clientX;
+      ly = e.clientY;
       player.userData.swing = -0.35;
       player.userData.swingLR = 0;
     }
@@ -1239,9 +1244,9 @@ export default function TableTennis3D({ player, ai }){
       if (usingTouch && e.pointerType === 'touch') return;
       lx = e.clientX;
       ly = e.clientY;
-      const target = screenToTable(e.clientX, e.clientY);
-      playerTarget.x += (target.x - playerTarget.x) * targetLerpX;
-      playerTarget.z += (target.z - playerTarget.z) * targetLerpZ;
+      const { point } = getWorldPoint(e.clientX, e.clientY);
+      playerTarget.x += (point.x - playerTarget.x) * targetLerpX;
+      playerTarget.z += (point.z - playerTarget.z) * targetLerpZ;
     }
     function onUp(evt, { fromTouch = false } = {}) {
       if (!touching) return;
@@ -1249,13 +1254,25 @@ export default function TableTennis3D({ player, ai }){
       touching = false;
       const endX = evt?.clientX ?? lx;
       const endY = evt?.clientY ?? ly;
-      const distX = endX - sx;
-      const distY = sy - endY;
-      if (distY < 14) return;
-      const duration = Math.max((performance.now() - st) / 1000, 0.12);
+      const { point: endPoint, rect } = getWorldPoint(endX, endY);
+      const dist = endPoint.clone().sub(swipeStart.pos);
+      const duration = Math.max((performance.now() - (swipeStart.t || performance.now())) / 1000, 0.05);
+      if (Sx.state === 'serve' && Srv.side === 'P' && !Sx.pendingFault) {
+        let vz = -THREE.MathUtils.clamp(Math.abs(dist.z) / duration, 1.6, 4.2);
+        if (dist.z > 0) vz = -Math.max(2.1, dist.length() / duration);
+        const vx = THREE.MathUtils.clamp(dist.x / duration, -3, 3) * 0.5;
+        const vy = THREE.MathUtils.clamp(-dist.y / duration, 0.8, 3.2) * 0.6 + 1.2;
+        Sx.v.set(vx, vy, vz);
+        Sx.serveProgress = 'awaitServerBounce';
+        Sx.lastTouch = 'P';
+        return;
+      }
+      const distX = dist.x;
+      const distY = -dist.z;
+      if (distY < 0.02) return;
       const onPlayerSide = ball.position.z > 0 && Math.abs(ball.position.z - (playerBaseZ - 0.2)) < 1.6;
       if (onPlayerSide && ball.position.y <= 2.2) {
-        const shot = swipeToShot(distX, distY, duration, true, screenToTable(endX, endY).rect);
+        const shot = swipeToShot(distX * 320, distY * 320, duration, true, rect);
         playerSwing = shotToSwing(shot);
         player.userData.swing = 0.62 + 0.9 * (playerSwing.force || 0.5);
         player.userData.swingLR = THREE.MathUtils.clamp(playerSwing.normal.x * 2.2, -1, 1);
@@ -1995,7 +2012,7 @@ export default function TableTennis3D({ player, ai }){
         }
 
         if (Sx.state !== 'dead'){
-          if (Sx.state === 'serve'){
+          if (Sx.state === 'serve' && Sx.serveProgress === 'awaitServeHit'){
             const server = Srv.side === 'P' ? player : opp;
             const serverVel = Srv.side === 'P' ? playerVel : oppVel;
             const targetZ = server.position.z + (Srv.side === 'P' ? -0.14 : 0.14);
