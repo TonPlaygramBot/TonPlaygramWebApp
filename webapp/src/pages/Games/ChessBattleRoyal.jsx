@@ -754,7 +754,7 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
 ]);
 
 const QUICK_SIDE_COLORS = [
-  0x065f46,
+  0xffffff,
   0x111827,
   0xf59e0b,
   0x10b981,
@@ -764,19 +764,6 @@ const QUICK_SIDE_COLORS = [
   0x06b6d4,
   0x22c55e,
   0xf43f5e
-];
-
-const QUICK_SIDE_COLOR_LABELS = [
-  'Dark Forest',
-  'Onyx',
-  'Amber',
-  'Emerald',
-  'Blue',
-  'Crimson',
-  'Violet',
-  'Cyan',
-  'Jade',
-  'Rose'
 ];
 
 const QUICK_HEAD_PRESETS = [
@@ -3484,12 +3471,6 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
-    return await resolveBeautifulGameBoardStrict(targetBoardSize);
-  } catch (error) {
-    console.warn('Chess Battle Royal: GLTF board load failed, trying swap set', error);
-  }
-
-  try {
     return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
     console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
@@ -4911,7 +4892,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     return getAIOpponentFlag(baseFlag);
   });
   const [p1QuickIdx, setP1QuickIdx] = useState(0);
-  const [p2QuickIdx, setP2QuickIdx] = useState(0);
+  const [p2QuickIdx, setP2QuickIdx] = useState(1);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
@@ -7297,10 +7278,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                 : 'border-white/20 hover:border-white/40'
                             }`}
                             style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                            title={QUICK_SIDE_COLOR_LABELS[idx] || `Color ${idx + 1}`}
-                            aria-label={`Set player one color ${
-                              QUICK_SIDE_COLOR_LABELS[idx] || idx + 1
-                            }`}
+                            aria-label={`Set player one color ${idx + 1}`}
                           />
                         ))}
                       </div>
@@ -7319,10 +7297,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                 : 'border-white/20 hover:border-white/40'
                             }`}
                             style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                            title={QUICK_SIDE_COLOR_LABELS[idx] || `Color ${idx + 1}`}
-                            aria-label={`Set player two color ${
-                              QUICK_SIDE_COLOR_LABELS[idx] || idx + 1
-                            }`}
+                            aria-label={`Set player two color ${idx + 1}`}
                           />
                         ))}
                       </div>
