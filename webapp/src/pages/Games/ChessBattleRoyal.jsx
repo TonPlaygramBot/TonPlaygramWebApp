@@ -4117,7 +4117,7 @@ const BUILDERS = {
 };
 
 // ======================= Game logic ========================
-const START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+const START_FEN = 'RNBQKBNR/pppppppp/8/8/8/8/PPPPPPPP/rnbqkbnr';
 
 function parseFEN(fen) {
   const rows = fen.split('/');
