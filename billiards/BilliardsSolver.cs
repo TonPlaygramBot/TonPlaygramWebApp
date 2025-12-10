@@ -147,33 +147,27 @@ public class BilliardsSolver
             }
         }
 
-        int cushionBands = Math.Clamp(PhysicsConstants.JawCushionSegments, 1, segments);
-        Vec2 prev = pts[0];
-        Vec2 prevNormal = (prev - center).Normalized();
-        for (int i = 1; i < pts.Count; i++)
+        Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
+        // Use a thinner cushion band on side pockets so balls aren't deflected before
+        // they visually reach the jaw lips. The corner pockets keep the full
+        // PhysicsConstants.JawCushionSegments setting.
+        int cushionBands = Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments - 1, Math.Max(1, pts.Count - 1)));
+        for (int i = 0; i < pts.Count - 1; i++)
         {
-            Vec2 next = pts[i];
-            if ((next - prev).Length < PhysicsConstants.Epsilon)
-            {
-                prev = next;
-                prevNormal = (prev - center).Normalized();
+            Vec2 a = pts[i];
+            Vec2 b = pts[i + 1];
+            if ((b - a).Length < PhysicsConstants.Epsilon)
                 continue;
-            }
-
-            Vec2 nextNormal = (next - center).Normalized();
-            Vec2 blended = (prevNormal + nextNormal).Normalized();
-            if (blended.Length < PhysicsConstants.Epsilon)
-                blended = nextNormal;
-
-            var edge = new Edge { A = prev, B = next, Normal = blended };
-            bool nearMouth = i <= cushionBands || i > pts.Count - 1 - cushionBands;
+            Vec2 dir = (b - a).Normalized();
+            Vec2 normal = new Vec2(-dir.Y, dir.X);
+            if (Vec2.Dot(normal, hint) < 0)
+                normal = -normal;
+            var edge = new Edge { A = a, B = b, Normal = normal };
+            bool nearMouth = i < cushionBands || i >= pts.Count - 1 - cushionBands;
             if (nearMouth)
                 CushionEdges.Add(edge);
             else
                 PocketEdges.Add(edge);
-
-            prev = next;
-            prevNormal = nextNormal;
         }
     }
 
