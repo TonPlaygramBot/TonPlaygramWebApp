@@ -175,12 +175,12 @@ const CARD_SCALE = 0.95;
 const BOARD = { N: 8, tile: 4.2, rim: 2.2, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
-const PIECE_SCALE_FACTOR = 1;
-const BOARD_GROUP_Y_OFFSET = -0.01;
+const PIECE_SCALE_FACTOR = 0.8;
+const BOARD_GROUP_Y_OFFSET = -0.02;
 const BOARD_MODEL_Y_OFFSET = -0.04;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.063;
+const BOARD_SCALE = 0.063 * 1.15 * 1.15;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
