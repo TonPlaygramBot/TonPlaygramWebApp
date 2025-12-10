@@ -853,8 +853,6 @@ const TILE_HALF_HEIGHT = PLAYFIELD_HEIGHT / 2;
 const MARKER_SURFACE_OFFSET = 0.002;
 const STAR_MARKER_SURFACE_INSET = 0.001;
 const CENTER_HOME_BASE_OFFSET = -0.0045;
-const CHESS_TILE_SIZE = 4.2;
-const GLTF_BOARD_TILE_SCALE = (LUDO_TILE * BOARD_SCALE) / CHESS_TILE_SIZE;
 // Align the Ludo board quadrants with the token rails that sit on the table edges.
 const BOARD_ROTATION_Y = -Math.PI / 2;
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_RADIUS);
@@ -4191,19 +4189,13 @@ async function buildLudoBoard(
 ) {
   const scene = boardGroup;
 
-  const abgAssets = await getAbgAssets();
-  const boardPalette = abgAssets?.boardPalette ?? { light: null, dark: null };
-  const lightBoardMat = cloneBoardMaterial(boardPalette.light, 0xfef9ef);
-  const darkBoardMat = cloneBoardMaterial(boardPalette.dark ?? boardPalette.light, 0xdccfb0);
+  const lightBoardMat = cloneBoardMaterial(null, 0xfef9ef);
+  const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
   let tokenTypeSequence =
     tokenStyleOption?.typeSequence?.length ? tokenStyleOption.typeSequence : TOKEN_TYPE_SEQUENCE;
   if (tokenPieceOption?.type) {
     tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
   }
-  const playerPalettes = playerColors.map((color, idx) => {
-    const src = idx % 2 === 0 ? abgAssets?.palettes?.w : abgAssets?.palettes?.b;
-    return abgTintPalette(src, color);
-  });
   const headPreset = headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
@@ -4308,31 +4300,10 @@ async function buildLudoBoard(
   addCenterHome(scene);
   addBoardMarkers(scene, cellToWorld, playerColors);
 
-  if (abgAssets?.boardPrototype) {
-    const boardStamp = abgAssets.boardPrototype.clone(true);
-    boardStamp.scale.setScalar(GLTF_BOARD_TILE_SCALE);
-    boardStamp.position.set(0, CENTER_HOME_BASE_OFFSET + 0.0002, 0);
-    boardStamp.rotation.y = BOARD_ROTATION_Y;
-    boardStamp.traverse((node) => {
-      if (!node.isMesh) return;
-      node.castShadow = false;
-      node.receiveShadow = true;
-    });
-    scene.add(boardStamp);
-  }
-
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
-    const palette = playerPalettes[playerIdx] ?? [];
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const shouldUseAbg = tokenStyleOption?.prefersAbg !== false;
-      const baseProto = shouldUseAbg
-        ? abgAssets?.proto?.w?.[type] || abgAssets?.proto?.b?.[type] || null
-        : null;
-      const token = baseProto ? baseProto.clone(true) : makeRook(makeTokenMaterial(color));
-      if (baseProto && palette.length) {
-        abgApplyPalette(token, palette);
-      }
+      const token = makeRook(makeTokenMaterial(color));
       if (headPreset) {
         applyHeadPresetToToken(token, headPreset);
       }
