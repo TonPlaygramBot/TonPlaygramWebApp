@@ -422,8 +422,8 @@ export default function TableTennis3D({ player, ai }){
 
   // Snippet-aligned ball physics
   const GRAVITY_Y = -9.81;
-  const AIR_DRAG_K = 0.15;
-  const MAGNUS_K = 0.0007;
+  const AIR_DRAG_K = 0.2;
+  const MAGNUS_K = 0.00065;
   const TABLE_RESTITUTION = 0.9;
   const TABLE_TANGENTIAL_DAMP = 0.88;
 
@@ -549,10 +549,10 @@ export default function TableTennis3D({ player, ai }){
     };
     const aiSettings = variant.ai ?? {};
     const serveTimers = physicsSettings.serveTimers ?? { player: 0.45, opponent: 0.6 };
-    const TRAIL_COUNT = trailSettings.count ?? 18;
-    const minTrailOpacity = trailSettings.minOpacity ?? 0.18;
+    const TRAIL_COUNT = trailSettings.count ?? 24;
+    const minTrailOpacity = trailSettings.minOpacity ?? 0.2;
     const maxTrailOpacity = trailSettings.maxOpacity ?? 0.62;
-    const trailSpeedFactor = trailSettings.speedFactor ?? 0.045;
+    const trailSpeedFactor = trailSettings.speedFactor ?? 0.04;
     const baseShadowFactor = (ballSettings.shadowOpacity ?? 0.22) / 0.22;
 
     // Prevent overscroll on mobile
@@ -1065,14 +1065,14 @@ export default function TableTennis3D({ player, ai }){
       magnusCoeff: physicsSettings.magnusCoeff ?? 0.38,
       spinDecay: physicsSettings.spinDecay ?? 0.955,
       gravity: new THREE.Vector3(0, physicsSettings.gravity ?? -13.5, 0),
-      drag: physicsSettings.drag ?? 0.36,
+      drag: physicsSettings.drag ?? 0.42,
       tableRest: physicsSettings.tableRest ?? 0.9,
       tableFriction: physicsSettings.tableFriction ?? 0.2,
       paddleRest: physicsSettings.paddleRest ?? 1.02,
       paddleAim: physicsSettings.paddleAim ?? 0.62,
       paddleLift: physicsSettings.paddleLift ?? 0.2,
       netRest: physicsSettings.netRest ?? 0.34,
-      forceScale: physicsSettings.forceScale ?? 0.82,
+      forceScale: physicsSettings.forceScale ?? 0.76,
       spinTransfer: physicsSettings.spinTransfer ?? 0.34,
       netDrag: physicsSettings.netDrag ?? 0.18,
       wallRest: physicsSettings.wallRest ?? 0.62,
@@ -1094,6 +1094,7 @@ export default function TableTennis3D({ player, ai }){
       pendingFault: false,
     };
     let playerSwing = null;
+    let aiSwingPlan = null;
 
     function resetServe(){
       Sx.v.set(0,0,0);
@@ -1105,6 +1106,7 @@ export default function TableTennis3D({ player, ai }){
       Sx.pendingFault = false;
       Sx.serveProgress = 'awaitServeHit';
       Sx.serveTimer = Srv.side === 'P' ? serveTimers.player : serveTimers.opponent;
+      aiSwingPlan = null;
       const side = Srv.side;
       if (side==='P'){
         ball.position.set(player.position.x, TABLE_TOP + 0.12, playerBaseZ - 0.09);
@@ -1548,7 +1550,20 @@ export default function TableTennis3D({ player, ai }){
           const reach = THREE.MathUtils.clamp((AI.prediction.pos.y - TABLE_TOP) * 0.3, -0.16, 0.2);
           const rallyBias = anticipation * 0.05;
           AI.targetZ = THREE.MathUtils.clamp(baseZ + reach - rallyBias, baseZ - 0.24, baseZ + 0.22);
+          const precision = THREE.MathUtils.clamp(0.28 + anticipation * 0.3, 0.28, 0.54);
+          const edgeBias = THREE.MathUtils.clamp(diff / 10, -0.22, 0.22);
+          const aimX = THREE.MathUtils.clamp(
+            player.position.x * 0.55 + (Math.random() - 0.5) * precision - edgeBias,
+            -T.W / 2 + 0.14,
+            T.W / 2 - 0.14
+          );
+          const aimZ = playerBaseZ - 0.12 - edgeBias * 0.35;
+          aiSwingPlan = {
+            target: new THREE.Vector3(aimX, TABLE_TOP + 0.26, aimZ),
+            flightTime: THREE.MathUtils.clamp(0.46 - anticipation * 0.08, 0.34, 0.58)
+          };
         } else {
+          aiSwingPlan = null;
           const calm = 0.12 + (Sx.state === 'serve' ? 0.18 : 0.08);
           AI.targetX = THREE.MathUtils.lerp(AI.targetX, 0, calm);
           AI.targetZ = THREE.MathUtils.lerp(AI.targetZ, baseZ - 0.05, calm * 0.8);
@@ -1561,6 +1576,10 @@ export default function TableTennis3D({ player, ai }){
       if (!AI.prediction && Sx.v.z > 0.06){
         opp.position.x = THREE.MathUtils.lerp(opp.position.x, 0, 0.16);
         opp.position.z = THREE.MathUtils.lerp(opp.position.z, baseZ - 0.04, 0.16);
+      }
+
+      if (Sx.state === 'serve' && Srv.side === 'P' && Sx.serveProgress === 'awaitReceiverBounce'){
+        AI.timer = Math.min(AI.timer, 0.02);
       }
     }
 
@@ -1759,13 +1778,24 @@ export default function TableTennis3D({ player, ai }){
           const swing = playerSwing;
           const aim = swing.aimDirection?.clone() || swing.normal.clone();
           const power = THREE.MathUtils.clamp(swing.power ?? swing.force ?? 0.6, 0.15, 1.2);
-          const speed = THREE.MathUtils.lerp(3.2, 6.6, power) * Sx.forceScale;
+          const speed = THREE.MathUtils.lerp(2.9, 5.8, power) * Sx.forceScale;
           Sx.v.copy(aim.multiplyScalar(speed));
-          Sx.v.y = Math.max(Sx.v.y, 1.35 + (swing.liftBoost || 0));
+          Sx.v.y = Math.max(Sx.v.y, 1.15 + (swing.liftBoost || 0));
           if (swing.extraSpin){
             Sx.w.addScaledVector(swing.extraSpin, 0.08 * (Sx.spinTransfer ?? 1));
           }
           playerSwing = null;
+        } else if (who === 'O' && aiSwingPlan?.target){
+          const { target, flightTime } = aiSwingPlan;
+          const aiAim = solveShot(contact, target, Sx.gravity.y, flightTime || 0.46);
+          if (aiAim){
+            const tuned = aiAim.multiplyScalar(0.88 * Sx.forceScale);
+            Sx.v.copy(tuned);
+            Sx.v.y = Math.max(Sx.v.y, 1.05);
+            const sideSpin = Math.sign(tuned.x || 0) || 1;
+            Sx.w.add(new THREE.Vector3(0, -sideSpin * 2.4, 0));
+          }
+          aiSwingPlan = null;
         }
         const brush = Sx.tmpV0.set(paddleVel?.x || 0, paddleVel?.y || 0, paddleVel?.z || 0).cross(n).multiplyScalar(Sx.spinTransfer * 6.5);
         Sx.w.add(brush);
@@ -1896,7 +1926,7 @@ export default function TableTennis3D({ player, ai }){
     }
 
     // ---------- Loop ----------
-    const FIXED_STEP = 1 / 120;
+    const FIXED_STEP = 1 / 180;
     let accumulator = 0;
     let lastTime = performance.now();
 
@@ -2016,10 +2046,13 @@ export default function TableTennis3D({ player, ai }){
             Sx.serveTimer -= frameDt;
             if (Sx.serveProgress === 'awaitServeHit' && Sx.serveTimer <= 0){
               const dir = Srv.side === 'P' ? -1 : 1;
-              const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.4, -0.78, 0.78);
-              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.65, 1.08);
-              Sx.v.set(aimX * serveScale * 0.95, Math.max(1.8, 2.6 * serveScale), 1.46 * dir * serveScale);
-              Sx.w.set(0, 0, 0);
+              const aiSideServe = Srv.side === 'O';
+              const edgePick = aiSideServe ? (Math.random() > 0.5 ? 1 : -1) : 0;
+              const aimX = THREE.MathUtils.clamp((server.position.x + serverVel.x * 0.05) * 0.36 + edgePick * 0.32, -0.78, 0.78);
+              const serveScale = THREE.MathUtils.clamp(Sx.forceScale, 0.62, 0.98);
+              Sx.v.set(aimX * serveScale * 0.82, Math.max(1.72, 2.32 * serveScale), 1.26 * dir * serveScale);
+              const twist = aiSideServe ? -edgePick * 2.6 : 0;
+              Sx.w.set(0, twist, 0);
               Sx.serveProgress = 'awaitServerBounce';
               Sx.lastTouch = Srv.side;
             }
@@ -2096,27 +2129,46 @@ export default function TableTennis3D({ player, ai }){
     setResetKey(k => k + 1);
   };
 
+  const renderAvatarBadge = (avatarSrc, label, align = 'left') => {
+    const isImage = avatarSrc?.startsWith('http') || avatarSrc?.startsWith('/') || avatarSrc?.startsWith('data:');
+    const roleLabel = align === 'right' ? 'Opponent' : 'Player';
+    return (
+      <div className={`flex items-center gap-2 ${align === 'right' ? 'flex-row-reverse text-right' : ''}`}>
+        <div className="h-11 w-11 rounded-full border border-white/30 overflow-hidden bg-white/10 flex items-center justify-center text-lg">
+          {isImage ? (
+            <img src={avatarSrc} alt={`${label} avatar`} className="w-full h-full object-cover" />
+          ) : (
+            <span className="text-xl leading-none">{avatarSrc || '🙂'}</span>
+          )}
+        </div>
+        <div className="leading-tight">
+          <div className="text-[10px] uppercase tracking-[0.2em] text-white/80">{roleLabel}</div>
+          <div className="text-sm font-semibold">{label}</div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div ref={hostRef} className="w-[100vw] h-[100dvh] bg-black relative overflow-hidden touch-none select-none">
       {/* HUD */}
-      <div className="pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 text-white text-center min-w-[240px]">
-        <div className="inline-flex flex-col gap-[2px] rounded-2xl px-4 py-3 bg-[rgba(7,10,18,0.7)] border border-[rgba(255,215,0,0.25)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
-          <div className="text-[9px] uppercase tracking-[0.26em] text-amber-200/80">{variant.badge} · Race to 11 · Win by 2</div>
-          <div className="text-sm font-semibold drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">{playerLabel} {ui.pScore} : {ui.oScore} {aiLabel}</div>
-          <div className="text-[10px] sm:text-[11px]">
-            {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
+      <div className="pointer-events-none absolute top-3 left-1/2 -translate-x-1/2 text-white min-w-[260px]">
+        <div className="inline-flex flex-col gap-2 rounded-2xl px-4 py-3 bg-[rgba(7,10,18,0.78)] border border-[rgba(255,215,0,0.25)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] backdrop-blur">
+          <div className="flex items-center gap-4 justify-between">
+            {renderAvatarBadge(player?.avatar, playerLabel, 'left')}
+            <div className="text-center min-w-[96px]">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-amber-100/80">Race to 11</div>
+              <div className="text-2xl font-bold drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)]">{ui.pScore} : {ui.oScore}</div>
+              <div className="text-[11px] text-white/80">
+                {ui.gameOver ? `Winner: ${ui.winner === 'P' ? playerLabel : aiLabel}` : `Serve: ${ui.serving === 'P' ? playerLabel : aiLabel}`}
+              </div>
+            </div>
+            {renderAvatarBadge(ai?.avatar, aiLabel, 'right')}
           </div>
-          <div className="text-[10px] sm:text-[11px] opacity-90">{ui.msg}</div>
-          <div className="text-[9px] sm:text-[10px] opacity-70 leading-tight max-w-[260px]">{variant.tagline}</div>
         </div>
       </div>
-      <div className="pointer-events-none absolute top-2 right-2 z-20 flex flex-col items-end gap-1">
-        <div className="px-3 py-1 rounded-full border border-[rgba(255,215,0,0.25)] bg-[rgba(7,10,18,0.7)] text-white/80 text-[10px] uppercase tracking-[0.22em] shadow-lg">
-          {variant.name}
-        </div>
-        <div className="px-3 py-1 rounded-full bg-white/10 text-white/80 text-[10px] uppercase tracking-[0.16em] shadow">
-          {broadcastProfile.badge} · {ballProfile.badge} · {touchProfile.badge}
-        </div>
+      <div className="pointer-events-none absolute bottom-16 left-1/2 -translate-x-1/2 text-white">
+        <div className="px-3 py-1 rounded-full bg-black/50 border border-white/10 text-[11px] sm:text-[12px] shadow-lg">{ui.msg}</div>
       </div>
       {!ui.gameOver && (
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2">

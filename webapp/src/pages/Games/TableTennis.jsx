@@ -8,11 +8,12 @@ export default function TableTennis() {
   useTelegramBackButton();
   const { search } = useLocation();
   const params = new URLSearchParams(search);
+  const playerFlag = params.get('flag');
   const player = {
     name: params.get('name') || 'You',
-    avatar: params.get('avatar') || '/assets/icons/profile.svg'
+    avatar: params.get('avatar') || playerFlag || '/assets/icons/profile.svg'
   };
-  const flag = FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
+  const flag = params.get('aiFlag') || FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)];
   const ai = {
     name: avatarToName(flag) || 'AI',
     avatar: flag,
