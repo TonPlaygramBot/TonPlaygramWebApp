@@ -300,18 +300,6 @@ function onModel(gltf){
   const pool={w:{p:[],r:[],n:[],b:[],q:[],k:[]}, b:{p:[],r:[],n:[],b:[],q:[],k:[]}}; const whiteRooks=[], blackRooks=[]; const seen=new Set();
   modelRoot.traverse(node=>{ const t=pieceTypeFromName(node.name); if(!t) return; const c=colorFromNameOrAnc(node); if(!c) return; const root=ascendWhile(node,p=>pieceTypeFromName(p.name)===t); if(seen.has(root)) return; seen.add(root); pool[c][t].push(root); if(t==='r'){ if(c==='w') whiteRooks.push(root); else blackRooks.push(root);} if(!proto[c][t]) proto[c][t]=root; });
   function nodeXZ(o){ const b=new THREE.Box3().setFromObject(o); const c=new THREE.Vector3(); b.getCenter(c); return [c.x,c.z]; }
-  function findBoardBox(){
-    let best=null;
-    modelRoot.traverse(node=>{
-      const n=(node.name||'').toLowerCase();
-      if(!/board|chess|table/.test(n)) return;
-      const box=new THREE.Box3().setFromObject(node); const size=new THREE.Vector3(); box.getSize(size);
-      const area=size.x*size.z;
-      if(!best||area>best.area) best={box,area};
-    });
-    return best?best.box:null;
-  }
-  const boardBox=findBoardBox();
   let originXZ=[0,0];
   if(whiteRooks.length>=2 && blackRooks.length>=2){
     let a1=nodeXZ(whiteRooks[0]), a1b=nodeXZ(whiteRooks[1]);
@@ -322,18 +310,8 @@ function onModel(gltf){
     const norm=v=>{ const L=Math.hypot(v[0],v[1])||1; return [v[0]/L,v[1]/L]; };
     const nz1=norm(zcand1), nz2=norm(zcand2); const d1=Math.abs(nz1[0]*vxv[0]+nz1[1]*vxv[1]); const d2=Math.abs(nz2[0]*vxv[0]+nz2[1]*vxv[1]);
     const vzv = d1<d2 ? nz1 : nz2; const proj=(vzv===nz1?zcand1:zcand2); stepZ=(Math.hypot(proj[0],proj[1]))/7; originXZ=[a1[0],a1[1]]; vx[0]=vxv[0]*stepX; vx[1]=vxv[1]*stepX; vz[0]=vzv[0]*stepZ; vz[1]=vzv[1]*stepZ;
-    if(boardBox){
-      const corners=[[boardBox.min.x,boardBox.min.z],[boardBox.min.x,boardBox.max.z],[boardBox.max.x,boardBox.min.z],[boardBox.max.x,boardBox.max.z]];
-      const project=(dir)=>{ let min=Infinity, max=-Infinity; corners.forEach(([x,z])=>{ const p=x*dir[0]+z*dir[1]; if(p<min) min=p; if(p>max) max=p; }); return [min,max]; };
-      const [minX,maxX]=project(vxv); const [minZ,maxZ]=project(vzv); const wX=maxX-minX, wZ=maxZ-minZ;
-      if(wX>1e-4 && wZ>1e-4){
-        stepX=wX/8; stepZ=wZ/8; const ox=minX+stepX*0.5, oz=minZ+stepZ*0.5;
-        vx[0]=vxv[0]*stepX; vx[1]=vxv[1]*stepX; vz[0]=vzv[0]*stepZ; vz[1]=vzv[1]*stepZ;
-        originXZ=[vxv[0]*ox + vzv[0]*oz, vxv[1]*ox + vzv[1]*oz];
-      }
-    }
   }else{
-    const bb=boardBox||new THREE.Box3().setFromObject(modelRoot); const minX=bb.min.x, maxX=bb.max.x, minZ=bb.min.z, maxZ=bb.max.z; stepX=(maxX-minX)/8; stepZ=(maxZ-minZ)/8; originXZ=[minX+stepX*0.5, minZ+stepZ*0.5]; vx[0]=stepX; vx[1]=0; vz[0]=0; vz[1]=stepZ;
+    const bb=new THREE.Box3().setFromObject(modelRoot); const minX=bb.min.x, maxX=bb.max.x, minZ=bb.min.z, maxZ=bb.max.z; stepX=(maxX-minX)/7; stepZ=(maxZ-minZ)/7; originXZ=[minX+stepX*0.5, minZ+stepZ*0.5]; vx[0]=stepX; vx[1]=0; vz[0]=0; vz[1]=stepZ;
   }
   origin[0]=originXZ[0]; origin[1]=originXZ[1];
   function ensurePieces(color, code, need){ const arr=pool[color][code]; if(arr.length>=need) return; const protoNode=proto[color][code]; if(!protoNode) return; while(arr.length<need){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); arr.push(nn); extraNodes.push(nn); }
