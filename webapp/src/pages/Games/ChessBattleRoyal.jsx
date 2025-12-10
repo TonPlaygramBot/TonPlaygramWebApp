@@ -169,7 +169,6 @@ const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
 ]);
 
 const MODEL_SCALE = 0.75;
-const PIECE_SCALE_FACTOR = 0.8; // 20% smaller pieces
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 
@@ -199,9 +198,6 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
 const CAMERA_TABLE_SPAN_FACTOR = 2.6;
-const AI_MOVE_MIN_DELAY_MS = 3000;
-const AI_MOVE_MAX_DELAY_MS = 6000;
-const TURN_DURATION_SECONDS = 60;
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
@@ -361,8 +357,6 @@ const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze(
     })
   )
 );
-
-const BOARD_COLOR_MENU_OPTIONS = BEAUTIFUL_GAME_BOARD_OPTIONS.slice(0, 5);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -870,9 +864,7 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
-  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS },
-  { key: 'boardColor', label: 'Board Colors', options: BOARD_COLOR_MENU_OPTIONS },
-  { key: 'pieceStyle', label: 'Piece Colors (P1/P2)', options: PIECE_STYLE_OPTIONS }
+  { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
 ];
 
 function normalizeAppearance(value = {}) {
@@ -885,11 +877,7 @@ function normalizeAppearance(value = {}) {
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
     ['chairColor', CHAIR_COLOR_OPTIONS.length],
-    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length],
-    ['boardColor', BOARD_COLOR_MENU_OPTIONS.length],
-    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['headStyle', HEAD_PRESET_OPTIONS.length]
+    ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
@@ -898,6 +886,10 @@ function normalizeAppearance(value = {}) {
     const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
+  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
+  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -1620,7 +1612,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const blackPieceOption =
     PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
-  const boardOption = BOARD_COLOR_MENU_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+  const boardOption = BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
   const headOption = HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
   return {
@@ -3420,16 +3412,6 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
-    const gltf = await loadBeautifulGameSet();
-    if (gltf?.scene) {
-      const source = gltf.scene.userData?.beautifulGameSource;
-      return extractBeautifulGameAssets(gltf.scene, targetBoardSize, { source, assetScale: 1 });
-    }
-  } catch (error) {
-    console.warn('Chess Battle Royal: GLTF board+pieces load failed, trying swaps', error);
-  }
-
-  try {
     return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
     console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
@@ -4811,7 +4793,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
     CUSTOMIZATION_SECTIONS[0]?.key ?? 'tableWood'
   );
-  const [activePiecePlayer, setActivePiecePlayer] = useState('white');
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
     if (initialFlag && FLAG_EMOJIS.includes(initialFlag)) {
@@ -4847,12 +4828,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const baseFlag = resolvedInitialFlag || fallbackChoice || FALLBACK_FLAG;
     return getAIOpponentFlag(baseFlag);
   });
-  const [whiteTime, setWhiteTime] = useState(TURN_DURATION_SECONDS);
-  const [blackTime, setBlackTime] = useState(TURN_DURATION_SECONDS);
+  const [whiteTime, setWhiteTime] = useState(60);
+  const [blackTime, setBlackTime] = useState(5);
   const whiteTimeRef = useRef(whiteTime);
   const blackTimeRef = useRef(blackTime);
-  const initialWhiteTimeRef = useRef(TURN_DURATION_SECONDS);
-  const initialBlackTimeRef = useRef(TURN_DURATION_SECONDS);
+  const initialWhiteTimeRef = useRef(60);
+  const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
@@ -4896,7 +4877,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         <span className={swatchClass} style={{ background: b }} />
       </span>
     );
-    if (key === 'whitePieceStyle' || key === 'blackPieceStyle' || key === 'pieceStyle') {
+    if (key === 'whitePieceStyle' || key === 'blackPieceStyle') {
       return dualSwatch(option.white?.color || '#f5f5f7', option.black?.color || '#111827');
     }
     if (key === 'headStyle') {
@@ -6087,7 +6068,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const proto = build(p);
           if (!proto) continue;
           const clone = cloneWithShadows(proto);
-          clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
           clone.position.set(
             c * tile - half + tile / 2,
             yOffset,
@@ -6294,9 +6274,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         timerSoundRef.current?.pause();
       } catch {}
       if (isWhite) {
-        initialWhiteTimeRef.current = TURN_DURATION_SECONDS;
-        whiteTimeRef.current = TURN_DURATION_SECONDS;
-        setWhiteTime(TURN_DURATION_SECONDS);
+        initialWhiteTimeRef.current = 60;
+        whiteTimeRef.current = 60;
+        setWhiteTime(60);
         lastBeepRef.current.white = null;
         timerRef.current = setInterval(() => {
           setWhiteTime((t) => {
@@ -6311,9 +6291,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           });
         }, 1000);
       } else {
-        initialBlackTimeRef.current = TURN_DURATION_SECONDS;
-        blackTimeRef.current = TURN_DURATION_SECONDS;
-        setBlackTime(TURN_DURATION_SECONDS);
+        initialBlackTimeRef.current = 5;
+        blackTimeRef.current = 5;
+        setBlackTime(5);
         lastBeepRef.current.black = null;
         timerRef.current = setInterval(() => {
           setBlackTime((t) => {
@@ -6337,10 +6317,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         return;
       }
       startTimer(nextWhite);
-      if (!nextWhite) {
-        const delay = Math.random() * (AI_MOVE_MAX_DELAY_MS - AI_MOVE_MIN_DELAY_MS) + AI_MOVE_MIN_DELAY_MS;
-        setTimeout(aiMove, delay);
-      }
+      if (!nextWhite) setTimeout(aiMove, 200);
     }
 
     const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
@@ -6479,7 +6456,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const queenProto = currentPiecePrototypes[color]?.Q;
         if (queenProto) {
           const replacement = cloneWithShadows(queenProto);
-          replacement.scale.multiplyScalar(PIECE_SCALE_FACTOR);
           replacement.position.copy(m.position);
           replacement.userData = {
             ...m.userData,
@@ -6874,7 +6850,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, board, and piece colors.</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
                     </div>
                     <button
                       type="button"
@@ -6909,39 +6885,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                         <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">
                           {activeCustomizationSection.label}
                         </p>
-                        {activeCustomizationSection.key === 'pieceStyle' && (
-                          <div className="flex items-center gap-2 pb-1">
-                            {[
-                              { key: 'white', label: 'P1 (White)' },
-                              { key: 'black', label: 'P2 (Black)' }
-                            ].map(({ key, label }) => {
-                              const selected = activePiecePlayer === key;
-                              return (
-                                <button
-                                  key={key}
-                                  type="button"
-                                  onClick={() => setActivePiecePlayer(key)}
-                                  className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                    selected
-                                      ? 'border-sky-400/70 bg-sky-500/10 text-white shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                      : 'border-white/10 bg-white/5 text-white/70 hover:border-white/20 hover:text-white'
-                                  }`}
-                                >
-                                  {label}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
                         <div className="space-y-1.5">
                           {activeCustomizationSection.options.map((option, idx) => {
-                            const targetKey =
-                              activeCustomizationSection.key === 'pieceStyle'
-                                ? activePiecePlayer === 'black'
-                                  ? 'blackPieceStyle'
-                                  : 'whitePieceStyle'
-                                : activeCustomizationSection.key;
-                            const selected = appearance[targetKey] === idx;
+                            const selected = appearance[activeCustomizationSection.key] === idx;
                             return (
                               <button
                                 key={option.id}
@@ -6950,7 +6896,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                   setAppearance((prev) =>
                                     normalizeAppearance({
                                       ...prev,
-                                      [targetKey]: idx
+                                      [activeCustomizationSection.key]: idx
                                     })
                                   )
                                 }
@@ -6962,7 +6908,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                 }`}
                               >
                                 <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
-                                {renderCustomizationPreview(targetKey, option)}
+                                {renderCustomizationPreview(activeCustomizationSection.key, option)}
                               </button>
                             );
                           })}
