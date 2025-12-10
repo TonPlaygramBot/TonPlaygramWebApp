@@ -6395,9 +6395,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!prototypes) return;
       const colorKey = (p) => (p.w ? 'white' : 'black');
       const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
-      const yOffset = Number.isFinite(currentPieceYOffset)
-        ? currentPieceYOffset
-        : PIECE_PLACEMENT_Y_OFFSET;
+      const yOffset = 0;
 
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
