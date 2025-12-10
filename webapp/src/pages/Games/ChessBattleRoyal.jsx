@@ -169,7 +169,6 @@ const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
 ]);
 
 const MODEL_SCALE = 0.75;
-const PIECE_SCALE_FACTOR = 0.8;
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 
@@ -199,7 +198,6 @@ const STOOL_HEIGHT = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
 const TABLE_HEIGHT = STOOL_HEIGHT + 0.05 * MODEL_SCALE;
 const AI_CHAIR_GAP = (0.4 * MODEL_SCALE * CARD_SCALE) * 0.4;
 const CAMERA_TABLE_SPAN_FACTOR = 2.6;
-const AI_MOVE_DELAY_RANGE_MS = { min: 3000, max: 6000 };
 
 const WALL_PROXIMITY_FACTOR = 0.5; // Bring arena walls 50% closer
 const WALL_HEIGHT_MULTIPLIER = 2; // Double wall height
@@ -359,8 +357,6 @@ const BEAUTIFUL_GAME_BOARD_OPTIONS = Object.freeze(
     })
   )
 );
-
-const BOARD_COLOR_OPTIONS = BEAUTIFUL_GAME_BOARD_OPTIONS.slice(0, 5);
 
 const SCULPTED_DRAG_STYLE = Object.freeze({
   id: 'sculptedDrag',
@@ -864,9 +860,6 @@ const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.i
 const PRESERVE_NATIVE_PIECE_IDS = new Set([BEAUTIFUL_GAME_SWAP_SET_ID]);
 
 const CUSTOMIZATION_SECTIONS = [
-  { key: 'boardColor', label: 'Board Colors', options: BOARD_COLOR_OPTIONS },
-  { key: 'whitePieceStyle', label: 'Player 1 Pieces', options: PIECE_STYLE_OPTIONS },
-  { key: 'blackPieceStyle', label: 'Player 2 Pieces', options: PIECE_STYLE_OPTIONS },
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
@@ -876,11 +869,10 @@ const CUSTOMIZATION_SECTIONS = [
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
+  const fallbackPieceStyleIndex = Number.isFinite(value?.pieceStyle)
+    ? Math.min(Math.max(0, Math.round(value.pieceStyle)), PIECE_STYLE_OPTIONS.length - 1)
+    : null;
   const entries = [
-    ['boardColor', BOARD_COLOR_OPTIONS.length],
-    ['whitePieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['blackPieceStyle', PIECE_STYLE_OPTIONS.length],
-    ['headStyle', HEAD_PRESET_OPTIONS.length],
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
@@ -889,10 +881,15 @@ function normalizeAppearance(value = {}) {
   ];
   entries.forEach(([key, max]) => {
     const raw = Number(value?.[key]);
-    if (!Number.isFinite(raw)) return;
-    const clamped = Math.min(Math.max(0, Math.round(raw)), max - 1);
+    const source = Number.isFinite(raw) ? raw : fallbackPieceStyleIndex;
+    if (!Number.isFinite(source)) return;
+    const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
     normalized[key] = clamped;
   });
+  normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
+  normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
+  normalized.blackPieceStyle = DEFAULT_APPEARANCE.blackPieceStyle;
+  normalized.headStyle = DEFAULT_APPEARANCE.headStyle;
   return normalized;
 }
 
@@ -1615,7 +1612,7 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   const blackPieceOption =
     PIECE_STYLE_OPTIONS[normalized.blackPieceStyle]?.style ?? DEFAULT_PIECE_STYLE;
   const pieceOption = mergePieceStylesByColor(whitePieceOption, blackPieceOption);
-  const boardOption = BOARD_COLOR_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
+  const boardOption = BEAUTIFUL_GAME_BOARD_OPTIONS[normalized.boardColor] ?? BEAUTIFUL_GAME_THEME;
   const boardTheme = buildBoardTheme(boardOption);
   const headOption = HEAD_PRESET_OPTIONS[normalized.headStyle]?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
   return {
@@ -2400,7 +2397,6 @@ function detectColorFromMaterialNames(node) {
 }
 
 function buildBeautifulGamePiece(type, colorHex, accentHex, scale = 1) {
-  scale *= PIECE_SCALE_FACTOR;
   const baseRadius = 0.38 * scale;
   const baseHeight = 0.18 * scale;
   const collarRadius = 0.26 * scale;
@@ -2666,7 +2662,7 @@ function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
   box.getCenter(center);
   group.position.sub(center);
   group.position.y -= box.min.y;
-  group.scale.multiplyScalar(scale * PIECE_SCALE_FACTOR);
+  group.scale.multiplyScalar(scale);
   group.userData = { ...(group.userData || {}), __pieceStyleId: styleId };
   group.traverse((child) => {
     if (child.isMesh) {
@@ -3416,14 +3412,9 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
-    const gltf = await loadBeautifulGameSet();
-    if (gltf?.scene) {
-      const source = gltf.scene.userData?.beautifulGameSource ?? gltf.userData?.beautifulGameSource;
-      return extractBeautifulGameAssets(gltf.scene, targetBoardSize, { source });
-    }
     return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
-    console.warn('Chess Battle Royal: GLTF board or pieces failed', error);
+    console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
   }
 
   console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
@@ -3666,7 +3657,7 @@ function extractChessSetAssets(scene, options = {}) {
     const box = new THREE.Box3().setFromObject(clone);
     const size = box.getSize(new THREE.Vector3());
     const footprint = Math.max(size.x, size.z) || 1;
-    const targetFootprint = tileSize * footprintRatio * PIECE_SCALE_FACTOR;
+    const targetFootprint = tileSize * footprintRatio;
     const scale = targetFootprint / footprint;
     clone.scale.multiplyScalar(scale);
     const scaledBox = new THREE.Box3().setFromObject(clone);
@@ -4887,8 +4878,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       </span>
     );
     if (key === 'whitePieceStyle' || key === 'blackPieceStyle') {
-      const style = option.style || option;
-      return dualSwatch(style.white?.color || '#f5f5f7', style.black?.color || '#111827');
+      return dualSwatch(option.white?.color || '#f5f5f7', option.black?.color || '#111827');
     }
     if (key === 'headStyle') {
       const color = option.preset?.color || '#ffffff';
@@ -6327,13 +6317,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         return;
       }
       startTimer(nextWhite);
-      if (!nextWhite) {
-        const delay = THREE.MathUtils.randInt(
-          AI_MOVE_DELAY_RANGE_MS.min,
-          AI_MOVE_DELAY_RANGE_MS.max
-        );
-        setTimeout(aiMove, delay);
-      }
+      if (!nextWhite) setTimeout(aiMove, 200);
     }
 
     const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
@@ -6829,7 +6813,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
                     <p className="mt-1 text-[0.7rem] text-white/70">
-                      Personalize the board, pieces, chairs, and table finish.
+                      Personalize the chairs and table finish.
                     </p>
                   </div>
                 <button
@@ -6866,7 +6850,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Personalize Arena</p>
-                      <p className="mt-1 text-[0.7rem] text-white/60">Board colors, piece colors, table cloth, chairs, and table details.</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">Table cloth, chairs, and table details.</p>
                     </div>
                     <button
                       type="button"
