@@ -754,6 +754,7 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
 ]);
 
 const QUICK_SIDE_COLORS = [
+  0x065f46, // Dark Forest
   0xffffff,
   0x111827,
   0xf59e0b,
@@ -764,6 +765,20 @@ const QUICK_SIDE_COLORS = [
   0x06b6d4,
   0x22c55e,
   0xf43f5e
+];
+
+const QUICK_SIDE_COLOR_LABELS = [
+  'Dark Forest',
+  'White',
+  'Charcoal',
+  'Amber',
+  'Jade',
+  'Sky',
+  'Crimson',
+  'Violet',
+  'Cyan',
+  'Emerald',
+  'Rose'
 ];
 
 const QUICK_HEAD_PRESETS = [
@@ -1602,36 +1617,6 @@ function applyBeautifulGameBoardTheme(boardModel, boardTheme = BEAUTIFUL_GAME_TH
         : theme.frameDark;
     applySurface(node, targetColor);
   });
-}
-
-function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZE) {
-  if (!boardModel) return { span: 0, top: 0 };
-
-  const safeTarget = Math.max(targetSize || RAW_BOARD_SIZE, 0.001);
-  const box = new THREE.Box3().setFromObject(boardModel);
-  const size = box.getSize(new THREE.Vector3());
-  const largest = Math.max(size.x || 0.001, size.z || 0.001);
-  const scale = safeTarget / largest;
-  if (Number.isFinite(scale) && scale > 0) {
-    boardModel.scale.multiplyScalar(scale);
-  }
-
-  const scaledBox = new THREE.Box3().setFromObject(boardModel);
-  const center = scaledBox.getCenter(new THREE.Vector3());
-  boardModel.position.set(
-    -center.x,
-    -scaledBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET),
-    -center.z
-  );
-
-  const normalizedBox = new THREE.Box3().setFromObject(boardModel);
-  const span = Math.max(
-    normalizedBox.max.x - normalizedBox.min.x,
-    normalizedBox.max.z - normalizedBox.min.z
-  );
-  const top = normalizedBox.max.y;
-
-  return { span, top };
 }
 
 function mergePieceStylesByColor(whiteStyle = DEFAULT_PIECE_STYLE, blackStyle = DEFAULT_PIECE_STYLE) {
@@ -3471,9 +3456,15 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
-    return await loadBeautifulGamePiecesOnly(targetBoardSize);
+    return await resolveBeautifulGameBoardStrict(targetBoardSize);
   } catch (error) {
-    console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
+    console.warn('Chess Battle Royal: GLTF board load failed', error);
+  }
+
+  try {
+    return await resolveBeautifulGameTouchAssets(targetBoardSize);
+  } catch (error) {
+    console.warn('Chess Battle Royal: GLTF touch edition failed', error);
   }
 
   console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
@@ -4891,8 +4882,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const baseFlag = resolvedInitialFlag || fallbackChoice || FALLBACK_FLAG;
     return getAIOpponentFlag(baseFlag);
   });
-  const [p1QuickIdx, setP1QuickIdx] = useState(0);
-  const [p2QuickIdx, setP2QuickIdx] = useState(1);
+  const [p1QuickIdx, setP1QuickIdx] = useState(1);
+  const [p2QuickIdx, setP2QuickIdx] = useState(0);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
@@ -6456,12 +6447,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (boardModel) {
         boardModel.visible = true;
-        const { top: boardTop } = normalizeBoardModelToDisplaySize(boardModel, RAW_BOARD_SIZE);
-        const preferredYOffset = Math.max(
-          boardTop + PIECE_PLACEMENT_Y_OFFSET,
-          currentPieceYOffset
-        );
-        currentPieceYOffset = preferredYOffset;
         boardGroup.add(boardModel);
         applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
         setProceduralBoardVisible(false);
@@ -7267,39 +7252,47 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P1</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => (
-                          <button
-                            key={`p1-${color}-${idx}`}
-                            type="button"
-                            onClick={() => setP1QuickIdx(idx)}
-                            className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              p1QuickIdx === idx
-                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
-                                : 'border-white/20 hover:border-white/40'
-                            }`}
-                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                            aria-label={`Set player one color ${idx + 1}`}
-                          />
-                        ))}
+                        {QUICK_SIDE_COLORS.map((color, idx) => {
+                          const colorLabel = QUICK_SIDE_COLOR_LABELS[idx] || `Color ${idx + 1}`;
+                          return (
+                            <button
+                              key={`p1-${color}-${idx}`}
+                              type="button"
+                              onClick={() => setP1QuickIdx(idx)}
+                              className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                p1QuickIdx === idx
+                                  ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
+                                  : 'border-white/20 hover:border-white/40'
+                              }`}
+                              style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
+                              aria-label={`Set player one color ${colorLabel}`}
+                              title={colorLabel}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P2</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => (
-                          <button
-                            key={`p2-${color}-${idx}`}
-                            type="button"
-                            onClick={() => setP2QuickIdx(idx)}
-                            className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              p2QuickIdx === idx
-                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
-                                : 'border-white/20 hover:border-white/40'
-                            }`}
-                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                            aria-label={`Set player two color ${idx + 1}`}
-                          />
-                        ))}
+                        {QUICK_SIDE_COLORS.map((color, idx) => {
+                          const colorLabel = QUICK_SIDE_COLOR_LABELS[idx] || `Color ${idx + 1}`;
+                          return (
+                            <button
+                              key={`p2-${color}-${idx}`}
+                              type="button"
+                              onClick={() => setP2QuickIdx(idx)}
+                              className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                p2QuickIdx === idx
+                                  ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
+                                  : 'border-white/20 hover:border-white/40'
+                              }`}
+                              style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
+                              aria-label={`Set player two color ${colorLabel}`}
+                              title={colorLabel}
+                            />
+                          );
+                        })}
                       </div>
                     </div>
                     <div>
