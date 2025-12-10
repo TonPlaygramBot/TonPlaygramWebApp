@@ -753,6 +753,35 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
   }
 ]);
 
+const QUICK_SIDE_COLORS = [
+  0xffffff,
+  0x111827,
+  0xf59e0b,
+  0x10b981,
+  0x3b82f6,
+  0xef4444,
+  0x8b5cf6,
+  0x06b6d4,
+  0x22c55e,
+  0xf43f5e
+];
+
+const QUICK_HEAD_PRESETS = [
+  { id: 'current', label: 'Current' },
+  { id: 'headRuby', label: 'Ruby' },
+  { id: 'headSapphire', label: 'Sapphire' }
+];
+
+const QUICK_BOARD_THEMES = [
+  { id: 'classic', name: 'Classic', light: 0xeee8d5, dark: 0x2b2f36 },
+  { id: 'ivorySlate', name: 'Ivory/Slate', light: 0xe5e7eb, dark: 0x111827 },
+  { id: 'forest', name: 'Forest', light: 0xa7f3d0, dark: 0x065f46 },
+  { id: 'sand', name: 'Sand/Brown', light: 0xddd0b8, dark: 0x6b4f3a },
+  { id: 'ocean', name: 'Ocean', light: 0xa4c8e1, dark: 0x1e3a5f },
+  { id: 'violet', name: 'Violet', light: 0xddd6fe, dark: 0x3b2a6e },
+  { id: 'chrome', name: 'Chrome', light: 0xb0b0b0, dark: 0x6e6e6e, special: 'chrome' }
+];
+
 const SNOOKER_TABLE_SCALE = 1.3;
 const SNOOKER_TABLE_W = 66 * SNOOKER_TABLE_SCALE;
 const SNOOKER_TABLE_H = 132 * SNOOKER_TABLE_SCALE;
@@ -4778,6 +4807,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'drag' });
+  const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
+  const pawnHeadMaterialCacheRef = useRef(new Map());
+  const rankSwapAppliedRef = useRef(false);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -4829,6 +4861,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const baseFlag = resolvedInitialFlag || fallbackChoice || FALLBACK_FLAG;
     return getAIOpponentFlag(baseFlag);
   });
+  const [p1QuickIdx, setP1QuickIdx] = useState(0);
+  const [p2QuickIdx, setP2QuickIdx] = useState(1);
+  const [headQuickIdx, setHeadQuickIdx] = useState(0);
+  const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
   const [blackTime, setBlackTime] = useState(5);
   const whiteTimeRef = useRef(whiteTime);
@@ -5141,6 +5177,27 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       window.removeEventListener('gameVolumeChanged', handleVolumeChange);
     };
   }, []);
+
+  useEffect(() => {
+    const apply = arenaRef.current?.applySideColorHex;
+    if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]);
+  }, [p1QuickIdx]);
+
+  useEffect(() => {
+    const apply = arenaRef.current?.applySideColorHex;
+    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]);
+  }, [p2QuickIdx]);
+
+  useEffect(() => {
+    const apply = arenaRef.current?.applyPawnHeadPreset;
+    const presetId = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
+    if (apply) apply(presetId);
+  }, [headQuickIdx]);
+
+  useEffect(() => {
+    const apply = arenaRef.current?.applyBoardThemePreset;
+    if (apply) apply(boardQuickIdx);
+  }, [boardQuickIdx]);
 
   useEffect(() => {
     const arena = arenaRef.current;
@@ -6040,6 +6097,244 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       tileMaterials: tiles.map((tileMesh) => tileMesh.material)
     };
 
+    const isGoldLikeMaterial = (material) => {
+      const name = (material?.name || '').toLowerCase();
+      if (/gold|crown|ring|band/.test(name)) return true;
+      const { metalness, roughness } = material || {};
+      return typeof metalness === 'number' && typeof roughness === 'number' && metalness >= 0.6 && roughness <= 0.4;
+    };
+
+    const ensureIsolatedMaterial = (mesh) => {
+      if (!mesh?.isMesh) return;
+      const flag = mesh.userData?.__isolatedMat;
+      if (flag) return;
+      const src = mesh.material;
+      const clone = Array.isArray(src)
+        ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+        : src?.clone
+          ? src.clone()
+          : src;
+      mesh.material = clone;
+      mesh.userData = { ...(mesh.userData || {}), __isolatedMat: true };
+    };
+
+    const collectMeshes = (root) => {
+      const out = [];
+      root?.traverse?.((node) => {
+        if (node?.isMesh) out.push(node);
+      });
+      return out;
+    };
+
+    const snapshotMaterialsByOrder = (root) =>
+      collectMeshes(root).map((mesh) => {
+        const src = mesh.material;
+        return Array.isArray(src)
+          ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+          : src?.clone
+            ? src.clone()
+            : src;
+      });
+
+    const applyMaterialsByOrder = (root, snapshot) => {
+      const meshes = collectMeshes(root);
+      const limit = Math.min(meshes.length, snapshot.length);
+      for (let i = 0; i < limit; i += 1) {
+        const saved = snapshot[i];
+        meshes[i].material = Array.isArray(saved)
+          ? saved.map((mat) => (mat?.clone ? mat.clone() : mat))
+          : saved?.clone
+            ? saved.clone()
+            : saved;
+      }
+    };
+
+    const swapMaterialsBetweenMeshes = (meshA, meshB) => {
+      if (!meshA || !meshB) return;
+      const snapA = snapshotMaterialsByOrder(meshA);
+      const snapB = snapshotMaterialsByOrder(meshB);
+      applyMaterialsByOrder(meshA, snapB);
+      applyMaterialsByOrder(meshB, snapA);
+    };
+
+    const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]) => {
+      const meshes = arenaRef.current?.allPieceMeshes || [];
+      const target = new THREE.Color(hex);
+      meshes.forEach((piece) => {
+        const isWhite = piece?.userData?.w ?? piece?.userData?.__pieceColor === 'white';
+        const matches = sideKey === 'white' ? isWhite : !isWhite;
+        if (!matches) return;
+        piece.traverse((node) => {
+          if (!node?.isMesh) return;
+          ensureIsolatedMaterial(node);
+          const materials = Array.isArray(node.material) ? node.material : [node.material];
+          materials.forEach((mat) => {
+            if (!mat || isGoldLikeMaterial(mat)) return;
+            mat?.color?.copy(target);
+            mat?.emissive?.set(0x000000);
+          });
+        });
+      });
+    };
+
+    const collectPawnHeadMeshes = (holder) => {
+      if (!holder) return [];
+      const box = new THREE.Box3().setFromObject(holder);
+      const size = box.getSize(new THREE.Vector3());
+      const height = size.y || 1;
+      const cutoff = box.max.y - height * 0.22;
+      const heads = [];
+      holder.traverse((node) => {
+        if (!node?.isMesh) return;
+        const bb = new THREE.Box3().setFromObject(node);
+        const sz = bb.getSize(new THREE.Vector3());
+        const nearTop = bb.max.y >= cutoff;
+        const shortEnough = sz.y <= height * 0.45;
+        const name = (node.name || '').toLowerCase();
+        const hinted = /(head|top|cap|crown|finial|ball)/.test(name);
+        const gold = /(gold|ring|band)/.test(name);
+        if (((nearTop && shortEnough) || hinted) && !gold) heads.push(node);
+      });
+      return heads;
+    };
+
+    const applyPawnHeadPreset = (presetId = 'current') => {
+      const meshes = arenaRef.current?.allPieceMeshes || [];
+      const preset = HEAD_PRESET_OPTIONS.find((opt) => opt.id === presetId)?.preset;
+      const restore = !preset || presetId === 'current';
+      meshes.forEach((piece) => {
+        const isPawn = (piece?.userData?.t || '').toUpperCase() === 'P';
+        if (!isPawn) return;
+        const targets = collectPawnHeadMeshes(piece);
+        targets.forEach((node) => {
+          if (restore) {
+            const original = pawnHeadMaterialCacheRef.current.get(node.uuid);
+            if (original) {
+              node.material = Array.isArray(original)
+                ? original.map((mat) => (mat?.clone ? mat.clone() : mat))
+                : original?.clone
+                  ? original.clone()
+                  : original;
+            }
+            return;
+          }
+          if (!pawnHeadMaterialCacheRef.current.has(node.uuid)) {
+            const src = node.material;
+            pawnHeadMaterialCacheRef.current.set(
+              node.uuid,
+              Array.isArray(src)
+                ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+                : src?.clone
+                  ? src.clone()
+                  : src
+            );
+          }
+          ensureIsolatedMaterial(node);
+          const headMat = new THREE.MeshPhysicalMaterial({
+            color: preset.color,
+            metalness: preset.metalness,
+            roughness: preset.roughness,
+            transmission: preset.transmission,
+            ior: preset.ior,
+            thickness: preset.thickness,
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.06,
+            transparent: preset.transmission > 0
+          });
+          node.material = Array.isArray(node.material)
+            ? node.material.map(() => headMat.clone())
+            : headMat;
+        });
+      });
+    };
+
+    const snapshotBoardMaterials = (root) => {
+      const cache = new Map();
+      root?.traverse?.((node) => {
+        if (!node?.isMesh) return;
+        const src = node.material;
+        cache.set(
+          node.uuid,
+          Array.isArray(src)
+            ? src.map((mat) => (mat?.clone ? mat.clone() : mat))
+            : src?.clone
+              ? src.clone()
+              : src
+        );
+      });
+      return cache;
+    };
+
+    const applyBoardThemePreset = (themeIndex = 0) => {
+      const theme = QUICK_BOARD_THEMES[(themeIndex + QUICK_BOARD_THEMES.length) % QUICK_BOARD_THEMES.length];
+      const arenaState = arenaRef.current;
+      if (!arenaState) return;
+      const boardModel = arenaState.boardModel;
+      if (boardModel) {
+        if (!boardMaterialCacheRef.current.gltf.size) {
+          boardMaterialCacheRef.current.gltf = snapshotBoardMaterials(boardModel);
+        }
+        boardModel.traverse((node) => {
+          if (!node?.isMesh) return;
+          const cache = boardMaterialCacheRef.current.gltf.get(node.uuid);
+          if (!cache) return;
+          const base = Array.isArray(cache) ? cache[0] : cache;
+          const mat = base?.clone ? base.clone() : base;
+          if (!mat) return;
+          if (theme.special === 'chrome') {
+            if (mat.metalness !== undefined) mat.metalness = 0.95;
+            if (mat.roughness !== undefined) mat.roughness = 0.15;
+            mat.color?.setHex(theme.light);
+          } else {
+            if (isGoldLikeMaterial(mat)) {
+              node.material = mat;
+              return;
+            }
+            const color = mat.color ? mat.color.clone() : new THREE.Color(1, 1, 1);
+            const luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+            const target = new THREE.Color(luminance >= 0.5 ? theme.light : theme.dark);
+            mat.color?.copy(target);
+          }
+          mat.emissive?.set(0x000000);
+          node.material = mat;
+        });
+      } else if (arenaState.boardMaterials?.tiles?.length) {
+        const { tiles, base: baseMat, top: topMat, coord, tileMaterials } = arenaState.boardMaterials;
+        if (!boardMaterialCacheRef.current.procedural) {
+          boardMaterialCacheRef.current.procedural = {
+            base: baseMat?.clone ? baseMat.clone() : baseMat,
+            top: topMat?.clone ? topMat.clone() : topMat,
+            coord: coord?.clone ? coord.clone() : coord,
+            tileMaterials: tileMaterials?.map((mat) => (mat?.clone ? mat.clone() : mat))
+          };
+        }
+        tiles.forEach((tileMesh) => {
+          const { r = 0, c = 0 } = tileMesh.userData || {};
+          ensureIsolatedMaterial(tileMesh);
+          const isLight = (r + c) % 2 === 0;
+          const target = isLight ? theme.light : theme.dark;
+          const mat = Array.isArray(tileMesh.material) ? tileMesh.material[0] : tileMesh.material;
+          mat?.color?.setHex(target);
+          mat?.emissive?.set(0x000000);
+        });
+        if (topMat?.color) topMat.color.setHex(theme.light);
+        if (baseMat?.color) baseMat.color.setHex(theme.dark);
+        coord?.color?.setHex(theme.special === 'chrome' ? 0xffffff : theme.dark);
+      }
+    };
+
+    const applyHomeRankMaterialSwap = () => {
+      if (rankSwapAppliedRef.current) return;
+      for (let c = 0; c < 8; c += 1) {
+        const whiteBackRank = pieceMeshes[7][c];
+        const blackBackRank = pieceMeshes[0][c];
+        if (whiteBackRank && blackBackRank) {
+          swapMaterialsBetweenMeshes(whiteBackRank, blackBackRank);
+        }
+      }
+      rankSwapAppliedRef.current = true;
+    };
+
     // Pieces — meshes + state
     let board = parseFEN(START_FEN);
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
@@ -6096,6 +6391,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           allPieceMeshes.push(clone);
         }
       }
+      applyHomeRankMaterialSwap();
       if (arenaRef.current) {
         arenaRef.current.allPieceMeshes = allPieceMeshes;
         arenaRef.current.piecePrototypes = prototypes;
@@ -6121,6 +6417,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           assets?.userData?.preserveOriginalMaterials ||
           PRESERVE_NATIVE_PIECE_IDS.has(resolvedSetId)
       );
+      rankSwapAppliedRef.current = false;
+      pawnHeadMaterialCacheRef.current.clear();
+      boardMaterialCacheRef.current = { gltf: new Map(), procedural: null };
       if (currentBoardCleanup) {
         currentBoardCleanup();
         currentBoardCleanup = null;
@@ -6158,6 +6457,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           applyHeadPresetToMeshes(allPieceMeshes, headPreset);
         }
       }
+      applySideColorHex('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]);
+      applySideColorHex('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]);
+      const headTarget = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
+      applyPawnHeadPreset(headTarget);
+      applyBoardThemePreset(boardQuickIdx);
       if (arenaRef.current) {
         arenaRef.current.boardModel = currentBoardModel;
         arenaRef.current.piecePrototypes = currentPiecePrototypes;
@@ -6165,6 +6469,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         arenaRef.current.allPieceMeshes = allPieceMeshes;
         arenaRef.current.applyPieceSetAssets = applyPieceSetAssets;
         arenaRef.current.setProceduralBoardVisible = setProceduralBoardVisible;
+        arenaRef.current.applySideColorHex = applySideColorHex;
+        arenaRef.current.applyPawnHeadPreset = applyPawnHeadPreset;
+        arenaRef.current.applyBoardThemePreset = applyBoardThemePreset;
       }
 
       if (typeof window !== 'undefined') {
@@ -6916,6 +7223,92 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                         </div>
                       </div>
                     )}
+                  </div>
+                </div>
+                <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-white/60">Quick look swaps</p>
+                  <div className="space-y-2">
+                    <div>
+                      <p className="text-[0.7rem] text-white/70">Pieces P1</p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {QUICK_SIDE_COLORS.map((color, idx) => (
+                          <button
+                            key={`p1-${color}-${idx}`}
+                            type="button"
+                            onClick={() => setP1QuickIdx(idx)}
+                            className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              p1QuickIdx === idx
+                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
+                                : 'border-white/20 hover:border-white/40'
+                            }`}
+                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
+                            aria-label={`Set player one color ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[0.7rem] text-white/70">Pieces P2</p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {QUICK_SIDE_COLORS.map((color, idx) => (
+                          <button
+                            key={`p2-${color}-${idx}`}
+                            type="button"
+                            onClick={() => setP2QuickIdx(idx)}
+                            className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              p2QuickIdx === idx
+                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
+                                : 'border-white/20 hover:border-white/40'
+                            }`}
+                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
+                            aria-label={`Set player two color ${idx + 1}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[0.7rem] text-white/70">Pawn heads</p>
+                      <div className="mt-1 flex flex-wrap gap-2">
+                        {QUICK_HEAD_PRESETS.map((preset, idx) => (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setHeadQuickIdx(idx)}
+                            className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              headQuickIdx === idx
+                                ? 'border-white/70 bg-white/10 text-white'
+                                : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40 hover:text-white'
+                            }`}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[0.7rem] text-white/70">Board theme</p>
+                      <div className="mt-1 grid grid-cols-3 gap-2">
+                        {QUICK_BOARD_THEMES.map((theme, idx) => (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            onClick={() => setBoardQuickIdx(idx)}
+                            className={`flex items-center justify-center rounded-lg border px-2 py-2 text-[0.65rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              boardQuickIdx === idx
+                                ? 'border-white/70 bg-white/10 text-white'
+                                : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
+                            }`}
+                          >
+                            <span className="mr-2 inline-block h-4 w-4 rounded-full border border-white/40" style={{
+                              background: `linear-gradient(135deg, #${theme.light.toString(16).padStart(6, '0')} 50%, #${theme.dark
+                                .toString(16)
+                                .padStart(6, '0')} 50%)`
+                            }} />
+                            {theme.name}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
