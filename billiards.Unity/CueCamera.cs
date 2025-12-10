@@ -219,10 +219,12 @@ public class CueCamera : MonoBehaviour
         cueAimSideSign = aimSide;
         broadcastSideSign = -aimSide;
 
-        targetViewFocus = GetCueAndTargetFocus();
+        Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
+        targetViewFocus = GetBroadcastFocus(focus);
         if (target != null && target.gameObject.activeInHierarchy)
         {
             currentBall = target;
+            targetViewFocus = GetBroadcastFocus(target.position);
         }
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
         yaw = targetViewYaw;
@@ -241,7 +243,7 @@ public class CueCamera : MonoBehaviour
         currentBall = CueBall;
         cueAimLowering = Mathf.Clamp01(defaultCueAimLowering);
         cueAimForward = GetInitialCueForward();
-        targetViewFocus = GetCueAndTargetFocus();
+        targetViewFocus = GetBroadcastFocus(CueBall != null ? CueBall.position : tableBounds.center);
     }
 
     private void LateUpdate()
@@ -566,7 +568,8 @@ public class CueCamera : MonoBehaviour
     {
         currentBall = CueBall;
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
-        ApplyBroadcastCamera(GetCueAndTargetFocus());
+        Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
+        ApplyBroadcastCamera(GetBroadcastFocus(focus));
 
         bool cueMoving = IsMoving(CueBall);
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
@@ -592,12 +595,12 @@ public class CueCamera : MonoBehaviour
     {
         if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
         {
+            targetViewFocus = GetBroadcastFocus(TargetBall.position);
             currentBall = TargetBall;
         }
 
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
-        targetViewFocus = GetCueAndTargetFocus();
         ApplyBroadcastCamera(targetViewFocus);
 
         bool targetSettled = TargetBall == null || !TargetBall.gameObject.activeInHierarchy || !IsMoving(TargetBall);
@@ -628,28 +631,6 @@ public class CueCamera : MonoBehaviour
         }
 
         PositionCueAimCamera(0f, true);
-    }
-
-    private Vector3 GetCueAndTargetFocus()
-    {
-        bool cueActive = CueBall != null && CueBall.gameObject.activeInHierarchy;
-        bool targetActive = TargetBall != null && TargetBall.gameObject.activeInHierarchy;
-
-        Vector3 fallback = cueActive ? CueBall.position : tableBounds.center;
-
-        if (cueActive && targetActive)
-        {
-            Vector3 midpoint = (CueBall.position + TargetBall.position) * 0.5f;
-            midpoint.y = Mathf.Max(midpoint.y, tableBounds.center.y);
-            return GetBroadcastFocus(midpoint);
-        }
-
-        if (targetActive)
-        {
-            return GetBroadcastFocus(TargetBall.position);
-        }
-
-        return GetBroadcastFocus(fallback);
     }
 
     private Vector3 GetBroadcastFocus(Vector3 desired)
