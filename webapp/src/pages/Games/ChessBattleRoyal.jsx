@@ -6070,6 +6070,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     // Tiles
     const tiles = [];
+    const coordMarkers = [];
     const tileGroup = new THREE.Group();
     boardGroup.add(tileGroup);
     for (let r = 0; r < N; r++) {
@@ -6107,7 +6108,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         BOARD.baseH + 0.13,
         -half - 0.6
       );
+      mSmall.userData = { axis: 'file', index: i };
       boardGroup.add(mSmall);
+      coordMarkers.push(mSmall);
       const nSmall = new THREE.Mesh(
         new THREE.PlaneGeometry(0.8, 0.08),
         coordMat
@@ -6118,8 +6121,48 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         BOARD.baseH + 0.13,
         i * tile - half + tile / 2
       );
+      nSmall.userData = { axis: 'rank', index: i };
       boardGroup.add(nSmall);
+      coordMarkers.push(nSmall);
     }
+
+    const getActiveTileSize = () => currentTileSize || tile;
+    const updateTileGrid = () => {
+      const activeTile = getActiveTileSize();
+      const activeHalf = (N * activeTile) / 2;
+      tiles.forEach((mesh) => {
+        const { r, c } = mesh.userData || {};
+        if (r == null || c == null) return;
+        mesh.position.set(
+          c * activeTile - activeHalf + activeTile / 2,
+          BOARD.baseH + 0.12,
+          r * activeTile - activeHalf + activeTile / 2
+        );
+        if (mesh.geometry?.dispose) mesh.geometry.dispose();
+        mesh.geometry = new THREE.BoxGeometry(activeTile, 0.1, activeTile);
+      });
+      coordMarkers.forEach((marker) => {
+        if (!marker) return;
+        const i = marker.userData?.index;
+        if (!Number.isFinite(i)) return;
+        const axis = marker.userData?.axis;
+        if (axis === 'file') {
+          marker.position.set(
+            i * activeTile - activeHalf + activeTile / 2,
+            BOARD.baseH + 0.13,
+            -activeHalf - 0.6
+          );
+        } else if (axis === 'rank') {
+          marker.position.set(
+            -activeHalf - 0.6,
+            BOARD.baseH + 0.13,
+            i * activeTile - activeHalf + activeTile / 2
+          );
+        }
+      });
+    };
+
+    updateTileGrid();
 
     let proceduralBoardVisible = true;
     const setProceduralBoardVisible = (visible) => {
@@ -6131,6 +6174,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       coordMat.visible = visible;
       tiles.forEach((tileMesh) => {
         tileMesh.visible = visible;
+      });
+      coordMarkers.forEach((marker) => {
+        marker.visible = visible;
       });
       arena.usingProceduralBoard = visible;
       if (arenaRef.current) {
@@ -6387,6 +6433,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     };
 
     // Pieces — meshes + state
+    const activeHalfSpan = () => (N * getActiveTileSize()) / 2;
+    const positionForSquare = (r, c, y = 0) =>
+      new THREE.Vector3(
+        c * getActiveTileSize() - activeHalfSpan() + getActiveTileSize() / 2,
+        y,
+        r * getActiveTileSize() - activeHalfSpan() + getActiveTileSize() / 2
+      );
     let board = parseFEN(START_FEN);
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
@@ -6395,7 +6448,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!prototypes) return;
       const colorKey = (p) => (p.w ? 'white' : 'black');
       const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
-      const yOffset = 0;
+      const yOffset = currentPieceYOffset;
 
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
@@ -6413,11 +6466,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const proto = build(p);
           if (!proto) continue;
           const clone = cloneWithShadows(proto);
-          clone.position.set(
-            c * tile - half + tile / 2,
-            yOffset,
-            r * tile - half + tile / 2
-          );
+          clone.position.copy(positionForSquare(r, c, yOffset));
           clone.userData = {
             r,
             c,
@@ -6460,6 +6509,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         ? assets.pieceYOffset
         : PIECE_PLACEMENT_Y_OFFSET;
       currentTileSize = assets?.tileSize ?? tile;
+      updateTileGrid();
       const headPreset = paletteRef.current?.head ?? HEAD_PRESET_OPTIONS[0].preset;
       const preserveOriginalMaterials = Boolean(
         pieceStyleOption?.preserveOriginalMaterials ||
@@ -6721,12 +6771,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const palette = paletteRef.current;
       const highlightColor = color ?? palette?.highlight ?? '#6ee7b7';
       list.forEach(([rr, cc]) => {
-        const mesh = tiles.find(
-          (t) => t.userData.r === rr && t.userData.c === cc
-        );
-        if (!mesh) return;
+        const activeTile = getActiveTileSize();
         const h = new THREE.Mesh(
-          new THREE.CylinderGeometry(tile * 0.28, tile * 0.28, 0.06, 20),
+          new THREE.CylinderGeometry(activeTile * 0.28, activeTile * 0.28, 0.06, 20),
           new THREE.MeshStandardMaterial({
             color: highlightColor,
             transparent: true,
@@ -6734,7 +6781,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             metalness: 0.2
           })
         );
-        h.position.copy(mesh.position).add(new THREE.Vector3(0, 0.06, 0));
+        h.position.copy(positionForSquare(rr, cc, BOARD.baseH + 0.18));
         h.userData.__highlight = true;
         boardGroup.add(h);
       });
@@ -6780,10 +6827,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const idx = zone.push(targetMesh) - 1;
         const row = Math.floor(idx / 8);
         const col = idx % 8;
-        const capX = (col - 3.5) * (tile * 0.5);
+        const activeTile = getActiveTileSize();
+        const capX = (col - 3.5) * (activeTile * 0.5);
         const capZ = capturingWhite
-          ? half + BOARD.rim + 1 + row * (tile * 0.5)
-          : -half - BOARD.rim - 1 - row * (tile * 0.5);
+          ? activeHalfSpan() + BOARD.rim + 1 + row * (activeTile * 0.5)
+          : -activeHalfSpan() - BOARD.rim - 1 - row * (activeTile * 0.5);
         targetMesh.position.set(capX, 0, capZ);
         createExplosion(worldPos);
         if (bombSoundRef.current && settingsRef.current.soundEnabled) {
@@ -6809,11 +6857,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       m.userData.r = rr;
       m.userData.c = cc;
       m.userData.t = board[rr][cc].t;
-      m.position.set(
-        cc * tile - half + tile / 2,
-        0,
-        rr * tile - half + tile / 2
-      );
+      m.position.copy(positionForSquare(rr, cc, currentPieceYOffset));
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
         const queenProto = currentPiecePrototypes[color]?.Q;
@@ -6880,8 +6924,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       from: null
     };
 
-    const piecePosition = (r, c, y = 0) =>
-      new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
+    const piecePosition = (r, c, y = currentPieceYOffset) => positionForSquare(r, c, y);
 
     const pickTileFromPointer = (event) => {
       setPointer(event);
