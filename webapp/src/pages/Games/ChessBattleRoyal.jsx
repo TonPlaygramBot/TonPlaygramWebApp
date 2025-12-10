@@ -3470,11 +3470,32 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 }
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
+  let boardAssets = null;
   try {
-    return await loadBeautifulGamePiecesOnly(targetBoardSize);
+    boardAssets = await resolveBeautifulGameBoardStrict(targetBoardSize);
+  } catch (error) {
+    console.warn('Chess Battle Royal: GLTF board failed, trying swap pieces', error);
+  }
+
+  try {
+    const swapAssets = await loadBeautifulGamePiecesOnly(targetBoardSize);
+    if (boardAssets) {
+      const { userData: boardUserData, tileSize, pieceYOffset, ...rest } = boardAssets;
+      return {
+        ...rest,
+        boardModel: boardAssets.boardModel,
+        tileSize: swapAssets?.tileSize ?? tileSize,
+        pieceYOffset: pieceYOffset ?? swapAssets?.pieceYOffset,
+        piecePrototypes: swapAssets?.piecePrototypes ?? boardAssets.piecePrototypes,
+        userData: { ...(boardUserData || {}), ...(swapAssets?.userData || {}) }
+      };
+    }
+    return swapAssets;
   } catch (error) {
     console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
   }
+
+  if (boardAssets) return boardAssets;
 
   console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
   return buildBattleRoyalProceduralAssets(targetBoardSize);
