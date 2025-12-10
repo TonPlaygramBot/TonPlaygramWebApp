@@ -77,109 +77,94 @@ const BASE_BOARD_THEME = Object.freeze({
 
 const BOARD_COLOR_BASE_OPTIONS = Object.freeze([
   {
-    id: 'classic',
-    label: 'Classic',
-    light: '#EEE8D5',
-    dark: '#2B2F36',
-    frameLight: '#EEE8D5',
-    frameDark: '#2B2F36',
-    accent: '#c0a16b',
-    highlight: '#6ee7b7',
-    capture: '#f87171',
-    surfaceRoughness: BASE_BOARD_THEME.surfaceRoughness,
-    surfaceMetalness: BASE_BOARD_THEME.surfaceMetalness,
-    frameRoughness: BASE_BOARD_THEME.frameRoughness,
-    frameMetalness: BASE_BOARD_THEME.frameMetalness
-  },
-  {
-    id: 'ivorySlate',
-    label: 'Ivory / Slate',
-    light: '#E5E7EB',
-    dark: '#111827',
-    frameLight: '#E5E7EB',
-    frameDark: '#111827',
+    id: 'frostedSteel',
+    label: 'Frosted Steel',
+    light: '#e4f0ff',
+    dark: '#1c2738',
+    frameLight: '#c8d5e8',
+    frameDark: '#101827',
     accent: '#7dd3fc',
     highlight: '#7cf4c4',
     capture: '#ff8ba7',
-    surfaceRoughness: BASE_BOARD_THEME.surfaceRoughness,
-    surfaceMetalness: BASE_BOARD_THEME.surfaceMetalness,
-    frameRoughness: BASE_BOARD_THEME.frameRoughness,
-    frameMetalness: BASE_BOARD_THEME.frameMetalness
+    surfaceRoughness: 0.44,
+    surfaceMetalness: 0.28,
+    frameRoughness: 0.6,
+    frameMetalness: 0.32
   },
   {
-    id: 'forest',
-    label: 'Forest',
-    light: '#A7F3D0',
-    dark: '#065F46',
-    frameLight: '#A7F3D0',
-    frameDark: '#065F46',
-    accent: '#22c55e',
-    highlight: '#67e8f9',
-    capture: '#dc5c5c',
-    surfaceRoughness: BASE_BOARD_THEME.surfaceRoughness,
-    surfaceMetalness: BASE_BOARD_THEME.surfaceMetalness,
-    frameRoughness: BASE_BOARD_THEME.frameRoughness,
-    frameMetalness: BASE_BOARD_THEME.frameMetalness
-  },
-  {
-    id: 'sandBrown',
-    label: 'Sand / Brown',
-    light: '#DDD0B8',
-    dark: '#6B4F3A',
-    frameLight: '#DDD0B8',
-    frameDark: '#6B4F3A',
+    id: 'desertCopper',
+    label: 'Desert Copper',
+    light: '#f4e3c3',
+    dark: '#4b2e1b',
+    frameLight: '#d29d6a',
+    frameDark: '#2a1b10',
     accent: '#e38b29',
     highlight: '#fcd34d',
     capture: '#f97316',
-    surfaceRoughness: BASE_BOARD_THEME.surfaceRoughness,
-    surfaceMetalness: BASE_BOARD_THEME.surfaceMetalness,
-    frameRoughness: BASE_BOARD_THEME.frameRoughness,
-    frameMetalness: BASE_BOARD_THEME.frameMetalness
+    surfaceRoughness: 0.62,
+    surfaceMetalness: 0.22,
+    frameRoughness: 0.78,
+    frameMetalness: 0.18
   },
   {
-    id: 'ocean',
-    label: 'Ocean',
-    light: '#A4C8E1',
-    dark: '#1E3A5F',
-    frameLight: '#A4C8E1',
-    frameDark: '#1E3A5F',
-    accent: '#3b82f6',
-    highlight: '#34d399',
-    capture: '#fb7185',
-    surfaceRoughness: BASE_BOARD_THEME.surfaceRoughness,
-    surfaceMetalness: BASE_BOARD_THEME.surfaceMetalness,
-    frameRoughness: BASE_BOARD_THEME.frameRoughness,
-    frameMetalness: BASE_BOARD_THEME.frameMetalness
-  },
-  {
-    id: 'violet',
-    label: 'Violet',
-    light: '#DDD6FE',
-    dark: '#3B2A6E',
-    frameLight: '#DDD6FE',
-    frameDark: '#3B2A6E',
+    id: 'nebulaGlass',
+    label: 'Nebula Glass',
+    light: '#e0f2fe',
+    dark: '#0b1024',
+    frameLight: '#a5b4fc',
+    frameDark: '#0a0d14',
     accent: '#8b5cf6',
     highlight: '#34d399',
     capture: '#fb7185',
-    surfaceRoughness: BASE_BOARD_THEME.surfaceRoughness,
-    surfaceMetalness: BASE_BOARD_THEME.surfaceMetalness,
-    frameRoughness: BASE_BOARD_THEME.frameRoughness,
-    frameMetalness: BASE_BOARD_THEME.frameMetalness
+    surfaceRoughness: 0.34,
+    surfaceMetalness: 0.52,
+    frameRoughness: 0.42,
+    frameMetalness: 0.56
   },
   {
-    id: 'chrome',
-    label: 'Chrome',
-    light: '#B0B0B0',
-    dark: '#6E6E6E',
-    frameLight: '#B0B0B0',
-    frameDark: '#6E6E6E',
-    accent: '#c0c0c0',
-    highlight: '#7cf4c4',
-    capture: '#f87171',
-    surfaceRoughness: 0.2,
-    surfaceMetalness: 0.9,
-    frameRoughness: 0.2,
-    frameMetalness: 0.9
+    id: 'harborMist',
+    label: 'Harbor Mist',
+    light: '#dbeafe',
+    dark: '#1f2937',
+    frameLight: '#94a3b8',
+    frameDark: '#0f172a',
+    accent: '#38bdf8',
+    highlight: '#7ef9a1',
+    capture: '#f43f5e',
+    surfaceRoughness: 0.5,
+    surfaceMetalness: 0.18,
+    frameRoughness: 0.64,
+    frameMetalness: 0.22
+  },
+  {
+    id: 'emberRose',
+    label: 'Ember Rose',
+    light: '#ffe4e6',
+    dark: '#311424',
+    frameLight: '#f9c5d5',
+    frameDark: '#1b0d17',
+    accent: '#f43f5e',
+    highlight: '#fda4af',
+    capture: '#fb7185',
+    surfaceRoughness: 0.56,
+    surfaceMetalness: 0.26,
+    frameRoughness: 0.7,
+    frameMetalness: 0.24
+  },
+  {
+    id: 'slateJade',
+    label: 'Slate & Jade',
+    light: '#e0f2f1',
+    dark: '#1c2625',
+    frameLight: '#9bc8b3',
+    frameDark: '#15201e',
+    accent: '#34d399',
+    highlight: '#67e8f9',
+    capture: '#dc5c5c',
+    surfaceRoughness: 0.54,
+    surfaceMetalness: 0.16,
+    frameRoughness: 0.66,
+    frameMetalness: 0.18
   }
 ]);
 
@@ -664,16 +649,13 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
   [
-    { id: 'beautifulGameClassic', label: 'Classic', color: '#ffffff' },
-    { id: 'beautifulGameOnyx', label: 'Onyx', color: '#111827' },
-    { id: 'beautifulGameGold', label: 'Gold', color: '#f59e0b' },
-    { id: 'beautifulGameEmerald', label: 'Emerald', color: '#10b981' },
-    { id: 'beautifulGameAzure', label: 'Azure', color: '#3b82f6' },
-    { id: 'beautifulGameCrimson', label: 'Crimson', color: '#ef4444' },
-    { id: 'beautifulGameViolet', label: 'Violet', color: '#8b5cf6' },
-    { id: 'beautifulGameTeal', label: 'Teal', color: '#06b6d4' },
-    { id: 'beautifulGameLeaf', label: 'Leaf', color: '#22c55e' },
-    { id: 'beautifulGameRose', label: 'Rose', color: '#f43f5e' }
+    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
+    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
+    { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
+    { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
+    { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
+    { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
+    { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
   ].map((preset) => ({
     ...preset,
     style: {
@@ -698,9 +680,16 @@ const BEAUTIFUL_GAME_PIECE_INDEX = Math.max(
 
 const HEAD_PRESET_OPTIONS = Object.freeze([
   {
-    id: 'headCurrent',
-    label: 'Current',
-    preset: null
+    id: 'headGlass',
+    label: 'Glass',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.05,
+      transmission: 0.95,
+      ior: 1.5,
+      thickness: 0.5
+    }
   },
   {
     id: 'headRuby',
@@ -715,6 +704,18 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
     }
   },
   {
+    id: 'headPearl',
+    label: 'Pearl',
+    preset: {
+      color: '#f5f5f5',
+      metalness: 0.05,
+      roughness: 0.25,
+      transmission: 0,
+      ior: 1.3,
+      thickness: 0.2
+    }
+  },
+  {
     id: 'headSapphire',
     label: 'Sapphire',
     preset: {
@@ -724,6 +725,30 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
       transmission: 0.9,
       ior: 1.8,
       thickness: 0.7
+    }
+  },
+  {
+    id: 'headEmerald',
+    label: 'Emerald',
+    preset: {
+      color: '#046a38',
+      metalness: 0.05,
+      roughness: 0.08,
+      transmission: 0.9,
+      ior: 1.8,
+      thickness: 0.7
+    }
+  },
+  {
+    id: 'headDiamond',
+    label: 'Diamond',
+    preset: {
+      color: '#ffffff',
+      metalness: 0,
+      roughness: 0.03,
+      transmission: 0.98,
+      ior: 2.4,
+      thickness: 0.8
     }
   }
 ]);
