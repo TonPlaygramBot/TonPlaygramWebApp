@@ -198,9 +198,7 @@ const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
 const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://unpkg.com/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://esm.sh/three@0.159.0/examples/jsm/loaders/GLTFLoader.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/loaders/GLTFLoader.js'];
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
-const BOARD_GROWTH=0.96;
-const PIECE_SPACING_SCALE=0.92;
-const BOARD_Y_OFFSET=-0.02;
+const BOARD_GROWTH=1.06;
 
 const files='abcdefgh';
 function rcToSq(r,c){ return files[c]+(8-r); }
@@ -298,7 +296,7 @@ function ascendWhile(node,pred){ let t=node; while(t.parent && pred(t.parent)) t
 function onModel(gltf){
   modelRoot=gltf.scene; modelRoot.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
   const bb0=new THREE.Box3().setFromObject(modelRoot); const ctr0=new THREE.Vector3(); bb0.getCenter(ctr0); const size0=new THREE.Vector3(); bb0.getSize(size0);
-  const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=.02+BOARD_Y_OFFSET; scene.add(modelRoot);
+  const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=.02; scene.add(modelRoot);
   const boards=[]; modelRoot.traverse(node=>{ const n=(node.name||'').toLowerCase(); if(/board|chessboard/.test(n)) boards.push(node); });
   boards.forEach(node=>{ node.scale.x*=BOARD_GROWTH; node.scale.z*=BOARD_GROWTH; });
   const bb2=new THREE.Box3().setFromObject(modelRoot); boardY=(bb2.min.y+bb2.max.y)/2;
@@ -309,14 +307,14 @@ function onModel(gltf){
   if(whiteRooks.length>=2 && blackRooks.length>=2){
     let a1=nodeXZ(whiteRooks[0]), a1b=nodeXZ(whiteRooks[1]);
     let vxv=[a1b[0]-a1[0], a1b[1]-a1[1]]; let vxLen=Math.hypot(vxv[0],vxv[1]); if(vxLen<1e-6){ const tmp=a1; a1=a1b; a1b=tmp; vxv=[a1b[0]-a1[0], a1b[1]-a1[1]]; vxLen=Math.hypot(vxv[0],vxv[1]); }
-    vxv=[vxv[0]/vxLen, vxv[1]/vxLen]; stepX=(vxLen/7)*PIECE_SPACING_SCALE;
+    vxv=[vxv[0]/vxLen, vxv[1]/vxLen]; stepX=vxLen/7;
     const br1=nodeXZ(blackRooks[0]), br2=nodeXZ(blackRooks[1]);
     const zcand1=[br1[0]-a1[0], br1[1]-a1[1]], zcand2=[br2[0]-a1[0], br2[1]-a1[1]];
     const norm=v=>{ const L=Math.hypot(v[0],v[1])||1; return [v[0]/L,v[1]/L]; };
     const nz1=norm(zcand1), nz2=norm(zcand2); const d1=Math.abs(nz1[0]*vxv[0]+nz1[1]*vxv[1]); const d2=Math.abs(nz2[0]*vxv[0]+nz2[1]*vxv[1]);
-    const vzv = d1<d2 ? nz1 : nz2; const proj=(vzv===nz1?zcand1:zcand2); stepZ=(Math.hypot(proj[0],proj[1])/7)*PIECE_SPACING_SCALE; originXZ=[a1[0],a1[1]]; vx[0]=vxv[0]*stepX; vx[1]=vxv[1]*stepX; vz[0]=vzv[0]*stepZ; vz[1]=vzv[1]*stepZ;
+    const vzv = d1<d2 ? nz1 : nz2; const proj=(vzv===nz1?zcand1:zcand2); stepZ=(Math.hypot(proj[0],proj[1]))/7; originXZ=[a1[0],a1[1]]; vx[0]=vxv[0]*stepX; vx[1]=vxv[1]*stepX; vz[0]=vzv[0]*stepZ; vz[1]=vzv[1]*stepZ;
   }else{
-    const bb=new THREE.Box3().setFromObject(modelRoot); const minX=bb.min.x, maxX=bb.max.x, minZ=bb.min.z, maxZ=bb.max.z; stepX=((maxX-minX)/7)*PIECE_SPACING_SCALE; stepZ=((maxZ-minZ)/7)*PIECE_SPACING_SCALE; originXZ=[minX+stepX*0.5, minZ+stepZ*0.5]; vx[0]=stepX; vx[1]=0; vz[0]=0; vz[1]=stepZ;
+    const bb=new THREE.Box3().setFromObject(modelRoot); const minX=bb.min.x, maxX=bb.max.x, minZ=bb.min.z, maxZ=bb.max.z; stepX=(maxX-minX)/7; stepZ=(maxZ-minZ)/7; originXZ=[minX+stepX*0.5, minZ+stepZ*0.5]; vx[0]=stepX; vx[1]=0; vz[0]=0; vz[1]=stepZ;
   }
   origin[0]=originXZ[0]; origin[1]=originXZ[1];
   function ensurePieces(color, code, need){ const arr=pool[color][code]; if(arr.length>=need) return; const protoNode=proto[color][code]; if(!protoNode) return; while(arr.length<need){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); arr.push(nn); extraNodes.push(nn); }
