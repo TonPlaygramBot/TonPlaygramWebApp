@@ -3471,6 +3471,21 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
+    const gltf = await loadBeautifulGameSet();
+    if (gltf?.scene) {
+      const assets = extractBeautifulGameAssets(gltf.scene, targetBoardSize);
+      assets.userData = {
+        ...(assets.userData || {}),
+        styleId: BEAUTIFUL_GAME_SWAP_SET_ID,
+        preserveOriginalMaterials: true
+      };
+      return assets;
+    }
+  } catch (error) {
+    console.warn('Chess Battle Royal: GLTF board+pieces failed', error);
+  }
+
+  try {
     return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
     console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
