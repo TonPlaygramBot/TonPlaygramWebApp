@@ -766,10 +766,6 @@ const QUICK_SIDE_COLORS = [
   0xf43f5e
 ];
 
-const P2_DARK_FOREST = 0x0b3d1d;
-const P2_QUICK_SIDE_COLORS = [P2_DARK_FOREST, ...QUICK_SIDE_COLORS.slice(1)];
-const P2_QUICK_SIDE_LABELS = ['Dark Forest', ...QUICK_SIDE_COLORS.slice(1).map((_, idx) => `Color ${idx + 2}`)];
-
 const QUICK_HEAD_PRESETS = [
   { id: 'current', label: 'Current' },
   { id: 'headRuby', label: 'Ruby' },
@@ -3475,16 +3471,6 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
 
 async function resolveBeautifulGameAssets(targetBoardSize) {
   try {
-    const gltf = await loadBeautifulGameSet();
-    if (gltf?.scene) {
-      const source = gltf.scene.userData?.beautifulGameSource;
-      return extractBeautifulGameAssets(gltf.scene, targetBoardSize, { source });
-    }
-  } catch (error) {
-    console.warn('Chess Battle Royal: GLTF set load failed', error);
-  }
-
-  try {
     return await loadBeautifulGamePiecesOnly(targetBoardSize);
   } catch (error) {
     console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
@@ -4906,7 +4892,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     return getAIOpponentFlag(baseFlag);
   });
   const [p1QuickIdx, setP1QuickIdx] = useState(0);
-  const [p2QuickIdx, setP2QuickIdx] = useState(0);
+  const [p2QuickIdx, setP2QuickIdx] = useState(1);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
@@ -5229,7 +5215,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply) apply('black', P2_QUICK_SIDE_COLORS[p2QuickIdx % P2_QUICK_SIDE_COLORS.length]);
+    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]);
   }, [p2QuickIdx]);
 
   useEffect(() => {
@@ -6508,7 +6494,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         }
       }
       applySideColorHex('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]);
-      applySideColorHex('black', P2_QUICK_SIDE_COLORS[p2QuickIdx % P2_QUICK_SIDE_COLORS.length]);
+      applySideColorHex('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]);
       const headTarget = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
       applyPawnHeadPreset(headTarget);
       applyBoardThemePreset(boardQuickIdx);
@@ -7300,7 +7286,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P2</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {P2_QUICK_SIDE_COLORS.map((color, idx) => (
+                        {QUICK_SIDE_COLORS.map((color, idx) => (
                           <button
                             key={`p2-${color}-${idx}`}
                             type="button"
@@ -7311,8 +7297,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                                 : 'border-white/20 hover:border-white/40'
                             }`}
                             style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                            aria-label={`Set player two color ${P2_QUICK_SIDE_LABELS[idx] || idx + 1}`}
-                            title={P2_QUICK_SIDE_LABELS[idx] || `Color ${idx + 1}`}
+                            aria-label={`Set player two color ${idx + 1}`}
                           />
                         ))}
                       </div>
