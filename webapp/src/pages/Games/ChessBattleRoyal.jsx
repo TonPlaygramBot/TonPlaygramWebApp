@@ -7094,7 +7094,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     let lastRender = lastTime;
     const step = () => {
       const now = performance.now();
-      const dt = Math.min(0.1, Math.max(0, (now - lastTime) / 1000));
+      const rawDt = Math.max(0, (now - lastTime) / 1000);
+      const dt = Math.min(0.1, rawDt);
+      const animDt = Math.min(0.5, rawDt);
       lastTime = now;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
@@ -7145,7 +7147,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (activePieceAnimations.length) {
         for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
           const anim = activePieceAnimations[i];
-          anim.elapsed += dt;
+          anim.elapsed += animDt;
           const t = clamp01(anim.elapsed / anim.duration);
           const eased = 1 - (1 - t) * (1 - t);
           anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
