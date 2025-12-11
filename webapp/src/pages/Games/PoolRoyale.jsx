@@ -2328,12 +2328,64 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     id: 'skybox-truss',
     label: 'Skybox TrussCam',
     description: 'High truss glide with wide parallax sweeps.',
+    method: 'Skybox cable with parallel dolly and gentle rack focus.',
     railPush: BALL_R * 10.5,
     lateralDolly: BALL_R * 3.4,
     focusLift: BALL_R * 6.2,
     focusDepthBias: BALL_R * 2.4,
     trackingBias: 0.58,
     smoothing: 0.16
+  },
+  {
+    id: 'rail-drift',
+    label: 'Railside DriftCam',
+    description: 'Low glide that hugs the long rail for intimate cue follow.',
+    method: 'Motorized rail slider with shallow parallax and cue-tracking bias.',
+    railPush: BALL_R * 7.8,
+    lateralDolly: BALL_R * 2.8,
+    focusLift: BALL_R * 4.4,
+    focusDepthBias: BALL_R * 1.2,
+    focusPan: BALL_R * 0.6,
+    trackingBias: 0.72,
+    smoothing: 0.12
+  },
+  {
+    id: 'pocket-vault',
+    label: 'Pocket VaultCam',
+    description: 'Aggressive pocket push-ins for dramatic sink shots.',
+    method: 'Corner jib with rapid pull focus into the pocket apex.',
+    railPush: BALL_R * 12.5,
+    lateralDolly: BALL_R * 1.8,
+    focusLift: BALL_R * 3.2,
+    focusDepthBias: BALL_R * 4.1,
+    trackingBias: 0.44,
+    smoothing: 0.18
+  },
+  {
+    id: 'drone-orbit',
+    label: 'Drone OrbitCam',
+    description: 'Slow aerial orbits that keep both players framed.',
+    method: 'Virtual drone arc with elevated pivot and steady lerp.',
+    railPush: BALL_R * 15.2,
+    lateralDolly: BALL_R * 4.6,
+    focusLift: BALL_R * 9.5,
+    focusDepthBias: BALL_R * 3.1,
+    focusPan: BALL_R * 1.1,
+    trackingBias: 0.32,
+    smoothing: 0.22
+  },
+  {
+    id: 'immersive-follow',
+    label: 'Immersive FollowCam',
+    description: 'Player-height follow with responsive rail swaps.',
+    method: 'Shoulder-height steadicam with fast target biasing.',
+    railPush: BALL_R * 9.4,
+    lateralDolly: BALL_R * 3.9,
+    focusLift: BALL_R * 5.1,
+    focusDepthBias: BALL_R * 2.7,
+    focusPan: BALL_R * 0.9,
+    trackingBias: 0.81,
+    smoothing: 0.14
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'skybox-truss';
@@ -16753,6 +16805,43 @@ function PoolRoyaleGame({
                             {option.resolution
                               ? `${option.resolution} • ${option.fps} FPS`
                               : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast Modes
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
+                    const active = option.id === broadcastSystemId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastSystemId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                            {option.method}
                           </span>
                         </span>
                         {option.description ? (
