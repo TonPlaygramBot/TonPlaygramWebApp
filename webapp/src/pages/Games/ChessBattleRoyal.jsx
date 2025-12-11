@@ -176,7 +176,8 @@ const BOARD = { N: 8, tile: 4, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const PIECE_SCALE_FACTOR = 0.92;
-const BOARD_GROUP_Y_OFFSET = -0.01;
+const PIECE_FOOTPRINT_RATIO = 0.94;
+const BOARD_GROUP_Y_OFFSET = -0.05;
 const BOARD_MODEL_Y_OFFSET = -0.04;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
@@ -3321,7 +3322,7 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   };
 }
 
-function normalizeBeautifulGamePiece(object, targetFootprint = BOARD.tile) {
+function normalizeBeautifulGamePiece(object, targetFootprint = BOARD.tile * PIECE_FOOTPRINT_RATIO) {
   const clone = cloneWithMaterials(object);
   clone.traverse((child) => {
     if (child?.isMesh) {
@@ -3345,7 +3346,7 @@ function buildBeautifulGameSwapPrototypes(scene, targetBoardSize) {
   root.updateMatrixWorld(true);
 
   const tileSize = Math.max(0.001, (targetBoardSize || RAW_BOARD_SIZE) / 8);
-  const targetFootprint = tileSize * 0.995;
+  const targetFootprint = tileSize * PIECE_FOOTPRINT_RATIO;
   const prototypes = { white: {}, black: {} };
 
   const nodePath = (node) => {
@@ -3724,7 +3725,9 @@ function extractChessSetAssets(scene, options = {}) {
   const boardBox = new THREE.Box3().setFromObject(boardModel);
   const boardTop = boardBox.max.y;
   const tileSize = Math.max(0.001, targetSize / 8);
-  const footprintRatio = Number.isFinite(pieceFootprintRatio) ? pieceFootprintRatio : 0.995;
+  const footprintRatio = Number.isFinite(pieceFootprintRatio)
+    ? pieceFootprintRatio
+    : PIECE_FOOTPRINT_RATIO;
   const preferredPieceYOffset = Number.isFinite(pieceYOffset)
     ? pieceYOffset
     : Math.max(boardTop + PIECE_PLACEMENT_Y_OFFSET, PIECE_PLACEMENT_Y_OFFSET);
@@ -7139,6 +7142,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
           </div>
+        </div>
+        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex gap-2">
             <button
               type="button"
@@ -7376,7 +7381,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
-            const anchor = seatAnchorMap.get(player.index);
+            const anchor = viewMode === '3d' ? seatAnchorMap.get(player.index) : null;
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
@@ -7417,12 +7422,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               </div>
             );
           })}
-        </div>
-        <div className="absolute top-3 right-3 flex items-center space-x-3 pointer-events-auto">
-          <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1 text-xs">
-            {avatar && <img src={avatar} alt="avatar" className="h-7 w-7 rounded-full object-cover" />}
-            <span>{username || 'Guest'}</span>
-          </div>
         </div>
         <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
           <div className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}>
