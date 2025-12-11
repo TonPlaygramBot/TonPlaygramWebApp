@@ -175,7 +175,7 @@ const CARD_SCALE = 0.95;
 const BOARD = { N: 8, tile: 4, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
-const PIECE_SCALE_FACTOR = 0.95;
+const PIECE_SCALE_FACTOR = 0.9;
 const BOARD_GROUP_Y_OFFSET = -0.01;
 const BOARD_MODEL_Y_OFFSET = -0.04;
 
@@ -452,8 +452,8 @@ const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SWAP_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
-const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.2;
-const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.7;
+const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.25;
+const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.64;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
   id: 'stauntonClassic',
