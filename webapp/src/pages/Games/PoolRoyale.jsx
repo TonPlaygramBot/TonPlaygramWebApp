@@ -2077,22 +2077,22 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd6d8dc,
-    metalness: 0.95,
-    roughness: 0.12,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 1
+    color: 0xc0c9d5,
+    metalness: 0.76,
+    roughness: 0.42,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.3,
+    envMapIntensity: 0.58
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.92,
-    roughness: 0.16,
-    clearcoat: 0.5,
-    clearcoatRoughness: 0.06,
-    envMapIntensity: 1
+    metalness: 0.88,
+    roughness: 0.35,
+    clearcoat: 0.26,
+    clearcoatRoughness: 0.2,
+    envMapIntensity: 0.58
   }
 ]);
 
@@ -3367,12 +3367,12 @@ function enhanceChromeMaterial(material) {
       material[key] = value;
     }
   };
-  ensure('metalness', 0.92, (current, target) => Math.max(current, target));
-  ensure('roughness', 0.12, (current, target) => Math.min(current, target));
-  ensure('clearcoat', 0.5, (current, target) => Math.max(current, target));
-  ensure('clearcoatRoughness', 0.06, (current, target) => Math.max(current, target));
-  ensure('envMapIntensity', 1, (current, target) =>
-    THREE.MathUtils.clamp(current, 0.9, target)
+  ensure('metalness', 0.9, (current, target) => Math.max(current, target));
+  ensure('roughness', 0.1, (current, target) => Math.min(current, target));
+  ensure('clearcoat', 0.72, (current, target) => Math.max(current, target));
+  ensure('clearcoatRoughness', 0.16, (current, target) => Math.max(current, target));
+  ensure('envMapIntensity', 1.02, (current, target) =>
+    THREE.MathUtils.clamp(current, 0.92, target)
   );
   if (material.side !== THREE.DoubleSide) {
     material.side = THREE.DoubleSide;
