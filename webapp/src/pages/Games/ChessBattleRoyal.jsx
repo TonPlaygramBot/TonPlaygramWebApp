@@ -6939,18 +6939,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
 
-    const cancelPieceAnimation = (mesh) => {
-      if (!mesh) return;
-      for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
-        if (activePieceAnimations[i].mesh === mesh) {
-          activePieceAnimations.splice(i, 1);
-        }
-      }
-    };
-
     const animatePieceTo = (mesh, target, duration = 0.28) => {
       if (!mesh) return;
-      cancelPieceAnimation(mesh);
       const anim = {
         mesh,
         start: mesh.position.clone(),
@@ -6959,6 +6949,15 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         elapsed: 0
       };
       activePieceAnimations.push(anim);
+    };
+
+    const cancelPieceAnimation = (mesh) => {
+      if (!mesh) return;
+      for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
+        if (activePieceAnimations[i].mesh === mesh) {
+          activePieceAnimations.splice(i, 1);
+        }
+      }
     };
 
     const pickTileFromPointer = (event) => {
