@@ -6936,6 +6936,21 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
     const activePieceAnimations = [];
 
+    const piecePosition = (r, c, y = currentPieceYOffset) =>
+      new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
+
+    const animatePieceTo = (mesh, target, duration = 0.28) => {
+      if (!mesh) return;
+      const anim = {
+        mesh,
+        start: mesh.position.clone(),
+        target: target.clone(),
+        duration: Math.max(0.05, duration),
+        elapsed: 0
+      };
+      activePieceAnimations.push(anim);
+    };
+
     const cancelPieceAnimation = (mesh) => {
       if (!mesh) return;
       for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
@@ -6943,23 +6958,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           activePieceAnimations.splice(i, 1);
         }
       }
-    };
-
-    const piecePosition = (r, c, y = currentPieceYOffset) =>
-      new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
-
-    const animatePieceTo = (mesh, target, duration = 0.28) => {
-      if (!mesh) return;
-      cancelPieceAnimation(mesh);
-      const startedAt = performance.now();
-      const anim = {
-        mesh,
-        start: mesh.position.clone(),
-        target: target.clone(),
-        durationMs: Math.max(0.05, duration) * 1000,
-        startedAt
-      };
-      activePieceAnimations.push(anim);
     };
 
     const pickTileFromPointer = (event) => {
@@ -7147,16 +7145,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (activePieceAnimations.length) {
         for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
           const anim = activePieceAnimations[i];
-          if (!anim?.mesh) {
-            activePieceAnimations.splice(i, 1);
-            continue;
-          }
-          const durationMs = Math.max(
-            50,
-            anim.durationMs ?? ((anim.duration ?? 0.1) * 1000)
-          );
-          const startedAt = anim.startedAt ?? now - dt * 1000;
-          const t = clamp01((now - startedAt) / durationMs);
+          anim.elapsed += dt;
+          const t = clamp01(anim.elapsed / anim.duration);
           const eased = 1 - (1 - t) * (1 - t);
           anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
           if (t >= 1) {
