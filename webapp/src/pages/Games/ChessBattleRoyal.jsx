@@ -174,7 +174,7 @@ const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
-const PIECE_PLACEMENT_Y_OFFSET = 0.16;
+const PIECE_PLACEMENT_Y_OFFSET = 0.2;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.05;
@@ -186,7 +186,7 @@ const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
-const HIGHLIGHT_VERTICAL_OFFSET = 0.04;
+const HIGHLIGHT_VERTICAL_OFFSET = 0.08;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -6439,7 +6439,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!prototypes) return;
       const colorKey = (p) => (p.w ? 'white' : 'black');
       const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
-      const yOffset = 0;
+      const yOffset = currentPieceYOffset;
 
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
@@ -6832,7 +6832,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const capZ = capturingWhite
           ? half + BOARD.rim + 1 + row * (tile * 0.5)
           : -half - BOARD.rim - 1 - row * (tile * 0.5);
-        targetMesh.position.set(capX, 0, capZ);
+        targetMesh.position.set(capX, currentPieceYOffset, capZ);
         createExplosion(worldPos);
         if (bombSoundRef.current && settingsRef.current.soundEnabled) {
           bombSoundRef.current.currentTime = 0;
@@ -6859,7 +6859,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       m.userData.t = board[rr][cc].t;
       m.position.set(
         cc * tile - half + tile / 2,
-        0,
+        currentPieceYOffset,
         rr * tile - half + tile / 2
       );
       if (promoted && currentPiecePrototypes) {
