@@ -40,7 +40,6 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -4944,10 +4943,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const bombSoundRef = useRef(null);
   const timerSoundRef = useRef(null);
   const moveSoundRef = useRef(null);
-  const moveSoundTimeoutRef = useRef(null);
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
-  const mateSoundTimeoutRef = useRef(null);
   const laughSoundRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
@@ -5051,41 +5048,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     blackTimeRef.current = blackTime;
   }, [blackTime]);
-
-  const handleChatClick = useCallback(() => {}, []);
-  const handleGiftClick = useCallback(() => {}, []);
-  const handleInfoClick = useCallback(() => setConfigOpen(true), []);
-
-  const stopTimedAudio = useCallback((audioRef, timeoutRef) => {
-    if (timeoutRef?.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-    const audio = audioRef?.current;
-    if (!audio) return;
-    try {
-      audio.pause();
-      audio.currentTime = 0;
-    } catch {}
-    audio.loop = false;
-  }, []);
-
-  const playTimedAudio = useCallback(
-    (audioRef, timeoutRef, durationMs) => {
-      const audio = audioRef?.current;
-      if (!audio || !settingsRef.current.soundEnabled) return;
-      stopTimedAudio(audioRef, timeoutRef);
-      try {
-        audio.loop = true;
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-        timeoutRef.current = window.setTimeout(() => {
-          stopTimedAudio(audioRef, timeoutRef);
-        }, durationMs);
-      } catch {}
-    },
-    [stopTimedAudio]
-  );
 
   useEffect(() => {
     viewModeRef.current = viewMode;
@@ -5322,7 +5284,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           moveSoundRef.current.pause();
           moveSoundRef.current.currentTime = 0;
         } catch {}
-        stopTimedAudio(moveSoundRef, moveSoundTimeoutRef);
       }
     }
     if (checkSoundRef.current) {
@@ -5341,7 +5302,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           mateSoundRef.current.pause();
           mateSoundRef.current.currentTime = 0;
         } catch {}
-        stopTimedAudio(mateSoundRef, mateSoundTimeoutRef);
       }
     }
     if (laughSoundRef.current) {
@@ -5659,14 +5619,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const playAudio = (audioRef) => {
       if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
       try {
-        audioRef.current.loop = false;
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {});
       } catch {}
     };
-    const playMoveSound = () => playTimedAudio(moveSoundRef, moveSoundTimeoutRef, 5000);
+    const playMoveSound = () => playAudio(moveSoundRef);
     const playCheckSound = () => playAudio(checkSoundRef);
-    const playMateSound = () => playTimedAudio(mateSoundRef, mateSoundTimeoutRef, 10000);
+    const playMateSound = () => playAudio(mateSoundRef);
     const playLaughSound = () => playAudio(laughSoundRef);
     const chairTheme = mapChairOptionToTheme(chairOption);
     const chairBuild = await buildChessChairTemplate(chairTheme);
@@ -7465,9 +7424,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       setSeatAnchors([]);
       bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
-      stopTimedAudio(moveSoundRef, moveSoundTimeoutRef);
+      moveSoundRef.current?.pause();
       checkSoundRef.current?.pause();
-      stopTimedAudio(mateSoundRef, mateSoundTimeoutRef);
+      mateSoundRef.current?.pause();
       laughSoundRef.current?.pause();
     };
   }, []);
@@ -7480,17 +7439,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             <div className="font-semibold">{ui.status}</div>
           </div>
         </div>
-        <div className="absolute bottom-4 left-2 z-20 pointer-events-none">
-          <BottomLeftIcons
-            onInfo={handleInfoClick}
-            onChat={handleChatClick}
-            onGift={handleGiftClick}
-            className="pointer-events-auto flex flex-col items-center space-y-3 text-white"
-            showLabels={false}
-          />
-        </div>
         <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <div className="pointer-events-auto flex gap-2">
             <button
               type="button"
               onClick={() => setConfigOpen((open) => !open)}
@@ -7521,35 +7471,20 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              className={`h-12 w-32 rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 canReplay
                   ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
                   : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
               }`}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                className="h-6 w-6"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 4v6h6M20 20v-6h-6m6-4a8 8 0 0 0-13.66-5.34L4 10m16 4-2.34 3.34A8 8 0 0 1 4 14"
-                />
-              </svg>
-              <span className="sr-only">Replay move</span>
+              Replay Move
             </button>
             <button
               type="button"
               onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="h-12 w-32 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
-              {viewMode === '3d' ? '2D' : '3D'}
+              {viewMode === '3d' ? '2D view' : '3D view'}
             </button>
           </div>
           {configOpen && (
