@@ -148,7 +148,7 @@ function sphericalToUV([x, y, z]) {
 function drawCueBallDots(ctx, size) {
   const dotColor = '#c62828';
   const badgeStretch = 2;
-  const radius = size * 0.06;
+  const radius = size * 0.084;
   const normals = [
     [1, 0, 0],
     [-1, 0, 0],
@@ -184,9 +184,9 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
     const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.28));
-    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.06));
-    stripeGrad.addColorStop(1, darken(baseHex, 0.06));
+    stripeGrad.addColorStop(0, lighten(baseHex, 0.2));
+    stripeGrad.addColorStop(0.5, baseHex);
+    stripeGrad.addColorStop(1, darken(baseHex, 0.12));
     ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
     ctx.restore();
@@ -199,9 +199,9 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
       size * 0.56,
       size * 0.52
     );
-    bodyGrad.addColorStop(0, lighten(baseHex, 0.36));
-    bodyGrad.addColorStop(0.48, lighten(baseHex, 0.14));
-    bodyGrad.addColorStop(1, darken(baseHex, 0.06));
+    bodyGrad.addColorStop(0, lighten(baseHex, 0.32));
+    bodyGrad.addColorStop(0.48, lighten(baseHex, 0.1));
+    bodyGrad.addColorStop(1, darken(baseHex, 0.1));
     ctx.fillStyle = bodyGrad;
     ctx.fillRect(0, 0, size, size);
   }
@@ -212,9 +212,9 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
 
   ctx.save();
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.8)');
-  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.38)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.08)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.88)');
+  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.46)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.2)');
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
@@ -248,7 +248,7 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     size * 0.45
   );
   lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.14)');
+  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.26)');
   ctx.fillStyle = lowerShadow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
@@ -270,9 +270,9 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeHeight = size * 0.46;
     const stripeY = (size - stripeHeight) / 2;
     const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.32));
-    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.18));
-    stripeGrad.addColorStop(1, darken(baseHex, 0.04));
+    stripeGrad.addColorStop(0, lighten(baseHex, 0.28));
+    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.1));
+    stripeGrad.addColorStop(1, darken(baseHex, 0.06));
     ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
 
@@ -295,9 +295,9 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
       size * 0.55,
       size * 0.5
     );
-    radial.addColorStop(0, lighten(baseHex, 0.38));
-    radial.addColorStop(0.45, lighten(baseHex, 0.18));
-    radial.addColorStop(1, darken(baseHex, 0.04));
+    radial.addColorStop(0, lighten(baseHex, 0.34));
+    radial.addColorStop(0.45, lighten(baseHex, 0.12));
+    radial.addColorStop(1, darken(baseHex, 0.08));
     ctx.fillStyle = radial;
     ctx.fillRect(0, 0, size, size);
   }
@@ -305,9 +305,9 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
 
   ctx.save();
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.78)');
-  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.36)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.08)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.86)');
+  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.42)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.16)');
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
@@ -341,7 +341,7 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
     size * 0.45
   );
   lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.12)');
+  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.22)');
   ctx.fillStyle = lowerShadow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
