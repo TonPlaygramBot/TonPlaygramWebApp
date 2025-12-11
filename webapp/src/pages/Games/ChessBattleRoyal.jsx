@@ -174,7 +174,7 @@ const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
-const PIECE_PLACEMENT_Y_OFFSET = 0.16;
+const PIECE_PLACEMENT_Y_OFFSET = 0.12;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.05;
@@ -185,7 +185,7 @@ const BOARD_SURFACE_DROP = 0.03;
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_MODEL_SPAN_BIAS = 1.18;
+const BOARD_MODEL_SPAN_BIAS = 1.16;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -6764,7 +6764,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!settingsRef.current.showHighlights) return;
       const palette = paletteRef.current;
       const highlightColor = color ?? palette?.highlight ?? '#6ee7b7';
-      const highlightHeight = Math.max(0.1, tile * 0.035);
+      const highlightHeight = Math.max(0.08, tile * 0.03);
       list.forEach(([rr, cc]) => {
         const mesh = tiles.find(
           (t) => t.userData.r === rr && t.userData.c === cc
@@ -6779,9 +6779,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             metalness: 0.2
           })
         );
-        h.position
-          .copy(mesh.position)
-          .add(new THREE.Vector3(0, highlightHeight + tile * 0.01, 0));
+        h.position.copy(mesh.position).add(new THREE.Vector3(0, highlightHeight, 0));
         h.userData.__highlight = true;
         boardGroup.add(h);
       });
