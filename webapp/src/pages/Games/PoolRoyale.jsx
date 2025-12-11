@@ -2328,12 +2328,63 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     id: 'skybox-truss',
     label: 'Skybox TrussCam',
     description: 'High truss glide with wide parallax sweeps.',
+    method: 'Overhead crane with mirrored dual-rail sliders.',
     railPush: BALL_R * 10.5,
     lateralDolly: BALL_R * 3.4,
     focusLift: BALL_R * 6.2,
     focusDepthBias: BALL_R * 2.4,
     trackingBias: 0.58,
     smoothing: 0.16
+  },
+  {
+    id: 'rail-dolly',
+    label: 'Rail Dolly Live',
+    description: 'Low-rail chase that hands off cleanly between rails.',
+    method: 'Tight sideline dolly with shallow depth follow.',
+    railPush: BALL_R * 8.8,
+    lateralDolly: BALL_R * 5.2,
+    focusLift: BALL_R * 4.5,
+    focusDepthBias: BALL_R * 1.2,
+    trackingBias: 0.72,
+    smoothing: 0.12
+  },
+  {
+    id: 'pocket-orbit',
+    label: 'Pocket Orbit',
+    description: 'Finishing cams that orbit the active pocket.',
+    method: 'Corner-biased swing with pocket-first framing.',
+    railPush: BALL_R * 7.6,
+    lateralDolly: BALL_R * 2.8,
+    focusLift: BALL_R * 5.4,
+    focusDepthBias: BALL_R * 3.1,
+    focusPan: BALL_R * 1.6,
+    trackingBias: 0.44,
+    smoothing: 0.18
+  },
+  {
+    id: 'center-desk',
+    label: 'Center Desk Cast',
+    description: 'Balanced top-rail view with studio desk framing.',
+    method: 'Central crane pan with stable, slow lerp.',
+    railPush: BALL_R * 9.5,
+    lateralDolly: BALL_R * 1.6,
+    focusLift: BALL_R * 7.1,
+    focusDepthBias: BALL_R * 2.6,
+    trackingBias: 0.52,
+    smoothing: 0.2
+  },
+  {
+    id: 'player-follow',
+    label: 'Player Follow',
+    description: 'Near-shoulder gimbal for immersive shots.',
+    method: 'Low crane that pans with the shooter and cue ball.',
+    railPush: BALL_R * 6.5,
+    lateralDolly: BALL_R * 4.1,
+    focusLift: BALL_R * 3.8,
+    focusDepthBias: BALL_R * 1.4,
+    focusPan: BALL_R * 1.1,
+    trackingBias: 0.82,
+    smoothing: 0.1
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'skybox-truss';
@@ -8196,7 +8247,15 @@ function PoolRoyaleGame({
     }
     return DEFAULT_FRAME_RATE_ID;
   });
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(BROADCAST_SYSTEM_STORAGE_KEY);
+      if (stored && BROADCAST_SYSTEM_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_BROADCAST_SYSTEM_ID;
+  });
   const activeFrameRateOption = useMemo(
     () =>
       FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
@@ -16753,6 +16812,43 @@ function PoolRoyaleGame({
                             {option.resolution
                               ? `${option.resolution} • ${option.fps} FPS`
                               : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcasting
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
+                    const active = option.id === broadcastSystemId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastSystemId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">
+                            {option.method}
                           </span>
                         </span>
                         {option.description ? (
