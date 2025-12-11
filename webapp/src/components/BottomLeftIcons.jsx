@@ -10,7 +10,6 @@ export default function BottomLeftIcons({
   showChat = true,
   showGift = true,
   showMute = true,
-  showLabels = true,
 }) {
   const [muted, setMuted] = useState(isGameMuted());
 
@@ -30,25 +29,25 @@ export default function BottomLeftIcons({
       {showChat && onChat && (
         <button onClick={onChat} className="p-1 flex flex-col items-center">
           <AiOutlineMessage className="text-xl" />
-          {showLabels && <span className="text-xs">Chat</span>}
+          <span className="text-xs">Chat</span>
         </button>
       )}
       {showGift && onGift && (
         <button onClick={onGift} className="p-1 flex flex-col items-center">
           <span className="text-xl">🎁</span>
-          {showLabels && <span className="text-xs">Gift</span>}
+          <span className="text-xs">Gift</span>
         </button>
       )}
       {showInfo && (
         <button onClick={onInfo} className="p-1 flex flex-col items-center">
           <AiOutlineInfoCircle className="text-xl" />
-          {showLabels && <span className="text-xs">Info</span>}
+          <span className="text-xs">Info</span>
         </button>
       )}
       {showMute && (
         <button onClick={toggle} className="p-1 flex flex-col items-center">
           <span className="text-lg">{muted ? '🔇' : '🔊'}</span>
-          {showLabels && <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>}
+          <span className="text-xs">{muted ? 'Unmute' : 'Mute'}</span>
         </button>
       )}
     </div>
