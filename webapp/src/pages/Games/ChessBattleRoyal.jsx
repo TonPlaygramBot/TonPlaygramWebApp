@@ -183,7 +183,8 @@ const BOARD_MODEL_Y_OFFSET = -0.04;
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_MODEL_SPAN_BIAS = 1.08;
+const BOARD_MODEL_SPAN_BIAS = 1.12;
+const BOARD_SURFACE_DROP = 0.04;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -1628,12 +1629,16 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
     -center.z
   );
 
+  if (BOARD_SURFACE_DROP !== 0) {
+    boardModel.position.y -= BOARD_SURFACE_DROP;
+  }
+
   const normalizedBox = new THREE.Box3().setFromObject(boardModel);
   const span = Math.max(
     normalizedBox.max.x - normalizedBox.min.x,
     normalizedBox.max.z - normalizedBox.min.z
   );
-  const top = normalizedBox.max.y;
+  const top = normalizedBox.max.y + BOARD_SURFACE_DROP;
 
   return { span, top };
 }
