@@ -192,7 +192,7 @@ hydrateDefaults();
 setMode('online');
 
 // === Three.js + chess visuals ===
-let THREE, scene, ray; let modelRoot=null; let boardY=0; let origin=new Float32Array(2); let vx=new Float32Array(2); let vz=new Float32Array(2); let stepX=1, stepZ=1; let piecesBySquare={}; let proto={w:{},b:{}}; let extraNodes=[]; let initialPositions=null; let baseCameraPos=null;
+let THREE, scene, ray; let modelRoot=null; let boardY=0; let origin=new Float32Array(2); let vx=new Float32Array(2); let vz=new Float32Array(2); let stepX=1, stepZ=1; let piecesBySquare={}; let proto={w:{},b:{}}; let extraNodes=[]; let initialPositions=null; let baseCameraPos=null; let moveHighlights=[]; let moveRingGeo=null; let moveMat=null; let captureMat=null; let maxAnisotropy=1;
 let dragging=false, dragNode=null, dragFromSq=null, selectedSq=null; let down={x:0,y:0}; const DRAG_PX=8; const dragLift=0.06; const GLOBAL_SCALE=0.5;
 const THREE_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/build/three.module.js','https://unpkg.com/three@0.159.0/build/three.module.js','https://esm.sh/three@0.159.0','https://cdn.skypack.dev/three@0.159.0'];
 const ORBIT_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://unpkg.com/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://esm.sh/three@0.159.0/examples/jsm/controls/OrbitControls.js','https://cdn.skypack.dev/three@0.159.0/examples/jsm/controls/OrbitControls.js'];
@@ -200,7 +200,9 @@ const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loader
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
 const BOARD_GROWTH=1.02;
 const PIECE_SPACING_SCALE=0.92;
-const BOARD_Y_OFFSET=-0.02;
+const BOARD_Y_OFFSET=-0.05;
+const HIGHLIGHT_ALPHA=0.52;
+const HIGHLIGHT_LIFT=0.018;
 
 const files='abcdefgh';
 function rcToSq(r,c){ return files[c]+(8-r); }
@@ -270,7 +272,7 @@ function boot(){
   .then(m1=>{ const OrbitControls=m1.OrbitControls; return tryUrls(GLTF_URLS,u=>import(u)).then(m2=>({OrbitControls,GLTFLoader:m2.GLTFLoader})); })
   .then(mod=>{
     const mount=document.getElementById('mount');
-    renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2)); renderer.setSize(mount.clientWidth||innerWidth, mount.clientHeight||innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.85; renderer.shadowMap.enabled=true; mount.appendChild(renderer.domElement);
+    renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2.5)); renderer.setSize(mount.clientWidth||innerWidth, mount.clientHeight||innerHeight); renderer.outputColorSpace=THREE.SRGBColorSpace; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.85; renderer.shadowMap.enabled=true; maxAnisotropy=renderer.capabilities.getMaxAnisotropy()||1; mount.appendChild(renderer.domElement);
     scene=new THREE.Scene(); scene.background=new THREE.Color(0x0b0f16);
     camera=new THREE.PerspectiveCamera(45,(mount.clientWidth||innerWidth)/(mount.clientHeight||innerHeight),0.1,2000); camera.position.set(10,12,18); baseCameraPos=camera.position.clone();
     controls=new mod.OrbitControls(camera,renderer.domElement); controls.enableDamping=true; controls.dampingFactor=.06; controls.minDistance=4; controls.maxDistance=60; controls.target.set(0,2,0); controls.update(); controls.enablePan=false;
@@ -296,7 +298,7 @@ function colorFromNameOrAnc(node){ let t=node; for(let i=0;i<4 && t; i++, t=t.pa
 function ascendWhile(node,pred){ let t=node; while(t.parent && pred(t.parent)) t=t.parent; return t; }
 
 function onModel(gltf){
-  modelRoot=gltf.scene; modelRoot.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; }});
+  modelRoot=gltf.scene; modelRoot.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; const mats=Array.isArray(o.material)?o.material:[o.material]; mats.forEach(m=>{ if(!m) return; ['map','normalMap','roughnessMap','metalnessMap','aoMap'].forEach(key=>{ const tex=m[key]; if(tex&&tex.anisotropy!=null){ tex.anisotropy=maxAnisotropy; tex.needsUpdate=true; } }); }); }});
   const bb0=new THREE.Box3().setFromObject(modelRoot); const ctr0=new THREE.Vector3(); bb0.getCenter(ctr0); const size0=new THREE.Vector3(); bb0.getSize(size0);
   const s=.85*(12/Math.max(size0.x,size0.z))*GLOBAL_SCALE; modelRoot.scale.setScalar(s); modelRoot.position.sub(ctr0.multiplyScalar(s)); modelRoot.position.y=.02+BOARD_Y_OFFSET; scene.add(modelRoot);
   const boards=[]; modelRoot.traverse(node=>{ const n=(node.name||'').toLowerCase(); if(/board|chessboard/.test(n)) boards.push(node); });
@@ -341,7 +343,7 @@ function onPointerDown(e){ if(!ready) return; const hit=getHit(e); if(!hit) retu
   down.x=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0));
   down.y=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0));
   const sq=worldToSquareString(hit.x,hit.z); const rc=sqToRC(sq); const p=state.board[rc[0]][rc[1]];
-  if(p && colorOf(p)===state.turn){ selectedSq=sq; dragFromSq=sq; dragNode=piecesBySquare[sq]||null; dragging=false; if(dragNode){ const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:dragNode.position.y; dragNode.userData.baseY=baseY; dragNode.position.y=baseY+dragLift; }
+  if(p && colorOf(p)===state.turn){ selectedSq=sq; dragFromSq=sq; dragNode=piecesBySquare[sq]||null; dragging=false; showHighlights(sq); if(dragNode){ const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:dragNode.position.y; dragNode.userData.baseY=baseY; dragNode.position.y=baseY+dragLift; }
     if(controls) controls.enabled=false; if(e.cancelable) e.preventDefault(); }
   else if(selectedSq){ tryMoveSelectedTo(sq); if(e.cancelable) e.preventDefault(); }
 }
@@ -349,6 +351,29 @@ function onPointerMove(e){ if(!dragNode) return; const cx=(typeof e.clientX==='n
 function onPointerUp(e){ if(controls) controls.enabled=true; if(!selectedSq){ dragNode=null; dragFromSq=null; return; } if(dragging){ const hit=getHit(e); const targetSq = hit?worldToSquareString(hit.x,hit.z):dragFromSq; tryMoveSelectedTo(targetSq); } if(e.cancelable) e.preventDefault(); }
 
 function squareCenterVec3(sq){ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+.02, z); }
+
+function ensureHighlightResources(){
+  if(!moveRingGeo){ const outer=Math.min(stepX,stepZ)*0.45; const inner=outer*0.55; moveRingGeo=new THREE.RingGeometry(inner,outer,32); }
+  if(!moveMat){ moveMat=new THREE.MeshBasicMaterial({color:0x22c55e, transparent:true, opacity:HIGHLIGHT_ALPHA, side:THREE.DoubleSide, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-0.2, polygonOffsetUnits:-0.2}); }
+  if(!captureMat){ captureMat=new THREE.MeshBasicMaterial({color:0xf59e0b, transparent:true, opacity:HIGHLIGHT_ALPHA, side:THREE.DoubleSide, depthWrite:false, polygonOffset:true, polygonOffsetFactor:-0.2, polygonOffsetUnits:-0.2}); }
+}
+
+function clearHighlights(){ moveHighlights.forEach(m=>{ if(m.parent) m.parent.remove(m); }); moveHighlights.length=0; }
+
+function showHighlights(fromSq){
+  if(!scene) return;
+  clearHighlights();
+  ensureHighlightResources();
+  const rcFrom=sqToRC(fromSq);
+  const moves=genLegal(state).filter(m=>m.fr===rcFrom[0]&&m.fc===rcFrom[1]);
+  const y=boardY+HIGHLIGHT_LIFT;
+  moves.forEach(m=>{
+    const target=rcToSq(m.tr,m.tc);
+    const pos=squareCenterVec3(target); pos.y=y;
+    const mesh=new THREE.Mesh(moveRingGeo, (m.enpassant||state.board[m.tr][m.tc])?captureMat:moveMat);
+    mesh.rotation.x=-Math.PI/2; mesh.renderOrder=10; mesh.position.copy(pos); scene.add(mesh); moveHighlights.push(mesh);
+  });
+}
 
 function tryMoveSelectedTo(targetSq){ const rcFrom=sqToRC(selectedSq); const rcTo=sqToRC(targetSq); const L=genLegal(state); let legal=null; for(let i=0;i<L.length;i++){ const m=L[i]; if(m.fr===rcFrom[0]&&m.fc===rcFrom[1]&&m.tr===rcTo[0]&&m.tc===rcTo[1]){ legal=m; break; } }
   if(legal){ doMove(legal); selectedSq=null; if(aiMode && state.turn==='b'){ if(aiTimer) clearTimeout(aiTimer); aiTimer=setTimeout(makeAiMove,260); } }
@@ -366,6 +391,7 @@ function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), t
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
   if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   }
+  clearHighlights();
   updateTurn();
 }
 
@@ -374,6 +400,7 @@ function resetGame(){ state=makeStart(); if(!initialPositions) return; const {st
   place('w','p',startW.p); place('w','r',startW.r); place('w','n',startW.n); place('w','b',startW.b); place('w','q',startW.q); place('w','k',startW.k);
   place('b','p',startB.p); place('b','r',startB.r); place('b','n',startB.n); place('b','b',startB.b); place('b','q',startB.q); place('b','k',startB.k);
   selectedSq=null; dragNode=null; dragFromSq=null; dragging=false;
+  clearHighlights();
 }
 
 function applyZoom(){ if(!camera||!controls||!baseCameraPos) return; const level=zoomLevel; camera.position.copy(baseCameraPos.clone().multiplyScalar(level)); controls.update(); }
