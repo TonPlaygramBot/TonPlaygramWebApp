@@ -20,10 +20,11 @@ import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
   getTelegramFirstName,
   getTelegramUsername,
-  getTelegramPhotoUrl
+  getTelegramPhotoUrl,
+  getTelegramId
 } from '../../utils/telegram.js';
 import { bombSound, timerBeep } from '../../assets/soundData.js';
-import { getGameVolume } from '../../utils/sound.js';
+import { getGameVolume, isGameMuted, setGameMuted } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
   TABLE_WOOD_OPTIONS,
@@ -40,6 +41,10 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
+import InfoPopup from '../../components/InfoPopup.jsx';
+import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
+import GiftPopup from '../../components/GiftPopup.jsx';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -4946,6 +4951,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
   const laughSoundRef = useRef(null);
+  const audioTimeoutRef = useRef({});
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -4955,7 +4961,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
-  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
+  const settingsRef = useRef({ showHighlights: true, soundEnabled: !isGameMuted(), moveMode: 'click' });
+  const clearAudioTimers = useCallback(() => {
+    Object.values(audioTimeoutRef.current).forEach((timeoutId) => clearTimeout(timeoutId));
+    audioTimeoutRef.current = {};
+  }, []);
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
@@ -5021,12 +5031,15 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const initialWhiteTimeRef = useRef(60);
   const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(() => !isGameMuted());
   const [showHighlights, setShowHighlights] = useState(true);
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
   const [canReplay, setCanReplay] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [showGift, setShowGift] = useState(false);
+  const [infoPopupMessage, setInfoPopupMessage] = useState('');
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -5053,6 +5066,22 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     viewModeRef.current = viewMode;
     cameraViewRef.current?.setMode(viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    const syncMute = () => setSoundEnabled(!isGameMuted());
+    window.addEventListener('gameMuteChanged', syncMute);
+    return () => window.removeEventListener('gameMuteChanged', syncMute);
+  }, []);
+
+  useEffect(() => {
+    setGameMuted(!soundEnabled);
+  }, [soundEnabled]);
+
+  const handleInfoClick = useCallback(() => {
+    setInfoPopupMessage(
+      'Use the bottom-left quick actions to open chat, send gifts, view match info, or mute the chess sounds.'
+    );
+  }, []);
 
   useEffect(() => {
     setMoveMode('click');
@@ -5180,6 +5209,15 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     ];
   }, [aiFlag, appearance, avatar, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
 
+  const giftRecipients = useMemo(
+    () =>
+      players.map((player) => ({
+        ...player,
+        id: player.index === 0 ? getTelegramId() || 'local-player' : `ai-${player.index}`
+      })),
+    [players]
+  );
+
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
   }, [ui.turnWhite, updateSandTimerPlacement]);
@@ -5259,12 +5297,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
     const volume = getGameVolume();
+    if (!soundEnabled) {
+      clearAudioTimers();
+    }
     if (bombSoundRef.current) {
       bombSoundRef.current.volume = soundEnabled ? volume : 0;
       if (!soundEnabled) {
         try {
           bombSoundRef.current.pause();
           bombSoundRef.current.currentTime = 0;
+          bombSoundRef.current.loop = false;
         } catch {}
       }
     }
@@ -5274,6 +5316,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         try {
           timerSoundRef.current.pause();
           timerSoundRef.current.currentTime = 0;
+          timerSoundRef.current.loop = false;
         } catch {}
       }
     }
@@ -5283,6 +5326,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         try {
           moveSoundRef.current.pause();
           moveSoundRef.current.currentTime = 0;
+          moveSoundRef.current.loop = false;
         } catch {}
       }
     }
@@ -5292,6 +5336,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         try {
           checkSoundRef.current.pause();
           checkSoundRef.current.currentTime = 0;
+          checkSoundRef.current.loop = false;
         } catch {}
       }
     }
@@ -5301,6 +5346,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         try {
           mateSoundRef.current.pause();
           mateSoundRef.current.currentTime = 0;
+          mateSoundRef.current.loop = false;
         } catch {}
       }
     }
@@ -5310,6 +5356,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         try {
           laughSoundRef.current.pause();
           laughSoundRef.current.currentTime = 0;
+          laughSoundRef.current.loop = false;
         } catch {}
       }
     }
@@ -5616,16 +5663,36 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       disposePieceMaterials(pieceMaterials);
     });
     const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
-    const playAudio = (audioRef) => {
+    const playAudio = (audioRef, durationMs) => {
       if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
       try {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {});
+        const audio = audioRef.current;
+        const key = audio?.src || Math.random().toString(36);
+        if (durationMs) {
+          if (audioTimeoutRef.current[key]) {
+            clearTimeout(audioTimeoutRef.current[key]);
+          }
+          audio.loop = true;
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+          audioTimeoutRef.current[key] = window.setTimeout(() => {
+            try {
+              audio.pause();
+              audio.currentTime = 0;
+              audio.loop = false;
+            } catch {}
+            delete audioTimeoutRef.current[key];
+          }, durationMs);
+        } else {
+          audio.loop = false;
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+        }
       } catch {}
     };
-    const playMoveSound = () => playAudio(moveSoundRef);
-    const playCheckSound = () => playAudio(checkSoundRef);
-    const playMateSound = () => playAudio(mateSoundRef);
+    const playMoveSound = () => playAudio(moveSoundRef, 5000);
+    const playCheckSound = () => playAudio(checkSoundRef, 5000);
+    const playMateSound = () => playAudio(mateSoundRef, 10000);
     const playLaughSound = () => playAudio(laughSoundRef);
     const chairTheme = mapChairOptionToTheme(chairOption);
     const chairBuild = await buildChessChairTemplate(chairTheme);
@@ -7422,6 +7489,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arenaRef.current = null;
       seatPositionsRef.current = [];
       setSeatAnchors([]);
+      clearAudioTimers();
       bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
       moveSoundRef.current?.pause();
@@ -7439,8 +7507,17 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             <div className="font-semibold">{ui.status}</div>
           </div>
         </div>
+        <BottomLeftIcons
+          className="absolute left-1 bottom-4 z-20 flex flex-col items-center space-y-2 pointer-events-auto text-white"
+          onInfo={handleInfoClick}
+          onChat={() => setShowChat(true)}
+          onGift={() => setShowGift(true)}
+          showLabels={false}
+          muted={!soundEnabled}
+          onToggleMute={(nextMuted) => setSoundEnabled(!nextMuted)}
+        />
         <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-          <div className="pointer-events-auto flex gap-2">
+          <div className="pointer-events-auto flex flex-col items-end gap-2">
             <button
               type="button"
               onClick={() => setConfigOpen((open) => !open)}
@@ -7471,20 +7548,35 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
-              className={`h-12 w-32 rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              className={`flex h-12 w-12 items-center justify-center rounded-full border text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 canReplay
-                  ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
+                  ? 'border-emerald-300/40 bg-emerald-400/20 hover:bg-emerald-400/25'
                   : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
               }`}
             >
-              Replay Move
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="h-6 w-6"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 5.75v3.5l-3.5-3.5M4.75 12a7.25 7.25 0 1 0 7.25-7.25M12 5.75a6.25 6.25 0 0 0-6.25 6.25"
+                />
+              </svg>
+              <span className="sr-only">Replay move</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="h-12 w-32 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="h-12 w-16 rounded-full border border-white/20 bg-black/70 px-3 text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
-              {viewMode === '3d' ? '2D view' : '3D view'}
+              {viewMode === '3d' ? '2D' : '3D'}
             </button>
           </div>
           {configOpen && (
@@ -7761,6 +7853,35 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           >
             -
           </button>
+        </div>
+        <div className="pointer-events-auto">
+          <InfoPopup
+            open={Boolean(infoPopupMessage)}
+            onClose={() => setInfoPopupMessage('')}
+            title="Chess Battle Royal"
+            info={infoPopupMessage}
+          />
+        </div>
+        <div className="pointer-events-auto">
+          <QuickMessagePopup
+            open={showChat}
+            onClose={() => setShowChat(false)}
+            onSend={(message) => {
+              setInfoPopupMessage(`Chat sent: ${message}`);
+            }}
+          />
+        </div>
+        <div className="pointer-events-auto">
+          <GiftPopup
+            open={showGift}
+            onClose={() => setShowGift(false)}
+            players={giftRecipients}
+            senderIndex={0}
+            onGiftSent={({ gift, to }) => {
+              const recipientName = giftRecipients.find((p) => p.index === to)?.name || 'opponent';
+              setInfoPopupMessage(`Sent ${gift.name} to ${recipientName}`);
+            }}
+          />
         </div>
       </div>
     </div>
