@@ -76,36 +76,6 @@ function drawNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
-function drawBadgeEllipse(ctx, size, cx, cy, radius, color, stretch = 1, outline = true) {
-  ctx.save();
-
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, radius, radius * stretch, 0, 0, Math.PI * 2);
-  ctx.closePath();
-
-  const grad = ctx.createRadialGradient(
-    cx,
-    cy - radius * 0.25,
-    radius * 0.2,
-    cx,
-    cy,
-    radius
-  );
-  grad.addColorStop(0, lighten(color, 0.26));
-  grad.addColorStop(0.65, color);
-  grad.addColorStop(1, darken(color, 0.2));
-  ctx.fillStyle = grad;
-  ctx.fill();
-
-  if (outline) {
-    ctx.lineWidth = Math.max(2, Math.floor(size * 0.018));
-    ctx.strokeStyle = darken(color, 0.45);
-    ctx.stroke();
-  }
-
-  ctx.restore();
-}
-
 function drawPoolNumberBadge(ctx, size, number) {
   const radius = size * 0.1;
   const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
@@ -114,10 +84,18 @@ function drawPoolNumberBadge(ctx, size, number) {
 
   ctx.save();
 
-  drawBadgeEllipse(ctx, size, cx, cy, radius, '#ffffff', badgeStretch);
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, radius, radius * badgeStretch, 0, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
+  ctx.strokeStyle = '#000000';
+  ctx.stroke();
 
   ctx.fillStyle = '#000000';
-  ctx.font = `bold ${size * 0.165}px Arial`;
+  ctx.font = `bold ${size * 0.18}px Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -127,7 +105,7 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.scale(1, badgeStretch);
   if (numStr.length === 2) {
     ctx.save();
-    ctx.scale(0.84, 1);
+    ctx.scale(0.9, 1);
     ctx.fillText(numStr, 0, 0);
     ctx.restore();
   } else {
@@ -138,122 +116,18 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
-function sphericalToUV([x, y, z]) {
-  const clampedY = clamp01((y + 1) / 2) * 2 - 1;
-  const u = 0.5 + Math.atan2(z, x) / (Math.PI * 2);
-  const v = 0.5 - Math.asin(clampedY) / Math.PI;
-  return { u, v };
-}
-
-function drawCueBallDots(ctx, size) {
-  const dotColor = '#c62828';
-  const badgeStretch = 1.8;
-  const radius = size * 0.06;
-  const normals = [
-    [1, 0, 0],
-    [-1, 0, 0],
-    [0, 1, 0],
-    [0, -1, 0],
-    [0, 0, 1],
-    [0, 0, -1]
-  ];
-
-  normals.forEach((normal) => {
-    const { u, v } = sphericalToUV(normal);
-    const targets = [u];
-    if (u < 0.02) targets.push(1 + u);
-    if (u > 0.98) targets.push(u - 1);
-
-    targets.forEach((uCoord) => {
-      const cx = uCoord * size;
-      const cy = v * size;
-      drawBadgeEllipse(ctx, size, cx, cy, radius, dotColor, badgeStretch, false);
-    });
-  });
-}
-
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
-  const milkWhite = '#f7f3ea';
 
-  ctx.fillStyle = pattern === 'stripe' || pattern === 'cue' ? milkWhite : baseHex;
+  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
   ctx.fillRect(0, 0, size, size);
 
   if (pattern === 'stripe') {
-    ctx.save();
+    ctx.fillStyle = baseHex;
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
-    const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.14));
-    stripeGrad.addColorStop(0.5, baseHex);
-    stripeGrad.addColorStop(1, darken(baseHex, 0.08));
-    ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
-    ctx.restore();
-  } else if (pattern === 'solid') {
-    const bodyGrad = ctx.createRadialGradient(
-      size * 0.32,
-      size * 0.32,
-      size * 0.12,
-      size * 0.52,
-      size * 0.56,
-      size * 0.52
-    );
-    bodyGrad.addColorStop(0, lighten(baseHex, 0.24));
-    bodyGrad.addColorStop(0.48, lighten(baseHex, 0.08));
-    bodyGrad.addColorStop(1, darken(baseHex, 0.06));
-    ctx.fillStyle = bodyGrad;
-    ctx.fillRect(0, 0, size, size);
   }
-
-  if (pattern === 'cue') {
-    drawCueBallDots(ctx, size);
-  }
-
-  ctx.save();
-  const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.72)');
-  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.32)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.12)');
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.fillStyle = diagonalShade;
-  ctx.fillRect(0, 0, size, size);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
-  const highlight = ctx.createRadialGradient(
-    size * 0.3,
-    size * 0.24,
-    size * 0.04,
-    size * 0.3,
-    size * 0.24,
-    size * 0.36
-  );
-  highlight.addColorStop(0, 'rgba(255,255,255,1)');
-  highlight.addColorStop(0.4, 'rgba(255,255,255,0.32)');
-  highlight.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = highlight;
-  ctx.fillRect(0, 0, size, size);
-  ctx.restore();
-
-  ctx.save();
-  ctx.globalCompositeOperation = 'multiply';
-  const lowerShadow = ctx.createRadialGradient(
-    size * 0.55,
-    size * 0.72,
-    size * 0.1,
-    size * 0.55,
-    size * 0.72,
-    size * 0.45
-  );
-  lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.18)');
-  ctx.fillStyle = lowerShadow;
-  ctx.fillRect(0, 0, size, size);
-  ctx.restore();
-
-  addNoise(ctx, size, 0.018, 3200);
 
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
@@ -403,16 +277,16 @@ export function getBallMaterial({
   });
 
   const material = new THREE.MeshPhysicalMaterial({
-    color: 0xf7f3ea,
+    color: 0xffffff,
     map,
     clearcoat: 1,
-    clearcoatRoughness: 0.01,
-    metalness: 0.26,
-    roughness: 0.045,
+    clearcoatRoughness: 0.015,
+    metalness: 0.24,
+    roughness: 0.06,
     reflectivity: 1,
-    sheen: 0.2,
-    sheenColor: new THREE.Color(0xf5f6ff),
-    envMapIntensity: 1.26
+    sheen: 0.18,
+    sheenColor: new THREE.Color(0xf8f9ff),
+    envMapIntensity: 1.18
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
