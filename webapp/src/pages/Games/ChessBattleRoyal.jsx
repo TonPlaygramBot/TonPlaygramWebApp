@@ -174,7 +174,7 @@ const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
-const PIECE_PLACEMENT_Y_OFFSET = 0.16;
+const PIECE_PLACEMENT_Y_OFFSET = 0.18;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.05;
@@ -186,7 +186,7 @@ const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
-const HIGHLIGHT_VERTICAL_OFFSET = 0.04;
+const HIGHLIGHT_VERTICAL_OFFSET = 0.06;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -2748,7 +2748,12 @@ function buildBeautifulGameFallback(targetBoardSize, boardTheme = BEAUTIFUL_GAME
   const boardBox = new THREE.Box3().setFromObject(boardModel);
   const boardTop = boardBox.max.y;
 
-  return { boardModel, piecePrototypes, tileSize: tile, pieceYOffset: boardTop + 0.02 };
+  return {
+    boardModel,
+    piecePrototypes,
+    tileSize: tile,
+    pieceYOffset: Math.max(boardTop + 0.05, PIECE_PLACEMENT_Y_OFFSET)
+  };
 }
 
 function finalizePrototype(group, scale = 1, styleId = 'customPieces') {
@@ -3958,7 +3963,7 @@ function extractBeautifulGameTouchAssets(scene, targetBoardSize, options = {}) {
     boardModel,
     piecePrototypes,
     tileSize,
-    pieceYOffset: boardTop + 0.02
+    pieceYOffset: Math.max(boardTop + 0.05, PIECE_PLACEMENT_Y_OFFSET)
   };
   harmonizeBeautifulGamePieces(assets.piecePrototypes);
   if (options?.source === 'local') {
