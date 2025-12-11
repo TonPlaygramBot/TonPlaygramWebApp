@@ -2327,6 +2327,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
     id: 'skybox-truss',
     label: 'Skybox TrussCam',
+    method: 'Dual sky truss glide with studio pan-tilt heads.',
     description: 'High truss glide with wide parallax sweeps.',
     railPush: BALL_R * 10.5,
     lateralDolly: BALL_R * 3.4,
@@ -2334,6 +2335,58 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     focusDepthBias: BALL_R * 2.4,
     trackingBias: 0.58,
     smoothing: 0.16
+  },
+  {
+    id: 'rail-glide',
+    label: 'Rail Glide Duo',
+    method: 'Low sideline sledge riding the rails for player-follow shots.',
+    description: 'Closer baseline cradle with aggressive lateral pulls.',
+    railPush: BALL_R * 9.2,
+    lateralDolly: BALL_R * 5.1,
+    focusLift: BALL_R * 4.8,
+    focusDepthBias: BALL_R * 1.6,
+    focusPan: BALL_R * 0.3,
+    trackingBias: 0.74,
+    smoothing: 0.12
+  },
+  {
+    id: 'corner-vault',
+    label: 'Corner Vault',
+    method: 'Boom arms perched on corner vaults for diagonal hero angles.',
+    description: 'High corner lock-off with gentle diagonal pushes.',
+    railPush: BALL_R * 12.4,
+    lateralDolly: BALL_R * 2.1,
+    focusLift: BALL_R * 7.8,
+    focusDepthBias: BALL_R * 3.6,
+    focusPan: BALL_R * 0.42,
+    trackingBias: 0.4,
+    smoothing: 0.18
+  },
+  {
+    id: 'booth-follow',
+    label: 'Booth FollowCam',
+    method: 'Shoulder-height booth pair that hugs the shooting lane.',
+    description: 'Low parallax lane camera with brisk subject tracking.',
+    railPush: BALL_R * 6.8,
+    lateralDolly: BALL_R * 7.2,
+    focusLift: BALL_R * 3.1,
+    focusDepthBias: BALL_R * 0.4,
+    focusPan: BALL_R * 0.18,
+    trackingBias: 0.82,
+    smoothing: 0.1
+  },
+  {
+    id: 'orbital-drone',
+    label: 'Orbital Drone',
+    method: 'Ceiling dolly with orbital crane sweeps around the cloth.',
+    description: 'Cinematic overhead arcs with slow drift focus.',
+    railPush: BALL_R * 14,
+    lateralDolly: BALL_R * 0.8,
+    focusLift: BALL_R * 10.5,
+    focusDepthBias: BALL_R * 4.5,
+    focusPan: BALL_R * 0.12,
+    trackingBias: 0.52,
+    smoothing: 0.2
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'skybox-truss';
@@ -8196,7 +8249,15 @@ function PoolRoyaleGame({
     }
     return DEFAULT_FRAME_RATE_ID;
   });
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
+  const [broadcastSystemId, setBroadcastSystemId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(BROADCAST_SYSTEM_STORAGE_KEY);
+      if (stored && BROADCAST_SYSTEM_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_BROADCAST_SYSTEM_ID;
+  });
   const activeFrameRateOption = useMemo(
     () =>
       FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
@@ -16721,6 +16782,43 @@ function PoolRoyaleGame({
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast Methods
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
+                    const active = option.id === broadcastSystemId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastSystemId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/70">
+                            {option.method}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
