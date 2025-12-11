@@ -174,12 +174,12 @@ const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
-const PIECE_PLACEMENT_Y_OFFSET = 0.08;
+const PIECE_PLACEMENT_Y_OFFSET = 0.1;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.86;
-const BOARD_GROUP_Y_OFFSET = -0.1;
-const BOARD_MODEL_Y_OFFSET = -0.12;
-const BOARD_VISUAL_Y_OFFSET = -0.12;
+const BOARD_GROUP_Y_OFFSET = -0.02;
+const BOARD_MODEL_Y_OFFSET = -0.08;
+const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
@@ -755,6 +755,30 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
       ior: 2.4,
       thickness: 0.8
     }
+  },
+  {
+    id: 'headChrome',
+    label: 'Chrome',
+    preset: {
+      color: '#d9d9d9',
+      metalness: 1,
+      roughness: 0.1,
+      transmission: 0,
+      ior: 2.2,
+      thickness: 0.4
+    }
+  },
+  {
+    id: 'headGold',
+    label: 'Gold',
+    preset: {
+      color: '#d4af37',
+      metalness: 0.92,
+      roughness: 0.18,
+      transmission: 0,
+      ior: 1.9,
+      thickness: 0.5
+    }
   }
 ]);
 
@@ -774,7 +798,9 @@ const QUICK_SIDE_COLORS = [
 const QUICK_HEAD_PRESETS = [
   { id: 'current', label: 'Current' },
   { id: 'headRuby', label: 'Ruby' },
-  { id: 'headSapphire', label: 'Sapphire' }
+  { id: 'headSapphire', label: 'Sapphire' },
+  { id: 'headChrome', label: 'Chrome' },
+  { id: 'headGold', label: 'Gold' }
 ];
 
 const QUICK_BOARD_THEMES = [
