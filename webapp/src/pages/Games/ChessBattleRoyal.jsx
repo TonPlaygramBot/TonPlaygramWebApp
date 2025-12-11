@@ -178,13 +178,14 @@ const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.9;
 const BOARD_GROUP_Y_OFFSET = -0.1;
-const BOARD_MODEL_Y_OFFSET = -0.12;
-const BOARD_VISUAL_Y_OFFSET = -0.08;
+const BOARD_MODEL_Y_OFFSET = -0.18;
+const BOARD_VISUAL_Y_OFFSET = -0.14;
+const BOARD_VISUAL_SCALE = 1.04;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_MODEL_SPAN_BIAS = 1.08;
+const BOARD_MODEL_SPAN_BIAS = 1.12;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -3289,6 +3290,7 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const boardGroup = new THREE.Group();
   const visualGroup = new THREE.Group();
   visualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
+  visualGroup.scale.setScalar(BOARD_VISUAL_SCALE);
   boardGroup.add(visualGroup);
 
   const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
@@ -5838,6 +5840,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     tableInfo.group.add(boardGroup);
     const boardVisualGroup = new THREE.Group();
     boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
+    boardVisualGroup.scale.setScalar(BOARD_VISUAL_SCALE);
     boardGroup.add(boardVisualGroup);
     const boardLookTarget = new THREE.Vector3(
       0,
