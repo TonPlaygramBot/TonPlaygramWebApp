@@ -4201,7 +4201,6 @@ const TOP_VIEW_MARGIN = 0.32;
 const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
-const POCKET_OVERHEAD_RADIUS_SCALE = TOP_VIEW_RADIUS_SCALE * 0.92;
 const CUE_VIEW_RADIUS_RATIO = 0.045;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.19;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -11340,34 +11339,215 @@ function PoolRoyaleGame({
                 focusBall.pos.y
               );
             }
-            const pocketCenter = activeShotView.pocketCenter ?? new THREE.Vector2();
-            const anchorOutward =
-              activeShotView.anchorOutward && activeShotView.anchorOutward.lengthSq() > 1e-6
-                ? activeShotView.anchorOutward.clone()
-                : new THREE.Vector2(outward.x, outward.y);
-            if (anchorOutward.lengthSq() < 1e-6) anchorOutward.set(0, -1);
-            activeShotView.anchorOutward = anchorOutward;
-            const focusTarget = new THREE.Vector3(
-              pocketCenter.x * worldScaleFactor,
-              BALL_CENTER_Y * worldScaleFactor,
-              pocketCenter.y * worldScaleFactor
+            const pocketCenter = activeShotView.pocketCenter;
+            const anchorType =
+              activeShotView.anchorType ??
+              (activeShotView.isSidePocket ? 'side' : 'short');
+            let railDir =
+              activeShotView.railDir ??
+              (anchorType === 'side'
+                ? signed(pocketCenter.x, 1)
+                : signed(pocketCenter.y, 1));
+            if (!Number.isFinite(activeShotView.railDir) || activeShotView.railDir === 0) {
+              activeShotView.railDir = railDir;
+            } else {
+              railDir = activeShotView.railDir;
+            }
+            let broadcastRailDir =
+              activeShotView.broadcastRailDir ?? (anchorType === 'side' ? null : railDir);
+            const fallbackBroadcast = signed(
+              activeShotView.lastBallPos?.y ?? pocketCenter.y ?? 0,
+              broadcastRailDir ?? railDir ?? 1
             );
-            const overheadTheta = Math.atan2(anchorOutward.x, anchorOutward.y) + Math.PI;
-            const overheadPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
-            const baseRadius = clampOrbitRadius(
-              Math.max(
-                getMaxOrbitRadius() * POCKET_OVERHEAD_RADIUS_SCALE,
-                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-              )
+            if (anchorType === 'side') {
+              const resolvedBroadcastRailDir =
+                resolveShortRailBroadcastDirection({
+                  pocketCenter: pocketCenter2D,
+                  approachDir,
+                  ballPos: activeShotView.lastBallPos,
+                  ballVel: focusBall?.vel,
+                  fallback: fallbackBroadcast
+                });
+              if (Number.isFinite(resolvedBroadcastRailDir)) {
+                broadcastRailDir = resolvedBroadcastRailDir;
+              }
+            } else {
+              broadcastRailDir = railDir;
+            }
+            activeShotView.broadcastRailDir = broadcastRailDir;
+            broadcastArgs = {
+              railDir: broadcastRailDir ?? railDir,
+              targetWorld: null,
+              focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
+              lerp: 0.25
+            };
+            const heightScale =
+              activeShotView.heightScale ?? POCKET_CAM.heightScale ?? 1;
+            let approachDir = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : new THREE.Vector2(0, -railDir);
+            if (approachDir.lengthSq() < 1e-6) {
+              approachDir.set(0, -railDir);
+            }
+            approachDir.normalize();
+            if (activeShotView.approach) {
+              activeShotView.approach.copy(approachDir);
+            } else {
+              activeShotView.approach = approachDir.clone();
+            }
+            const resolvedAnchorId = resolvePocketCameraAnchor(
+              activeShotView.pocketId ?? pocketIdFromCenter(pocketCenter),
+              pocketCenter,
+              approachDir,
+              activeShotView.lastBallPos ?? pocketCenter
             );
-            TMP_SPH.set(baseRadius, overheadPhi, overheadTheta);
-            const heightOffsetWorld =
-              ((activeShotView.heightOffset ?? POCKET_CAM.heightOffset ?? 0) * worldScaleFactor) *
-              0.9;
+            const anchorId =
+              resolvedAnchorId ??
+              activeShotView.anchorId ??
+              pocketIdFromCenter(pocketCenter);
+            if (anchorId !== activeShotView.anchorId) {
+              activeShotView.anchorId = anchorId;
+              const latestOutward = getPocketCameraOutward(anchorId);
+              if (latestOutward) {
+                activeShotView.anchorOutward = latestOutward;
+              }
+            }
+            let pocketCamEntry = getPocketCameraEntry(anchorId);
+            const anchorCenter = getPocketCenterById(anchorId);
+            const pocketCamera = pocketCamEntry
+              ? pocketCamEntry.camera
+              : ensurePocketCamera(anchorId, anchorCenter);
+            if (!pocketCamEntry) {
+              pocketCamEntry = getPocketCameraEntry(anchorId) ?? null;
+            }
+            const pocketCenter2D = pocketCenter.clone();
+            const outward = activeShotView.anchorOutward
+              ? activeShotView.anchorOutward.clone()
+              : getPocketCameraOutward(anchorId) ?? pocketCenter2D.clone();
+            if (outward.lengthSq() < 1e-6) {
+              outward.set(
+                anchorType === 'side' ? railDir : 0,
+                anchorType === 'side' ? 0 : railDir
+              );
+            }
+            outward.normalize();
+            if (!activeShotView.anchorOutward) {
+              activeShotView.anchorOutward = outward.clone();
+            }
+            const cameraBounds = cameraBoundsRef.current ?? null;
+            const cueBounds = cameraBounds?.cueShot ?? null;
+            const standingBounds = cameraBounds?.standing ?? null;
+            const focusHeightLocal = BALL_CENTER_Y + BALL_R * 0.12;
+            const focusTarget = new THREE.Vector3(0, focusHeightLocal, 0);
+            const cueBallForPocket = ballsList.find((b) => b.id === 'cue');
+            if (cueBallForPocket && focusBall?.active) {
+              focusTarget.set(
+                (cueBallForPocket.pos.x + focusBall.pos.x) * 0.5,
+                focusHeightLocal,
+                (cueBallForPocket.pos.y + focusBall.pos.y) * 0.5
+              );
+            }
+            focusTarget.multiplyScalar(worldScaleFactor);
+            if (POCKET_CAM.focusBlend > 0 && pocketCenter2D) {
+              const focusBlend = THREE.MathUtils.clamp(
+                POCKET_CAM.focusBlend,
+                0,
+                1
+              );
+              if (focusBlend > 0) {
+                const pocketFocus = new THREE.Vector3(
+                  pocketCenter2D.x * worldScaleFactor,
+                  focusHeightLocal,
+                  pocketCenter2D.y * worldScaleFactor
+                );
+                focusTarget.lerp(pocketFocus, focusBlend);
+              }
+            }
+            if (POCKET_CAM.lateralFocusShift) {
+              const lateral2D = new THREE.Vector2(-outward.y, outward.x);
+              if (lateral2D.lengthSq() > 1e-6) {
+                lateral2D.normalize().multiplyScalar(
+                  POCKET_CAM.lateralFocusShift * worldScaleFactor
+                );
+                focusTarget.add(
+                  new THREE.Vector3(lateral2D.x, 0, lateral2D.y)
+                );
+              }
+            }
+            if (
+              anchorType === 'short' &&
+              (POCKET_CAM.railFocusLong || POCKET_CAM.railFocusShort)
+            ) {
+              const signX =
+                pocketCenter2D.x !== 0
+                  ? Math.sign(pocketCenter2D.x)
+                  : Math.sign(outward.x);
+              const signZ =
+                pocketCenter2D.y !== 0
+                  ? Math.sign(pocketCenter2D.y)
+                  : Math.sign(outward.y);
+              const offsetX =
+                (POCKET_CAM.railFocusLong ?? 0) * (signX ? -signX : 0);
+              const offsetZ =
+                (POCKET_CAM.railFocusShort ?? 0) * (signZ ? -signZ : 0);
+              if (offsetX || offsetZ) {
+                TMP_VEC3_A.set(
+                  offsetX * worldScaleFactor,
+                  0,
+                  offsetZ * worldScaleFactor
+                );
+                focusTarget.add(TMP_VEC3_A);
+              }
+            }
+            const pocketDirection2D = pocketCenter2D.clone();
+            if (pocketDirection2D.lengthSq() < 1e-6) {
+              pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
+            }
+            const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
+            const baseRadius = (() => {
+              const fallback = clamp(
+                fitRadius(camera, STANDING_VIEW.margin),
+                CAMERA.minR,
+                CAMERA.maxR
+              );
+              const standingRadius = standingBounds?.radius ?? fallback;
+              const pocketRadius = pocketDirection2D.length();
+              const minOutside =
+                anchorType === 'short'
+                  ? POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside
+                  : POCKET_CAM.minOutside;
+              return Math.max(standingRadius, pocketRadius + minOutside);
+            })();
+            const cuePhi = cueBounds?.phi ?? CUE_VIEW_TARGET_PHI;
+            const spherical = new THREE.Spherical(
+              baseRadius * worldScaleFactor,
+              cuePhi,
+              azimuth
+            );
             const desiredPosition = focusTarget
               .clone()
-              .add(new THREE.Vector3().setFromSpherical(TMP_SPH))
-              .add(new THREE.Vector3(0, heightOffsetWorld, 0));
+              .add(new THREE.Vector3().setFromSpherical(spherical));
+            const outwardOffsetMagnitude =
+              anchorType === 'short'
+                ? POCKET_CAM.outwardOffsetShort ?? POCKET_CAM.outwardOffset
+                : POCKET_CAM.outwardOffset;
+            if (outwardOffsetMagnitude) {
+              const outwardOffset = new THREE.Vector3(outward.x, 0, outward.y);
+              if (outwardOffset.lengthSq() > 1e-6) {
+                outwardOffset
+                  .normalize()
+                  .multiplyScalar(outwardOffsetMagnitude * worldScaleFactor);
+                desiredPosition.add(outwardOffset);
+              }
+            }
+            const minHeightWorld =
+              (TABLE_Y + TABLE.THICK + activeShotView.heightOffset * heightScale) *
+              worldScaleFactor;
+            const loweredY =
+              desiredPosition.y -
+              (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
+            desiredPosition.y =
+              loweredY < minHeightWorld ? minHeightWorld : loweredY;
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
@@ -11395,15 +11575,12 @@ function PoolRoyaleGame({
             } else {
               activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
             }
-            camera.up.set(0, 1, 0);
-            camera.position.copy(activeShotView.smoothedPos);
-            camera.lookAt(activeShotView.smoothedTarget);
-            renderCamera = camera;
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? activeShotView.smoothedTarget;
-            broadcastArgs.targetWorld = activeShotView.smoothedTarget.clone();
-            broadcastArgs.lerp = 0.16;
-            updatePocketCameraState(false);
+            if (pocketCamera) {
+              pocketCamera.position.copy(activeShotView.smoothedPos);
+              pocketCamera.lookAt(activeShotView.smoothedTarget);
+              pocketCamera.updateMatrixWorld();
+              renderCamera = pocketCamera;
+            }
             lookTarget = activeShotView.smoothedTarget;
           } else {
             const aimFocus =
@@ -11441,11 +11618,6 @@ function PoolRoyaleGame({
                 }
               }
             focusTarget = store.target.clone();
-            if (topViewRef.current) {
-              focusTarget = new THREE.Vector3(0, BALL_CENTER_Y, 0);
-              store.ballId = null;
-              store.target.copy(focusTarget);
-            }
           }
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
@@ -13814,7 +13986,7 @@ function PoolRoyaleGame({
             } else {
               suspendedActionView = null;
             }
-            updatePocketCameraState(false);
+            updatePocketCameraState(true);
             activeShotView = earlyPocketView;
             pocketViewActivated = true;
           }
@@ -14343,22 +14515,11 @@ function PoolRoyaleGame({
             safetyShots.push(fallbackPlan);
           }
           const bestPot = potShots[0] ?? null;
-          let bestAutoAim = bestPot;
-          if (activeVariantId === 'american' || activeVariantId === '9ball') {
-            const nextBallId = activeBalls
-              .filter((b) => b.id !== cue.id)
-              .sort((a, b) => a.id - b.id)[0]?.id;
-            if (nextBallId != null) {
-              const targeted = potShots.find((plan) => plan.targetBall?.id === nextBallId);
-              if (targeted) bestAutoAim = targeted;
-            }
-          }
           const bestSafety =
             activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
           return {
             bestPot,
-            bestSafety,
-            bestAutoAim: bestAutoAim ?? bestPot
+            bestSafety
           };
         };
 
@@ -14584,14 +14745,11 @@ function PoolRoyaleGame({
             const result = { ...baseline };
             if (advancedPlan.type === 'pot') {
               result.bestPot = advancedPlan;
-              result.bestAutoAim = advancedPlan;
               if (!result.bestSafety) result.bestSafety = baseline.bestSafety;
             } else {
               result.bestSafety = advancedPlan;
               if (!result.bestPot) result.bestPot = baseline.bestPot;
-              if (!result.bestAutoAim) result.bestAutoAim = result.bestPot;
             }
-            if (!result.bestAutoAim) result.bestAutoAim = result.bestPot;
             return result;
           } catch (err) {
             console.warn('AI evaluation fallback', err);
@@ -14680,7 +14838,7 @@ function PoolRoyaleGame({
         };
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
-          const plan = options.bestAutoAim ?? options.bestPot ?? null;
+          const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
@@ -15827,7 +15985,7 @@ function PoolRoyaleGame({
             } else {
               suspendedActionView = null;
             }
-            updatePocketCameraState(false);
+            updatePocketCameraState(true);
             activeShotView = bestPocketView;
           }
         }
