@@ -2077,22 +2077,28 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xc0c9d5,
-    metalness: 0.76,
-    roughness: 0.42,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.3,
-    envMapIntensity: 0.58
+    color: 0xd6d8dc,
+    metalness: 0.95,
+    roughness: 0.12,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    transmission: 0.1,
+    ior: 2.1,
+    thickness: 0.22,
+    envMapIntensity: 1
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.35,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.58
+    metalness: 0.92,
+    roughness: 0.16,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    transmission: 0.06,
+    ior: 1.85,
+    thickness: 0.28,
+    envMapIntensity: 1
   }
 ]);
 
@@ -2196,11 +2202,14 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd2d8e2,
-    metalness: 0.9,
-    roughness: 0.22,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.18
+    color: 0xd6d8dc,
+    metalness: 0.95,
+    roughness: 0.12,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    transmission: 0.1,
+    ior: 2.1,
+    thickness: 0.22
   },
   {
     id: 'pearl',
@@ -2217,12 +2226,13 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.26,
-    clearcoat: 0.58,
-    clearcoatRoughness: 0.18,
-    sheen: 0.32,
-    sheenRoughness: 0.4
+    metalness: 0.92,
+    roughness: 0.16,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    transmission: 0.06,
+    ior: 1.85,
+    thickness: 0.28
   }
 ]);
 
@@ -7299,6 +7309,16 @@ function Table3D(
     if (typeof colorOpt?.clearcoatRoughness === 'number') {
       railMarkerMat.clearcoatRoughness = colorOpt.clearcoatRoughness;
     }
+    if (typeof colorOpt?.transmission === 'number') {
+      railMarkerMat.transmission = colorOpt.transmission;
+      railMarkerMat.transparent = colorOpt.transmission > 0;
+    }
+    if (typeof colorOpt?.ior === 'number') {
+      railMarkerMat.ior = colorOpt.ior;
+    }
+    if (typeof colorOpt?.thickness === 'number') {
+      railMarkerMat.thickness = colorOpt.thickness;
+    }
     if (typeof colorOpt?.sheen === 'number') {
       railMarkerMat.sheen = colorOpt.sheen;
     }
@@ -8729,6 +8749,16 @@ function PoolRoyaleGame({
         materials.trim.roughness = chromeSelection.roughness;
         materials.trim.clearcoat = chromeSelection.clearcoat;
         materials.trim.clearcoatRoughness = chromeSelection.clearcoatRoughness;
+        if (typeof chromeSelection.transmission === 'number') {
+          materials.trim.transmission = chromeSelection.transmission;
+          materials.trim.transparent = chromeSelection.transmission > 0;
+        }
+        if (typeof chromeSelection.ior === 'number') {
+          materials.trim.ior = chromeSelection.ior;
+        }
+        if (typeof chromeSelection.thickness === 'number') {
+          materials.trim.thickness = chromeSelection.thickness;
+        }
         if (typeof chromeSelection.envMapIntensity === 'number') {
           materials.trim.envMapIntensity = chromeSelection.envMapIntensity;
         }
