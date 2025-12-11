@@ -126,13 +126,6 @@ public class BilliardsSolver
             return;
 
         List<Vec2> pts = new List<Vec2>();
-        // The side-pocket centers are offset slightly outside the rail plane so the
-        // metal plates sit flush with the wooden rails. However, the playable mouth
-        // still needs to start exactly on the rail line; otherwise balls "hit"
-        // invisible geometry before reaching the jaw. Anchor the mouth on the rail
-        // plane and only move inward/outward using the depth offset.
-        Vec2 mouthNormal = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
-        Vec2 railOrigin = center + mouthNormal * PhysicsConstants.SidePocketOutset;
         for (int i = 0; i <= segments; i++)
         {
             double t = (double)i / segments;
@@ -142,19 +135,19 @@ public class BilliardsSolver
 
             if (vertical)
             {
-                double y = railOrigin.Y + mouthOffset;
-                double x = railOrigin.X + (positive ? depthOffset : -depthOffset);
+                double y = center.Y + mouthOffset;
+                double x = center.X + (positive ? depthOffset : -depthOffset);
                 pts.Add(new Vec2(x, y));
             }
             else
             {
-                double x = railOrigin.X + mouthOffset;
-                double y = railOrigin.Y + (positive ? depthOffset : -depthOffset);
+                double x = center.X + mouthOffset;
+                double y = center.Y + (positive ? depthOffset : -depthOffset);
                 pts.Add(new Vec2(x, y));
             }
         }
 
-        Vec2 hint = mouthNormal;
+        Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
         // Use a thinner cushion band on side pockets so balls aren't deflected before
         // they visually reach the jaw lips. The corner pockets keep the full
         // PhysicsConstants.JawCushionSegments setting.
