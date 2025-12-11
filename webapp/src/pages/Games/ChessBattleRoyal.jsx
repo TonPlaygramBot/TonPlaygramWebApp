@@ -174,7 +174,7 @@ const CARD_SCALE = 0.95;
 
 const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
-const PIECE_PLACEMENT_Y_OFFSET = 0.16;
+const PIECE_PLACEMENT_Y_OFFSET = 0.2;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.05;
@@ -186,7 +186,7 @@ const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
-const HIGHLIGHT_VERTICAL_OFFSET = 0.04;
+const HIGHLIGHT_VERTICAL_OFFSET = 0.08;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -223,8 +223,8 @@ const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
 const FALLBACK_SEAT_POSITIONS = [
-  { left: '50%', top: '84%' },
-  { left: '50%', top: '16%' }
+  { left: '50%', top: '88%' },
+  { left: '50%', top: '12%' }
 ];
 const CAMERA_WHEEL_FACTOR = ARENA_CAMERA_DEFAULTS.wheelDeltaFactor;
 const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
@@ -5776,20 +5776,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     arena.add(chairB.group);
     chairs.push(chairB);
 
-    const sandTimer = createSandTimer(palette.accent ?? '#4ce0c3');
-    const sandTimerRadius = (tableInfo?.radius ?? TABLE_RADIUS) * SAND_TIMER_RADIUS_FACTOR;
-    const sandTimerSurfaceY = (tableInfo?.surfaceY ?? TABLE_HEIGHT) + SAND_TIMER_SURFACE_OFFSET;
-    sandTimer.setFill?.(1);
-    sandTimer.setTurn?.(uiRef.current?.turnWhite ?? true);
-    sandTimer.group.position.set(0, sandTimerSurfaceY, sandTimerRadius);
-    sandTimer.group.rotation.y = Math.PI;
-    arena.add(sandTimer.group);
-    disposers.push(() => {
-      try {
-        arena.remove(sandTimer.group);
-      } catch {}
-      sandTimer.dispose();
-    });
+    const sandTimer = null;
 
     function makeStudioCamera() {
       const cam = new THREE.Group();
@@ -7463,16 +7450,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               </div>
             );
           })}
-        </div>
-        <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
-          <div className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}>
-            Black {formatTime(blackTime)}
-          </div>
-        </div>
-        <div className="absolute bottom-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
-          <div className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'bg-white/20' : 'opacity-60'}`}>
-            White {formatTime(whiteTime)}
-          </div>
         </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">

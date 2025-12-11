@@ -32,7 +32,19 @@ export default function AvatarTimer({
       onClick={onClick}
       data-player-index={index}
     >
-      {/* turn indicator removed */}
+      {isTurn && (
+        <span className="absolute -top-1.5 -right-1.5 inline-flex items-center justify-center">
+          <span
+            className="absolute inline-flex h-4 w-4 animate-ping rounded-full bg-emerald-400 opacity-60"
+            aria-hidden="true"
+          />
+          <span
+            className="relative inline-flex h-3.5 w-3.5 rounded-full border-2 border-emerald-300 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.75)]"
+            aria-hidden="true"
+          />
+          <span className="sr-only">Current turn</span>
+        </span>
+      )}
       {active && (
         <div className="avatar-timer-ring" style={{ '--timer-gradient': gradient }} />
       )}
