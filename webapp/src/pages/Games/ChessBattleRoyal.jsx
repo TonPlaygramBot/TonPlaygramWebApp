@@ -4889,9 +4889,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
   const laughSoundRef = useRef(null);
-  const lastMoveRef = useRef(null);
-  const replayLastMoveRef = useRef(null);
-  const isReplayingRef = useRef(false);
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -4972,8 +4969,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
-  const [canReplay, setCanReplay] = useState(false);
-  const [isReplaying, setIsReplaying] = useState(false);
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -4984,14 +4979,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
-
-  useEffect(() => {
-    lastMoveRef.current = null;
-    replayLastMoveRef.current = null;
-    isReplayingRef.current = false;
-    setCanReplay(false);
-    setIsReplaying(false);
-  }, []);
 
   useEffect(() => {
     whiteTimeRef.current = whiteTime;
@@ -5009,11 +4996,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     setMoveMode('click');
   }, [viewMode]);
-
-  const handleReplay = useCallback(() => {
-    if (!canReplay || isReplaying) return;
-    replayLastMoveRef.current?.();
-  }, [canReplay, isReplaying]);
 
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
@@ -6900,43 +6882,28 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
 
     function moveSelTo(rr, cc) {
-      const captureColumnSpacing = tile * 0.65;
-      const captureRowSpacing = tile * 0.7;
-      const captureHeight = currentPieceYOffset + 0.02;
-      const captureSlotPosition = (index, capturingWhite) => {
-        const row = Math.floor(index / 8);
-        const col = index % 8;
-        const capX = (col - 3.5) * captureColumnSpacing;
-        const capZ = capturingWhite
-          ? half + BOARD.rim + 1 + row * captureRowSpacing
-          : -half - BOARD.rim - 1 - row * captureRowSpacing;
-        return new THREE.Vector3(capX, captureHeight, capZ);
-      };
-
-      const layoutCapturedZone = (zone, capturingWhite) => {
-        zone.forEach((mesh, idx) => {
-          if (!mesh) return;
-          cancelPieceAnimation(mesh);
-          animatePieceTo(mesh, captureSlotPosition(idx, capturingWhite), 0.28);
-        });
-      };
-
       if (!sel) return;
       if (!legal.some(([r, c]) => r === rr && c === cc)) return;
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
-      let captureTarget = null;
-      let captureFromPosition = null;
       if (targetMesh) {
         const worldPos = new THREE.Vector3();
         targetMesh.getWorldPosition(worldPos);
         const capturingWhite = board[sel.r][sel.c].w;
         const zone = capturingWhite ? capturedByWhite : capturedByBlack;
         const idx = zone.push(targetMesh) - 1;
-        captureFromPosition = piecePosition(rr, cc, captureHeight);
-        captureTarget = captureSlotPosition(idx, capturingWhite);
+        const row = Math.floor(idx / 8);
+        const col = idx % 8;
+        const capX = (col - 3.5) * (tile * 0.5);
+        const capZ = capturingWhite
+          ? half + BOARD.rim + 1 + row * (tile * 0.5)
+          : -half - BOARD.rim - 1 - row * (tile * 0.5);
         cancelPieceAnimation(targetMesh);
-        layoutCapturedZone(zone, capturingWhite);
+        animatePieceTo(
+          targetMesh,
+          new THREE.Vector3(capX, currentPieceYOffset, capZ),
+          0.35
+        );
         createExplosion(worldPos);
         if (bombSoundRef.current && settingsRef.current.soundEnabled) {
           bombSoundRef.current.currentTime = 0;
@@ -7000,22 +6967,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         }
       }
 
-      const lastMoveData = {
-        mesh: m,
-        from: piecePosition(sel.r, sel.c, currentPieceYOffset),
-        to: targetPosition.clone(),
-        captured:
-          targetMesh && captureTarget
-            ? {
-                mesh: targetMesh,
-                from: (captureFromPosition || piecePosition(rr, cc, captureHeight)).clone(),
-                to: captureTarget.clone()
-              }
-            : null
-      };
-      lastMoveRef.current = lastMoveData;
-      setCanReplay(Boolean(lastMoveData?.mesh));
-
       playMoveSound();
 
       // turn switch & status
@@ -7076,31 +7027,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         }
       }
     };
-
-    const replayLastMove = () => {
-      const last = lastMoveRef.current;
-      if (!last?.mesh || isReplayingRef.current) return;
-      isReplayingRef.current = true;
-      setIsReplaying(true);
-
-      cancelPieceAnimation(last.mesh);
-      last.mesh.position.copy(last.from.clone());
-      animatePieceTo(last.mesh, last.to.clone(), 0.4);
-
-      if (last.captured?.mesh) {
-        cancelPieceAnimation(last.captured.mesh);
-        last.captured.mesh.position.copy(last.captured.from.clone());
-        animatePieceTo(last.captured.mesh, last.captured.to.clone(), 0.35);
-      }
-
-      playMoveSound();
-      setTimeout(() => {
-        if (cancelled) return;
-        isReplayingRef.current = false;
-        setIsReplaying(false);
-      }, 650);
-    };
-    replayLastMoveRef.current = replayLastMove;
 
     const pickTileFromPointer = (event) => {
       setPointer(event);
@@ -7330,9 +7256,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         window.removeEventListener('resize', onResize);
       }
       clearInterval(timerRef.current);
-      lastMoveRef.current = null;
-      replayLastMoveRef.current = null;
-      isReplayingRef.current = false;
       disposers.forEach((fn) => {
         try {
           fn();
@@ -7677,18 +7600,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           </div>
         </div>
         <div className="absolute right-3 bottom-3 flex flex-col space-y-2 pointer-events-auto">
-          <button
-            onClick={handleReplay}
-            disabled={!canReplay || isReplaying}
-            className={`flex items-center gap-2 rounded border border-white/15 bg-white/10 px-3 py-2 text-xs font-semibold transition ${
-              !canReplay || isReplaying
-                ? 'cursor-not-allowed opacity-50'
-                : 'hover:bg-white/20'
-            }`}
-          >
-            <span className="text-lg leading-none">↺</span>
-            <span>{isReplaying ? 'Replaying…' : 'Replay last move'}</span>
-          </button>
           <button
             onClick={() => zoomRef.current.zoomIn?.()}
             className="text-xl bg-white/10 hover:bg-white/20 rounded px-2 py-1"
