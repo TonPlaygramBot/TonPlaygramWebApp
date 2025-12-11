@@ -175,9 +175,11 @@ const CARD_SCALE = 0.95;
 const BOARD = { N: 8, tile: 4, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
-const PIECE_SCALE_FACTOR = 0.95;
+const PIECE_SCALE_FACTOR = 0.9;
+const PIECE_TILE_SPACING_FACTOR = 0.96;
 const BOARD_GROUP_Y_OFFSET = -0.01;
 const BOARD_MODEL_Y_OFFSET = -0.04;
+const BOARD_MODEL_SCALE_BIAS = 1.04;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.063;
@@ -1612,7 +1614,7 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
   const box = new THREE.Box3().setFromObject(boardModel);
   const size = box.getSize(new THREE.Vector3());
   const largest = Math.max(size.x || 0.001, size.z || 0.001);
-  const scale = safeTarget / largest;
+  const scale = (safeTarget * BOARD_MODEL_SCALE_BIAS) / largest;
   if (Number.isFinite(scale) && scale > 0) {
     boardModel.scale.multiplyScalar(scale);
   }
@@ -6397,6 +6399,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       const colorKey = (p) => (p.w ? 'white' : 'black');
       const build = (p) => prototypes[colorKey(p)]?.[p.t] ?? null;
       const yOffset = 0;
+      const pieceTile = (currentTileSize || tile) * PIECE_TILE_SPACING_FACTOR;
+      const pieceHalf = (N * pieceTile) / 2;
 
       allPieceMeshes.splice(0, allPieceMeshes.length).forEach((m) => {
         try {
@@ -6416,9 +6420,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const clone = cloneWithShadows(proto);
           clone.scale.multiplyScalar(PIECE_SCALE_FACTOR);
           clone.position.set(
-            c * tile - half + tile / 2,
+            c * pieceTile - pieceHalf + pieceTile / 2,
             yOffset,
-            r * tile - half + tile / 2
+            r * pieceTile - pieceHalf + pieceTile / 2
           );
           clone.userData = {
             r,
