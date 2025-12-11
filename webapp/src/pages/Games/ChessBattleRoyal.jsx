@@ -51,7 +51,7 @@ import AvatarTimer from '../../components/AvatarTimer.jsx';
  * • Minimal UI: status bar (turn, check, mate), reset
  * • Control: click to select a piece, click one of the highlighted targets to move it
  *
- * Note: for simplicity, this version omits en passant and castling. We can add them easily.
+ * Note: for simplicity, this version omits en passant. We can add it easily.
  */
 
 // ========================= Config =========================
@@ -4252,7 +4252,7 @@ function parseFEN(fen) {
         for (let k = 0; k < n; k++) row.push(null);
       } else {
         const isWhite = ch === ch.toUpperCase();
-        row.push({ t: ch.toUpperCase(), w: isWhite });
+        row.push({ t: ch.toUpperCase(), w: isWhite, hasMoved: false });
       }
       i++;
     }
@@ -4262,7 +4262,7 @@ function parseFEN(fen) {
 }
 
 function cloneBoard(b) {
-  return b.map((r) => r.map((c) => (c ? { t: c.t, w: c.w } : null)));
+  return b.map((r) => r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null)));
 }
 
 // Offsets
@@ -4346,7 +4346,6 @@ function genMoves(board, r, c) {
       for (let dc = -1; dc <= 1; dc++) {
         if (dr || dc) push(r + dr, c + dc);
       }
-    // (no castling here)
   }
   return moves;
 }
@@ -4375,31 +4374,86 @@ function isSquareAttacked(board, r, c, byWhite) {
 
 function applyMove(board, fromR, fromC, toR, toC) {
   const piece = board[fromR][fromC];
+  if (piece && typeof piece.hasMoved !== 'boolean') piece.hasMoved = false;
   const captured = board[toR][toC];
+  const isCastling = piece && piece.t === 'K' && Math.abs(toC - fromC) === 2;
+  let castleSnapshot = null;
+  const previousMovedFlag = piece?.hasMoved;
+
+  const moveRookForCastle = (rookFromC, rookToC) => {
+    const rookPiece = board[fromR][rookFromC];
+    if (!rookPiece) return;
+    if (typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
+    castleSnapshot = {
+      rookFromC,
+      rookToC,
+      rookPiece,
+      rookMovedFlag: rookPiece.hasMoved
+    };
+    board[fromR][rookToC] = rookPiece;
+    board[fromR][rookFromC] = null;
+    rookPiece.hasMoved = true;
+  };
+
+  if (isCastling) {
+    if (toC > fromC) moveRookForCastle(7, 5);
+    else moveRookForCastle(0, 3);
+  }
+
   board[toR][toC] = piece;
   board[fromR][fromC] = null;
+  if (piece) piece.hasMoved = true;
   let promoted = false;
   let previousType = piece ? piece.t : null;
   if (piece && piece.t === 'P' && (toR === 0 || toR === 7)) {
     piece.t = 'Q';
     promoted = true;
   }
-  return { captured, promoted, previousType };
+  return { captured, promoted, previousType, castle: castleSnapshot, pieceMovedFlag: previousMovedFlag };
 }
 
 function revertMove(board, fromR, fromC, toR, toC, snapshot) {
   const piece = board[toR][toC];
+  if (snapshot?.castle?.rookPiece) {
+    const { rookFromC, rookToC, rookPiece, rookMovedFlag } = snapshot.castle;
+    board[fromR][rookFromC] = rookPiece;
+    board[fromR][rookToC] = null;
+    if (rookPiece) rookPiece.hasMoved = rookMovedFlag;
+  }
   board[fromR][fromC] = piece;
   board[toR][toC] = snapshot.captured ?? null;
   if (snapshot.promoted && piece) {
     piece.t = snapshot.previousType;
   }
+  if (piece) piece.hasMoved = snapshot.pieceMovedFlag ?? piece.hasMoved;
 }
 
 function isPlayerInCheck(board, whiteTurn) {
   const king = findKing(board, whiteTurn);
   if (!king) return false;
   return isSquareAttacked(board, king[0], king[1], !whiteTurn);
+}
+
+function getCastlingTargets(board, r, c, isWhiteTurn) {
+  const piece = board[r][c];
+  if (!piece || piece.t !== 'K' || piece.w !== isWhiteTurn) return [];
+  if (piece.hasMoved) return [];
+  const homeRow = isWhiteTurn ? 7 : 0;
+  if (r !== homeRow || c !== 4) return [];
+  if (isSquareAttacked(board, r, c, !isWhiteTurn)) return [];
+
+  const results = [];
+  const checkSide = (rookCol, emptyCols, transitCols, destCol) => {
+    const rook = board[homeRow][rookCol];
+    if (!rook || rook.t !== 'R' || rook.w !== isWhiteTurn || rook.hasMoved) return;
+    if (emptyCols.some((col) => board[homeRow][col])) return;
+    if (transitCols.some((col) => isSquareAttacked(board, homeRow, col, !isWhiteTurn))) return;
+    results.push([homeRow, destCol]);
+  };
+
+  checkSide(7, [5, 6], [5, 6], 6);
+  checkSide(0, [1, 2, 3], [3, 2], 2);
+  return results;
 }
 
 function generateMoves(board, whiteTurn, options = {}) {
@@ -4411,6 +4465,9 @@ function generateMoves(board, whiteTurn, options = {}) {
       if (!piece || piece.w !== whiteTurn) continue;
       if (fromR !== null && (r !== fromR || c !== fromC)) continue;
       const pseudo = genMoves(board, r, c);
+      if (!onlyCaptures && piece.t === 'K') {
+        pseudo.push(...getCastlingTargets(board, r, c, whiteTurn));
+      }
       for (const [rr, cc] of pseudo) {
         const target = board[rr][cc];
         const promotion = piece.t === 'P' && (rr === 0 || rr === 7);
@@ -6923,9 +6980,25 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       // move board
       const movedPiece = board[sel.r][sel.c];
+      if (movedPiece && typeof movedPiece.hasMoved !== 'boolean') movedPiece.hasMoved = false;
       const movedFromPawn = movedPiece?.t === 'P';
+      const isCastlingMove =
+        movedPiece?.t === 'K' && sel.r === rr && Math.abs(cc - sel.c) === 2;
+      const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
+      const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
+      const rookPiece =
+        isCastlingMove && Number.isInteger(rookFromC) ? board[sel.r][rookFromC] : null;
+      if (rookPiece && typeof rookPiece.hasMoved !== 'boolean') rookPiece.hasMoved = false;
+      const rookMesh =
+        isCastlingMove && Number.isInteger(rookFromC) ? pieceMeshes[sel.r][rookFromC] : null;
       board[rr][cc] = movedPiece;
       board[sel.r][sel.c] = null;
+      if (isCastlingMove && rookPiece) {
+        board[rr][rookToC] = rookPiece;
+        board[sel.r][rookFromC] = null;
+        rookPiece.hasMoved = true;
+      }
+      if (movedPiece) movedPiece.hasMoved = true;
       // promotion (auto to Queen)
       const promoted = movedFromPawn && (rr === 0 || rr === 7);
       if (promoted) {
@@ -6941,6 +7014,17 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       cancelPieceAnimation(m);
       const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
       animatePieceTo(m, targetPosition, 0.32);
+      if (isCastlingMove && Number.isInteger(rookFromC)) {
+        pieceMeshes[sel.r][rookFromC] = null;
+      }
+      if (isCastlingMove && rookMesh) {
+        pieceMeshes[rr][rookToC] = rookMesh;
+        rookMesh.userData.r = rr;
+        rookMesh.userData.c = rookToC;
+        cancelPieceAnimation(rookMesh);
+        const rookTarget = piecePosition(rr, rookToC, currentPieceYOffset);
+        animatePieceTo(rookMesh, rookTarget, 0.32);
+      }
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
         const queenProto = currentPiecePrototypes[color]?.Q;
@@ -7387,7 +7471,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
-              className={`h-12 rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              className={`h-12 w-32 rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 canReplay
                   ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
                   : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
@@ -7398,7 +7482,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             <button
               type="button"
               onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="h-12 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="h-12 w-32 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
               {viewMode === '3d' ? '2D view' : '3D view'}
             </button>
