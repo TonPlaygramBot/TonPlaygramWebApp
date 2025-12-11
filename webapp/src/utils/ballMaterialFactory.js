@@ -148,7 +148,7 @@ function sphericalToUV([x, y, z]) {
 function drawCueBallDots(ctx, size) {
   const dotColor = '#c62828';
   const badgeStretch = 2;
-  const radius = size * 0.084;
+  const radius = size * 0.043;
   const normals = [
     [1, 0, 0],
     [-1, 0, 0],
@@ -212,9 +212,9 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
 
   ctx.save();
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.88)');
-  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.46)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.2)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.92)');
+  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.38)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.08)');
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
@@ -248,7 +248,7 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     size * 0.45
   );
   lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.26)');
+  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.14)');
   ctx.fillStyle = lowerShadow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
