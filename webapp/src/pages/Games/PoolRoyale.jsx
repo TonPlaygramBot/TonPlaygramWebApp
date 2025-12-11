@@ -2077,22 +2077,22 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xc0c9d5,
-    metalness: 0.76,
-    roughness: 0.42,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.3,
-    envMapIntensity: 0.58
+    color: 0xd6d8dc,
+    metalness: 0.95,
+    roughness: 0.12,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    envMapIntensity: 1
   },
   {
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.35,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.2,
-    envMapIntensity: 0.58
+    metalness: 0.92,
+    roughness: 0.16,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
+    envMapIntensity: 1
   }
 ]);
 
@@ -2196,11 +2196,11 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd2d8e2,
-    metalness: 0.9,
-    roughness: 0.22,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.18
+    color: 0xd6d8dc,
+    metalness: 0.95,
+    roughness: 0.12,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06
   },
   {
     id: 'pearl',
@@ -2217,10 +2217,10 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
     id: 'gold',
     label: 'Gold',
     color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.26,
-    clearcoat: 0.58,
-    clearcoatRoughness: 0.18,
+    metalness: 0.92,
+    roughness: 0.16,
+    clearcoat: 0.5,
+    clearcoatRoughness: 0.06,
     sheen: 0.32,
     sheenRoughness: 0.4
   }
