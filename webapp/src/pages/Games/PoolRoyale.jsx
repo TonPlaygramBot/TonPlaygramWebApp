@@ -9043,7 +9043,6 @@ function PoolRoyaleGame({
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
-  const overheadFollowTimeoutRef = useRef(null);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
@@ -14839,68 +14838,11 @@ function PoolRoyaleGame({
         };
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
-          const variantId = activeVariantRef.current?.id ?? variantKey;
-          const stateSnapshot = frameRef.current ?? frameState;
-          const activeBalls = balls.filter((b) => b.active);
-          const normalizeNumericId = (value) => {
-            if (typeof value === 'number') return value;
-            if (typeof value === 'string') {
-              const match = value.match(/(\d+)/);
-              if (match) return Number.parseInt(match[1], 10);
-            }
-            return null;
-          };
-          const resolveNextTurnBall = () => {
-            const candidates = Array.isArray(stateSnapshot?.ballOn)
-              ? stateSnapshot.ballOn
-              : [];
-            for (const entry of candidates) {
-              const parsed = normalizeNumericId(entry);
-              if (parsed != null) {
-                const match = activeBalls.find(
-                  (ball) => normalizeNumericId(ball.id) === parsed
-                );
-                if (match) return match;
-              }
-            }
-            const lowest = activeBalls
-              .filter((ball) => ball.id !== 0)
-              .map((ball) => ({ ball, value: normalizeNumericId(ball.id) }))
-              .filter((entry) => entry.value != null)
-              .sort((a, b) => a.value - b.value);
-            return lowest[0]?.ball ?? null;
-          };
-          const shouldAutoAim = autoAimRequestRef.current;
-          let plan = options.bestPot ?? null;
-          if (variantId === 'uk' && !plan) {
-            plan = options.bestSafety ?? null;
-          }
-          if (variantId === 'american' || variantId === '9ball') {
-            const nextBall = resolveNextTurnBall();
-            if (nextBall && cue?.pos) {
-              const aimVec = nextBall.pos.clone().sub(cue.pos);
-              if (aimVec.lengthSq() > 1e-6) {
-                const cueToTarget = cue.pos.distanceTo(nextBall.pos);
-                plan = {
-                  type: 'pot',
-                  aimDir: aimVec.normalize(),
-                  power: plan?.power ?? computePowerFromDistance(cueToTarget),
-                  target: toBallColorId(nextBall.id),
-                  targetBall: nextBall,
-                  pocketId: plan?.pocketId ?? null,
-                  pocketCenter: plan?.pocketCenter ?? null,
-                  difficulty: plan?.difficulty,
-                  cueToTarget,
-                  targetToPocket: plan?.targetToPocket,
-                  spin: plan?.spin ?? { x: 0, y: 0 }
-                };
-              }
-            }
-          }
+          const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
-          if (plan?.aimDir && shouldAutoAim) {
+          if (plan?.aimDir) {
             const dir = plan.aimDir.clone();
             if (dir.lengthSq() > 1e-6) {
               dir.normalize();
@@ -14911,8 +14853,6 @@ function PoolRoyaleGame({
             } else {
               suggestionAimKeyRef.current = null;
             }
-          } else if (plan?.aimDir) {
-            suggestionAimKeyRef.current = summary?.key ?? null;
           } else {
             suggestionAimKeyRef.current = null;
           }
@@ -16031,27 +15971,22 @@ function PoolRoyaleGame({
             }
             lastPocketBallRef.current = bestPocketView.ballId;
             bestPocketView.lastUpdate = performance.now();
-            if (overheadFollowTimeoutRef.current) {
-              clearTimeout(overheadFollowTimeoutRef.current);
-              overheadFollowTimeoutRef.current = null;
+            if (cameraRef.current) {
+              const cam = cameraRef.current;
+              bestPocketView.smoothedPos = cam.position.clone();
+              const storedTarget = lastCameraTargetRef.current?.clone();
+              if (storedTarget) {
+                bestPocketView.smoothedTarget = storedTarget;
+              }
             }
-            const triggerOverheadFollow = () => {
-              if (topViewRef.current) return;
-              enterTopView(true);
-              overheadFollowTimeoutRef.current = window.setTimeout(() => {
-                exitTopView(false);
-                overheadFollowTimeoutRef.current = null;
-              }, 1200);
-            };
-            triggerOverheadFollow();
             if (actionResume) {
               suspendedActionView = actionResume;
               bestPocketView.resumeAction = actionResume;
             } else {
               suspendedActionView = null;
             }
-            updatePocketCameraState(false);
-            activeShotView = null;
+            updatePocketCameraState(true);
+            activeShotView = bestPocketView;
           }
         }
         // Pocket capture
@@ -16287,10 +16222,6 @@ function PoolRoyaleGame({
           cameraUpdateRef.current = () => {};
           cancelAnimationFrame(rafRef.current);
           window.removeEventListener('resize', onResize);
-          if (overheadFollowTimeoutRef.current) {
-            clearTimeout(overheadFollowTimeoutRef.current);
-            overheadFollowTimeoutRef.current = null;
-          }
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
