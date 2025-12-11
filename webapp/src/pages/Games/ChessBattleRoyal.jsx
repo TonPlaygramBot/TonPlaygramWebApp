@@ -176,10 +176,11 @@ const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const PIECE_SCALE_FACTOR = 0.92;
-const PIECE_FOOTPRINT_RATIO = 0.9;
+const PIECE_FOOTPRINT_RATIO = 0.86;
 const BOARD_GROUP_Y_OFFSET = -0.1;
 const BOARD_MODEL_Y_OFFSET = -0.12;
-const BOARD_VISUAL_Y_OFFSET = -0.08;
+const BOARD_VISUAL_Y_OFFSET = -0.12;
+const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
@@ -1630,11 +1631,14 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
   );
 
   const normalizedBox = new THREE.Box3().setFromObject(boardModel);
+  const topBeforeDrop = normalizedBox.max.y;
+  boardModel.position.y -= BOARD_SURFACE_DROP;
+  normalizedBox.translate(new THREE.Vector3(0, -BOARD_SURFACE_DROP, 0));
   const span = Math.max(
     normalizedBox.max.x - normalizedBox.min.x,
     normalizedBox.max.z - normalizedBox.min.z
   );
-  const top = normalizedBox.max.y;
+  const top = topBeforeDrop;
 
   return { span, top };
 }
