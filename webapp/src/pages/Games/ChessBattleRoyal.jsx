@@ -187,6 +187,7 @@ const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
+const PIECE_SELECTION_LIFT = 0.18;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -6676,6 +6677,57 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     // Selection
     let sel = null;
     let legal = [];
+    let selectedMesh = null;
+    const activePieceAnimations = [];
+
+    const resetSelectedMeshElevation = () => {
+      if (!selectedMesh) return;
+      const { r, c } = selectedMesh.userData || {};
+      const baseY = Number.isInteger(r) && Number.isInteger(c)
+        ? piecePosition(r, c, currentPieceYOffset).y
+        : currentPieceYOffset;
+      const activeAnim = activePieceAnimations.find((anim) => anim.mesh === selectedMesh);
+      if (activeAnim) {
+        activeAnim.target.y = baseY;
+      } else {
+        selectedMesh.position.y = baseY;
+      }
+      selectedMesh = null;
+    };
+
+    const liftSelectedMesh = (mesh) => {
+      if (!mesh) return;
+      cancelPieceAnimation(mesh);
+      const liftedY = currentPieceYOffset + PIECE_SELECTION_LIFT;
+      mesh.position.y = Math.max(mesh.position.y, liftedY);
+      selectedMesh = mesh;
+    };
+
+    const highlightSelection = (r, c, color) => {
+      const highlightColor = color ?? paletteRef.current?.capture ?? '#ef4444';
+      const highlightHeight = Math.max(0.08, tile * 0.03);
+      const mesh = pieceMeshes[r]?.[c];
+      const base = mesh?.position ?? piecePosition(r, c, currentPieceYOffset);
+      const h = new THREE.Mesh(
+        new THREE.CylinderGeometry(tile * 0.26, tile * 0.26, highlightHeight, 20),
+        new THREE.MeshStandardMaterial({
+          color: highlightColor,
+          transparent: true,
+          opacity: 0.7,
+          metalness: 0.2,
+          depthTest: false,
+          depthWrite: false
+        })
+      );
+      const baseY = Math.max(
+        base.y + highlightHeight * 0.5,
+        currentPieceYOffset - highlightHeight * 0.5 + HIGHLIGHT_VERTICAL_OFFSET
+      );
+      h.position.copy(base).setY(baseY + highlightHeight * 0.5);
+      h.renderOrder = 6;
+      h.userData.__highlight = true;
+      boardGroup.add(h);
+    };
 
     function startTimer(isWhite) {
       clearInterval(timerRef.current);
@@ -6802,13 +6854,21 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     }
     clearHighlightsRef.current = clearHighlights;
 
-    function selectAt(r, c) {
+    function selectAt(r, c, options = {}) {
+      const { force = false, selectionColor } = options;
       const p = board[r][c];
-      if (!p) return ((sel = null), clearHighlights());
-      if (p.w !== uiRef.current.turnWhite) return; // not your turn
+      if (!p) {
+        resetSelectedMeshElevation();
+        return ((sel = null), clearHighlights());
+      }
+      if (!force && p.w !== uiRef.current.turnWhite) return; // not your turn
+
+      resetSelectedMeshElevation();
       sel = { r, c, p };
+      liftSelectedMesh(pieceMeshes[r]?.[c]);
       legal = legalMoves(board, r, c);
       clearHighlights();
+      highlightSelection(r, c, selectionColor);
       const palette = paletteRef.current;
       const captureSquares = [];
       const quietSquares = [];
@@ -6838,7 +6898,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const capZ = capturingWhite
           ? half + BOARD.rim + 1 + row * (tile * 0.5)
           : -half - BOARD.rim - 1 - row * (tile * 0.5);
-        targetMesh.position.set(capX, 0, capZ);
+        cancelPieceAnimation(targetMesh);
+        animatePieceTo(
+          targetMesh,
+          new THREE.Vector3(capX, currentPieceYOffset, capZ),
+          0.35
+        );
         createExplosion(worldPos);
         if (bombSoundRef.current && settingsRef.current.soundEnabled) {
           bombSoundRef.current.currentTime = 0;
@@ -6929,6 +6994,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
       applyStatus(nextWhite, status, winner);
       sel = null;
+      resetSelectedMeshElevation();
       clearHighlights();
     }
 
@@ -6937,8 +7003,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       mesh: null,
       from: null
     };
-
-    const activePieceAnimations = [];
 
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
@@ -7044,9 +7108,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     function aiMove() {
       const mv = bestBlackMove(board, 4);
       if (!mv) return;
-      sel = { r: mv.fromR, c: mv.fromC };
-      legal = legalMoves(board, mv.fromR, mv.fromC);
-      moveSelTo(mv.toR, mv.toC);
+      selectAt(mv.fromR, mv.fromC, { force: true, selectionColor: paletteRef.current?.capture });
+      setTimeout(() => moveSelTo(mv.toR, mv.toC), 300);
     }
 
     onClick = function onClick(e) {
