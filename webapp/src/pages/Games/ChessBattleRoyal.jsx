@@ -40,8 +40,6 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
-import InfoPopup from '../../components/InfoPopup.jsx';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -4961,9 +4959,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
-  const [showInfo, setShowInfo] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [showGift, setShowGift] = useState(false);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -5621,31 +5616,16 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       disposePieceMaterials(pieceMaterials);
     });
     const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
-    const audioStopTimers = new Map();
-    disposers.push(() => {
-      audioStopTimers.forEach((timeoutId) => clearTimeout(timeoutId));
-      audioStopTimers.clear();
-    });
-    const playAudio = (audioRef, maxDurationMs) => {
+    const playAudio = (audioRef) => {
       if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
       try {
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {});
-        if (Number.isFinite(maxDurationMs)) {
-          const previous = audioStopTimers.get(audioRef.current);
-          if (previous) clearTimeout(previous);
-          const timeoutId = setTimeout(() => {
-            audioRef.current.pause();
-            audioRef.current.currentTime = 0;
-            audioStopTimers.delete(audioRef.current);
-          }, maxDurationMs);
-          audioStopTimers.set(audioRef.current, timeoutId);
-        }
       } catch {}
     };
-    const playMoveSound = () => playAudio(moveSoundRef, 5000);
-    const playCheckSound = () => playAudio(checkSoundRef, 5000);
-    const playMateSound = () => playAudio(mateSoundRef, 10000);
+    const playMoveSound = () => playAudio(moveSoundRef);
+    const playCheckSound = () => playAudio(checkSoundRef);
+    const playMateSound = () => playAudio(mateSoundRef);
     const playLaughSound = () => playAudio(laughSoundRef);
     const chairTheme = mapChairOptionToTheme(chairOption);
     const chairBuild = await buildChessChairTemplate(chairTheme);
@@ -7454,31 +7434,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
-        <InfoPopup
-          open={showInfo}
-          onClose={() => setShowInfo(false)}
-          title="Chess Battle Royal"
-          info="Chat, gifts, and match info use the same quick actions as Snake & Ladder."
-        />
-        <InfoPopup
-          open={showChat}
-          onClose={() => setShowChat(false)}
-          title="Chat"
-          info="Chat overlays coming soon for Chess Battle Royal."
-        />
-        <InfoPopup
-          open={showGift}
-          onClose={() => setShowGift(false)}
-          title="Send a Gift"
-          info="NFT gift drops will appear here just like in Snake & Ladder."
-        />
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
           </div>
         </div>
         <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-end gap-2">
+          <div className="pointer-events-auto flex gap-2">
             <button
               type="button"
               onClick={() => setConfigOpen((open) => !open)}
@@ -7509,32 +7471,20 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              className={`h-12 w-32 rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 canReplay
                   ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
                   : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
               }`}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-6 w-6"
-                aria-hidden="true"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1 0 9-9" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="m3 4 0 6 6 0" />
-              </svg>
-              <span className="sr-only">Replay last move</span>
+              Replay Move
             </button>
             <button
               type="button"
               onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="h-12 w-16 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="h-12 w-32 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
-              {viewMode === '3d' ? '2D' : '3D'}
+              {viewMode === '3d' ? '2D view' : '3D view'}
             </button>
           </div>
           {configOpen && (
@@ -7798,13 +7748,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             {ui.winner ? `${ui.winner} Wins` : ui.status}
           </div>
         </div>
-        <BottomLeftIcons
-          onInfo={() => setShowInfo(true)}
-          onChat={() => setShowChat(true)}
-          onGift={() => setShowGift(true)}
-          className="fixed left-1 bottom-4 flex flex-col items-center space-y-3 z-30 pointer-events-auto"
-          showLabels={false}
-        />
         <div className="absolute right-3 bottom-3 flex flex-col space-y-2 pointer-events-auto">
           <button
             onClick={() => zoomRef.current.zoomIn?.()}
