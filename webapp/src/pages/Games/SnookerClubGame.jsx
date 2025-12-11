@@ -925,6 +925,7 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
+const CUSHION_VERTICAL_OFFSET = -TABLE.THICK * 0.02; // gently lower all cushions so they sit slightly deeper along the table
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // round only the exterior rail corners while leaving the playfield edge crisp
@@ -7546,7 +7547,7 @@ function Table3D(
     mesh.renderOrder = 2;
     const group = new THREE.Group();
     group.add(mesh);
-    group.position.set(x, cushionBaseY, z);
+    group.position.set(x, cushionBaseY + CUSHION_VERTICAL_OFFSET, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     if (flip) group.rotation.y += Math.PI;
 
