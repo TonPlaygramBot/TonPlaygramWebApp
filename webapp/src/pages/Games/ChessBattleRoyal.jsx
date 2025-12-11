@@ -185,10 +185,8 @@ const BOARD_SURFACE_DROP = 0.05;
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_MODEL_SPAN_BIAS = 1.23;
+const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
-const CAPTURE_SPACING_FACTOR = 0.62;
-const CAPTURE_ROW_WIDTH = 8;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -216,7 +214,7 @@ const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
-const TARGET_FPS = 120;
+const TARGET_FPS = 90;
 const TARGET_FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
 const RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
@@ -6820,17 +6818,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         const capturingWhite = board[sel.r][sel.c].w;
         const zone = capturingWhite ? capturedByWhite : capturedByBlack;
         const idx = zone.push(targetMesh) - 1;
-        const row = Math.floor(idx / CAPTURE_ROW_WIDTH);
-        const col = idx % CAPTURE_ROW_WIDTH;
-        const captureSpacing = tile * CAPTURE_SPACING_FACTOR;
-        const capX = (col - (CAPTURE_ROW_WIDTH - 1) / 2) * captureSpacing;
-        const capZBase = capturingWhite
-          ? half + BOARD.rim + 1.15
-          : -half - BOARD.rim - 1.15;
+        const row = Math.floor(idx / 8);
+        const col = idx % 8;
+        const capX = (col - 3.5) * (tile * 0.5);
         const capZ = capturingWhite
-          ? capZBase + row * captureSpacing
-          : capZBase - row * captureSpacing;
-        targetMesh.position.set(capX, currentPieceYOffset, capZ);
+          ? half + BOARD.rim + 1 + row * (tile * 0.5)
+          : -half - BOARD.rim - 1 - row * (tile * 0.5);
+        targetMesh.position.set(capX, 0, capZ);
         createExplosion(worldPos);
         if (bombSoundRef.current && settingsRef.current.soundEnabled) {
           bombSoundRef.current.currentTime = 0;
@@ -6857,7 +6851,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       m.userData.t = board[rr][cc].t;
       cancelPieceAnimation(m);
       const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
-      animatePieceTo(m, targetPosition, 0.6);
+      animatePieceTo(m, targetPosition, 0.42);
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
         const queenProto = currentPiecePrototypes[color]?.Q;
@@ -6929,9 +6923,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
 
-    const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-    const animatePieceTo = (mesh, target, duration = 0.6) => {
+    const animatePieceTo = (mesh, target, duration = 0.35) => {
       if (!mesh) return;
       const anim = {
         mesh,
@@ -7139,7 +7131,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           const anim = activePieceAnimations[i];
           anim.elapsed += dt;
           const t = clamp01(anim.elapsed / anim.duration);
-          const eased = easeInOutCubic(t);
+          const eased = 1 - (1 - t) * (1 - t);
           anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
           if (t >= 1) {
             anim.mesh.position.copy(anim.target);
