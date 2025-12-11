@@ -2072,26 +2072,40 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
+const PAWN_HEAD_CHROME = Object.freeze({
+  color: 0xd6d8dc,
+  metalness: 0.95,
+  roughness: 0.12,
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.06,
+  transmission: 0.1,
+  ior: 2.1,
+  thickness: 0.22
+});
+
+const PAWN_HEAD_GOLD = Object.freeze({
+  color: 0xd4af37,
+  metalness: 0.92,
+  roughness: 0.16,
+  clearcoat: 0.5,
+  clearcoatRoughness: 0.06,
+  transmission: 0.06,
+  ior: 1.85,
+  thickness: 0.28
+});
+
 const DEFAULT_CHROME_COLOR_ID = 'chrome';
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xc0c9d5,
-    metalness: 0.76,
-    roughness: 0.42,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.3,
+    ...PAWN_HEAD_CHROME,
     envMapIntensity: 0.58
   },
   {
     id: 'gold',
     label: 'Gold',
-    color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.35,
-    clearcoat: 0.26,
-    clearcoatRoughness: 0.2,
+    ...PAWN_HEAD_GOLD,
     envMapIntensity: 0.58
   }
 ]);
@@ -2196,11 +2210,7 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
     label: 'Chrome',
-    color: 0xd2d8e2,
-    metalness: 0.9,
-    roughness: 0.22,
-    clearcoat: 0.6,
-    clearcoatRoughness: 0.18
+    ...PAWN_HEAD_CHROME
   },
   {
     id: 'pearl',
@@ -2216,13 +2226,7 @@ const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
   {
     id: 'gold',
     label: 'Gold',
-    color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.26,
-    clearcoat: 0.58,
-    clearcoatRoughness: 0.18,
-    sheen: 0.32,
-    sheenRoughness: 0.4
+    ...PAWN_HEAD_GOLD
   }
 ]);
 
@@ -5238,11 +5242,17 @@ function calcTarget(cue, dir, balls) {
 function Guret(parent, id, color, x, y, options = {}) {
   const pattern = options.pattern || (id === 'cue' ? 'cue' : 'solid');
   const number = options.number ?? null;
+  const cueTipRadius = options.cueTipRadius;
+  const ballRadius = options.ballRadius;
+  const cueDotRadiusScale = options.cueDotRadiusScale;
   const material = getBilliardBallMaterial({
     color,
     pattern,
     number,
-    variantKey: 'pool'
+    variantKey: 'pool',
+    cueTipRadius,
+    ballRadius,
+    cueDotRadiusScale
   });
   const mesh = new THREE.Mesh(BALL_GEOMETRY, material);
   mesh.position.set(x, BALL_CENTER_Y, y);
@@ -7299,6 +7309,16 @@ function Table3D(
     if (typeof colorOpt?.clearcoatRoughness === 'number') {
       railMarkerMat.clearcoatRoughness = colorOpt.clearcoatRoughness;
     }
+    if (typeof colorOpt?.transmission === 'number') {
+      railMarkerMat.transmission = colorOpt.transmission;
+      railMarkerMat.transparent = colorOpt.transmission > 0;
+    }
+    if (typeof colorOpt?.ior === 'number') {
+      railMarkerMat.ior = colorOpt.ior;
+    }
+    if (typeof colorOpt?.thickness === 'number') {
+      railMarkerMat.thickness = colorOpt.thickness;
+    }
     if (typeof colorOpt?.sheen === 'number') {
       railMarkerMat.sheen = colorOpt.sheen;
     }
@@ -8721,7 +8741,11 @@ function PoolRoyaleGame({
             metalness: chromeSelection.metalness,
             roughness: chromeSelection.roughness,
             clearcoat: chromeSelection.clearcoat,
-            clearcoatRoughness: chromeSelection.clearcoatRoughness
+            clearcoatRoughness: chromeSelection.clearcoatRoughness,
+            transmission: chromeSelection.transmission,
+            ior: chromeSelection.ior,
+            thickness: chromeSelection.thickness,
+            transparent: chromeSelection.transmission > 0
           });
         }
         materials.trim.color.set(chromeSelection.color);
@@ -8729,6 +8753,16 @@ function PoolRoyaleGame({
         materials.trim.roughness = chromeSelection.roughness;
         materials.trim.clearcoat = chromeSelection.clearcoat;
         materials.trim.clearcoatRoughness = chromeSelection.clearcoatRoughness;
+        if (typeof chromeSelection.transmission === 'number') {
+          materials.trim.transmission = chromeSelection.transmission;
+          materials.trim.transparent = chromeSelection.transmission > 0;
+        }
+        if (typeof chromeSelection.ior === 'number') {
+          materials.trim.ior = chromeSelection.ior;
+        }
+        if (typeof chromeSelection.thickness === 'number') {
+          materials.trim.thickness = chromeSelection.thickness;
+        }
         if (typeof chromeSelection.envMapIntensity === 'number') {
           materials.trim.envMapIntensity = chromeSelection.envMapIntensity;
         }
@@ -12713,7 +12747,10 @@ function PoolRoyaleGame({
         return b;
       };
       const cueColor = variantConfig?.cueColor ?? finishPalette.cue;
-      cue = add('cue', cueColor, -BALL_R * 2, baulkZ);
+      cue = add('cue', cueColor, -BALL_R * 2, baulkZ, {
+        cueTipRadius: CUE_TIP_RADIUS,
+        ballRadius: BALL_R
+      });
       const SPOTS = spotPositions(baulkZ);
 
       if (variantConfig?.disableSnookerMarkings && table?.userData?.markings) {

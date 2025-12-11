@@ -145,10 +145,13 @@ function sphericalToUV([x, y, z]) {
   return { u, v };
 }
 
-function drawCueBallDots(ctx, size) {
+function drawCueBallDots(ctx, size, cueDotRadiusScale) {
   const dotColor = '#c62828';
   const badgeStretch = 2;
-  const radius = size * 0.084;
+  const defaultRadius = size * 0.084;
+  const radius = Number.isFinite(cueDotRadiusScale)
+    ? size * cueDotRadiusScale
+    : defaultRadius;
   const normals = [
     [1, 0, 0],
     [-1, 0, 0],
@@ -172,7 +175,7 @@ function drawCueBallDots(ctx, size) {
   });
 }
 
-function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
+function drawPoolBallTexture(ctx, size, baseColor, pattern, number, options = {}) {
   const baseHex = toHexString(baseColor);
   const milkWhite = '#f7f3ea';
 
@@ -184,9 +187,9 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
     const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.2));
-    stripeGrad.addColorStop(0.5, baseHex);
-    stripeGrad.addColorStop(1, darken(baseHex, 0.12));
+    stripeGrad.addColorStop(0, lighten(baseHex, 0.26));
+    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.08));
+    stripeGrad.addColorStop(1, darken(baseHex, 0.06));
     ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
     ctx.restore();
@@ -199,22 +202,22 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
       size * 0.56,
       size * 0.52
     );
-    bodyGrad.addColorStop(0, lighten(baseHex, 0.32));
-    bodyGrad.addColorStop(0.48, lighten(baseHex, 0.1));
-    bodyGrad.addColorStop(1, darken(baseHex, 0.1));
+    bodyGrad.addColorStop(0, lighten(baseHex, 0.36));
+    bodyGrad.addColorStop(0.48, lighten(baseHex, 0.16));
+    bodyGrad.addColorStop(1, darken(baseHex, 0.04));
     ctx.fillStyle = bodyGrad;
     ctx.fillRect(0, 0, size, size);
   }
 
   if (pattern === 'cue') {
-    drawCueBallDots(ctx, size);
+    drawCueBallDots(ctx, size, options?.cueDotRadiusScale);
   }
 
   ctx.save();
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
-  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.88)');
-  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.46)');
-  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.2)');
+  diagonalShade.addColorStop(0, 'rgba(255,255,255,0.9)');
+  diagonalShade.addColorStop(0.55, 'rgba(255,255,255,0.5)');
+  diagonalShade.addColorStop(1, 'rgba(0,0,0,0.12)');
   ctx.globalCompositeOperation = 'multiply';
   ctx.fillStyle = diagonalShade;
   ctx.fillRect(0, 0, size, size);
@@ -248,7 +251,7 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     size * 0.45
   );
   lowerShadow.addColorStop(0, 'rgba(0,0,0,0)');
-  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.26)');
+  lowerShadow.addColorStop(1, 'rgba(0,0,0,0.14)');
   ctx.fillStyle = lowerShadow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
@@ -353,8 +356,10 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
   }
 }
 
-function createBallTexture({ baseColor, pattern, number, variantKey }) {
-  const key = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}`;
+function createBallTexture({ baseColor, pattern, number, variantKey, cueDotRadiusScale }) {
+  const key = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}|${
+    cueDotRadiusScale ?? 'default'
+  }`;
   if (BALL_TEXTURE_CACHE.has(key)) {
     return BALL_TEXTURE_CACHE.get(key);
   }
@@ -366,7 +371,7 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
 
   const size = BALL_TEXTURE_SIZE;
   if (variantKey === 'pool') {
-    drawPoolBallTexture(ctx, size, baseColor, pattern, number);
+    drawPoolBallTexture(ctx, size, baseColor, pattern, number, { cueDotRadiusScale });
   } else {
     drawDefaultBallTexture(ctx, size, baseColor, pattern, number);
   }
@@ -387,10 +392,20 @@ export function getBallMaterial({
   color,
   pattern = 'solid',
   number = null,
-  variantKey = 'pool'
+  variantKey = 'pool',
+  cueTipRadius,
+  ballRadius,
+  cueDotRadiusScale
 } = {}) {
   const baseColor = color ?? 0xffffff;
-  const cacheKey = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}`;
+  const normalizedCueDotRadiusScale = Number.isFinite(cueDotRadiusScale)
+    ? cueDotRadiusScale
+    : Number.isFinite(cueTipRadius) && Number.isFinite(ballRadius) && ballRadius > 0
+      ? Math.min(0.12, (cueTipRadius / ballRadius / (2 * Math.PI)) * 1.08)
+      : null;
+  const cacheKey = `${variantKey}|${pattern}|${number ?? 'none'}|${new THREE.Color(baseColor).getHexString()}|${
+    normalizedCueDotRadiusScale ?? 'default'
+  }`;
   if (BALL_MATERIAL_CACHE.has(cacheKey)) {
     return BALL_MATERIAL_CACHE.get(cacheKey);
   }
@@ -399,7 +414,8 @@ export function getBallMaterial({
     baseColor,
     pattern,
     number,
-    variantKey
+    variantKey,
+    cueDotRadiusScale: normalizedCueDotRadiusScale
   });
 
   const material = new THREE.MeshPhysicalMaterial({
