@@ -6877,6 +6877,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             t: 'Q',
             __pieceStyleId: currentPieceSetId
           };
+          const activeAnim = activePieceAnimations.find((anim) => anim.mesh === m);
+          if (activeAnim) {
+            activeAnim.mesh = replacement;
+          }
           replacement.traverse((child) => {
             if (!child.isMesh) return;
             child.userData = {
