@@ -83,16 +83,28 @@ function drawPoolNumberBadge(ctx, size, number) {
 
   ctx.save();
 
+  // Reset any inherited transforms so the badge stays perfectly circular.
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.translate(cx, cy);
+
+  const ringWidth = Math.max(2, Math.floor(size * 0.018));
+
+  // Outer stroke
   ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.lineWidth = ringWidth;
+  ctx.strokeStyle = '#000000';
+  ctx.stroke();
+
+  // Filled center (slightly inset to avoid visible distortion from the stroke join)
+  ctx.beginPath();
+  ctx.arc(0, 0, radius - ringWidth * 0.5, 0, Math.PI * 2);
   ctx.closePath();
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
-  ctx.strokeStyle = '#000000';
-  ctx.stroke();
-
+  // Draw the number centered without any scaling that could skew the circle.
   ctx.fillStyle = '#000000';
   ctx.font = `bold ${size * 0.18}px Arial`;
   ctx.textAlign = 'center';
@@ -101,12 +113,11 @@ function drawPoolNumberBadge(ctx, size, number) {
   const numStr = String(number);
   if (numStr.length === 2) {
     ctx.save();
-    ctx.translate(cx, cy);
     ctx.scale(0.9, 1);
     ctx.fillText(numStr, 0, 0);
     ctx.restore();
   } else {
-    ctx.fillText(numStr, cx, cy);
+    ctx.fillText(numStr, 0, 0);
   }
 
   ctx.restore();
