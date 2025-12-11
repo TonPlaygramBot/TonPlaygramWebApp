@@ -179,13 +179,12 @@ const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.9;
 const BOARD_GROUP_Y_OFFSET = -0.1;
 const BOARD_MODEL_Y_OFFSET = -0.12;
-const BOARD_VISUAL_Y_OFFSET = -0.12;
-const BOARD_SURFACE_DROP = 0.12;
+const BOARD_VISUAL_Y_OFFSET = -0.08;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_MODEL_SPAN_BIAS = 1.12;
+const BOARD_MODEL_SPAN_BIAS = 1.08;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -1636,9 +1635,6 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
     normalizedBox.max.z - normalizedBox.min.z
   );
   const top = normalizedBox.max.y;
-
-  boardModel.position.y -= BOARD_SURFACE_DROP;
-  boardModel.updateMatrixWorld(true);
 
   return { span, top };
 }
