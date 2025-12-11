@@ -172,11 +172,11 @@ const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 
-const BOARD = { N: 8, tile: 4, rim: 3, baseH: 0.8 };
+const BOARD = { N: 8, tile: 4.1, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
-const PIECE_SCALE_FACTOR = 0.92;
-const BOARD_GROUP_Y_OFFSET = -0.01;
+const PIECE_SCALE_FACTOR = 0.9;
+const BOARD_GROUP_Y_OFFSET = -0.05;
 const BOARD_MODEL_Y_OFFSET = -0.04;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
@@ -4959,6 +4959,20 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     setMoveMode(viewMode === '3d' ? 'click' : 'drag');
   }, [viewMode]);
 
+  useEffect(() => {
+    if (viewMode === '2d') {
+      setSeatAnchors((prev) => {
+        if (prev?.length) return prev;
+        return FALLBACK_SEAT_POSITIONS.map((pos, index) => ({
+          index,
+          x: parseFloat(pos.left),
+          y: parseFloat(pos.top),
+          depth: 3
+        }));
+      });
+    }
+  }, [viewMode]);
+
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
     const swatchClass = 'h-5 w-10 rounded-md border border-white/15 shadow-inner';
@@ -7135,10 +7149,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
-          <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
+        <div className="absolute top-4 left-4 z-20 pointer-events-none">
+          <div className="rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
           </div>
+        </div>
+        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex gap-2">
             <button
               type="button"
@@ -7175,7 +7191,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             </button>
           </div>
           {configOpen && (
-            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
+            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] self-end rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Chess Settings</p>
@@ -7417,12 +7433,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               </div>
             );
           })}
-        </div>
-        <div className="absolute top-3 right-3 flex items-center space-x-3 pointer-events-auto">
-          <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1 text-xs">
-            {avatar && <img src={avatar} alt="avatar" className="h-7 w-7 rounded-full object-cover" />}
-            <span>{username || 'Guest'}</span>
-          </div>
         </div>
         <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
           <div className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}>
