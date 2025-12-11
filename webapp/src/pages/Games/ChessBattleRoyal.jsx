@@ -172,14 +172,14 @@ const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 
-const BOARD = { N: 8, tile: 4.35, rim: 3.2, baseH: 0.8 };
+const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.9;
 const BOARD_GROUP_Y_OFFSET = -0.1;
-const BOARD_MODEL_Y_OFFSET = -0.18;
-const BOARD_VISUAL_Y_OFFSET = -0.14;
+const BOARD_MODEL_Y_OFFSET = -0.12;
+const BOARD_VISUAL_Y_OFFSET = -0.08;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
