@@ -176,13 +176,13 @@ const BOARD = { N: 8, tile: 4, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const PIECE_SCALE_FACTOR = 0.92;
-const BOARD_GROUP_Y_OFFSET = -0.06;
-const BOARD_MODEL_Y_OFFSET = -0.08;
+const BOARD_GROUP_Y_OFFSET = -0.01;
+const BOARD_MODEL_Y_OFFSET = -0.04;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.064;
+const BOARD_SCALE = 0.06;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
-const BOARD_MODEL_SPAN_BIAS = 1.07;
+const BOARD_MODEL_SPAN_BIAS = 1.04;
 
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
 const SEAT_WIDTH = 0.9 * MODEL_SCALE * STOOL_SCALE;
@@ -7135,12 +7135,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
       <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-4 left-4 z-20 pointer-events-none">
-          <div className="rounded bg-white/10 px-3 py-2 text-xs">
+        <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
+          <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
           </div>
-        </div>
-        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex gap-2">
             <button
               type="button"
@@ -7378,8 +7376,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         </div>
         <div className="absolute inset-0 z-10 pointer-events-none">
           {players.map((player) => {
-            const useAnchors = viewMode === '3d';
-            const anchor = useAnchors ? seatAnchorMap.get(player.index) : null;
+            const anchor = seatAnchorMap.get(player.index);
             const fallback =
               FALLBACK_SEAT_POSITIONS[player.index] ||
               FALLBACK_SEAT_POSITIONS[FALLBACK_SEAT_POSITIONS.length - 1];
@@ -7420,6 +7417,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               </div>
             );
           })}
+        </div>
+        <div className="absolute top-3 right-3 flex items-center space-x-3 pointer-events-auto">
+          <div className="flex items-center space-x-2 rounded-full bg-white/10 px-3 py-1 text-xs">
+            {avatar && <img src={avatar} alt="avatar" className="h-7 w-7 rounded-full object-cover" />}
+            <span>{username || 'Guest'}</span>
+          </div>
         </div>
         <div className="absolute top-2 left-0 right-0 flex justify-center z-10 pointer-events-none">
           <div className={`px-3 py-1 text-sm rounded ${ui.turnWhite ? 'opacity-60' : 'bg-white/20'}`}>
