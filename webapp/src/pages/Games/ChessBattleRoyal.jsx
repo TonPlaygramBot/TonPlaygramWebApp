@@ -274,6 +274,7 @@ const CHECK_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Check.mp3';
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
+const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
@@ -784,16 +785,13 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
 ]);
 
 const QUICK_SIDE_COLORS = [
-  0xffffff,
-  0x111827,
-  0xf59e0b,
-  0x10b981,
-  0x3b82f6,
-  0xef4444,
-  0x8b5cf6,
-  0x06b6d4,
-  0x22c55e,
-  0xf43f5e
+  { id: 'marble', hex: 0xffffff, label: 'Marble' },
+  { id: 'darkForest', hex: 0xffffff, label: 'Dark Forest' },
+  { id: 'amberGlow', hex: 0xf59e0b, label: 'Amber Glow' },
+  { id: 'mintVale', hex: 0x10b981, label: 'Mint Vale' },
+  { id: 'royalWave', hex: 0x3b82f6, label: 'Royal Wave' },
+  { id: 'roseMist', hex: 0xef4444, label: 'Rose Mist' },
+  { id: 'amethyst', hex: 0x8b5cf6, label: 'Amethyst' }
 ];
 
 const QUICK_HEAD_PRESETS = [
@@ -4889,6 +4887,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const moveSoundRef = useRef(null);
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
+  const laughSoundRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -5243,6 +5242,15 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         } catch {}
       }
     }
+    if (laughSoundRef.current) {
+      laughSoundRef.current.volume = soundEnabled ? volume : 0;
+      if (!soundEnabled) {
+        try {
+          laughSoundRef.current.pause();
+          laughSoundRef.current.currentTime = 0;
+        } catch {}
+      }
+    }
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -5263,6 +5271,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (mateSoundRef.current) {
         mateSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
+      if (laughSoundRef.current) {
+        laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
+      }
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
     return () => {
@@ -5272,12 +5283,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]);
+    if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
   }, [p1QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]);
+    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
   }, [p2QuickIdx]);
 
   useEffect(() => {
@@ -5508,6 +5519,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     checkSoundRef.current.volume = baseVolume;
     mateSoundRef.current = new Audio(CHECKMATE_SOUND_URL);
     mateSoundRef.current.volume = baseVolume;
+    laughSoundRef.current = new Audio(LAUGH_SOUND_URL);
+    laughSoundRef.current.volume = baseVolume;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -5551,6 +5564,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const playMoveSound = () => playAudio(moveSoundRef);
     const playCheckSound = () => playAudio(checkSoundRef);
     const playMateSound = () => playAudio(mateSoundRef);
+    const playLaughSound = () => playAudio(laughSoundRef);
     const chairTheme = mapChairOptionToTheme(chairOption);
     const chairBuild = await buildChessChairTemplate(chairTheme);
     if (cancelled) return;
@@ -6239,7 +6253,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       applyMaterialsByOrder(meshB, snapA);
     };
 
-    const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]) => {
+    const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff) => {
       const meshes = arenaRef.current?.allPieceMeshes || [];
       const target = new THREE.Color(hex);
       meshes.forEach((piece) => {
@@ -6544,8 +6558,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           applyHeadPresetToMeshes(allPieceMeshes, headPreset);
         }
       }
-      applySideColorHex('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]);
-      applySideColorHex('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]);
+      applySideColorHex('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+      applySideColorHex('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
       const headTarget = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
       applyPawnHeadPreset(headTarget);
       applyBoardThemePreset(boardQuickIdx);
@@ -6851,7 +6865,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       m.userData.t = board[rr][cc].t;
       cancelPieceAnimation(m);
       const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
-      animatePieceTo(m, targetPosition, 0.42);
+      animatePieceTo(m, targetPosition, 0.32);
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
         const queenProto = currentPiecePrototypes[color]?.Q;
@@ -6899,12 +6913,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           winner = nextWhite ? 'Black' : 'White';
           status = `Checkmate — ${winner} wins`;
           playMateSound();
+          playLaughSound();
         } else {
           status = 'Stalemate';
         }
       } else if (inCheck) {
         status = (nextWhite ? 'White' : 'Black') + ' in check';
         playCheckSound();
+        playLaughSound();
       }
 
       applyStatus(nextWhite, status, winner);
@@ -6923,7 +6939,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
 
-    const animatePieceTo = (mesh, target, duration = 0.35) => {
+    const animatePieceTo = (mesh, target, duration = 0.28) => {
       if (!mesh) return;
       const anim = {
         mesh,
@@ -7205,6 +7221,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       moveSoundRef.current?.pause();
       checkSoundRef.current?.pause();
       mateSoundRef.current?.pause();
+      laughSoundRef.current?.pause();
     };
   }, []);
 
@@ -7370,17 +7387,23 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                       <div className="mt-1 flex flex-wrap gap-2">
                         {QUICK_SIDE_COLORS.map((color, idx) => (
                           <button
-                            key={`p1-${color}-${idx}`}
+                            key={`p1-${color.id}`}
                             type="button"
                             onClick={() => setP1QuickIdx(idx)}
-                            className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                               p1QuickIdx === idx
-                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
-                                : 'border-white/20 hover:border-white/40'
+                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] bg-white/10'
+                                : 'border-white/20 hover:border-white/40 bg-white/5 text-white/80'
                             }`}
-                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                            aria-label={`Set player one color ${idx + 1}`}
-                          />
+                            aria-label={`Set player one color ${color.label}`}
+                            title={color.label}
+                          >
+                            <span
+                              className="h-6 w-6 rounded-md border border-white/30"
+                              style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
+                            />
+                            <span>{color.label}</span>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -7389,17 +7412,23 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
                       <div className="mt-1 flex flex-wrap gap-2">
                         {QUICK_SIDE_COLORS.map((color, idx) => (
                           <button
-                            key={`p2-${color}-${idx}`}
+                            key={`p2-${color.id}`}
                             type="button"
                             onClick={() => setP2QuickIdx(idx)}
-                            className={`h-8 w-8 rounded-lg border text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                               p2QuickIdx === idx
-                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)]'
-                                : 'border-white/20 hover:border-white/40'
+                                ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] bg-white/10'
+                                : 'border-white/20 hover:border-white/40 bg-white/5 text-white/80'
                             }`}
-                            style={{ backgroundColor: `#${color.toString(16).padStart(6, '0')}` }}
-                            aria-label={`Set player two color ${idx + 1}`}
-                          />
+                            aria-label={`Set player two color ${color.label}`}
+                            title={color.label}
+                          >
+                            <span
+                              className="h-6 w-6 rounded-md border border-white/30"
+                              style={{ backgroundColor: `#${color.hex.toString(16).padStart(6, '0')}` }}
+                            />
+                            <span>{color.label}</span>
+                          </button>
                         ))}
                       </div>
                     </div>
