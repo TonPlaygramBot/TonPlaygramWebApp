@@ -1097,6 +1097,8 @@ const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.2;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
+const CUE_MARKER_RADIUS = CUE_TIP_RADIUS * 1.2 * 0.85; // shrink cue ball dots by 15%
+const CUE_MARKER_DEPTH = CUE_MARKER_RADIUS * (0.25 / 1.2);
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
 const CUE_LENGTH_MULTIPLIER = 1.35; // extend cue stick length so the rear section feels longer without moving the tip
 const MAX_BACKSPIN_TILT = THREE.MathUtils.degToRad(8.5);
@@ -5243,6 +5245,45 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  if (id === 'cue') {
+    const markerGeom = new THREE.CylinderGeometry(
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_RADIUS,
+      CUE_MARKER_DEPTH,
+      48
+    );
+    const markerMat = new THREE.MeshStandardMaterial({
+      color: 0xff3b3b,
+      emissive: 0x5a0000,
+      emissiveIntensity: 0.4,
+      roughness: 0.28,
+      metalness: 0.05
+    });
+    markerMat.depthWrite = false;
+    markerMat.needsUpdate = true;
+    markerMat.toneMapped = false;
+    markerMat.polygonOffset = true;
+    markerMat.polygonOffsetFactor = -0.5;
+    markerMat.polygonOffsetUnits = -0.5;
+    const markerOffset = BALL_R - CUE_MARKER_DEPTH * 0.5 + 0.001;
+    const localUp = new THREE.Vector3(0, 1, 0);
+    [
+      new THREE.Vector3(1, 0, 0),
+      new THREE.Vector3(-1, 0, 0),
+      new THREE.Vector3(0, 1, 0),
+      new THREE.Vector3(0, -1, 0),
+      new THREE.Vector3(0, 0, 1),
+      new THREE.Vector3(0, 0, -1)
+    ].forEach((normal) => {
+      const marker = new THREE.Mesh(markerGeom, markerMat);
+      marker.position.copy(normal).multiplyScalar(markerOffset);
+      marker.quaternion.setFromUnitVectors(localUp, normal);
+      marker.castShadow = false;
+      marker.receiveShadow = false;
+      marker.renderOrder = 2;
+      mesh.add(marker);
+    });
+  }
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
