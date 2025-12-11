@@ -172,13 +172,14 @@ const MODEL_SCALE = 0.75;
 const STOOL_SCALE = 1.5 * 1.3;
 const CARD_SCALE = 0.95;
 
-const BOARD = { N: 8, tile: 4, rim: 3, baseH: 0.8 };
+const BOARD = { N: 8, tile: 4.2, rim: 3, baseH: 0.8 };
 const PIECE_Y = 1.2; // baseline height for meshes
 const PIECE_PLACEMENT_Y_OFFSET = 0.08;
 const PIECE_SCALE_FACTOR = 0.92;
 const PIECE_FOOTPRINT_RATIO = 0.9;
 const BOARD_GROUP_Y_OFFSET = -0.1;
-const BOARD_MODEL_Y_OFFSET = -0.04;
+const BOARD_MODEL_Y_OFFSET = -0.12;
+const BOARD_VISUAL_Y_OFFSET = -0.08;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
 const BOARD_SCALE = 0.06;
@@ -1624,7 +1625,7 @@ function normalizeBoardModelToDisplaySize(boardModel, targetSize = RAW_BOARD_SIZ
   const center = scaledBox.getCenter(new THREE.Vector3());
   boardModel.position.set(
     -center.x,
-    -scaledBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET),
+    -scaledBox.min.y + (BOARD.baseH + 0.02 + BOARD_MODEL_Y_OFFSET + BOARD_VISUAL_Y_OFFSET),
     -center.z
   );
 
@@ -3286,6 +3287,9 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   const boardSize = tile * 8;
   const half = boardSize / 2;
   const boardGroup = new THREE.Group();
+  const visualGroup = new THREE.Group();
+  visualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
+  boardGroup.add(visualGroup);
 
   const light = new THREE.MeshStandardMaterial({ color: 0xc7b299, metalness: 0.1, roughness: 0.7 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x5e4529, metalness: 0.2, roughness: 0.6 });
@@ -3298,7 +3302,7 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
       tileMesh.name = `tile_${r}_${c}`;
       tileMesh.userData = { r, c };
       tileMesh.receiveShadow = true;
-      boardGroup.add(tileMesh);
+      visualGroup.add(tileMesh);
     }
   }
 
@@ -3309,7 +3313,7 @@ function buildBattleRoyalProceduralAssets(targetBoardSize = RAW_BOARD_SIZE) {
   border.position.y = -tile * 0.04;
   border.name = 'frame';
   border.receiveShadow = true;
-  boardGroup.add(border);
+  visualGroup.add(border);
 
   boardGroup.userData = { ...(boardGroup.userData || {}), proceduralAssets: true, styleId: 'proceduralBattle' };
 
@@ -5832,6 +5836,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     boardGroup.position.set(0, tableSurfaceY + 0.004 + BOARD_GROUP_Y_OFFSET, 0);
     boardGroup.scale.setScalar(BOARD_SCALE);
     tableInfo.group.add(boardGroup);
+    const boardVisualGroup = new THREE.Group();
+    boardVisualGroup.position.y = BOARD_VISUAL_Y_OFFSET;
+    boardGroup.add(boardVisualGroup);
     const boardLookTarget = new THREE.Vector3(
       0,
       boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
@@ -6048,7 +6055,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       })
     );
     base.position.set(0, BOARD.baseH / 2, 0);
-    boardGroup.add(base);
+    boardVisualGroup.add(base);
     const top = new THREE.Mesh(
       new THREE.BoxGeometry(N * tile, 0.12, N * tile),
       buildVeinedMaterial(boardTheme.frameLight, {
@@ -6059,7 +6066,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       })
     );
     top.position.set(0, BOARD.baseH + 0.06, 0);
-    boardGroup.add(top);
+    boardVisualGroup.add(top);
 
     const inlay = new THREE.Mesh(
       new THREE.BoxGeometry(N * tile + BOARD.rim * 1.08, 0.02, N * tile + BOARD.rim * 1.08),
@@ -6072,12 +6079,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       })
     );
     inlay.position.set(0, BOARD.baseH + 0.11, 0);
-    boardGroup.add(inlay);
+    boardVisualGroup.add(inlay);
 
     // Tiles
     const tiles = [];
     const tileGroup = new THREE.Group();
-    boardGroup.add(tileGroup);
+    boardVisualGroup.add(tileGroup);
     for (let r = 0; r < N; r++) {
       for (let c = 0; c < N; c++) {
         const isDark = (r + c) % 2 === 1;
@@ -6108,24 +6115,24 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         coordMat
       );
       mSmall.rotation.x = -Math.PI / 2;
-      mSmall.position.set(
-        i * tile - half + tile / 2,
-        BOARD.baseH + 0.13,
-        -half - 0.6
-      );
-      boardGroup.add(mSmall);
-      const nSmall = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.8, 0.08),
-        coordMat
-      );
-      nSmall.rotation.x = -Math.PI / 2;
+        mSmall.position.set(
+          i * tile - half + tile / 2,
+          BOARD.baseH + 0.13,
+          -half - 0.6
+        );
+        boardVisualGroup.add(mSmall);
+        const nSmall = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.8, 0.08),
+          coordMat
+        );
+        nSmall.rotation.x = -Math.PI / 2;
       nSmall.position.set(
-        -half - 0.6,
-        BOARD.baseH + 0.13,
-        i * tile - half + tile / 2
-      );
-      boardGroup.add(nSmall);
-    }
+          -half - 0.6,
+          BOARD.baseH + 0.13,
+          i * tile - half + tile / 2
+        );
+        boardVisualGroup.add(nSmall);
+      }
 
     let proceduralBoardVisible = true;
     const setProceduralBoardVisible = (visible) => {
