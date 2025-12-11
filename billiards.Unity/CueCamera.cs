@@ -121,11 +121,6 @@ public class CueCamera : MonoBehaviour
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 0.97125f;
     public float broadcastHeight = 0.5f;
-    // When relying on the overhead broadcast view, pull the camera a little closer
-    // to the cloth so the rolling balls stay readable without switching to pocket
-    // cameras.
-    public float overheadHeightPullIn = 0.08f;
-    public float overheadDistancePullIn = 0.28f;
     // Bounds that encompass the full playing surface including rails and pockets.
     public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.64465f, 0.72f, 3.301325f));
     // Keep a small margin inside the camera frame so the rails never touch the
@@ -169,8 +164,6 @@ public class CueCamera : MonoBehaviour
     private int cueAimSideSign = 1;
     private int broadcastSideSign = -1;
     private bool nextShotIsAi;
-    // Toggle to always rely on the overhead broadcast camera instead of pocket cameras.
-    public bool useOverheadBroadcast = true;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -220,7 +213,7 @@ public class CueCamera : MonoBehaviour
         TargetBall = target;
         currentBall = CueBall;
         shotInProgress = true;
-        usingTargetCamera = target != null && !useOverheadBroadcast;
+        usingTargetCamera = target != null;
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -228,7 +221,7 @@ public class CueCamera : MonoBehaviour
 
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
         targetViewFocus = GetBroadcastFocus(focus);
-        if (!useOverheadBroadcast && target != null && target.gameObject.activeInHierarchy)
+        if (target != null && target.gameObject.activeInHierarchy)
         {
             currentBall = target;
             targetViewFocus = GetBroadcastFocus(target.position);
@@ -664,16 +657,16 @@ public class CueCamera : MonoBehaviour
 
         float minRailHeight = railHeight + Mathf.Max(0f, railClearance);
         float baseHeight = Mathf.Max(broadcastHeight, focus.y + minimumHeightAboveFocus);
-        float height = Mathf.Max(baseHeight + Mathf.Max(0f, broadcastHeightPadding) - Mathf.Max(0f, overheadHeightPullIn), minRailHeight);
+        float height = Mathf.Max(baseHeight + Mathf.Max(0f, broadcastHeightPadding), minRailHeight);
 
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
 
         Bounds broadcastBounds = GetBroadcastBounds(focus);
-        focus = new Vector3(0f, Mathf.Max(focus.y, tableBounds.center.y), tableBounds.center.z);
+        focus.x = 0f;
+        focus.z = broadcastBounds.center.z;
 
         float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
-        distance = Mathf.Max(distance - Mathf.Max(0f, overheadDistancePullIn), broadcastMinDistance);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
 
