@@ -200,7 +200,8 @@ const GLTF_URLS=['https://cdn.jsdelivr.net/npm/three@0.159.0/examples/jsm/loader
 const MODEL_URLS=['https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf','https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb','https://fastly.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ABeautifulGame/glTF-Binary/ABeautifulGame.glb'];
 const BOARD_GROWTH=1.02;
 const PIECE_SPACING_SCALE=0.92;
-const BOARD_Y_OFFSET=-0.02;
+const BOARD_Y_OFFSET=0.01;
+const PIECE_SURFACE_OFFSET=0.035;
 
 const files='abcdefgh';
 function rcToSq(r,c){ return files[c]+(8-r); }
@@ -327,8 +328,8 @@ function onModel(gltf){
   const startB={ p:['a7','b7','c7','d7','e7','f7','g7','h7'], r:['a8','h8'], n:['b8','g8'], b:['c8','f8'], q:['d8'], k:['e8'] };
   initialPositions={startW,startB,pool};
   piecesBySquare={};
-  const squareCenterVec3=sq=>{ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+.02, z); };
-  function placeGroup(color, code, squares){ const arr=pool[color][code]; for(let i=0;i<squares.length;i++){ const node=arr[i]; if(!node) continue; const sq=squares[i]; const baseY=(typeof node.position.y==='number')?node.position.y:(boardY+.02); node.userData.baseY=baseY; const v=squareCenterVec3(sq); v.y=baseY; node.position.set(v.x, v.y, v.z); piecesBySquare[sq]=node; } }
+  const squareCenterVec3=sq=>{ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+PIECE_SURFACE_OFFSET, z); };
+  function placeGroup(color, code, squares){ const arr=pool[color][code]; for(let i=0;i<squares.length;i++){ const node=arr[i]; if(!node) continue; const sq=squares[i]; const baseY=(typeof node.position.y==='number')?node.position.y:(boardY+PIECE_SURFACE_OFFSET); node.userData.baseY=baseY; const v=squareCenterVec3(sq); v.y=baseY; node.position.set(v.x, v.y, v.z); piecesBySquare[sq]=node; } }
   placeGroup('w','p',startW.p); placeGroup('w','r',startW.r); placeGroup('w','n',startW.n); placeGroup('w','b',startW.b); placeGroup('w','q',startW.q); placeGroup('w','k',startW.k);
   placeGroup('b','p',startB.p); placeGroup('b','r',startB.r); placeGroup('b','n',startB.n); placeGroup('b','b',startB.b); placeGroup('b','q',startB.q); placeGroup('b','k',startB.k);
   const el=renderer.domElement; el.addEventListener('pointerdown',onPointerDown,{passive:false}); window.addEventListener('pointermove',onPointerMove,{passive:false}); window.addEventListener('pointerup',onPointerUp,{passive:false}); window.addEventListener('contextmenu',e=>{e.preventDefault();},{passive:false});
@@ -345,14 +346,14 @@ function onPointerDown(e){ if(!ready) return; const hit=getHit(e); if(!hit) retu
     if(controls) controls.enabled=false; if(e.cancelable) e.preventDefault(); }
   else if(selectedSq){ tryMoveSelectedTo(sq); if(e.cancelable) e.preventDefault(); }
 }
-function onPointerMove(e){ if(!dragNode) return; const cx=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0)); const cy=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0)); if(!dragging && (Math.abs(cx-down.x)>DRAG_PX || Math.abs(cy-down.y)>DRAG_PX)) dragging=true; const hit=getHit(e); if(!hit) return; const yBase=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+.02; dragNode.position.set(hit.x,yBase+dragLift,hit.z); if(e.cancelable) e.preventDefault(); }
+function onPointerMove(e){ if(!dragNode) return; const cx=(typeof e.clientX==='number'?e.clientX:((e.touches&&e.touches[0])?e.touches[0].clientX:0)); const cy=(typeof e.clientY==='number'?e.clientY:((e.touches&&e.touches[0])?e.touches[0].clientY:0)); if(!dragging && (Math.abs(cx-down.x)>DRAG_PX || Math.abs(cy-down.y)>DRAG_PX)) dragging=true; const hit=getHit(e); if(!hit) return; const yBase=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+PIECE_SURFACE_OFFSET; dragNode.position.set(hit.x,yBase+dragLift,hit.z); if(e.cancelable) e.preventDefault(); }
 function onPointerUp(e){ if(controls) controls.enabled=true; if(!selectedSq){ dragNode=null; dragFromSq=null; return; } if(dragging){ const hit=getHit(e); const targetSq = hit?worldToSquareString(hit.x,hit.z):dragFromSq; tryMoveSelectedTo(targetSq); } if(e.cancelable) e.preventDefault(); }
 
-function squareCenterVec3(sq){ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+.02, z); }
+function squareCenterVec3(sq){ const rc=sqToRC(sq); const f=rc[1], r=7-rc[0]; const x=origin[0]+vx[0]*f+vz[0]*r; const z=origin[1]+vx[1]*f+vz[1]*r; return new THREE.Vector3(x, boardY+PIECE_SURFACE_OFFSET, z); }
 
 function tryMoveSelectedTo(targetSq){ const rcFrom=sqToRC(selectedSq); const rcTo=sqToRC(targetSq); const L=genLegal(state); let legal=null; for(let i=0;i<L.length;i++){ const m=L[i]; if(m.fr===rcFrom[0]&&m.fc===rcFrom[1]&&m.tr===rcTo[0]&&m.tc===rcTo[1]){ legal=m; break; } }
   if(legal){ doMove(legal); selectedSq=null; if(aiMode && state.turn==='b'){ if(aiTimer) clearTimeout(aiTimer); aiTimer=setTimeout(makeAiMove,260); } }
-  else{ if(dragNode && dragFromSq){ const v=squareCenterVec3(dragFromSq); const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+.02; v.y=baseY; animateMove(dragNode,v); } }
+  else{ if(dragNode && dragFromSq){ const v=squareCenterVec3(dragFromSq); const baseY=(typeof dragNode.userData.baseY==='number')?dragNode.userData.baseY:boardY+PIECE_SURFACE_OFFSET; v.y=baseY; animateMove(dragNode,v); } }
   dragNode=null; dragFromSq=null; dragging=false;
 }
 
@@ -364,13 +365,13 @@ function removePieceAt(sq){ const n=piecesBySquare[sq]; if(n){ if(n.parent) n.pa
 function doMove(m){ const aux=makeMove(state,m); const from=rcToSq(m.fr,m.fc), to=rcToSq(m.tr,m.tc); const node=piecesBySquare[from]; if(node){ const v=squareCenterVec3(to); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:node.position.y; v.y=baseY; animateMove(node,v); piecesBySquare[to]=node; delete piecesBySquare[from]; }
   if(m.enpassant){ const dir=(state.turn==='w')?1:-1; const capSq=rcToSq(m.tr+dir,m.tc); removePieceAt(capSq); }
   if(m.castle){ if(m.castle==='wK') moveNodeInstant('h1','f1'); else if(m.castle==='wQ') moveNodeInstant('a1','d1'); else if(m.castle==='bK') moveNodeInstant('h8','f8'); else if(m.castle==='bQ') moveNodeInstant('a8','d8'); }
-  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
+  if(m.promo){ const col=(state.turn==='w'?'b':'w'); removePieceAt(rcToSq(m.tr,m.tc)); const protoNode=proto[col]&&proto[col][m.promo]; if(protoNode){ const nn=protoNode.clone(true); nn.traverse(n=>{ if(n.isMesh){ n.material=n.material.clone(); n.castShadow=true; n.receiveShadow=true; }}); scene.add(nn); extraNodes.push(nn); const v2c=squareCenterVec3(rcToSq(m.tr,m.tc)); v2c.y=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+PIECE_SURFACE_OFFSET; nn.userData.baseY=v2c.y; nn.position.copy(v2c); piecesBySquare[rcToSq(m.tr,m.tc)]=nn; }
   }
   updateTurn();
 }
 
 function resetGame(){ state=makeStart(); if(!initialPositions) return; const {startW,startB,pool}=initialPositions; piecesBySquare={}; extraNodes.forEach(n=>{ if(n.parent) n.parent.remove(n); }); extraNodes=[];
-  const place=(color,code,squares)=>{ const arr=pool[color][code]; squares.forEach((sq,i)=>{ const node=arr[i]; if(!node) return; const v=squareCenterVec3(sq); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+.02; node.userData.baseY=baseY; v.y=baseY; node.position.copy(v); if(!node.parent) scene.add(node); piecesBySquare[sq]=node; }); };
+  const place=(color,code,squares)=>{ const arr=pool[color][code]; squares.forEach((sq,i)=>{ const node=arr[i]; if(!node) return; const v=squareCenterVec3(sq); const baseY=(typeof node.userData.baseY==='number')?node.userData.baseY:boardY+PIECE_SURFACE_OFFSET; node.userData.baseY=baseY; v.y=baseY; node.position.copy(v); if(!node.parent) scene.add(node); piecesBySquare[sq]=node; }); }; 
   place('w','p',startW.p); place('w','r',startW.r); place('w','n',startW.n); place('w','b',startW.b); place('w','q',startW.q); place('w','k',startW.k);
   place('b','p',startB.p); place('b','r',startB.r); place('b','n',startB.n); place('b','b',startB.b); place('b','q',startB.q); place('b','k',startB.k);
   selectedSq=null; dragNode=null; dragFromSq=null; dragging=false;
