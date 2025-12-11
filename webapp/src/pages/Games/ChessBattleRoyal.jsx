@@ -456,7 +456,7 @@ const DEFAULT_PIECE_SET_ID = BEAUTIFUL_GAME_SWAP_SET_ID;
 
 // Sized to the physical ABeautifulGame set while fitting the playable footprint
 const BEAUTIFUL_GAME_ASSET_SCALE = 1.08;
-const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.2;
+const BEAUTIFUL_GAME_BOARD_SCALE_BIAS = 1.24;
 const BEAUTIFUL_GAME_FOOTPRINT_RATIO = 0.7;
 
 const STAUNTON_CLASSIC_STYLE = Object.freeze({
