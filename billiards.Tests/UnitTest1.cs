@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Billiards;
 
 namespace Billiards.Tests;
@@ -128,6 +129,41 @@ public class PocketEdgeTests
         var ball = new BilliardsSolver.Ball { Position = new Vec2(0.25, 0.25), Velocity = v };
         var balls = new List<BilliardsSolver.Ball> { ball };
         solver.Step(balls, 0.3);
+        Assert.That(ball.Pocketed, Is.True);
+        Assert.That(balls, Is.Empty);
+    }
+
+    [Test]
+    public void SidePocketJawStartsAtRailPlane()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        double width = PhysicsConstants.TableWidth;
+
+        var midPocketEdges = solver.PocketEdges
+            .Where(e => Math.Abs(((e.A.X + e.B.X) * 0.5) - width / 2) < PhysicsConstants.SidePocketMouth)
+            .ToList();
+
+        Assert.That(midPocketEdges, Is.Not.Empty);
+
+        double minTopY = midPocketEdges.Min(e => Math.Min(e.A.Y, e.B.Y));
+        Assert.That(minTopY, Is.GreaterThanOrEqualTo(-1e-6));
+    }
+
+    [Test]
+    public void BallSlidesIntoSidePocketFromRail()
+    {
+        var solver = new BilliardsSolver();
+        solver.InitStandardTable();
+        double width = PhysicsConstants.TableWidth;
+        var start = new Vec2(width / 2 - PhysicsConstants.BallRadius * 0.75, PhysicsConstants.BallRadius * 1.5);
+        // Nudge slightly right while travelling toward the top rail so the ball rides the jaw into the pocket.
+        var velocity = new Vec2(0.4, -0.8).Normalized() * 2.0;
+        var ball = new BilliardsSolver.Ball { Position = start, Velocity = velocity };
+        var balls = new List<BilliardsSolver.Ball> { ball };
+
+        solver.Step(balls, 1.0);
+
         Assert.That(ball.Pocketed, Is.True);
         Assert.That(balls, Is.Empty);
     }
