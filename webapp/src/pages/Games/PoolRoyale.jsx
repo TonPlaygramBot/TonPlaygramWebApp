@@ -14948,6 +14948,7 @@ function PoolRoyaleGame({
         const variantId = activeVariantRef.current?.id ?? 'american';
         const shotEvents = [];
         const firstContactColor = toBallColorId(firstHit);
+        const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
         if (firstContactColor || firstHit) {
           shotEvents.push({
             type: 'HIT',
@@ -15118,6 +15119,15 @@ function PoolRoyaleGame({
           pocketSwitchIntentRef.current = null;
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
+          if (hadObjectPot && !(hudRef.current?.over)) {
+            window.setTimeout(() => {
+              const hudState = hudRef.current;
+              if (hudState?.turn === 0 && !hudState.over) {
+                autoAimRequestRef.current = true;
+                startUserSuggestionRef.current?.();
+              }
+            }, 0);
+          }
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
