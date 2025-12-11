@@ -162,6 +162,9 @@ public class BilliardsSolver
             Vec2 normal = new Vec2(-dir.Y, dir.X);
             if (Vec2.Dot(normal, hint) < 0)
                 normal = -normal;
+            // Normalise to keep contact offsets consistent with other pocket/cushion edges.
+            if (normal.Length > PhysicsConstants.Epsilon)
+                normal = normal.Normalized();
             var edge = new Edge { A = a, B = b, Normal = normal };
             bool nearMouth = i < cushionBands || i >= pts.Count - 1 - cushionBands;
             if (nearMouth)
