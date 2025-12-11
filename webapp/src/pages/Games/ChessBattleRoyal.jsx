@@ -4898,7 +4898,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
-  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'drag' });
+  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
@@ -4966,7 +4966,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
-  const [moveMode, setMoveMode] = useState('drag');
+  const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
   const [ui, setUi] = useState({
@@ -4994,7 +4994,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, [viewMode]);
 
   useEffect(() => {
-    setMoveMode(viewMode === '3d' ? 'click' : 'drag');
+    setMoveMode('click');
   }, [viewMode]);
 
   const renderCustomizationPreview = useCallback((key, option) => {
@@ -6764,12 +6764,17 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             color: highlightColor,
             transparent: true,
             opacity: 0.55,
-            metalness: 0.2
+            metalness: 0.2,
+            depthTest: false,
+            depthWrite: false
           })
         );
-        h.position
-          .copy(mesh.position)
-          .add(new THREE.Vector3(0, highlightHeight + HIGHLIGHT_VERTICAL_OFFSET, 0));
+        const baseY = Math.max(
+          mesh.position.y + highlightHeight * 0.5,
+          currentPieceYOffset - highlightHeight * 0.5 + HIGHLIGHT_VERTICAL_OFFSET
+        );
+        h.position.copy(mesh.position).setY(baseY + highlightHeight * 0.5);
+        h.renderOrder = 5;
         h.userData.__highlight = true;
         boardGroup.add(h);
       });
@@ -6844,11 +6849,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       m.userData.r = rr;
       m.userData.c = cc;
       m.userData.t = board[rr][cc].t;
-      m.position.set(
-        cc * tile - half + tile / 2,
-        0,
-        rr * tile - half + tile / 2
-      );
+      cancelPieceAnimation(m);
+      const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
+      animatePieceTo(m, targetPosition, 0.42);
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
         const queenProto = currentPiecePrototypes[color]?.Q;
@@ -6915,8 +6918,31 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       from: null
     };
 
-    const piecePosition = (r, c, y = 0) =>
+    const activePieceAnimations = [];
+
+    const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
+
+    const animatePieceTo = (mesh, target, duration = 0.35) => {
+      if (!mesh) return;
+      const anim = {
+        mesh,
+        start: mesh.position.clone(),
+        target: target.clone(),
+        duration: Math.max(0.05, duration),
+        elapsed: 0
+      };
+      activePieceAnimations.push(anim);
+    };
+
+    const cancelPieceAnimation = (mesh) => {
+      if (!mesh) return;
+      for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
+        if (activePieceAnimations[i].mesh === mesh) {
+          activePieceAnimations.splice(i, 1);
+        }
+      }
+    };
 
     const pickTileFromPointer = (event) => {
       setPointer(event);
@@ -6955,7 +6981,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       dragState.mesh = pieceMeshes[r][c];
       dragState.from = { r, c };
       if (dragState.mesh) {
-        dragState.mesh.position.y = Math.max(dragState.mesh.position.y, 0.18);
+        cancelPieceAnimation(dragState.mesh);
+        dragState.mesh.position.y = Math.max(
+          dragState.mesh.position.y,
+          currentPieceYOffset + 0.18
+        );
       }
       if (controls) controls.enabled = false;
     };
@@ -6964,7 +6994,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!dragState.active || !dragState.mesh) return;
       const tileHit = pickTileFromPointer(event);
       if (!tileHit) return;
-      const target = piecePosition(tileHit.r, tileHit.c, 0.18);
+      const target = piecePosition(tileHit.r, tileHit.c, currentPieceYOffset + 0.18);
       dragState.mesh.position.lerp(target, 0.35);
     };
 
@@ -6982,7 +7012,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         return;
       }
       if (mesh && from) {
-        mesh.position.copy(piecePosition(from.r, from.c, 0));
+        cancelPieceAnimation(mesh);
+        mesh.position.copy(piecePosition(from.r, from.c));
         selectAt(from.r, from.c);
         return;
       }
@@ -7093,6 +7124,20 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         arenaState.sandTimer.setFill?.(pct);
         arenaState.sandTimer.setTime?.(activeLeft);
         arenaState.sandTimer.tick?.(dt, now * 0.001);
+      }
+
+      if (activePieceAnimations.length) {
+        for (let i = activePieceAnimations.length - 1; i >= 0; i -= 1) {
+          const anim = activePieceAnimations[i];
+          anim.elapsed += dt;
+          const t = clamp01(anim.elapsed / anim.duration);
+          const eased = 1 - (1 - t) * (1 - t);
+          anim.mesh.position.lerpVectors(anim.start, anim.target, eased);
+          if (t >= 1) {
+            anim.mesh.position.copy(anim.target);
+            activePieceAnimations.splice(i, 1);
+          }
+        }
       }
 
       controls?.update();
