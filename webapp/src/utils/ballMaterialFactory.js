@@ -78,13 +78,14 @@ function drawNumberBadge(ctx, size, number) {
 
 function drawPoolNumberBadge(ctx, size, number) {
   const radius = size * 0.1;
+  const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
   const cy = size * 0.5;
 
   ctx.save();
 
   ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.ellipse(cx, cy, radius, radius * badgeStretch, 0, 0, Math.PI * 2);
   ctx.closePath();
   ctx.fillStyle = '#ffffff';
   ctx.fill();
@@ -99,15 +100,18 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.textBaseline = 'middle';
 
   const numStr = String(number);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1, badgeStretch);
   if (numStr.length === 2) {
     ctx.save();
-    ctx.translate(cx, cy);
     ctx.scale(0.9, 1);
     ctx.fillText(numStr, 0, 0);
     ctx.restore();
   } else {
-    ctx.fillText(numStr, cx, cy);
+    ctx.fillText(numStr, 0, 0);
   }
+  ctx.restore();
 
   ctx.restore();
 }
