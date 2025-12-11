@@ -274,26 +274,49 @@ const CHECK_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/Check.mp3';
 const CHECKMATE_SOUND_URL =
   'https://raw.githubusercontent.com/lichess-org/lila/master/public/sound/standard/End.mp3';
-const LAUGH_SOUND_URL = '/assets/sounds/Haha.mp3';
 
 const BEAUTIFUL_GAME_THEME_CONFIGS = Object.freeze([
   {
     id: 'beautifulGameAuroraMetal',
-    name: 'Marble',
+    name: 'Classic',
     piece: { white: '#ffffff', black: '#ffffff', accent: '#ffffff' },
     board: { light: '#EEE8D5', dark: '#2B2F36', accent: '#ffffff' }
   },
   {
     id: 'beautifulGameMono',
-    name: 'Dark Forest',
+    name: 'Mono',
     piece: { white: '#111827', black: '#111827', accent: '#111827' },
     board: { light: '#E5E7EB', dark: '#111827', accent: '#111827' }
   },
   {
+    id: 'beautifulGameBlue',
+    name: 'Blue',
+    piece: { white: '#3b82f6', black: '#3b82f6', accent: '#3b82f6' },
+    board: { light: '#93C5FD', dark: '#1E293B', accent: '#3b82f6' }
+  },
+  {
     id: 'beautifulGameAmber',
-    name: 'Amber Twilight',
+    name: 'Amber',
     piece: { white: '#f59e0b', black: '#f59e0b', accent: '#f59e0b' },
     board: { light: '#FDE68A', dark: '#1F2937', accent: '#f59e0b' }
+  },
+  {
+    id: 'beautifulGameMint',
+    name: 'Mint',
+    piece: { white: '#10b981', black: '#10b981', accent: '#10b981' },
+    board: { light: '#A7F3D0', dark: '#065F46', accent: '#10b981' }
+  },
+  {
+    id: 'beautifulGamePink',
+    name: 'Pink',
+    piece: { white: '#ef4444', black: '#ef4444', accent: '#ef4444' },
+    board: { light: '#FBCFE8', dark: '#312E81', accent: '#ef4444' }
+  },
+  {
+    id: 'beautifulGameTeal',
+    name: 'Teal',
+    piece: { white: '#8b5cf6', black: '#8b5cf6', accent: '#8b5cf6' },
+    board: { light: '#99F6E4', dark: '#0F172A', accent: '#8b5cf6' }
   }
 ]);
 
@@ -632,9 +655,13 @@ const POLYGONAL_GRAPHITE_STYLE = Object.freeze({
 
 const PIECE_STYLE_OPTIONS = Object.freeze(
   [
-    { id: 'beautifulGameClassic', label: 'Marble', color: '#ffffff' },
-    { id: 'beautifulGameMono', label: 'Dark Forest', color: '#111827' },
-    { id: 'beautifulGameAmber', label: 'Amber Twilight', color: '#f59e0b' }
+    { id: 'beautifulGameClassic', label: 'Classic (Ivory)', color: '#ffffff' },
+    { id: 'beautifulGameMono', label: 'Mono (Onyx)', color: '#111827' },
+    { id: 'beautifulGameAmber', label: 'Amber', color: '#f59e0b' },
+    { id: 'beautifulGameMint', label: 'Mint', color: '#10b981' },
+    { id: 'beautifulGameBlue', label: 'Blue', color: '#3b82f6' },
+    { id: 'beautifulGamePink', label: 'Pink', color: '#ef4444' },
+    { id: 'beautifulGameTeal', label: 'Teal', color: '#8b5cf6' }
   ].map((preset) => ({
     ...preset,
     style: {
@@ -4862,7 +4889,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const moveSoundRef = useRef(null);
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
-  const laughSoundRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -5217,15 +5243,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
         } catch {}
       }
     }
-    if (laughSoundRef.current) {
-      laughSoundRef.current.volume = soundEnabled ? volume : 0;
-      if (!soundEnabled) {
-        try {
-          laughSoundRef.current.pause();
-          laughSoundRef.current.currentTime = 0;
-        } catch {}
-      }
-    }
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -5245,9 +5262,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
       if (mateSoundRef.current) {
         mateSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
-      }
-      if (laughSoundRef.current) {
-        laughSoundRef.current.volume = settingsRef.current.soundEnabled ? volume : 0;
       }
     };
     window.addEventListener('gameVolumeChanged', handleVolumeChange);
@@ -5494,8 +5508,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     checkSoundRef.current.volume = baseVolume;
     mateSoundRef.current = new Audio(CHECKMATE_SOUND_URL);
     mateSoundRef.current.volume = baseVolume;
-    laughSoundRef.current = new Audio(LAUGH_SOUND_URL);
-    laughSoundRef.current.volume = baseVolume;
 
     let stopCameraTween = () => {};
     let onResize = null;
@@ -5537,15 +5549,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       } catch {}
     };
     const playMoveSound = () => playAudio(moveSoundRef);
-    const playLaughSound = () => playAudio(laughSoundRef);
-    const playCheckSound = () => {
-      playAudio(checkSoundRef);
-      playLaughSound();
-    };
-    const playMateSound = () => {
-      playAudio(mateSoundRef);
-      playLaughSound();
-    };
+    const playCheckSound = () => playAudio(checkSoundRef);
+    const playMateSound = () => playAudio(mateSoundRef);
     const chairTheme = mapChairOptionToTheme(chairOption);
     const chairBuild = await buildChessChairTemplate(chairTheme);
     if (cancelled) return;
@@ -6846,7 +6851,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       m.userData.t = board[rr][cc].t;
       cancelPieceAnimation(m);
       const targetPosition = piecePosition(rr, cc, currentPieceYOffset);
-      animatePieceTo(m, targetPosition, 0.32);
+      animatePieceTo(m, targetPosition, 0.42);
       if (promoted && currentPiecePrototypes) {
         const color = board[rr][cc].w ? 'white' : 'black';
         const queenProto = currentPiecePrototypes[color]?.Q;
@@ -6918,7 +6923,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const piecePosition = (r, c, y = currentPieceYOffset) =>
       new THREE.Vector3(c * tile - half + tile / 2, y, r * tile - half + tile / 2);
 
-    const animatePieceTo = (mesh, target, duration = 0.25) => {
+    const animatePieceTo = (mesh, target, duration = 0.35) => {
       if (!mesh) return;
       const anim = {
         mesh,
@@ -7200,7 +7205,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       moveSoundRef.current?.pause();
       checkSoundRef.current?.pause();
       mateSoundRef.current?.pause();
-      laughSoundRef.current?.pause();
     };
   }, []);
 
