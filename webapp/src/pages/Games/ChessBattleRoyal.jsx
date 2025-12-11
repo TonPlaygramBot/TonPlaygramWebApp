@@ -22,8 +22,8 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
-import { bombSound, chatBeep, timerBeep } from '../../assets/soundData.js';
-import { getGameVolume, isGameMuted, setGameMuted } from '../../utils/sound.js';
+import { bombSound, timerBeep } from '../../assets/soundData.js';
+import { getGameVolume } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
 import {
   TABLE_WOOD_OPTIONS,
@@ -40,10 +40,6 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
-import BottomLeftIcons from '../../components/BottomLeftIcons.jsx';
-import QuickMessagePopup from '../../components/QuickMessagePopup.jsx';
-import GiftPopup from '../../components/GiftPopup.jsx';
-import InfoPopup from '../../components/InfoPopup.jsx';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -4950,7 +4946,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
   const laughSoundRef = useRef(null);
-  const timedAudioTimeoutsRef = useRef(new Map());
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -4960,7 +4955,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const cameraViewRef = useRef(null);
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
-  const settingsRef = useRef({ showHighlights: true, soundEnabled: !isGameMuted(), moveMode: 'click' });
+  const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
@@ -5026,16 +5021,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const initialWhiteTimeRef = useRef(60);
   const initialBlackTimeRef = useRef(5);
   const [configOpen, setConfigOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(!isGameMuted());
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
   const [canReplay, setCanReplay] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [showGift, setShowGift] = useState(false);
-  const [chatBubbles, setChatBubbles] = useState([]);
   const [ui, setUi] = useState({
     turnWhite: true,
     status: 'White to move',
@@ -5046,22 +5037,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   const lastMoveRef = useRef(null);
   const replayLastMoveRef = useRef(() => {});
   const isReplayingRef = useRef(false);
-
-  function stopTimedAudio(audioRef) {
-    const timeoutId = timedAudioTimeoutsRef.current.get(audioRef);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timedAudioTimeoutsRef.current.delete(audioRef);
-    }
-    const audio = audioRef?.current;
-    if (audio) {
-      audio.loop = false;
-      try {
-        audio.pause();
-        audio.currentTime = 0;
-      } catch {}
-    }
-  }
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
@@ -5205,12 +5180,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     ];
   }, [aiFlag, appearance, avatar, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
 
-  const playersWithIds = useMemo(
-    () => players.map((p) => ({ ...p, id: p.index + 1 })),
-    [players]
-  );
-  const primaryPlayerPhoto = playersWithIds[0]?.photoUrl;
-
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
   }, [ui.turnWhite, updateSandTimerPlacement]);
@@ -5288,18 +5257,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   }, [moveMode]);
 
   useEffect(() => {
-    const handleMuteChange = () => {
-      const muted = isGameMuted();
-      settingsRef.current.soundEnabled = !muted;
-      setSoundEnabled(!muted);
-    };
-    window.addEventListener('gameMuteChanged', handleMuteChange);
-    return () => window.removeEventListener('gameMuteChanged', handleMuteChange);
-  }, []);
-
-  useEffect(() => {
     settingsRef.current.soundEnabled = soundEnabled;
-    setGameMuted(!soundEnabled);
     const volume = getGameVolume();
     if (bombSoundRef.current) {
       bombSoundRef.current.volume = soundEnabled ? volume : 0;
@@ -5322,7 +5280,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     if (moveSoundRef.current) {
       moveSoundRef.current.volume = soundEnabled ? volume : 0;
       if (!soundEnabled) {
-        stopTimedAudio(moveSoundRef);
+        try {
+          moveSoundRef.current.pause();
+          moveSoundRef.current.currentTime = 0;
+        } catch {}
       }
     }
     if (checkSoundRef.current) {
@@ -5337,7 +5298,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     if (mateSoundRef.current) {
       mateSoundRef.current.volume = soundEnabled ? volume : 0;
       if (!soundEnabled) {
-        stopTimedAudio(mateSoundRef);
+        try {
+          mateSoundRef.current.pause();
+          mateSoundRef.current.currentTime = 0;
+        } catch {}
       }
     }
     if (laughSoundRef.current) {
@@ -5656,26 +5620,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
       try {
         audioRef.current.currentTime = 0;
-        audioRef.current.loop = false;
         audioRef.current.play().catch(() => {});
       } catch {}
     };
-    const playAudioWithDuration = (audioRef, durationMs) => {
-      if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
-      stopTimedAudio(audioRef);
-      try {
-        audioRef.current.currentTime = 0;
-        audioRef.current.loop = true;
-        audioRef.current.play().catch(() => {});
-        const timeoutId = window.setTimeout(() => {
-          stopTimedAudio(audioRef);
-        }, durationMs);
-        timedAudioTimeoutsRef.current.set(audioRef, timeoutId);
-      } catch {}
-    };
-    const playMoveSound = () => playAudioWithDuration(moveSoundRef, 5000);
+    const playMoveSound = () => playAudio(moveSoundRef);
     const playCheckSound = () => playAudio(checkSoundRef);
-    const playMateSound = () => playAudioWithDuration(mateSoundRef, 10000);
+    const playMateSound = () => playAudio(mateSoundRef);
     const playLaughSound = () => playAudio(laughSoundRef);
     const chairTheme = mapChairOptionToTheme(chairOption);
     const chairBuild = await buildChessChairTemplate(chairTheme);
@@ -7472,11 +7422,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       arenaRef.current = null;
       seatPositionsRef.current = [];
       setSeatAnchors([]);
-      timedAudioTimeoutsRef.current.forEach((timeoutId, audioRef) => {
-        clearTimeout(timeoutId);
-        stopTimedAudio(audioRef);
-      });
-      timedAudioTimeoutsRef.current.clear();
       bombSoundRef.current?.pause();
       timerSoundRef.current?.pause();
       moveSoundRef.current?.pause();
@@ -7494,16 +7439,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             <div className="font-semibold">{ui.status}</div>
           </div>
         </div>
-        <div className="absolute left-2 bottom-4 z-20 pointer-events-auto">
-          <BottomLeftIcons
-            onInfo={() => setShowInfo(true)}
-            onChat={() => setShowChat(true)}
-            onGift={() => setShowGift(true)}
-            showLabels={false}
-          />
-        </div>
         <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-          <div className="pointer-events-auto flex flex-col items-end gap-3">
+          <div className="pointer-events-auto flex gap-2">
             <button
               type="button"
               onClick={() => setConfigOpen((open) => !open)}
@@ -7534,35 +7471,20 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
               type="button"
               onClick={() => replayLastMoveRef.current?.()}
               disabled={!canReplay}
-              className={`flex h-12 w-12 items-center justify-center rounded-full border shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+              className={`h-12 w-32 rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 canReplay
                   ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
                   : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
               }`}
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                className="h-5 w-5"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M4 4v6h6M4 10a8 8 0 1 0 2.34-5.66"
-                />
-              </svg>
-              <span className="sr-only">Replay move</span>
+              Replay Move
             </button>
             <button
               type="button"
               onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-              className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-sm font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+              className="h-12 w-32 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
             >
-              {viewMode === '3d' ? '2D' : '3D'}
+              {viewMode === '3d' ? '2D view' : '3D view'}
             </button>
           </div>
           {configOpen && (
@@ -7821,16 +7743,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
             );
           })}
         </div>
-        <div className="pointer-events-none">
-          {chatBubbles.map((bubble) => (
-            <div key={bubble.id} className="chat-bubble">
-              <span>{bubble.text}</span>
-              {bubble.photoUrl ? (
-                <img src={bubble.photoUrl} alt="chat avatar" className="w-5 h-5 rounded-full" />
-              ) : null}
-            </div>
-          ))}
-        </div>
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
           <div className="px-5 py-2 rounded-full bg-[rgba(7,10,18,0.65)] border border-[rgba(255,215,0,0.25)] text-sm font-semibold backdrop-blur">
             {ui.winner ? `${ui.winner} Wins` : ui.status}
@@ -7849,39 +7761,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           >
             -
           </button>
-        </div>
-        <div className="pointer-events-auto">
-          <InfoPopup
-            open={showInfo}
-            onClose={() => setShowInfo(false)}
-            title="Chess Battle Royal"
-            info="Switch between 2D and 3D boards, send quick chats or gifts, and tap replay to review your last move."
-          />
-        </div>
-        <div className="pointer-events-auto">
-          <QuickMessagePopup
-            open={showChat}
-            onClose={() => setShowChat(false)}
-            onSend={(text) => {
-              const id = Date.now();
-              setChatBubbles((b) => [...b, { id, text, photoUrl: primaryPlayerPhoto }]);
-              if (soundEnabled && !isGameMuted()) {
-                const a = new Audio(chatBeep);
-                a.volume = getGameVolume();
-                a.play().catch(() => {});
-              }
-              setTimeout(() => setChatBubbles((b) => b.filter((bb) => bb.id !== id)), 3000);
-            }}
-          />
-        </div>
-        <div className="pointer-events-auto">
-          <GiftPopup
-            open={showGift}
-            onClose={() => setShowGift(false)}
-            players={playersWithIds}
-            senderIndex={0}
-            onGiftSent={() => setShowGift(false)}
-          />
         </div>
       </div>
     </div>
