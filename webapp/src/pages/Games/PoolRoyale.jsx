@@ -36,6 +36,7 @@ import {
   disposeMaterialWithWood,
 } from '../../utils/woodMaterials.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { socket } from '../../utils/socket.js';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -8124,6 +8125,7 @@ function PoolRoyaleGame({
   trainingMode = 'solo',
   trainingRulesEnabled = true,
   accountId,
+  tableId,
   tgId,
   playerName,
   playerAvatar,
@@ -8833,6 +8835,7 @@ function PoolRoyaleGame({
     [rules, playerLabel, opponentLabel]
   );
   const [frameState, setFrameState] = useState(initialFrame);
+  const lastFrameAuthorRef = useRef('');
   useEffect(() => {
     setFrameState(initialFrame);
   }, [initialFrame]);
@@ -8840,6 +8843,30 @@ function PoolRoyaleGame({
   useEffect(() => {
     frameRef.current = frameState;
   }, [frameState]);
+  useEffect(() => {
+    if (mode !== 'online' || !tableId) return undefined;
+    const handleSync = ({ tableId: incomingId, frame, accountId: sender } = {}) => {
+      if (!incomingId || String(incomingId) !== String(tableId)) return;
+      if (sender && accountId && String(sender) === String(accountId)) return;
+      if (!frame) return;
+      lastFrameAuthorRef.current = sender || 'remote';
+      setFrameState(frame);
+    };
+    socket.on('poolRoyaleSync', handleSync);
+    socket.emit('joinTableRoom', { tableId, gameType: 'poolroyale' });
+    return () => {
+      socket.off('poolRoyaleSync', handleSync);
+      socket.emit('leaveLobby', { accountId, tableId });
+    };
+  }, [mode, tableId, accountId]);
+  useEffect(() => {
+    if (mode !== 'online' || !tableId || !accountId) return;
+    if (lastFrameAuthorRef.current && lastFrameAuthorRef.current !== String(accountId)) {
+      lastFrameAuthorRef.current = '';
+      return;
+    }
+    socket.emit('poolRoyaleSync', { tableId, accountId, frame: frameState });
+  }, [mode, tableId, accountId, frameState]);
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
@@ -17202,6 +17229,10 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('avatar') || '';
   }, [location.search]);
+  const tableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tableId') || '';
+  }, [location.search]);
   const stakeAmount = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return Number(params.get('amount')) || 0;
@@ -17286,6 +17317,7 @@ export default function PoolRoyale() {
       trainingRulesEnabled={trainingRulesEnabled}
       accountId={accountId}
       tgId={tgId}
+      tableId={tableId}
       playerName={playerName}
       playerAvatar={playerAvatar}
       opponentName={opponentName}
