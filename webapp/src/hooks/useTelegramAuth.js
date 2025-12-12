@@ -7,16 +7,20 @@ export default function useTelegramAuth() {
   useEffect(() => {
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
     const acc = localStorage.getItem('accountId');
+    const register = (id) => {
+      if (!id) return;
+      socket.emit('register', { playerId: id, accountId: id });
+    };
     if (user?.id) {
       localStorage.setItem('telegramId', user.id);
-      socket.emit('register', { playerId: acc || user.id });
+      register(acc || user.id);
       createAccount(user.id).catch(err => {
         console.error('Failed to create account', err);
       });
     } else {
       (async () => {
         const accountId = acc || (await ensureAccountId());
-        socket.emit('register', { playerId: accountId });
+        register(accountId);
         const googleId = localStorage.getItem('googleId');
         try {
           const res = await createAccount(undefined, googleId);
@@ -31,6 +35,11 @@ export default function useTelegramAuth() {
         }
       })();
     }
+    const onConnect = () => {
+      const storedId = localStorage.getItem('accountId') || user?.id;
+      register(storedId);
+    };
+    socket.on('connect', onConnect);
     if (user?.username) {
       localStorage.setItem('telegramUsername', user.username);
     }
@@ -43,5 +52,6 @@ export default function useTelegramAuth() {
     if (user) {
       localStorage.setItem('telegramUserData', JSON.stringify(user));
     }
+    return () => socket.off('connect', onConnect);
   }, []);
 }
