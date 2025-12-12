@@ -20,35 +20,6 @@ const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 const AI_FLAG_STORAGE_KEY = 'chessBattleRoyalAiFlag';
 
-const ensureDistinctSides = (players = [], accountId) => {
-  const normalized = players.map((p, index) => ({
-    ...p,
-    side: p?.side === 'white' || p?.side === 'black' ? p.side : null,
-    __order: index
-  }));
-
-  const whiteCount = normalized.filter((p) => p.side === 'white').length;
-  const blackCount = normalized.filter((p) => p.side === 'black').length;
-  const needsAssignment = normalized.length >= 2 && (whiteCount !== 1 || blackCount !== 1);
-
-  if (needsAssignment) {
-    normalized
-      .sort((a, b) => a.__order - b.__order)
-      .forEach((player, idx) => {
-        player.side = idx === 0 ? 'white' : 'black';
-      });
-  }
-
-  const me = normalized.find((p) => String(p.id) === String(accountId));
-  const opponent = normalized.find((p) => String(p.id) !== String(accountId));
-
-  return {
-    mySide: me?.side || 'white',
-    opponent,
-    players: normalized.map(({ __order, ...rest }) => rest)
-  };
-};
-
 export default function ChessBattleRoyalLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
@@ -216,15 +187,19 @@ export default function ChessBattleRoyalLobby() {
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== pendingTableRef.current) return;
-      const { mySide, opponent } = ensureDistinctSides(players, trackedAccountId || accountId);
+      const meIndex = players.findIndex((p) => String(p.id) === String(trackedAccountId || accountId));
+      const opp = players.find((p) => String(p.id) !== String(trackedAccountId || accountId));
+      const mySide =
+        players.find((p) => String(p.id) === String(trackedAccountId || accountId))?.side ||
+        (meIndex === 0 ? 'white' : 'black');
       cleanupLobby({ account: trackedAccountId });
       navigateToGame({
         tgId,
         trackedAccountId,
         tableId: startedId,
         side: mySide,
-        opponentName: opponent?.name,
-        opponentAvatar: opponent?.avatar
+        opponentName: opp?.name,
+        opponentAvatar: opp?.avatar
       });
     };
 
