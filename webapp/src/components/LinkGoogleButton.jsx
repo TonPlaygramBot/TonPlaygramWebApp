@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createAccount, linkGoogleAccount } from '../utils/api.js';
+import { linkGoogleAccount } from '../utils/api.js';
 
 export default function LinkGoogleButton({ telegramId, onLinked }) {
   const buttonRef = useRef(null);
   const [ready, setReady] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const initialized = useRef(false);
 
   useEffect(() => {
@@ -38,47 +36,23 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       });
     }
 
-    function decodeCredential(res) {
+    function handleCredential(res) {
       try {
-        return JSON.parse(atob(res.credential.split('.')[1]));
-      } catch (err) {
-        console.error('Failed to link Google account', err);
-        return null;
-      }
-    }
-
-    async function handleCredential(res) {
-      const data = decodeCredential(res);
-      if (!data?.sub) return;
-
-      setLoading(true);
-      setError('');
-      try {
+        const data = JSON.parse(atob(res.credential.split('.')[1]));
+        if (!data.sub) return;
         localStorage.setItem('googleId', data.sub);
-
-        await linkGoogleAccount({
+        linkGoogleAccount({
           telegramId,
           googleId: data.sub,
           email: data.email,
           firstName: data.given_name,
           lastName: data.family_name,
           photo: data.picture
+        }).then(() => {
+          if (onLinked) onLinked(data.sub);
         });
-
-        const account = await createAccount(telegramId, data.sub);
-        if (account?.accountId) {
-          localStorage.setItem('accountId', account.accountId);
-        }
-        if (account?.walletAddress) {
-          localStorage.setItem('walletAddress', account.walletAddress);
-        }
-
-        if (onLinked) onLinked(data.sub);
       } catch (err) {
-        console.error('Google link failed', err);
-        setError('Unable to link your Google account. Please try again.');
-      } finally {
-        setLoading(false);
+        console.error('Failed to link Google account', err);
       }
     }
 
@@ -98,20 +72,15 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
     }
 
     async function init() {
-      if (initialized.current) {
-        return false;
-      }
-
-      if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        setError('Google sign-in is not configured.');
+      if (
+        initialized.current ||
+        !import.meta.env.VITE_GOOGLE_CLIENT_ID
+      ) {
         return false;
       }
 
       const ok = await ensureGoogleScript();
-      if (!ok || cancelled || !window.google?.accounts?.id) {
-        setError('Failed to load Google sign-in.');
-        return false;
-      }
+      if (!ok || cancelled || !window.google?.accounts?.id) return false;
 
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
@@ -140,13 +109,13 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
   }
 
   return (
-    <div className="inline-flex flex-col space-y-2" aria-live="polite">
+    <div className="inline-flex items-center space-x-2" aria-live="polite">
       <div ref={buttonRef} />
       {!ready && (
         <button
           type="button"
           onClick={handleClick}
-          disabled={!ready || loading}
+          disabled={!ready}
           className="flex items-center gap-2 rounded border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm disabled:opacity-50"
           aria-label="Sign in with Google"
         >
@@ -174,10 +143,9 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
               d="M9 3.5795c1.3209 0 2.5073.4545 3.4395 1.3464l2.5791-2.5791C13.4645.891 11.4273 0 9 0 5.4818 0 2.4382 2.0168.9577 4.9505l3.005 2.3317C4.6704 5.1627 6.6545 3.5795 9 3.5795z"
             />
           </svg>
-          {loading ? 'Connecting…' : 'Sign in with Google'}
+          Sign in with Google
         </button>
       )}
-      {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
 }
