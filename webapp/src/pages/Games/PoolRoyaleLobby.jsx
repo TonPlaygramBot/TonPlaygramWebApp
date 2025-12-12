@@ -50,6 +50,7 @@ export default function PoolRoyaleLobby() {
   const [isSearching, setIsSearching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
   const [matchStatus, setMatchStatus] = useState('');
+  const [hasLaunched, setHasLaunched] = useState(false);
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
@@ -122,6 +123,7 @@ export default function PoolRoyaleLobby() {
       setMatchStatus('Connecting to lobby…');
       setMatching(true);
       setIsSearching(true);
+      setHasLaunched(false);
       if (!accountId) {
         setIsSearching(false);
         setMatchingError('Unable to resolve your TPC account.');
@@ -196,6 +198,7 @@ export default function PoolRoyaleLobby() {
         setSpinningPlayer('');
         setIsSearching(false);
         setMatchingError('');
+        setHasLaunched(false);
         if (!skipRefReset) cleanupRef.current = () => {};
       };
 
@@ -359,6 +362,66 @@ export default function PoolRoyaleLobby() {
       setMatchStatus('All players ready. Launching match…');
     }
   }, [matching, readyList]);
+
+  useEffect(() => {
+    if (!matching || hasLaunched) return;
+    const tableId = pendingTableRef.current;
+    const selfId = accountIdRef.current;
+    const readyIds = new Set((readyList || []).map((id) => String(id)));
+    if (!tableId || !selfId || readyIds.size < 2 || !readyIds.has(String(selfId))) return;
+
+    const roster = matchPlayersRef.current || [];
+    if (roster.length < 2) return;
+
+    const selfEntry = roster.find((p) => String(p.id) === String(selfId));
+    const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
+    if (!opponentEntry) return;
+
+    const friendlyName =
+      selfEntry?.name || getTelegramFirstName() || getTelegramId() || (selfId ? `TPC ${selfId}` : 'Player');
+    const friendlyAvatar = selfEntry?.avatar || avatar;
+    const opponentName =
+      opponentEntry?.name ||
+      opponentEntry?.username ||
+      opponentEntry?.telegramName ||
+      (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
+    const opponentAvatar = opponentEntry?.avatar || '';
+
+    cleanupRef.current?.({ account: selfId, skipRefReset: true });
+
+    const params = new URLSearchParams();
+    params.set('variant', variant);
+    params.set('type', playType);
+    params.set('mode', 'online');
+    params.set('tableId', tableId);
+    if (stake.token) params.set('token', stake.token);
+    if (stake.amount) params.set('amount', stake.amount);
+    if (friendlyAvatar) params.set('avatar', friendlyAvatar);
+    const tgId = getTelegramId();
+    if (tgId) params.set('tgId', tgId);
+    const resolvedAccountId = accountIdRef.current;
+    if (resolvedAccountId) params.set('accountId', resolvedAccountId);
+    if (tableSize) params.set('tableSize', tableSize);
+    const name = (friendlyName || '').trim();
+    if (name) params.set('name', name);
+    if (opponentName) params.set('opponent', opponentName);
+    if (opponentAvatar) params.set('opponentAvatar', opponentAvatar);
+
+    setHasLaunched(true);
+    navigate(`/games/poolroyale?${params.toString()}`);
+  }, [
+    avatar,
+    hasLaunched,
+    matchPlayers,
+    matching,
+    navigate,
+    playType,
+    readyList,
+    stake.amount,
+    stake.token,
+    tableSize,
+    variant
+  ]);
 
   const readyIds = useMemo(
     () => new Set((readyList || []).map((id) => String(id))),
