@@ -130,7 +130,8 @@ export default function PoolRoyaleLobby() {
       }
 
       const handleLobbyUpdate = ({ tableId: tid, players: list = [], ready = [] } = {}) => {
-        if (!tid || tid !== pendingTableRef.current) return;
+        const pendingId = String(pendingTableRef.current || '');
+        if (!tid || String(tid) !== pendingId) return;
         setMatchPlayers(list);
         matchPlayersRef.current = list;
         setReadyList(ready);
@@ -141,7 +142,8 @@ export default function PoolRoyaleLobby() {
       };
 
       const handleGameStart = ({ tableId: startedId, players: joined = [] } = {}) => {
-        if (!startedId || startedId !== pendingTableRef.current) return;
+        const pendingId = String(pendingTableRef.current || '');
+        if (!startedId || String(startedId) !== pendingId) return;
         const selfId = accountIdRef.current || accountId;
         const roster = Array.isArray(joined) && joined.length > 0 ? joined : matchPlayersRef.current;
         const selfEntry = roster.find((p) => String(p.id) === String(selfId));
