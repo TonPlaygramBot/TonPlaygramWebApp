@@ -32,7 +32,6 @@ export default function ChessBattleRoyalLobby() {
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [onlineCount, setOnlineCount] = useState(null);
-  const [pieceColor, setPieceColor] = useState('auto');
   const [accountId, setAccountId] = useState('');
   const [matching, setMatching] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
@@ -110,7 +109,6 @@ export default function ChessBattleRoyalLobby() {
     if (extraParams.tgId) params.set('tgId', extraParams.tgId);
     if (isOnline && (extraParams.trackedAccountId || accountId))
       params.set('accountId', extraParams.trackedAccountId || accountId);
-    if (isOnline && pieceColor) params.set('colorPref', pieceColor);
     if (selectedFlag) params.set('flag', selectedFlag);
     if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
@@ -175,33 +173,6 @@ export default function ChessBattleRoyalLobby() {
     setMatching(true);
     setMatchStatus('Connecting to lobby…');
 
-    const resolveSides = (list = [], tableIdValue = '') => {
-      const hashSeed = String(tableIdValue || list.map((p) => p.id).join('-') || 'chess');
-      let hash = 0;
-      for (let i = 0; i < hashSeed.length; i += 1) {
-        hash = (hash << 5) - hash + hashSeed.charCodeAt(i);
-        hash |= 0;
-      }
-      const whiteIndex = Math.abs(hash) % Math.max(2, list.length || 2);
-      const defaults = list.map((_, idx) => (idx === whiteIndex ? 'white' : 'black'));
-      const normalizedPref = pieceColor === 'white' || pieceColor === 'black' ? pieceColor : 'auto';
-      let resolved = list.map((p, idx) => {
-        const preference = p.colorPreference;
-        const prefColor =
-          preference === 'white' || preference === 'black'
-            ? preference
-            : String(p.id) === String(trackedAccountId || accountId)
-              ? normalizedPref
-              : 'auto';
-        if (prefColor === 'white' || prefColor === 'black') return prefColor;
-        return defaults[idx] || (idx === 0 ? 'white' : 'black');
-      });
-      if (resolved.length === 2 && resolved[0] === resolved[1]) {
-        resolved = defaults;
-      }
-      return resolved;
-    };
-
     const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
       if (!tid || tid !== pendingTableRef.current) return;
       const others = list.filter((p) => String(p.id) !== String(trackedAccountId || accountId));
@@ -216,9 +187,7 @@ export default function ChessBattleRoyalLobby() {
       if (!startedId || startedId !== pendingTableRef.current) return;
       const meIndex = players.findIndex((p) => String(p.id) === String(trackedAccountId || accountId));
       const opp = players.find((p) => String(p.id) !== String(trackedAccountId || accountId));
-      const sides = resolveSides(players, startedId);
-      const side = sides[meIndex] || 'white';
-      const opponentSide = sides[meIndex === 0 ? 1 : 0] || (side === 'white' ? 'black' : 'white');
+      const side = meIndex === 0 ? 'white' : 'black';
       cleanupLobby({ account: trackedAccountId });
       navigateToGame({
         tgId,
@@ -226,8 +195,7 @@ export default function ChessBattleRoyalLobby() {
         tableId: startedId,
         side,
         opponentName: opp?.name,
-        opponentAvatar: opp?.avatar,
-        opponentSide
+        opponentAvatar: opp?.avatar
       });
     };
 
@@ -246,8 +214,7 @@ export default function ChessBattleRoyalLobby() {
         stake: stake.amount ?? 0,
         maxPlayers: 2,
         playerName: friendlyName,
-        avatar,
-        colorPreference: pieceColor
+        avatar
       },
       (res) => {
         if (!res?.success || !res.tableId) {
@@ -304,42 +271,6 @@ export default function ChessBattleRoyalLobby() {
           AI matches stay offline. Online mode uses your TPC stake and pairs you with another player.
         </p>
       </div>
-
-      {mode === 'online' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Choose Piece Color</h3>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { key: 'auto', label: 'Auto', desc: 'Random & balanced' },
-              { key: 'white', label: 'White', desc: 'You move first' },
-              { key: 'black', label: 'Black', desc: 'You move second' }
-            ].map(({ key, label, desc }) => {
-              const active = pieceColor === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setPieceColor(key)}
-                  className={`rounded-xl border px-3 py-3 text-left shadow transition hover:border-primary ${
-                    active
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-background/70 text-text'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">{label}</span>
-                    {active && <span className="text-xs font-bold">Selected</span>}
-                  </div>
-                  <div className="text-xs text-subtext">{desc}</div>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-subtext text-center">
-            Auto keeps sides fair for both players so you never share the same color.
-          </p>
-        </div>
-      )}
 
       {mode === 'online' && (
         <div className="space-y-2">
