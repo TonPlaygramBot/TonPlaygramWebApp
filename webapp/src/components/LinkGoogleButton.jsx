@@ -17,6 +17,13 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
           'script[src="https://accounts.google.com/gsi/client"]'
         );
         if (existing) {
+          if (
+            existing.dataset.loaded === 'true' ||
+            existing.readyState === 'complete' ||
+            existing.readyState === 'loaded'
+          ) {
+            return resolve(true);
+          }
           existing.addEventListener('load', () => resolve(true));
           existing.addEventListener('error', () => resolve(false));
           return;
@@ -26,7 +33,10 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
         script.src = 'https://accounts.google.com/gsi/client';
         script.async = true;
         script.defer = true;
-        script.onload = () => resolve(true);
+        script.onload = () => {
+          script.dataset.loaded = 'true';
+          resolve(true);
+        };
         script.onerror = () => resolve(false);
         document.head.appendChild(script);
       });
@@ -71,10 +81,12 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       });
       if (buttonRef.current) {
         window.google.accounts.id.renderButton(buttonRef.current, {
+          type: 'standard',
           theme: 'outline',
           shape: 'pill',
           size: 'large',
-          text: 'continue_with'
+          text: 'signin_with',
+          logo_alignment: 'left'
         });
       }
       initialized.current = true;
@@ -89,24 +101,16 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
     };
   }, [telegramId, onLinked]);
 
-  function handleClick() {
-    if (window.google?.accounts?.id && initialized.current) {
-      window.google.accounts.id.prompt();
-    }
-  }
-
   return (
-    <div className="inline-flex items-center space-x-2">
-      <div ref={buttonRef} />
+    <div className="relative inline-flex items-center">
+      <div
+        ref={buttonRef}
+        className={ready ? '' : 'pointer-events-none opacity-0'}
+      />
       {!ready && (
-        <button
-          type="button"
-          onClick={handleClick}
-          disabled={!ready}
-          className="px-3 py-1 bg-white text-black rounded disabled:opacity-50"
-        >
-          Link Google
-        </button>
+        <div className="absolute inset-0 flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-white border rounded-full">
+          Loading Google Sign-In…
+        </div>
       )}
     </div>
   );
