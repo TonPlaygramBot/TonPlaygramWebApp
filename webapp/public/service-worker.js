@@ -1,4 +1,7 @@
-const CACHE_NAME = 'tonplaygram-pwa-v1';
+const CACHE_VERSION = 'tonplaygram-pwa-v2';
+const STATIC_CACHE = `${CACHE_VERSION}-static`;
+const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
+
 const CORE_ASSETS = [
   '/',
   '/index.html',
@@ -6,14 +9,38 @@ const CORE_ASSETS = [
   '/power-slider.css',
   '/pwa-icon.svg',
   '/pwa-icon-maskable.svg',
-  '/pwa-splash.svg'
+  '/pwa-splash.svg',
+  '/service-worker.js'
 ];
 
+// Pre-cache the heavier game shells so repeat loads are instant and offline tolerant.
+const GAME_SHELL_ASSETS = [
+  '/chess-royale.html',
+  '/flag-emojis.js',
+  '/pool-royale-bracket.html',
+  '/pool-royale-api.js',
+  '/pool-royale-power-slider.js',
+  '/pool-royale-power-slider.css',
+  '/game-preloads/pool-royale-preload.txt'
+];
+
+const STATIC_ASSET_DESTINATIONS = new Set([
+  'style',
+  'script',
+  'worker',
+  'font',
+  'image',
+  'audio',
+  'video'
+]);
+
 self.addEventListener('install', (event) => {
+  const assetsToCache = [...new Set([...CORE_ASSETS, ...GAME_SHELL_ASSETS])];
+
   event.waitUntil(
     caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(CORE_ASSETS))
+      .open(STATIC_CACHE)
+      .then((cache) => cache.addAll(assetsToCache))
       .then(() => self.skipWaiting())
   );
 });
@@ -23,11 +50,17 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
+        Promise.all(
+          keys
+            .filter((key) => ![STATIC_CACHE, RUNTIME_CACHE].includes(key))
+            .map((key) => caches.delete(key))
+        )
       )
       .then(() => self.clients.claim())
   );
 });
+
+const OFFLINE_NAVIGATION_PATHS = ['/games/poolroyale', '/games/snookerclub', '/games/chessroyale'];
 
 const isSameOrigin = (request) => {
   try {
@@ -37,35 +70,94 @@ const isSameOrigin = (request) => {
   }
 };
 
-self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') return;
+const cacheFirst = async (request) => {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cachedResponse = await cache.match(request);
+  if (cachedResponse) return cachedResponse;
 
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', copy));
-          return response;
-        })
-        .catch(() => caches.match('/index.html'))
-    );
+  try {
+    const response = await fetch(request);
+    cache.put(request, response.clone());
+    return response;
+  } catch (error) {
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
+};
+
+const networkFirst = async (request) => {
+  const cache = await caches.open(RUNTIME_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response && response.status === 200) {
+      cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
+};
+
+const staleWhileRevalidate = async (request) => {
+  const cache = await caches.open(RUNTIME_CACHE);
+  const cachedResponse = await cache.match(request);
+
+  const networkPromise = fetch(request)
+    .then((response) => {
+      if (response && response.status === 200) {
+        cache.put(request, response.clone());
+      }
+      return response;
+    })
+    .catch(() => cachedResponse);
+
+  return cachedResponse || networkPromise;
+};
+
+const handleNavigation = async (request) => {
+  const cache = await caches.open(STATIC_CACHE);
+  const cachedIndex = await cache.match('/index.html');
+  const requestUrl = new URL(request.url);
+
+  try {
+    const response = await fetch(request);
+    cache.put('/index.html', response.clone());
+    return response;
+  } catch (error) {
+    const cachedPage = await cache.match(requestUrl.pathname);
+    if (cachedPage) return cachedPage;
+
+    if (OFFLINE_NAVIGATION_PATHS.some((path) => requestUrl.pathname.startsWith(path))) {
+      const cachedFallback = await cache.match(requestUrl.pathname);
+      if (cachedFallback) return cachedFallback;
+    }
+
+    return cachedIndex || Response.error();
+  }
+};
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event;
+  if (request.method !== 'GET') return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(handleNavigation(request));
     return;
   }
 
-  if (!isSameOrigin(event.request)) return;
+  if (!isSameOrigin(request)) return;
 
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      const fetchPromise = fetch(event.request)
-        .then((networkResponse) => {
-          const copy = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return networkResponse;
-        })
-        .catch(() => cachedResponse);
+  if (STATIC_ASSET_DESTINATIONS.has(request.destination)) {
+    event.respondWith(cacheFirst(request));
+    return;
+  }
 
-      return cachedResponse || fetchPromise;
-    })
-  );
+  if (request.url.includes('/api/')) {
+    event.respondWith(networkFirst(request));
+    return;
+  }
+
+  event.respondWith(staleWhileRevalidate(request));
 });
