@@ -5128,7 +5128,10 @@ function Chess3D({
       const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
       const opp = players.find((p) => String(p.id) !== String(accountId));
       if (opp) setOpponent(opp);
-      onlineRef.current.side = meIndex === 0 ? 'white' : 'black';
+      const mySide =
+        players.find((p) => String(p.id) === String(accountId))?.side ||
+        (meIndex === 0 ? 'white' : 'black');
+      onlineRef.current.side = mySide;
       onlineRef.current.status = 'started';
       setOnlineStatus('starting');
       socket.emit('joinChessRoom', { tableId: startedId, accountId });
@@ -5168,7 +5171,8 @@ function Chess3D({
           stake: 0,
           maxPlayers: 2,
           playerName: username,
-          avatar
+          avatar,
+          preferredSide: preferredSideParam
         },
         (res) => {
           if (!active) return;
@@ -7025,7 +7029,7 @@ function Chess3D({
         return;
       }
       startTimer(nextWhite);
-      if (!nextWhite) setTimeout(aiMove, 200);
+      if (!nextWhite && !onlineRef.current.enabled) setTimeout(aiMove, 200);
     }
 
     const maybePlayCountdownSound = (seconds, isWhiteTurn) => {
@@ -7992,6 +7996,7 @@ export default function ChessBattleRoyal() {
   const initialAccountId = params.get('accountId') || '';
   const mode = params.get('mode') || 'ai';
   const initialTableId = params.get('tableId') || '';
+  const preferredSideParam = params.get('preferredSide');
   const [accountId, setAccountId] = useState(initialAccountId);
   const [redirecting, setRedirecting] = useState(false);
   const flagParam = params.get('flag') || params.get('playerFlag');
@@ -8000,7 +8005,14 @@ export default function ChessBattleRoyal() {
   const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
   const initialAiFlag =
     aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
-  const initialSide = params.get('side') === 'black' ? 'black' : 'white';
+  const initialSide =
+    params.get('side') === 'black'
+      ? 'black'
+      : params.get('side') === 'white'
+      ? 'white'
+      : preferredSideParam === 'black'
+      ? 'black'
+      : 'white';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
   const initialOpponent =
