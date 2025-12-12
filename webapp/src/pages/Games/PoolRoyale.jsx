@@ -8126,7 +8126,9 @@ function PoolRoyaleGame({
   accountId,
   tgId,
   playerName,
-  opponentName
+  opponentName,
+  playerAvatar,
+  opponentAvatar
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -9303,10 +9305,10 @@ function PoolRoyaleGame({
   }, []);
   useEffect(() => {
     setPlayer({
-      name: getTelegramUsername() || 'Player',
-      avatar: getTelegramPhotoUrl()
+      name: playerName || getTelegramUsername() || 'Player',
+      avatar: playerAvatar || getTelegramPhotoUrl()
     });
-  }, []);
+  }, [playerAvatar, playerName]);
   useEffect(() => {
     setFrameState((prev) => {
       const nextName = player.name || 'Player';
@@ -9320,6 +9322,20 @@ function PoolRoyaleGame({
       };
     });
   }, [player.name]);
+  useEffect(() => {
+    setFrameState((prev) => ({
+      ...prev,
+      players: {
+        ...prev.players,
+        A: { ...prev.players.A, avatar: player.avatar || prev.players.A.avatar },
+        B: {
+          ...prev.players.B,
+          name: opponentName || prev.players.B.name,
+          avatar: opponentAvatar || prev.players.B.avatar
+        }
+      }
+    }));
+  }, [opponentAvatar, opponentName, player.avatar]);
   useEffect(() => {
     muteRef.current = isGameMuted();
     volumeRef.current = getGameVolume();
@@ -17146,6 +17162,10 @@ export default function PoolRoyale() {
       'Player'
     );
   }, [location.search]);
+  const playerAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('avatar') || '';
+  }, [location.search]);
   const stakeAmount = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return Number(params.get('amount')) || 0;
@@ -17216,6 +17236,10 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
   }, [location.search]);
+  const opponentAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('opponentAvatar') || '';
+  }, [location.search]);
   return (
     <PoolRoyaleGame
       variantKey={variantKey}
@@ -17228,6 +17252,8 @@ export default function PoolRoyale() {
       tgId={tgId}
       playerName={playerName}
       opponentName={opponentName}
+      playerAvatar={playerAvatar}
+      opponentAvatar={opponentAvatar}
     />
   );
 }
