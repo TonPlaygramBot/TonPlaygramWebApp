@@ -52,6 +52,9 @@ import {
   listOnline
 } from './services/connectionService.js';
 
+const CHESS_START_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1';
+const chessGames = new Map();
+
 const models = [
   AdView,
   Airdrop,
@@ -347,6 +350,29 @@ function cleanupSeats() {
   }
 }
 
+function getChessState(tableId) {
+  if (!chessGames.has(tableId)) {
+    chessGames.set(tableId, {
+      fen: CHESS_START_FEN,
+      turnWhite: true,
+      lastMove: null,
+      updatedAt: Date.now()
+    });
+  }
+  return chessGames.get(tableId);
+}
+
+function updateChessState(tableId, nextState = {}) {
+  const base = getChessState(tableId);
+  const merged = {
+    ...base,
+    ...nextState,
+    updatedAt: Date.now()
+  };
+  chessGames.set(tableId, merged);
+  return merged;
+}
+
 async function seatTableSocket(
   accountId,
   gameType,
@@ -425,6 +451,10 @@ function maybeStartGame(table) {
     if (table.startTimeout) return;
     table.startTimeout = setTimeout(() => {
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+      if (table.gameType === 'chess') {
+        const initial = updateChessState(table.id, { turnWhite: true, lastMove: null });
+        io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
+      }
       io.to(table.id).emit('gameStart', {
         tableId: table.id,
         players: table.players,
@@ -916,6 +946,37 @@ io.on('connection', (socket) => {
     } else if (result.board) {
       socket.emit('boardData', result.board);
     }
+  });
+
+  socket.on('joinChessRoom', async ({ tableId, accountId }) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    const state = getChessState(tableId);
+    socket.emit('chessState', { tableId, ...state });
+    if (accountId) {
+      await registerConnection({
+        userId: String(accountId),
+        roomId: tableId,
+        socketId: socket.id
+      });
+    }
+  });
+
+  socket.on('chessSyncRequest', ({ tableId }) => {
+    if (!tableId) return;
+    const state = getChessState(tableId);
+    socket.emit('chessState', { tableId, ...state });
+  });
+
+  socket.on('chessMove', ({ tableId, move }) => {
+    if (!tableId || !move) return;
+    const next = updateChessState(tableId, {
+      fen: move.fen || CHESS_START_FEN,
+      turnWhite: typeof move.turnWhite === 'boolean' ? move.turnWhite : true,
+      lastMove: move.lastMove || null
+    });
+    socket.to(tableId).emit('chessMove', { tableId, ...next });
   });
   socket.on('watchRoom', async ({ roomId }) => {
     if (!roomId) return;
