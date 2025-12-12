@@ -23,6 +23,7 @@ import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
 import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
+import { socket } from '../../utils/socket.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { CUE_RACK_PALETTE, CUE_STYLE_PRESETS } from '../../config/cueStyles.js';
@@ -8119,6 +8120,7 @@ function applyTableFinishToTable(table, finish) {
 function PoolRoyaleGame({
   variantKey,
   tableSizeKey,
+  tableId,
   playType = 'regular',
   mode = 'ai',
   trainingMode = 'solo',
@@ -8840,6 +8842,31 @@ function PoolRoyaleGame({
   useEffect(() => {
     frameRef.current = frameState;
   }, [frameState]);
+  const networkAccountId = useMemo(() => accountId || tgId || '', [accountId, tgId]);
+  const broadcastPoolState = useCallback(
+    (state) => {
+      if (mode !== 'online' || !tableId || !networkAccountId) return;
+      const nextState = state || frameRef.current;
+      if (!nextState) return;
+      socket.emit('poolRoyaleSync', { tableId, accountId: networkAccountId, state: nextState });
+    },
+    [mode, networkAccountId, tableId]
+  );
+  useEffect(() => {
+    if (mode !== 'online' || !tableId || !networkAccountId) return undefined;
+    socket.emit('register', { playerId: networkAccountId });
+    socket.emit('poolRoyaleJoin', { tableId, accountId: networkAccountId });
+    const handleSync = ({ tableId: incomingTableId, state }) => {
+      if (incomingTableId !== tableId || !state) return;
+      frameRef.current = state;
+      setFrameState(state);
+    };
+    socket.on('poolRoyaleState', handleSync);
+    broadcastPoolState();
+    return () => {
+      socket.off('poolRoyaleState', handleSync);
+    };
+  }, [broadcastPoolState, mode, networkAccountId, tableId]);
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
@@ -15155,6 +15182,7 @@ function PoolRoyaleGame({
         } finally {
           frameRef.current = safeState;
           setFrameState(safeState);
+          broadcastPoolState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           setShootingState(false);
           shotPrediction = null;
@@ -17158,6 +17186,10 @@ export default function PoolRoyale() {
     const requested = params.get('tableSize');
     return resolveTableSize(requested).id;
   }, [location.search]);
+  const tableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tableId') || '';
+  }, [location.search]);
   const playType = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('type');
@@ -17280,6 +17312,7 @@ export default function PoolRoyale() {
     <PoolRoyaleGame
       variantKey={variantKey}
       tableSizeKey={tableSizeKey}
+      tableId={tableId}
       playType={playType}
       mode={mode}
       trainingMode={trainingMode}

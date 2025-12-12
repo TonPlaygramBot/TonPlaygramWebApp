@@ -283,6 +283,7 @@ const pendingInvites = new Map();
 app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
+const poolRoyaleStates = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
@@ -969,6 +970,22 @@ io.on('connection', (socket) => {
       ready: Array.from(table.ready)
     });
     maybeStartGame(table);
+  });
+
+  socket.on('poolRoyaleJoin', ({ tableId, accountId }) => {
+    if (!tableId) return;
+    if (!ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    if (poolRoyaleStates.has(tableId)) {
+      socket.emit('poolRoyaleState', { tableId, state: poolRoyaleStates.get(tableId) });
+    }
+  });
+
+  socket.on('poolRoyaleSync', ({ tableId, accountId, state }) => {
+    if (!tableId || !state) return;
+    if (!ensureRegistered(socket, accountId)) return;
+    poolRoyaleStates.set(tableId, state);
+    socket.to(tableId).emit('poolRoyaleState', { tableId, state });
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, accountId, name, avatar }) => {
