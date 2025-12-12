@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TonPlaygram badge">
+  <defs>
+    <linearGradient id="bg" x1="0%" x2="100%" y1="0%" y2="100%">
+      <stop offset="0%" stop-color="#00f7ff" />
+      <stop offset="50%" stop-color="#6c38ff" />
+      <stop offset="100%" stop-color="#0c1020" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="120" ry="120" fill="url(#bg)" />
+  <circle cx="256" cy="256" r="184" fill="#0c1020" opacity="0.35" />
+  <g filter="url(#glow)">
+    <path
+      fill="#00f7ff"
+      d="M256 120c-68.4 0-124 55.6-124 124s55.6 124 124 124 124-55.6 124-124S324.4 120 256 120zm0 34c49.7 0 90 40.3 90 90s-40.3 90-90 90-90-40.3-90-90 40.3-90 90-90z"
+    />
+    <path
+      fill="#ffffff"
+      d="M180 310c14-44 36-80 76-102 41 22 62 58 76 102l-31 14c-9-28-24-54-45-73-20 19-35 45-44 73z"
+      opacity="0.95"
+    />
+    <circle cx="256" cy="210" r="30" fill="#ffffff" />
+  </g>
+</svg>

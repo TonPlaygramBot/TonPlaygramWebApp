@@ -14,4 +14,10 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );
 
-// Service workers are disabled to avoid unexpected reloads that could interrupt gameplay
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/service-worker.js')
+      .catch((error) => console.error('Service worker registration failed', error));
+  });
+}
