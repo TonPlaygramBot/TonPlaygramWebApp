@@ -196,9 +196,28 @@ router.post('/addTransaction', async (req, res) => {
 });
 
 router.post('/link-google', async (req, res) => {
-  const { telegramId, googleId, email, dob, firstName, lastName, photo } = req.body;
-  if (!telegramId || !googleId) {
-    return res.status(400).json({ error: 'telegramId and googleId required' });
+  const {
+    telegramId,
+    accountId,
+    googleId,
+    email,
+    dob,
+    firstName,
+    lastName,
+    photo
+  } = req.body;
+  if (!googleId) {
+    return res.status(400).json({ error: 'googleId required' });
+  }
+
+  // Allow linking by either telegramId (existing users coming from the bot)
+  // or accountId (users who created an account with Google first).
+  const query = {};
+  if (telegramId) query.telegramId = telegramId;
+  if (accountId) query.accountId = accountId;
+
+  if (!query.telegramId && !query.accountId) {
+    return res.status(400).json({ error: 'telegramId or accountId required' });
   }
 
   const update = {
@@ -212,10 +231,18 @@ router.post('/link-google', async (req, res) => {
   if (photo !== undefined) update.photo = photo;
 
   const user = await User.findOneAndUpdate(
-    { telegramId },
-    { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
+    query,
+    {
+      $set: update,
+      $setOnInsert: {
+        referralCode: String(telegramId || accountId || googleId)
+      }
+    },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+
+  if (!user) return res.status(404).json({ error: 'user not found' });
+
   res.json(sanitizeUser(user));
 });
 
