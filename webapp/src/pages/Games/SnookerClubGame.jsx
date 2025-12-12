@@ -101,6 +101,23 @@ function detectLowRefreshDisplay() {
   return false;
 }
 
+function detectHighRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
 function isWebGLAvailable() {
   if (typeof document === 'undefined') return false;
   try {
@@ -196,32 +213,40 @@ function detectPreferredFrameRateId() {
   const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
+  const highRefresh = detectHighRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
-  if (
-    lowRefresh ||
-    coarsePointer ||
-    isTouch ||
-    isMobileUA ||
-    (deviceMemory !== null && deviceMemory <= 4) ||
-    rendererTier === 'mobile'
-  ) {
+  if (lowRefresh) {
+    return 'mobile50';
+  }
+
+  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'mobile50';
+    }
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'fast120';
+    }
+    if (
+      highRefresh ||
+      hardwareConcurrency >= 6 ||
+      (deviceMemory != null && deviceMemory >= 6)
+    ) {
+      return 'smooth90';
+    }
     return 'balanced60';
   }
 
-  if (
-    rendererTier === 'desktopHigh' ||
-    (hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8))
-  ) {
-    return 'performance50';
+  if (rendererTier === 'desktopHigh' && highRefresh) {
+    return 'esports144';
   }
 
-  if (
-    rendererTier === 'desktopMid' ||
-    hardwareConcurrency >= 6 ||
-    (deviceMemory != null && deviceMemory >= 6)
-  ) {
-    return 'fullHd';
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'fast120';
+  }
+
+  if (rendererTier === 'desktopMid') {
+    return 'smooth90';
   }
 
   return 'balanced60';
@@ -2308,14 +2333,59 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
     id: 'balanced60',
     label: 'Snooker Match (60 Hz)',
     fps: 60,
-    resolution: 'Snooker renderer scaling',
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
     description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
+    fps: 144,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
+
+function resolveDefaultPixelRatioCap() {
+  if (typeof window === 'undefined') {
+    return 2;
+  }
+  return window.innerWidth <= 1366 ? 1.5 : 2;
+}
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -8201,6 +8271,33 @@ export function PoolRoyaleGame({
       FRAME_RATE_OPTIONS[0],
     [frameRateId]
   );
+  const frameQualityProfile = useMemo(() => {
+    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
+    const fallback = FRAME_RATE_OPTIONS[0];
+    const fps = Number.isFinite(option?.fps) && option.fps > 0
+      ? option.fps
+      : Number.isFinite(fallback?.fps) && fallback.fps > 0
+        ? fallback.fps
+        : 60;
+    const renderScale =
+      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+        ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1)
+        : 1;
+    const pixelRatioCap =
+      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+        ? Math.max(1, option.pixelRatioCap)
+        : resolveDefaultPixelRatioCap();
+    return {
+      id: option?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      renderScale,
+      pixelRatioCap
+    };
+  }, [activeFrameRateOption]);
+  const frameQualityRef = useRef(frameQualityProfile);
+  useEffect(() => {
+    frameQualityRef.current = frameQualityProfile;
+  }, [frameQualityProfile]);
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -8237,22 +8334,18 @@ export function PoolRoyaleGame({
   });
   const applyRailMarkerStyleRef = useRef(() => {});
   const resolvedFrameTiming = useMemo(() => {
-    const fallbackFps =
-      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
-        ? FRAME_RATE_OPTIONS[0].fps
-        : 60;
     const fps =
-      Number.isFinite(activeFrameRateOption?.fps) && activeFrameRateOption.fps > 0
-        ? activeFrameRateOption.fps
-        : fallbackFps;
+      Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
+        ? frameQualityProfile.fps
+        : 60;
     const targetMs = 1000 / fps;
     return {
-      id: activeFrameRateOption?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
     };
-  }, [activeFrameRateOption]);
+  }, [frameQualityProfile]);
   const frameTimingRef = useRef(resolvedFrameTiming);
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
@@ -9058,6 +9151,34 @@ export function PoolRoyaleGame({
     standing: { phi: STANDING_VIEW.phi, radius: BREAK_VIEW.radius }
   });
   const rendererRef = useRef(null);
+  const applyRendererQuality = useCallback(() => {
+    const renderer = rendererRef.current;
+    const host = mountRef.current;
+    if (!renderer || !host) return;
+    const quality = frameQualityRef.current;
+    const dpr =
+      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+        ? window.devicePixelRatio
+        : 1;
+    const pixelRatioCap =
+      quality?.pixelRatioCap ??
+      (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
+    const renderScale =
+      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
+        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
+        : 1;
+    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
+    renderer.setSize(
+      host.clientWidth * renderScale,
+      host.clientHeight * renderScale,
+      false
+    );
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+  }, []);
+  useEffect(() => {
+    applyRendererQuality();
+  }, [applyRendererQuality, frameQualityProfile]);
   const last3DRef = useRef({ phi: CAMERA.maxPhi, theta: Math.PI });
   const cushionHeightRef = useRef(TABLE.THICK + 0.4);
   const fitRef = useRef(() => {});
@@ -9659,20 +9780,17 @@ export function PoolRoyaleGame({
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
-      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
-      renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
       renderer.domElement.addEventListener('webglcontextlost', (e) =>
         e.preventDefault()
       );
       rendererRef.current = renderer;
+      applyRendererQuality();
       renderer.domElement.style.transformOrigin = 'top left';
 
       // Scene & Camera
@@ -16187,7 +16305,7 @@ export function PoolRoyaleGame({
 
       // Resize
         const onResize = () => {
-          renderer.setSize(host.clientWidth, host.clientHeight);
+          applyRendererQuality();
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           const scaleChanged = applyWorldScaleRef.current?.() ?? false;
