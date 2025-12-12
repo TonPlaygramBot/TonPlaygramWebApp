@@ -36,6 +36,14 @@ export default function ChessBattleRoyalLobby() {
   const [matching, setMatching] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
+  const [pieceColor, setPieceColor] = useState(() => {
+    if (typeof window === 'undefined') return 'auto';
+    try {
+      return window.localStorage?.getItem('chessBattleRoyalPieceColor') || 'auto';
+    } catch {
+      return 'auto';
+    }
+  });
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
 
@@ -98,6 +106,12 @@ export default function ChessBattleRoyalLobby() {
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem('chessBattleRoyalPieceColor', pieceColor);
+    } catch {}
+  }, [pieceColor]);
+
   const navigateToGame = (extraParams = {}) => {
     const params = new URLSearchParams();
     const initData = window.Telegram?.WebApp?.initData;
@@ -111,6 +125,8 @@ export default function ChessBattleRoyalLobby() {
       params.set('accountId', extraParams.trackedAccountId || accountId);
     if (selectedFlag) params.set('flag', selectedFlag);
     if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+    if (isOnline && (extraParams.colorPreference || pieceColor))
+      params.set('colorPreference', extraParams.colorPreference || pieceColor);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
@@ -186,14 +202,17 @@ export default function ChessBattleRoyalLobby() {
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== pendingTableRef.current) return;
       const meIndex = players.findIndex((p) => String(p.id) === String(trackedAccountId || accountId));
+      const me = players.find((p) => String(p.id) === String(trackedAccountId || accountId));
       const opp = players.find((p) => String(p.id) !== String(trackedAccountId || accountId));
       const side = meIndex === 0 ? 'white' : 'black';
+      const resolvedSide = me?.side === 'black' || me?.side === 'white' ? me.side : side;
       cleanupLobby({ account: trackedAccountId });
       navigateToGame({
         tgId,
         trackedAccountId,
         tableId: startedId,
-        side,
+        side: resolvedSide,
+        colorPreference: pieceColor,
         opponentName: opp?.name,
         opponentAvatar: opp?.avatar
       });
@@ -214,7 +233,8 @@ export default function ChessBattleRoyalLobby() {
         stake: stake.amount ?? 0,
         maxPlayers: 2,
         playerName: friendlyName,
-        avatar
+        avatar,
+        colorPreference: pieceColor
       },
       (res) => {
         if (!res?.success || !res.tableId) {
@@ -278,6 +298,33 @@ export default function ChessBattleRoyalLobby() {
           <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
           <p className="text-center text-subtext text-sm">
             Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
+          </p>
+        </div>
+      )}
+
+      {mode === 'online' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Piece Color</h3>
+          <div className="grid grid-cols-3 gap-2 text-sm">
+            {[{ key: 'auto', label: 'Auto' }, { key: 'white', label: 'White' }, { key: 'black', label: 'Black' }].map(
+              ({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPieceColor(key)}
+                  className={`rounded-lg border px-2 py-2 text-center shadow transition hover:border-primary ${
+                    pieceColor === key
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background/70 text-text'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
+          <p className="text-xs text-subtext text-center">
+            Auto assigns opposite colors so you and your opponent never get the same side.
           </p>
         </div>
       )}

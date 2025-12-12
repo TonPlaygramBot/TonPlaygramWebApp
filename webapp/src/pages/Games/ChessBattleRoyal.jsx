@@ -5098,6 +5098,7 @@ function Chess3D({
   });
   const uiRef = useRef(ui);
   const lastMoveRef = useRef(null);
+  const lastRemoteStateRef = useRef({ key: '' });
   const replayLastMoveRef = useRef(() => {});
   const isReplayingRef = useRef(false);
   useEffect(() => {
@@ -5112,6 +5113,7 @@ function Chess3D({
     let active = true;
     const cleanups = [];
     const tableJoin = { current: initialTableId || '' };
+    lastRemoteStateRef.current = { key: '' };
     onlineRef.current.side = normalizedInitialSide;
 
     const handleChessState = (payload = {}) => {
@@ -5126,9 +5128,15 @@ function Chess3D({
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== tableJoin.current) return;
       const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
+      const me = players.find((p) => String(p.id) === String(accountId));
       const opp = players.find((p) => String(p.id) !== String(accountId));
       if (opp) setOpponent(opp);
-      onlineRef.current.side = meIndex === 0 ? 'white' : 'black';
+      onlineRef.current.side =
+        me?.side === 'white' || me?.side === 'black'
+          ? me.side
+          : meIndex === 0
+            ? 'white'
+            : 'black';
       onlineRef.current.status = 'started';
       setOnlineStatus('starting');
       socket.emit('joinChessRoom', { tableId: startedId, accountId });
@@ -5168,7 +5176,8 @@ function Chess3D({
           stake: 0,
           maxPlayers: 2,
           playerName: username,
-          avatar
+          avatar,
+          colorPreference: preferredSide
         },
         (res) => {
           if (!active) return;
@@ -5197,7 +5206,7 @@ function Chess3D({
       active = false;
       cleanups.forEach((fn) => fn());
     };
-  }, [accountId, avatar, initialTableId, normalizedInitialSide, username]);
+  }, [accountId, avatar, initialTableId, normalizedInitialSide, preferredSide, username]);
 
   useEffect(() => {
     whiteTimeRef.current = whiteTime;
@@ -6662,6 +6671,12 @@ function Chess3D({
     const syncBoardFromState = (payload = {}) => {
       const { fen, turnWhite = true, lastMove } = payload;
       if (!fen) return;
+      const moveKey =
+        lastMove?.from && lastMove?.to
+          ? `${lastMove.from.r},${lastMove.from.c}->${lastMove.to.r},${lastMove.to.c}`
+          : '';
+      const stateKey = `${fen}|${turnWhite ? 'w' : 'b'}|${moveKey}`;
+      if (lastRemoteStateRef.current.key === stateKey) return;
       try {
         board = parseFEN(fen.split(' ')[0]);
         paintPiecesFromPrototypes(currentPiecePrototypes);
@@ -6678,6 +6693,7 @@ function Chess3D({
           highlightSelection(from.r, from.c, paletteRef.current?.capture);
           highlightMoves([[to.r, to.c]], paletteRef.current?.highlight);
         }
+        lastRemoteStateRef.current = { key: stateKey };
       } catch (error) {
         console.warn('Chess Battle Royal: failed to sync remote board', error);
       }
@@ -8000,7 +8016,24 @@ export default function ChessBattleRoyal() {
   const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
   const initialAiFlag =
     aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
-  const initialSide = params.get('side') === 'black' ? 'black' : 'white';
+  const colorPreferenceParam = params.get('colorPreference');
+  const preferredSide =
+    colorPreferenceParam === 'white'
+      ? 'white'
+      : colorPreferenceParam === 'black'
+        ? 'black'
+        : 'auto';
+  const initialSideParam = params.get('side');
+  const initialSide =
+    initialSideParam === 'black'
+      ? 'black'
+      : initialSideParam === 'white'
+        ? 'white'
+        : preferredSide === 'black'
+          ? 'black'
+          : preferredSide === 'white'
+            ? 'white'
+            : 'white';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
   const initialOpponent =

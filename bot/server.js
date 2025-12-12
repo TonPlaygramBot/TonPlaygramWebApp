@@ -373,6 +373,46 @@ function updateChessState(tableId, nextState = {}) {
   return merged;
 }
 
+function resolveChessSides(players = []) {
+  if (!Array.isArray(players) || players.length < 2) return players;
+  const [p1, p2] = players.map((p) => ({ ...p }));
+  const pref1 = (p1.colorPreference || 'auto').toLowerCase();
+  const pref2 = (p2.colorPreference || 'auto').toLowerCase();
+
+  const pickOpposite = (color) => (color === 'white' ? 'black' : 'white');
+  const normalize = (pref) => (pref === 'white' || pref === 'black' ? pref : 'auto');
+  const n1 = normalize(pref1);
+  const n2 = normalize(pref2);
+
+  let side1 = 'white';
+  let side2 = 'black';
+
+  if (n1 === 'white' && n2 === 'black') {
+    side1 = 'white';
+    side2 = 'black';
+  } else if (n1 === 'black' && n2 === 'white') {
+    side1 = 'black';
+    side2 = 'white';
+  } else if (n1 !== 'auto' && n2 === 'auto') {
+    side1 = n1;
+    side2 = pickOpposite(n1);
+  } else if (n1 === 'auto' && n2 !== 'auto') {
+    side2 = n2;
+    side1 = pickOpposite(n2);
+  } else if (n1 === n2 && n1 !== 'auto') {
+    side1 = n1;
+    side2 = pickOpposite(n1);
+  } else {
+    const firstIsWhite = Math.random() >= 0.5;
+    side1 = firstIsWhite ? 'white' : 'black';
+    side2 = firstIsWhite ? 'black' : 'white';
+  }
+
+  p1.side = side1;
+  p2.side = side2;
+  return [p1, p2];
+}
+
 async function seatTableSocket(
   accountId,
   gameType,
@@ -380,7 +420,8 @@ async function seatTableSocket(
   maxPlayers,
   playerName,
   socket,
-  playerAvatar
+  playerAvatar,
+  colorPreference = 'auto'
 ) {
   if (!accountId) return null;
   console.log(
@@ -389,6 +430,8 @@ async function seatTableSocket(
   const table = getAvailableTable(gameType, stake, maxPlayers);
   const tableId = table.id;
   cleanupSeats();
+  const normalizedPref =
+    colorPreference === 'white' || colorPreference === 'black' ? colorPreference : 'auto';
   // Ensure this user is not seated at any other table
   for (const id of Array.from(tableSeats.keys())) {
     if (id !== tableId && tableSeats.get(id)?.has(String(accountId))) {
@@ -406,14 +449,16 @@ async function seatTableSocket(
       name: playerName || String(accountId),
       avatar: playerAvatar || '',
       ts: Date.now(),
-      socketId: socket?.id
+      socketId: socket?.id,
+      colorPreference: normalizedPref
     });
     table.players.push({
       id: accountId,
       name: playerName || String(accountId),
       avatar: playerAvatar || '',
       position: 0,
-      socketId: socket?.id
+      socketId: socket?.id,
+      colorPreference: normalizedPref
     });
     if (table.players.length === 1) {
       table.currentTurn = accountId;
@@ -424,10 +469,16 @@ async function seatTableSocket(
     info.avatar = playerAvatar || info.avatar;
     info.ts = Date.now();
     info.socketId = socket?.id;
-    const p = table.players.find((pl) => pl.id === accountId);
-    if (p) {
-      p.socketId = socket?.id;
-      p.avatar = playerAvatar || p.avatar;
+    info.colorPreference = normalizedPref;
+    map.set(String(accountId), info);
+    const playerIdx = table.players.findIndex((pl) => pl.id === accountId);
+    if (playerIdx >= 0) {
+      table.players[playerIdx] = {
+        ...table.players[playerIdx],
+        socketId: socket?.id,
+        avatar: playerAvatar || table.players[playerIdx].avatar,
+        colorPreference: normalizedPref
+      };
     }
   }
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
@@ -451,13 +502,18 @@ function maybeStartGame(table) {
     if (table.startTimeout) return;
     table.startTimeout = setTimeout(() => {
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
+      let players = table.players;
+      if (table.gameType === 'chess' && table.players.length >= 2) {
+        players = resolveChessSides(table.players);
+        table.players = players;
+      }
       if (table.gameType === 'chess') {
         const initial = updateChessState(table.id, { turnWhite: true, lastMove: null });
         io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
       }
       io.to(table.id).emit('gameStart', {
         tableId: table.id,
-        players: table.players,
+        players,
         currentTurn: table.currentTurn,
         stake: table.stake
       });
@@ -843,7 +899,8 @@ io.on('connection', (socket) => {
         maxPlayers = 4,
         playerName,
         tableId,
-        avatar
+        avatar,
+        colorPreference
       },
       cb
     ) => {
@@ -868,7 +925,8 @@ io.on('connection', (socket) => {
           maxPlayers,
           playerName,
           socket,
-          avatar
+          avatar,
+          colorPreference
         );
       }
       if (table && cb) {
