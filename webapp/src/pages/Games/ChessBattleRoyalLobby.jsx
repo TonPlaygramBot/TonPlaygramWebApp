@@ -30,6 +30,8 @@ export default function ChessBattleRoyalLobby() {
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [onlineCount, setOnlineCount] = useState(null);
   const [accountId, setAccountId] = useState('');
+  const [matching, setMatching] = useState(false);
+  const [matchStatus, setMatchStatus] = useState('');
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -40,6 +42,13 @@ export default function ChessBattleRoyalLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'online') {
+      setMatching(false);
+      setMatchStatus('');
+    }
+  }, [mode]);
 
   useEffect(() => {
     try {
@@ -88,8 +97,29 @@ export default function ChessBattleRoyalLobby() {
     };
   }, []);
 
+  const waitForOpponent = async () => {
+    setMatchStatus('Connecting to lobby…');
+    for (let i = 0; i < 10; i += 1) {
+      try {
+        const res = await getOnlineCount();
+        const count = res?.count ?? 0;
+        if (count >= 2) {
+          setMatchStatus('Opponent connected. Launching match…');
+          return true;
+        }
+        setMatchStatus('Waiting for another player to join…');
+      } catch {
+        setMatchStatus('Reconnecting to lobby…');
+      }
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+    }
+    setMatchStatus('Still looking for an opponent. Keep this tab open.');
+    return false;
+  };
+
   const startGame = async () => {
     const isOnline = mode === 'online';
+    if (isOnline) setMatching(true);
     let tgId;
     let trackedAccountId;
     if (isOnline) {
@@ -99,6 +129,7 @@ export default function ChessBattleRoyalLobby() {
         const balRes = await getAccountBalance(trackedAccountId);
         if ((balRes.balance || 0) < stake.amount) {
           alert('Insufficient balance');
+          setMatching(false);
           return;
         }
         tgId = getTelegramId();
@@ -107,7 +138,15 @@ export default function ChessBattleRoyalLobby() {
           players: 2,
           accountId: trackedAccountId,
         });
-      } catch {}
+      } catch {
+        setMatching(false);
+        return;
+      }
+      const ready = await waitForOpponent();
+      if (!ready) {
+        setMatching(false);
+        return;
+      }
     }
 
     const params = new URLSearchParams();
@@ -119,13 +158,14 @@ export default function ChessBattleRoyalLobby() {
     if (isOnline && (trackedAccountId || accountId))
       params.set('accountId', trackedAccountId || accountId);
     if (selectedFlag) params.set('flag', selectedFlag);
-    if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+    if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
     if (isOnline && initData) params.set('init', encodeURIComponent(initData));
     params.set('mode', mode);
     navigate(`/games/chessbattleroyal?${params.toString()}`);
+    setMatching(false);
   };
 
   return (
@@ -205,30 +245,43 @@ export default function ChessBattleRoyalLobby() {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <h3 className="font-semibold">AI Avatar Flags</h3>
-        <p className="text-sm text-subtext">
-          Pick the country flag for the AI rival so it matches the Snake &amp; Ladder experience.
-        </p>
-        <button
-          type="button"
-          onClick={() => setShowAiFlagPicker(true)}
-          className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
-        >
-          <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flag</div>
-          <div className="flex items-center gap-2 text-base font-semibold">
-            <span className="text-lg">{selectedAiFlag || '🌐'}</span>
-            <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick for opponent'}</span>
-          </div>
-        </button>
-      </div>
+      {mode === 'ai' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">AI Avatar Flags</h3>
+          <p className="text-sm text-subtext">
+            Pick the country flag for the AI rival so it matches the Snake &amp; Ladder experience.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowAiFlagPicker(true)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background/60 hover:border-primary text-sm text-left"
+          >
+            <div className="text-[11px] uppercase tracking-wide text-subtext">AI Flag</div>
+            <div className="flex items-center gap-2 text-base font-semibold">
+              <span className="text-lg">{selectedAiFlag || '🌐'}</span>
+              <span>{selectedAiFlag ? 'Custom AI flag' : 'Auto-pick for opponent'}</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       <button
         onClick={startGame}
-        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
+        disabled={matching}
+        className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {mode === 'online' ? 'Find Online Match' : 'Play vs AI'}
+        {matching
+          ? matchStatus || 'Connecting…'
+          : mode === 'online'
+            ? 'Find Online Match'
+            : 'Play vs AI'}
       </button>
+
+      {mode === 'online' && matchStatus && (
+        <div className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm text-primary">
+          {matchStatus}
+        </div>
+      )}
 
       <FlagPickerModal
         open={showFlagPicker}
