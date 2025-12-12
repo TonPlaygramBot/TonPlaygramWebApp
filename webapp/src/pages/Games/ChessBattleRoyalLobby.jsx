@@ -36,7 +36,6 @@ export default function ChessBattleRoyalLobby() {
   const [matching, setMatching] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
-  const [pieceColor, setPieceColor] = useState('auto');
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
 
@@ -47,15 +46,6 @@ export default function ChessBattleRoyalLobby() {
     try {
       const saved = loadAvatar();
       setAvatar(saved || getTelegramPhotoUrl());
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage?.getItem('chessBattleRoyalPieceColor');
-      if (stored === 'white' || stored === 'black' || stored === 'auto') {
-        setPieceColor(stored);
-      }
     } catch {}
   }, []);
 
@@ -119,7 +109,6 @@ export default function ChessBattleRoyalLobby() {
     if (extraParams.tgId) params.set('tgId', extraParams.tgId);
     if (isOnline && (extraParams.trackedAccountId || accountId))
       params.set('accountId', extraParams.trackedAccountId || accountId);
-    if (isOnline && extraParams.side) params.set('side', extraParams.side);
     if (selectedFlag) params.set('flag', selectedFlag);
     if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
@@ -197,9 +186,8 @@ export default function ChessBattleRoyalLobby() {
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== pendingTableRef.current) return;
       const meIndex = players.findIndex((p) => String(p.id) === String(trackedAccountId || accountId));
-      const mePlayer = players[meIndex] || {};
       const opp = players.find((p) => String(p.id) !== String(trackedAccountId || accountId));
-      const side = mePlayer.side === 'black' ? 'black' : meIndex === 0 ? 'white' : 'black';
+      const side = meIndex === 0 ? 'white' : 'black';
       cleanupLobby({ account: trackedAccountId });
       navigateToGame({
         tgId,
@@ -226,8 +214,7 @@ export default function ChessBattleRoyalLobby() {
         stake: stake.amount ?? 0,
         maxPlayers: 2,
         playerName: friendlyName,
-        avatar,
-        sidePreference: pieceColor
+        avatar
       },
       (res) => {
         if (!res?.success || !res.tableId) {
@@ -292,42 +279,6 @@ export default function ChessBattleRoyalLobby() {
           <p className="text-center text-subtext text-sm">
             Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
           </p>
-        </div>
-      )}
-
-      {mode === 'online' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Piece Color</h3>
-          <p className="text-sm text-subtext">
-            Auto will assign you the opposite color from your opponent. You can still request White or Black.
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { key: 'auto', label: 'Auto' },
-              { key: 'white', label: 'Play White' },
-              { key: 'black', label: 'Play Black' }
-            ].map(({ key, label }) => {
-              const active = pieceColor === key;
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    setPieceColor(key);
-                    try {
-                      window.localStorage?.setItem('chessBattleRoyalPieceColor', key);
-                    } catch {}
-                  }}
-                  className={`rounded-lg border px-3 py-2 text-sm shadow transition hover:border-primary ${
-                    active ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background/70 text-text'
-                  }`}
-                >
-                  {label}
-                  {active && <span className="ml-1 text-xs font-semibold">(Selected)</span>}
-                </button>
-              );
-            })}
-          </div>
         </div>
       )}
 
