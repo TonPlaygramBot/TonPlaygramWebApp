@@ -36,6 +36,7 @@ export default function ChessBattleRoyalLobby() {
   const [matching, setMatching] = useState(false);
   const [matchStatus, setMatchStatus] = useState('');
   const [matchError, setMatchError] = useState('');
+  const [preferredSide, setPreferredSide] = useState('auto');
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
 
@@ -111,6 +112,7 @@ export default function ChessBattleRoyalLobby() {
       params.set('accountId', extraParams.trackedAccountId || accountId);
     if (selectedFlag) params.set('flag', selectedFlag);
     if (!isOnline && selectedAiFlag) params.set('aiFlag', selectedAiFlag);
+    if (preferredSide) params.set('preferredSide', preferredSide);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
@@ -187,13 +189,15 @@ export default function ChessBattleRoyalLobby() {
       if (!startedId || startedId !== pendingTableRef.current) return;
       const meIndex = players.findIndex((p) => String(p.id) === String(trackedAccountId || accountId));
       const opp = players.find((p) => String(p.id) !== String(trackedAccountId || accountId));
-      const side = meIndex === 0 ? 'white' : 'black';
+      const mySide =
+        players.find((p) => String(p.id) === String(trackedAccountId || accountId))?.side ||
+        (meIndex === 0 ? 'white' : 'black');
       cleanupLobby({ account: trackedAccountId });
       navigateToGame({
         tgId,
         trackedAccountId,
         tableId: startedId,
-        side,
+        side: mySide,
         opponentName: opp?.name,
         opponentAvatar: opp?.avatar
       });
@@ -214,7 +218,8 @@ export default function ChessBattleRoyalLobby() {
         stake: stake.amount ?? 0,
         maxPlayers: 2,
         playerName: friendlyName,
-        avatar
+        avatar,
+        preferredSide
       },
       (res) => {
         if (!res?.success || !res.tableId) {
@@ -278,6 +283,42 @@ export default function ChessBattleRoyalLobby() {
           <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
           <p className="text-center text-subtext text-sm">
             Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
+          </p>
+        </div>
+      )}
+
+      {mode === 'online' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Pick Your Pieces</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: 'auto', label: 'Auto', desc: 'Random seats, no duplicates' },
+              { key: 'white', label: 'White', desc: 'You start first' },
+              { key: 'black', label: 'Black', desc: 'Opponent opens' }
+            ].map(({ key, label, desc }) => {
+              const active = preferredSide === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setPreferredSide(key)}
+                  className={`rounded-xl border px-3 py-3 text-left shadow transition hover:border-primary ${
+                    active
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-background/70 text-text'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">{label}</span>
+                    {active && <span className="text-xs font-bold">Selected</span>}
+                  </div>
+                  <div className="text-xs text-subtext">{desc}</div>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-xs text-subtext text-center">
+            Auto randomizes colors while ensuring both players get different sides.
           </p>
         </div>
       )}
