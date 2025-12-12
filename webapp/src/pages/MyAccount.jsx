@@ -375,7 +375,6 @@ export default function MyAccount() {
               </p>
               <LinkGoogleButton
                 telegramId={telegramId}
-                accountId={profile?.accountId || localStorage.getItem('accountId')}
                 onLinked={(linkedId) => {
                   setGoogleLinked(true);
                   if (linkedId) setGoogleId(linkedId);
