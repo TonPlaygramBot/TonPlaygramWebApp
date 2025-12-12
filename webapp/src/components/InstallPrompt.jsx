@@ -5,18 +5,22 @@ const DISMISS_KEY = 'tonplaygram_pwa_prompt_dismissed';
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [visible, setVisible] = useState(false);
+  const [telegramFallback, setTelegramFallback] = useState(false);
+
+  const isTelegram = Boolean(window.Telegram?.WebApp);
+
+  const isStandaloneDisplay = () =>
+    window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
 
   useEffect(() => {
-    const isStandalone =
-      window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-    if (isStandalone) return undefined;
+    if (isStandaloneDisplay()) return undefined;
 
     const handleBeforeInstallPrompt = (event) => {
       event.preventDefault();
       if (localStorage.getItem(DISMISS_KEY) === 'true') return;
       setDeferredPrompt(event);
       setVisible(true);
+      setTelegramFallback(false);
     };
 
     const handleAppInstalled = () => {
@@ -34,7 +38,30 @@ export default function InstallPrompt() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isTelegram || isStandaloneDisplay()) return undefined;
+    if (localStorage.getItem(DISMISS_KEY) === 'true') return undefined;
+
+    const timeout = window.setTimeout(() => {
+      if (!deferredPrompt) {
+        setVisible(true);
+        setTelegramFallback(true);
+      }
+    }, 1200);
+
+    return () => window.clearTimeout(timeout);
+  }, [deferredPrompt, isTelegram]);
+
   const handleInstall = useCallback(async () => {
+    if (telegramFallback && isTelegram) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('pwa-install', '1');
+      window.Telegram.WebApp.openLink(url.toString(), { try_instant_view: false });
+      setVisible(false);
+      localStorage.setItem(DISMISS_KEY, 'true');
+      return;
+    }
+
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice.catch(() => null);
@@ -43,7 +70,7 @@ export default function InstallPrompt() {
     if (choice?.outcome === 'dismissed') {
       localStorage.setItem(DISMISS_KEY, 'true');
     }
-  }, [deferredPrompt]);
+  }, [deferredPrompt, isTelegram, telegramFallback]);
 
   const handleDismiss = () => {
     setVisible(false);
@@ -53,13 +80,16 @@ export default function InstallPrompt() {
 
   if (!visible) return null;
 
+  const title = telegramFallback && isTelegram ? 'Install TonPlaygram from your browser' : 'Install TonPlaygram';
+
   return (
     <div className="fixed bottom-24 right-4 left-4 sm:left-auto sm:w-80 z-50">
       <div className="bg-surface border border-accent/60 rounded-xl shadow-xl p-4 text-white">
-        <div className="font-bold text-lg mb-2 text-white">Install TonPlaygram</div>
+        <div className="font-bold text-lg mb-2 text-white">{title}</div>
         <p className="text-sm mb-4 text-white/80">
-          Add TonPlaygram to your home screen for faster launches, offline-ready caching, and quick access to
-          your games and wallet.
+          {telegramFallback && isTelegram
+            ? 'Telegram\'s in-app browser blocks install prompts. Open this page in your device browser to add TonPlaygram to your home screen.'
+            : 'Add TonPlaygram to your home screen for faster launches, offline-ready caching, and quick access to your games and wallet.'}
         </p>
         <div className="flex gap-2 justify-end">
           <button
@@ -74,7 +104,7 @@ export default function InstallPrompt() {
             className="bg-primary hover:bg-primary-hover text-white px-3 py-1 rounded"
             onClick={handleInstall}
           >
-            Install
+            {telegramFallback && isTelegram ? 'Open in browser' : 'Install'}
           </button>
         </div>
       </div>
