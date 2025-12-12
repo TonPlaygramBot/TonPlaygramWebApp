@@ -212,6 +212,7 @@ export default function PoolRoyaleLobby() {
           stake: stake.amount,
           token: stake.token,
           gameType: 'poolroyale',
+          maxPlayers: 2,
           mode,
           variant,
           tableSize,
