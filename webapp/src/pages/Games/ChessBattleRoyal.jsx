@@ -5281,21 +5281,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
       avatarToName(effectivePlayerFlag) || username || avatarToName(avatar) || 'Player';
     const playerPhoto = avatar || effectivePlayerFlag || '🙂';
 
-    const onlineEnabled = onlineRef.current.enabled;
-    const hasOpponent = Boolean(opponent);
-    const useOnlineOpponent = onlineEnabled && hasOpponent;
-    const effectiveAiFlag =
-      onlineEnabled ? '' : aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
-    const opponentName = useOnlineOpponent
-      ? opponent.name || avatarToName(opponent.avatar) || 'Opponent'
-      : onlineEnabled
-        ? 'Online rival'
-        : avatarToName(effectiveAiFlag) || 'AI Rival';
-    const opponentPhoto = useOnlineOpponent
-      ? opponent.avatar || effectivePlayerFlag || '🤝'
-      : onlineEnabled
-        ? '⏳'
-        : effectiveAiFlag || '🏁';
+    const effectiveAiFlag = aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
+    const aiName = avatarToName(effectiveAiFlag) || 'AI Rival';
 
     return [
       {
@@ -5307,13 +5294,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
       },
       {
         index: 1,
-        photoUrl: opponentPhoto,
-        name: opponentName,
+        photoUrl: effectiveAiFlag || '🏁',
+        name: aiName,
         color: accentColor,
         isTurn: !ui.turnWhite
       }
     ];
-  }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
+  }, [aiFlag, appearance, avatar, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
