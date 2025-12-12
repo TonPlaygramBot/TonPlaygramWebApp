@@ -23,6 +23,7 @@ import {
 } from '../../utils/telegram.js';
 import { canStartGame } from '../../utils/lobby.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { seedFlags } from '../../utils/aiFlagDefaults.js';
 
 export default function Lobby() {
   const { game } = useParams();
@@ -38,8 +39,8 @@ export default function Lobby() {
   const [stake, setStake] = useState({ token: '', amount: 0 });
   const [players, setPlayers] = useState([]);
   const [currentTurn, setCurrentTurn] = useState(null);
-  const [aiCount, setAiCount] = useState(0);
-  const [aiType, setAiType] = useState('');
+  const [aiCount, setAiCount] = useState(1);
+  const [aiType, setAiType] = useState('flags');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
   const [online, setOnline] = useState(0);
@@ -98,6 +99,15 @@ export default function Lobby() {
     window.addEventListener('profilePhotoUpdated', updatePhoto);
     return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
   }, []);
+
+  useEffect(() => {
+    if (game !== 'snake' || table?.id !== 'single') return;
+    const count = flagPickerCount || 1;
+    if (flags.length === count && aiType === 'flags') return;
+    setFlags(seedFlags(count, { includePlayer: false }));
+    setAiType('flags');
+    setAiCount((prev) => prev || 1);
+  }, [game, table?.id, flagPickerCount, flags.length, aiType]);
 
   useEffect(() => {
     if (game !== 'snake') return undefined;
