@@ -34,9 +34,12 @@
 
   - `RATE_LIMIT_MAX` – (optional) max requests per window from one IP (defaults to 100)
 
-  - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io. Multiple
+ - `ALLOWED_ORIGINS` – list of origins allowed for CORS and socket.io. Multiple
     origins may be comma-separated, e.g.
     `https://tonplaygram-bot.onrender.com,https://t.me,https://web.telegram.org`
+  - `GOOGLE_CLIENT_ID` – (optional) Google OAuth client ID used to serve the
+    profile/login Google button when the webapp was built without
+    `VITE_GOOGLE_CLIENT_ID`.
 
   - `TWITTER_BEARER_TOKEN` – bearer token for verifying reposts on **X**.
   - `TWITTER_CLIENT_ID` – API key for **X** OAuth linking.
