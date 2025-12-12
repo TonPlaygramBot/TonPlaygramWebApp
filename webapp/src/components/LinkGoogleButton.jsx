@@ -36,40 +36,24 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       });
     }
 
-    function decodeJwtPayload(jwt) {
-      const [, payload] = String(jwt).split('.');
-      if (!payload) return null;
-
-      const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), '=');
-
-      try {
-        return JSON.parse(atob(padded));
-      } catch (err) {
-        console.error('Failed to parse Google credential', err);
-        return null;
-      }
-    }
-
     function handleCredential(res) {
-      const data = decodeJwtPayload(res.credential);
-      if (!data?.sub) return;
-
-      localStorage.setItem('googleId', data.sub);
-      linkGoogleAccount({
-        telegramId,
-        googleId: data.sub,
-        email: data.email,
-        firstName: data.given_name,
-        lastName: data.family_name,
-        photo: data.picture
-      })
-        .then(() => {
+      try {
+        const data = JSON.parse(atob(res.credential.split('.')[1]));
+        if (!data.sub) return;
+        localStorage.setItem('googleId', data.sub);
+        linkGoogleAccount({
+          telegramId,
+          googleId: data.sub,
+          email: data.email,
+          firstName: data.given_name,
+          lastName: data.family_name,
+          photo: data.picture
+        }).then(() => {
           if (onLinked) onLinked(data.sub);
-        })
-        .catch((err) => {
-          console.error('Failed to link Google account', err);
         });
+      } catch (err) {
+        console.error('Failed to link Google account', err);
+      }
     }
 
     function renderOfficialButton() {
