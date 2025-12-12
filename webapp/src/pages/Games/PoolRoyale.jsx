@@ -5040,8 +5040,11 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
-  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const sideSpan =
+    SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION +
+    BALL_R * 0.65; // extend the middle pocket guard for more precise collisions and align with the visible cutout
+  const sideDepthLimit =
+    SIDE_POCKET_RADIUS * 1.45 * POCKET_VISUAL_EXPANSION; // match the middle pocket throat depth to the scaled radius
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
