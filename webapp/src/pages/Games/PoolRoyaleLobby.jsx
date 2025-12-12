@@ -56,7 +56,6 @@ export default function PoolRoyaleLobby() {
   const [matchingError, setMatchingError] = useState('');
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
-  const stakeChargedRef = useRef(false);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -90,9 +89,11 @@ export default function PoolRoyaleLobby() {
   }, [playType, variant]);
 
   const startGame = async () => {
+    const isOnlineMatch = mode === 'online' && playType === 'regular';
     let tgId;
     let accountId;
-    if (playType !== 'training') {
+
+    if (isOnlineMatch) {
       try {
         accountId = await ensureAccountId();
         const balRes = await getAccountBalance(accountId);
@@ -101,13 +102,11 @@ export default function PoolRoyaleLobby() {
           return;
         }
         tgId = getTelegramId();
-        if (mode !== 'online') {
-          await addTransaction(tgId, -stake.amount, 'stake', {
-            game: 'poolroyale',
-            players: playType === 'tournament' ? players : 2,
-            accountId
-          });
-        }
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'poolroyale-online',
+          players: 2,
+          accountId
+        });
       } catch {}
     } else {
       try {
@@ -118,10 +117,9 @@ export default function PoolRoyaleLobby() {
 
     accountIdRef.current = accountId;
 
-    if (mode === 'online' && playType === 'regular') {
+    if (isOnlineMatch) {
       setMatchingError('');
       setIsSearching(true);
-      stakeChargedRef.current = false;
       if (!accountId) {
         setIsSearching(false);
         setMatchingError('Unable to resolve your TPC account.');
@@ -173,8 +171,10 @@ export default function PoolRoyaleLobby() {
       params.set('rules', trainingRulesEnabled ? 'on' : 'off');
     }
     if (playType !== 'training') {
-      if (stake.token) params.set('token', stake.token);
-      if (stake.amount) params.set('amount', stake.amount);
+      if (isOnlineMatch) {
+        if (stake.token) params.set('token', stake.token);
+        if (stake.amount) params.set('amount', stake.amount);
+      }
       if (playType === 'tournament') params.set('players', players);
     }
     const initData = window.Telegram?.WebApp?.initData;
@@ -268,19 +268,6 @@ export default function PoolRoyaleLobby() {
 
     const onStart = async ({ tableId: incomingId }) => {
       if (incomingId !== tableId) return;
-      if (!stakeChargedRef.current && stake.amount) {
-        const tgId = getTelegramId();
-        const accountId = accountIdRef.current;
-        try {
-          await addTransaction(tgId, -stake.amount, 'stake', {
-            game: 'poolroyale-online',
-            players: 2,
-            accountId,
-            tableId
-          });
-        } catch {}
-        stakeChargedRef.current = true;
-      }
       const params = new URLSearchParams();
       params.set('variant', variant);
       params.set('type', playType);
@@ -330,7 +317,6 @@ export default function PoolRoyaleLobby() {
       setMatchTableId('');
       setMatchPlayers([]);
       setReadyList([]);
-      stakeChargedRef.current = false;
     }
   }, [mode, playType]);
 
@@ -491,10 +477,13 @@ export default function PoolRoyaleLobby() {
           <p className="text-xs">Winner takes pot minus 10% developer fee.</p>
         </div>
       )}
-      {playType !== 'training' && (
+      {mode === 'online' && playType === 'regular' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Stake</h3>
           <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+          <p className="text-center text-xs text-subtext">
+            Online games use your TPC stake as escrow, while AI matches stay free like Chess Battle Royal.
+          </p>
         </div>
       )}
       <div className="space-y-2">
