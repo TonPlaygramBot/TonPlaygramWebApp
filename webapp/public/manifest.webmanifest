@@ -2,6 +2,7 @@
   "name": "TonPlaygram",
   "short_name": "TonPlaygram",
   "description": "TonPlaygram is a TON based gaming platform on Telegram with integrated wallet and rewards.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
