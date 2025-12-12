@@ -28,6 +28,14 @@ export function parseTwitterHandle(input) {
 
 const router = Router();
 
+router.get('/google-client-id', (req, res) => {
+  const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    return res.status(404).json({ error: 'Google client ID not configured' });
+  }
+  res.json({ clientId });
+});
+
 router.post('/register-wallet', async (req, res) => {
   const { walletAddress } = req.body;
   if (!walletAddress) {
