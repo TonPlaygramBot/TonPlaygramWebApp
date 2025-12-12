@@ -373,6 +373,37 @@ function updateChessState(tableId, nextState = {}) {
   return merged;
 }
 
+function assignChessSides(players = []) {
+  const normalized = players.map((p) => ({
+    ...p,
+    sidePreference: ['white', 'black'].includes(p.sidePreference) ? p.sidePreference : 'auto'
+  }));
+
+  let white = normalized.find((p) => p.sidePreference === 'white') || null;
+  let black = normalized.find((p) => p.sidePreference === 'black') || null;
+
+  const remaining = normalized.filter((p) => p !== white && p !== black);
+  remaining.forEach((p) => {
+    if (!white) white = p;
+    else if (!black) black = p;
+  });
+
+  if (white && !black && normalized.length > 1) {
+    black = normalized.find((p) => p !== white) || black;
+  }
+  if (black && !white && normalized.length > 0) {
+    white = normalized.find((p) => p !== black) || normalized[0];
+  }
+
+  if (!white && normalized[0]) white = normalized[0];
+  if (!black && normalized[1]) black = normalized[1];
+  if (white === black && normalized.length > 1) {
+    black = normalized.find((p) => p !== white) || black;
+  }
+
+  return normalized.map((p) => ({ ...p, side: p.id === white?.id ? 'white' : 'black' }));
+}
+
 async function seatTableSocket(
   accountId,
   gameType,
@@ -380,7 +411,8 @@ async function seatTableSocket(
   maxPlayers,
   playerName,
   socket,
-  playerAvatar
+  playerAvatar,
+  sidePreference = 'auto'
 ) {
   if (!accountId) return null;
   console.log(
@@ -406,14 +438,16 @@ async function seatTableSocket(
       name: playerName || String(accountId),
       avatar: playerAvatar || '',
       ts: Date.now(),
-      socketId: socket?.id
+      socketId: socket?.id,
+      sidePreference
     });
     table.players.push({
       id: accountId,
       name: playerName || String(accountId),
       avatar: playerAvatar || '',
       position: 0,
-      socketId: socket?.id
+      socketId: socket?.id,
+      sidePreference
     });
     if (table.players.length === 1) {
       table.currentTurn = accountId;
@@ -424,10 +458,12 @@ async function seatTableSocket(
     info.avatar = playerAvatar || info.avatar;
     info.ts = Date.now();
     info.socketId = socket?.id;
+    info.sidePreference = sidePreference || info.sidePreference || 'auto';
     const p = table.players.find((pl) => pl.id === accountId);
     if (p) {
       p.socketId = socket?.id;
       p.avatar = playerAvatar || p.avatar;
+      p.sidePreference = sidePreference || p.sidePreference || 'auto';
     }
   }
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
@@ -452,6 +488,9 @@ function maybeStartGame(table) {
     table.startTimeout = setTimeout(() => {
       console.log(`Table ${table.id} confirmed by all players. Starting game.`);
       if (table.gameType === 'chess') {
+        table.players = assignChessSides(table.players);
+        const whitePlayer = table.players.find((p) => p.side === 'white');
+        if (whitePlayer) table.currentTurn = whitePlayer.id;
         const initial = updateChessState(table.id, { turnWhite: true, lastMove: null });
         io.to(table.id).emit('chessState', { tableId: table.id, ...initial });
       }
@@ -467,7 +506,7 @@ function maybeStartGame(table) {
         (t) => t.id !== table.id
       );
       table.startTimeout = null;
-    }, 1000);
+    }, 250);
   }
 }
 
@@ -843,7 +882,8 @@ io.on('connection', (socket) => {
         maxPlayers = 4,
         playerName,
         tableId,
-        avatar
+        avatar,
+        sidePreference
       },
       cb
     ) => {
@@ -858,7 +898,8 @@ io.on('connection', (socket) => {
           Number(capStr) || 4,
           playerName,
           socket,
-          avatar
+          avatar,
+          sidePreference
         );
       } else {
         table = await seatTableSocket(
@@ -868,7 +909,8 @@ io.on('connection', (socket) => {
           maxPlayers,
           playerName,
           socket,
-          avatar
+          avatar,
+          sidePreference
         );
       }
       if (table && cb) {

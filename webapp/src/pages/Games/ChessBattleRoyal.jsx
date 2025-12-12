@@ -5126,9 +5126,10 @@ function Chess3D({
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== tableJoin.current) return;
       const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
+      const mePlayer = players[meIndex] || {};
       const opp = players.find((p) => String(p.id) !== String(accountId));
       if (opp) setOpponent(opp);
-      onlineRef.current.side = meIndex === 0 ? 'white' : 'black';
+      onlineRef.current.side = mePlayer.side === 'black' ? 'black' : meIndex === 0 ? 'white' : 'black';
       onlineRef.current.status = 'started';
       setOnlineStatus('starting');
       socket.emit('joinChessRoom', { tableId: startedId, accountId });
