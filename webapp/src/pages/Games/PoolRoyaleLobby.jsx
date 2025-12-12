@@ -45,6 +45,7 @@ export default function PoolRoyaleLobby() {
   const [matching, setMatching] = useState(false);
   const [spinningPlayer, setSpinningPlayer] = useState('');
   const [matchPlayers, setMatchPlayers] = useState([]);
+  const matchPlayersRef = useRef([]);
   const [readyList, setReadyList] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
@@ -79,6 +80,10 @@ export default function PoolRoyaleLobby() {
       if (idx >= 0) setAiFlagIndex(idx);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    matchPlayersRef.current = matchPlayers;
+  }, [matchPlayers]);
 
   const startGame = async () => {
     const isOnlineMatch = mode === 'online' && playType === 'regular';
@@ -127,6 +132,7 @@ export default function PoolRoyaleLobby() {
       const handleLobbyUpdate = ({ tableId: tid, players: list = [], ready = [] } = {}) => {
         if (!tid || tid !== pendingTableRef.current) return;
         setMatchPlayers(list);
+        matchPlayersRef.current = list;
         setReadyList(ready);
         const others = list.filter((p) => String(p.id) !== String(accountId));
         setMatchStatus(
@@ -134,8 +140,21 @@ export default function PoolRoyaleLobby() {
         );
       };
 
-      const handleGameStart = ({ tableId: startedId } = {}) => {
+      const handleGameStart = ({ tableId: startedId, players: joined = [] } = {}) => {
         if (!startedId || startedId !== pendingTableRef.current) return;
+        const selfId = accountIdRef.current || accountId;
+        const roster = Array.isArray(joined) && joined.length > 0 ? joined : matchPlayersRef.current;
+        const selfEntry = roster.find((p) => String(p.id) === String(selfId));
+        const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
+        const friendlyName =
+          selfEntry?.name || getTelegramFirstName() || getTelegramId() || (selfId ? `TPC ${selfId}` : 'Player');
+        const friendlyAvatar = selfEntry?.avatar || avatar;
+        const opponentName =
+          opponentEntry?.name ||
+          opponentEntry?.username ||
+          opponentEntry?.telegramName ||
+          (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
+        const opponentAvatar = opponentEntry?.avatar || '';
         cleanupRef.current?.({ account: accountId, skipRefReset: true });
         const params = new URLSearchParams();
         params.set('variant', variant);
@@ -144,14 +163,16 @@ export default function PoolRoyaleLobby() {
         params.set('tableId', startedId);
         if (stake.token) params.set('token', stake.token);
         if (stake.amount) params.set('amount', stake.amount);
-        if (avatar) params.set('avatar', avatar);
+        if (friendlyAvatar) params.set('avatar', friendlyAvatar);
         const tgId = getTelegramId();
         if (tgId) params.set('tgId', tgId);
         const resolvedAccountId = accountIdRef.current;
         if (resolvedAccountId) params.set('accountId', resolvedAccountId);
         if (tableSize) params.set('tableSize', tableSize);
-        const name = getTelegramFirstName();
+        const name = (friendlyName || '').trim();
         if (name) params.set('name', name);
+        if (opponentName) params.set('opponent', opponentName);
+        if (opponentAvatar) params.set('opponentAvatar', opponentAvatar);
         navigate(`/games/poolroyale?${params.toString()}`);
       };
 
@@ -168,6 +189,7 @@ export default function PoolRoyaleLobby() {
           spinIntervalRef.current = null;
         }
         setMatchPlayers([]);
+        matchPlayersRef.current = [];
         setReadyList([]);
         setMatchStatus('');
         setMatching(false);
@@ -208,7 +230,9 @@ export default function PoolRoyaleLobby() {
           }
           pendingTableRef.current = res.tableId;
           setMatchStatus('Waiting for another player…');
-          setMatchPlayers(res.players || []);
+          const playersList = res.players || [];
+          setMatchPlayers(playersList);
+          matchPlayersRef.current = playersList;
           setReadyList(res.ready || []);
           socket.emit('confirmReady', {
             accountId,
@@ -326,6 +350,15 @@ export default function PoolRoyaleLobby() {
       setIsSearching(false);
     }
   }, [mode, playType]);
+
+  useEffect(() => {
+    if (!matching) return;
+    const readyIds = new Set((readyList || []).map((id) => String(id)));
+    const selfId = accountIdRef.current;
+    if (selfId && readyIds.has(String(selfId)) && readyIds.size >= 2) {
+      setMatchStatus('All players ready. Launching match…');
+    }
+  }, [matching, readyList]);
 
   const readyIds = useMemo(
     () => new Set((readyList || []).map((id) => String(id))),
