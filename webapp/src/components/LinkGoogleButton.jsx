@@ -7,29 +7,9 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const initialized = useRef(false);
-  const [clientId, setClientId] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-
-    function resolveClientId() {
-      if (clientId) return clientId;
-
-      const metaId =
-        typeof document !== 'undefined'
-          ? document.querySelector('meta[name="google-client-id"]')?.content?.trim()
-          : '';
-
-      const resolved =
-        import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-        import.meta.env.GOOGLE_CLIENT_ID ||
-        window.__GOOGLE_CLIENT_ID__ ||
-        metaId ||
-        '';
-
-      if (resolved && !clientId) setClientId(resolved);
-      return resolved;
-    }
 
     function ensureGoogleScript() {
       return new Promise((resolve) => {
@@ -122,8 +102,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
         return false;
       }
 
-      const resolvedClientId = resolveClientId();
-      if (!resolvedClientId) {
+      if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
         setError('Google sign-in is not configured.');
         return false;
       }
@@ -135,7 +114,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       }
 
       window.google.accounts.id.initialize({
-        client_id: resolvedClientId,
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleCredential,
         ux_mode: 'popup',
         cancel_on_tap_outside: false
@@ -152,7 +131,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
     return () => {
       cancelled = true;
     };
-  }, [telegramId, onLinked, clientId]);
+  }, [telegramId, onLinked]);
 
   function handleClick() {
     if (window.google?.accounts?.id && initialized.current) {
