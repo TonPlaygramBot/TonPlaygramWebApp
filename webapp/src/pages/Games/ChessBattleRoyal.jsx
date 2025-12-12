@@ -4961,12 +4961,22 @@ const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
 // ======================= Main Component =======================
-function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
+function Chess3D({
+  avatar,
+  username,
+  initialFlag,
+  initialAiFlag,
+  accountId,
+  initialTableId,
+  initialSide,
+  initialOpponent
+}) {
   const wrapRef = useRef(null);
+  const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
   const onlineRef = useRef({
     enabled: Boolean(accountId),
     tableId: null,
-    side: 'white',
+    side: normalizedInitialSide,
     synced: false,
     opponent: null,
     emitMove: () => {},
@@ -5050,6 +5060,12 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
   );
   const [tableId, setTableId] = useState('');
   const [opponent, setOpponent] = useState(null);
+  useEffect(() => {
+    if (initialOpponent) {
+      setOpponent(initialOpponent);
+      onlineRef.current.opponent = initialOpponent;
+    }
+  }, [initialOpponent]);
   const [p1QuickIdx, setP1QuickIdx] = useState(0);
   const [p2QuickIdx, setP2QuickIdx] = useState(1);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
@@ -5088,7 +5104,8 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
     }
     let active = true;
     const cleanups = [];
-    const tableJoin = { current: '' };
+    const tableJoin = { current: initialTableId || '' };
+    onlineRef.current.side = normalizedInitialSide;
 
     const handleChessState = (payload = {}) => {
       if (!active) return;
@@ -5111,33 +5128,6 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
       onlineRef.current.requestSync?.();
     };
 
-    socket.emit('register', { playerId: accountId });
-    socket.emit(
-      'seatTable',
-      {
-        accountId,
-        gameType: 'chess',
-        stake: 0,
-        maxPlayers: 2,
-        playerName: username,
-        avatar
-      },
-      (res) => {
-        if (!active) return;
-        if (res?.tableId) {
-          setTableId(res.tableId);
-          tableJoin.current = res.tableId;
-          onlineRef.current.tableId = res.tableId;
-          setOnlineStatus('matched');
-          socket.emit('confirmReady', { accountId, tableId: res.tableId });
-        }
-      }
-    );
-
-    socket.on('gameStart', handleGameStart);
-    socket.on('chessState', handleChessState);
-    socket.on('chessMove', handleChessState);
-
     onlineRef.current.emitMove = ({ tableId: tid, move }) => {
       const target = tid || onlineRef.current.tableId;
       if (!target || !move) return;
@@ -5148,6 +5138,45 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
       if (!target) return;
       socket.emit('chessSyncRequest', { tableId: target });
     };
+
+    socket.emit('register', { playerId: accountId });
+
+    const joinExistingTable = (tableIdToJoin) => {
+      setTableId(tableIdToJoin);
+      tableJoin.current = tableIdToJoin;
+      onlineRef.current.tableId = tableIdToJoin;
+      setOnlineStatus('starting');
+      socket.emit('joinChessRoom', { tableId: tableIdToJoin, accountId });
+      onlineRef.current.requestSync?.();
+    };
+
+    if (initialTableId) {
+      joinExistingTable(initialTableId);
+    } else {
+      socket.emit(
+        'seatTable',
+        {
+          accountId,
+          gameType: 'chess',
+          stake: 0,
+          maxPlayers: 2,
+          playerName: username,
+          avatar
+        },
+        (res) => {
+          if (!active) return;
+          if (res?.tableId) {
+            joinExistingTable(res.tableId);
+            setOnlineStatus('matched');
+            socket.emit('confirmReady', { accountId, tableId: res.tableId });
+          }
+        }
+      );
+    }
+
+    socket.on('gameStart', handleGameStart);
+    socket.on('chessState', handleChessState);
+    socket.on('chessMove', handleChessState);
 
     cleanups.push(() => {
       socket.off('gameStart', handleGameStart);
@@ -5161,7 +5190,7 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
       active = false;
       cleanups.forEach((fn) => fn());
     };
-  }, [accountId, avatar, username]);
+  }, [accountId, avatar, initialTableId, normalizedInitialSide, username]);
 
   useEffect(() => {
     whiteTimeRef.current = whiteTime;
@@ -5283,6 +5312,9 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
 
     const effectiveAiFlag = aiFlag || getAIOpponentFlag(effectivePlayerFlag || FALLBACK_FLAG);
     const aiName = avatarToName(effectiveAiFlag) || 'AI Rival';
+    const onlineRivalName = opponent?.name || 'Waiting for opponent…';
+    const onlineRivalPhoto = opponent?.avatar || onlineRivalName || '⏳';
+    const isOnlineGame = onlineRef.current.enabled;
 
     return [
       {
@@ -5294,13 +5326,13 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
       },
       {
         index: 1,
-        photoUrl: effectiveAiFlag || '🏁',
-        name: aiName,
+        photoUrl: isOnlineGame ? onlineRivalPhoto : effectiveAiFlag || '🏁',
+        name: isOnlineGame ? onlineRivalName : aiName,
         color: accentColor,
         isTurn: !ui.turnWhite
       }
     ];
-  }, [aiFlag, appearance, avatar, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
+  }, [aiFlag, appearance, avatar, opponent, playerFlag, resolvedInitialFlag, ui.turnWhite, username]);
 
   useEffect(() => {
     updateSandTimerPlacement(ui.turnWhite);
@@ -7956,6 +7988,14 @@ export default function ChessBattleRoyal() {
   const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
   const initialAiFlag =
     aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
+  const initialTableId = params.get('tableId') || '';
+  const initialSide = params.get('side') === 'black' ? 'black' : 'white';
+  const opponentName = params.get('opponentName') || '';
+  const opponentAvatar = params.get('opponentAvatar') || '';
+  const initialOpponent =
+    opponentName || opponentAvatar
+      ? { name: opponentName || 'Opponent', avatar: opponentAvatar }
+      : null;
   return (
     <Chess3D
       avatar={avatar}
@@ -7963,6 +8003,9 @@ export default function ChessBattleRoyal() {
       initialFlag={initialFlag}
       initialAiFlag={initialAiFlag}
       accountId={accountId}
+      initialTableId={initialTableId}
+      initialSide={initialSide}
+      initialOpponent={initialOpponent}
     />
   );
 }
