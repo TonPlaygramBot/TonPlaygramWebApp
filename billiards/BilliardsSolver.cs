@@ -148,9 +148,10 @@ public class BilliardsSolver
         }
 
         Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
-        // Use a thinner cushion band on side pockets so balls aren't deflected before
-        // they visually reach the jaw lips. The corner pockets keep the full
-        // PhysicsConstants.JawCushionSegments setting.
+        // Use a thinner band near the mouth so balls aren't deflected before they
+        // visually reach the jaw lips. These mouth segments are tagged as connectors
+        // to soften the rebound versus a full cushion, which keeps side-pocket
+        // approach shots from pinging back unnaturally compared to the corners.
         int cushionBands = Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments - 1, Math.Max(1, pts.Count - 1)));
         for (int i = 0; i < pts.Count - 1; i++)
         {
@@ -168,7 +169,7 @@ public class BilliardsSolver
             var edge = new Edge { A = a, B = b, Normal = normal };
             bool nearMouth = i < cushionBands || i >= pts.Count - 1 - cushionBands;
             if (nearMouth)
-                CushionEdges.Add(edge);
+                ConnectorEdges.Add(edge);
             else
                 PocketEdges.Add(edge);
         }
