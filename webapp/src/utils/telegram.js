@@ -1,5 +1,10 @@
 import { fetchTelegramInfo } from "./api.js";
 
+const TEST_ACCOUNT_IDS = [
+  import.meta.env.VITE_TEST_ACCOUNT_ID_1,
+  import.meta.env.VITE_TEST_ACCOUNT_ID_2
+].filter(Boolean);
+
 export function isTelegramWebView() {
   if (typeof window === 'undefined') return false;
   const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
@@ -42,6 +47,23 @@ function generateAccountId() {
 
 export function getPlayerId() {
   if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+
+  const requestedTestSlot = params.get('testAccount');
+  if (requestedTestSlot) {
+    const slotIndex = Number(requestedTestSlot) - 1;
+    if (!Number.isNaN(slotIndex) && TEST_ACCOUNT_IDS[slotIndex]) {
+      localStorage.setItem('accountId', TEST_ACCOUNT_IDS[slotIndex]);
+      return TEST_ACCOUNT_IDS[slotIndex];
+    }
+  }
+
+  const explicitAccount = params.get('accountId');
+  if (explicitAccount) {
+    localStorage.setItem('accountId', explicitAccount);
+    return explicitAccount;
+  }
+
   let id = localStorage.getItem('accountId');
   if (!id) {
     id = generateAccountId();
