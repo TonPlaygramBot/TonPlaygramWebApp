@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -18,6 +18,7 @@ import {
 } from '../../utils/murlanTable.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import {
+  ensureAccountId,
   getTelegramFirstName,
   getTelegramUsername,
   getTelegramPhotoUrl
@@ -4983,6 +4984,7 @@ function Chess3D({
     requestSync: () => {},
     status: 'connecting'
   });
+  onlineRef.current.enabled = Boolean(accountId);
   const rafRef = useRef(0);
   const timerRef = useRef(null);
   const bombSoundRef = useRef(null);
@@ -5058,6 +5060,11 @@ function Chess3D({
   const [onlineStatus, setOnlineStatus] = useState(
     onlineRef.current.enabled ? 'connecting' : 'offline'
   );
+  useEffect(() => {
+    if (accountId) {
+      setOnlineStatus((prev) => (prev === 'offline' ? 'connecting' : prev));
+    }
+  }, [accountId]);
   const [tableId, setTableId] = useState('');
   const [opponent, setOpponent] = useState(null);
   useEffect(() => {
@@ -7973,6 +7980,7 @@ function Chess3D({
 
 export default function ChessBattleRoyal() {
   useTelegramBackButton();
+  const navigate = useNavigate();
   const { search } = useLocation();
   const params = new URLSearchParams(search);
   const avatar = params.get('avatar') || getTelegramPhotoUrl();
@@ -7981,14 +7989,17 @@ export default function ChessBattleRoyal() {
     params.get('name') ||
     getTelegramFirstName() ||
     getTelegramUsername();
-  const accountId = params.get('accountId') || '';
+  const initialAccountId = params.get('accountId') || '';
+  const mode = params.get('mode') || 'ai';
+  const initialTableId = params.get('tableId') || '';
+  const [accountId, setAccountId] = useState(initialAccountId);
+  const [redirecting, setRedirecting] = useState(false);
   const flagParam = params.get('flag') || params.get('playerFlag');
   const initialFlag =
     flagParam && FLAG_EMOJIS.includes(flagParam) ? flagParam : '';
   const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
   const initialAiFlag =
     aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
-  const initialTableId = params.get('tableId') || '';
   const initialSide = params.get('side') === 'black' ? 'black' : 'white';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
@@ -7996,6 +8007,35 @@ export default function ChessBattleRoyal() {
     opponentName || opponentAvatar
       ? { name: opponentName || 'Opponent', avatar: opponentAvatar }
       : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    if (mode === 'online' && !initialTableId) {
+      setRedirecting(true);
+      navigate('/games/chessbattleroyal/lobby', { replace: true });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (mode === 'online' && !initialAccountId) {
+      ensureAccountId()
+        .then((id) => {
+          if (!cancelled && id) setAccountId(id);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [initialAccountId, initialTableId, mode, navigate]);
+
+  if (mode === 'online' && !initialTableId && redirecting) {
+    return (
+      <div className="p-4 text-center text-sm text-subtext">
+        Syncing with the lobby…
+      </div>
+    );
+  }
   return (
     <Chess3D
       avatar={avatar}
