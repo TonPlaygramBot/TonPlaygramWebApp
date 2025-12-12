@@ -7,6 +7,7 @@ import { getPlayerId } from '../utils/telegram.js';
 import { isGameMuted, getGameVolume } from '../utils/sound.js';
 import { chatBeep as inviteBeep } from '../assets/soundData.js';
 import InvitePopup from './InvitePopup.jsx';
+import InstallPrompt from './InstallPrompt.jsx';
 
 import Navbar from './Navbar.jsx';
 
@@ -144,6 +145,8 @@ export default function Layout({ children }) {
           <Navbar />
         </div>
       )}
+
+      <InstallPrompt />
 
       {showFooter && <Footer />}
 

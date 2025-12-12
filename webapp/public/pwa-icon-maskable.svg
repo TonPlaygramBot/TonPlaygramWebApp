@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TonPlaygram maskable icon">
+  <defs>
+    <linearGradient id="maskable-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#11172f" />
+      <stop offset="100%" stop-color="#00f7ff" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" ry="120" fill="url(#maskable-bg)" />
+  <rect x="36" y="36" width="440" height="440" rx="120" ry="120" fill="#0c1020" opacity="0.6" />
+  <g transform="translate(96 96) scale(0.65)">
+    <rect x="48" y="48" width="512" height="512" rx="160" ry="160" fill="none" stroke="#00f7ff" stroke-width="28" />
+    <path
+      d="M304 160c-80 0-146 66-146 146s66 146 146 146 146-66 146-146S384 160 304 160zm0 40c58.7 0 106 47.3 106 106s-47.3 106-106 106-106-47.3-106-106 47.3-106 106-106z"
+      fill="#00f7ff"
+    />
+    <circle cx="304" cy="238" r="36" fill="#ffffff" />
+    <path
+      d="M214 396c18-56 48-102 90-132 43 30 72 76 90 132l-36 18c-12-36-31-70-54-96-23 26-42 60-53 96z"
+      fill="#ffffff"
+      opacity="0.92"
+    />
+  </g>
+</svg>
