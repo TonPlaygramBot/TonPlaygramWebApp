@@ -217,11 +217,16 @@ const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
-const TARGET_FPS = 90;
-const TARGET_FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
-const RENDER_PIXEL_RATIO_CAP = 1.25;
+const DEFAULT_TARGET_FPS = 90;
+const MIN_TARGET_FPS = 50;
+const MAX_TARGET_FPS = 144;
+const FRAME_SAMPLE_COUNT = 24;
+const FRAME_SLOW_THRESHOLD_MULTIPLIER = 1.35;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
-const MIN_RENDER_PIXEL_RATIO = 1.0;
+const MOBILE_RENDER_PIXEL_RATIO_CAP = 1.15;
+const DESKTOP_RENDER_PIXEL_RATIO_CAP = 1.25;
+const LOW_END_RENDER_PIXEL_RATIO_CAP = 1.0;
+const MIN_RENDER_PIXEL_RATIO = 0.8;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -234,6 +239,59 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
+
+const isLikelyMobileDevice = () => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent || '');
+};
+
+const isLikelyLowEndDevice = () => {
+  if (typeof navigator === 'undefined') return false;
+  const memoryGb = navigator.deviceMemory;
+  const cores = navigator.hardwareConcurrency;
+  if (Number.isFinite(memoryGb) && memoryGb <= 3.5) return true;
+  if (Number.isFinite(cores) && cores <= 4) return true;
+  return false;
+};
+
+const computeAdaptivePixelRatio = () => {
+  if (typeof window === 'undefined') return 1;
+  const devicePixelRatio = window.devicePixelRatio || 1;
+  const mobile = isLikelyMobileDevice();
+  const lowEnd = isLikelyLowEndDevice();
+  const cap = lowEnd
+    ? LOW_END_RENDER_PIXEL_RATIO_CAP
+    : mobile
+    ? MOBILE_RENDER_PIXEL_RATIO_CAP
+    : DESKTOP_RENDER_PIXEL_RATIO_CAP;
+  const mobileScale = mobile ? 0.9 : 1.0;
+  const performanceScale = lowEnd ? 0.82 : 1.0;
+  const scaledPixelRatio =
+    devicePixelRatio * RENDER_PIXEL_RATIO_SCALE * mobileScale * performanceScale;
+  return clamp(scaledPixelRatio, MIN_RENDER_PIXEL_RATIO, cap);
+};
+
+const estimateDisplayRefreshRate = () =>
+  new Promise((resolve) => {
+    if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+      resolve(DEFAULT_TARGET_FPS);
+      return;
+    }
+    const samples = [];
+    let last = null;
+    const sample = (timestamp) => {
+      if (last !== null) samples.push(timestamp - last);
+      last = timestamp;
+      if (samples.length >= FRAME_SAMPLE_COUNT) {
+        const avgMs = samples.reduce((sum, value) => sum + value, 0) / samples.length;
+        const estimatedFps = 1000 / Math.max(1, avgMs);
+        resolve(estimatedFps);
+        return;
+      }
+      window.requestAnimationFrame(sample);
+    };
+    window.requestAnimationFrame(sample);
+  });
 
 const BEAUTIFUL_GAME_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -4993,6 +5051,9 @@ function Chess3D({
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
   const laughSoundRef = useRef(null);
+  const targetFpsRef = useRef(DEFAULT_TARGET_FPS);
+  const targetFrameIntervalRef = useRef(1000 / DEFAULT_TARGET_FPS);
+  const currentPixelRatioRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -5753,6 +5814,21 @@ function Chess3D({
     let onResize = null;
     let onClick = null;
 
+    const applyTargetFps = (fps) => {
+      const safeFps = clamp(fps, MIN_TARGET_FPS, MAX_TARGET_FPS);
+      targetFpsRef.current = safeFps;
+      targetFrameIntervalRef.current = 1000 / safeFps;
+    };
+
+    applyTargetFps(DEFAULT_TARGET_FPS);
+    estimateDisplayRefreshRate()
+      .then((estimatedFps) => {
+        if (!cancelled && Number.isFinite(estimatedFps)) {
+          applyTargetFps(estimatedFps);
+        }
+      })
+      .catch(() => {});
+
     const setup = async () => {
 
     const normalizedAppearance = normalizeAppearance(appearanceRef.current);
@@ -5818,12 +5894,8 @@ function Chess3D({
     }
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
-    const devicePixelRatio = window.devicePixelRatio || 1;
-    const scaledPixelRatio = devicePixelRatio * RENDER_PIXEL_RATIO_SCALE;
-    const pixelRatio = Math.max(
-      MIN_RENDER_PIXEL_RATIO,
-      Math.min(RENDER_PIXEL_RATIO_CAP, scaledPixelRatio)
-    );
+    const pixelRatio = computeAdaptivePixelRatio();
+    currentPixelRatioRef.current = pixelRatio;
     renderer.setPixelRatio(pixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -7489,12 +7561,15 @@ function Chess3D({
     // Loop
     let lastTime = performance.now();
     let lastRender = lastTime;
+    let slowFrameStreak = 0;
     const step = () => {
       const now = performance.now();
       const rawDt = Math.max(0, (now - lastTime) / 1000);
       const dt = Math.min(0.1, rawDt);
       const animDt = Math.min(0.5, rawDt);
       lastTime = now;
+      const frameBudgetMs = targetFrameIntervalRef.current;
+      const deltaMs = rawDt * 1000;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
         const positions = arenaState.seatAnchors.map((anchor, index) => {
@@ -7563,7 +7638,23 @@ function Chess3D({
       }
 
       controls?.update();
-      if (now - lastRender >= TARGET_FRAME_INTERVAL_MS) {
+      if (deltaMs > frameBudgetMs * FRAME_SLOW_THRESHOLD_MULTIPLIER) {
+        slowFrameStreak += 1;
+      } else {
+        slowFrameStreak = Math.max(0, slowFrameStreak - 1);
+      }
+
+      if (slowFrameStreak >= FRAME_SAMPLE_COUNT && renderer) {
+        const currentRatio = renderer.getPixelRatio?.() ?? currentPixelRatioRef.current ?? 1;
+        const nextRatio = clamp(currentRatio * 0.9, MIN_RENDER_PIXEL_RATIO, currentRatio);
+        if (nextRatio < currentRatio - 0.01) {
+          renderer.setPixelRatio(nextRatio);
+          currentPixelRatioRef.current = nextRatio;
+        }
+        slowFrameStreak = 0;
+      }
+
+      if (now - lastRender >= frameBudgetMs) {
         renderer.render(scene, camera);
         lastRender = now;
       }
