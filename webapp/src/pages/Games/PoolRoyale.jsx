@@ -8128,7 +8128,8 @@ function PoolRoyaleGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar
+  opponentAvatar,
+  tableId
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8140,10 +8141,23 @@ function PoolRoyaleGame({
     () => resolvePoolVariant(variantKey),
     [variantKey]
   );
+  const normalizedTableId = useMemo(
+    () => (tableId ? String(tableId) : ''),
+    [tableId]
+  );
+  const tableBadge = useMemo(
+    () => (normalizedTableId ? normalizedTableId.slice(0, 8) : ''),
+    [normalizedTableId]
+  );
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
   );
+  useEffect(() => {
+    if (mode === 'online' && !normalizedTableId) {
+      navigate('/games/poolroyale/lobby');
+    }
+  }, [mode, navigate, normalizedTableId]);
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -16540,6 +16554,15 @@ function PoolRoyaleGame({
         </div>
       )}
 
+      {mode === 'online' && tableBadge && (
+        <div className="pointer-events-none absolute top-4 right-4 z-50 text-right">
+          <div className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">Table</div>
+          <div className="mt-1 inline-flex rounded-full border border-emerald-400/50 bg-black/70 px-3 py-1 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)]">
+            {tableBadge}
+          </div>
+        </div>
+      )}
+
       <div className="absolute top-4 left-4 z-50 flex flex-col items-start gap-2">
         <button
           ref={configButtonRef}
@@ -17210,6 +17233,10 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('token') || 'TPC';
   }, [location.search]);
+  const tableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tableId') || '';
+  }, [location.search]);
   const exitMessage = useMemo(
     () =>
       stakeAmount > 0
@@ -17290,6 +17317,7 @@ export default function PoolRoyale() {
       playerAvatar={playerAvatar}
       opponentName={opponentName}
       opponentAvatar={opponentAvatar}
+      tableId={tableId}
     />
   );
 }
