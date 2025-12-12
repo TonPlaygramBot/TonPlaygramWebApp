@@ -10,7 +10,7 @@ function resolveSocketConfig() {
     API_BASE_URL ||
     (typeof window !== 'undefined' ? window.location.origin : '');
 
-  const options = { transports: ['websocket', 'polling'] };
+  const options = { transports: ['websocket'] };
 
   const applyDefaultPath = () => {
     if (!options.path) {
