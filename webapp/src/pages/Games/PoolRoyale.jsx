@@ -8126,7 +8126,9 @@ function PoolRoyaleGame({
   accountId,
   tgId,
   playerName,
-  opponentName
+  playerAvatar,
+  opponentName,
+  opponentAvatar
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8825,6 +8827,7 @@ function PoolRoyaleGame({
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
     effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
+  const isOnlineMatch = mode === 'online';
   const initialFrame = useMemo(
     () => rules.getInitialFrame(playerLabel, opponentLabel),
     [rules, playerLabel, opponentLabel]
@@ -9302,11 +9305,16 @@ function PoolRoyaleGame({
     document.title = 'Pool Royale 3D';
   }, []);
   useEffect(() => {
-    setPlayer({
-      name: getTelegramUsername() || 'Player',
-      avatar: getTelegramPhotoUrl()
+    const nextName = playerName || getTelegramUsername() || 'Player';
+    const nextAvatar = playerAvatar || getTelegramPhotoUrl();
+    setPlayer((prev) => {
+      if (prev.name === nextName && prev.avatar === nextAvatar) return prev;
+      return {
+        name: nextName,
+        avatar: nextAvatar
+      };
     });
-  }, []);
+  }, [playerAvatar, playerName]);
   useEffect(() => {
     setFrameState((prev) => {
       const nextName = player.name || 'Player';
@@ -9320,6 +9328,27 @@ function PoolRoyaleGame({
       };
     });
   }, [player.name]);
+  useEffect(() => {
+    setFrameState((prev) => {
+      const desiredOpponentName = opponentLabel;
+      const desiredOpponentAvatar =
+        mode === 'online' ? opponentAvatar || prev.players.B?.avatar || '' : '';
+      const desiredPlayerAvatar = player.avatar || getTelegramPhotoUrl();
+      const needsPlayerAvatarUpdate = prev.players?.A?.avatar !== desiredPlayerAvatar;
+      const needsOpponentUpdate =
+        prev.players?.B?.name !== desiredOpponentName ||
+        prev.players?.B?.avatar !== desiredOpponentAvatar;
+      if (!needsPlayerAvatarUpdate && !needsOpponentUpdate) return prev;
+      return {
+        ...prev,
+        players: {
+          ...prev.players,
+          A: { ...prev.players.A, avatar: desiredPlayerAvatar },
+          B: { ...prev.players.B, name: desiredOpponentName, avatar: desiredOpponentAvatar }
+        }
+      };
+    });
+  }, [mode, opponentAvatar, opponentLabel, player.avatar]);
   useEffect(() => {
     muteRef.current = isGameMuted();
     volumeRef.current = getGameVolume();
@@ -16983,10 +17012,33 @@ function PoolRoyaleGame({
                   : 'text-white/80'
               }`}
             >
-              <span className="text-xl leading-none">{aiFlag}</span>
-              <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                AI
-              </span>
+              {isOnlineMatch ? (
+                <>
+                  <img
+                    src={
+                      frameState?.players?.B?.avatar ||
+                      opponentAvatar ||
+                      '/assets/icons/profile.svg'
+                    }
+                    alt="opponent avatar"
+                    className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                      isOpponentTurn
+                        ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
+                        : 'border-white/40'
+                    }`}
+                  />
+                  <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                    {opponentLabel}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="text-xl leading-none">{aiFlag}</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                    AI
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -17146,6 +17198,10 @@ export default function PoolRoyale() {
       'Player'
     );
   }, [location.search]);
+  const playerAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('avatar') || '';
+  }, [location.search]);
   const stakeAmount = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return Number(params.get('amount')) || 0;
@@ -17216,6 +17272,10 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
   }, [location.search]);
+  const opponentAvatar = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('opponentAvatar') || '';
+  }, [location.search]);
   return (
     <PoolRoyaleGame
       variantKey={variantKey}
@@ -17227,7 +17287,9 @@ export default function PoolRoyale() {
       accountId={accountId}
       tgId={tgId}
       playerName={playerName}
+      playerAvatar={playerAvatar}
       opponentName={opponentName}
+      opponentAvatar={opponentAvatar}
     />
   );
 }
