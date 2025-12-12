@@ -261,6 +261,10 @@ export function linkSocial(data) {
   return post('/api/profile/link-social', data);
 }
 
+export function linkTelegramAccount(data) {
+  return post('/api/profile/link-telegram', data);
+}
+
 export function fetchTelegramInfo(telegramId) {
   return post('/api/profile/telegram-info', { telegramId });
 }

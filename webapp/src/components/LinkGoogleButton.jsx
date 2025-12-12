@@ -1,11 +1,46 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { linkGoogleAccount } from '../utils/api.js';
 
+const GOOGLE_SCRIPT_SRC = 'https://accounts.google.com/gsi/client';
+
 export default function LinkGoogleButton({ telegramId, onLinked }) {
   const [ready, setReady] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
   const initialized = useRef(false);
+  const buttonRef = useRef(null);
 
   useEffect(() => {
+    let cleanup;
+    if (window.google) {
+      setScriptLoaded(true);
+      return undefined;
+    }
+
+    const existing = document.querySelector(`script[src="${GOOGLE_SCRIPT_SRC}"]`);
+    const script = existing || document.createElement('script');
+
+    const handleLoad = () => setScriptLoaded(true);
+    script.addEventListener('load', handleLoad);
+
+    if (!existing) {
+      script.src = GOOGLE_SCRIPT_SRC;
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    cleanup = () => {
+      script.removeEventListener('load', handleLoad);
+    };
+
+    return cleanup;
+  }, []);
+
+  useEffect(() => {
+    if (!scriptLoaded || !import.meta.env.VITE_GOOGLE_CLIENT_ID || !window.google) {
+      return undefined;
+    }
+
     function handleCredential(res) {
       try {
         const data = JSON.parse(atob(res.credential.split('.')[1]));
@@ -18,54 +53,50 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
           firstName: data.given_name,
           lastName: data.family_name,
           photo: data.picture
-        }).then(() => {
-          if (onLinked) onLinked();
+        }).then((resp) => {
+          if (resp?.error) {
+            console.error('Failed to link Google account', resp.error);
+          }
+          if (onLinked) onLinked(data.sub);
         });
       } catch (err) {
         console.error('Failed to link Google account', err);
       }
     }
 
-    function init() {
-      if (
-        initialized.current ||
-        !window.google ||
-        !import.meta.env.VITE_GOOGLE_CLIENT_ID
-      ) {
-        return false;
-      }
+    if (!initialized.current) {
       window.google.accounts.id.initialize({
         client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleCredential,
         ux_mode: 'popup'
       });
       initialized.current = true;
+    }
+
+    if (buttonRef.current) {
+      buttonRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(buttonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        shape: 'pill',
+        text: 'continue_with'
+      });
       setReady(true);
-      return true;
     }
 
-    if (!init()) {
-      const id = setInterval(() => {
-        if (init()) clearInterval(id);
-      }, 500);
-      return () => clearInterval(id);
-    }
-  }, [telegramId, onLinked]);
-
-  function handleClick() {
-    if (window.google && initialized.current) {
-      window.google.accounts.id.prompt();
-    }
-  }
+    return () => {
+      if (buttonRef.current) {
+        buttonRef.current.innerHTML = '';
+      }
+    };
+  }, [scriptLoaded, telegramId, onLinked]);
 
   return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={!ready}
-      className="px-3 py-1 bg-white text-black rounded disabled:opacity-50"
-    >
-      Link Google
-    </button>
+    <div className="flex flex-col gap-2">
+      <div ref={buttonRef} className="inline-flex" />
+      {!ready && (
+        <p className="text-xs text-subtext">Loading Google sign-in…</p>
+      )}
+    </div>
   );
 }
