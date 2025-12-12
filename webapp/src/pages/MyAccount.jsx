@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getAccountInfo,
   createAccount,
@@ -27,7 +27,6 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
-import LinkTelegramButton from '../components/LinkTelegramButton.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -47,21 +46,18 @@ function formatValue(value, decimals = 2) {
 }
 
 export default function MyAccount() {
-  const initialTelegramId = useMemo(() => {
-    try {
-      return getTelegramId();
-    } catch {
-      return null;
-    }
-  }, []);
+  let telegramId = null;
+  let googleId = null;
 
-  const initialGoogleId = useMemo(() => {
-    if (initialTelegramId) return null;
-    return localStorage.getItem('googleId');
-  }, [initialTelegramId]);
+  try {
+    telegramId = getTelegramId();
+  } catch {}
 
-  const [telegramId, setTelegramId] = useState(initialTelegramId);
-  const [googleId, setGoogleId] = useState(initialGoogleId);
+  if (!telegramId) {
+    googleId = localStorage.getItem('googleId');
+    if (!googleId) return <LoginOptions />;
+  }
+
   const [profile, setProfile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState('');
   const [autoUpdating, setAutoUpdating] = useState(false);
@@ -81,11 +77,7 @@ export default function MyAccount() {
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
-  const [googleLinked, setGoogleLinked] = useState(!!initialGoogleId);
-
-  useEffect(() => {
-    setGoogleLinked(Boolean(googleId));
-  }, [googleId]);
+  const [googleLinked, setGoogleLinked] = useState(!!googleId);
 
   useEffect(() => {
     async function load() {
@@ -179,8 +171,6 @@ export default function MyAccount() {
     window.addEventListener('profilePhotoUpdated', handler);
     return () => window.removeEventListener('profilePhotoUpdated', handler);
   }, [telegramId]);
-
-  if (!telegramId && !googleId) return <LoginOptions />;
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -378,25 +368,7 @@ export default function MyAccount() {
               </p>
               <LinkGoogleButton
                 telegramId={telegramId}
-                onLinked={(gid) => {
-                  setGoogleId(gid);
-                  setGoogleLinked(true);
-                }}
-              />
-            </div>
-          )}
-          {!telegramId && googleId && (
-            <div className="mt-3 space-y-1">
-              <p className="text-sm mb-1 text-white-shadow">
-                Link your Telegram account:
-              </p>
-              <LinkTelegramButton
-                googleId={googleId}
-                accountId={localStorage.getItem('accountId')}
-                onLinked={(tgId, updated) => {
-                  setTelegramId(tgId);
-                  setProfile((prev) => ({ ...prev, ...updated }));
-                }}
+                onLinked={() => setGoogleLinked(true)}
               />
             </div>
           )}

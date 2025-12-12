@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import crypto from 'crypto';
 import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance, sanitizeUser } from '../utils/userUtils.js';
@@ -25,26 +24,6 @@ export function parseTwitterHandle(input) {
   // Strip leading @ if present
   handle = handle.replace(/^@/, '');
   return handle;
-}
-
-function verifyTelegramAuth(data) {
-  if (!data || !data.hash || !process.env.BOT_TOKEN) return false;
-  const authData = { ...data };
-  const { hash } = authData;
-  delete authData.hash;
-
-  const checkString = Object.keys(authData)
-    .sort()
-    .map((k) => `${k}=${authData[k]}`)
-    .join('\n');
-
-  const secret = crypto.createHmac('sha256', process.env.BOT_TOKEN).digest();
-  const computedHash = crypto
-    .createHmac('sha256', secret)
-    .update(checkString)
-    .digest('hex');
-
-  return computedHash === hash;
 }
 
 const router = Router();
@@ -237,44 +216,6 @@ router.post('/link-google', async (req, res) => {
     { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  res.json(sanitizeUser(user));
-});
-
-router.post('/link-telegram', async (req, res) => {
-  const { googleId, accountId, telegramData } = req.body || {};
-  if (!googleId && !accountId) {
-    return res.status(400).json({ error: 'googleId or accountId required' });
-  }
-  if (!verifyTelegramAuth(telegramData)) {
-    return res.status(400).json({ error: 'invalid telegram auth' });
-  }
-  if (!telegramData?.id) {
-    return res.status(400).json({ error: 'telegram id missing' });
-  }
-
-  const telegramId = Number(telegramData.id);
-
-  let user = null;
-  if (accountId) user = await User.findOne({ accountId });
-  if (!user && googleId) user = await User.findOne({ googleId });
-  if (!user) {
-    return res.status(404).json({ error: 'user not found' });
-  }
-
-  const existingTelegram = await User.findOne({ telegramId });
-  if (existingTelegram && !existingTelegram._id.equals(user._id)) {
-    return res.status(409).json({ error: 'telegram id already linked' });
-  }
-
-  user.telegramId = telegramId;
-  if (!user.referralCode) user.referralCode = String(telegramId);
-  if (!user.firstName && telegramData.first_name) user.firstName = telegramData.first_name;
-  if (!user.lastName && telegramData.last_name) user.lastName = telegramData.last_name;
-  if (!user.photo && telegramData.photo_url) user.photo = telegramData.photo_url;
-  if (!user.social) user.social = {};
-  if (telegramData.username) user.social.telegram = telegramData.username;
-
-  await user.save();
   res.json(sanitizeUser(user));
 });
 
