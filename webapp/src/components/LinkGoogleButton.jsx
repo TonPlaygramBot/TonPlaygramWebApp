@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createAccount, getGoogleClientId, linkGoogleAccount } from '../utils/api.js';
+import { createAccount, linkGoogleAccount } from '../utils/api.js';
 
 export default function LinkGoogleButton({ telegramId, onLinked }) {
   const buttonRef = useRef(null);
@@ -7,7 +7,6 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const initialized = useRef(false);
-  const [clientId, setClientId] = useState(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
 
   useEffect(() => {
     let cancelled = false;
@@ -98,25 +97,15 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       });
     }
 
-    async function resolveClientId() {
-      if (clientId) return clientId;
-      const res = await getGoogleClientId();
-      if (cancelled) return null;
-      if (res?.clientId) {
-        setClientId(res.clientId);
-        return res.clientId;
-      }
-      setError(res?.error || 'Google sign-in is not configured.');
-      return null;
-    }
-
     async function init() {
       if (initialized.current) {
         return false;
       }
 
-      const resolvedClientId = await resolveClientId();
-      if (!resolvedClientId) return false;
+      if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
+        setError('Google sign-in is not configured.');
+        return false;
+      }
 
       const ok = await ensureGoogleScript();
       if (!ok || cancelled || !window.google?.accounts?.id) {
@@ -125,7 +114,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       }
 
       window.google.accounts.id.initialize({
-        client_id: resolvedClientId,
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
         callback: handleCredential,
         ux_mode: 'popup',
         cancel_on_tap_outside: false
@@ -142,7 +131,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
     return () => {
       cancelled = true;
     };
-  }, [telegramId, onLinked, clientId]);
+  }, [telegramId, onLinked]);
 
   function handleClick() {
     if (window.google?.accounts?.id && initialized.current) {
