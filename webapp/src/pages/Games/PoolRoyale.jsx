@@ -946,7 +946,6 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.118; // sink the cushion base further so the pads settle slightly below the rail line
 const CUSHION_BOTTOM_TRIM = TABLE.THICK * 0.22; // raise the cushion base so height is removed from below while keeping the top profile intact
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
-const CUSHION_HEIGHT_SCALE = 0.82; // shorten the cushions while preserving their shape and top profile
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -7483,7 +7482,7 @@ function Table3D(
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
-  const cushionScaleBase = Math.max(0.001, (cushionHeightTarget / railH) * CUSHION_HEIGHT_SCALE);
+  const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
 
   function cushionProfileAdvanced(len, horizontal) {
     const halfLen = len / 2;
