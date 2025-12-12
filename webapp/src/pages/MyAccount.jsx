@@ -27,6 +27,7 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import LinkTelegramButton from '../components/LinkTelegramButton.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -46,17 +47,19 @@ function formatValue(value, decimals = 2) {
 }
 
 export default function MyAccount() {
-  let telegramId = null;
-  let googleId = null;
+  const [telegramId, setTelegramId] = useState(() => {
+    try {
+      return getTelegramId();
+    } catch {
+      return null;
+    }
+  });
+  const [googleId, setGoogleId] = useState(() => {
+    if (telegramId) return null;
+    return localStorage.getItem('googleId');
+  });
 
-  try {
-    telegramId = getTelegramId();
-  } catch {}
-
-  if (!telegramId) {
-    googleId = localStorage.getItem('googleId');
-    if (!googleId) return <LoginOptions />;
-  }
+  if (!telegramId && !googleId) return <LoginOptions />;
 
   const [profile, setProfile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -368,7 +371,24 @@ export default function MyAccount() {
               </p>
               <LinkGoogleButton
                 telegramId={telegramId}
-                onLinked={() => setGoogleLinked(true)}
+                onLinked={(id) => {
+                  setGoogleLinked(true);
+                  setGoogleId(id || localStorage.getItem('googleId'));
+                }}
+              />
+            </div>
+          )}
+          {!telegramId && googleId && (
+            <div className="mt-2 space-y-1">
+              <p className="text-sm text-white-shadow">
+                Link your Telegram account to sync progress:
+              </p>
+              <LinkTelegramButton
+                googleId={googleId}
+                onLinked={(tgId) => {
+                  setTelegramId(tgId);
+                  setTimeout(() => window.location.reload(), 300);
+                }}
               />
             </div>
           )}
