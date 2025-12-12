@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { createAccount, linkGoogleAccount } from '../utils/api.js';
+import { createAccount, linkGoogleAccount, getGoogleClientId } from '../utils/api.js';
 
 export default function LinkGoogleButton({ telegramId, onLinked }) {
   const buttonRef = useRef(null);
+  const [clientId, setClientId] = useState(import.meta.env.VITE_GOOGLE_CLIENT_ID || '');
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -97,13 +98,28 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       });
     }
 
+    async function loadClientId() {
+      if (clientId) return clientId;
+
+      const res = await getGoogleClientId();
+      if (cancelled) return null;
+
+      if (res?.clientId) {
+        setClientId(res.clientId);
+        return res.clientId;
+      }
+
+      setError(res?.error || 'Google sign-in is not configured.');
+      return null;
+    }
+
     async function init() {
       if (initialized.current) {
         return false;
       }
 
-      if (!import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-        setError('Google sign-in is not configured.');
+      const resolvedClientId = await loadClientId();
+      if (!resolvedClientId) {
         return false;
       }
 
@@ -114,7 +130,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       }
 
       window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        client_id: resolvedClientId,
         callback: handleCredential,
         ux_mode: 'popup',
         cancel_on_tap_outside: false
