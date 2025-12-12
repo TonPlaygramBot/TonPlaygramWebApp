@@ -15,6 +15,7 @@ import {
   getTelegramPhotoUrl,
   getTelegramId
 } from '../../utils/telegram.js';
+import { socket } from '../../utils/socket.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -8128,7 +8129,8 @@ function PoolRoyaleGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar
+  opponentAvatar,
+  tableId
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8145,6 +8147,14 @@ function PoolRoyaleGame({
     [tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
+  useEffect(() => {
+    if (!mountRef.current) return;
+    if (tableId) {
+      mountRef.current.dataset.tableId = tableId;
+    } else {
+      delete mountRef.current.dataset.tableId;
+    }
+  }, [tableId]);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(TABLE_FINISH_STORAGE_KEY);
@@ -17172,6 +17182,10 @@ export default function PoolRoyale() {
     if (requested === 'local') return 'local';
     return 'ai';
   }, [location.search]);
+  const initialTableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tableId') || '';
+  }, [location.search]);
   const trainingMode = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('mode');
@@ -17210,6 +17224,8 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('token') || 'TPC';
   }, [location.search]);
+  const [tableId, setTableId] = useState(initialTableId);
+  useEffect(() => setTableId(initialTableId), [initialTableId]);
   const exitMessage = useMemo(
     () =>
       stakeAmount > 0
@@ -17268,14 +17284,124 @@ export default function PoolRoyale() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, [confirmExit, exitMessage, navigate]);
-  const opponentName = useMemo(() => {
+  const opponentNameParam = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponent') || '';
   }, [location.search]);
-  const opponentAvatar = useMemo(() => {
+  const opponentAvatarParam = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('opponentAvatar') || '';
   }, [location.search]);
+  const [opponentName, setOpponentName] = useState(opponentNameParam);
+  const [opponentAvatar, setOpponentAvatar] = useState(opponentAvatarParam);
+  useEffect(() => setOpponentName(opponentNameParam), [opponentNameParam]);
+  useEffect(() => setOpponentAvatar(opponentAvatarParam), [opponentAvatarParam]);
+
+  useEffect(() => {
+    if (mode !== 'online' || playType !== 'regular') return undefined;
+    if (!accountId) return undefined;
+    let active = true;
+    let joinedTableId = initialTableId || '';
+
+    const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
+      if (!startedId) return;
+      if (joinedTableId && startedId !== joinedTableId) return;
+      joinedTableId = startedId;
+      setTableId(startedId);
+      const opponentEntry = players.find((p) => String(p.id) !== String(accountId));
+      if (opponentEntry && !opponentNameParam) {
+        setOpponentName(
+          opponentEntry.name ||
+            opponentEntry.username ||
+            opponentEntry.telegramName ||
+            (opponentEntry.id ? `TPC ${opponentEntry.id}` : 'Opponent')
+        );
+      }
+      if (opponentEntry?.avatar && !opponentAvatarParam) {
+        setOpponentAvatar(opponentEntry.avatar);
+      }
+    };
+
+    const leaveLobby = () => {
+      if (joinedTableId) {
+        socket.emit('leaveLobby', { accountId, tableId: joinedTableId });
+      }
+    };
+
+    socket.emit('register', { playerId: accountId, accountId });
+
+    if (joinedTableId) {
+      socket.emit('confirmReady', { accountId, tableId: joinedTableId });
+    } else {
+      socket.emit(
+        'seatTable',
+        {
+          accountId,
+          stake: stakeAmount,
+          token: stakeToken,
+          gameType: 'poolroyale',
+          maxPlayers: 2,
+          mode,
+          variant: variantKey,
+          tableSize: tableSizeKey,
+          playType,
+          playerName,
+          avatar: playerAvatar
+        },
+        (res) => {
+          if (!active) return;
+          if (res?.success && res.tableId) {
+            joinedTableId = res.tableId;
+            setTableId(res.tableId);
+            const roster = Array.isArray(res.players) ? res.players : [];
+            const opponentEntry = roster.find((p) => String(p.id) !== String(accountId));
+            if (opponentEntry && !opponentNameParam) {
+              setOpponentName(
+                opponentEntry.name ||
+                  opponentEntry.username ||
+                  opponentEntry.telegramName ||
+                  (opponentEntry.id ? `TPC ${opponentEntry.id}` : 'Opponent')
+              );
+            }
+            if (opponentEntry?.avatar && !opponentAvatarParam) {
+              setOpponentAvatar(opponentEntry.avatar);
+            }
+            socket.emit('confirmReady', { accountId, tableId: res.tableId });
+          }
+        }
+      );
+    }
+
+    socket.on('gameStart', handleGameStart);
+
+    return () => {
+      active = false;
+      socket.off('gameStart', handleGameStart);
+      leaveLobby();
+    };
+  }, [
+    accountId,
+    initialTableId,
+    mode,
+    opponentAvatarParam,
+    opponentNameParam,
+    playType,
+    playerAvatar,
+    playerName,
+    stakeAmount,
+    stakeToken,
+    tableSizeKey,
+    variantKey
+  ]);
+
+  useEffect(() => {
+    if (!tableId) return;
+    const params = new URLSearchParams(location.search);
+    if (params.get('tableId') === tableId) return;
+    params.set('tableId', tableId);
+    const nextUrl = `${location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, '', nextUrl);
+  }, [location.pathname, location.search, tableId]);
   return (
     <PoolRoyaleGame
       variantKey={variantKey}
@@ -17290,6 +17416,7 @@ export default function PoolRoyale() {
       playerAvatar={playerAvatar}
       opponentName={opponentName}
       opponentAvatar={opponentAvatar}
+      tableId={tableId}
     />
   );
 }
