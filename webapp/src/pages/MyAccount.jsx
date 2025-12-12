@@ -27,6 +27,7 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import LinkTelegramButton from '../components/LinkTelegramButton.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -46,17 +47,17 @@ function formatValue(value, decimals = 2) {
 }
 
 export default function MyAccount() {
-  let telegramId = null;
-  let googleId = null;
+  const [telegramId, setTelegramId] = useState(() => {
+    try {
+      return getTelegramId();
+    } catch (err) {
+      console.error('Failed to read Telegram ID', err);
+      return null;
+    }
+  });
+  const [googleId, setGoogleId] = useState(() => localStorage.getItem('googleId'));
 
-  try {
-    telegramId = getTelegramId();
-  } catch {}
-
-  if (!telegramId) {
-    googleId = localStorage.getItem('googleId');
-    if (!googleId) return <LoginOptions />;
-  }
+  if (!telegramId && !googleId) return <LoginOptions />;
 
   const [profile, setProfile] = useState(null);
   const [photoUrl, setPhotoUrl] = useState('');
@@ -80,6 +81,12 @@ export default function MyAccount() {
   const [googleLinked, setGoogleLinked] = useState(!!googleId);
 
   useEffect(() => {
+    setGoogleLinked(!!googleId);
+  }, [googleId]);
+
+  useEffect(() => {
+    if (!telegramId && !googleId) return undefined;
+
     async function load() {
       const acc = await createAccount(telegramId, googleId);
       if (acc?.error) {
@@ -368,7 +375,24 @@ export default function MyAccount() {
               </p>
               <LinkGoogleButton
                 telegramId={telegramId}
-                onLinked={() => setGoogleLinked(true)}
+                onLinked={(linkedId) => {
+                  setGoogleLinked(true);
+                  if (linkedId) setGoogleId(linkedId);
+                }}
+              />
+            </div>
+          )}
+          {!telegramId && googleId && (
+            <div className="mt-2">
+              <p className="text-sm mb-1 text-white-shadow">
+                Link your Telegram account:
+              </p>
+              <LinkTelegramButton
+                googleId={googleId}
+                onLinked={(linkedId) => {
+                  setTelegramId(linkedId);
+                  setProfile((p) => (p ? { ...p, telegramId: linkedId } : p));
+                }}
               />
             </div>
           )}
