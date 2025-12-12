@@ -107,53 +107,21 @@ function detectCoarsePointer() {
   return false;
 }
 
-function clampNumber(value, min, max) {
-  if (!Number.isFinite(value)) {
-    return min;
-  }
-  return Math.min(Math.max(value, min), max);
-}
-
-function detectRefreshRateHint() {
+function detectLowRefreshDisplay() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return null;
+    return false;
   }
-  const queries = [
-    { query: '(min-refresh-rate: 143hz)', fps: 144 },
-    { query: '(min-refresh-rate: 119hz)', fps: 120 },
-    { query: '(min-refresh-rate: 89hz)', fps: 90 },
-    { query: '(max-refresh-rate: 59hz)', fps: 60 },
-    { query: '(max-refresh-rate: 50hz)', fps: 50 },
-    { query: '(prefers-reduced-motion: reduce)', fps: 50 }
-  ];
-  for (const { query, fps } of queries) {
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
-        return fps;
+        return true;
       }
     } catch (err) {
       // ignore unsupported query
     }
   }
-  return null;
-}
-
-function detectLowRefreshDisplay() {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  const hint = detectRefreshRateHint();
-  if (hint && hint <= 60) {
-    return true;
-  }
-  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
-  return queries.some((query) => {
-    try {
-      return window.matchMedia(query).matches;
-    } catch (err) {
-      return false;
-    }
-  });
+  return false;
 }
 
 function isWebGLAvailable() {
@@ -243,7 +211,6 @@ function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return 'balanced60';
   }
-  const refreshHint = detectRefreshRateHint();
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
   const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
@@ -254,37 +221,33 @@ function detectPreferredFrameRateId() {
   const lowRefresh = detectLowRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
-  const lowTier =
+  if (
     lowRefresh ||
     coarsePointer ||
     isTouch ||
     isMobileUA ||
-    rendererTier === 'mobile' ||
     (deviceMemory !== null && deviceMemory <= 4) ||
-    (hardwareConcurrency && hardwareConcurrency <= 4);
-  if (lowTier) {
-    return refreshHint && refreshHint <= 50 ? 'adaptive50' : 'balanced60';
+    rendererTier === 'mobile'
+  ) {
+    return 'balanced60';
   }
 
-  const midTier =
-    rendererTier === 'desktopMid' ||
-    (hardwareConcurrency && hardwareConcurrency >= 6) ||
-    (deviceMemory != null && deviceMemory >= 6);
-  const highTier =
+  if (
     rendererTier === 'desktopHigh' ||
-    (hardwareConcurrency && hardwareConcurrency >= 8) ||
-    (deviceMemory != null && deviceMemory >= 8);
+    (hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8))
+  ) {
+    return 'performance50';
+  }
 
-  if (refreshHint && refreshHint >= 140 && highTier) {
-    return 'elite144';
+  if (
+    rendererTier === 'desktopMid' ||
+    hardwareConcurrency >= 6 ||
+    (deviceMemory != null && deviceMemory >= 6)
+  ) {
+    return 'fullHd';
   }
-  if (refreshHint && refreshHint >= 118 && (highTier || midTier)) {
-    return 'pro120';
-  }
-  if (refreshHint && refreshHint >= 85 && midTier) {
-    return 'smooth90';
-  }
-  return refreshHint && refreshHint <= 60 ? 'balanced60' : 'smooth90';
+
+  return 'balanced60';
 }
 
 function signedRingArea(ring) {
@@ -2350,100 +2313,14 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'adaptive50',
-    label: 'Adaptive Mobile (50 Hz)',
-    fps: 50,
-    resolution: 'Battery saver resolution',
-    resolutionScale: 0.85,
-    pixelRatioCap: 1.25,
-    description: 'Stability-first profile for 50–60 Hz displays and low-end devices.'
-  },
-  {
     id: 'balanced60',
-    label: 'Balanced 60 Hz',
+    label: 'Snooker Match (60 Hz)',
     fps: 60,
-    resolution: 'Dynamic renderer scaling',
-    resolutionScale: 0.92,
-    pixelRatioCap: 1.4,
-    description: 'Balanced quality and smoothness tuned for most mobile phones.'
-  },
-  {
-    id: 'smooth90',
-    label: 'Smooth 90 Hz',
-    fps: 90,
-    resolution: 'High-refresh rendering',
-    resolutionScale: 1,
-    pixelRatioCap: 1.6,
-    description: 'Higher clarity for capable 90 Hz devices.'
-  },
-  {
-    id: 'pro120',
-    label: 'ProMotion 120 Hz',
-    fps: 120,
-    resolution: 'Flagship renderer scaling',
-    resolutionScale: 1,
-    pixelRatioCap: 1.8,
-    description: '120 Hz pacing for premium phones and tablets.'
-  },
-  {
-    id: 'elite144',
-    label: 'Elite 144 Hz',
-    fps: 144,
-    resolution: 'Maximum fidelity',
-    resolutionScale: 1,
-    pixelRatioCap: 2,
-    description: 'Uncapped smoothness for top-tier 144 Hz displays.'
+    resolution: 'Snooker renderer scaling',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
-
-function resolveRenderProfile(option) {
-  const defaultPixelCap =
-    typeof window !== 'undefined' && window.innerWidth <= 1366 ? 1.5 : 2;
-  const basePixelCap = clampNumber(option?.pixelRatioCap ?? defaultPixelCap, 1, 2.5);
-  let pixelRatioCap = basePixelCap;
-  const baseResolution = clampNumber(option?.resolutionScale ?? 1, 0.8, 1.05);
-  let resolutionScale = baseResolution;
-
-  try {
-    const deviceMemory =
-      typeof navigator !== 'undefined' && typeof navigator.deviceMemory === 'number'
-        ? navigator.deviceMemory
-        : null;
-    const lowMemory = deviceMemory != null && deviceMemory <= 4;
-    if (lowMemory || detectCoarsePointer()) {
-      pixelRatioCap = Math.min(pixelRatioCap, 1.35);
-      resolutionScale = Math.min(resolutionScale, 0.9);
-    } else if (deviceMemory != null && deviceMemory < 6) {
-      pixelRatioCap = Math.min(pixelRatioCap, 1.5);
-      resolutionScale = Math.min(resolutionScale, 0.95);
-    }
-  } catch (err) {
-    // ignore capability probing failures
-  }
-
-  return {
-    pixelRatioCap,
-    resolutionScale
-  };
-}
-
-function applyRendererScaling(renderer, host, profile) {
-  if (!renderer || !host) return;
-  const resolutionScale = clampNumber(profile?.resolutionScale ?? 1, 0.8, 1.05);
-  const width = host.clientWidth * resolutionScale;
-  const height = host.clientHeight * resolutionScale;
-  renderer.setSize(width, height, false);
-  renderer.domElement.style.width = `${host.clientWidth}px`;
-  renderer.domElement.style.height = `${host.clientHeight}px`;
-  const devicePixelRatio = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
-  const pixelRatioCap = clampNumber(
-    profile?.pixelRatioCap ?? (typeof window !== 'undefined' && window.innerWidth <= 1366 ? 1.5 : 2),
-    1,
-    2.5
-  );
-  renderer.setPixelRatio(Math.min(pixelRatioCap, devicePixelRatio));
-}
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -8393,23 +8270,10 @@ function PoolRoyaleGame({
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
     };
   }, [activeFrameRateOption]);
-  const renderProfile = useMemo(
-    () => resolveRenderProfile(activeFrameRateOption),
-    [activeFrameRateOption]
-  );
   const frameTimingRef = useRef(resolvedFrameTiming);
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
   }, [resolvedFrameTiming]);
-  const renderProfileRef = useRef(renderProfile);
-  useEffect(() => {
-    renderProfileRef.current = renderProfile;
-    const renderer = rendererRef.current;
-    const host = mountRef.current;
-    if (renderer && host) {
-      applyRendererScaling(renderer, host, renderProfile);
-    }
-  }, [renderProfile]);
   const broadcastSystemRef = useRef(activeBroadcastSystem);
   useEffect(() => {
     broadcastSystemRef.current = activeBroadcastSystem;
@@ -9812,12 +9676,15 @@ function PoolRoyaleGame({
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       // Ensure the canvas fills the host element so the table is centered and
       // scaled correctly on all view modes.
-      applyRendererScaling(renderer, host, renderProfileRef.current);
+      renderer.setSize(host.clientWidth, host.clientHeight);
       host.appendChild(renderer.domElement);
       renderer.domElement.addEventListener('webglcontextlost', (e) =>
         e.preventDefault()
@@ -16340,7 +16207,7 @@ function PoolRoyaleGame({
 
       // Resize
         const onResize = () => {
-          applyRendererScaling(renderer, host, renderProfileRef.current);
+          renderer.setSize(host.clientWidth, host.clientHeight);
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           const scaleChanged = applyWorldScaleRef.current?.() ?? false;
