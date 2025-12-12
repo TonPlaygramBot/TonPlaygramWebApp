@@ -370,6 +370,10 @@ export function linkGoogleAccount(data) {
   return post('/api/profile/link-google', data);
 }
 
+export function linkTelegramAccount(data) {
+  return post('/api/profile/link-telegram', data);
+}
+
 export function searchUsers(query) {
   return post('/api/social/search', { query });
 }
