@@ -52,8 +52,6 @@ export default function PoolRoyaleLobby() {
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
-  const matchStartedRef = useRef(false);
-  const navigateToGameRef = useRef(() => {});
   const cleanupRef = useRef(() => {});
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
@@ -126,17 +124,19 @@ export default function PoolRoyaleLobby() {
         return;
       }
 
-      const navigateToGame = ({ tableId: startedId, players: list = [] } = {}) => {
-        if (!startedId || matchStartedRef.current) return;
-        matchStartedRef.current = true;
-        cleanupRef.current?.({ account: accountId, skipRefReset: true });
-        const friendlyName =
-          list.find((p) => String(p.id) === String(accountId))?.name ||
-          getTelegramFirstName() ||
-          getTelegramId() ||
-          `TPC ${accountId}`;
-        const opponent = list.find((p) => String(p.id) !== String(accountId));
+      const handleLobbyUpdate = ({ tableId: tid, players: list = [], ready = [] } = {}) => {
+        if (!tid || tid !== pendingTableRef.current) return;
+        setMatchPlayers(list);
+        setReadyList(ready);
+        const others = list.filter((p) => String(p.id) !== String(accountId));
+        setMatchStatus(
+          others.length > 0 ? 'Opponent joined. Locking seats…' : 'Waiting for another player…'
+        );
+      };
 
+      const handleGameStart = ({ tableId: startedId } = {}) => {
+        if (!startedId || startedId !== pendingTableRef.current) return;
+        cleanupRef.current?.({ account: accountId, skipRefReset: true });
         const params = new URLSearchParams();
         params.set('variant', variant);
         params.set('type', playType);
@@ -150,27 +150,9 @@ export default function PoolRoyaleLobby() {
         const resolvedAccountId = accountIdRef.current;
         if (resolvedAccountId) params.set('accountId', resolvedAccountId);
         if (tableSize) params.set('tableSize', tableSize);
-        if (friendlyName) params.set('name', friendlyName);
-        if (opponent?.name) params.set('opponent', opponent.name);
-        if (opponent?.avatar) params.set('opponentAvatar', opponent.avatar);
+        const name = getTelegramFirstName();
+        if (name) params.set('name', name);
         navigate(`/games/poolroyale?${params.toString()}`);
-      };
-
-      navigateToGameRef.current = navigateToGame;
-
-      const handleLobbyUpdate = ({ tableId: tid, players: list = [], ready = [] } = {}) => {
-        if (!tid || tid !== pendingTableRef.current) return;
-        setMatchPlayers(list);
-        setReadyList(ready);
-        const others = list.filter((p) => String(p.id) !== String(accountId));
-        setMatchStatus(
-          others.length > 0 ? 'Opponent joined. Locking seats…' : 'Waiting for another player…'
-        );
-      };
-
-      const handleGameStart = ({ tableId: startedId, players: list = [] } = {}) => {
-        if (!startedId || startedId !== pendingTableRef.current) return;
-        navigateToGame({ tableId: startedId, players: list });
       };
 
       const cleanupLobby = ({ account, skipRefReset } = {}) => {
@@ -192,7 +174,6 @@ export default function PoolRoyaleLobby() {
         setSpinningPlayer('');
         setIsSearching(false);
         setMatchingError('');
-        matchStartedRef.current = false;
         if (!skipRefReset) cleanupRef.current = () => {};
       };
 
@@ -343,7 +324,6 @@ export default function PoolRoyaleLobby() {
       setMatchPlayers([]);
       setReadyList([]);
       setIsSearching(false);
-      matchStartedRef.current = false;
     }
   }, [mode, playType]);
 
@@ -351,24 +331,6 @@ export default function PoolRoyaleLobby() {
     () => new Set((readyList || []).map((id) => String(id))),
     [readyList]
   );
-
-  useEffect(() => {
-    if (!matching || matchStartedRef.current) return;
-    const tableId = pendingTableRef.current;
-    const myId = accountIdRef.current;
-    if (!tableId || !myId) return;
-    const readySet = new Set((readyList || []).map((id) => String(id)));
-    if (!readySet.has(String(myId))) return;
-    const opponent = (matchPlayers || []).find((p) => {
-      const pid = String(p?.id ?? '');
-      return pid && pid !== String(myId) && readySet.has(pid);
-    });
-    if (!opponent) return;
-    const readyPlayers = (matchPlayers || []).filter((p) =>
-      readySet.has(String(p?.id ?? ''))
-    );
-    navigateToGameRef.current({ tableId, players: readyPlayers });
-  }, [matching, matchPlayers, readyList]);
 
   const winnerParam = searchParams.get('winner');
 
