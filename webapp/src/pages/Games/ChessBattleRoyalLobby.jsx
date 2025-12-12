@@ -146,6 +146,44 @@ export default function ChessBattleRoyalLobby() {
     if (matching) return;
     let tgId;
     let trackedAccountId;
+    const awaitSocketConnection = () =>
+      new Promise((resolve, reject) => {
+        if (socket.connected) {
+          resolve();
+          return;
+        }
+
+        let settled = false;
+
+        const cleanup = () => {
+          socket.off('connect', handleConnect);
+          socket.off('connect_error', handleError);
+        };
+
+        const handleConnect = () => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve();
+        };
+
+        const handleError = (err) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          cleanup();
+          reject(err || new Error('Socket connection failed'));
+        };
+
+        const timeout = setTimeout(() => {
+          handleError(new Error('Socket connection timeout'));
+        }, 5000);
+
+        socket.on('connect', handleConnect);
+        socket.on('connect_error', handleError);
+        socket.connect();
+      });
     if (isOnline) {
       try {
         trackedAccountId = await ensureAccountId();
@@ -161,7 +199,16 @@ export default function ChessBattleRoyalLobby() {
           players: 2,
           accountId: trackedAccountId,
         });
-      } catch {}
+      } catch (error) {
+        console.warn('Failed to prepare online chess match', error);
+        setMatchError('Unable to reserve your stake. Please try again.');
+        return;
+      }
+
+      if (!trackedAccountId) {
+        setMatchError('Could not verify your account. Please try again.');
+        return;
+      }
     }
 
     if (!isOnline) {
@@ -172,6 +219,16 @@ export default function ChessBattleRoyalLobby() {
     setMatchError('');
     setMatching(true);
     setMatchStatus('Connecting to lobby…');
+
+    if (isOnline) {
+      try {
+        await awaitSocketConnection();
+      } catch (error) {
+        setMatchError('Unable to connect to the lobby. Please retry.');
+        setMatching(false);
+        return;
+      }
+    }
 
     const handleLobbyUpdate = ({ tableId: tid, players: list = [] } = {}) => {
       if (!tid || tid !== pendingTableRef.current) return;
