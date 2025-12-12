@@ -3,9 +3,7 @@ import { linkGoogleAccount } from '../utils/api.js';
 
 export default function LinkGoogleButton({ telegramId, onLinked }) {
   const [ready, setReady] = useState(false);
-  const [error, setError] = useState('');
   const initialized = useRef(false);
-  const buttonRef = useRef(null);
 
   useEffect(() => {
     function handleCredential(res) {
@@ -20,16 +18,11 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
           firstName: data.given_name,
           lastName: data.family_name,
           photo: data.picture
-        }).then((resp) => {
-          if (resp?.error) {
-            setError(resp.error);
-            return;
-          }
+        }).then(() => {
           if (onLinked) onLinked();
         });
       } catch (err) {
         console.error('Failed to link Google account', err);
-        setError('Unable to process Google response');
       }
     }
 
@@ -37,8 +30,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       if (
         initialized.current ||
         !window.google ||
-        !import.meta.env.VITE_GOOGLE_CLIENT_ID ||
-        !buttonRef.current
+        !import.meta.env.VITE_GOOGLE_CLIENT_ID
       ) {
         return false;
       }
@@ -47,16 +39,6 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
         callback: handleCredential,
         ux_mode: 'popup'
       });
-
-      window.google.accounts.id.renderButton(buttonRef.current, {
-        type: 'standard',
-        shape: 'rectangular',
-        theme: 'outline',
-        text: 'continue_with',
-        size: 'large',
-        logo_alignment: 'left'
-      });
-
       initialized.current = true;
       setReady(true);
       return true;
@@ -70,19 +52,20 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
     }
   }, [telegramId, onLinked]);
 
+  function handleClick() {
+    if (window.google && initialized.current) {
+      window.google.accounts.id.prompt();
+    }
+  }
+
   return (
-    <div className="space-y-2">
-      <div ref={buttonRef} className="inline-block" aria-live="polite" />
-      {!ready && (
-        <button
-          type="button"
-          disabled
-          className="px-3 py-1 bg-white text-black rounded opacity-60"
-        >
-          Loading Google...
-        </button>
-      )}
-      {error && <p className="text-sm text-red-500">{error}</p>}
-    </div>
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={!ready}
+      className="px-3 py-1 bg-white text-black rounded disabled:opacity-50"
+    >
+      Link Google
+    </button>
   );
 }
