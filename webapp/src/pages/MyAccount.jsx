@@ -27,6 +27,7 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import LinkTelegramButton from '../components/LinkTelegramButton.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -348,6 +349,15 @@ export default function MyAccount() {
           >
             Use Telegram Photo
           </button>
+          {!telegramId && googleId && (
+            <div className="mt-3 p-3 bg-surface rounded border border-border space-y-1">
+              <p className="text-sm text-white-shadow">Link your Telegram account:</p>
+              <LinkTelegramButton
+                googleId={googleId}
+                onLinked={() => window.location.reload()}
+              />
+            </div>
+          )}
           <div className="mt-2">
             <a
               href="/messages"
