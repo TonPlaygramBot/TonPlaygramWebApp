@@ -4997,11 +4997,6 @@ function makeWoodTexture({
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
-  const pocketCenterList = pocketCenters();
-  const sidePocketCenterX = Math.max(
-    Math.abs(pocketCenterList[4]?.x ?? limX),
-    Math.abs(pocketCenterList[5]?.x ?? limX)
-  );
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
@@ -5052,10 +5047,7 @@ function reflectRails(ball) {
   const sideSin = Math.sin(sideRad);
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
-    TMP_VEC2_C.set(
-      sx * sidePocketCenterX,
-      sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25)
-    );
+    TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
     TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
