@@ -366,10 +366,6 @@ export function registerWallet(walletAddress) {
   return post('/api/profile/register-wallet', { walletAddress });
 }
 
-export function getGoogleClientId() {
-  return get('/api/profile/google-client-id');
-}
-
 export function linkGoogleAccount(data) {
   return post('/api/profile/link-google', data);
 }
