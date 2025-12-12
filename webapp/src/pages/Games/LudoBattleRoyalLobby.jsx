@@ -6,7 +6,6 @@ import TableSelector from '../../components/TableSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { seedFlags } from '../../utils/aiFlagDefaults.js';
 import {
   addTransaction,
   getAccountBalance,
@@ -32,8 +31,8 @@ export default function LudoBattleRoyalLobby() {
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [table, setTable] = useState(TABLES[0]);
   const [avatar, setAvatar] = useState('');
-  const [aiCount, setAiCount] = useState(1);
-  const [aiType, setAiType] = useState('flags');
+  const [aiCount, setAiCount] = useState(0);
+  const [aiType, setAiType] = useState('');
   const [flags, setFlags] = useState([]);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [online, setOnline] = useState(0);
@@ -77,15 +76,6 @@ export default function LudoBattleRoyalLobby() {
     window.addEventListener('profilePhotoUpdated', updatePhoto);
     return () => window.removeEventListener('profilePhotoUpdated', updatePhoto);
   }, []);
-
-  useEffect(() => {
-    if (table?.id !== 'practice') return;
-    const count = flagPickerCount || 1;
-    if (flags.length === count && aiType === 'flags') return;
-    setFlags(seedFlags(count, { includePlayer: false }));
-    setAiType('flags');
-    setAiCount((prev) => prev || 1);
-  }, [table?.id, flagPickerCount, flags.length, aiType]);
 
   const selectAiType = (type) => {
     setAiType(type);

@@ -4,7 +4,6 @@ import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
-import { seedFlags } from '../../utils/aiFlagDefaults.js';
 import { ensureAccountId, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
@@ -37,12 +36,6 @@ export default function MurlanRoyaleLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
-
-  useEffect(() => {
-    if (mode !== 'local') return;
-    if (flags.length === flagPickerCount) return;
-    setFlags(seedFlags(flagPickerCount));
-  }, [mode, flagPickerCount, flags.length]);
 
   const startGame = async (flagOverride = flags) => {
     let tgId;
