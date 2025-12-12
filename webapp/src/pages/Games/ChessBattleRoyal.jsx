@@ -217,11 +217,12 @@ const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
-const TARGET_FPS = 90;
-const TARGET_FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
-const RENDER_PIXEL_RATIO_CAP = 1.25;
+const DEFAULT_TARGET_FPS = 90;
+const MIN_TARGET_FPS = 50;
+const MAX_TARGET_FPS = 144;
+const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
-const MIN_RENDER_PIXEL_RATIO = 1.0;
+const MIN_RENDER_PIXEL_RATIO = 0.85;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -234,6 +235,113 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
+
+function detectCoarsePointer() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    try {
+      const coarseQuery = window.matchMedia('(pointer: coarse)');
+      if (typeof coarseQuery?.matches === 'boolean') {
+        return coarseQuery.matches;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  try {
+    if ('ontouchstart' in window) {
+      return true;
+    }
+    const nav = window.navigator;
+    if (nav && typeof nav.maxTouchPoints === 'number') {
+      return nav.maxTouchPoints > 0;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
+
+function detectRefreshRateHint() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return null;
+  }
+  const queries = [
+    { query: '(min-refresh-rate: 143hz)', fps: 144 },
+    { query: '(min-refresh-rate: 119hz)', fps: 120 },
+    { query: '(min-refresh-rate: 89hz)', fps: 90 },
+    { query: '(max-refresh-rate: 59hz)', fps: 60 },
+    { query: '(max-refresh-rate: 50hz)', fps: 50 },
+    { query: '(prefers-reduced-motion: reduce)', fps: 50 }
+  ];
+  for (const { query, fps } of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return fps;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return null;
+}
+
+function selectPerformanceProfile() {
+  const refreshHint = detectRefreshRateHint();
+  const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
+  const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
+  const coarsePointer = detectCoarsePointer();
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    (() => {
+      try {
+        return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      } catch (err) {
+        return false;
+      }
+    })();
+
+  const lowEndMemory = typeof deviceMemory === 'number' && deviceMemory > 0 && deviceMemory < 4;
+  const lowEndCores = typeof cores === 'number' && cores > 0 && cores <= 4;
+  const highEndMemory = typeof deviceMemory === 'number' && deviceMemory >= 8;
+  const highEndCores = typeof cores === 'number' && cores >= 8;
+
+  const lowEndDevice = coarsePointer || lowEndMemory || lowEndCores;
+  const highEndDevice = !coarsePointer && (highEndMemory || highEndCores);
+
+  let targetFps = clamp(refreshHint ?? DEFAULT_TARGET_FPS, MIN_TARGET_FPS, MAX_TARGET_FPS);
+  let resolutionScale = 1.0;
+  let pixelRatioScale = RENDER_PIXEL_RATIO_SCALE;
+  let pixelRatioCap = DEFAULT_RENDER_PIXEL_RATIO_CAP;
+
+  if (prefersReducedMotion) {
+    targetFps = Math.min(targetFps, 50);
+    resolutionScale = Math.min(resolutionScale, 0.9);
+    pixelRatioScale = Math.min(pixelRatioScale, 0.9);
+    pixelRatioCap = Math.min(pixelRatioCap, 1.05);
+  }
+
+  if (lowEndDevice) {
+    targetFps = Math.min(targetFps, 60);
+    resolutionScale = Math.min(resolutionScale, 0.9);
+    pixelRatioScale = Math.min(pixelRatioScale, 0.92);
+    pixelRatioCap = Math.min(pixelRatioCap, 1.1);
+  } else if (highEndDevice) {
+    targetFps = Math.max(targetFps, 120);
+    pixelRatioScale = Math.max(pixelRatioScale, 1.05);
+    pixelRatioCap = Math.max(pixelRatioCap, 1.3);
+  }
+
+  return {
+    targetFps: clamp(targetFps, MIN_TARGET_FPS, MAX_TARGET_FPS),
+    resolutionScale,
+    pixelRatioScale,
+    pixelRatioCap
+  };
+}
 
 const BEAUTIFUL_GAME_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf',
@@ -5754,53 +5862,60 @@ function Chess3D({
     let onClick = null;
 
     const setup = async () => {
+      const performanceProfile = selectPerformanceProfile();
+      const targetFrameIntervalMs = 1000 / performanceProfile.targetFps;
+      const renderResolutionScale = performanceProfile.resolutionScale;
+      const pixelRatioCap = performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP;
+      const pixelRatioScale = performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE;
 
-    const normalizedAppearance = normalizeAppearance(appearanceRef.current);
-    const palette = createChessPalette(normalizedAppearance);
-    paletteRef.current = palette;
-    const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
-    const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
-    const pieceSetOption =
-      PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
-    const initialPlayerFlag =
-      playerFlag ||
-      resolvedInitialFlag ||
-      (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
-    const initialAiFlagValue =
-      aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
-    const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
-    const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalizedAppearance.tableShape);
-    const pieceMaterials = createPieceMaterials(pieceStyleOption);
-    disposers.push(() => {
-      disposePieceMaterials(pieceMaterials);
-    });
-    const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
-    const playAudio = (audioRef) => {
-      if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
-      try {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {});
-      } catch {}
-    };
-    const playMoveSound = () => playAudio(moveSoundRef);
-    const playCheckSound = () => playAudio(checkSoundRef);
-    const playMateSound = () => playAudio(mateSoundRef);
-    const playLaughSound = () => playAudio(laughSoundRef);
-    const chairTheme = mapChairOptionToTheme(chairOption);
-    const chairBuild = await buildChessChairTemplate(chairTheme);
-    if (cancelled) return;
-    const chairTemplate = chairBuild?.chairTemplate ?? null;
-    const chairMaterials = chairBuild?.materials ?? null;
-    applyChairThemeMaterials({ chairMaterials }, chairTheme);
-    disposers.push(() => {
-      disposeChessChairMaterials(chairMaterials);
-    });
+      const normalizedAppearance = normalizeAppearance(appearanceRef.current);
+      const palette = createChessPalette(normalizedAppearance);
+      paletteRef.current = palette;
+      const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
+      const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
+      const pieceSetOption =
+        PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
+      const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
+      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
+      const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
+      const initialPlayerFlag =
+        playerFlag ||
+        resolvedInitialFlag ||
+        (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
+      const initialAiFlagValue =
+        aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
+      const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
+      const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
+      const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
+      const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
+        normalizedAppearance.tableShape
+      );
+      const pieceMaterials = createPieceMaterials(pieceStyleOption);
+      disposers.push(() => {
+        disposePieceMaterials(pieceMaterials);
+      });
+      const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
+      const playAudio = (audioRef) => {
+        if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
+        try {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(() => {});
+        } catch {}
+      };
+      const playMoveSound = () => playAudio(moveSoundRef);
+      const playCheckSound = () => playAudio(checkSoundRef);
+      const playMateSound = () => playAudio(mateSoundRef);
+      const playLaughSound = () => playAudio(laughSoundRef);
+      const chairTheme = mapChairOptionToTheme(chairOption);
+      const chairBuild = await buildChessChairTemplate(chairTheme);
+      if (cancelled) return;
+      const chairTemplate = chairBuild?.chairTemplate ?? null;
+      const chairMaterials = chairBuild?.materials ?? null;
+      applyChairThemeMaterials({ chairMaterials }, chairTheme);
+      disposers.push(() => {
+        disposeChessChairMaterials(chairMaterials);
+      });
 
     // ----- Build scene -----
     renderer = new THREE.WebGLRenderer({
@@ -5819,11 +5934,8 @@ function Chess3D({
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
     const devicePixelRatio = window.devicePixelRatio || 1;
-    const scaledPixelRatio = devicePixelRatio * RENDER_PIXEL_RATIO_SCALE;
-    const pixelRatio = Math.max(
-      MIN_RENDER_PIXEL_RATIO,
-      Math.min(RENDER_PIXEL_RATIO_CAP, scaledPixelRatio)
-    );
+    const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
+    const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
     renderer.setPixelRatio(pixelRatio);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -6241,7 +6353,9 @@ function Chess3D({
     const fit = () => {
       const w = host.clientWidth;
       const h = host.clientHeight;
-      renderer.setSize(w, h, false);
+      const renderW = Math.max(1, Math.round(w * renderResolutionScale));
+      const renderH = Math.max(1, Math.round(h * renderResolutionScale));
+      renderer.setSize(renderW, renderH, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       const tableSpan = (tableInfo?.radius ?? TABLE_RADIUS) * CAMERA_TABLE_SPAN_FACTOR;
@@ -7563,7 +7677,7 @@ function Chess3D({
       }
 
       controls?.update();
-      if (now - lastRender >= TARGET_FRAME_INTERVAL_MS) {
+      if (now - lastRender >= targetFrameIntervalMs) {
         renderer.render(scene, camera);
         lastRender = now;
       }
