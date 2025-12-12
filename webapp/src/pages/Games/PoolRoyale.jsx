@@ -2325,43 +2325,6 @@ const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
-    id: 'skybox-truss',
-    label: 'Skybox TrussCam',
-    description: 'High truss glide with wide parallax sweeps.',
-    method: 'Skybox cable with parallel dolly and gentle rack focus.',
-    railPush: BALL_R * 10.5,
-    lateralDolly: BALL_R * 3.4,
-    focusLift: BALL_R * 6.2,
-    focusDepthBias: BALL_R * 2.4,
-    trackingBias: 0.58,
-    smoothing: 0.16
-  },
-  {
-    id: 'rail-drift',
-    label: 'Railside DriftCam',
-    description: 'Low glide that hugs the long rail for intimate cue follow.',
-    method: 'Motorized rail slider with shallow parallax and cue-tracking bias.',
-    railPush: BALL_R * 7.8,
-    lateralDolly: BALL_R * 2.8,
-    focusLift: BALL_R * 4.4,
-    focusDepthBias: BALL_R * 1.2,
-    focusPan: BALL_R * 0.6,
-    trackingBias: 0.72,
-    smoothing: 0.12
-  },
-  {
-    id: 'pocket-vault',
-    label: 'Pocket VaultCam',
-    description: 'Aggressive pocket push-ins for dramatic sink shots.',
-    method: 'Corner jib with rapid pull focus into the pocket apex.',
-    railPush: BALL_R * 12.5,
-    lateralDolly: BALL_R * 1.8,
-    focusLift: BALL_R * 3.2,
-    focusDepthBias: BALL_R * 4.1,
-    trackingBias: 0.44,
-    smoothing: 0.18
-  },
-  {
     id: 'drone-orbit',
     label: 'Drone OrbitCam',
     description: 'Slow aerial orbits that keep both players framed.',
@@ -2375,20 +2338,20 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     smoothing: 0.22
   },
   {
-    id: 'immersive-follow',
-    label: 'Immersive FollowCam',
-    description: 'Player-height follow with responsive rail swaps.',
-    method: 'Shoulder-height steadicam with fast target biasing.',
-    railPush: BALL_R * 9.4,
-    lateralDolly: BALL_R * 3.9,
-    focusLift: BALL_R * 5.1,
-    focusDepthBias: BALL_R * 2.7,
-    focusPan: BALL_R * 0.9,
-    trackingBias: 0.81,
-    smoothing: 0.14
+    id: 'analyst-tripod',
+    label: 'Analyst Booth Tripod',
+    description: 'Locked-off analyst booth angle with steady lensing.',
+    method: 'Dual tripod broadcast cams with conservative dolly and focus pulls.',
+    railPush: BALL_R * 8.6,
+    lateralDolly: BALL_R * 2.1,
+    focusLift: BALL_R * 4.8,
+    focusDepthBias: BALL_R * 2.9,
+    focusPan: BALL_R * 0.4,
+    trackingBias: 0.38,
+    smoothing: 0.18
   }
 ]);
-const DEFAULT_BROADCAST_SYSTEM_ID = 'skybox-truss';
+const DEFAULT_BROADCAST_SYSTEM_ID = 'drone-orbit';
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
