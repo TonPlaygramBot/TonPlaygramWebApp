@@ -40,6 +40,7 @@ import { avatarToName } from '../../utils/avatarUtils.js';
 import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import { socket } from '../../utils/socket.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -4261,6 +4262,30 @@ function parseFEN(fen) {
   return board;
 }
 
+function boardToFEN(board, whiteToMove = true) {
+  const rows = [];
+  for (let r = 0; r < 8; r += 1) {
+    let row = '';
+    let empty = 0;
+    for (let c = 0; c < 8; c += 1) {
+      const piece = board?.[r]?.[c];
+      if (!piece) {
+        empty += 1;
+        continue;
+      }
+      if (empty) {
+        row += String(empty);
+        empty = 0;
+      }
+      const symbol = piece.t || 'P';
+      row += piece.w ? symbol.toUpperCase() : symbol.toLowerCase();
+    }
+    if (empty) row += String(empty);
+    rows.push(row || '8');
+  }
+  return `${rows.join('/')}${whiteToMove ? ' w' : ' b'} - - 0 1`;
+}
+
 function cloneBoard(b) {
   return b.map((r) => r.map((c) => (c ? { t: c.t, w: c.w, hasMoved: Boolean(c.hasMoved) } : null)));
 }
@@ -4936,8 +4961,18 @@ const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
 // ======================= Main Component =======================
-function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
+function Chess3D({ avatar, username, initialFlag, initialAiFlag, accountId }) {
   const wrapRef = useRef(null);
+  const onlineRef = useRef({
+    enabled: Boolean(accountId),
+    tableId: null,
+    side: 'white',
+    synced: false,
+    opponent: null,
+    emitMove: () => {},
+    requestSync: () => {},
+    status: 'connecting'
+  });
   const rafRef = useRef(0);
   const timerRef = useRef(null);
   const bombSoundRef = useRef(null);
@@ -5010,6 +5045,11 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const baseFlag = resolvedInitialFlag || fallbackChoice || FALLBACK_FLAG;
     return getAIOpponentFlag(baseFlag);
   });
+  const [onlineStatus, setOnlineStatus] = useState(
+    onlineRef.current.enabled ? 'connecting' : 'offline'
+  );
+  const [tableId, setTableId] = useState('');
+  const [opponent, setOpponent] = useState(null);
   const [p1QuickIdx, setP1QuickIdx] = useState(0);
   const [p2QuickIdx, setP2QuickIdx] = useState(1);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
@@ -5040,6 +5080,88 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
+
+  useEffect(() => {
+    if (!onlineRef.current.enabled || !accountId) {
+      setOnlineStatus('offline');
+      return undefined;
+    }
+    let active = true;
+    const cleanups = [];
+    const tableJoin = { current: '' };
+
+    const handleChessState = (payload = {}) => {
+      if (!active) return;
+      if (payload.tableId && tableJoin.current && payload.tableId !== tableJoin.current)
+        return;
+      onlineRef.current.synced = true;
+      setOnlineStatus('in-game');
+      onlineRef.current.applyRemoteMove?.(payload);
+    };
+
+    const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
+      if (!startedId || startedId !== tableJoin.current) return;
+      const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
+      const opp = players.find((p) => String(p.id) !== String(accountId));
+      if (opp) setOpponent(opp);
+      onlineRef.current.side = meIndex === 0 ? 'white' : 'black';
+      onlineRef.current.status = 'started';
+      setOnlineStatus('starting');
+      socket.emit('joinChessRoom', { tableId: startedId, accountId });
+      onlineRef.current.requestSync?.();
+    };
+
+    socket.emit('register', { playerId: accountId });
+    socket.emit(
+      'seatTable',
+      {
+        accountId,
+        gameType: 'chess',
+        stake: 0,
+        maxPlayers: 2,
+        playerName: username,
+        avatar
+      },
+      (res) => {
+        if (!active) return;
+        if (res?.tableId) {
+          setTableId(res.tableId);
+          tableJoin.current = res.tableId;
+          onlineRef.current.tableId = res.tableId;
+          setOnlineStatus('matched');
+          socket.emit('confirmReady', { accountId, tableId: res.tableId });
+        }
+      }
+    );
+
+    socket.on('gameStart', handleGameStart);
+    socket.on('chessState', handleChessState);
+    socket.on('chessMove', handleChessState);
+
+    onlineRef.current.emitMove = ({ tableId: tid, move }) => {
+      const target = tid || onlineRef.current.tableId;
+      if (!target || !move) return;
+      socket.emit('chessMove', { tableId: target, move });
+    };
+    onlineRef.current.requestSync = () => {
+      const target = onlineRef.current.tableId;
+      if (!target) return;
+      socket.emit('chessSyncRequest', { tableId: target });
+    };
+
+    cleanups.push(() => {
+      socket.off('gameStart', handleGameStart);
+      socket.off('chessState', handleChessState);
+      socket.off('chessMove', handleChessState);
+      if (tableJoin.current)
+        socket.emit('leaveLobby', { accountId, tableId: tableJoin.current });
+    });
+
+    return () => {
+      active = false;
+      cleanups.forEach((fn) => fn());
+    };
+  }, [accountId, avatar, username]);
 
   useEffect(() => {
     whiteTimeRef.current = whiteTime;
@@ -6498,6 +6620,31 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
     const pieceMeshes = Array.from({ length: 8 }, () => Array(8).fill(null));
     const allPieceMeshes = [];
 
+    const syncBoardFromState = (payload = {}) => {
+      const { fen, turnWhite = true, lastMove } = payload;
+      if (!fen) return;
+      try {
+        board = parseFEN(fen.split(' ')[0]);
+        paintPiecesFromPrototypes(currentPiecePrototypes);
+        applyStatus(turnWhite, turnWhite ? 'White to move' : 'Black to move', null);
+        if (lastMove?.from && lastMove?.to) {
+          const { from, to } = lastMove;
+          lastMoveRef.current = {
+            from,
+            to,
+            pieceMesh: pieceMeshes?.[to.r]?.[to.c],
+            selectionColor: paletteRef.current?.capture,
+            highlightColor: paletteRef.current?.highlight
+          };
+          highlightSelection(from.r, from.c, paletteRef.current?.capture);
+          highlightMoves([[to.r, to.c]], paletteRef.current?.highlight);
+        }
+      } catch (error) {
+        console.warn('Chess Battle Royal: failed to sync remote board', error);
+      }
+    };
+    onlineRef.current.applyRemoteMove = syncBoardFromState;
+
     const paintPiecesFromPrototypes = (prototypes, styleId = currentPieceSetId) => {
       if (!prototypes) return;
       const colorKey = (p) => (p.w ? 'white' : 'black');
@@ -6947,6 +7094,10 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       if (isReplayingRef.current) return;
       if (!sel) return;
       if (!legal.some(([r, c]) => r === rr && c === cc)) return;
+      if (onlineRef.current.enabled) {
+        const myTurnIsWhite = onlineRef.current.side === 'white';
+        if (uiRef.current.turnWhite !== myTurnIsWhite) return;
+      }
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
       if (targetMesh) {
@@ -7096,6 +7247,14 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
       }
 
       applyStatus(nextWhite, status, winner);
+      if (onlineRef.current.enabled && onlineRef.current.tableId) {
+        const movePayload = {
+          lastMove: { from: { r: sel.r, c: sel.c }, to: { r: rr, c: cc } },
+          fen: boardToFEN(board, nextWhite),
+          turnWhite: nextWhite
+        };
+        onlineRef.current.emitMove?.({ tableId: onlineRef.current.tableId, move: movePayload });
+      }
       sel = null;
       resetSelectedMeshElevation();
       clearHighlights();
@@ -7438,6 +7597,19 @@ function Chess3D({ avatar, username, initialFlag, initialAiFlag }) {
           <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
             <div className="font-semibold">{ui.status}</div>
           </div>
+          {onlineStatus !== 'offline' && (
+            <div className="pointer-events-none rounded border border-emerald-300/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-100/90 shadow-lg backdrop-blur">
+              <div className="font-semibold uppercase tracking-wide text-[10px]">Online Match</div>
+              <div className="text-emerald-50/80">
+                {onlineStatus === 'in-game'
+                  ? `Synced${opponent ? ` vs ${avatarToName(opponent.avatar) || opponent.name || opponent.id}` : ''}`
+                  : `Status: ${onlineStatus}`}
+              </div>
+              {tableId && (
+                <div className="text-[10px] text-emerald-50/70">Table {tableId.slice(0, 8)}</div>
+              )}
+            </div>
+          )}
         </div>
         <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
           <div className="pointer-events-auto flex gap-2">
@@ -7777,6 +7949,7 @@ export default function ChessBattleRoyal() {
     params.get('name') ||
     getTelegramFirstName() ||
     getTelegramUsername();
+  const accountId = params.get('accountId') || '';
   const flagParam = params.get('flag') || params.get('playerFlag');
   const initialFlag =
     flagParam && FLAG_EMOJIS.includes(flagParam) ? flagParam : '';
@@ -7789,6 +7962,7 @@ export default function ChessBattleRoyal() {
       username={username}
       initialFlag={initialFlag}
       initialAiFlag={initialAiFlag}
+      accountId={accountId}
     />
   );
 }
