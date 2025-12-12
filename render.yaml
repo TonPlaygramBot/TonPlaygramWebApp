@@ -19,7 +19,4 @@ services:
     rootDir: webapp
     buildCommand: npm install && npm run build
     staticPublishPath: dist
-    envVars:
-      - key: VITE_GOOGLE_CLIENT_ID
-        fromSecret: GOOGLE_CLIENT_ID
 
