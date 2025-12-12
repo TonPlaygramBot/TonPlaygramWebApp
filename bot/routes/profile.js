@@ -4,7 +4,6 @@ import User from '../models/User.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
 import { ensureTransactionArray, calculateBalance, sanitizeUser } from '../utils/userUtils.js';
 import { normalizeAddress } from '../utils/ton.js';
-import { verifyTelegramLogin } from '../utils/telegramLogin.js';
 
 export function parseTwitterHandle(input) {
   if (!input) return '';
@@ -217,39 +216,6 @@ router.post('/link-google', async (req, res) => {
     { $set: update, $setOnInsert: { referralCode: telegramId.toString() } },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
-  res.json(sanitizeUser(user));
-});
-
-router.post('/link-telegram', async (req, res) => {
-  const { googleId, authData } = req.body;
-  if (!googleId || !authData?.id || !authData?.hash) {
-    return res.status(400).json({ error: 'googleId and Telegram auth data required' });
-  }
-
-  if (!verifyTelegramLogin(authData)) {
-    return res.status(400).json({ error: 'Invalid Telegram login' });
-  }
-
-  const telegramId = Number(authData.id);
-
-  const existingGoogle = await User.findOne({ googleId });
-  const existingTelegram = await User.findOne({ telegramId });
-
-  if (existingGoogle && existingTelegram && existingGoogle.id !== existingTelegram.id) {
-    return res
-      .status(409)
-      .json({ error: 'This Telegram account is already linked to another user' });
-  }
-
-  const user = existingGoogle || existingTelegram || new User({ referralCode: telegramId.toString() });
-  user.googleId = googleId;
-  user.telegramId = telegramId;
-  if (authData?.first_name) user.firstName = user.firstName || authData.first_name;
-  if (authData?.last_name) user.lastName = user.lastName || authData.last_name;
-  if (authData?.photo_url) user.photo = user.photo || authData.photo_url;
-
-  await user.save();
-
   res.json(sanitizeUser(user));
 });
 
