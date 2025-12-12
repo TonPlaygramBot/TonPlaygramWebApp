@@ -217,11 +217,12 @@ const CAMERA_PHI_OFFSET = 0;
 const CAMERA_TOPDOWN_EXTRA = 0;
 const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
-const TARGET_FPS = 90;
+const TARGET_FPS = 60;
 const TARGET_FRAME_INTERVAL_MS = 1000 / TARGET_FPS;
 const RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
 const MIN_RENDER_PIXEL_RATIO = 1.0;
+const SEAT_ANCHOR_SAMPLE_INTERVAL_MS = 120;
 const SEAT_LABEL_HEIGHT = 0.74;
 const SEAT_LABEL_FORWARD_OFFSET = -0.32;
 const AVATAR_ANCHOR_HEIGHT = SEAT_THICKNESS / 2 + BACK_HEIGHT * 0.85;
@@ -4961,6 +4962,20 @@ function bestBlackMove(board, depth = 4) {
 const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
+const normalizeSidePreference = (value) =>
+  value === 'white' || value === 'black' ? value : 'auto';
+
+const deterministicWhiteIndex = (seed, count = 2) => {
+  const base = String(seed || 'chess');
+  let hash = 0;
+  for (let i = 0; i < base.length; i += 1) {
+    hash = (hash << 5) - hash + base.charCodeAt(i);
+    hash |= 0;
+  }
+  const safeCount = Math.max(1, count);
+  return Math.abs(hash) % safeCount;
+};
+
 // ======================= Main Component =======================
 function Chess3D({
   avatar,
@@ -4970,10 +4985,12 @@ function Chess3D({
   accountId,
   initialTableId,
   initialSide,
-  initialOpponent
+  initialOpponent,
+  colorPreference
 }) {
   const wrapRef = useRef(null);
   const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
+  const normalizedColorPreference = normalizeSidePreference(colorPreference);
   const onlineRef = useRef({
     enabled: Boolean(accountId),
     tableId: null,
@@ -5114,6 +5131,29 @@ function Chess3D({
     const tableJoin = { current: initialTableId || '' };
     onlineRef.current.side = normalizedInitialSide;
 
+    const resolveSides = (list = [], tableIdValue = '') => {
+      const defaults = list.map((_, idx) =>
+        idx === deterministicWhiteIndex(tableIdValue || list.map((p) => p.id).join('-'), list.length || 2)
+          ? 'white'
+          : 'black'
+      );
+
+      const resolved = list.map((p, idx) => {
+        const pref = normalizeSidePreference(
+          p.colorPreference ||
+            p.sidePreference ||
+            (String(p.id) === String(accountId) ? normalizedColorPreference : 'auto')
+        );
+        if (pref === 'auto') return defaults[idx] || (idx === 0 ? 'white' : 'black');
+        return pref;
+      });
+
+      if (resolved.length === 2 && resolved[0] === resolved[1]) {
+        return defaults;
+      }
+      return resolved;
+    };
+
     const handleChessState = (payload = {}) => {
       if (!active) return;
       if (payload.tableId && tableJoin.current && payload.tableId !== tableJoin.current)
@@ -5127,8 +5167,11 @@ function Chess3D({
       if (!startedId || startedId !== tableJoin.current) return;
       const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
       const opp = players.find((p) => String(p.id) !== String(accountId));
-      if (opp) setOpponent(opp);
-      onlineRef.current.side = meIndex === 0 ? 'white' : 'black';
+      const sides = resolveSides(players, startedId);
+      const mySide = sides[meIndex] || normalizedInitialSide;
+      const opponentSide = sides[meIndex === 0 ? 1 : 0] || (mySide === 'white' ? 'black' : 'white');
+      if (opp) setOpponent({ ...opp, side: opponentSide });
+      onlineRef.current.side = mySide;
       onlineRef.current.status = 'started';
       setOnlineStatus('starting');
       socket.emit('joinChessRoom', { tableId: startedId, accountId });
@@ -5197,7 +5240,7 @@ function Chess3D({
       active = false;
       cleanups.forEach((fn) => fn());
     };
-  }, [accountId, avatar, initialTableId, normalizedInitialSide, username]);
+  }, [accountId, avatar, initialTableId, normalizedColorPreference, normalizedInitialSide, username]);
 
   useEffect(() => {
     whiteTimeRef.current = whiteTime;
@@ -7485,6 +7528,7 @@ function Chess3D({
     // Loop
     let lastTime = performance.now();
     let lastRender = lastTime;
+    let lastSeatUpdate = lastTime;
     const step = () => {
       const now = performance.now();
       const rawDt = Math.max(0, (now - lastTime) / 1000);
@@ -7493,33 +7537,36 @@ function Chess3D({
       lastTime = now;
       const arenaState = arenaRef.current;
       if (arenaState?.seatAnchors?.length && camera) {
-        const positions = arenaState.seatAnchors.map((anchor, index) => {
-          anchor.getWorldPosition(seatWorld);
-          seatNdc.copy(seatWorld).project(camera);
-          const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
-          const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
-          const depth = camera.position.distanceTo(seatWorld);
-          return { index, x, y, depth };
-        });
-        let changed = positions.length !== seatPositionsRef.current.length;
-        if (!changed) {
-          for (let i = 0; i < positions.length; i += 1) {
-            const prev = seatPositionsRef.current[i];
-            const curr = positions[i];
-            if (
-              !prev ||
-              Math.abs(prev.x - curr.x) > 0.2 ||
-              Math.abs(prev.y - curr.y) > 0.2 ||
-              Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
-            ) {
-              changed = true;
-              break;
+        if (now - lastSeatUpdate >= SEAT_ANCHOR_SAMPLE_INTERVAL_MS) {
+          lastSeatUpdate = now;
+          const positions = arenaState.seatAnchors.map((anchor, index) => {
+            anchor.getWorldPosition(seatWorld);
+            seatNdc.copy(seatWorld).project(camera);
+            const x = clamp((seatNdc.x * 0.5 + 0.5) * 100, -25, 125);
+            const y = clamp((0.5 - seatNdc.y * 0.5) * 100, -25, 125);
+            const depth = camera.position.distanceTo(seatWorld);
+            return { index, x, y, depth };
+          });
+          let changed = positions.length !== seatPositionsRef.current.length;
+          if (!changed) {
+            for (let i = 0; i < positions.length; i += 1) {
+              const prev = seatPositionsRef.current[i];
+              const curr = positions[i];
+              if (
+                !prev ||
+                Math.abs(prev.x - curr.x) > 0.2 ||
+                Math.abs(prev.y - curr.y) > 0.2 ||
+                Math.abs((prev.depth ?? 0) - curr.depth) > 0.02
+              ) {
+                changed = true;
+                break;
+              }
             }
           }
-        }
-        if (changed) {
-          seatPositionsRef.current = positions;
-          setSeatAnchors(positions);
+          if (changed) {
+            seatPositionsRef.current = positions;
+            setSeatAnchors(positions);
+          }
         }
       } else if (seatPositionsRef.current.length) {
         seatPositionsRef.current = [];
@@ -8000,6 +8047,8 @@ export default function ChessBattleRoyal() {
   const aiFlagParam = params.get('aiFlag') || (params.get('aiFlags') || '').split(',')[0];
   const initialAiFlag =
     aiFlagParam && FLAG_EMOJIS.includes(aiFlagParam) ? aiFlagParam : '';
+  const colorPrefParam = params.get('colorPref') || params.get('sidePref');
+  const colorPreference = normalizeSidePreference(colorPrefParam);
   const initialSide = params.get('side') === 'black' ? 'black' : 'white';
   const opponentName = params.get('opponentName') || '';
   const opponentAvatar = params.get('opponentAvatar') || '';
@@ -8046,6 +8095,7 @@ export default function ChessBattleRoyal() {
       initialTableId={initialTableId}
       initialSide={initialSide}
       initialOpponent={initialOpponent}
+      colorPreference={colorPreference}
     />
   );
 }
