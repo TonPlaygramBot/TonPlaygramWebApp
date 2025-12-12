@@ -23,6 +23,7 @@ export default function ChessBattleRoyalLobby() {
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
   const [avatar, setAvatar] = useState('');
+  const [mode, setMode] = useState('ai');
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [showAiFlagPicker, setShowAiFlagPicker] = useState(false);
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
@@ -88,37 +89,42 @@ export default function ChessBattleRoyalLobby() {
   }, []);
 
   const startGame = async () => {
+    const isOnline = mode === 'online';
     let tgId;
     let trackedAccountId;
-    try {
-      trackedAccountId = await ensureAccountId();
-      if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
-      const balRes = await getAccountBalance(trackedAccountId);
-      if ((balRes.balance || 0) < stake.amount) {
-        alert('Insufficient balance');
-        return;
-      }
-      tgId = getTelegramId();
-      await addTransaction(tgId, -stake.amount, 'stake', {
-        game: 'chessbattle',
-        players: 2,
-        accountId: trackedAccountId,
-      });
-    } catch {}
+    if (isOnline) {
+      try {
+        trackedAccountId = await ensureAccountId();
+        if (trackedAccountId) setAccountId((prev) => prev || trackedAccountId);
+        const balRes = await getAccountBalance(trackedAccountId);
+        if ((balRes.balance || 0) < stake.amount) {
+          alert('Insufficient balance');
+          return;
+        }
+        tgId = getTelegramId();
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'chessbattle',
+          players: 2,
+          accountId: trackedAccountId,
+        });
+      } catch {}
+    }
 
     const params = new URLSearchParams();
     const initData = window.Telegram?.WebApp?.initData;
-    if (stake.token) params.set('token', stake.token);
-    if (stake.amount) params.set('amount', stake.amount);
+    if (isOnline && stake.token) params.set('token', stake.token);
+    if (isOnline && stake.amount) params.set('amount', stake.amount);
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
-    if (trackedAccountId || accountId) params.set('accountId', trackedAccountId || accountId);
+    if (isOnline && (trackedAccountId || accountId))
+      params.set('accountId', trackedAccountId || accountId);
     if (selectedFlag) params.set('flag', selectedFlag);
     if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
-    if (initData) params.set('init', encodeURIComponent(initData));
+    if (isOnline && initData) params.set('init', encodeURIComponent(initData));
+    params.set('mode', mode);
     navigate(`/games/chessbattleroyal?${params.toString()}`);
   };
 
@@ -130,12 +136,47 @@ export default function ChessBattleRoyalLobby() {
       </p>
 
       <div className="space-y-2">
-        <h3 className="font-semibold">Select Stake</h3>
-        <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
-        <p className="text-center text-subtext text-sm">
-          Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
+        <h3 className="font-semibold">Choose Mode</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { key: 'ai', label: 'Vs AI', desc: 'Instant practice' },
+            { key: 'online', label: 'Online', desc: 'Stake & match' }
+          ].map(({ key, label, desc }) => {
+            const active = mode === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setMode(key)}
+                className={`rounded-xl border px-3 py-3 text-left shadow transition hover:border-primary ${
+                  active
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-background/70 text-text'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold">{label}</span>
+                  {active && <span className="text-xs font-bold">Selected</span>}
+                </div>
+                <div className="text-xs text-subtext">{desc}</div>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-xs text-subtext text-center">
+          AI matches stay offline. Online mode uses your TPC stake and pairs you with another player.
         </p>
       </div>
+
+      {mode === 'online' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Select Stake</h3>
+          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+          <p className="text-center text-subtext text-sm">
+            Staking uses your TPC account{accountId ? ` #${accountId}` : ''} as escrow for every online round.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <h3 className="font-semibold">Your Flag & Avatar</h3>
@@ -186,14 +227,22 @@ export default function ChessBattleRoyalLobby() {
         onClick={startGame}
         className="px-4 py-2 w-full bg-primary hover:bg-primary-hover text-background rounded"
       >
-        Start Game
+        {mode === 'online' ? 'Find Online Match' : 'Play vs AI'}
       </button>
 
       <FlagPickerModal
         open={showFlagPicker}
         count={1}
         selected={playerFlagIndex != null ? [playerFlagIndex] : []}
-        onSave={(indices) => setPlayerFlagIndex(indices?.[0] ?? null)}
+        onSave={(indices) => {
+          const idx = indices?.[0] ?? null;
+          setPlayerFlagIndex(idx);
+          try {
+            if (idx != null) {
+              window.localStorage?.setItem('chessBattleRoyalPlayerFlag', FLAG_EMOJIS[idx]);
+            }
+          } catch {}
+        }}
         onClose={() => setShowFlagPicker(false)}
       />
 
