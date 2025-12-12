@@ -971,6 +971,34 @@ const CAM = {
 
 const PLAYER_FLAG_STORAGE_KEY = 'chessBattleRoyalPlayerFlag';
 const FALLBACK_FLAG = '🇺🇸';
+const ensureDistinctSides = (players = [], accountId) => {
+  const normalized = players.map((p, index) => ({
+    ...p,
+    side: p?.side === 'white' || p?.side === 'black' ? p.side : null,
+    __order: index
+  }));
+
+  const whiteCount = normalized.filter((p) => p.side === 'white').length;
+  const blackCount = normalized.filter((p) => p.side === 'black').length;
+  const needsAssignment = normalized.length >= 2 && (whiteCount !== 1 || blackCount !== 1);
+
+  if (needsAssignment) {
+    normalized
+      .sort((a, b) => a.__order - b.__order)
+      .forEach((player, idx) => {
+        player.side = idx === 0 ? 'white' : 'black';
+      });
+  }
+
+  const me = normalized.find((p) => String(p.id) === String(accountId));
+  const opponent = normalized.find((p) => String(p.id) !== String(accountId));
+
+  return {
+    mySide: me?.side || 'white',
+    opponent,
+    players: normalized.map(({ __order, ...rest }) => rest)
+  };
+};
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
   chairColor: 0,
@@ -5233,12 +5261,8 @@ function Chess3D({
 
     const handleGameStart = ({ tableId: startedId, players = [] } = {}) => {
       if (!startedId || startedId !== tableJoin.current) return;
-      const meIndex = players.findIndex((p) => String(p.id) === String(accountId));
-      const opp = players.find((p) => String(p.id) !== String(accountId));
-      if (opp) setOpponent(opp);
-      const mySide =
-        players.find((p) => String(p.id) === String(accountId))?.side ||
-        (meIndex === 0 ? 'white' : 'black');
+      const { mySide, opponent: resolvedOpponent } = ensureDistinctSides(players, accountId);
+      if (resolvedOpponent) setOpponent(resolvedOpponent);
       onlineRef.current.side = mySide;
       onlineRef.current.status = 'started';
       setOnlineStatus('starting');
