@@ -87,14 +87,14 @@ export default function DiceRoller({
       if (count >= iterations) {
         clearInterval(id);
         // allow the final face to be visible before stopping
-        setTimeout(() => {
-          setRolling(false);
-          startValuesRef.current = results;
-          onRollEnd && onRollEnd(results);
-          if (emitRollEvent) {
-            socket.emit('rollDice');
-          }
-        }, tick);
+          setTimeout(() => {
+            setRolling(false);
+            startValuesRef.current = results;
+            onRollEnd && onRollEnd(results);
+            if (emitRollEvent) {
+              socket.emit('rollDice', { values: results });
+            }
+          }, tick);
       }
     }, tick);
   };

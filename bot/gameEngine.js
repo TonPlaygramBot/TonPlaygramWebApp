@@ -265,7 +265,7 @@ export class GameRoom {
     }
   }
 
-  rollDice(socket, value) {
+  rollDice(socket, value, diceValues) {
     if (this.status !== 'playing') return;
     if (this.turnTimer) {
       clearTimeout(this.turnTimer);
@@ -289,7 +289,9 @@ export class GameRoom {
     const prevPositions = this.players.map((p) => p.position);
 
     if (this.gameType === 'snake') {
-      const result = this.game.rollDice(value != null ? [value] : undefined);
+      const result = this.game.rollDice(
+        diceValues ? diceValues : value != null ? [value] : undefined
+      );
       if (!result) return;
 
       const total = result.dice.reduce((a, b) => a + b, 0);
@@ -524,10 +526,10 @@ export class GameRoomManager {
     return result;
   }
 
-  async rollDice(socket) {
+  async rollDice(socket, diceValues) {
     const room = this.findRoomBySocket(socket.id);
     if (room) {
-      room.rollDice(socket);
+      room.rollDice(socket, undefined, diceValues);
       await this.saveRoom(room);
     }
   }
