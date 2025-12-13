@@ -250,22 +250,6 @@ function detectPreferredFrameRateId() {
   return 'balanced60';
 }
 
-function detectBestFrameRate() {
-  if (typeof screen !== 'undefined' && Number.isFinite(screen.frameRate)) {
-    return Math.min(120, Math.max(30, screen.frameRate));
-  }
-  const reduceMotion =
-    typeof matchMedia === 'function' &&
-    matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (reduceMotion) return 60;
-  if (typeof navigator !== 'undefined') {
-    const threads = navigator.hardwareConcurrency ?? 0;
-    const memory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : 0;
-    if (threads >= 8 && memory >= 6) return 90;
-  }
-  return 60;
-}
-
 function signedRingArea(ring) {
   let area = 0;
   for (let i = 0; i < ring.length - 1; i++) {
@@ -984,28 +968,28 @@ const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = 0; // remove the underlay lift so pocket rims sit flush on the cloth
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.44 +
-    POCKET_VIS_R * 2.9 +
-    BALL_R * 2.02) * 0.92;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.44 +
+  POCKET_VIS_R * 2.9 +
+  BALL_R * 2.02;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  (Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.62 +
-    POCKET_VIS_R * 2.82 +
-    BALL_R * 1.92) * 0.9;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.62 +
+  POCKET_VIS_R * 2.82 +
+  BALL_R * 1.92;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 10.2,
+  heightOffset: BALL_R * 9.6,
   heightOffsetShortMultiplier: 1.08,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
-  heightDrop: BALL_R * 1.08,
-  distanceScale: 0.82,
-  heightScale: 1.34,
-  focusBlend: 0.46,
-  lateralFocusShift: POCKET_VIS_R * 0.48,
+  heightDrop: BALL_R * 1.3,
+  distanceScale: 0.84,
+  heightScale: 1.28,
+  focusBlend: 0.38,
+  lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
   railFocusShort: BALL_R * 5.4
 });
@@ -1128,7 +1112,7 @@ const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = 0; // clamp the orbit to the cue height so the camera never dips beneath the stick
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.2;
@@ -4148,7 +4132,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.02; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
@@ -4158,7 +4142,7 @@ const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
-const BROADCAST_PAIR_MARGIN = BALL_R * 7.5; // keep the cue/target pair safely framed within the broadcast crop
+const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
   nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
@@ -4220,7 +4204,7 @@ const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.045;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.14;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.17;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.22
@@ -8203,18 +8187,26 @@ function PoolRoyaleGame({
     }
     return DEFAULT_CHROME_COLOR_ID;
   });
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+      const detected = detectPreferredFrameRateId();
+      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
+        return detected;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const activeFrameRateOption = useMemo(() => {
-    const autoFps = detectBestFrameRate();
-    const fps = Number.isFinite(autoFps) && autoFps > 0 ? autoFps : 60;
-    return {
-      id: 'auto',
-      label: 'Auto',
-      fps,
-      resolution: 'Device max',
-      description: 'Automatically uses the highest refresh and resolution the device allows.'
-    };
-  }, []);
+  const activeFrameRateOption = useMemo(
+    () =>
+      FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
+      FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
   const activeBroadcastSystem = useMemo(
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
@@ -8251,14 +8243,17 @@ function PoolRoyaleGame({
   });
   const applyRailMarkerStyleRef = useRef(() => {});
   const resolvedFrameTiming = useMemo(() => {
-    const fallbackFps = 60;
+    const fallbackFps =
+      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
+        ? FRAME_RATE_OPTIONS[0].fps
+        : 60;
     const fps =
       Number.isFinite(activeFrameRateOption?.fps) && activeFrameRateOption.fps > 0
         ? activeFrameRateOption.fps
-        : detectBestFrameRate() || fallbackFps;
+        : fallbackFps;
     const targetMs = 1000 / fps;
     return {
-      id: activeFrameRateOption?.id ?? 'auto',
+      id: activeFrameRateOption?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
       fps,
       targetMs,
       maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
@@ -8782,6 +8777,11 @@ function PoolRoyaleGame({
       window.localStorage.setItem('poolChromeColor', chromeColorId);
     }
   }, [chromeColorId]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    }
+  }, [frameRateId]);
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
@@ -9693,7 +9693,7 @@ function PoolRoyaleGame({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 2 : 2.5;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
@@ -11653,15 +11653,9 @@ function PoolRoyaleGame({
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
           if (topViewRef.current) {
-            const tableCenter = getDefaultOrbitTarget().multiplyScalar(
-              worldScaleFactor
-            );
-            focusTarget = tableCenter;
-            lookTarget = tableCenter;
-            const fitTopRadius = fitRadius(camera, TOP_VIEW_MARGIN) * worldScaleFactor;
             const topRadius = clampOrbitRadius(
               Math.max(
-                fitTopRadius,
+                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
                 CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
               )
             );
@@ -16758,6 +16752,82 @@ function PoolRoyaleGame({
                           />
                           {option.label}
                         </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Graphics
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-xs font-semibold tracking-wide">
+                            {option.resolution
+                              ? `${option.resolution} • ${option.fps} FPS`
+                              : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Broadcast Modes
+                </h3>
+                <div className="mt-2 grid gap-2">
+                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
+                    const active = option.id === broadcastSystemId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setBroadcastSystemId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                            {option.method}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
