@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import RoomSelector from '../../components/RoomSelector.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
+import RoomSelector from '../../components/RoomSelector.jsx';
 import {
   ensureAccountId,
   getTelegramId,
@@ -21,9 +21,7 @@ export default function SnookerClubLobby() {
   const searchParams = new URLSearchParams(search);
   const initialPlayType = (() => {
     const requestedType = searchParams.get('type');
-    return requestedType === 'training' || requestedType === 'tournament'
-      ? requestedType
-      : 'regular';
+    return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
 
   const [stake, setStake] = useState({ token: 'TPC', amount: 100 });
@@ -32,9 +30,6 @@ export default function SnookerClubLobby() {
   const variant = 'snooker';
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
-  const [trainingVariant, setTrainingVariant] = useState('snooker');
-  const [trainingMode, setTrainingMode] = useState('ai');
-  const [trainingRulesEnabled, setTrainingRulesEnabled] = useState(true);
   const [tableSize, setTableSize] = useState(() => resolveTableSize(searchParams.get('tableSize')).id);
   const [matching, setMatching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
@@ -60,11 +55,6 @@ export default function SnookerClubLobby() {
     return () => window.removeEventListener('profilePhotoUpdated', syncAvatar);
   }, []);
 
-  useEffect(() => {
-    if (playType !== 'training') return;
-    setTrainingVariant((current) => current || variant);
-  }, [playType, variant]);
-
   const promptAvatarRefresh = () => {
     const tg = window?.Telegram?.WebApp;
     if (tg?.showPopup) {
@@ -79,9 +69,10 @@ export default function SnookerClubLobby() {
   };
 
   const startGame = async () => {
+    const isOnlineMatch = mode === 'online' && playType === 'regular';
     let tgId;
     let accountId;
-    if (playType !== 'training') {
+    if (isOnlineMatch) {
       try {
         accountId = await ensureAccountId();
         const balRes = await getAccountBalance(accountId);
@@ -90,13 +81,11 @@ export default function SnookerClubLobby() {
           return;
         }
         tgId = getTelegramId();
-        if (mode !== 'online') {
-          await addTransaction(tgId, -stake.amount, 'stake', {
-            game: 'snookerclub',
-            players: playType === 'tournament' ? players : 2,
-            accountId
-          });
-        }
+        await addTransaction(tgId, -stake.amount, 'stake', {
+          game: 'snookerclub-online',
+          players: 2,
+          accountId
+        });
       } catch {}
     } else {
       try {
@@ -105,7 +94,7 @@ export default function SnookerClubLobby() {
       } catch {}
     }
 
-    if (mode === 'online' && playType === 'regular') {
+    if (isOnlineMatch) {
       setMatchingError('');
       setIsSearching(true);
       if (!accountId) {
@@ -150,19 +139,15 @@ export default function SnookerClubLobby() {
     }
 
     const params = new URLSearchParams();
-    const resolvedVariant = playType === 'training' ? trainingVariant : variant;
-    params.set('variant', resolvedVariant);
+    params.set('variant', variant);
     params.set('tableSize', tableSize);
     params.set('type', playType);
-    params.set('mode', playType === 'training' ? trainingMode : mode);
-    if (playType === 'training') {
-      params.set('rules', trainingRulesEnabled ? 'on' : 'off');
-    }
-    if (playType !== 'training') {
+    params.set('mode', mode);
+    if (isOnlineMatch) {
       if (stake.token) params.set('token', stake.token);
       if (stake.amount) params.set('amount', stake.amount);
-      if (playType === 'tournament') params.set('players', players);
     }
+    if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -211,7 +196,7 @@ export default function SnookerClubLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">Type</h3>
         <div className="flex gap-2 flex-wrap">
-          {[{ id: 'regular', label: 'Staking' }, { id: 'training', label: 'Training' }, { id: 'tournament', label: 'Tournament' }].map(
+          {[{ id: 'regular', label: 'Staking' }, { id: 'tournament', label: 'Tournament' }].map(
             ({ id, label }) => (
               <button
                 key={id}
@@ -226,88 +211,31 @@ export default function SnookerClubLobby() {
         </div>
       </div>
 
-      {playType !== 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Mode</h3>
-          <div className="flex gap-2 flex-wrap">
-            {[{ id: 'ai', label: 'Vs AI' }, { id: 'online', label: 'Online' }, { id: 'local', label: 'Local Multiplayer' }].map(
-              ({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setMode(id)}
-                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
-                >
-                  {label}
-                </button>
-              )
-            )}
-          </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Mode</h3>
+        <div className="flex gap-2 flex-wrap">
+          {[{ id: 'ai', label: 'Vs AI' }, { id: 'online', label: 'Online' }, { id: 'local', label: 'Local Multiplayer' }].map(
+            ({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setMode(id)}
+                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''}`}
+              >
+                {label}
+              </button>
+            )
+          )}
         </div>
-      )}
+      </div>
 
-      {playType === 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Training options</h3>
-          <div className="lobby-tile flex flex-col gap-4">
-            <div>
-              <p className="text-sm font-semibold">Opponent</p>
-              <p className="text-xs text-subtext">Solo practice or alternate turns with the AI.</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {[{ id: 'solo', label: 'Solo' }, { id: 'ai', label: 'Vs AI' }].map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setTrainingMode(id)}
-                    className={`lobby-tile ${trainingMode === id ? 'lobby-selected' : ''}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold">Rules</p>
-              <p className="text-xs text-subtext">Play with standard fouls or open practice.</p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {[{ id: 'on', label: 'Follow Rules' }, { id: 'off', label: 'Free Table' }].map(({ id, label }) => (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => setTrainingRulesEnabled(id === 'on')}
-                    className={`lobby-tile ${trainingRulesEnabled === (id === 'on') ? 'lobby-selected' : ''}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {playType !== 'training' && (
+      {mode === 'online' && playType === 'regular' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Stake</h3>
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <label className="flex flex-col">
-              <span className="text-subtext text-xs">Token</span>
-              <input
-                value={stake.token}
-                onChange={(e) => setStake((s) => ({ ...s, token: e.target.value }))}
-                className="lobby-input"
-              />
-            </label>
-            <label className="flex flex-col">
-              <span className="text-subtext text-xs">Stake</span>
-              <input
-                type="number"
-                value={stake.amount}
-                onChange={(e) => setStake((s) => ({ ...s, amount: Number(e.target.value) }))}
-                className="lobby-input"
-              />
-            </label>
-          </div>
+          <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
+          <p className="text-center text-xs text-subtext">
+            Online games use your TPC stake as escrow, while AI and local matches stay free.
+          </p>
         </div>
       )}
 

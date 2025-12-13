@@ -41,7 +41,6 @@ export default function SnookerClub() {
   const playType = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('type');
-    if (requested === 'training') return 'training';
     if (requested === 'tournament') return 'tournament';
     return 'regular';
   }, [location.search]);
@@ -52,17 +51,6 @@ export default function SnookerClub() {
     if (requested === 'online') return 'online';
     if (requested === 'local') return 'local';
     return 'ai';
-  }, [location.search]);
-
-  const trainingMode = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('mode');
-    return requested === 'solo' ? 'solo' : 'ai';
-  }, [location.search]);
-
-  const trainingRulesEnabled = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    return params.get('rules') !== 'off';
   }, [location.search]);
 
   const accountId = useMemo(() => {
@@ -168,8 +156,6 @@ export default function SnookerClub() {
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}
-      trainingMode={trainingMode}
-      trainingRulesEnabled={trainingRulesEnabled}
       accountId={accountId}
       tgId={tgId}
       playerName={playerName}
