@@ -190,7 +190,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.06;
+const BOARD_SCALE = 0.048;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -240,6 +240,49 @@ const CAMERA_PULL_FORWARD_MIN = THREE.MathUtils.degToRad(15);
 const SAND_TIMER_RADIUS_FACTOR = 0.68;
 const SAND_TIMER_SURFACE_OFFSET = 0.2;
 const SAND_TIMER_SCALE = 0.36;
+const FRAME_RATE_STORAGE_KEY = 'chessFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
+    id: 'balanced60',
+    label: 'Chess Match (60 Hz)',
+    fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.25,
+    description: 'Balanced visuals tuned for standard 60 Hz displays.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.3,
+    description: 'High-refresh option for capable 90 Hz panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (140 Hz)',
+    fps: 140,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    description: 'Aggressive scaling to keep 140 Hz stable on fast displays.'
+  }
+]);
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -310,7 +353,7 @@ function detectRefreshRateHint() {
   return null;
 }
 
-function selectPerformanceProfile() {
+function selectPerformanceProfile(frameRatePreset = null) {
   const refreshHint = detectRefreshRateHint();
   const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
@@ -379,12 +422,29 @@ function selectPerformanceProfile() {
     pixelRatioCap = Math.max(pixelRatioCap, 1.3);
   }
 
-  return {
+  const profile = {
     targetFps: clamp(targetFps, MIN_TARGET_FPS, MAX_TARGET_FPS),
     resolutionScale,
     pixelRatioScale,
     pixelRatioCap
   };
+
+  if (frameRatePreset) {
+    if (typeof frameRatePreset.fps === 'number') {
+      profile.targetFps = clamp(frameRatePreset.fps, MIN_TARGET_FPS, MAX_TARGET_FPS);
+    }
+    if (typeof frameRatePreset.renderScale === 'number') {
+      profile.resolutionScale = frameRatePreset.renderScale;
+    }
+    if (typeof frameRatePreset.pixelRatioCap === 'number') {
+      profile.pixelRatioCap = frameRatePreset.pixelRatioCap;
+    }
+    if (typeof frameRatePreset.pixelRatioScale === 'number') {
+      profile.pixelRatioScale = frameRatePreset.pixelRatioScale;
+    }
+  }
+
+  return profile;
 }
 
 const BEAUTIFUL_GAME_URLS = [
@@ -5113,6 +5173,7 @@ function Chess3D({
   const wrapRef = useRef(null);
   const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
   const aiPlaysWhite = normalizedInitialSide === 'black';
+  const playerIsWhite = !aiPlaysWhite;
   const onlineRef = useRef({
     enabled: Boolean(accountId && initialTableId),
     tableId: null,
@@ -5146,6 +5207,45 @@ function Chess3D({
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+        if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+          return stored;
+        }
+      } catch (error) {
+        console.warn('Failed to load Chess frame rate', error);
+      }
+    }
+    const hint = detectRefreshRateHint();
+    if (typeof hint === 'number') {
+      if (hint >= 140) return 'esports144';
+      if (hint >= 115) return 'fast120';
+      if (hint >= 85) return 'smooth90';
+      if (hint <= 55) return 'mobile50';
+    }
+    return 'balanced60';
+  });
+  const frameRateOption = useMemo(
+    () =>
+      FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ||
+      FRAME_RATE_OPTIONS.find((opt) => opt.id === 'balanced60') ||
+      FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
+  const frameRateRef = useRef(frameRateOption);
+  useEffect(() => {
+    frameRateRef.current = frameRateOption;
+  }, [frameRateOption]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    } catch (error) {
+      console.warn('Failed to persist Chess frame rate', error);
+    }
+  }, [frameRateId]);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -5421,7 +5521,7 @@ function Chess3D({
   const clampQuickSelection = useCallback((currentIdx, list, fallback = 0) => {
     if (list.some((entry) => entry.idx === currentIdx)) return currentIdx;
     return list[0]?.idx ?? fallback;
-  }, []);
+  }, [frameRateOption]);
 
   useEffect(() => {
     setP1QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions));
@@ -6014,7 +6114,7 @@ function Chess3D({
     };
 
     const setup = async () => {
-      const performanceProfile = selectPerformanceProfile();
+      const performanceProfile = selectPerformanceProfile(frameRateRef.current);
       const targetFrameIntervalMs = 1000 / performanceProfile.targetFps;
       const renderResolutionScale = performanceProfile.resolutionScale;
       const pixelRatioCap = performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP;
@@ -7400,8 +7500,7 @@ function Chess3D({
         if (!playerSide) return false;
         return playerSide === 'white' ? piece.w : !piece.w;
       }
-      // Offline games only allow the human to control white; AI plays black
-      return piece.w;
+      return piece.w === playerIsWhite;
     };
 
     const canInteractWithPiece = (piece) => {
@@ -8087,6 +8186,46 @@ function Chess3D({
                     onChange={(event) => setShowHighlights(event.target.checked)}
                   />
                 </label>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
+                      <p className="mt-1 text-[0.7rem] text-white/60">
+                        Match the Snooker Club refresh presets.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-2 grid gap-2">
+                    {FRAME_RATE_OPTIONS.map((option) => {
+                      const active = option.id === frameRateId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setFrameRateId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            active
+                              ? 'border-sky-300 bg-sky-300/90 text-black shadow-[0_0_16px_rgba(56,189,248,0.45)]'
+                              : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                              {option.label}
+                            </span>
+                            <span className="text-xs font-semibold tracking-wide">{option.fps} FPS</span>
+                          </span>
+                          {option.description ? (
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
