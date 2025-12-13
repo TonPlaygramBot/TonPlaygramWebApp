@@ -993,13 +993,13 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 8.7,
-  heightOffsetShortMultiplier: 1.04,
+  heightOffset: BALL_R * 9.6,
+  heightOffsetShortMultiplier: 1.08,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
-  heightDrop: BALL_R * 1.5,
+  heightDrop: BALL_R * 1.3,
   distanceScale: 0.84,
-  heightScale: 1.22,
+  heightScale: 1.28,
   focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
@@ -10436,7 +10436,7 @@ function PoolRoyaleGame({
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 8.6,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
@@ -11160,7 +11160,6 @@ function PoolRoyaleGame({
           };
           const broadcastSystem =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
-          const preferStaticRailOverhead = broadcastSystem?.id === 'rail-overhead';
           if (broadcastSystem?.smoothing != null) {
             broadcastArgs.lerp = broadcastSystem.smoothing;
           }
@@ -11395,27 +11394,6 @@ function PoolRoyaleGame({
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
-              } else if (
-                preferStaticRailOverhead &&
-                activeShotView.stage === 'followCue'
-              ) {
-                const focusAnchor = new THREE.Vector3(
-                  0,
-                  BALL_CENTER_Y + BALL_R * 0.3,
-                  0
-                );
-                const longShotPullback =
-                  activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
-                const desiredDistance =
-                  computeShortRailBroadcastDistance(camera) + longShotPullback;
-                const desired = new THREE.Vector3(
-                  0,
-                  heightBase + ACTION_CAM.followHeightOffset,
-                  railDir * desiredDistance
-                );
-                applyStandingViewElevation(desired, focusAnchor, heightBase);
-                focusTargetVec3 = focusAnchor.multiplyScalar(worldScaleFactor);
-                desiredPosition = desired.multiplyScalar(worldScaleFactor);
               } else {
                 const cueVel = cueBall.vel.clone();
                 let dir = cueVel.clone();
@@ -16180,9 +16158,6 @@ function PoolRoyaleGame({
                 shotPrediction?.railNormal === undefined);
             const qualifiesAsGuaranteed =
               isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-            const longShotRequiresGuarantee =
-              shotPrediction?.longShot === true && !qualifiesAsGuaranteed;
-            if (longShotRequiresGuarantee) continue;
             const allowDuringChaos =
               movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
               matchesIntent ||
