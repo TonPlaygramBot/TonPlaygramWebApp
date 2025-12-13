@@ -31,6 +31,11 @@ import {
 } from '../../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
 import {
+  getMurlanInventory,
+  isMurlanOptionUnlocked,
+  murlanAccountId
+} from '../../utils/murlanInventory.js';
+import {
   ComboType,
   DEFAULT_CONFIG as BASE_CONFIG,
   aiChooseAction,
@@ -41,6 +46,10 @@ import {
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
+import {
+  MURLAN_OUTFIT_THEMES as OUTFIT_THEMES,
+  MURLAN_STOOL_THEMES as STOOL_THEMES
+} from '../../config/murlanThemes.js';
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45; // expanded arena footprint for wider walkways
@@ -63,24 +72,6 @@ const SUIT_COLORS = {
   '♦': '#cc2233',
   '🃏': '#111111'
 };
-
-const OUTFIT_THEMES = [
-  { id: 'midnight', label: 'Royal Blue', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
-  { id: 'ember', label: 'Neon Red', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
-  { id: 'glacier', label: 'Ice', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
-  { id: 'forest', label: 'Forest', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
-  { id: 'royal', label: 'Violet', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
-  { id: 'onyx', label: 'Onyx', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
-];
-
-const STOOL_THEMES = [
-  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f' },
-  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a' },
-  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a' },
-  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
-  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
-  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' }
-];
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -380,6 +371,8 @@ export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
 
+  const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory(murlanAccountId()));
+
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -408,6 +401,60 @@ export default function MurlanRoyaleArena({ search }) {
     });
     return map;
   }, [seatAnchors]);
+
+  const customizationSections = useMemo(
+    () =>
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
+      })).filter((section) => section.options.length > 0),
+    [murlanInventory]
+  );
+
+  const ensureAppearanceUnlocked = useCallback(
+    (value = DEFAULT_APPEARANCE) => {
+      const normalized = normalizeAppearance(value);
+      const map = {
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        cards: CARD_THEMES,
+        stools: STOOL_THEMES
+      };
+      let changed = false;
+      const next = { ...normalized };
+      Object.entries(map).forEach(([key, options]) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = options[idx];
+        if (!option || !isMurlanOptionUnlocked(key, option.id, murlanInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isMurlanOptionUnlocked(key, opt.id, murlanInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : normalized;
+    },
+    [murlanInventory]
+  );
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === murlanAccountId()) {
+        setMurlanInventory(getMurlanInventory(murlanAccountId()));
+      }
+    };
+    window.addEventListener('murlanInventoryUpdate', handler);
+    return () => window.removeEventListener('murlanInventoryUpdate', handler);
+  }, []);
+
+  useEffect(() => {
+    setAppearance((prev) => ensureAppearanceUnlocked(prev));
+  }, [ensureAppearanceUnlocked]);
 
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
@@ -1664,7 +1711,7 @@ export default function MurlanRoyaleArena({ search }) {
                   </button>
                 </div>
                 <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                  {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                  {customizationSections.map(({ key, label, options }) => (
                     <div key={key} className="space-y-2">
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                       <div className="grid grid-cols-2 gap-2">
