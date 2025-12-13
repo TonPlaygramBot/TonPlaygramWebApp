@@ -2348,7 +2348,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     orbitBias: 0.68,
     railPush: BALL_R * 7.2,
     lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 6.6,
+    focusLift: BALL_R * 6.0,
     focusDepthBias: BALL_R * 1.8,
     focusPan: 0,
     trackingBias: 0.52,
