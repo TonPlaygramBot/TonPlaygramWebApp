@@ -5092,6 +5092,7 @@ function Chess3D({
     requestSync: () => {},
     status: 'connecting'
   });
+  const playerSideRef = useRef(normalizedInitialSide);
   onlineRef.current.enabled = Boolean(accountId);
   const rafRef = useRef(0);
   const timerRef = useRef(null);
@@ -5241,6 +5242,7 @@ function Chess3D({
         players.find((p) => String(p.id) === String(accountId))?.side ||
         (meIndex === 0 ? 'white' : 'black');
       onlineRef.current.side = mySide;
+      playerSideRef.current = mySide;
       onlineRef.current.status = 'started';
       setOnlineStatus('starting');
       socket.emit('joinChessRoom', { tableId: startedId, accountId });
@@ -7251,6 +7253,8 @@ function Chess3D({
         resetSelectedMeshElevation();
         return ((sel = null), clearHighlights());
       }
+      const playerIsWhite = playerSideRef.current === 'white';
+      if (!force && p.w !== playerIsWhite) return; // opponent piece
       if (!force && p.w !== uiRef.current.turnWhite) return; // not your turn
 
       resetSelectedMeshElevation();
