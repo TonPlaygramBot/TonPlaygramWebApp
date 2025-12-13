@@ -993,8 +993,8 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 9.6,
-  heightOffsetShortMultiplier: 1.08,
+  heightOffset: BALL_R * 3.2,
+  heightOffsetShortMultiplier: 1.0,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
   heightDrop: BALL_R * 1.3,
@@ -10436,7 +10436,7 @@ function PoolRoyaleGame({
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 8.8,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
@@ -11520,8 +11520,9 @@ function PoolRoyaleGame({
               activeShotView.broadcastRailDir = broadcastRailDir;
               broadcastArgs = {
                 railDir: broadcastRailDir,
-                targetWorld: desiredPosition ?? null,
-                focusWorld: focusTargetVec3 ?? null,
+                targetWorld: null,
+                focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
+                orbitWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
                 lerp: lerpT
               };
               if (focusTargetVec3 && desiredPosition) {
@@ -12195,6 +12196,16 @@ function PoolRoyaleGame({
             }
           }
           if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
+          const predictedAlignment =
+            shotPrediction?.ballId === ballId && shotPrediction?.dir
+              ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
+              : null;
+          const isGuaranteedLongPocket =
+            shotPrediction?.ballId === ballId &&
+            shotPrediction?.longShot &&
+            predictedAlignment != null &&
+            predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+          if (!isGuaranteedLongPocket) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
@@ -12244,10 +12255,6 @@ function PoolRoyaleGame({
           const effectiveDist = forcedEarly
             ? Math.min(best.dist, POCKET_CAM.triggerDist)
             : best.dist;
-          const predictedAlignment =
-            shotPrediction?.ballId === ballId && shotPrediction?.dir
-              ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
-              : null;
           const minOutside = isSidePocket
             ? POCKET_CAM.minOutside
             : POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside;
