@@ -474,11 +474,10 @@ function abgPreparePiece(src) {
   const scale = target / footprint;
   clone.scale.setScalar(scale);
   const { box } = abgBbox(clone);
-  const baseLift = -box.min.y;
-  clone.position.y = baseLift;
+  const baseLift = -box.min.y + TOKEN_TRACK_HEIGHT;
   const group = new THREE.Group();
   group.add(clone);
-  group.userData.baseLift = baseLift;
+  group.position.y = baseLift;
   group.traverse((node) => {
     if (node.isMesh) node.castShadow = true;
   });
@@ -1794,24 +1793,6 @@ function makeTokenMaterial(color) {
     material.map = texture;
   }
   return material;
-}
-
-function pickAbgPaletteForColor(palettes, color) {
-  if (!palettes) return null;
-  const tint = new THREE.Color(color);
-  const luminance = 0.2126 * tint.r + 0.7152 * tint.g + 0.0722 * tint.b;
-  const base = luminance >= 0.5 ? palettes.w : palettes.b;
-  if (!Array.isArray(base) || !base.length) return null;
-  return abgTintPalette(base, color);
-}
-
-function makeAbgToken(proto, palette) {
-  if (!proto) return null;
-  const token = abgCloneWithMats(proto);
-  if (palette?.length) {
-    abgApplyPalette(token, palette);
-  }
-  return token;
 }
 
 function makeRook(mat) {
@@ -4216,14 +4197,6 @@ async function buildLudoBoard(
     tokenTypeSequence = Array(4).fill(tokenPieceOption.type);
   }
   const headPreset = headPresetOption?.preset ?? HEAD_PRESET_OPTIONS[0].preset;
-  let abgAssets = null;
-  try {
-    abgAssets = await getAbgAssets();
-  } catch (error) {
-    console.warn('Falling back to procedural tokens', error);
-  }
-  const abgBishopPrototype = abgAssets?.proto?.w?.b ?? abgAssets?.proto?.b?.b ?? null;
-  const abgPalettes = abgAssets?.palettes;
 
   const trackTileMeshes = new Array(RING_STEPS).fill(null);
   const homeColumnTiles = Array.from({ length: playerCount }, () =>
@@ -4330,11 +4303,7 @@ async function buildLudoBoard(
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const palette = pickAbgPaletteForColor(abgPalettes, color);
-      let token = abgBishopPrototype ? makeAbgToken(abgBishopPrototype, palette) : null;
-      if (!token) {
-        token = makeRook(makeTokenMaterial(color));
-      }
+      const token = makeRook(makeTokenMaterial(color));
       if (headPreset) {
         applyHeadPresetToToken(token, headPreset);
       }
