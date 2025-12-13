@@ -27,6 +27,7 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import { getOwnedPoolRoyaleStoreItems } from '../utils/poolRoyaleInventory.js';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -77,6 +78,9 @@ export default function MyAccount() {
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
+  const [ownedPoolItems, setOwnedPoolItems] = useState(() =>
+    getOwnedPoolRoyaleStoreItems()
+  );
   const [googleLinked, setGoogleLinked] = useState(!!googleId);
 
   useEffect(() => {
@@ -171,6 +175,20 @@ export default function MyAccount() {
     window.addEventListener('profilePhotoUpdated', handler);
     return () => window.removeEventListener('profilePhotoUpdated', handler);
   }, [telegramId]);
+
+  useEffect(() => {
+    setOwnedPoolItems(getOwnedPoolRoyaleStoreItems());
+    const handler = (event) => {
+      const owned = event?.detail?.owned;
+      if (Array.isArray(owned)) {
+        setOwnedPoolItems(getOwnedPoolRoyaleStoreItems(owned));
+      } else {
+        setOwnedPoolItems(getOwnedPoolRoyaleStoreItems());
+      }
+    };
+    window.addEventListener('poolRoyaleInventoryChanged', handler);
+    return () => window.removeEventListener('poolRoyaleInventoryChanged', handler);
+  }, []);
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -452,6 +470,32 @@ export default function MyAccount() {
           <InfluencerClaimsCard />
         </>
       )}
+
+      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white-shadow">Pool Royale Inventory</h3>
+          <span className="text-[11px] uppercase tracking-[0.25em] text-subtext">
+            {ownedPoolItems.length} item{ownedPoolItems.length === 1 ? '' : 's'}
+          </span>
+        </div>
+        {ownedPoolItems.length === 0 ? (
+          <p className="text-sm text-subtext">No Pool Royale cosmetics owned yet.</p>
+        ) : (
+          <ul className="space-y-2">
+            {ownedPoolItems.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center justify-between rounded-xl bg-white/5 px-3 py-2"
+              >
+                <span className="font-semibold text-white-shadow">{item.name}</span>
+                <span className="text-xs uppercase tracking-[0.2em] text-subtext">
+                  {item.category}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       {/* Wallet section */}
       <Wallet hideClaim />
