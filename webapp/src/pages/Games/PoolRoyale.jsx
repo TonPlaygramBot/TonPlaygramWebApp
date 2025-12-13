@@ -14215,21 +14215,18 @@ function PoolRoyaleGame({
           const n = THREE.MathUtils.clamp(dist / MAX_ROUTE_DISTANCE, 0, 1);
           return THREE.MathUtils.lerp(0.35, 0.9, n);
         };
-        const computePlanSpin = (plan, stateSnapshot) => {
-          const fallback = { x: 0, y: -0.1 };
-          if (!plan || plan.type !== 'pot') return fallback;
-          const colorId = plan.target;
-          if (!colorId) return fallback;
+        const predictNextShotContext = (plan, stateSnapshot) => {
+          if (!plan?.targetBall || !plan?.pocketId) return null;
           try {
             const events = [
               {
                 type: 'HIT',
-                firstContact: colorId,
+                firstContact: plan.target,
                 ballId: plan.targetBall?.id ?? null
               },
               {
                 type: 'POTTED',
-                ball: colorId,
+                ball: plan.target,
                 pocket: plan.pocketId ?? 'TL',
                 ballId: plan.targetBall?.id ?? null
               }
@@ -14264,11 +14261,25 @@ function PoolRoyaleGame({
                 (b) => b.active && toBallColorId(b.id) === 'RED'
               );
             }
-            if (!nextBall) return fallback;
+            return { nextState, nextTargets, nextBall };
+          } catch (err) {
+            console.warn('shot prediction failed', err);
+            return null;
+          }
+        };
+
+        const computePlanSpin = (plan, stateSnapshot) => {
+          const fallback = { x: 0, y: -0.1 };
+          if (!plan || plan.type !== 'pot') return fallback;
+          const prediction = predictNextShotContext(plan, stateSnapshot);
+          if (!prediction?.nextBall) return fallback;
+          try {
             const aimDir = plan.aimDir.clone();
             if (aimDir.lengthSq() < 1e-6) return fallback;
             aimDir.normalize();
-            const nextDir = nextBall.pos.clone().sub(plan.targetBall.pos);
+            const nextDir = prediction.nextBall.pos
+              .clone()
+              .sub(plan.targetBall.pos);
             if (nextDir.lengthSq() < 1e-6) return fallback;
             nextDir.normalize();
             const perp = new THREE.Vector2(-aimDir.y, aimDir.x);
@@ -14285,6 +14296,84 @@ function PoolRoyaleGame({
             console.warn('spin prediction failed', err);
             return fallback;
           }
+        };
+
+        const estimateCueExitVector = (plan) => {
+          const approach = plan.aimDir.clone().normalize();
+          const pocketDir = plan.pocketCenter
+            ? plan.pocketCenter.clone().sub(plan.targetBall.pos)
+            : approach.clone().negate();
+          if (pocketDir.lengthSq() < 1e-6) {
+            pocketDir.copy(new THREE.Vector2(-approach.y, approach.x));
+          } else {
+            pocketDir.normalize();
+          }
+          const lateral = approach
+            .clone()
+            .sub(pocketDir.clone().multiplyScalar(approach.dot(pocketDir)));
+          if (lateral.lengthSq() < 1e-6) {
+            lateral.copy(new THREE.Vector2(-pocketDir.y, pocketDir.x));
+          }
+          return lateral.normalize();
+        };
+
+        const estimateCueLeavePoint = (plan, exitDir) => {
+          const travel = Math.max(plan.cueToTarget ?? 0, BALL_R * 6);
+          const stopDist =
+            travel * THREE.MathUtils.clamp(plan.power ?? 0.65, 0.35, 1.1) * 0.5;
+          return plan.targetBall.pos
+            .clone()
+            .add(exitDir.clone().multiplyScalar(stopDist));
+        };
+
+        const estimateScratchRisk = (from, exitDir) => {
+          const centers = pocketEntranceCenters();
+          let risk = 0;
+          centers.forEach((center) => {
+            const toPocket = center.clone().sub(from);
+            const along = toPocket.dot(exitDir);
+            const cross = Math.abs(toPocket.x * exitDir.y - toPocket.y * exitDir.x);
+            if (toPocket.length() < BALL_R * 2.2) {
+              risk += 400;
+              return;
+            }
+            if (along > 0 && cross < BALL_R * 1.6) {
+              risk += cross < BALL_R * 0.9 ? 320 : 120;
+            }
+          });
+          return risk;
+        };
+
+        const scorePotPlan = (plan, stateSnapshot) => {
+          const base = plan?.difficulty ?? 1e6;
+          let score = base;
+          const prediction = predictNextShotContext(plan, stateSnapshot);
+          const exitDir = estimateCueExitVector(plan);
+          const leavePoint = estimateCueLeavePoint(plan, exitDir);
+          score += estimateScratchRisk(leavePoint, exitDir);
+          if (prediction?.nextBall) {
+            const nextBall = prediction.nextBall;
+            const distToNext = leavePoint.distanceTo(nextBall.pos);
+            score += distToNext * 0.55;
+            const approachToNext = nextBall.pos
+              .clone()
+              .sub(plan.targetBall.pos)
+              .normalize();
+            const alignment = Math.abs(exitDir.dot(approachToNext));
+            score -= alignment * 22;
+            const desiredPower = computePowerFromDistance(
+              (plan.cueToTarget ?? 0) +
+                nextBall.pos.distanceTo(plan.targetBall.pos) * 0.35
+            );
+            plan.power = THREE.MathUtils.clamp(
+              THREE.MathUtils.lerp(plan.power ?? desiredPower, desiredPower, 0.35),
+              0.25,
+              0.98
+            );
+          } else {
+            score += BALL_R * 40;
+          }
+          return score;
         };
         const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
@@ -14497,7 +14586,9 @@ function PoolRoyaleGame({
             };
             safetyShots.push(safetyPlan);
           });
-          potShots.sort((a, b) => a.difficulty - b.difficulty);
+          const scoredPotShots = potShots
+            .map((plan) => ({ plan, score: scorePotPlan(plan, state) }))
+            .sort((a, b) => a.score - b.score);
           safetyShots.sort((a, b) => a.difficulty - b.difficulty);
           if (!potShots.length && (activeVariantId === 'american' || activeVariantId === '9ball')) {
             const targetBall = activeBalls
@@ -14558,7 +14649,7 @@ function PoolRoyaleGame({
           if (!potShots.length && !safetyShots.length && fallbackPlan) {
             safetyShots.push(fallbackPlan);
           }
-          const bestPot = potShots[0] ?? null;
+          const bestPot = scoredPotShots[0]?.plan ?? null;
           const bestSafety =
             activeVariantId === 'uk' && bestPot ? null : safetyShots[0] ?? null;
           return {
