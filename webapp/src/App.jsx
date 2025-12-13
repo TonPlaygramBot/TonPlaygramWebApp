@@ -28,10 +28,6 @@ import GoalRush from './pages/Games/GoalRush.jsx';
 import GoalRushLobby from './pages/Games/GoalRushLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
-import TableTennis from './pages/Games/TableTennis.jsx';
-import TableTennisLobby from './pages/Games/TableTennisLobby.jsx';
-import TennisBattleRoyal from './pages/Games/TennisBattleRoyal.jsx';
-import TennisBattleRoyalLobby from './pages/Games/TennisBattleRoyalLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
 import ChessBattleRoyal from './pages/Games/ChessBattleRoyal.jsx';
@@ -85,16 +81,6 @@ export default function App() {
             <Route path="/games/goalrush" element={<GoalRush />} />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
             <Route path="/games/airhockey" element={<AirHockey />} />
-            <Route path="/games/tabletennis/lobby" element={<TableTennisLobby />} />
-            <Route path="/games/tabletennis" element={<TableTennis />} />
-            <Route
-              path="/games/tennisbattleroyal/lobby"
-              element={<TennisBattleRoyalLobby />}
-            />
-            <Route
-              path="/games/tennisbattleroyal"
-              element={<TennisBattleRoyal />}
-            />
             <Route
               path="/games/chessbattleroyal/lobby"
               element={<ChessBattleRoyalLobby />}
