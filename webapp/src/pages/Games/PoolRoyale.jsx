@@ -993,13 +993,13 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 8.8,
+  heightOffset: BALL_R * 9.6,
   heightOffsetShortMultiplier: 1.08,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
-  heightDrop: BALL_R * 1.12,
+  heightDrop: BALL_R * 1.3,
   distanceScale: 0.84,
-  heightScale: 1.18,
+  heightScale: 1.28,
   focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
@@ -10436,7 +10436,7 @@ function PoolRoyaleGame({
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 8.8,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
@@ -11928,18 +11928,6 @@ function PoolRoyaleGame({
               broadcastArgs.targetWorld = null;
               broadcastArgs.lerp = 0.22;
             }
-          }
-          const shouldLockBroadcastToRail = activeShotView?.mode === 'action';
-          if (shouldLockBroadcastToRail) {
-            const defaultBroadcastFocus =
-              broadcastCamerasRef.current?.defaultFocusWorld ??
-              broadcastCamerasRef.current?.defaultFocus ??
-              null;
-            broadcastArgs.focusWorld =
-              defaultBroadcastFocus ?? broadcastArgs.focusWorld ?? null;
-            broadcastArgs.targetWorld = null;
-            broadcastArgs.orbitWorld =
-              defaultBroadcastFocus ?? broadcastArgs.orbitWorld ?? null;
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
@@ -16170,7 +16158,6 @@ function PoolRoyaleGame({
                 shotPrediction?.railNormal === undefined);
             const qualifiesAsGuaranteed =
               isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-            if (!qualifiesAsGuaranteed) continue;
             const allowDuringChaos =
               movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
               matchesIntent ||
