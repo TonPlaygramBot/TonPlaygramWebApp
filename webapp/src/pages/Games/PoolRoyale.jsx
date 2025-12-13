@@ -207,47 +207,35 @@ function classifyRendererTier(rendererString) {
   return 'unknown';
 }
 
-function detectPreferredFrameRateId() {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'balanced60';
+function resolveAutoFrameTiming() {
+  if (typeof navigator === 'undefined') {
+    return { id: 'auto', fps: 60, targetMs: 1000 / 60, maxMs: (1000 / 60) * FRAME_TIME_CATCH_UP_MULTIPLIER };
   }
-  const coarsePointer = detectCoarsePointer();
-  const ua = navigator.userAgent ?? '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
-  const isTouch = maxTouchPoints > 1;
-  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
-  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
-  const lowRefresh = detectLowRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const coarsePointer = detectCoarsePointer();
+  const lowRefresh = detectLowRefreshDisplay();
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent ?? ''
+  );
 
-  if (
-    lowRefresh ||
-    coarsePointer ||
-    isTouch ||
-    isMobileUA ||
-    (deviceMemory !== null && deviceMemory <= 4) ||
-    rendererTier === 'mobile'
-  ) {
-    return 'balanced60';
+  let fps = 90;
+  if (lowRefresh || coarsePointer || rendererTier === 'mobile' || isMobileUA) {
+    fps = 60;
+  } else if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8 || (deviceMemory != null && deviceMemory >= 8)) {
+    fps = 120;
+  } else if (rendererTier === 'desktopMid' || hardwareConcurrency >= 6 || (deviceMemory != null && deviceMemory >= 6)) {
+    fps = 90;
   }
 
-  if (
-    rendererTier === 'desktopHigh' ||
-    (hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 8))
-  ) {
-    return 'performance50';
-  }
-
-  if (
-    rendererTier === 'desktopMid' ||
-    hardwareConcurrency >= 6 ||
-    (deviceMemory != null && deviceMemory >= 6)
-  ) {
-    return 'fullHd';
-  }
-
-  return 'balanced60';
+  const targetMs = 1000 / fps;
+  return {
+    id: 'auto',
+    fps,
+    targetMs,
+    maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
+  };
 }
 
 function signedRingArea(ring) {
@@ -968,12 +956,12 @@ const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = 0; // remove the underlay lift so pocket rims sit flush on the cloth
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.44 +
-  POCKET_VIS_R * 2.9 +
-  BALL_R * 2.02;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.32 +
+  POCKET_VIS_R * 2.8 +
+  BALL_R * 1.92;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.62 +
-  POCKET_VIS_R * 2.82 +
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.48 +
+  POCKET_VIS_R * 2.7 +
   BALL_R * 1.92;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
@@ -981,14 +969,14 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 9.6,
+  heightOffset: BALL_R * 10.2,
   heightOffsetShortMultiplier: 1.08,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
   heightDrop: BALL_R * 1.3,
-  distanceScale: 0.84,
-  heightScale: 1.28,
-  focusBlend: 0.38,
+  distanceScale: 0.78,
+  heightScale: 1.32,
+  focusBlend: 0.48,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
   railFocusShort: BALL_R * 5.4
@@ -1112,7 +1100,7 @@ const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.05; // align the minimum camera stop to cue height while keeping a thin safety band
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.2;
@@ -2310,19 +2298,6 @@ const LIGHTING_PRESET_MAP = Object.freeze(
   }, {})
 );
 
-const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
-const FRAME_RATE_OPTIONS = Object.freeze([
-  {
-    id: 'balanced60',
-    label: 'Snooker Match (60 Hz)',
-    fps: 60,
-    resolution: 'Snooker renderer scaling',
-    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
-  }
-]);
-const DEFAULT_FRAME_RATE_ID = 'balanced60';
-
-const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
     id: 'analyst-tripod',
@@ -4200,8 +4175,8 @@ const BREAK_VIEW = Object.freeze({
 });
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 0.32;
-const TOP_VIEW_RADIUS_SCALE = 0.28;
-const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
+const TOP_VIEW_RADIUS_SCALE = 0.24;
+const TOP_VIEW_MIN_RADIUS_SCALE = 0.82;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.045;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.17;
@@ -4222,7 +4197,7 @@ const CAMERA_DOWNWARD_PULL = 1.9;
 const CAMERA_DYNAMIC_PULL_RANGE = CAMERA.minR * 0.29;
 const CAMERA_TILT_ZOOM = BALL_R * 1.5;
 // Keep the orbit camera from slipping beneath the cue when dragged downwards.
-const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.9;
+const CAMERA_SURFACE_STOP_MARGIN = BALL_R * 0.45;
 const IN_HAND_CAMERA_RADIUS_MULTIPLIER = 1.38; // pull the orbit back while the cue ball is in-hand for a wider placement view
 // When pushing the camera below the cue height, translate forward instead of dipping beneath the cue.
 const CUE_VIEW_FORWARD_SLIDE_MAX = CAMERA.minR * 0.4;
@@ -8187,29 +8162,9 @@ function PoolRoyaleGame({
     }
     return DEFAULT_CHROME_COLOR_ID;
   });
-  const [frameRateId, setFrameRateId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
-      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-      const detected = detectPreferredFrameRateId();
-      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
-        return detected;
-      }
-    }
-    return DEFAULT_FRAME_RATE_ID;
-  });
-  const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
-  const activeFrameRateOption = useMemo(
-    () =>
-      FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ??
-      FRAME_RATE_OPTIONS[0],
-    [frameRateId]
-  );
   const activeBroadcastSystem = useMemo(
-    () => resolveBroadcastSystem(broadcastSystemId),
-    [broadcastSystemId]
+    () => resolveBroadcastSystem(DEFAULT_BROADCAST_SYSTEM_ID),
+    []
   );
   const activeChromeOption = useMemo(
     () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
@@ -8242,23 +8197,7 @@ function PoolRoyaleGame({
     colorId: railMarkerColorId
   });
   const applyRailMarkerStyleRef = useRef(() => {});
-  const resolvedFrameTiming = useMemo(() => {
-    const fallbackFps =
-      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
-        ? FRAME_RATE_OPTIONS[0].fps
-        : 60;
-    const fps =
-      Number.isFinite(activeFrameRateOption?.fps) && activeFrameRateOption.fps > 0
-        ? activeFrameRateOption.fps
-        : fallbackFps;
-    const targetMs = 1000 / fps;
-    return {
-      id: activeFrameRateOption?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
-      fps,
-      targetMs,
-      maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
-    };
-  }, [activeFrameRateOption]);
+  const resolvedFrameTiming = useMemo(() => resolveAutoFrameTiming(), []);
   const frameTimingRef = useRef(resolvedFrameTiming);
   useEffect(() => {
     frameTimingRef.current = resolvedFrameTiming;
@@ -8777,16 +8716,6 @@ function PoolRoyaleGame({
       window.localStorage.setItem('poolChromeColor', chromeColorId);
     }
   }, [chromeColorId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
-    }
-  }, [frameRateId]);
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(BROADCAST_SYSTEM_STORAGE_KEY, broadcastSystemId);
-    }
-  }, [broadcastSystemId]);
   useEffect(() => {
     if (!configOpen) return undefined;
     const handleKeyDown = (event) => {
@@ -9693,7 +9622,7 @@ function PoolRoyaleGame({
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.2;
       const devicePixelRatio = window.devicePixelRatio || 1;
-      const mobilePixelCap = window.innerWidth <= 1366 ? 1.5 : 2;
+      const mobilePixelCap = window.innerWidth <= 1366 ? 2 : 2.5;
       renderer.setPixelRatio(Math.min(mobilePixelCap, devicePixelRatio));
       renderer.sortObjects = true;
       renderer.shadowMap.enabled = true;
@@ -11631,28 +11560,35 @@ function PoolRoyaleGame({
                 BALL_CENTER_Y,
                 cue.pos.y
               );
-            } else {
-              aimFocusRef.current = null;
-              const store = ensureOrbitFocus();
-              if (store.ballId) {
-                const ballsList =
-                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
-                const focusBall = ballsList.find((b) => b.id === store.ballId);
-                if (focusBall?.active) {
-                  store.target.set(
-                    focusBall.pos.x,
-                    BALL_CENTER_Y,
-                    focusBall.pos.y
-                  );
-                } else {
-                  setOrbitFocusToDefault();
-                }
+          } else {
+            aimFocusRef.current = null;
+            const store = ensureOrbitFocus();
+            if (store.ballId) {
+              const ballsList =
+                ballsRef.current?.length > 0 ? ballsRef.current : balls;
+              const focusBall = ballsList.find((b) => b.id === store.ballId);
+              if (focusBall?.active) {
+                store.target.set(
+                  focusBall.pos.x,
+                  BALL_CENTER_Y,
+                  focusBall.pos.y
+                );
+              } else {
+                setOrbitFocusToDefault();
               }
+            }
             focusTarget = store.target.clone();
           }
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
           if (topViewRef.current) {
+            const topDownTarget = new THREE.Vector3(
+              playerOffsetRef.current,
+              ORBIT_FOCUS_BASE_Y,
+              0
+            ).multiplyScalar(worldScaleFactor);
+            focusTarget.copy(topDownTarget);
+            lookTarget = topDownTarget;
             const topRadius = clampOrbitRadius(
               Math.max(
                 getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
@@ -16752,82 +16688,6 @@ function PoolRoyaleGame({
                           />
                           {option.label}
                         </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Graphics
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {FRAME_RATE_OPTIONS.map((option) => {
-                    const active = option.id === frameRateId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setFrameRateId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                            {option.label}
-                          </span>
-                          <span className="text-xs font-semibold tracking-wide">
-                            {option.resolution
-                              ? `${option.resolution} • ${option.fps} FPS`
-                              : `${option.fps} FPS`}
-                          </span>
-                        </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <div>
-                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
-                  Broadcast Modes
-                </h3>
-                <div className="mt-2 grid gap-2">
-                  {BROADCAST_SYSTEM_OPTIONS.map((option) => {
-                    const active = option.id === broadcastSystemId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setBroadcastSystemId(option.id)}
-                        aria-pressed={active}
-                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                          active
-                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
-                        }`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                            {option.label}
-                          </span>
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
-                            {option.method}
-                          </span>
-                        </span>
-                        {option.description ? (
-                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                            {option.description}
-                          </span>
-                        ) : null}
                       </button>
                     );
                   })}
