@@ -2325,19 +2325,6 @@ const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
-    id: 'drone-orbit',
-    label: 'Drone OrbitCam',
-    description: 'Slow aerial orbits that keep both players framed.',
-    method: 'Virtual drone arc with elevated pivot and steady lerp.',
-    railPush: BALL_R * 15.2,
-    lateralDolly: BALL_R * 4.6,
-    focusLift: BALL_R * 9.5,
-    focusDepthBias: BALL_R * 3.1,
-    focusPan: BALL_R * 1.1,
-    trackingBias: 0.32,
-    smoothing: 0.22
-  },
-  {
     id: 'analyst-tripod',
     label: 'Analyst Booth Tripod',
     description: 'Locked-off analyst booth angle with steady lensing.',
@@ -2351,7 +2338,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     smoothing: 0.18
   }
 ]);
-const DEFAULT_BROADCAST_SYSTEM_ID = 'drone-orbit';
+const DEFAULT_BROADCAST_SYSTEM_ID = 'analyst-tripod';
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -4217,12 +4204,12 @@ const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.045;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.19;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.17;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.18
+  STANDING_VIEW_PHI + 0.22
 );
-const CUE_VIEW_PHI_LIFT = 0.1;
+const CUE_VIEW_PHI_LIFT = 0.12;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
