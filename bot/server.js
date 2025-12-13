@@ -699,15 +699,28 @@ app.get('/api/snake/lobbies', async (req, res) => {
 
 app.get('/api/snake/lobby/:id', async (req, res) => {
   const { id } = req.params;
-  const match = /-(\d+)$/.exec(id);
+  const parts = id.split('-');
+  const match = /(\d+)$/.exec(id);
+  const gameType = parts[0] || 'snake';
   const cap = match ? Number(match[1]) : 4;
+
   const room = await gameManager.getRoom(id, cap);
   const roomPlayers = room.players
     .filter((p) => !p.disconnected)
     .map((p) => ({ id: p.playerId, name: p.name, avatar: p.avatar }));
-  const lobbyPlayers = Array.from(tableSeats.get(id)?.values() || []).map(
-    (p) => ({ id: p.id, name: p.name, avatar: p.avatar })
-  );
+
+  const seen = new Set();
+  const lobbyPlayers = [];
+  for (const [tid, players] of tableSeats.entries()) {
+    const table = tableMap.get(tid);
+    if (!table || table.gameType !== gameType || table.maxPlayers !== cap) continue;
+    for (const info of players.values()) {
+      if (seen.has(info.id)) continue;
+      seen.add(info.id);
+      lobbyPlayers.push({ id: info.id, name: info.name, avatar: info.avatar });
+    }
+  }
+
   res.json({ id, capacity: cap, players: [...lobbyPlayers, ...roomPlayers] });
 });
 

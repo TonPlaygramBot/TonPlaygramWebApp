@@ -54,3 +54,44 @@ test('snake lobby route lists players', async () => {
     server.kill();
   }
 });
+
+test('snake lobby aggregates seated players by capacity', async () => {
+  fs.mkdirSync(new URL('assets', distDir), { recursive: true });
+  fs.writeFileSync(new URL('index.html', distDir), '');
+
+  const env = {
+    ...process.env,
+    PORT: '3201',
+    MONGO_URI: 'memory',
+    SKIP_WEBAPP_BUILD: '1',
+    BOT_TOKEN: 'dummy'
+  };
+  const server = await startServer(env);
+  try {
+    await fetch('http://localhost:3201/api/snake/table/seat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tableId: 'snake-2-custom',
+        accountId: 'p-aggregate-1',
+        name: 'Agg 1'
+      })
+    });
+
+    for (let i = 0; i < 30; i++) {
+      const res = await fetch('http://localhost:3201/api/snake/lobby/snake-2');
+      if (res.ok) {
+        const data = await res.json();
+        const hasPlayer = data.players.some((p) => p.id === 'p-aggregate-1');
+        if (hasPlayer) {
+          assert.equal(data.capacity, 2);
+          return;
+        }
+      }
+      await delay(100);
+    }
+    assert.fail('Expected aggregated lobby to include seated player');
+  } finally {
+    server.kill();
+  }
+});
