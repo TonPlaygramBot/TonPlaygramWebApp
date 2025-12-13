@@ -123,7 +123,10 @@ const computeSeatAssignments = (players, selfId) => {
     seats.push(last + 1);
   }
   const order = [];
-  const selfIndex = selfId ? players.findIndex((p) => p.id === selfId) : -1;
+  const normalizedSelfId = normalizeId(selfId);
+  const selfIndex = normalizedSelfId
+    ? players.findIndex((p) => normalizeId(p.id) === normalizedSelfId)
+    : -1;
   if (selfIndex >= 0) order.push(selfIndex);
   players.forEach((_, index) => {
     if (index !== selfIndex) order.push(index);
@@ -157,6 +160,8 @@ const FALLBACK_SEAT_POSITIONS = [
   { left: '48%', top: '22%' },
   { left: '22%', top: '55%' }
 ];
+
+const normalizeId = (value) => (value == null ? '' : String(value));
 
 const clampValue = (value, min, max) => Math.max(min, Math.min(max, value));
 
@@ -1235,7 +1240,7 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     if (!isMultiplayer) return;
-    const myAccountId = accountId || getPlayerId();
+    const myAccountId = normalizeId(accountId || getPlayerId());
     const name = myName;
     const initialCapacity = tableCapacityRef.current;
     if (!watchOnly) {
@@ -1253,25 +1258,27 @@ export default function SnakeAndLadder() {
 
     const onJoined = ({ playerId, name: joinedName, avatar, maxPlayers }) => {
       handleCapacity(maxPlayers);
+      const joinedId = normalizeId(playerId);
       const name = joinedName || `Player`;
       const photoUrl = avatar || '/assets/icons/profile.svg';
       updateMpPlayers((p) => {
-        if (p.some((pl) => pl.id === playerId)) {
+        if (p.some((pl) => normalizeId(pl.id) === joinedId)) {
           return p;
         }
-        return [...p, { id: playerId, name, photoUrl, position: 0 }];
+        return [...p, { id: joinedId, name, photoUrl, position: 0 }];
       }, maxPlayers);
     };
     const onLeft = ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
+      const leavingId = normalizeId(playerId);
       updateMpPlayers((p) => {
-        const leaving = p.find((pl) => pl.id === playerId);
-        const arr = p.filter((pl) => pl.id !== playerId);
+        const leaving = p.find((pl) => normalizeId(pl.id) === leavingId);
+        const arr = p.filter((pl) => normalizeId(pl.id) !== leavingId);
         if (leaving && !ranking.some((r) => r.name === leaving.name)) {
           setRanking((r) => [...r, { name: leaving.name, photoUrl: leaving.photoUrl, amount: 0 }]);
         }
         if (leaving) {
-          if (playerId === myAccountId) {
+          if (leavingId === myAccountId) {
             setForfeitMsg(true);
           } else if (arr.length === 1 && tableCapacityRef.current === 2) {
             setLeftWinner(leaving.name);
@@ -1284,9 +1291,12 @@ export default function SnakeAndLadder() {
       }, maxPlayers);
     };
     const onMove = ({ playerId, from = 0, to }) => {
+      const pid = normalizeId(playerId);
       const updatePosition = (pos) => {
-        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
-        if (playerId === myAccountId) setPos(pos);
+        updateMpPlayers((p) =>
+          p.map((pl) => (normalizeId(pl.id) === pid ? { ...pl, position: pos } : pl))
+        );
+        if (pid === myAccountId) setPos(pos);
       };
       const ctx = {
         updatePosition,
@@ -1317,9 +1327,12 @@ export default function SnakeAndLadder() {
       moveSeq(seq, 'normal', ctx, () => finalizeMove(to, 'normal'), 'forward');
     };
     const onSnakeOrLadder = ({ playerId, from, to }) => {
+      const pid = normalizeId(playerId);
       const updatePosition = (pos) => {
-        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: pos } : pl)));
-        if (playerId === myAccountId) setPos(pos);
+        updateMpPlayers((p) =>
+          p.map((pl) => (normalizeId(pl.id) === pid ? { ...pl, position: pos } : pl))
+        );
+        if (pid === myAccountId) setPos(pos);
       };
       const ctx = {
         updatePosition,
@@ -1348,7 +1361,8 @@ export default function SnakeAndLadder() {
       applyEffectHelper(from, ctx, finalizeMove);
     };
     const onReset = ({ playerId }) => {
-      const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+      const pid = normalizeId(playerId);
+      const idx = playersRef.current.findIndex((pl) => normalizeId(pl.id) === pid);
       if (idx === -1) return;
       setBurning((b) => [...b, idx]);
       if (!muted) {
@@ -1359,12 +1373,15 @@ export default function SnakeAndLadder() {
       }
       setTimeout(() => {
         setBurning((b) => b.filter((v) => v !== idx));
-        updateMpPlayers((p) => p.map((pl) => (pl.id === playerId ? { ...pl, position: 0 } : pl)));
-        if (playerId === myAccountId) setPos(0);
+        updateMpPlayers((p) =>
+          p.map((pl) => (normalizeId(pl.id) === pid ? { ...pl, position: 0 } : pl))
+        );
+        if (pid === myAccountId) setPos(0);
       }, 1000);
     };
     const onTurn = ({ playerId }) => {
-      const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+      const pid = normalizeId(playerId);
+      const idx = playersRef.current.findIndex((pl) => normalizeId(pl.id) === pid);
       if (idx >= 0) {
         setCurrentTurn(idx);
         setDiceCount(playerDiceCounts[idx] ?? 2);
@@ -1382,17 +1399,18 @@ export default function SnakeAndLadder() {
       setTimeout(() => setRollResult(null), 2000);
     };
     const onWon = ({ playerId }) => {
+      const pid = normalizeId(playerId);
       setGameOver(true);
-      const winnerName = playerId === myAccountId ? myName : playerId;
+      const winnerName = pid === myAccountId ? myName : pid;
       const winnerPhoto =
-        playerId === myAccountId
+        pid === myAccountId
           ? photoUrl
-          : mpPlayers.find((p) => p.id === playerId)?.photoUrl || '';
+          : mpPlayers.find((p) => normalizeId(p.id) === pid)?.photoUrl || '';
       setRanking((r) => {
         const others = r.filter((p) => p.name !== winnerName);
         return [{ name: winnerName, photoUrl: winnerPhoto, amount: 0 }, ...others];
       });
-      if (playerId === myAccountId) {
+      if (pid === myAccountId) {
         const totalPlayers = isMultiplayer ? mpPlayers.length : ai + 1;
         const tgId = getTelegramId();
         if (token === 'TPC' && pot > 0) {
@@ -1437,7 +1455,7 @@ export default function SnakeAndLadder() {
       handleCapacity(capValue);
       if (!Array.isArray(list)) return;
       const arr = list.map((p) => ({
-        id: p.playerId ?? p.id,
+        id: normalizeId(p.playerId ?? p.id),
         name: p.name || `Player`,
         photoUrl: p.avatar || p.photoUrl || '/assets/icons/profile.svg',
         position: p.position || 0
@@ -1449,20 +1467,22 @@ export default function SnakeAndLadder() {
     socket.on('playerLeft', onLeft);
     socket.on('playerDisconnected', ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
-      if (playerId === myAccountId) {
+      const pid = normalizeId(playerId);
+      if (pid === myAccountId) {
         setConnectionLost(true);
       } else if (tableCapacityRef.current > 2) {
-        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        const name = playersRef.current.find((p) => normalizeId(p.id) === pid)?.name || pid;
         setDisconnectMsg(`${name} disconnected`);
         setTimeout(() => setDisconnectMsg(null), 3000);
       }
     });
     socket.on('playerRejoined', ({ playerId, maxPlayers }) => {
       handleCapacity(maxPlayers);
-      if (playerId === myAccountId) {
+      const pid = normalizeId(playerId);
+      if (pid === myAccountId) {
         setConnectionLost(false);
       } else if (tableCapacityRef.current > 2) {
-        const name = playersRef.current.find((p) => p.id === playerId)?.name || playerId;
+        const name = playersRef.current.find((p) => normalizeId(p.id) === pid)?.name || pid;
         setDisconnectMsg(`${name} rejoined`);
         setTimeout(() => setDisconnectMsg(null), 3000);
       }
@@ -1475,15 +1495,15 @@ export default function SnakeAndLadder() {
     socket.on('playerReset', onReset);
     socket.on('turnChanged', onTurn);
     socket.on('turnUpdate', ({ currentTurn }) => onTurn({ playerId: currentTurn }));
-    socket.on('lobbyUpdate', ({ players: list, maxPlayers }) => {
-      handleCapacity(maxPlayers);
-      if (!Array.isArray(list)) return;
-      const arr = list.map((p) => ({
-        id: p.id,
-        name: p.name,
-        photoUrl: p.avatar || '/assets/icons/profile.svg',
-        position: p.position || 0
-      }));
+      socket.on('lobbyUpdate', ({ players: list, maxPlayers }) => {
+        handleCapacity(maxPlayers);
+        if (!Array.isArray(list)) return;
+        const arr = list.map((p) => ({
+          id: normalizeId(p.id),
+          name: p.name,
+          photoUrl: p.avatar || '/assets/icons/profile.svg',
+          position: p.position || 0
+        }));
       updateMpPlayers(arr, maxPlayers);
     });
     socket.on('gameStart', onStarted);
@@ -1529,7 +1549,7 @@ export default function SnakeAndLadder() {
               const n =
                 prof?.nickname || `${prof?.firstName || ''} ${prof?.lastName || ''}`.trim() || p.name;
               const photoUrl = prof?.photo || '/assets/icons/profile.svg';
-              return { id: p.id, name: n, photoUrl, position: 0 };
+              return { id: normalizeId(p.id), name: n, photoUrl, position: 0 };
             })
           ).then((arr) => {
             updateMpPlayers(arr, capacityHint);
@@ -2214,7 +2234,7 @@ export default function SnakeAndLadder() {
     if (setupPhase || gameOver || moving) return;
 
     const myIndex = isMultiplayer
-      ? mpPlayers.findIndex((p) => p.id === accountId)
+      ? mpPlayers.findIndex((p) => normalizeId(p.id) === selfId)
       : 0;
 
     if (currentTurn !== myIndex) {
@@ -2295,8 +2315,8 @@ export default function SnakeAndLadder() {
 
 
   const seatAssignments = useMemo(
-    () => (isMultiplayer ? computeSeatAssignments(mpPlayers, accountId) : new Map()),
-    [isMultiplayer, mpPlayers, accountId]
+    () => (isMultiplayer ? computeSeatAssignments(mpPlayers, selfId) : new Map()),
+    [isMultiplayer, mpPlayers, selfId]
   );
 
   const players = isMultiplayer
@@ -2319,8 +2339,9 @@ export default function SnakeAndLadder() {
         }))
       ];
 
+  const selfId = normalizeId(accountId || getPlayerId());
   const computedIndex = isMultiplayer
-    ? mpPlayers.findIndex((p) => p.id === accountId)
+    ? mpPlayers.findIndex((p) => normalizeId(p.id) === selfId)
     : 0;
   const myPlayerIndex = computedIndex >= 0 ? computedIndex : null;
   const canRoll =
@@ -2691,11 +2712,11 @@ export default function SnakeAndLadder() {
                   name={getPlayerName(p.index)}
                   isTurn={p.index === currentTurn}
                   timerPct={p.index === currentTurn ? timeLeft / TURN_TIME : 1}
-                  color={p.color}
+                    color={p.color}
                   size={avatarSize}
                   onClick={() => {
                     const myIdx = isMultiplayer
-                      ? mpPlayers.findIndex((pl) => pl.id === accountId)
+                      ? mpPlayers.findIndex((pl) => normalizeId(pl.id) === selfId)
                       : 0;
                     if (p.index !== myIdx) setPlayerPopup(p);
                   }}
@@ -2753,7 +2774,7 @@ export default function SnakeAndLadder() {
       <div className="pointer-events-auto">
         {(() => {
           const myIdx = isMultiplayer
-            ? mpPlayers.findIndex((p) => p.id === accountId)
+            ? mpPlayers.findIndex((p) => normalizeId(p.id) === selfId)
             : 0;
           return (
             <GiftPopup
