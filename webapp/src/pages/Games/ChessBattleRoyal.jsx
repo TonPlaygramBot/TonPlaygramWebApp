@@ -190,7 +190,7 @@ const BOARD_VISUAL_Y_OFFSET = -0.08;
 const BOARD_SURFACE_DROP = 0.05;
 
 const RAW_BOARD_SIZE = BOARD.N * BOARD.tile + BOARD.rim * 2;
-const BOARD_SCALE = 0.06;
+const BOARD_SCALE = 0.048;
 const BOARD_DISPLAY_SIZE = RAW_BOARD_SIZE * BOARD_SCALE;
 const BOARD_MODEL_SPAN_BIAS = 1.18;
 const HIGHLIGHT_VERTICAL_OFFSET = 0.18;
@@ -224,7 +224,7 @@ const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
 const DEFAULT_TARGET_FPS = 90;
 const MIN_TARGET_FPS = 50;
-const MAX_TARGET_FPS = 144;
+const MAX_TARGET_FPS = 140;
 const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
 const MIN_RENDER_PIXEL_RATIO = 0.85;
@@ -310,7 +310,66 @@ function detectRefreshRateHint() {
   return null;
 }
 
-function selectPerformanceProfile() {
+const GRAPHICS_STORAGE_KEY = 'chessBattleRoyalGraphics';
+const GRAPHICS_OPTIONS = Object.freeze([
+  {
+    id: 'battery50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.1,
+    pixelRatioScale: 0.92,
+    description: 'For 50–60 Hz screens and thermal saving.'
+  },
+  {
+    id: 'balanced60',
+    label: 'Match (60 Hz)',
+    fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.22,
+    pixelRatioScale: 1.0,
+    description: 'Default pacing tuned for most devices.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.25,
+    pixelRatioScale: 1.02,
+    description: 'High-refresh option for 90 Hz displays.'
+  },
+  {
+    id: 'performance120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.2,
+    pixelRatioScale: 1.05,
+    description: 'For 120 Hz capable hardware.'
+  },
+  {
+    id: 'tournament140',
+    label: 'Tournament (140 Hz)',
+    fps: 140,
+    renderScale: 0.86,
+    pixelRatioCap: 1.15,
+    pixelRatioScale: 1.08,
+    description: 'Aggressive scaling targeting 140 Hz.'
+  }
+]);
+const DEFAULT_GRAPHICS_ID = 'balanced60';
+
+function resolveDefaultGraphicsId() {
+  const hint = detectRefreshRateHint();
+  if (hint >= 140) return 'tournament140';
+  if (hint >= 120) return 'performance120';
+  if (hint >= 90) return 'smooth90';
+  if (hint && hint <= 50) return 'battery50';
+  return DEFAULT_GRAPHICS_ID;
+}
+
+function selectPerformanceProfile(overrideOption = null) {
   const refreshHint = detectRefreshRateHint();
   const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
@@ -379,12 +438,21 @@ function selectPerformanceProfile() {
     pixelRatioCap = Math.max(pixelRatioCap, 1.3);
   }
 
-  return {
+  const profile = {
     targetFps: clamp(targetFps, MIN_TARGET_FPS, MAX_TARGET_FPS),
     resolutionScale,
     pixelRatioScale,
     pixelRatioCap
   };
+
+  if (overrideOption) {
+    profile.targetFps = clamp(overrideOption.fps ?? profile.targetFps, MIN_TARGET_FPS, MAX_TARGET_FPS);
+    profile.resolutionScale = overrideOption.renderScale ?? profile.resolutionScale;
+    profile.pixelRatioCap = overrideOption.pixelRatioCap ?? profile.pixelRatioCap;
+    profile.pixelRatioScale = overrideOption.pixelRatioScale ?? profile.pixelRatioScale;
+  }
+
+  return profile;
 }
 
 const BEAUTIFUL_GAME_URLS = [
@@ -5143,6 +5211,13 @@ function Chess3D({
   const viewModeRef = useRef('2d');
   const cameraTweenRef = useRef(0);
   const settingsRef = useRef({ showHighlights: true, soundEnabled: true, moveMode: 'click' });
+  const renderSettingsRef = useRef({
+    targetFrameIntervalMs: 1000 / DEFAULT_TARGET_FPS,
+    renderResolutionScale: 1,
+    pixelRatioCap: DEFAULT_RENDER_PIXEL_RATIO_CAP,
+    pixelRatioScale: RENDER_PIXEL_RATIO_SCALE
+  });
+  const aiMovingRef = useRef(false);
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
@@ -5248,6 +5323,15 @@ function Chess3D({
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showHighlights, setShowHighlights] = useState(true);
+  const [graphicsId, setGraphicsId] = useState(() => {
+    const fallback = resolveDefaultGraphicsId();
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const stored = window.localStorage?.getItem(GRAPHICS_STORAGE_KEY);
+      if (stored && GRAPHICS_OPTIONS.some((opt) => opt.id === stored)) return stored;
+    } catch {}
+    return fallback;
+  });
   const [moveMode, setMoveMode] = useState('click');
   const [seatAnchors, setSeatAnchors] = useState([]);
   const [viewMode, setViewMode] = useState('2d');
@@ -5262,6 +5346,13 @@ function Chess3D({
   const lastMoveRef = useRef(null);
   const replayLastMoveRef = useRef(() => {});
   const isReplayingRef = useRef(false);
+  const activeGraphicsOption = useMemo(
+    () =>
+      GRAPHICS_OPTIONS.find((opt) => opt.id === graphicsId) ||
+      GRAPHICS_OPTIONS.find((opt) => opt.id === DEFAULT_GRAPHICS_ID) ||
+      GRAPHICS_OPTIONS[0],
+    [graphicsId]
+  );
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
@@ -5667,6 +5758,32 @@ function Chess3D({
   }, [showHighlights]);
 
   useEffect(() => {
+    try {
+      window.localStorage?.setItem(GRAPHICS_STORAGE_KEY, graphicsId);
+    } catch {}
+  }, [graphicsId]);
+
+  useEffect(() => {
+    const profile = selectPerformanceProfile(activeGraphicsOption);
+    renderSettingsRef.current = {
+      targetFrameIntervalMs: 1000 / profile.targetFps,
+      renderResolutionScale: profile.resolutionScale,
+      pixelRatioCap: profile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
+      pixelRatioScale: profile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
+    };
+    const arena = arenaRef.current;
+    if (!arena?.renderer || typeof window === 'undefined') return;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const scaledPixelRatio = devicePixelRatio * renderSettingsRef.current.pixelRatioScale;
+    const pixelRatio = Math.max(
+      MIN_RENDER_PIXEL_RATIO,
+      Math.min(renderSettingsRef.current.pixelRatioCap, scaledPixelRatio)
+    );
+    arena.renderer.setPixelRatio(pixelRatio);
+    fitRef.current?.();
+  }, [activeGraphicsOption]);
+
+  useEffect(() => {
     settingsRef.current.moveMode = moveMode;
   }, [moveMode]);
 
@@ -6014,11 +6131,15 @@ function Chess3D({
     };
 
     const setup = async () => {
-      const performanceProfile = selectPerformanceProfile();
-      const targetFrameIntervalMs = 1000 / performanceProfile.targetFps;
-      const renderResolutionScale = performanceProfile.resolutionScale;
-      const pixelRatioCap = performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP;
-      const pixelRatioScale = performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE;
+      const performanceProfile = selectPerformanceProfile(activeGraphicsOption);
+      const renderSettings = {
+        targetFrameIntervalMs: 1000 / performanceProfile.targetFps,
+        renderResolutionScale: performanceProfile.resolutionScale,
+        pixelRatioCap: performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
+        pixelRatioScale: performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
+      };
+      renderSettingsRef.current = renderSettings;
+      const { targetFrameIntervalMs, renderResolutionScale, pixelRatioCap, pixelRatioScale } = renderSettings;
 
       const normalizedAppearance = normalizeAppearance(appearanceRef.current);
       const palette = createChessPalette(normalizedAppearance);
@@ -6517,8 +6638,9 @@ function Chess3D({
     const fit = () => {
       const w = host.clientWidth;
       const h = host.clientHeight;
-      const renderW = Math.max(1, Math.round(w * renderResolutionScale));
-      const renderH = Math.max(1, Math.round(h * renderResolutionScale));
+      const renderScale = renderSettingsRef.current.renderResolutionScale || renderResolutionScale;
+      const renderW = Math.max(1, Math.round(w * renderScale));
+      const renderH = Math.max(1, Math.round(h * renderScale));
       renderer.setSize(renderW, renderH, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
@@ -7447,20 +7569,42 @@ function Chess3D({
       if (captureSquares.length) highlightMoves(captureSquares, palette?.capture);
     }
 
-    function moveSelTo(rr, cc) {
-      if (isReplayingRef.current) return;
-      if (!sel) return;
-      if (!legal.some(([r, c]) => r === rr && c === cc)) return;
+    function moveSelTo(rr, cc, options = {}) {
+      const { byAi = false } = options;
+      const finalizeAiMove = () => {
+        if (byAi) aiMovingRef.current = false;
+      };
+      if (isReplayingRef.current) {
+        finalizeAiMove();
+        return;
+      }
+      if (!sel) {
+        finalizeAiMove();
+        return;
+      }
+      if (!legal.some(([r, c]) => r === rr && c === cc)) {
+        finalizeAiMove();
+        return;
+      }
       if (onlineRef.current.enabled) {
         const myTurnIsWhite = onlineRef.current.side === 'white';
-        if (!onlineRef.current.synced) return;
+        if (!onlineRef.current.synced) {
+          finalizeAiMove();
+          return;
+        }
         if (
           onlineRef.current.status !== 'started' &&
           onlineRef.current.status !== 'in-progress'
-        )
+        ) {
+          finalizeAiMove();
           return;
-        if (uiRef.current.turnWhite !== myTurnIsWhite) return;
-      } else if (!isPlayerPiece(sel.p)) {
+        }
+        if (uiRef.current.turnWhite !== myTurnIsWhite) {
+          finalizeAiMove();
+          return;
+        }
+      } else if (!isPlayerPiece(sel.p) && !byAi) {
+        finalizeAiMove();
         return;
       }
       // capture mesh if any
@@ -7626,6 +7770,7 @@ function Chess3D({
       sel = null;
       resetSelectedMeshElevation();
       clearHighlights();
+      finalizeAiMove();
     }
 
     const dragState = {
@@ -7762,10 +7907,14 @@ function Chess3D({
       if (isReplayingRef.current) return;
       const activeTurnWhite = uiRef.current?.turnWhite ?? true;
       if (!shouldTriggerAiMove(activeTurnWhite)) return;
+      aiMovingRef.current = true;
       const mv = bestAIMove(board, activeTurnWhite, 4);
-      if (!mv) return;
+      if (!mv) {
+        aiMovingRef.current = false;
+        return;
+      }
       selectAt(mv.fromR, mv.fromC, { force: true, selectionColor: paletteRef.current?.capture });
-      setTimeout(() => moveSelTo(mv.toR, mv.toC), 300);
+      setTimeout(() => moveSelTo(mv.toR, mv.toC, { byAi: true }), 300);
     }
 
     onClick = function onClick(e) {
@@ -7890,7 +8039,8 @@ function Chess3D({
       }
 
       controls?.update();
-      if (now - lastRender >= targetFrameIntervalMs) {
+      const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || targetFrameIntervalMs;
+      if (now - lastRender >= targetInterval) {
         renderer.render(scene, camera);
         lastRender = now;
       }
@@ -8087,6 +8237,38 @@ function Chess3D({
                     onChange={(event) => setShowHighlights(event.target.checked)}
                   />
                 </label>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
+                    <p className="mt-1 text-[0.7rem] text-white/60">Select your refresh target.</p>
+                  </div>
+                  <div className="mt-2 grid gap-2">
+                    {GRAPHICS_OPTIONS.map((option) => {
+                      const active = option.id === graphicsId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setGraphicsId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            active
+                              ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                              : 'border-white/10 bg-white/5 hover:border-white/20'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
+                            <span className="text-[0.75rem] font-semibold text-white/80">{`${option.fps} Hz`}</span>
+                          </span>
+                          {option.description ? (
+                            <span className="mt-1 block text-[0.65rem] text-white/60">{option.description}</span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
