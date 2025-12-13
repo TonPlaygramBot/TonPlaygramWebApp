@@ -846,7 +846,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.72; // ease the middle pockets slightly while keeping them snug against the chrome hook
-const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.22; // push middle pocket centres farther outward so they sit more clearly away from the field centre
+const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.14; // restore the previous middle-pocket centres so they sit exactly where they were earlier in the week
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // ease the inward pull so the outward bias can push the centres farther toward the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -4195,7 +4195,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.018; // pull the player orbit noticeably closer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
