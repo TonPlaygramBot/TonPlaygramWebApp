@@ -40,16 +40,9 @@ export class SnakeGame {
     const player = this.players[this.currentTurn];
     if (!player) return null;
 
-    const diceCount = player.diceCount || 1;
-    const parsed = Array.isArray(diceValues)
-      ? diceValues
-          .filter((v) => Number.isFinite(v))
-          .slice(0, Math.max(1, diceCount))
-          .map((v) => Math.max(1, Math.min(6, Math.floor(v))))
-      : [];
-    const dice = parsed.length
-      ? parsed
-      : Array.from({ length: Math.max(1, diceCount) }, () => Math.floor(Math.random() * 6) + 1);
+    const dice = Array.isArray(diceValues)
+      ? diceValues.map((v) => Math.max(1, Math.min(6, Math.floor(v))))
+      : [Math.floor(Math.random() * 6) + 1];
     const total = dice.reduce((a, b) => a + b, 0);
     const rolledSix = dice.includes(6);
     const doubleSix = dice.length === 2 && dice[0] === 6 && dice[1] === 6;
