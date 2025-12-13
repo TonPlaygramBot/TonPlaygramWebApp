@@ -31,6 +31,11 @@ import {
   CHESS_BATTLE_STORE_ITEMS
 } from '../config/chessBattleInventoryConfig.js';
 import {
+  BLACKJACK_DEFAULT_LOADOUT,
+  BLACKJACK_OPTION_LABELS,
+  BLACKJACK_STORE_ITEMS
+} from '../config/blackjackInventoryConfig.js';
+import {
   addChessBattleUnlock,
   getChessBattleInventory,
   isChessOptionUnlocked,
@@ -85,6 +90,13 @@ import {
   listOwnedSnakeOptions,
   snakeAccountId
 } from '../utils/snakeInventory.js';
+import {
+  addBlackjackUnlock,
+  getBlackjackInventory,
+  isBlackjackOptionUnlocked,
+  listOwnedBlackjackOptions,
+  blackjackAccountId
+} from '../utils/blackjackInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { catalogWithSlugs } from '../config/gamesCatalog.js';
@@ -115,6 +127,14 @@ const CHESS_TYPE_LABELS = {
   sideColor: 'Piece Colors',
   boardTheme: 'Board Themes',
   headStyle: 'Pawn Heads'
+};
+
+const BLACKJACK_TYPE_LABELS = {
+  tableWood: 'Table Wood',
+  tableCloth: 'Table Cloth',
+  chairColor: 'Chairs',
+  tableShape: 'Table Shape',
+  cards: 'Cards'
 };
 
 const LUDO_TYPE_LABELS = {
@@ -159,6 +179,7 @@ const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const AIR_HOCKEY_STORE_ACCOUNT_ID = import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const BLACKJACK_STORE_ACCOUNT_ID = import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
 const LUDO_STORE_ACCOUNT_ID = import.meta.env.VITE_LUDO_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -167,6 +188,7 @@ const SUPPORTED_STORE_SLUGS = [
   'poolroyale',
   'airhockey',
   'chessbattleroyal',
+  'blackjack',
   'ludobattleroyal',
   'murlanroyale',
   'domino-royal',
@@ -183,6 +205,7 @@ export default function Store() {
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
+  const [blackjackOwned, setBlackjackOwned] = useState(() => getBlackjackInventory(blackjackAccountId(accountId)));
   const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
   const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
@@ -219,6 +242,7 @@ export default function Store() {
     setPoolOwned(getPoolRoyalInventory(accountId));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
+    setBlackjackOwned(getBlackjackInventory(blackjackAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
@@ -269,6 +293,16 @@ export default function Store() {
     };
     window.addEventListener('chessBattleInventoryUpdate', handler);
     return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
+  }, [accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
+        setBlackjackOwned(getBlackjackInventory(blackjackAccountId(accountId)));
+      }
+    };
+    window.addEventListener('blackjackInventoryUpdate', handler);
+    return () => window.removeEventListener('blackjackInventoryUpdate', handler);
   }, [accountId]);
 
   useEffect(() => {
@@ -336,6 +370,27 @@ export default function Store() {
         owned: isPoolOptionUnlocked(entry.type, entry.optionId, poolOwned)
       })),
     [poolOwned]
+  );
+
+  const blackjackGroupedItems = useMemo(() => {
+    const items = BLACKJACK_STORE_ITEMS.map((item) => ({
+      ...item,
+      owned: isBlackjackOptionUnlocked(item.type, item.optionId, blackjackOwned)
+    }));
+    return items.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item);
+      return acc;
+    }, {});
+  }, [blackjackOwned]);
+
+  const blackjackDefaultLoadout = useMemo(
+    () =>
+      BLACKJACK_DEFAULT_LOADOUT.map((entry) => ({
+        ...entry,
+        owned: isBlackjackOptionUnlocked(entry.type, entry.optionId, blackjackOwned)
+      })),
+    [blackjackOwned]
   );
 
   const airGroupedItems = useMemo(() => {
@@ -469,6 +524,7 @@ export default function Store() {
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
+      blackjack: BLACKJACK_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
@@ -493,12 +549,13 @@ export default function Store() {
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
+      blackjack: (type, optionId) => isBlackjackOptionUnlocked(type, optionId, blackjackOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
       'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned)
     }),
-    [airOwned, poolOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned]
+    [airOwned, poolOwned, blackjackOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned]
   );
 
     const labelResolvers = useMemo(
@@ -506,6 +563,7 @@ export default function Store() {
         poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+        blackjack: (item) => BLACKJACK_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -544,6 +602,7 @@ export default function Store() {
       poolroyale: POOL_STORE_ACCOUNT_ID,
       airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
       chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
+      blackjack: BLACKJACK_STORE_ACCOUNT_ID,
       ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
       murlanroyale: MURLAN_STORE_ACCOUNT_ID,
       'domino-royal': DOMINO_STORE_ACCOUNT_ID,
@@ -559,6 +618,7 @@ export default function Store() {
       poolroyale: POOL_ROYALE_OPTION_LABELS,
       airhockey: AIR_HOCKEY_OPTION_LABELS,
       chessbattleroyal: CHESS_BATTLE_OPTION_LABELS,
+      blackjack: BLACKJACK_OPTION_LABELS,
       ludobattleroyal: LUDO_BATTLE_OPTION_LABELS,
       murlanroyale: MURLAN_ROYALE_OPTION_LABELS,
       'domino-royal': DOMINO_ROYAL_OPTION_LABELS,
@@ -598,6 +658,10 @@ export default function Store() {
         const updatedInventory = addChessBattleUnlock(item.type, item.optionId, accountId);
         setChessOwned(updatedInventory);
         setInfo(`${ownedLabel} purchased and added to your Chess Battle Royal account.`);
+      } else if (activeSlug === 'blackjack') {
+        const updatedInventory = addBlackjackUnlock(item.type, item.optionId, accountId);
+        setBlackjackOwned(updatedInventory);
+        setInfo(`${ownedLabel} purchased and added to your Black Jack account.`);
       } else if (activeSlug === 'ludobattleroyal') {
         const updatedInventory = addLudoBattleUnlock(item.type, item.optionId, accountId);
         setLudoOwned(updatedInventory);
@@ -690,6 +754,7 @@ export default function Store() {
     const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
     const airOwnedOptions = useMemo(() => listOwnedAirHockeyOptions(accountId), [accountId]);
     const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
+    const blackjackOwnedOptions = useMemo(() => listOwnedBlackjackOptions(accountId), [accountId]);
     const ludoOwnedOptions = useMemo(() => listOwnedLudoOptions(accountId), [accountId]);
     const murlanOwnedOptions = useMemo(() => listOwnedMurlanOptions(accountId), [accountId]);
     const dominoOwnedOptions = useMemo(() => listOwnedDominoOptions(accountId), [accountId]);
@@ -700,6 +765,7 @@ export default function Store() {
         poolroyale: poolOwnedOptions,
         airhockey: airOwnedOptions,
         chessbattleroyal: chessOwnedOptions,
+        blackjack: blackjackOwnedOptions,
         ludobattleroyal: ludoOwnedOptions,
         murlanroyale: murlanOwnedOptions,
         'domino-royal': dominoOwnedOptions,
@@ -709,6 +775,7 @@ export default function Store() {
         poolOwnedOptions,
         airOwnedOptions,
         chessOwnedOptions,
+        blackjackOwnedOptions,
         ludoOwnedOptions,
         murlanOwnedOptions,
         dominoOwnedOptions,
@@ -803,6 +870,75 @@ export default function Store() {
                             <p className="font-semibold text-lg leading-tight">{item.name}</p>
                             <p className="text-xs text-subtext">{item.description}</p>
                             <p className="text-xs text-subtext mt-1">Applies to: {TYPE_LABELS[item.type] || item.type}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeSlug === 'blackjack' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Black Jack Defaults (Free)</h3>
+            <p className="text-sm text-subtext">
+              First options stay visible in the table setup menu. Buy other cosmetics here as NFTs to reveal them in-game.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {blackjackDefaultLoadout.map((item) => (
+                <li
+                  key={`blackjack-${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{BLACKJACK_TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Black Jack Collection</h3>
+            {Object.entries(blackjackGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{BLACKJACK_TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = BLACKJACK_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">Applies to: {BLACKJACK_TYPE_LABELS[item.type] || item.type}</p>
                           </div>
                           <div className="flex items-center gap-1 text-sm font-semibold">
                             {item.price}
