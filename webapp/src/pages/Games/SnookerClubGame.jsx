@@ -991,14 +991,14 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 9.6,
-  heightOffsetShortMultiplier: 1.08,
+  heightOffset: BALL_R * 6.2,
+  heightOffsetShortMultiplier: 1.02,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
-  heightDrop: BALL_R * 1.3,
-  distanceScale: 0.84,
-  heightScale: 1.28,
-  focusBlend: 0.38,
+  heightDrop: BALL_R * 0.6,
+  distanceScale: 1,
+  heightScale: 1.08,
+  focusBlend: 0.2,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
   railFocusShort: BALL_R * 5.4
@@ -1059,7 +1059,7 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 20; // bring the broadcast cams closer while keeping at least half the field visible
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 16; // bring the broadcast cams closer while keeping at least half the field visible
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -4211,7 +4211,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.019; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.017; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
@@ -11772,9 +11772,13 @@ export function PoolRoyaleGame({
                 focusTarget.add(TMP_VEC3_A);
               }
             }
-            const pocketDirection2D = pocketCenter2D.clone();
+            const pocketDirection2D = activeShotView.approach
+              ? activeShotView.approach.clone()
+              : pocketCenter2D.clone();
             if (pocketDirection2D.lengthSq() < 1e-6) {
-              pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
+              pocketDirection2D.copy(
+                outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1)
+              );
             }
             const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
             const baseRadius = (() => {
@@ -12146,7 +12150,7 @@ export function PoolRoyaleGame({
           targetId,
           followView,
           railNormal,
-          { longShot = false, travelDistance = 0 } = {}
+          { longShot = false, travelDistance = 0, forceActive = false } = {}
         ) => {
           if (!cueBall) return null;
           const ballsList = ballsRef.current || [];
@@ -12181,10 +12185,10 @@ export function PoolRoyaleGame({
                 )
               : shortRailDir;
           const now = performance.now();
-          const activationDelay = longShot
+          const activationDelay = longShot && !forceActive
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
             : null;
-          const activationTravel = longShot
+          const activationTravel = longShot && !forceActive
             ? Math.max(
                 BALL_R * 12,
                 Math.min(travelDistance * 0.5, LONG_SHOT_ACTIVATION_TRAVEL)
@@ -12216,7 +12220,7 @@ export function PoolRoyaleGame({
             travelDistance,
             activationDelay,
             activationTravel,
-            pendingActivation: longShot,
+            pendingActivation: longShot && !forceActive,
             startCuePos: new THREE.Vector2(cueBall.pos.x, cueBall.pos.y),
             targetInitialPos: targetBall
               ? new THREE.Vector2(targetBall.pos.x, targetBall.pos.y)
@@ -12256,6 +12260,10 @@ export function PoolRoyaleGame({
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
+          const predictedAlignment =
+            shotPrediction?.ballId === ballId && shotPrediction?.dir
+              ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
+              : null;
           if (
             (predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
@@ -12263,6 +12271,12 @@ export function PoolRoyaleGame({
           ) {
             return null;
           }
+          const guaranteedApproach =
+            predictedAlignment != null &&
+            predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT &&
+            (predictedTravelForBall == null ||
+              predictedTravelForBall + BALL_R * 0.5 >= best.dist);
+          if (!guaranteedApproach) return null;
           const anchorPocketId = pocketIdFromCenter(best.center);
           const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
@@ -12348,6 +12362,7 @@ export function PoolRoyaleGame({
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
+            guaranteed: guaranteedApproach,
             forcedEarly
           };
         };
@@ -14226,7 +14241,8 @@ export function PoolRoyaleGame({
                 shotPrediction.railNormal,
                 {
                   longShot: isLongShot,
-                  travelDistance: predictedTravel
+                  travelDistance: predictedTravel,
+                  forceActive: isBreakShot
                 }
               )
             : null;
@@ -14264,7 +14280,11 @@ export function PoolRoyaleGame({
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            if (isLongShot) {
+            if (isBreakShot) {
+              suspendedActionView = null;
+              activeShotView = actionView;
+              updateCamera();
+            } else if (isLongShot) {
               suspendedActionView = actionView;
             } else {
               suspendedActionView = null;
