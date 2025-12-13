@@ -220,17 +220,13 @@ public class CueCamera : MonoBehaviour
         broadcastSideSign = -aimSide;
 
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
+        targetViewFocus = GetBroadcastFocus(focus);
         if (target != null && target.gameObject.activeInHierarchy)
         {
             currentBall = target;
-            focus = target.position;
+            targetViewFocus = GetBroadcastFocus(target.position);
         }
-
-        bool orbiting = ShouldUseOrbitFocus(out Vector3 orbitForward, out Vector3 orbitFocus);
-        targetViewFocus = GetBroadcastFocus(orbiting ? orbitFocus : focus);
-        targetViewYaw = orbiting
-            ? GetYawFromForward(orbitForward)
-            : GetShortRailYaw(broadcastSideSign);
+        targetViewYaw = GetShortRailYaw(broadcastSideSign);
         yaw = targetViewYaw;
 
         nextShotIsAi = false;
@@ -571,16 +567,9 @@ public class CueCamera : MonoBehaviour
     private void UpdateBroadcastCamera()
     {
         currentBall = CueBall;
-        bool orbiting = ShouldUseOrbitFocus(out Vector3 orbitForward, out Vector3 orbitFocus);
-        if (orbiting)
-        {
-            targetViewYaw = GetYawFromForward(orbitForward);
-        }
-
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
-        Vector3 broadcastFocus = GetBroadcastFocus(orbiting ? orbitFocus : focus);
-        ApplyBroadcastCamera(broadcastFocus, orbiting, orbitForward);
+        ApplyBroadcastCamera(GetBroadcastFocus(focus));
 
         bool cueMoving = IsMoving(CueBall);
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
@@ -610,16 +599,9 @@ public class CueCamera : MonoBehaviour
             currentBall = TargetBall;
         }
 
-        bool orbiting = ShouldUseOrbitFocus(out Vector3 orbitForward, out Vector3 orbitFocus);
-        if (orbiting)
-        {
-            targetViewFocus = GetBroadcastFocus(orbitFocus);
-            targetViewYaw = GetYawFromForward(orbitForward);
-        }
-
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
 
-        ApplyBroadcastCamera(targetViewFocus, orbiting, orbitForward);
+        ApplyBroadcastCamera(targetViewFocus);
 
         bool targetSettled = TargetBall == null || !TargetBall.gameObject.activeInHierarchy || !IsMoving(TargetBall);
         if (!targetSettled)
@@ -661,54 +643,7 @@ public class CueCamera : MonoBehaviour
         return focus;
     }
 
-    private bool ShouldUseOrbitFocus(out Vector3 orbitForward, out Vector3 orbitFocus)
-    {
-        orbitForward = Vector3.zero;
-        orbitFocus = Vector3.zero;
-
-        if (CueBall == null || TargetBall == null)
-        {
-            return false;
-        }
-
-        if (!CueBall.gameObject.activeInHierarchy || !TargetBall.gameObject.activeInHierarchy)
-        {
-            return false;
-        }
-
-        orbitFocus = (CueBall.position + TargetBall.position) * 0.5f;
-        orbitFocus.y = Mathf.Max(orbitFocus.y, tableBounds.center.y);
-
-        Vector3 cueToTarget = TargetBall.position - CueBall.position;
-        cueToTarget.y = 0f;
-        if (cueToTarget.sqrMagnitude < 0.0001f)
-        {
-            return false;
-        }
-
-        Vector3 perpendicular = new Vector3(-cueToTarget.z, 0f, cueToTarget.x);
-        if (perpendicular.sqrMagnitude < 0.0001f)
-        {
-            return false;
-        }
-
-        int orbitSide = broadcastSideSign >= 0 ? 1 : -1;
-        orbitForward = perpendicular.normalized * orbitSide;
-        return true;
-    }
-
-    private static float GetYawFromForward(Vector3 forward)
-    {
-        forward.y = 0f;
-        if (forward.sqrMagnitude < 0.0001f)
-        {
-            return 0f;
-        }
-
-        return Quaternion.LookRotation(forward.normalized, Vector3.up).eulerAngles.y;
-    }
-
-    private void ApplyBroadcastCamera(Vector3 focus, bool useOrbitFraming = false, Vector3 orbitForward = default)
+    private void ApplyBroadcastCamera(Vector3 focus)
     {
         Camera cam = cachedCamera != null ? cachedCamera : GetComponent<Camera>();
         if (cam == null)
@@ -724,35 +659,21 @@ public class CueCamera : MonoBehaviour
         float baseHeight = Mathf.Max(broadcastHeight, focus.y + minimumHeightAboveFocus);
         float height = Mathf.Max(baseHeight + Mathf.Max(0f, broadcastHeightPadding), minRailHeight);
 
-        Vector3 forward = orbitForward;
-        if (!useOrbitFraming || forward.sqrMagnitude < 0.0001f)
-        {
-            Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
-            forward = rotation * Vector3.forward;
-        }
+        Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
+        Vector3 forward = rotation * Vector3.forward;
 
-        Bounds broadcastBounds = GetBroadcastBounds(focus, useOrbitFraming);
-        if (!useOrbitFraming)
-        {
-            focus.x = 0f;
-            focus.z = broadcastBounds.center.z;
-        }
+        Bounds broadcastBounds = GetBroadcastBounds(focus);
+        focus.x = 0f;
+        focus.z = broadcastBounds.center.z;
 
         float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
         float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
 
-        if (useOrbitFraming)
-        {
-            ApplyCameraAt(focus, forward, distance, height, minimumHeightOffset, lookTarget);
-        }
-        else
-        {
-            ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
-        }
+        ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
     }
 
-    private Bounds GetBroadcastBounds(Vector3 focus, bool includeCueAndTarget = false)
+    private Bounds GetBroadcastBounds(Vector3 focus)
     {
         float minHalfLength = tableBounds.extents.z * 0.5f;
         float zRange = Mathf.Max(0f, tableBounds.extents.z - minHalfLength);
@@ -763,7 +684,7 @@ public class CueCamera : MonoBehaviour
         );
 
         Bounds movingBounds;
-        if (!TryGetMovingBounds(out movingBounds, includeCueAndTarget))
+        if (!TryGetMovingBounds(out movingBounds))
         {
             return baseBounds;
         }
@@ -783,7 +704,7 @@ public class CueCamera : MonoBehaviour
         return new Bounds(centre, extents * 2f);
     }
 
-    private bool TryGetMovingBounds(out Bounds bounds, bool includeCueAndTarget = false)
+    private bool TryGetMovingBounds(out Bounds bounds)
     {
         bounds = new Bounds();
         bool hasBounds = false;
@@ -804,35 +725,6 @@ public class CueCamera : MonoBehaviour
             {
                 bounds = new Bounds(TargetBall.position, Vector3.zero);
                 hasBounds = true;
-            }
-        }
-
-        if (includeCueAndTarget)
-        {
-            if (CueBall != null && CueBall.gameObject.activeInHierarchy)
-            {
-                if (hasBounds)
-                {
-                    bounds.Encapsulate(CueBall.position);
-                }
-                else
-                {
-                    bounds = new Bounds(CueBall.position, Vector3.zero);
-                    hasBounds = true;
-                }
-            }
-
-            if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
-            {
-                if (hasBounds)
-                {
-                    bounds.Encapsulate(TargetBall.position);
-                }
-                else
-                {
-                    bounds = new Bounds(TargetBall.position, Vector3.zero);
-                    hasBounds = true;
-                }
             }
         }
 
