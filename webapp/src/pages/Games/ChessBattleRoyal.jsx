@@ -264,6 +264,23 @@ function detectCoarsePointer() {
   return false;
 }
 
+function getDisplayMetrics() {
+  if (typeof window === 'undefined') {
+    return { width: 1920, height: 1080, dpr: 1 };
+  }
+  const fallbackWidth = window.screen?.width || 1920;
+  const fallbackHeight = window.screen?.height || 1080;
+  const width = Math.max(window.innerWidth || 0, fallbackWidth);
+  const height = Math.max(window.innerHeight || 0, fallbackHeight);
+  const dpr = typeof window.devicePixelRatio === 'number' ? window.devicePixelRatio : 1;
+
+  return {
+    width: width || 1920,
+    height: height || 1080,
+    dpr: dpr || 1
+  };
+}
+
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return null;
@@ -293,6 +310,10 @@ function selectPerformanceProfile() {
   const deviceMemory = typeof navigator !== 'undefined' ? navigator.deviceMemory : null;
   const cores = typeof navigator !== 'undefined' ? navigator.hardwareConcurrency : null;
   const coarsePointer = detectCoarsePointer();
+  const connection =
+    typeof navigator !== 'undefined'
+      ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
+      : null;
   const prefersReducedMotion =
     typeof window !== 'undefined' &&
     typeof window.matchMedia === 'function' &&
@@ -303,6 +324,9 @@ function selectPerformanceProfile() {
         return false;
       }
     })();
+  const saveDataMode = Boolean(connection?.saveData);
+  const { width, height, dpr } = getDisplayMetrics();
+  const screenMegapixels = (Math.max(width, 1) * Math.max(height, 1) * Math.max(dpr, 1) ** 2) / 1_000_000;
 
   const lowEndMemory = typeof deviceMemory === 'number' && deviceMemory > 0 && deviceMemory < 4;
   const lowEndCores = typeof cores === 'number' && cores > 0 && cores <= 4;
@@ -312,10 +336,25 @@ function selectPerformanceProfile() {
   const lowEndDevice = coarsePointer || lowEndMemory || lowEndCores;
   const highEndDevice = !coarsePointer && (highEndMemory || highEndCores);
 
+  const renderBudgetMp = lowEndDevice || saveDataMode ? 2.8 : highEndDevice ? 6.0 : 4.2;
+
   let targetFps = clamp(refreshHint ?? DEFAULT_TARGET_FPS, MIN_TARGET_FPS, MAX_TARGET_FPS);
-  let resolutionScale = 1.0;
+  let resolutionScale = clamp(Math.sqrt(renderBudgetMp / Math.max(screenMegapixels, 0.1)), 0.72, 1.05);
+  resolutionScale = Math.min(resolutionScale, 1);
   let pixelRatioScale = RENDER_PIXEL_RATIO_SCALE;
-  let pixelRatioCap = DEFAULT_RENDER_PIXEL_RATIO_CAP;
+  let pixelRatioCap = Math.min(
+    DEFAULT_RENDER_PIXEL_RATIO_CAP,
+    lowEndDevice || saveDataMode ? 1.08 : highEndDevice ? 1.35 : 1.2
+  );
+
+  if (screenMegapixels > renderBudgetMp * 1.1) {
+    const downscale = clamp(Math.sqrt(renderBudgetMp / screenMegapixels), 0.7, 1);
+    resolutionScale = Math.min(resolutionScale, downscale);
+    pixelRatioScale = Math.min(pixelRatioScale, 0.95);
+    pixelRatioCap = Math.min(pixelRatioCap, lowEndDevice || saveDataMode ? 1.02 : 1.15);
+  } else if (highEndDevice && screenMegapixels < renderBudgetMp * 0.5) {
+    resolutionScale = Math.min(1, Math.max(resolutionScale, 0.98));
+  }
 
   if (prefersReducedMotion) {
     targetFps = Math.min(targetFps, 50);
@@ -324,7 +363,7 @@ function selectPerformanceProfile() {
     pixelRatioCap = Math.min(pixelRatioCap, 1.05);
   }
 
-  if (lowEndDevice) {
+  if (lowEndDevice || saveDataMode) {
     targetFps = Math.min(targetFps, 60);
     resolutionScale = Math.min(resolutionScale, 0.9);
     pixelRatioScale = Math.min(pixelRatioScale, 0.92);
