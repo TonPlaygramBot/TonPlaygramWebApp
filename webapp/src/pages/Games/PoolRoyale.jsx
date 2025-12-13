@@ -987,6 +987,7 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.62 +
   POCKET_VIS_R * 2.82 +
   BALL_R * 1.92;
+const ENABLE_POCKET_CAMERA_VIEWS = false;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
@@ -2340,6 +2341,21 @@ const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
+    id: 'sky-rail',
+    label: 'Overhead Broadcast Rail',
+    description:
+      'Ceiling rail cam that mirrors the real broadcast overhead framing used on stage.',
+    method: 'Actual ceiling rail broadcast cam with higher focus lift and minimal parallax.',
+    orbitBias: 0.72,
+    railPush: BALL_R * 6.2,
+    lateralDolly: BALL_R * 1.4,
+    focusLift: BALL_R * 8.2,
+    focusDepthBias: BALL_R * 3.6,
+    focusPan: BALL_R * 0.65,
+    trackingBias: 0.54,
+    smoothing: 0.14
+  },
+  {
     id: 'analyst-tripod',
     label: 'Analyst Booth Tripod',
     description: 'Locked-off analyst booth angle with steady lensing.',
@@ -2354,7 +2370,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     smoothing: 0.18
   }
 ]);
-const DEFAULT_BROADCAST_SYSTEM_ID = 'analyst-tripod';
+const DEFAULT_BROADCAST_SYSTEM_ID = 'sky-rail';
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -12150,6 +12166,7 @@ function PoolRoyaleGame({
           };
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
+          if (!ENABLE_POCKET_CAMERA_VIEWS) return null;
           if (!followView) return null;
           const { forceEarly = false } = options;
           if (forceEarly && shotPrediction?.ballId !== ballId) return null;
