@@ -50,18 +50,6 @@ import {
   murlanAccountId
 } from '../utils/murlanInventory.js';
 import {
-  SNAKE_DEFAULT_LOADOUT,
-  SNAKE_OPTION_LABELS,
-  SNAKE_STORE_ITEMS
-} from '../config/snakeInventoryConfig.js';
-import {
-  addSnakeUnlock,
-  getSnakeInventory,
-  isSnakeOptionUnlocked,
-  listOwnedSnakeOptions,
-  snakeAccountId
-} from '../utils/snakeInventory.js';
-import {
   DOMINO_ROYAL_DEFAULT_LOADOUT,
   DOMINO_ROYAL_OPTION_LABELS,
   DOMINO_ROYAL_STORE_ITEMS
@@ -125,30 +113,13 @@ const DOMINO_TYPE_LABELS = {
   chairTheme: 'Chairs'
 };
 
-const SNAKE_TYPE_LABELS = {
-  arenaTheme: 'Arena Atmosphere',
-  boardPalette: 'Board Palette',
-  snakeSkin: 'Snake Skins',
-  diceTheme: 'Dice Finish',
-  railTheme: 'Rails & Nets',
-  tokenFinish: 'Token Finish'
-};
-
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const LUDO_STORE_ACCOUNT_ID = import.meta.env.VITE_LUDO_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SUPPORTED_STORE_SLUGS = [
-  'poolroyale',
-  'chessbattleroyal',
-  'ludobattleroyal',
-  'murlanroyale',
-  'domino-royal',
-  'snake'
-];
+const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal', 'ludobattleroyal', 'murlanroyale', 'domino-royal'];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
@@ -162,7 +133,6 @@ export default function Store() {
   const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
   const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
-  const [snakeOwned, setSnakeOwned] = useState(() => getSnakeInventory(snakeAccountId(accountId)));
   const [info, setInfo] = useState('');
   const [marketInfo, setMarketInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -197,7 +167,6 @@ export default function Store() {
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
-    setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
   }, [accountId]);
 
   useEffect(() => {
@@ -263,16 +232,6 @@ export default function Store() {
     };
     window.addEventListener('dominoRoyalInventoryUpdate', handler);
     return () => window.removeEventListener('dominoRoyalInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === snakeAccountId(accountId)) {
-        setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
-      }
-    };
-    window.addEventListener('snakeInventoryUpdate', handler);
-    return () => window.removeEventListener('snakeInventoryUpdate', handler);
   }, [accountId]);
 
   useEffect(() => {
@@ -386,35 +345,13 @@ export default function Store() {
     [dominoOwned]
   );
 
-  const snakeGroupedItems = useMemo(() => {
-    const items = SNAKE_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isSnakeOptionUnlocked(item.type, item.optionId, snakeOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [snakeOwned]);
-
-  const snakeDefaultLoadout = useMemo(
-    () =>
-      SNAKE_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isSnakeOptionUnlocked(entry.type, entry.optionId, snakeOwned)
-      })),
-    [snakeOwned]
-  );
-
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
+      'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
     }),
     []
   );
@@ -436,10 +373,9 @@ export default function Store() {
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
-      'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned),
-      snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned)
+      'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned)
     }),
-    [poolOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned]
+    [poolOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned]
   );
 
   const labelResolvers = useMemo(
@@ -448,8 +384,7 @@ export default function Store() {
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+      'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -485,8 +420,7 @@ export default function Store() {
       chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
       ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
       murlanroyale: MURLAN_STORE_ACCOUNT_ID,
-      'domino-royal': DOMINO_STORE_ACCOUNT_ID,
-      snake: SNAKE_STORE_ACCOUNT_ID
+      'domino-royal': DOMINO_STORE_ACCOUNT_ID
     };
     const storeId = storeAccounts[activeSlug];
     if (!storeId) {
@@ -499,8 +433,7 @@ export default function Store() {
       chessbattleroyal: CHESS_BATTLE_OPTION_LABELS,
       ludobattleroyal: LUDO_BATTLE_OPTION_LABELS,
       murlanroyale: MURLAN_ROYALE_OPTION_LABELS,
-      'domino-royal': DOMINO_ROYAL_OPTION_LABELS,
-      snake: SNAKE_OPTION_LABELS
+      'domino-royal': DOMINO_ROYAL_OPTION_LABELS
     };
     const labels = labelMaps[activeSlug]?.[item.type] || {};
     const ownedLabel = labels[item.optionId] || item.name;
@@ -544,10 +477,6 @@ export default function Store() {
         const updatedInventory = addDominoRoyalUnlock(item.type, item.optionId, accountId);
         setDominoOwned(updatedInventory);
         setInfo(`${ownedLabel} purchased and added to your Domino Royal account.`);
-      } else if (activeSlug === 'snake') {
-        const updatedInventory = addSnakeUnlock(item.type, item.optionId, snakeAccountId(accountId));
-        setSnakeOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Snake & Ladder account.`);
       }
 
       const bal = await getAccountBalance(accountId);
@@ -626,7 +555,6 @@ export default function Store() {
   const ludoOwnedOptions = useMemo(() => listOwnedLudoOptions(accountId), [accountId]);
   const murlanOwnedOptions = useMemo(() => listOwnedMurlanOptions(accountId), [accountId]);
   const dominoOwnedOptions = useMemo(() => listOwnedDominoOptions(accountId), [accountId]);
-  const snakeOwnedOptions = useMemo(() => listOwnedSnakeOptions(snakeAccountId(accountId)), [accountId]);
 
   const ownedItemLookup = useMemo(
     () => ({
@@ -634,10 +562,9 @@ export default function Store() {
       chessbattleroyal: chessOwnedOptions,
       ludobattleroyal: ludoOwnedOptions,
       murlanroyale: murlanOwnedOptions,
-      'domino-royal': dominoOwnedOptions,
-      snake: snakeOwnedOptions
+      'domino-royal': dominoOwnedOptions
     }),
-    [poolOwnedOptions, chessOwnedOptions, ludoOwnedOptions, murlanOwnedOptions, dominoOwnedOptions, snakeOwnedOptions]
+    [poolOwnedOptions, chessOwnedOptions, ludoOwnedOptions, murlanOwnedOptions, dominoOwnedOptions]
   );
 
   const hasStorefront = SUPPORTED_STORE_SLUGS.includes(activeSlug);
@@ -797,76 +724,6 @@ export default function Store() {
                             <p className="font-semibold text-lg leading-tight">{item.name}</p>
                             <p className="text-xs text-subtext">{item.description}</p>
                             <p className="text-xs text-subtext mt-1">Applies to: {DOMINO_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'snake' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Snake &amp; Ladder Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              The first option in each category stays unlocked. Buy the rest as NFTs to surface them inside the Snake &amp;
-              Ladder table setup menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {snakeDefaultLoadout.map((item) => (
-                <li
-                  key={`snake-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{SNAKE_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Snake &amp; Ladder Collection</h3>
-            {Object.entries(snakeGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{SNAKE_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = SNAKE_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {SNAKE_TYPE_LABELS[item.type] || item.type}</p>
                           </div>
                           <div className="flex items-center gap-1 text-sm font-semibold">
                             {item.price}
