@@ -11892,9 +11892,12 @@ function PoolRoyaleGame({
               }
               camera.lookAt(lookTarget);
               renderCamera = camera;
-              broadcastArgs.focusWorld =
-                broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-              broadcastArgs.targetWorld = null;
+              const broadcastFocus =
+                sanitizeVector3(lookTarget)?.clone() ??
+                broadcastCamerasRef.current?.defaultFocusWorld ??
+                  null;
+              broadcastArgs.focusWorld = broadcastFocus;
+              broadcastArgs.targetWorld = broadcastFocus?.clone() ?? null;
               broadcastArgs.lerp = 0.22;
             }
           }
