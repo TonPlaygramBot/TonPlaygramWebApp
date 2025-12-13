@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -9,6 +10,7 @@ import {
   addPoolRoyalUnlock,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
+  listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
 import {
@@ -20,10 +22,12 @@ import {
   addChessBattleUnlock,
   getChessBattleInventory,
   isChessOptionUnlocked,
+  listOwnedChessOptions,
   chessBattleAccountId
 } from '../utils/chessBattleInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
+import { catalogWithSlugs } from '../config/gamesCatalog.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -47,15 +51,40 @@ const CHESS_TYPE_LABELS = {
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal'];
+
+const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
 export default function Store() {
   useTelegramBackButton();
+  const { gameSlug } = useParams();
+  const navigate = useNavigate();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
-  const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(accountId));
+  const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
   const [info, setInfo] = useState('');
+  const [marketInfo, setMarketInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
   const [processing, setProcessing] = useState('');
+  const [listings, setListings] = useState([]);
+  const [selectedItemKey, setSelectedItemKey] = useState('');
+  const [listingPrice, setListingPrice] = useState('');
+
+  const activeSlug = useMemo(() => {
+    if (gameSlug && catalogWithSlugs.some((g) => g.slug === gameSlug)) return gameSlug;
+    return 'poolroyale';
+  }, [gameSlug]);
+
+  const activeGame = useMemo(
+    () => catalogWithSlugs.find((game) => game.slug === activeSlug) || catalogWithSlugs[0],
+    [activeSlug]
+  );
+
+  useEffect(() => {
+    if (!gameSlug || !catalogWithSlugs.some((g) => g.slug === gameSlug)) {
+      navigate(`/store/${activeSlug}`, { replace: true });
+    }
+  }, [activeSlug, gameSlug, navigate]);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -101,7 +130,13 @@ export default function Store() {
     return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
   }, [accountId]);
 
-  const groupedItems = useMemo(() => {
+  useEffect(() => {
+    setSelectedItemKey('');
+    setListingPrice('');
+    setMarketInfo('');
+  }, [activeSlug]);
+
+  const poolGroupedItems = useMemo(() => {
     const items = POOL_ROYALE_STORE_ITEMS.map((item) => ({
       ...item,
       owned: isPoolOptionUnlocked(item.type, item.optionId, poolOwned)
@@ -113,7 +148,7 @@ export default function Store() {
     }, {});
   }, [poolOwned]);
 
-  const defaultLoadout = useMemo(
+  const poolDefaultLoadout = useMemo(
     () =>
       POOL_ROYALE_DEFAULT_LOADOUT.map((entry) => ({
         ...entry,
@@ -142,6 +177,61 @@ export default function Store() {
       })),
     [chessOwned]
   );
+
+  const storeItemsBySlug = useMemo(
+    () => ({
+      poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
+      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
+    }),
+    []
+  );
+
+  const officialPriceMap = useMemo(() => {
+    const prices = {};
+    Object.entries(storeItemsBySlug).forEach(([slug, items]) => {
+      prices[slug] = items.reduce((acc, item) => {
+        acc[item.key] = item.price;
+        return acc;
+      }, {});
+    });
+    return prices;
+  }, [storeItemsBySlug]);
+
+  const ownedCheckers = useMemo(
+    () => ({
+      poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
+      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned)
+    }),
+    [poolOwned, chessOwned]
+  );
+
+  const labelResolvers = useMemo(
+    () => ({
+      poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+    }),
+    []
+  );
+
+  const tradableOwnedItems = useMemo(() => {
+    const isOwned = ownedCheckers[activeSlug];
+    const labelResolver = labelResolvers[activeSlug];
+    const items = storeItemsBySlug[activeSlug] || [];
+    if (!isOwned || !labelResolver) return [];
+    return items
+      .filter((item) => isOwned(item.type, item.optionId))
+      .map((item) => ({
+        ...item,
+        displayLabel: labelResolver(item)
+      }));
+  }, [activeSlug, labelResolvers, ownedCheckers, storeItemsBySlug]);
+
+  useEffect(() => {
+    if (!selectedItemKey && tradableOwnedItems.length > 0) {
+      setSelectedItemKey(tradableOwnedItems[0].key);
+      setListingPrice(tradableOwnedItems[0].price.toString());
+    }
+  }, [selectedItemKey, tradableOwnedItems]);
 
   const handlePurchase = async (item) => {
     if (item.owned || processing === item.id) return;
@@ -241,16 +331,106 @@ export default function Store() {
     }
   };
 
+  const handleCreateListing = () => {
+    const item = tradableOwnedItems.find((entry) => entry.key === selectedItemKey);
+    if (!item) {
+      setMarketInfo('Select an item you own to list it.');
+      return;
+    }
+    const parsedPrice = Number(listingPrice);
+    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
+      setMarketInfo('Enter a valid listing price.');
+      return;
+    }
+    const floorPrice = officialPriceMap?.[activeSlug]?.[item.key] ?? item.price;
+    if (parsedPrice < floorPrice) {
+      setMarketInfo(`Listing price must be at least the official store price of ${floorPrice} TPC.`);
+      return;
+    }
+
+    const buyerFee = +(parsedPrice * 0.02).toFixed(2);
+    const sellerFee = +(parsedPrice * 0.02).toFixed(2);
+    const developerFee = +(buyerFee + sellerFee).toFixed(2);
+    const sellerProceeds = +(parsedPrice - sellerFee).toFixed(2);
+    const buyerTotal = +(parsedPrice + buyerFee).toFixed(2);
+
+    setListings((prev) => [
+      ...prev,
+      {
+        listingId: `${item.key}-${Date.now()}`,
+        slug: activeSlug,
+        itemKey: item.key,
+        name: item.displayLabel,
+        price: parsedPrice,
+        officialPrice: floorPrice,
+        buyerFee,
+        sellerFee,
+        developerFee,
+        sellerProceeds,
+        buyerTotal
+      }
+    ]);
+
+    setMarketInfo(
+      `Listing created for ${item.displayLabel}. Buyer pays ${buyerTotal} TPC (2% fee), seller receives ${sellerProceeds} TPC after a 2% fee. Developer account ${DEV_INFO.account} collects ${developerFee} TPC when sold.`
+    );
+  };
+
+  const handlePurchaseListing = (listingId) => {
+    const listing = listings.find((entry) => entry.listingId === listingId);
+    if (!listing) return;
+    setListings((prev) => prev.filter((entry) => entry.listingId !== listingId));
+    setMarketInfo(
+      `Sale completed for ${listing.name} at ${listing.price} TPC. Buyer paid ${listing.buyerTotal} TPC (2% marketplace fee) and seller received ${listing.sellerProceeds} TPC after their 2% fee. ${listing.developerFee} TPC was routed to developer account ${DEV_INFO.account}.`
+    );
+  };
+
+  const marketplaceListings = useMemo(
+    () => listings.filter((entry) => entry.slug === activeSlug),
+    [listings, activeSlug]
+  );
+
+  const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
+  const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
+
+  const ownedItemLookup = useMemo(
+    () => ({
+      poolroyale: poolOwnedOptions,
+      chessbattleroyal: chessOwnedOptions
+    }),
+    [poolOwnedOptions, chessOwnedOptions]
+  );
+
+  const hasStorefront = SUPPORTED_STORE_SLUGS.includes(activeSlug);
+
   return (
     <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
-      <h2 className="text-xl font-bold">Store</h2>
+      <h2 className="text-xl font-bold">{activeGame?.name || 'Store'}</h2>
       <p className="text-subtext text-sm text-center max-w-2xl">
-        Pool Royale and Chess Battle Royal cosmetics are organized here as non-tradable unlocks. Defaults
-        remain free for every player, while the cards below are minted as account-bound NFTs for each game.
+        Browse official cosmetics and manage peer-to-peer trades. Each game has its own store tab; tap a game name
+        above to switch pages.
       </p>
 
+      <div className="w-full overflow-x-auto pb-2">
+        <div className="flex gap-2 min-w-max">
+          {catalogWithSlugs.map((game) => (
+            <Link
+              key={game.slug}
+              to={`/store/${game.slug}`}
+              className={`px-3 py-2 rounded-full border text-sm whitespace-nowrap ${
+                activeSlug === game.slug
+                  ? 'bg-primary text-black border-primary'
+                  : 'bg-surface border-border text-subtext hover:text-text'
+              }`}
+            >
+              {game.name}
+            </Link>
+          ))}
+        </div>
+      </div>
+
       <div className="store-info-bar">
-        <span className="font-semibold">Pool Royale / Chess Battle Royal</span>
+        <span className="font-semibold">{activeGame?.name || 'Storefront'}</span>
         <span className="text-xs text-subtext">Account: {accountId}</span>
         <span className="text-xs text-subtext">Prices shown in TPC</span>
         <span className="text-xs text-subtext">
@@ -258,149 +438,267 @@ export default function Store() {
         </span>
       </div>
 
-      <div className="store-card max-w-2xl">
-        <h3 className="text-lg font-semibold">Default Loadout (Free)</h3>
-        <p className="text-sm text-subtext">
-          These items are always available and applied when you enter Pool Royale.
-        </p>
-        <ul className="mt-2 space-y-1 w-full">
-          {defaultLoadout.map((item) => (
-            <li
-              key={`${item.type}-${item.optionId}`}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-            >
-              <span className="font-medium">{item.label}</span>
-              <span className="text-xs uppercase text-subtext">
-                {TYPE_LABELS[item.type] || item.type}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="store-card max-w-2xl">
-        <h3 className="text-lg font-semibold">Chess Battle Royal Defaults (Free)</h3>
-        <p className="text-sm text-subtext">
-          Two base piece colors stay unlocked by default; purchase the others to surface them inside the table setup menu.
-        </p>
-        <ul className="mt-2 space-y-1 w-full">
-          {chessDefaultLoadout.map((item) => (
-            <li
-              key={`chess-${item.type}-${item.optionId}`}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-            >
-              <span className="font-medium">{item.label}</span>
-              <span className="text-xs uppercase text-subtext">{CHESS_TYPE_LABELS[item.type] || item.type}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="w-full space-y-3">
-        <h3 className="text-lg font-semibold text-center">Pool Royale Collection</h3>
-        {Object.entries(groupedItems).map(([type, items]) => (
-          <div key={type} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-base font-semibold">{TYPE_LABELS[type] || type}</h4>
-              <span className="text-xs text-subtext">NFT unlocks</span>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {items.map((item) => {
-                const labels = POOL_ROYALE_OPTION_LABELS[item.type] || {};
-                const ownedLabel = labels[item.optionId] || item.name;
-                return (
-                  <div key={item.id} className="store-card">
-                    <div className="flex w-full items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                        <p className="text-xs text-subtext">{item.description}</p>
-                        <p className="text-xs text-subtext mt-1">
-                          Applies to: {TYPE_LABELS[item.type] || item.type}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 text-sm font-semibold">
-                        {item.price}
-                        <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handlePurchase(item)}
-                      disabled={item.owned || processing === item.id}
-                      className={`buy-button mt-2 text-center ${
-                        item.owned || processing === item.id
-                          ? 'cursor-not-allowed opacity-60'
-                          : ''
-                      }`}
-                    >
-                      {item.owned
-                        ? `${ownedLabel} Owned`
-                        : processing === item.id
-                        ? 'Purchasing...'
-                        : `Purchase ${ownedLabel}`}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="w-full space-y-3">
-        <h3 className="text-lg font-semibold text-center">Chess Battle Royal Collection</h3>
-        {Object.entries(chessGroupedItems).map(([type, items]) => (
-          <div key={type} className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="text-base font-semibold">{CHESS_TYPE_LABELS[type] || type}</h4>
-              <span className="text-xs text-subtext">NFT unlocks</span>
-            </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {items.map((item) => {
-                const labels = CHESS_BATTLE_OPTION_LABELS[item.type] || {};
-                const ownedLabel = labels[item.optionId] || item.name;
-                return (
-                  <div key={item.id} className="store-card">
-                    <div className="flex w-full items-start justify-between gap-2">
-                      <div>
-                        <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                        <p className="text-xs text-subtext">{item.description}</p>
-                        <p className="text-xs text-subtext mt-1">
-                          Applies to: {CHESS_TYPE_LABELS[item.type] || item.type}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 text-sm font-semibold">
-                        {item.price}
-                        <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleChessPurchase(item)}
-                      disabled={item.owned || processing === item.id}
-                      className={`buy-button mt-2 text-center ${
-                        item.owned || processing === item.id
-                          ? 'cursor-not-allowed opacity-60'
-                          : ''
-                      }`}
-                    >
-                      {item.owned
-                        ? `${ownedLabel} Owned`
-                        : processing === item.id
-                        ? 'Purchasing...'
-                        : `Purchase ${ownedLabel}`}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {info ? (
-        <div className="checkout-card text-center text-sm font-semibold">{info}</div>
+      {hasStorefront ? (
+        <div className="store-card max-w-2xl">
+          <h3 className="text-lg font-semibold">Marketplace policy</h3>
+          <p className="text-sm text-subtext">
+            Listings are limited to items you own and that are marked tradeable. Prices must match or exceed the
+            official store price. A 2% fee is charged to both buyer and seller, and the combined fee is routed to the
+            developer account ({DEV_INFO.account}) when the NFT transfers.
+          </p>
+        </div>
       ) : null}
+
+      {activeSlug === 'poolroyale' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Default Loadout (Free)</h3>
+            <p className="text-sm text-subtext">
+              These items are always available and applied when you enter Pool Royale.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {poolDefaultLoadout.map((item) => (
+                <li
+                  key={`${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Pool Royale Collection</h3>
+            {Object.entries(poolGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = POOL_ROYALE_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">Applies to: {TYPE_LABELS[item.type] || item.type}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeSlug === 'chessbattleroyal' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Chess Battle Royal Defaults (Free)</h3>
+            <p className="text-sm text-subtext">
+              Two base piece colors stay unlocked by default; purchase the others to surface them inside the table setup
+              menu.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {chessDefaultLoadout.map((item) => (
+                <li
+                  key={`chess-${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{CHESS_TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Chess Battle Royal Collection</h3>
+            {Object.entries(chessGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{CHESS_TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = CHESS_BATTLE_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">
+                              Applies to: {CHESS_TYPE_LABELS[item.type] || item.type}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleChessPurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {!hasStorefront && (
+        <div className="store-card max-w-2xl text-center">
+          <p className="text-sm text-subtext">
+            The store and marketplace for {activeGame?.name || 'this game'} will open soon. Check back for cosmetic and NFT
+            trading options.
+          </p>
+        </div>
+      )}
+
+      {hasStorefront && (
+        <div className="store-card max-w-3xl w-full space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <h3 className="text-lg font-semibold">NFT Marketplace</h3>
+              <p className="text-xs text-subtext">
+                List only tradeable items you own. Prices cannot go below the official store price. A 2% fee applies to
+                both buyer and seller when an order fills.
+              </p>
+            </div>
+            <div className="text-xs text-subtext">
+              Developer fee target: <span className="font-semibold text-text">{DEV_INFO.account}</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Select owned item</label>
+              <select
+                value={selectedItemKey}
+                onChange={(e) => setSelectedItemKey(e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              >
+                {tradableOwnedItems.length === 0 ? <option value="">No tradeable items owned</option> : null}
+                {tradableOwnedItems.map((item) => (
+                  <option key={item.key} value={item.key}>
+                    {item.displayLabel} — Official price {item.price} TPC
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-semibold">Listing price (TPC)</label>
+              <input
+                type="number"
+                min={0}
+                value={listingPrice}
+                onChange={(e) => setListingPrice(e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+                placeholder="Enter price"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleCreateListing}
+            className="buy-button text-center"
+            disabled={!selectedItemKey || tradableOwnedItems.length === 0}
+          >
+            Create listing with 2% dual fee
+          </button>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h4 className="font-semibold">Active listings</h4>
+              <span className="text-xs text-subtext">{marketplaceListings.length} open</span>
+            </div>
+            {marketplaceListings.length === 0 ? (
+              <p className="text-sm text-subtext">No listings yet for this game. List something you own to get started.</p>
+            ) : (
+              <div className="space-y-2">
+                {marketplaceListings.map((listing) => (
+                  <div key={listing.listingId} className="rounded-lg border border-border p-3 bg-surface/60">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="space-y-0.5">
+                        <p className="font-semibold">{listing.name}</p>
+                        <p className="text-xs text-subtext">
+                          Listed at {listing.price} TPC (official floor {listing.officialPrice} TPC)
+                        </p>
+                        <p className="text-xs text-subtext">
+                          Buyer pays {listing.buyerTotal} TPC (+2%), seller receives {listing.sellerProceeds} TPC (-2%).
+                          Dev receives {listing.developerFee} TPC when it sells.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handlePurchaseListing(listing.listingId)}
+                        className="buy-button px-4 py-2 text-center"
+                      >
+                        Buy & settle fees
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-lg border border-border p-3 bg-surface/70 text-xs text-subtext">
+            <p>
+              You can only list items present in your owned inventory: {ownedItemLookup[activeSlug]?.length || 0} owned
+              entries detected for this game. If you unlock new cosmetics, refresh or revisit this tab to enable
+              listing.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {info ? <div className="checkout-card text-center text-sm font-semibold">{info}</div> : null}
+      {marketInfo ? <div className="checkout-card text-center text-sm font-semibold">{marketInfo}</div> : null}
     </div>
   );
 }
