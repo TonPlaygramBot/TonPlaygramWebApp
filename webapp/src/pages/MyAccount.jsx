@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getAccountInfo,
   createAccount,
@@ -27,8 +27,21 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import {
+  getDefaultPoolRoyalLoadout,
+  listOwnedPoolRoyalOptions,
+  poolRoyalAccountId
+} from '../utils/poolRoyalInventory.js';
 
 import { FiCopy } from 'react-icons/fi';
+
+const POOL_ROYALE_TYPE_LABELS = {
+  tableFinish: 'Table Finish',
+  chromeColor: 'Chrome Fascias',
+  railMarkerColor: 'Rail Markers',
+  clothColor: 'Cloth Color',
+  cueStyle: 'Cue Style'
+};
 
 function formatValue(value, decimals = 2) {
   if (typeof value !== 'number') {
@@ -78,6 +91,20 @@ export default function MyAccount() {
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
   const [googleLinked, setGoogleLinked] = useState(!!googleId);
+  const [poolAccountId, setPoolAccountId] = useState(poolRoyalAccountId());
+  const [poolRoyaleInventory, setPoolRoyaleInventory] = useState(() =>
+    listOwnedPoolRoyalOptions(poolRoyalAccountId())
+  );
+  const refreshPoolRoyale = useCallback(() => {
+    const resolved = poolRoyalAccountId();
+    setPoolAccountId(resolved);
+    const owned = listOwnedPoolRoyalOptions(resolved);
+    if (Array.isArray(owned) && owned.length > 0) {
+      setPoolRoyaleInventory(owned);
+    } else {
+      setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
+    }
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -147,6 +174,7 @@ export default function MyAccount() {
       if (!localStorage.getItem('avatarPromptShown')) {
         setShowAvatarPrompt(true);
       }
+      refreshPoolRoyale();
     }
 
     load();
@@ -171,6 +199,18 @@ export default function MyAccount() {
     window.addEventListener('profilePhotoUpdated', handler);
     return () => window.removeEventListener('profilePhotoUpdated', handler);
   }, [telegramId]);
+  useEffect(() => {
+    refreshPoolRoyale();
+  }, [profile, refreshPoolRoyale]);
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === poolAccountId) {
+        refreshPoolRoyale();
+      }
+    };
+    window.addEventListener('poolRoyalInventoryUpdate', handler);
+    return () => window.removeEventListener('poolRoyalInventoryUpdate', handler);
+  }, [poolAccountId, refreshPoolRoyale]);
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -409,6 +449,29 @@ export default function MyAccount() {
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
+      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Pool Royale Inventory</h3>
+          <span className="text-xs text-subtext">Account: {poolAccountId}</span>
+        </div>
+        <p className="text-sm text-subtext">
+          Defaults are applied automatically. Purchased NFTs show here and inside the Pool Royale
+          table setup menu.
+        </p>
+        <div className="space-y-1">
+          {poolRoyaleInventory.map((item) => (
+            <div
+              key={`${item.type}-${item.optionId}`}
+              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
+            >
+              <span className="font-medium">{item.label}</span>
+              <span className="text-[11px] uppercase text-subtext">
+                {POOL_ROYALE_TYPE_LABELS[item.type] || item.type}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
