@@ -5101,6 +5101,7 @@ function Chess3D({
   const checkSoundRef = useRef(null);
   const mateSoundRef = useRef(null);
   const laughSoundRef = useRef(null);
+  const laughTimeoutRef = useRef(null);
   const lastBeepRef = useRef({ white: null, black: null });
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
@@ -5586,6 +5587,10 @@ function Chess3D({
         } catch {}
       }
     }
+    if (!soundEnabled && laughTimeoutRef.current) {
+      clearTimeout(laughTimeoutRef.current);
+      laughTimeoutRef.current = null;
+    }
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -5861,6 +5866,13 @@ function Chess3D({
     let onResize = null;
     let onClick = null;
 
+    const clearLaughTimeout = () => {
+      if (laughTimeoutRef.current) {
+        clearTimeout(laughTimeoutRef.current);
+        laughTimeoutRef.current = null;
+      }
+    };
+
     const setup = async () => {
       const performanceProfile = selectPerformanceProfile();
       const targetFrameIntervalMs = 1000 / performanceProfile.targetFps;
@@ -5896,17 +5908,29 @@ function Chess3D({
         disposePieceMaterials(pieceMaterials);
       });
       const pieceSetPromise = loadPieceSet(RAW_BOARD_SIZE);
-      const playAudio = (audioRef) => {
+      const playAudio = (audioRef, options = {}) => {
         if (!audioRef?.current || !settingsRef.current.soundEnabled) return;
+        const { maxDurationMs = null } = options;
         try {
           audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(() => {});
+          const playPromise = audioRef.current.play();
+          if (maxDurationMs && Number.isFinite(maxDurationMs)) {
+            clearLaughTimeout();
+            laughTimeoutRef.current = setTimeout(() => {
+              try {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+              } catch {}
+              laughTimeoutRef.current = null;
+            }, maxDurationMs);
+          }
+          playPromise?.catch(() => {});
         } catch {}
       };
       const playMoveSound = () => playAudio(moveSoundRef);
       const playCheckSound = () => playAudio(checkSoundRef);
       const playMateSound = () => playAudio(mateSoundRef);
-      const playLaughSound = () => playAudio(laughSoundRef);
+      const playLaughSound = () => playAudio(laughSoundRef, { maxDurationMs: 5000 });
       const chairTheme = mapChairOptionToTheme(chairOption);
       const chairBuild = await buildChessChairTemplate(chairTheme);
       if (cancelled) return;
@@ -7291,7 +7315,10 @@ function Chess3D({
       if (movedPiece && typeof movedPiece.hasMoved !== 'boolean') movedPiece.hasMoved = false;
       const movedFromPawn = movedPiece?.t === 'P';
       const isCastlingMove =
-        movedPiece?.t === 'K' && sel.r === rr && Math.abs(cc - sel.c) === 2;
+        movedPiece?.t === 'K' &&
+        sel.r === rr &&
+        Math.abs(cc - sel.c) === 2 &&
+        legal.some(([r, c]) => r === rr && c === cc && Math.abs(c - sel.c) === 2);
       const rookFromC = isCastlingMove ? (cc > sel.c ? 7 : 0) : null;
       const rookToC = isCastlingMove ? (cc > sel.c ? 5 : 3) : null;
       const rookPiece =
@@ -7744,6 +7771,7 @@ function Chess3D({
       checkSoundRef.current?.pause();
       mateSoundRef.current?.pause();
       laughSoundRef.current?.pause();
+      clearLaughTimeout();
     };
   }, []);
 
