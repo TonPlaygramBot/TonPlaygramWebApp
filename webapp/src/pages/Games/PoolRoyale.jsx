@@ -2346,7 +2346,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
-    railPush: BALL_R * 7.2,
+    railPush: BALL_R * 6.6,
     lateralDolly: BALL_R * 0.6,
     focusLift: BALL_R * 6.0,
     focusDepthBias: BALL_R * 1.8,
@@ -8408,6 +8408,10 @@ function PoolRoyaleGame({
   useEffect(() => {
     broadcastSystemRef.current = activeBroadcastSystem;
   }, [activeBroadcastSystem]);
+  const railOverheadSystem = useMemo(
+    () => BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === 'rail-overhead'),
+    []
+  );
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
@@ -15070,6 +15074,8 @@ function PoolRoyaleGame({
             ballsRef.current?.length > 0 ? ballsRef.current : balls;
           if (!Array.isArray(ballsList) || ballsList.length === 0) return null;
           const frameSnapshot = frameRef.current ?? frameState;
+          const variantId =
+            activeVariantRef.current?.id ?? frameSnapshot?.meta?.variant ?? variantKey;
           const cuePos = cue?.pos
             ? new THREE.Vector2(cue.pos.x, cue.pos.y)
             : null;
@@ -15088,6 +15094,43 @@ function PoolRoyaleGame({
                 )
                 .filter(Boolean)
             : [];
+          const candidateTargets = new Set(legalTargets);
+
+          if (variantId === 'uk') {
+            const metaState =
+              frameSnapshot?.meta?.variant === 'uk'
+                ? frameSnapshot.meta.state
+                : null;
+            const assignment = resolveUkBallOnColour(frameSnapshot, metaState);
+            const pushIfAvailable = (colourId, available) => {
+              if (available > 0) candidateTargets.add(colourId);
+            };
+            if (assignment === 'red') {
+              pushIfAvailable('RED', metaState?.ballsOnTable?.red?.length ?? 0);
+            } else if (assignment === 'blue') {
+              pushIfAvailable('YELLOW', metaState?.ballsOnTable?.blue?.length ?? 0);
+            } else if (assignment === 'black') {
+              candidateTargets.add('BLACK');
+            } else if (metaState?.isOpenTable) {
+              pushIfAvailable('RED', metaState?.ballsOnTable?.red?.length ?? 0);
+              pushIfAvailable('YELLOW', metaState?.ballsOnTable?.blue?.length ?? 0);
+            }
+          } else if (variantId === 'american' || variantId === '9ball') {
+            if (candidateTargets.size === 0) {
+              const lowestBall = activeBalls.reduce((best, ball) => {
+                const num =
+                  typeof ball.id === 'number'
+                    ? ball.id
+                    : Number.parseInt(String(ball.id).replace(/\D+/g, ''), 10);
+                if (!Number.isFinite(num) || num <= 0) return best;
+                if (best == null || num < best) return num;
+                return best;
+              }, null);
+              if (lowestBall != null) {
+                candidateTargets.add(`BALL_${lowestBall}`);
+              }
+            }
+          }
 
           const findRackApex = () =>
             activeBalls.reduce((best, ball) => {
@@ -15107,9 +15150,9 @@ function PoolRoyaleGame({
             targetBall = findRackApex();
           }
 
-          if (!targetBall && legalTargets.length > 0) {
+          if (!targetBall && candidateTargets.size > 0) {
             const legalBalls = activeBalls.filter((ball) =>
-              legalTargets.includes(toBallColorId(ball.id))
+              candidateTargets.has(toBallColorId(ball.id))
             );
             if (legalBalls.length > 0) {
               targetBall = legalBalls.reduce((best, ball) => {
@@ -15145,6 +15188,12 @@ function PoolRoyaleGame({
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
+          if (plan?.pocketId && railOverheadSystem) {
+            const aimingSidePocket = plan.pocketId === 'TM' || plan.pocketId === 'BM';
+            broadcastSystemRef.current = aimingSidePocket
+              ? railOverheadSystem
+              : activeBroadcastSystem;
+          }
           if (autoAimRequestRef.current) {
             const autoDir = resolveAutoAimDirection();
             autoAimRequestRef.current = false;
