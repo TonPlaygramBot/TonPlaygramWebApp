@@ -14984,54 +14984,6 @@ function PoolRoyaleGame({
             return evaluateShotOptionsBaseline();
           }
         };
-
-        const computeAutoAimFallback = () => {
-          if (!cue?.active) return null;
-          const stateSnapshot = frameRef.current ?? frameState;
-          const variantId = activeVariantRef.current?.id ?? variantKey;
-          const activeBalls = balls.filter((b) => b.active && b.id !== cue.id);
-          if (!activeBalls.length) return null;
-
-          const legalTargetsRaw = Array.isArray(stateSnapshot?.ballOn)
-            ? stateSnapshot.ballOn
-            : [];
-          const legalTargets = new Set(
-            legalTargetsRaw
-              .map((entry) => (typeof entry === 'string' ? entry.toUpperCase() : ''))
-              .filter(Boolean)
-          );
-          if (!legalTargets.size && (variantId === 'american' || variantId === '9ball')) {
-            const lowestActive = activeBalls.reduce(
-              (best, ball) => (best == null || ball.id < best.id ? ball : best),
-              null
-            );
-            const mapped = lowestActive ? toBallColorId(lowestActive.id) : null;
-            if (mapped) legalTargets.add(mapped.toUpperCase());
-          }
-
-          const matchesLegalTargets = (ball) => {
-            if (!legalTargets.size) return true;
-            const colorId = toBallColorId(ball.id);
-            if (!colorId) return false;
-            return legalTargets.has(colorId.toUpperCase());
-          };
-
-          let candidates = activeBalls.filter(matchesLegalTargets);
-          if (!candidates.length) candidates = activeBalls;
-
-          const targetBall = candidates.reduce((best, ball) => {
-            if (!best) return ball;
-            const bestDist = best.pos.distanceToSquared(cue.pos);
-            const dist = ball.pos.distanceToSquared(cue.pos);
-            return dist < bestDist ? ball : best;
-          }, null);
-
-          if (!targetBall) return null;
-          const aimDir = targetBall.pos.clone().sub(cue.pos);
-          if (aimDir.lengthSq() < 1e-6) aimDir.set(0, 1);
-          aimDir.normalize();
-          return { aimDir };
-        };
         const updateAiPlanningState = (plan, options, countdownSeconds) => {
           const summary = summarizePlan(plan);
           const potSummary = summarizePlan(options?.bestPot ?? null);
@@ -15130,12 +15082,6 @@ function PoolRoyaleGame({
               suggestionAimKeyRef.current = null;
             }
           } else {
-            const fallbackAim = computeAutoAimFallback();
-            if (fallbackAim?.aimDir) {
-              aimDirRef.current.copy(fallbackAim.aimDir);
-              alignStandingCameraToAim(cue, fallbackAim.aimDir);
-              autoAimRequestRef.current = false;
-            }
             suggestionAimKeyRef.current = null;
           }
         };
