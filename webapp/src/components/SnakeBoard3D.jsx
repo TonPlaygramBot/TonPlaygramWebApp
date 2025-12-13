@@ -19,12 +19,6 @@ import {
   DEFAULT_TABLE_CUSTOMIZATION
 } from '../utils/tableCustomizationOptions.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../utils/colorSpace.js';
-import {
-  loadAbgAssets,
-  cloneAbgWithMats,
-  abgApplyPalette,
-  abgTintPalette
-} from '../utils/abgAssets.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const MODEL_SCALE = 0.75;
@@ -2724,9 +2718,7 @@ function updateTokens(
     boardRoot = null,
     seatAnchors = [],
     baseLevelTop = 0,
-    tokenTheme = {},
-    abgPrototype = null,
-    abgPalette = null
+    tokenTheme = {}
   } = {}
 ) {
   if (!tokensGroup) return;
@@ -2802,125 +2794,93 @@ function updateTokens(
     keep.add(index);
     let token = existing.get(index);
     const seatIndex = Number.isFinite(player?.seatIndex) ? player.seatIndex : index;
-    const baseColorHex = player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length];
     if (!token) {
-      if (abgPrototype) {
-        token = cloneAbgWithMats(abgPrototype);
-        token.userData = {
-          ...(token.userData || {}),
-          playerIndex: index,
-          isSliding: false,
-          isAbgToken: true,
-          lastColorHex: null,
-          abgMaterials: []
-        };
-        tokensGroup.add(token);
-      } else {
-        token = new THREE.Group();
-        const baseColor = new THREE.Color(baseColorHex);
-        const coreMaterial = new THREE.MeshPhysicalMaterial({
-          color: baseColor.clone(),
-          roughness: coreRoughness,
-          metalness: coreMetalness,
-          clearcoat: coreClearcoat,
-          clearcoatRoughness: coreClearcoatRoughness,
-          sheen: coreSheen,
-          sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
-        });
-        const accentMaterial = new THREE.MeshPhysicalMaterial({
-          color: baseColor.clone().lerp(accentTarget, accentBlend),
-          roughness: accentRoughness,
-          metalness: accentMetalness,
-          clearcoat: accentClearcoat,
-          clearcoatRoughness: accentClearcoatRoughness
-        });
+      token = new THREE.Group();
+      const baseColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
+      const coreMaterial = new THREE.MeshPhysicalMaterial({
+        color: baseColor.clone(),
+        roughness: coreRoughness,
+        metalness: coreMetalness,
+        clearcoat: coreClearcoat,
+        clearcoatRoughness: coreClearcoatRoughness,
+        sheen: coreSheen,
+        sheenColor: baseColor.clone().lerp(accentTarget, sheenBlend)
+      });
+      const accentMaterial = new THREE.MeshPhysicalMaterial({
+        color: baseColor.clone().lerp(accentTarget, accentBlend),
+        roughness: accentRoughness,
+        metalness: accentMetalness,
+        clearcoat: accentClearcoat,
+        clearcoatRoughness: accentClearcoatRoughness
+      });
 
-        const baseHeight = TOKEN_HEIGHT * 0.24;
-        const bodyHeight = TOKEN_HEIGHT * 0.46;
-        const leftoverHeight = Math.max(TOKEN_HEIGHT - (baseHeight + bodyHeight), TOKEN_HEIGHT * 0.18);
-        const headHeight = leftoverHeight * 0.65;
-        const crestHeight = Math.max(leftoverHeight - headHeight, TOKEN_HEIGHT * 0.08);
+      const baseHeight = TOKEN_HEIGHT * 0.24;
+      const bodyHeight = TOKEN_HEIGHT * 0.46;
+      const leftoverHeight = Math.max(TOKEN_HEIGHT - (baseHeight + bodyHeight), TOKEN_HEIGHT * 0.18);
+      const headHeight = leftoverHeight * 0.65;
+      const crestHeight = Math.max(leftoverHeight - headHeight, TOKEN_HEIGHT * 0.08);
 
-        const base = new THREE.Mesh(
-          new THREE.CylinderGeometry(TOKEN_RADIUS * 1.45, TOKEN_RADIUS * 1.65, baseHeight, 48),
-          accentMaterial
-        );
-        base.position.y = baseHeight / 2;
-        base.castShadow = true;
-        base.receiveShadow = true;
-        token.add(base);
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(TOKEN_RADIUS * 1.45, TOKEN_RADIUS * 1.65, baseHeight, 48),
+        accentMaterial
+      );
+      base.position.y = baseHeight / 2;
+      base.castShadow = true;
+      base.receiveShadow = true;
+      token.add(base);
 
-        const body = new THREE.Mesh(
-          new THREE.CylinderGeometry(TOKEN_RADIUS * 1.05, TOKEN_RADIUS * 0.82, bodyHeight, 48),
-          coreMaterial
-        );
-        body.position.y = baseHeight + bodyHeight / 2;
-        body.castShadow = true;
-        body.receiveShadow = true;
-        token.add(body);
+      const body = new THREE.Mesh(
+        new THREE.CylinderGeometry(TOKEN_RADIUS * 1.05, TOKEN_RADIUS * 0.82, bodyHeight, 48),
+        coreMaterial
+      );
+      body.position.y = baseHeight + bodyHeight / 2;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      token.add(body);
 
-        const collar = new THREE.Mesh(
-          new THREE.TorusGeometry(TOKEN_RADIUS * 0.95, TOKEN_HEIGHT * 0.06, 24, 48),
-          accentMaterial
-        );
-        collar.rotation.x = Math.PI / 2;
-        collar.position.y = baseHeight + bodyHeight * 0.78;
-        collar.castShadow = true;
-        collar.receiveShadow = true;
-        token.add(collar);
+      const collar = new THREE.Mesh(
+        new THREE.TorusGeometry(TOKEN_RADIUS * 0.95, TOKEN_HEIGHT * 0.06, 24, 48),
+        accentMaterial
+      );
+      collar.rotation.x = Math.PI / 2;
+      collar.position.y = baseHeight + bodyHeight * 0.78;
+      collar.castShadow = true;
+      collar.receiveShadow = true;
+      token.add(collar);
 
-        const head = new THREE.Mesh(
-          new RoundedBoxGeometry(TOKEN_RADIUS * 1.3, headHeight, TOKEN_RADIUS * 1.3, 6, TOKEN_RADIUS * 0.45),
-          coreMaterial
-        );
-        head.position.y = baseHeight + bodyHeight + headHeight / 2;
-        head.castShadow = true;
-        head.receiveShadow = true;
-        token.add(head);
+      const head = new THREE.Mesh(
+        new RoundedBoxGeometry(TOKEN_RADIUS * 1.3, headHeight, TOKEN_RADIUS * 1.3, 6, TOKEN_RADIUS * 0.45),
+        coreMaterial
+      );
+      head.position.y = baseHeight + bodyHeight + headHeight / 2;
+      head.castShadow = true;
+      head.receiveShadow = true;
+      token.add(head);
 
-        const crest = new THREE.Mesh(
-          new THREE.CylinderGeometry(TOKEN_RADIUS * 0.55, TOKEN_RADIUS * 0.7, crestHeight, 32),
-          accentMaterial
-        );
-        crest.position.y = baseHeight + bodyHeight + headHeight + crestHeight / 2;
-        crest.castShadow = true;
-        crest.receiveShadow = true;
-        token.add(crest);
+      const crest = new THREE.Mesh(
+        new THREE.CylinderGeometry(TOKEN_RADIUS * 0.55, TOKEN_RADIUS * 0.7, crestHeight, 32),
+        accentMaterial
+      );
+      crest.position.y = baseHeight + bodyHeight + headHeight + crestHeight / 2;
+      crest.castShadow = true;
+      crest.receiveShadow = true;
+      token.add(crest);
 
-        token.userData = {
-          playerIndex: index,
-          material: coreMaterial,
-          coreMaterial,
-          accentMaterial,
-          isSliding: false
-        };
-        tokensGroup.add(token);
-      }
+      token.userData = {
+        playerIndex: index,
+        material: coreMaterial,
+        coreMaterial,
+        accentMaterial,
+        isSliding: false
+      };
+      tokensGroup.add(token);
     }
 
     const mat = token.userData.coreMaterial || token.userData.material;
     const accentMat = token.userData.accentMaterial || null;
-    const targetColor = new THREE.Color(baseColorHex);
-    const targetHex = targetColor.getHex();
-    const isAbgToken = Boolean(token.userData?.isAbgToken);
-    let abgMaterials = null;
+    const targetColor = new THREE.Color(player.color || DEFAULT_COLORS[index % DEFAULT_COLORS.length]);
 
-    if (isAbgToken && Array.isArray(abgPalette) && abgPalette.length) {
-      if (token.userData.lastColorHex !== targetHex) {
-        abgApplyPalette(token, abgTintPalette(abgPalette, targetHex));
-        token.userData.lastColorHex = targetHex;
-        const mats = [];
-        token.traverse((child) => {
-          if (!child.isMesh) return;
-          const list = Array.isArray(child.material) ? child.material : [child.material];
-          mats.push(...list);
-        });
-        token.userData.abgMaterials = mats;
-      }
-      abgMaterials = token.userData.abgMaterials || null;
-    }
-
-    if (!isAbgToken && mat) {
+    if (mat) {
       mat.color.copy(targetColor);
       if (mat.sheenColor) {
         mat.sheenColor.copy(targetColor.clone().lerp(accentTarget, sheenBlend));
@@ -2931,7 +2891,7 @@ function updateTokens(
       mat.clearcoatRoughness = coreClearcoatRoughness;
       mat.sheen = coreSheen;
     }
-    if (!isAbgToken && accentMat) {
+    if (accentMat) {
       const accentColor = targetColor.clone().lerp(accentTarget, accentBlend);
       accentMat.color.copy(accentColor);
       accentMat.roughness = accentRoughness;
@@ -2953,37 +2913,23 @@ function updateTokens(
       emissiveIntensity = 0.4;
     }
 
-    if (Array.isArray(abgMaterials) && abgMaterials.length) {
-      abgMaterials.forEach((material) => {
-        if (!material || !material.emissive) return;
-        if (emissiveHex === 0x000000) {
-          material.emissive.setRGB(0, 0, 0);
-        } else {
-          material.emissive.setHex(emissiveHex);
-        }
-        if ('emissiveIntensity' in material) {
-          material.emissiveIntensity = emissiveIntensity;
-        }
-      });
-    } else {
-      if (mat) {
-        if (emissiveHex === 0x000000) {
-          mat.emissive.setRGB(0, 0, 0);
-        } else {
-          mat.emissive.setHex(emissiveHex);
-        }
-        mat.emissiveIntensity = emissiveIntensity;
+    if (mat) {
+      if (emissiveHex === 0x000000) {
+        mat.emissive.setRGB(0, 0, 0);
+      } else {
+        mat.emissive.setHex(emissiveHex);
       }
+      mat.emissiveIntensity = emissiveIntensity;
+    }
 
-      if (accentMat) {
-        if (emissiveHex === 0x000000) {
-          const glow = targetColor.clone().lerp(accentTarget, 0.6).multiplyScalar(0.15);
-          accentMat.emissive.copy(glow);
-          accentMat.emissiveIntensity = 1;
-        } else {
-          accentMat.emissive.setHex(emissiveHex);
-          accentMat.emissiveIntensity = emissiveIntensity;
-        }
+    if (accentMat) {
+      if (emissiveHex === 0x000000) {
+        const glow = targetColor.clone().lerp(accentTarget, 0.6).multiplyScalar(0.15);
+        accentMat.emissive.copy(glow);
+        accentMat.emissiveIntensity = 1;
+      } else {
+        accentMat.emissive.setHex(emissiveHex);
+        accentMat.emissiveIntensity = emissiveIntensity;
       }
     }
 
@@ -3367,7 +3313,6 @@ export default function SnakeBoard3D({
   const lastFrameTimeRef = useRef(0);
   const frameRateRef = useRef(Math.max(30, frameRate || 90));
   const frameAccumulatorRef = useRef(0);
-  const abgAssetsRef = useRef(null);
   const fallbackAppearanceKey = useMemo(() => JSON.stringify(appearance ?? {}), [appearance]);
   const keyForEffect = appearanceKey ?? fallbackAppearanceKey;
   const appearanceMemo = useMemo(() => appearance || {}, [keyForEffect, appearance]);
@@ -3380,27 +3325,6 @@ export default function SnakeBoard3D({
     frameAccumulatorRef.current = 0;
     lastFrameTimeRef.current = 0;
   }, [frameRate]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const assets = await loadAbgAssets({
-          targetFootprint: TOKEN_RADIUS * 2,
-          baseLift: 0
-        });
-        if (!cancelled) {
-          abgAssetsRef.current = assets;
-        }
-      } catch (error) {
-        console.warn('Failed to load ABG bishop token', error);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [keyForEffect]);
 
   useEffect(() => {
     seatCallbackRef.current = typeof onSeatPositionsChange === 'function' ? onSeatPositionsChange : null;
@@ -3643,9 +3567,7 @@ export default function SnakeBoard3D({
       boardRoot: board.root,
       seatAnchors: board.seatAnchors,
       baseLevelTop: board.baseLevelTop,
-      tokenTheme,
-      abgPrototype: abgAssetsRef.current?.proto?.w?.b || abgAssetsRef.current?.proto?.b?.b,
-      abgPalette: abgAssetsRef.current?.palettes?.w
+      tokenTheme
     });
 
     const sanitizedPositions = players.map((player) => {
