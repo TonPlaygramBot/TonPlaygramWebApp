@@ -25,6 +25,18 @@ import {
   listOwnedChessOptions,
   chessBattleAccountId
 } from '../utils/chessBattleInventory.js';
+import {
+  DOMINO_ROYAL_DEFAULT_LOADOUT,
+  DOMINO_ROYAL_OPTION_LABELS,
+  DOMINO_ROYAL_STORE_ITEMS
+} from '../config/dominoRoyalInventoryConfig.js';
+import {
+  addDominoRoyalUnlock,
+  dominoRoyalAccountId,
+  getDominoRoyalInventory,
+  isDominoOptionUnlocked,
+  listOwnedDominoOptions
+} from '../utils/dominoRoyalInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { catalogWithSlugs } from '../config/gamesCatalog.js';
@@ -48,10 +60,20 @@ const CHESS_TYPE_LABELS = {
   headStyle: 'Pawn Heads'
 };
 
+const DOMINO_TYPE_LABELS = {
+  tableWood: 'Table Wood',
+  tableCloth: 'Table Cloth',
+  tableBase: 'Table Base',
+  dominoStyle: 'Domino Styles',
+  highlightStyle: 'Highlights',
+  chairTheme: 'Chairs'
+};
+
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal'];
+const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal', 'domino-royal'];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
@@ -62,6 +84,7 @@ export default function Store() {
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
+  const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   const [info, setInfo] = useState('');
   const [marketInfo, setMarketInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -93,6 +116,7 @@ export default function Store() {
   useEffect(() => {
     setPoolOwned(getPoolRoyalInventory(accountId));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
+    setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   }, [accountId]);
 
   useEffect(() => {
@@ -128,6 +152,16 @@ export default function Store() {
     };
     window.addEventListener('chessBattleInventoryUpdate', handler);
     return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
+  }, [accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
+        setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
+      }
+    };
+    window.addEventListener('dominoRoyalInventoryUpdate', handler);
+    return () => window.removeEventListener('dominoRoyalInventoryUpdate', handler);
   }, [accountId]);
 
   useEffect(() => {
@@ -178,10 +212,32 @@ export default function Store() {
     [chessOwned]
   );
 
+  const dominoGroupedItems = useMemo(() => {
+    const items = DOMINO_ROYAL_STORE_ITEMS.map((item) => ({
+      ...item,
+      owned: isDominoOptionUnlocked(item.type, item.optionId, dominoOwned)
+    }));
+    return items.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item);
+      return acc;
+    }, {});
+  }, [dominoOwned]);
+
+  const dominoDefaultLoadout = useMemo(
+    () =>
+      DOMINO_ROYAL_DEFAULT_LOADOUT.map((entry) => ({
+        ...entry,
+        owned: isDominoOptionUnlocked(entry.type, entry.optionId, dominoOwned)
+      })),
+    [dominoOwned]
+  );
+
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
+      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
+      'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
     }),
     []
   );
@@ -200,15 +256,17 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
-      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned)
+      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
+      'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned)
     }),
-    [poolOwned, chessOwned]
+    [poolOwned, chessOwned, dominoOwned]
   );
 
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -239,12 +297,23 @@ export default function Store() {
       setInfo('Link your TPC account in the wallet first.');
       return;
     }
-    if (!POOL_STORE_ACCOUNT_ID) {
+    const storeAccounts = {
+      poolroyale: POOL_STORE_ACCOUNT_ID,
+      chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
+      'domino-royal': DOMINO_STORE_ACCOUNT_ID
+    };
+    const storeId = storeAccounts[activeSlug];
+    if (!storeId) {
       setInfo('Store account unavailable. Please try again later.');
       return;
     }
 
-    const labels = POOL_ROYALE_OPTION_LABELS[item.type] || {};
+    const labelMaps = {
+      poolroyale: POOL_ROYALE_OPTION_LABELS,
+      chessbattleroyal: CHESS_BATTLE_OPTION_LABELS,
+      'domino-royal': DOMINO_ROYAL_OPTION_LABELS
+    };
+    const labels = labelMaps[activeSlug]?.[item.type] || {};
     const ownedLabel = labels[item.optionId] || item.name;
 
     if (tpcBalance !== null && item.price > tpcBalance) {
@@ -257,67 +326,28 @@ export default function Store() {
     try {
       const res = await sendAccountTpc(
         accountId,
-        POOL_STORE_ACCOUNT_ID,
+        storeId,
         item.price,
-        `Pool Royale: ${ownedLabel}`
+        `${activeGame?.name || 'Game'}: ${ownedLabel}`
       );
       if (res?.error) {
         setInfo(res.error || 'Purchase failed.');
         return;
       }
 
-      const updatedInventory = addPoolRoyalUnlock(item.type, item.optionId, accountId);
-      setPoolOwned(updatedInventory);
-      setInfo(`${ownedLabel} purchased and added to your Pool Royale account.`);
-
-      const bal = await getAccountBalance(accountId);
-      if (typeof bal?.balance === 'number') {
-        setTpcBalance(bal.balance);
+      if (activeSlug === 'poolroyale') {
+        const updatedInventory = addPoolRoyalUnlock(item.type, item.optionId, accountId);
+        setPoolOwned(updatedInventory);
+        setInfo(`${ownedLabel} purchased and added to your Pool Royale account.`);
+      } else if (activeSlug === 'chessbattleroyal') {
+        const updatedInventory = addChessBattleUnlock(item.type, item.optionId, accountId);
+        setChessOwned(updatedInventory);
+        setInfo(`${ownedLabel} purchased and added to your Chess Battle Royal account.`);
+      } else if (activeSlug === 'domino-royal') {
+        const updatedInventory = addDominoRoyalUnlock(item.type, item.optionId, accountId);
+        setDominoOwned(updatedInventory);
+        setInfo(`${ownedLabel} purchased and added to your Domino Royal account.`);
       }
-    } catch (err) {
-      console.error('Purchase failed', err);
-      setInfo('Failed to process purchase.');
-    } finally {
-      setProcessing('');
-    }
-  };
-
-  const handleChessPurchase = async (item) => {
-    if (item.owned || processing === item.id) return;
-    if (!accountId || accountId === 'guest') {
-      setInfo('Link your TPC account in the wallet first.');
-      return;
-    }
-    if (!CHESS_STORE_ACCOUNT_ID) {
-      setInfo('Store account unavailable. Please try again later.');
-      return;
-    }
-
-    const labels = CHESS_BATTLE_OPTION_LABELS[item.type] || {};
-    const ownedLabel = labels[item.optionId] || item.name;
-
-    if (tpcBalance !== null && item.price > tpcBalance) {
-      setInfo('Insufficient TPC balance for this purchase.');
-      return;
-    }
-
-    setProcessing(item.id);
-    setInfo('');
-    try {
-      const res = await sendAccountTpc(
-        accountId,
-        CHESS_STORE_ACCOUNT_ID,
-        item.price,
-        `Chess Battle Royale: ${ownedLabel}`
-      );
-      if (res?.error) {
-        setInfo(res.error || 'Purchase failed.');
-        return;
-      }
-
-      const updatedInventory = addChessBattleUnlock(item.type, item.optionId, accountId);
-      setChessOwned(updatedInventory);
-      setInfo(`${ownedLabel} purchased and added to your Chess Battle Royal account.`);
 
       const bal = await getAccountBalance(accountId);
       if (typeof bal?.balance === 'number') {
@@ -392,13 +422,15 @@ export default function Store() {
 
   const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
   const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
+  const dominoOwnedOptions = useMemo(() => listOwnedDominoOptions(accountId), [accountId]);
 
   const ownedItemLookup = useMemo(
     () => ({
       poolroyale: poolOwnedOptions,
-      chessbattleroyal: chessOwnedOptions
+      chessbattleroyal: chessOwnedOptions,
+      'domino-royal': dominoOwnedOptions
     }),
-    [poolOwnedOptions, chessOwnedOptions]
+    [poolOwnedOptions, chessOwnedOptions, dominoOwnedOptions]
   );
 
   const hasStorefront = SUPPORTED_STORE_SLUGS.includes(activeSlug);
@@ -518,6 +550,76 @@ export default function Store() {
         </>
       )}
 
+      {activeSlug === 'domino-royal' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Domino Royal Defaults (Free)</h3>
+            <p className="text-sm text-subtext">
+              The first option in each category stays free. Purchase the others to surface them inside the Domino Royal table
+              setup menu.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {dominoDefaultLoadout.map((item) => (
+                <li
+                  key={`domino-${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{DOMINO_TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Domino Royal Collection</h3>
+            {Object.entries(dominoGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{DOMINO_TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = DOMINO_ROYAL_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">Applies to: {DOMINO_TYPE_LABELS[item.type] || item.type}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
       {activeSlug === 'chessbattleroyal' && (
         <>
           <div className="store-card max-w-2xl">
@@ -568,7 +670,7 @@ export default function Store() {
                         </div>
                         <button
                           type="button"
-                          onClick={() => handleChessPurchase(item)}
+                          onClick={() => handlePurchase(item)}
                           disabled={item.owned || processing === item.id}
                           className={`buy-button mt-2 text-center ${
                             item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
