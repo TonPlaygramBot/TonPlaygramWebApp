@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -20,22 +19,19 @@ import {
   addPoolRoyalUnlock,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
-  listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
 import {
   addSnookerClubUnlock,
   getSnookerClubInventory,
   isSnookerOptionUnlocked,
-  listOwnedSnookerOptions,
   snookerClubAccountId
 } from '../utils/snookerClubInventory.js';
 import {
   addAirHockeyUnlock,
   airHockeyAccountId,
   getAirHockeyInventory,
-  isAirHockeyOptionUnlocked,
-  listOwnedAirHockeyOptions
+  isAirHockeyOptionUnlocked
 } from '../utils/airHockeyInventory.js';
 import {
   CHESS_BATTLE_DEFAULT_LOADOUT,
@@ -51,7 +47,6 @@ import {
   addChessBattleUnlock,
   getChessBattleInventory,
   isChessOptionUnlocked,
-  listOwnedChessOptions,
   chessBattleAccountId
 } from '../utils/chessBattleInventory.js';
 import {
@@ -63,7 +58,6 @@ import {
   addLudoBattleUnlock,
   getLudoBattleInventory,
   isLudoOptionUnlocked,
-  listOwnedLudoOptions,
   ludoBattleAccountId
 } from '../utils/ludoBattleInventory.js';
 import {
@@ -75,7 +69,6 @@ import {
   addMurlanUnlock,
   getMurlanInventory,
   isMurlanOptionUnlocked,
-  listOwnedMurlanOptions,
   murlanAccountId
 } from '../utils/murlanInventory.js';
 import {
@@ -97,33 +90,28 @@ import {
   addDominoRoyalUnlock,
   dominoRoyalAccountId,
   getDominoRoyalInventory,
-  isDominoOptionUnlocked,
-  listOwnedDominoOptions
+  isDominoOptionUnlocked
 } from '../utils/dominoRoyalInventory.js';
 import {
   addSnakeUnlock,
   getSnakeInventory,
   isSnakeOptionUnlocked,
-  listOwnedSnakeOptions,
   snakeAccountId
 } from '../utils/snakeInventory.js';
 import {
   addBlackjackUnlock,
   getBlackjackInventory,
   isBlackjackOptionUnlocked,
-  listOwnedBlackjackOptions,
   blackjackAccountId
 } from '../utils/blackjackInventory.js';
 import {
   addTexasHoldemUnlock,
   getTexasHoldemInventory,
   isTexasOptionUnlocked,
-  listOwnedTexasOptions,
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
-import { catalogWithSlugs } from '../config/gamesCatalog.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -227,30 +215,97 @@ const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT
 const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SUPPORTED_STORE_SLUGS = [
-  'poolroyale',
-  'snookerclub',
-  'airhockey',
-  'chessbattleroyal',
-  'blackjack',
-  'ludobattleroyal',
-  'murlanroyale',
-  'domino-royal',
-  'snake',
-  'texasholdem'
-];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
+const storeMeta = {
+  poolroyale: {
+    name: 'Pool Royale',
+    items: POOL_ROYALE_STORE_ITEMS,
+    defaults: POOL_ROYALE_DEFAULT_LOADOUT,
+    labels: POOL_ROYALE_OPTION_LABELS,
+    typeLabels: TYPE_LABELS,
+    accountId: POOL_STORE_ACCOUNT_ID
+  },
+  snookerclub: {
+    name: 'Snooker Club',
+    items: SNOOKER_CLUB_STORE_ITEMS,
+    defaults: SNOOKER_CLUB_DEFAULT_LOADOUT,
+    labels: SNOOKER_CLUB_OPTION_LABELS,
+    typeLabels: SNOOKER_TYPE_LABELS,
+    accountId: SNOOKER_STORE_ACCOUNT_ID
+  },
+  airhockey: {
+    name: 'Air Hockey',
+    items: AIR_HOCKEY_STORE_ITEMS,
+    defaults: AIR_HOCKEY_DEFAULT_LOADOUT,
+    labels: AIR_HOCKEY_OPTION_LABELS,
+    typeLabels: AIR_HOCKEY_TYPE_LABELS,
+    accountId: AIR_HOCKEY_STORE_ACCOUNT_ID
+  },
+  chessbattleroyal: {
+    name: 'Chess Battle Royal',
+    items: CHESS_BATTLE_STORE_ITEMS,
+    defaults: CHESS_BATTLE_DEFAULT_LOADOUT,
+    labels: CHESS_BATTLE_OPTION_LABELS,
+    typeLabels: CHESS_TYPE_LABELS,
+    accountId: CHESS_STORE_ACCOUNT_ID
+  },
+  blackjack: {
+    name: 'Black Jack',
+    items: BLACKJACK_STORE_ITEMS,
+    defaults: BLACKJACK_DEFAULT_LOADOUT,
+    labels: BLACKJACK_OPTION_LABELS,
+    typeLabels: BLACKJACK_TYPE_LABELS,
+    accountId: BLACKJACK_STORE_ACCOUNT_ID
+  },
+  ludobattleroyal: {
+    name: 'Ludo Battle Royal',
+    items: LUDO_BATTLE_STORE_ITEMS,
+    defaults: LUDO_BATTLE_DEFAULT_LOADOUT,
+    labels: LUDO_BATTLE_OPTION_LABELS,
+    typeLabels: LUDO_TYPE_LABELS,
+    accountId: LUDO_STORE_ACCOUNT_ID
+  },
+  murlanroyale: {
+    name: 'Murlan Royale',
+    items: MURLAN_ROYALE_STORE_ITEMS,
+    defaults: MURLAN_ROYALE_DEFAULT_LOADOUT,
+    labels: MURLAN_ROYALE_OPTION_LABELS,
+    typeLabels: MURLAN_TYPE_LABELS,
+    accountId: MURLAN_STORE_ACCOUNT_ID
+  },
+  'domino-royal': {
+    name: 'Domino Royal',
+    items: DOMINO_ROYAL_STORE_ITEMS,
+    defaults: DOMINO_ROYAL_DEFAULT_LOADOUT,
+    labels: DOMINO_ROYAL_OPTION_LABELS,
+    typeLabels: DOMINO_TYPE_LABELS,
+    accountId: DOMINO_STORE_ACCOUNT_ID
+  },
+  snake: {
+    name: 'Snake & Ladder',
+    items: SNAKE_STORE_ITEMS,
+    defaults: SNAKE_DEFAULT_LOADOUT,
+    labels: SNAKE_OPTION_LABELS,
+    typeLabels: SNAKE_TYPE_LABELS,
+    accountId: SNAKE_STORE_ACCOUNT_ID
+  },
+  texasholdem: {
+    name: "Texas Hold'em",
+    items: TEXAS_HOLDEM_STORE_ITEMS,
+    defaults: TEXAS_HOLDEM_DEFAULT_LOADOUT,
+    labels: TEXAS_HOLDEM_OPTION_LABELS,
+    typeLabels: TEXAS_TYPE_LABELS,
+    accountId: TEXAS_STORE_ACCOUNT_ID
+  }
+};
+
 export default function Store() {
   useTelegramBackButton();
-  const { gameSlug } = useParams();
-  const navigate = useNavigate();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
-  const [snookerOwned, setSnookerOwned] = useState(() =>
-    getSnookerClubInventory(snookerClubAccountId(accountId))
-  );
+  const [snookerOwned, setSnookerOwned] = useState(() => getSnookerClubInventory(snookerClubAccountId(accountId)));
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
   const [blackjackOwned, setBlackjackOwned] = useState(() => getBlackjackInventory(blackjackAccountId(accountId)));
@@ -259,29 +314,14 @@ export default function Store() {
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   const [snakeOwned, setSnakeOwned] = useState(() => getSnakeInventory(snakeAccountId(accountId)));
   const [texasOwned, setTexasOwned] = useState(() => getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-  const [info, setInfo] = useState('');
-  const [marketInfo, setMarketInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
   const [processing, setProcessing] = useState('');
-  const [listings, setListings] = useState([]);
-  const [selectedItemKey, setSelectedItemKey] = useState('');
-  const [listingPrice, setListingPrice] = useState('');
-
-  const activeSlug = useMemo(() => {
-    if (gameSlug && catalogWithSlugs.some((g) => g.slug === gameSlug)) return gameSlug;
-    return 'poolroyale';
-  }, [gameSlug]);
-
-  const activeGame = useMemo(
-    () => catalogWithSlugs.find((game) => game.slug === activeSlug) || catalogWithSlugs[0],
-    [activeSlug]
-  );
-
-  useEffect(() => {
-    if (!gameSlug || !catalogWithSlugs.some((g) => g.slug === gameSlug)) {
-      navigate(`/store/${activeSlug}`, { replace: true });
-    }
-  }, [activeSlug, gameSlug, navigate]);
+  const [info, setInfo] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOption, setSortOption] = useState('featured');
+  const [activeGame, setActiveGame] = useState('all');
+  const [confirmItem, setConfirmItem] = useState(null);
+  const [purchaseStatus, setPurchaseStatus] = useState('');
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -315,350 +355,21 @@ export default function Store() {
     loadBalance();
   }, [accountId]);
 
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setPoolOwned(getPoolRoyalInventory(accountId));
-      }
-    };
-    window.addEventListener('poolRoyalInventoryUpdate', handler);
-    return () => window.removeEventListener('poolRoyalInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      const resolvedAccount = snookerClubAccountId(accountId);
-      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccount) {
-        setSnookerOwned(getSnookerClubInventory(resolvedAccount));
-      }
-    };
-    window.addEventListener('snookerClubInventoryUpdate', handler);
-    return () => window.removeEventListener('snookerClubInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      const resolvedAccount = airHockeyAccountId(accountId);
-      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccount) {
-        setAirOwned(getAirHockeyInventory(resolvedAccount));
-      }
-    };
-    window.addEventListener('airHockeyInventoryUpdate', handler);
-    return () => window.removeEventListener('airHockeyInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
-      }
-    };
-    window.addEventListener('chessBattleInventoryUpdate', handler);
-    return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setBlackjackOwned(getBlackjackInventory(blackjackAccountId(accountId)));
-      }
-    };
-    window.addEventListener('blackjackInventoryUpdate', handler);
-    return () => window.removeEventListener('blackjackInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
-      }
-    };
-    window.addEventListener('ludoBattleInventoryUpdate', handler);
-    return () => window.removeEventListener('ludoBattleInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
-      }
-    };
-    window.addEventListener('murlanInventoryUpdate', handler);
-    return () => window.removeEventListener('murlanInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
-      }
-    };
-    window.addEventListener('dominoRoyalInventoryUpdate', handler);
-    return () => window.removeEventListener('dominoRoyalInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
-      }
-    };
-    window.addEventListener('snakeInventoryUpdate', handler);
-    return () => window.removeEventListener('snakeInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
-      }
-    };
-    window.addEventListener('texasHoldemInventoryUpdate', handler);
-    return () => window.removeEventListener('texasHoldemInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
-    setSelectedItemKey('');
-    setListingPrice('');
-    setMarketInfo('');
-  }, [activeSlug]);
-
-  const poolGroupedItems = useMemo(() => {
-    const items = POOL_ROYALE_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isPoolOptionUnlocked(item.type, item.optionId, poolOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [poolOwned]);
-
-  const snookerGroupedItems = useMemo(() => {
-    const items = SNOOKER_CLUB_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isSnookerOptionUnlocked(item.type, item.optionId, snookerOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [snookerOwned]);
-
-  const poolDefaultLoadout = useMemo(
-    () =>
-      POOL_ROYALE_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isPoolOptionUnlocked(entry.type, entry.optionId, poolOwned)
-      })),
-    [poolOwned]
-  );
-
-  const snookerDefaultLoadout = useMemo(
-    () =>
-      SNOOKER_CLUB_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isSnookerOptionUnlocked(entry.type, entry.optionId, snookerOwned)
-      })),
-    [snookerOwned]
-  );
-
-  const blackjackGroupedItems = useMemo(() => {
-    const items = BLACKJACK_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isBlackjackOptionUnlocked(item.type, item.optionId, blackjackOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [blackjackOwned]);
-
-  const blackjackDefaultLoadout = useMemo(
-    () =>
-      BLACKJACK_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isBlackjackOptionUnlocked(entry.type, entry.optionId, blackjackOwned)
-      })),
-    [blackjackOwned]
-  );
-
-  const airGroupedItems = useMemo(() => {
-    const items = AIR_HOCKEY_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isAirHockeyOptionUnlocked(item.type, item.optionId, airOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [airOwned]);
-
-  const airDefaultLoadout = useMemo(
-    () =>
-      AIR_HOCKEY_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isAirHockeyOptionUnlocked(entry.type, entry.optionId, airOwned)
-      })),
-    [airOwned]
-  );
-
-  const chessGroupedItems = useMemo(() => {
-    const items = CHESS_BATTLE_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isChessOptionUnlocked(item.type, item.optionId, chessOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [chessOwned]);
-
-  const chessDefaultLoadout = useMemo(
-    () =>
-      CHESS_BATTLE_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isChessOptionUnlocked(entry.type, entry.optionId, chessOwned)
-      })),
-    [chessOwned]
-  );
-
-  const ludoGroupedItems = useMemo(() => {
-    const items = LUDO_BATTLE_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isLudoOptionUnlocked(item.type, item.optionId, ludoOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [ludoOwned]);
-
-  const ludoDefaultLoadout = useMemo(
-    () =>
-      LUDO_BATTLE_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isLudoOptionUnlocked(entry.type, entry.optionId, ludoOwned)
-      })),
-    [ludoOwned]
-  );
-
-  const murlanGroupedItems = useMemo(() => {
-    const items = MURLAN_ROYALE_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isMurlanOptionUnlocked(item.type, item.optionId, murlanOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [murlanOwned]);
-
-  const murlanDefaultLoadout = useMemo(
-    () =>
-      MURLAN_ROYALE_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isMurlanOptionUnlocked(entry.type, entry.optionId, murlanOwned)
-      })),
-    [murlanOwned]
-  );
-
-  const dominoGroupedItems = useMemo(() => {
-    const items = DOMINO_ROYAL_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isDominoOptionUnlocked(item.type, item.optionId, dominoOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [dominoOwned]);
-
-  const dominoDefaultLoadout = useMemo(
-    () =>
-      DOMINO_ROYAL_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isDominoOptionUnlocked(entry.type, entry.optionId, dominoOwned)
-      })),
-    [dominoOwned]
-  );
-
-  const snakeGroupedItems = useMemo(() => {
-    const items = SNAKE_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isSnakeOptionUnlocked(item.type, item.optionId, snakeOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [snakeOwned]);
-
-  const snakeDefaultLoadout = useMemo(
-    () =>
-      SNAKE_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isSnakeOptionUnlocked(entry.type, entry.optionId, snakeOwned)
-      })),
-    [snakeOwned]
-  );
-
-  const texasGroupedItems = useMemo(() => {
-    const items = TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isTexasOptionUnlocked(item.type, item.optionId, texasOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [texasOwned]);
-
-  const texasDefaultLoadout = useMemo(
-    () =>
-      TEXAS_HOLDEM_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isTexasOptionUnlocked(entry.type, entry.optionId, texasOwned)
-      })),
-    [texasOwned]
-  );
-
   const storeItemsBySlug = useMemo(
     () => ({
-      poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      snookerclub: SNOOKER_CLUB_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      blackjack: BLACKJACK_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
+      poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'poolroyale' })),
+      snookerclub: SNOOKER_CLUB_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snookerclub' })),
+      airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
+      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
+      blackjack: BLACKJACK_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'blackjack' })),
+      ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
+      murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
+      'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'domino-royal' })),
+      snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snake' })),
+      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'texasholdem' }))
     }),
     []
   );
-
-  const officialPriceMap = useMemo(() => {
-    const prices = {};
-    Object.entries(storeItemsBySlug).forEach(([slug, items]) => {
-      prices[slug] = items.reduce((acc, item) => {
-        acc[item.key] = item.price;
-        return acc;
-      }, {});
-    });
-    return prices;
-  }, [storeItemsBySlug]);
 
   const ownedCheckers = useMemo(
     () => ({
@@ -673,62 +384,97 @@ export default function Store() {
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
       texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [
-      airOwned,
-      poolOwned,
-      snookerOwned,
-      blackjackOwned,
-      chessOwned,
-      ludoOwned,
-      murlanOwned,
-      dominoOwned,
-      snakeOwned,
-      texasOwned
-    ]
+    [airOwned, poolOwned, snookerOwned, blackjackOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
   );
 
-    const labelResolvers = useMemo(
-      () => ({
-        poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        snookerclub: (item) => SNOOKER_CLUB_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        blackjack: (item) => BLACKJACK_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
-      }),
-      []
-    );
+  const labelResolvers = useMemo(
+    () => ({
+      poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      snookerclub: (item) => SNOOKER_CLUB_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      blackjack: (item) => BLACKJACK_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+    }),
+    []
+  );
 
-  const tradableOwnedItems = useMemo(() => {
-    const isOwned = ownedCheckers[activeSlug];
-    const labelResolver = labelResolvers[activeSlug];
-    const items = storeItemsBySlug[activeSlug] || [];
-    if (!isOwned || !labelResolver) return [];
-    return items
-      .filter((item) => isOwned(item.type, item.optionId))
-      .map((item) => ({
-        ...item,
-        displayLabel: labelResolver(item)
-      }));
-  }, [activeSlug, labelResolvers, ownedCheckers, storeItemsBySlug]);
+  const typeLabelResolver = useMemo(
+    () => ({
+      poolroyale: TYPE_LABELS,
+      snookerclub: SNOOKER_TYPE_LABELS,
+      airhockey: AIR_HOCKEY_TYPE_LABELS,
+      chessbattleroyal: CHESS_TYPE_LABELS,
+      blackjack: BLACKJACK_TYPE_LABELS,
+      ludobattleroyal: LUDO_TYPE_LABELS,
+      murlanroyale: MURLAN_TYPE_LABELS,
+      'domino-royal': DOMINO_TYPE_LABELS,
+      snake: SNAKE_TYPE_LABELS,
+      texasholdem: TEXAS_TYPE_LABELS
+    }),
+    []
+  );
 
-  useEffect(() => {
-    if (!selectedItemKey && tradableOwnedItems.length > 0) {
-      setSelectedItemKey(tradableOwnedItems[0].key);
-      setListingPrice(tradableOwnedItems[0].price.toString());
-    }
-  }, [selectedItemKey, tradableOwnedItems]);
+  const allMarketplaceItems = useMemo(() => {
+    const entries = [];
+    Object.entries(storeItemsBySlug).forEach(([slug, items]) => {
+      const ownedChecker = ownedCheckers[slug];
+      const labelResolver = labelResolvers[slug];
+      const typeLabels = typeLabelResolver[slug] || {};
+      items.forEach((item) => {
+        const displayLabel = labelResolver ? labelResolver(item) : item.name;
+        entries.push({
+          ...item,
+          slug,
+          displayLabel,
+          typeLabel: typeLabels[item.type] || item.type,
+          gameName: storeMeta[slug]?.name || slug,
+          owned: ownedChecker ? ownedChecker(item.type, item.optionId) : false
+        });
+      });
+    });
+    return entries;
+  }, [labelResolvers, ownedCheckers, storeItemsBySlug, typeLabelResolver]);
+
+  const filteredItems = useMemo(() => {
+    const term = searchTerm.trim().toLowerCase();
+    return allMarketplaceItems
+      .filter((item) => {
+        if (activeGame !== 'all' && item.slug !== activeGame) return false;
+        if (!term) return true;
+        return (
+          item.displayLabel.toLowerCase().includes(term) ||
+          item.description?.toLowerCase().includes(term) ||
+          item.typeLabel.toLowerCase().includes(term) ||
+          item.gameName.toLowerCase().includes(term)
+        );
+      })
+      .sort((a, b) => {
+        if (sortOption === 'price-low') return a.price - b.price;
+        if (sortOption === 'price-high') return b.price - a.price;
+        if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
+        return a.slug.localeCompare(b.slug);
+      });
+  }, [activeGame, allMarketplaceItems, searchTerm, sortOption]);
+
+  const resetStatus = () => {
+    setPurchaseStatus('');
+    setInfo('');
+  };
 
   const handlePurchase = async (item) => {
+    const slug = item?.slug;
     if (item.owned || processing === item.id) return;
+    if (!slug) return;
     if (!accountId || accountId === 'guest') {
       setInfo('Link your TPC account in the wallet first.');
       return;
     }
+
     const storeAccounts = {
       poolroyale: POOL_STORE_ACCOUNT_ID,
       snookerclub: SNOOKER_STORE_ACCOUNT_ID,
@@ -741,26 +487,10 @@ export default function Store() {
       snake: SNAKE_STORE_ACCOUNT_ID,
       texasholdem: TEXAS_STORE_ACCOUNT_ID
     };
-    const storeId = storeAccounts[activeSlug];
-    if (!storeId) {
-      setInfo('Store account unavailable. Please try again later.');
-      return;
-    }
+    const storeId = storeAccounts[slug];
+    const gameName = storeMeta[slug]?.name || 'Game';
 
-    const labelMaps = {
-      poolroyale: POOL_ROYALE_OPTION_LABELS,
-      snookerclub: SNOOKER_CLUB_OPTION_LABELS,
-      airhockey: AIR_HOCKEY_OPTION_LABELS,
-      chessbattleroyal: CHESS_BATTLE_OPTION_LABELS,
-      blackjack: BLACKJACK_OPTION_LABELS,
-      ludobattleroyal: LUDO_BATTLE_OPTION_LABELS,
-      murlanroyale: MURLAN_ROYALE_OPTION_LABELS,
-      'domino-royal': DOMINO_ROYAL_OPTION_LABELS,
-      snake: SNAKE_OPTION_LABELS,
-      texasholdem: TEXAS_HOLDEM_OPTION_LABELS
-    };
-    const labels = labelMaps[activeSlug]?.[item.type] || {};
-    const ownedLabel = labels[item.optionId] || item.name;
+    const ownedLabel = labelResolvers[slug] ? labelResolvers[slug](item) : item.name;
 
     if (tpcBalance !== null && item.price > tpcBalance) {
       setInfo('Insufficient TPC balance for this purchase.');
@@ -768,1029 +498,227 @@ export default function Store() {
     }
 
     setProcessing(item.id);
-    setInfo('');
+    resetStatus();
+
     try {
-      const res = await sendAccountTpc(
-        accountId,
-        storeId,
-        item.price,
-        `${activeGame?.name || 'Game'}: ${ownedLabel}`
-      );
+      const res = await sendAccountTpc(accountId, storeId, item.price, `${gameName}: ${ownedLabel}`);
       if (res?.error) {
         setInfo(res.error || 'Purchase failed.');
         return;
       }
 
-      if (activeSlug === 'poolroyale') {
-        const updatedInventory = addPoolRoyalUnlock(item.type, item.optionId, accountId);
-        setPoolOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Pool Royale account.`);
-      } else if (activeSlug === 'snookerclub') {
-        const updatedInventory = addSnookerClubUnlock(item.type, item.optionId, accountId);
-        setSnookerOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Snooker Club account.`);
-      } else if (activeSlug === 'airhockey') {
-        const updatedInventory = addAirHockeyUnlock(item.type, item.optionId, accountId);
-        setAirOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Air Hockey account.`);
-      } else if (activeSlug === 'chessbattleroyal') {
-        const updatedInventory = addChessBattleUnlock(item.type, item.optionId, accountId);
-        setChessOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Chess Battle Royal account.`);
-      } else if (activeSlug === 'blackjack') {
-        const updatedInventory = addBlackjackUnlock(item.type, item.optionId, accountId);
-        setBlackjackOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Black Jack account.`);
-      } else if (activeSlug === 'ludobattleroyal') {
-        const updatedInventory = addLudoBattleUnlock(item.type, item.optionId, accountId);
-        setLudoOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Ludo Battle Royal account.`);
-      } else if (activeSlug === 'murlanroyale') {
-        const updatedInventory = addMurlanUnlock(item.type, item.optionId, accountId);
-        setMurlanOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Murlan Royale account.`);
-      } else if (activeSlug === 'domino-royal') {
-        const updatedInventory = addDominoRoyalUnlock(item.type, item.optionId, accountId);
-        setDominoOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Domino Royal account.`);
-      } else if (activeSlug === 'snake') {
-        const updatedInventory = addSnakeUnlock(item.type, item.optionId, accountId);
-        setSnakeOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Snake & Ladder account.`);
-      } else if (activeSlug === 'texasholdem') {
-        const updatedInventory = addTexasHoldemUnlock(item.type, item.optionId, accountId);
-        setTexasOwned(updatedInventory);
-        setInfo(`${ownedLabel} purchased and added to your Texas Hold'em account.`);
+      if (slug === 'poolroyale') {
+        setPoolOwned(addPoolRoyalUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'snookerclub') {
+        setSnookerOwned(addSnookerClubUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'airhockey') {
+        setAirOwned(addAirHockeyUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'chessbattleroyal') {
+        setChessOwned(addChessBattleUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'blackjack') {
+        setBlackjackOwned(addBlackjackUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'ludobattleroyal') {
+        setLudoOwned(addLudoBattleUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'murlanroyale') {
+        setMurlanOwned(addMurlanUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'domino-royal') {
+        setDominoOwned(addDominoRoyalUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'snake') {
+        setSnakeOwned(addSnakeUnlock(item.type, item.optionId, accountId));
+      } else if (slug === 'texasholdem') {
+        setTexasOwned(addTexasHoldemUnlock(item.type, item.optionId, accountId));
       }
 
       const bal = await getAccountBalance(accountId);
       if (typeof bal?.balance === 'number') {
         setTpcBalance(bal.balance);
       }
+
+      setPurchaseStatus(`${ownedLabel} purchase completed — now owned in ${gameName}.`);
+      setInfo('');
     } catch (err) {
       console.error('Purchase failed', err);
       setInfo('Failed to process purchase.');
     } finally {
       setProcessing('');
+      setConfirmItem(null);
     }
   };
 
-  const handleCreateListing = () => {
-    const item = tradableOwnedItems.find((entry) => entry.key === selectedItemKey);
-    if (!item) {
-      setMarketInfo('Select an item you own to list it.');
-      return;
-    }
-    const parsedPrice = Number(listingPrice);
-    if (!Number.isFinite(parsedPrice) || parsedPrice <= 0) {
-      setMarketInfo('Enter a valid listing price.');
-      return;
-    }
-    const floorPrice = officialPriceMap?.[activeSlug]?.[item.key] ?? item.price;
-    if (parsedPrice < floorPrice) {
-      setMarketInfo(`Listing price must be at least the official store price of ${floorPrice} TPC.`);
-      return;
-    }
+  const featuredCount = allMarketplaceItems.length;
+  const ownedCount = allMarketplaceItems.filter((item) => item.owned).length;
 
-    const buyerFee = +(parsedPrice * 0.02).toFixed(2);
-    const sellerFee = +(parsedPrice * 0.02).toFixed(2);
-    const developerFee = +(buyerFee + sellerFee).toFixed(2);
-    const sellerProceeds = +(parsedPrice - sellerFee).toFixed(2);
-    const buyerTotal = +(parsedPrice + buyerFee).toFixed(2);
-
-    setListings((prev) => [
-      ...prev,
-      {
-        listingId: `${item.key}-${Date.now()}`,
-        slug: activeSlug,
-        itemKey: item.key,
-        name: item.displayLabel,
-        price: parsedPrice,
-        officialPrice: floorPrice,
-        buyerFee,
-        sellerFee,
-        developerFee,
-        sellerProceeds,
-        buyerTotal
-      }
-    ]);
-
-    setMarketInfo(
-      `Listing created for ${item.displayLabel}. Buyer pays ${buyerTotal} TPC (2% fee), seller receives ${sellerProceeds} TPC after a 2% fee. Developer account ${DEV_INFO.account} collects ${developerFee} TPC when sold.`
+  const renderConfirmModal = () => {
+    if (!confirmItem) return null;
+    const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-md rounded-2xl bg-surface border border-border p-5 shadow-xl space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase text-subtext">Confirm purchase</p>
+              <h3 className="text-lg font-semibold leading-tight">{confirmItem.displayLabel}</h3>
+              <p className="text-sm text-subtext">{gameName} • {confirmItem.typeLabel}</p>
+            </div>
+            <div className="flex items-center gap-1 font-semibold">
+              {confirmItem.price}
+              <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+            </div>
+          </div>
+          <p className="text-sm text-subtext">
+            This NFT cosmetic will be unlocked instantly for your account. Please confirm the payment to continue.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setConfirmItem(null)}
+              className="w-full rounded-xl border border-border px-4 py-2 text-sm font-semibold text-text sm:w-auto"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePurchase(confirmItem)}
+              className="w-full rounded-xl bg-gradient-to-r from-[#00B2FF] to-[#6D5DF6] px-4 py-2 text-sm font-semibold text-white shadow sm:w-auto"
+              disabled={processing === confirmItem.id}
+            >
+              {processing === confirmItem.id ? 'Processing...' : 'Confirm & Buy'}
+            </button>
+          </div>
+        </div>
+      </div>
     );
   };
-
-  const handlePurchaseListing = (listingId) => {
-    const listing = listings.find((entry) => entry.listingId === listingId);
-    if (!listing) return;
-    setListings((prev) => prev.filter((entry) => entry.listingId !== listingId));
-    setMarketInfo(
-      `Sale completed for ${listing.name} at ${listing.price} TPC. Buyer paid ${listing.buyerTotal} TPC (2% marketplace fee) and seller received ${listing.sellerProceeds} TPC after their 2% fee. ${listing.developerFee} TPC was routed to developer account ${DEV_INFO.account}.`
-    );
-  };
-
-  const marketplaceListings = useMemo(
-    () => listings.filter((entry) => entry.slug === activeSlug),
-    [listings, activeSlug]
-  );
-
-    const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
-    const snookerOwnedOptions = useMemo(
-      () => listOwnedSnookerOptions(accountId),
-      [accountId]
-    );
-    const airOwnedOptions = useMemo(() => listOwnedAirHockeyOptions(accountId), [accountId]);
-    const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
-    const blackjackOwnedOptions = useMemo(() => listOwnedBlackjackOptions(accountId), [accountId]);
-    const ludoOwnedOptions = useMemo(() => listOwnedLudoOptions(accountId), [accountId]);
-    const murlanOwnedOptions = useMemo(() => listOwnedMurlanOptions(accountId), [accountId]);
-    const dominoOwnedOptions = useMemo(() => listOwnedDominoOptions(accountId), [accountId]);
-    const snakeOwnedOptions = useMemo(() => listOwnedSnakeOptions(accountId), [accountId]);
-    const texasOwnedOptions = useMemo(() => listOwnedTexasOptions(accountId), [accountId]);
-
-    const ownedItemLookup = useMemo(
-      () => ({
-        poolroyale: poolOwnedOptions,
-        snookerclub: snookerOwnedOptions,
-        airhockey: airOwnedOptions,
-        chessbattleroyal: chessOwnedOptions,
-        blackjack: blackjackOwnedOptions,
-        ludobattleroyal: ludoOwnedOptions,
-        murlanroyale: murlanOwnedOptions,
-        'domino-royal': dominoOwnedOptions,
-        snake: snakeOwnedOptions,
-        texasholdem: texasOwnedOptions
-      }),
-      [
-        poolOwnedOptions,
-        snookerOwnedOptions,
-        airOwnedOptions,
-        chessOwnedOptions,
-        blackjackOwnedOptions,
-        ludoOwnedOptions,
-        murlanOwnedOptions,
-        dominoOwnedOptions,
-        snakeOwnedOptions,
-        texasOwnedOptions
-      ]
-    );
-
-  const hasStorefront = SUPPORTED_STORE_SLUGS.includes(activeSlug);
 
   return (
-    <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
-      <h2 className="text-xl font-bold">{activeGame?.name || 'Store'}</h2>
-      <p className="text-subtext text-sm text-center max-w-2xl">
-        Browse official cosmetics and manage peer-to-peer trades. Each game has its own store tab; tap a game name
-        above to switch pages.
-      </p>
-
-      <div className="w-full overflow-x-auto pb-2">
-        <div className="flex gap-2 min-w-max">
-          {catalogWithSlugs.map((game) => (
-            <Link
-              key={game.slug}
-              to={`/store/${game.slug}`}
-              className={`px-3 py-2 rounded-full border text-sm whitespace-nowrap ${
-                activeSlug === game.slug
-                  ? 'bg-primary text-black border-primary'
-                  : 'bg-surface border-border text-subtext hover:text-text'
-              }`}
-            >
-              {game.name}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      <div className="store-info-bar">
-        <span className="font-semibold">{activeGame?.name || 'Storefront'}</span>
-        <span className="text-xs text-subtext">Account: {accountId}</span>
-        <span className="text-xs text-subtext">Prices shown in TPC</span>
-        <span className="text-xs text-subtext">
-          Balance: {tpcBalance === null ? '...' : tpcBalance.toLocaleString()} TPC
-        </span>
-      </div>
-
-      {hasStorefront ? (
-        <div className="store-card max-w-2xl">
-          <h3 className="text-lg font-semibold">Marketplace policy</h3>
-          <p className="text-sm text-subtext">
-            Listings are limited to items you own and that are marked tradeable. Prices must match or exceed the
-            official store price. A 2% fee is charged to both buyer and seller, and the combined fee is routed to the
-            developer account ({DEV_INFO.account}) when the NFT transfers.
-          </p>
-        </div>
-      ) : null}
-
-      {activeSlug === 'poolroyale' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Default Loadout (Free)</h3>
-            <p className="text-sm text-subtext">
-              These items are always available and applied when you enter Pool Royale.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {poolDefaultLoadout.map((item) => (
-                <li
-                  key={`${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Pool Royale Collection</h3>
-            {Object.entries(poolGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = POOL_ROYALE_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'snookerclub' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Snooker Club Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              First options stay visible in the table setup menu. Buy other cosmetics here as NFTs to reveal them in-game.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {snookerDefaultLoadout.map((item) => (
-                <li
-                  key={`${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{SNOOKER_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Snooker Club Collection</h3>
-            {Object.entries(snookerGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{SNOOKER_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = SNOOKER_CLUB_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {SNOOKER_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'blackjack' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Black Jack Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              First options stay visible in the table setup menu. Buy other cosmetics here as NFTs to reveal them in-game.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {blackjackDefaultLoadout.map((item) => (
-                <li
-                  key={`blackjack-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{BLACKJACK_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Black Jack Collection</h3>
-            {Object.entries(blackjackGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{BLACKJACK_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = BLACKJACK_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {BLACKJACK_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'airhockey' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Air Hockey Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              The first option for each category stays free and visible in the table setup menu. Purchase other cosmetics here
-              to surface them as selectable NFTs.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {airDefaultLoadout.map((item) => (
-                <li
-                  key={`air-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{AIR_HOCKEY_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Air Hockey Collection</h3>
-            {Object.entries(airGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{AIR_HOCKEY_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = AIR_HOCKEY_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {AIR_HOCKEY_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'domino-royal' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Domino Royal Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              The first option in each category stays free. Purchase the others to surface them inside the Domino Royal table
-              setup menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {dominoDefaultLoadout.map((item) => (
-                <li
-                  key={`domino-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{DOMINO_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Domino Royal Collection</h3>
-            {Object.entries(dominoGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{DOMINO_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = DOMINO_ROYAL_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {DOMINO_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'texasholdem' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Texas Hold'em Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              The first option in each category stays free. Purchase additional table, chair, and card looks here to surface them
-              inside the Texas Hold'em table setup menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {texasDefaultLoadout.map((item) => (
-                <li
-                  key={`texas-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{TEXAS_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Texas Hold'em Collection</h3>
-            {Object.entries(texasGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{TEXAS_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = TEXAS_HOLDEM_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {TEXAS_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'snake' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Snake &amp; Ladder Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              The first option in each category stays unlocked. Purchase the others to surface them inside the Snake &amp;
-              Ladder table setup menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {snakeDefaultLoadout.map((item) => (
-                <li
-                  key={`snake-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{SNAKE_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Snake &amp; Ladder Collection</h3>
-            {Object.entries(snakeGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{SNAKE_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = SNAKE_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {SNAKE_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'chessbattleroyal' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Chess Battle Royal Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              Two base piece colors stay unlocked by default; purchase the others to surface them inside the table setup
-              menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {chessDefaultLoadout.map((item) => (
-                <li
-                  key={`chess-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{CHESS_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Chess Battle Royal Collection</h3>
-            {Object.entries(chessGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{CHESS_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = CHESS_BATTLE_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">
-                              Applies to: {CHESS_TYPE_LABELS[item.type] || item.type}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'ludobattleroyal' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Ludo Battle Royal Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              The first option in each category stays free. Purchase the others to surface them inside the Ludo table setup
-              menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {ludoDefaultLoadout.map((item) => (
-                <li
-                  key={`ludo-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{LUDO_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Ludo Battle Royal Collection</h3>
-            {Object.entries(ludoGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{LUDO_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = LUDO_BATTLE_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {LUDO_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'murlanroyale' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Murlan Royale Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              The first option in each category stays free. Purchase the others to surface them inside the Murlan Royale table
-              setup menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {murlanDefaultLoadout.map((item) => (
-                <li
-                  key={`murlan-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{MURLAN_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Murlan Royale Collection</h3>
-            {Object.entries(murlanGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{MURLAN_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = MURLAN_ROYALE_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {MURLAN_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handlePurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {!hasStorefront && (
-        <div className="store-card max-w-2xl text-center">
-          <p className="text-sm text-subtext">
-            The store and marketplace for {activeGame?.name || 'this game'} will open soon. Check back for cosmetic and NFT
-            trading options.
-          </p>
-        </div>
-      )}
-
-      {hasStorefront && (
-        <div className="store-card max-w-3xl w-full space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+    <div className="page">
+      <div className="flex flex-col gap-4">
+        <div className="rounded-2xl border border-border bg-surface/80 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <h3 className="text-lg font-semibold">NFT Marketplace</h3>
-              <p className="text-xs text-subtext">
-                List only tradeable items you own. Prices cannot go below the official store price. A 2% fee applies to
-                both buyer and seller when an order fills.
+              <p className="text-xs uppercase tracking-wide text-subtext">Marketplace</p>
+              <h1 className="text-2xl font-bold leading-tight">All NFTs in one modern store</h1>
+              <p className="text-sm text-subtext">
+                Browse every cosmetic across our games, search instantly, sort by price, and confirm before buying.
               </p>
             </div>
-            <div className="text-xs text-subtext">
-              Developer fee target: <span className="font-semibold text-text">{DEV_INFO.account}</span>
+            <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-sm">
+              <div className="text-left">
+                <p className="text-xs text-subtext">Items</p>
+                <p className="font-semibold">{featuredCount.toLocaleString()}</p>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div className="text-left">
+                <p className="text-xs text-subtext">Owned</p>
+                <p className="font-semibold">{ownedCount}</p>
+              </div>
+              <div className="h-8 w-px bg-border" />
+              <div className="text-left">
+                <p className="text-xs text-subtext">Balance</p>
+                <p className="font-semibold flex items-center gap-1">
+                  {tpcBalance === null ? '—' : tpcBalance}
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                </p>
+              </div>
             </div>
           </div>
 
-          <div className="grid gap-2 md:grid-cols-[1.2fr_0.8fr]">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Select owned item</label>
-              <select
-                value={selectedItemKey}
-                onChange={(e) => setSelectedItemKey(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-              >
-                {tradableOwnedItems.length === 0 ? <option value="">No tradeable items owned</option> : null}
-                {tradableOwnedItems.map((item) => (
-                  <option key={item.key} value={item.key}>
-                    {item.displayLabel} — Official price {item.price} TPC
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold">Listing price (TPC)</label>
+          <div className="mt-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr]">
+            <div className="rounded-xl border border-border bg-surface px-3 py-2 flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-5 w-5 text-subtext">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 5.25 5.25a7.5 7.5 0 0 0 11.4 11.4Z" />
+              </svg>
               <input
-                type="number"
-                min={0}
-                value={listingPrice}
-                onChange={(e) => setListingPrice(e.target.value)}
-                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-                placeholder="Enter price"
+                type="search"
+                placeholder="Search items, games, or styles"
+                className="w-full bg-transparent text-sm focus:outline-none"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={handleCreateListing}
-            className="buy-button text-center"
-            disabled={!selectedItemKey || tradableOwnedItems.length === 0}
-          >
-            Create listing with 2% dual fee
-          </button>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h4 className="font-semibold">Active listings</h4>
-              <span className="text-xs text-subtext">{marketplaceListings.length} open</span>
-            </div>
-            {marketplaceListings.length === 0 ? (
-              <p className="text-sm text-subtext">No listings yet for this game. List something you own to get started.</p>
-            ) : (
-              <div className="space-y-2">
-                {marketplaceListings.map((listing) => (
-                  <div key={listing.listingId} className="rounded-lg border border-border p-3 bg-surface/60">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div className="space-y-0.5">
-                        <p className="font-semibold">{listing.name}</p>
-                        <p className="text-xs text-subtext">
-                          Listed at {listing.price} TPC (official floor {listing.officialPrice} TPC)
-                        </p>
-                        <p className="text-xs text-subtext">
-                          Buyer pays {listing.buyerTotal} TPC (+2%), seller receives {listing.sellerProceeds} TPC (-2%).
-                          Dev receives {listing.developerFee} TPC when it sells.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handlePurchaseListing(listing.listingId)}
-                        className="buy-button px-4 py-2 text-center"
-                      >
-                        Buy & settle fees
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-lg border border-border p-3 bg-surface/70 text-xs text-subtext">
-            <p>
-              You can only list items present in your owned inventory: {ownedItemLookup[activeSlug]?.length || 0} owned
-              entries detected for this game. If you unlock new cosmetics, refresh or revisit this tab to enable
-              listing.
-            </p>
+            <select
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+              value={activeGame}
+              onChange={(e) => setActiveGame(e.target.value)}
+            >
+              <option value="all">All games</option>
+              {Object.entries(storeMeta).map(([slug, meta]) => (
+                <option key={slug} value={slug}>
+                  {meta.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
+              value={sortOption}
+              onChange={(e) => setSortOption(e.target.value)}
+            >
+              <option value="featured">Featured</option>
+              <option value="price-low">Price: Low to High</option>
+              <option value="price-high">Price: High to Low</option>
+              <option value="alpha">Alphabetical</option>
+            </select>
           </div>
         </div>
-      )}
 
-      {info ? <div className="checkout-card text-center text-sm font-semibold">{info}</div> : null}
-      {marketInfo ? <div className="checkout-card text-center text-sm font-semibold">{marketInfo}</div> : null}
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredItems.map((item) => (
+            <div key={`${item.slug}-${item.id}`} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/70 p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-2">
+                <div className="space-y-1">
+                  <p className="text-xs uppercase text-subtext">{item.gameName}</p>
+                  <h3 className="text-lg font-semibold leading-tight">{item.displayLabel}</h3>
+                  <p className="text-xs text-subtext">{item.typeLabel}</p>
+                </div>
+                <div className="flex items-center gap-1 rounded-full bg-surface px-3 py-1 text-sm font-semibold">
+                  {item.price}
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                </div>
+              </div>
+              <p className="text-sm text-subtext line-clamp-2">{item.description}</p>
+              <div className="flex items-center justify-between text-xs text-subtext">
+                <span className="rounded-full bg-surface px-3 py-1 capitalize">{item.slug.replace('-', ' ')}</span>
+                <span
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                    item.owned ? 'bg-green-400/10 text-green-400' : 'bg-[#6D5DF6]/10 text-[#6D5DF6]'
+                  }`}
+                >
+                  {item.owned ? 'Owned' : 'Mintable'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setConfirmItem(item)}
+                disabled={item.owned || processing === item.id}
+                className={`buy-button text-center ${item.owned ? 'cursor-not-allowed opacity-60' : ''}`}
+              >
+                {item.owned ? 'Already owned' : processing === item.id ? 'Processing...' : 'Buy now'}
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {filteredItems.length === 0 && (
+          <div className="rounded-2xl border border-border bg-surface/80 p-6 text-center text-subtext">
+            No items match your filters. Try clearing the search or picking a different game.
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-border bg-surface/80 p-4 text-sm text-subtext space-y-2">
+          <p className="font-semibold text-text">Quick tips</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Every purchase opens a confirmation modal before sending TPC.</li>
+            <li>Owned cosmetics show an “Owned” badge immediately after completion.</li>
+            <li>Design is responsive — cards stack on mobile and expand into rows on larger screens.</li>
+          </ul>
+        </div>
+
+        {info ? <div className="checkout-card text-center text-sm font-semibold">{info}</div> : null}
+        {purchaseStatus ? (
+          <div className="checkout-card text-center text-sm font-semibold text-green-400">{purchaseStatus}</div>
+        ) : null}
+      </div>
+      {renderConfirmModal()}
     </div>
   );
 }
