@@ -7,6 +7,11 @@ import {
   POOL_ROYALE_STORE_ITEMS
 } from '../config/poolRoyaleInventoryConfig.js';
 import {
+  SNOOKER_CLUB_DEFAULT_LOADOUT,
+  SNOOKER_CLUB_OPTION_LABELS,
+  SNOOKER_CLUB_STORE_ITEMS
+} from '../config/snookerClubInventoryConfig.js';
+import {
   AIR_HOCKEY_DEFAULT_LOADOUT,
   AIR_HOCKEY_OPTION_LABELS,
   AIR_HOCKEY_STORE_ITEMS
@@ -18,6 +23,13 @@ import {
   listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
+import {
+  addSnookerClubUnlock,
+  getSnookerClubInventory,
+  isSnookerOptionUnlocked,
+  listOwnedSnookerOptions,
+  snookerClubAccountId
+} from '../utils/snookerClubInventory.js';
 import {
   addAirHockeyUnlock,
   airHockeyAccountId,
@@ -121,6 +133,14 @@ const TYPE_LABELS = {
   cueStyle: 'Cue Styles'
 };
 
+const SNOOKER_TYPE_LABELS = {
+  tableFinish: 'Table Finishes',
+  chromeColor: 'Chrome Fascias',
+  railMarkerColor: 'Rail Markers',
+  clothColor: 'Cloth Colors',
+  cueStyle: 'Cue Styles'
+};
+
 const AIR_HOCKEY_TYPE_LABELS = {
   field: 'Rink Surface',
   table: 'Table Frame',
@@ -198,6 +218,7 @@ const TEXAS_TYPE_LABELS = {
 
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const SNOOKER_STORE_ACCOUNT_ID = import.meta.env.VITE_SNOOKER_CLUB_STORE_ACCOUNT_ID || DEV_INFO.account;
 const AIR_HOCKEY_STORE_ACCOUNT_ID = import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const BLACKJACK_STORE_ACCOUNT_ID = import.meta.env.VITE_BLACKJACK_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -208,6 +229,7 @@ const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DE
 const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SUPPORTED_STORE_SLUGS = [
   'poolroyale',
+  'snookerclub',
   'airhockey',
   'chessbattleroyal',
   'blackjack',
@@ -226,6 +248,9 @@ export default function Store() {
   const navigate = useNavigate();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
+  const [snookerOwned, setSnookerOwned] = useState(() =>
+    getSnookerClubInventory(snookerClubAccountId(accountId))
+  );
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
   const [blackjackOwned, setBlackjackOwned] = useState(() => getBlackjackInventory(blackjackAccountId(accountId)));
@@ -264,6 +289,7 @@ export default function Store() {
 
   useEffect(() => {
     setPoolOwned(getPoolRoyalInventory(accountId));
+    setSnookerOwned(getSnookerClubInventory(snookerClubAccountId(accountId)));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setBlackjackOwned(getBlackjackInventory(blackjackAccountId(accountId)));
@@ -297,6 +323,17 @@ export default function Store() {
     };
     window.addEventListener('poolRoyalInventoryUpdate', handler);
     return () => window.removeEventListener('poolRoyalInventoryUpdate', handler);
+  }, [accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      const resolvedAccount = snookerClubAccountId(accountId);
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccount) {
+        setSnookerOwned(getSnookerClubInventory(resolvedAccount));
+      }
+    };
+    window.addEventListener('snookerClubInventoryUpdate', handler);
+    return () => window.removeEventListener('snookerClubInventoryUpdate', handler);
   }, [accountId]);
 
   useEffect(() => {
@@ -398,6 +435,18 @@ export default function Store() {
     }, {});
   }, [poolOwned]);
 
+  const snookerGroupedItems = useMemo(() => {
+    const items = SNOOKER_CLUB_STORE_ITEMS.map((item) => ({
+      ...item,
+      owned: isSnookerOptionUnlocked(item.type, item.optionId, snookerOwned)
+    }));
+    return items.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item);
+      return acc;
+    }, {});
+  }, [snookerOwned]);
+
   const poolDefaultLoadout = useMemo(
     () =>
       POOL_ROYALE_DEFAULT_LOADOUT.map((entry) => ({
@@ -405,6 +454,15 @@ export default function Store() {
         owned: isPoolOptionUnlocked(entry.type, entry.optionId, poolOwned)
       })),
     [poolOwned]
+  );
+
+  const snookerDefaultLoadout = useMemo(
+    () =>
+      SNOOKER_CLUB_DEFAULT_LOADOUT.map((entry) => ({
+        ...entry,
+        owned: isSnookerOptionUnlocked(entry.type, entry.optionId, snookerOwned)
+      })),
+    [snookerOwned]
   );
 
   const blackjackGroupedItems = useMemo(() => {
@@ -578,6 +636,7 @@ export default function Store() {
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
+      snookerclub: SNOOKER_CLUB_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       blackjack: BLACKJACK_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
@@ -604,6 +663,7 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
+      snookerclub: (type, optionId) => isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       blackjack: (type, optionId) => isBlackjackOptionUnlocked(type, optionId, blackjackOwned),
@@ -613,12 +673,24 @@ export default function Store() {
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
       texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, blackjackOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
+    [
+      airOwned,
+      poolOwned,
+      snookerOwned,
+      blackjackOwned,
+      chessOwned,
+      ludoOwned,
+      murlanOwned,
+      dominoOwned,
+      snakeOwned,
+      texasOwned
+    ]
   );
 
     const labelResolvers = useMemo(
       () => ({
         poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+        snookerclub: (item) => SNOOKER_CLUB_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         blackjack: (item) => BLACKJACK_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -659,6 +731,7 @@ export default function Store() {
     }
     const storeAccounts = {
       poolroyale: POOL_STORE_ACCOUNT_ID,
+      snookerclub: SNOOKER_STORE_ACCOUNT_ID,
       airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
       chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
       blackjack: BLACKJACK_STORE_ACCOUNT_ID,
@@ -676,6 +749,7 @@ export default function Store() {
 
     const labelMaps = {
       poolroyale: POOL_ROYALE_OPTION_LABELS,
+      snookerclub: SNOOKER_CLUB_OPTION_LABELS,
       airhockey: AIR_HOCKEY_OPTION_LABELS,
       chessbattleroyal: CHESS_BATTLE_OPTION_LABELS,
       blackjack: BLACKJACK_OPTION_LABELS,
@@ -711,6 +785,10 @@ export default function Store() {
         const updatedInventory = addPoolRoyalUnlock(item.type, item.optionId, accountId);
         setPoolOwned(updatedInventory);
         setInfo(`${ownedLabel} purchased and added to your Pool Royale account.`);
+      } else if (activeSlug === 'snookerclub') {
+        const updatedInventory = addSnookerClubUnlock(item.type, item.optionId, accountId);
+        setSnookerOwned(updatedInventory);
+        setInfo(`${ownedLabel} purchased and added to your Snooker Club account.`);
       } else if (activeSlug === 'airhockey') {
         const updatedInventory = addAirHockeyUnlock(item.type, item.optionId, accountId);
         setAirOwned(updatedInventory);
@@ -817,6 +895,10 @@ export default function Store() {
   );
 
     const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
+    const snookerOwnedOptions = useMemo(
+      () => listOwnedSnookerOptions(accountId),
+      [accountId]
+    );
     const airOwnedOptions = useMemo(() => listOwnedAirHockeyOptions(accountId), [accountId]);
     const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
     const blackjackOwnedOptions = useMemo(() => listOwnedBlackjackOptions(accountId), [accountId]);
@@ -829,6 +911,7 @@ export default function Store() {
     const ownedItemLookup = useMemo(
       () => ({
         poolroyale: poolOwnedOptions,
+        snookerclub: snookerOwnedOptions,
         airhockey: airOwnedOptions,
         chessbattleroyal: chessOwnedOptions,
         blackjack: blackjackOwnedOptions,
@@ -840,6 +923,7 @@ export default function Store() {
       }),
       [
         poolOwnedOptions,
+        snookerOwnedOptions,
         airOwnedOptions,
         chessOwnedOptions,
         blackjackOwnedOptions,
@@ -938,6 +1022,75 @@ export default function Store() {
                             <p className="font-semibold text-lg leading-tight">{item.name}</p>
                             <p className="text-xs text-subtext">{item.description}</p>
                             <p className="text-xs text-subtext mt-1">Applies to: {TYPE_LABELS[item.type] || item.type}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeSlug === 'snookerclub' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Snooker Club Defaults (Free)</h3>
+            <p className="text-sm text-subtext">
+              First options stay visible in the table setup menu. Buy other cosmetics here as NFTs to reveal them in-game.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {snookerDefaultLoadout.map((item) => (
+                <li
+                  key={`${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{SNOOKER_TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Snooker Club Collection</h3>
+            {Object.entries(snookerGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{SNOOKER_TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = SNOOKER_CLUB_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">Applies to: {SNOOKER_TYPE_LABELS[item.type] || item.type}</p>
                           </div>
                           <div className="flex items-center gap-1 text-sm font-semibold">
                             {item.price}
