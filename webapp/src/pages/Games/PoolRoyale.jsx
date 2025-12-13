@@ -4215,11 +4215,15 @@ const BREAK_VIEW = Object.freeze({
   radius: CAMERA.minR, // start the intro framing closer to the table surface
   phi: CAMERA.maxPhi - 0.01
 });
+const BROADCAST_OVERHEAD_HEIGHT = TABLE_Y + TABLE.THICK + BALL_R * 8.4; // drop the overhead broadcast rig closer to the cloth
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 0.32;
 const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_THETA = Math.PI / 2; // lock the 2D view orientation for stable framing
+const TOP_VIEW_FOCUS = new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0); // keep the top-down focus pinned to the table center
+const FORCE_OVERHEAD_REVIEW_AFTER_SHOT = true; // prefer the overhead broadcast framing immediately after each shot
 const CUE_VIEW_RADIUS_RATIO = 0.045;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.17;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -10419,7 +10423,7 @@ function PoolRoyaleGame({
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
+        cameraHeight: BROADCAST_OVERHEAD_HEIGHT,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
@@ -11799,32 +11803,39 @@ function PoolRoyaleGame({
             } else {
               aimFocusRef.current = null;
               const store = ensureOrbitFocus();
-              if (store.ballId) {
-                const ballsList =
-                  ballsRef.current?.length > 0 ? ballsRef.current : balls;
-                const focusBall = ballsList.find((b) => b.id === store.ballId);
-                if (focusBall?.active) {
-                  store.target.set(
-                    focusBall.pos.x,
-                    BALL_CENTER_Y,
-                    focusBall.pos.y
-                  );
-                } else {
-                  setOrbitFocusToDefault();
+              if (topViewRef.current) {
+                focusTarget = TOP_VIEW_FOCUS.clone();
+              } else {
+                if (store.ballId) {
+                  const ballsList =
+                    ballsRef.current?.length > 0 ? ballsRef.current : balls;
+                  const focusBall = ballsList.find((b) => b.id === store.ballId);
+                  if (focusBall?.active) {
+                    store.target.set(
+                      focusBall.pos.x,
+                      BALL_CENTER_Y,
+                      focusBall.pos.y
+                    );
+                  } else {
+                    setOrbitFocusToDefault();
+                  }
                 }
+                focusTarget = store.target.clone();
               }
-            focusTarget = store.target.clone();
+            }
+          if (topViewRef.current) {
+            focusTarget = TOP_VIEW_FOCUS.clone();
           }
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
           if (topViewRef.current) {
             const topRadius = clampOrbitRadius(
               Math.max(
-                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
+                fitRadius(camera, TOP_VIEW_MARGIN),
                 CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
               )
             );
-            const topTheta = sph.theta;
+            const topTheta = TOP_VIEW_THETA;
             const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
             TMP_SPH.set(topRadius, topPhi, topTheta);
             camera.up.set(0, 1, 0);
@@ -12402,8 +12413,7 @@ function PoolRoyaleGame({
           topViewLockedRef.current = true;
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
-          const focusStore = ensureOrbitFocus();
-          const focusTarget = focusStore?.target ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
+          const focusTarget = TOP_VIEW_FOCUS.clone();
           const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), CAMERA.minR);
           const targetRadius = Math.max(
             maxRadius * TOP_VIEW_RADIUS_SCALE,
@@ -12411,6 +12421,7 @@ function PoolRoyaleGame({
           );
           sph.radius = clampOrbitRadius(targetRadius);
           sph.phi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+          sph.theta = TOP_VIEW_THETA;
           lastCameraTargetRef.current.copy(focusTarget);
           syncBlendToSpherical();
           if (immediate) {
@@ -14167,35 +14178,44 @@ function PoolRoyaleGame({
             const storedTarget = lastCameraTargetRef.current?.clone();
             if (storedTarget) actionView.smoothedTarget = storedTarget;
           }
-          let pocketViewActivated = false;
-          if (earlyPocketView) {
-            const now = performance.now();
-            earlyPocketView.lastUpdate = now;
-            if (cameraRef.current) {
-              const cam = cameraRef.current;
-              earlyPocketView.smoothedPos = cam.position.clone();
-              const storedTarget = lastCameraTargetRef.current?.clone();
-              if (storedTarget) {
-                earlyPocketView.smoothedTarget = storedTarget;
+          if (FORCE_OVERHEAD_REVIEW_AFTER_SHOT) {
+            pocketSwitchIntentRef.current = null;
+            updatePocketCameraState(false);
+            suspendedActionView = null;
+            activeShotView = null;
+            topViewControlsRef.current.enter?.(true);
+            updateCamera();
+          } else {
+            let pocketViewActivated = false;
+            if (earlyPocketView) {
+              const now = performance.now();
+              earlyPocketView.lastUpdate = now;
+              if (cameraRef.current) {
+                const cam = cameraRef.current;
+                earlyPocketView.smoothedPos = cam.position.clone();
+                const storedTarget = lastCameraTargetRef.current?.clone();
+                if (storedTarget) {
+                  earlyPocketView.smoothedTarget = storedTarget;
+                }
               }
+              if (actionView) {
+                earlyPocketView.resumeAction = actionView;
+                suspendedActionView = actionView;
+              } else {
+                suspendedActionView = null;
+              }
+              updatePocketCameraState(true);
+              activeShotView = earlyPocketView;
+              pocketViewActivated = true;
             }
-            if (actionView) {
-              earlyPocketView.resumeAction = actionView;
-              suspendedActionView = actionView;
-            } else {
-              suspendedActionView = null;
-            }
-            updatePocketCameraState(true);
-            activeShotView = earlyPocketView;
-            pocketViewActivated = true;
-          }
-          if (!pocketViewActivated && actionView) {
-            if (isLongShot) {
-              suspendedActionView = actionView;
-            } else {
-              suspendedActionView = null;
-              activeShotView = actionView;
-              updateCamera();
+            if (!pocketViewActivated && actionView) {
+              if (isLongShot) {
+                suspendedActionView = actionView;
+              } else {
+                suspendedActionView = null;
+                activeShotView = actionView;
+                updateCamera();
+              }
             }
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
