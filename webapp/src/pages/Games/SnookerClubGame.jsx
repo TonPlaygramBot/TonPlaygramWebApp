@@ -35,6 +35,12 @@ import {
   applyWoodTextures,
   disposeMaterialWithWood,
 } from '../../utils/woodMaterials.js';
+import { SNOOKER_CLUB_DEFAULT_UNLOCKS } from '../../config/snookerClubInventoryConfig.js';
+import {
+  getSnookerClubInventory,
+  isSnookerOptionUnlocked,
+  snookerClubAccountId
+} from '../../utils/snookerClubInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
 function applyTablePhysicsSpec(meta) {
@@ -1720,7 +1726,8 @@ const DEFAULT_WOOD_PRESET_ID = 'walnut';
 // rails as a plain material without any texture maps.
 const WOOD_TEXTURES_ENABLED = false;
 
-const DEFAULT_TABLE_FINISH_ID = 'rusticSplit';
+const DEFAULT_TABLE_FINISH_ID =
+  SNOOKER_CLUB_DEFAULT_UNLOCKS.tableFinish?.[0] ?? 'rusticSplit';
 
 const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   rusticSplit: 'walnut',
@@ -2092,7 +2099,13 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const DEFAULT_CHROME_COLOR_ID = 'chrome';
+const DEFAULT_CHROME_COLOR_ID =
+  SNOOKER_CLUB_DEFAULT_UNLOCKS.chromeColor?.[0] ?? 'chrome';
+const DEFAULT_CUE_STYLE_ID = SNOOKER_CLUB_DEFAULT_UNLOCKS.cueStyle?.[0];
+const DEFAULT_CUE_STYLE_INDEX = Math.max(
+  0,
+  CUE_STYLE_PRESETS.findIndex((preset) => preset.id === DEFAULT_CUE_STYLE_ID)
+);
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
@@ -2165,8 +2178,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   })
 });
 
-const DEFAULT_CLOTH_TEXTURE_KEY = 'freshGreen';
-const DEFAULT_CLOTH_COLOR_ID = 'freshGreen';
+const DEFAULT_CLOTH_TEXTURE_KEY =
+  SNOOKER_CLUB_DEFAULT_UNLOCKS.clothColor?.[0] ?? 'freshGreen';
+const DEFAULT_CLOTH_COLOR_ID =
+  SNOOKER_CLUB_DEFAULT_UNLOCKS.clothColor?.[0] ?? 'freshGreen';
 const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
@@ -2211,7 +2226,8 @@ const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
 ]);
 const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.06;
 
-const DEFAULT_RAIL_MARKER_COLOR_ID = 'chrome';
+const DEFAULT_RAIL_MARKER_COLOR_ID =
+  SNOOKER_CLUB_DEFAULT_UNLOCKS.railMarkerColor?.[0] ?? 'chrome';
 const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
@@ -8197,23 +8213,52 @@ export function PoolRoyaleGame({
     [tableResolver, tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
-  const [tableFinishId, setTableFinishId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(TABLE_FINISH_STORAGE_KEY);
-      if (stored && TABLE_FINISHES[stored]) {
-        return stored;
+  const resolvedAccountId = useMemo(
+    () => snookerClubAccountId(accountId),
+    [accountId]
+  );
+  const [inventoryVersion, setInventoryVersion] = useState(0);
+  const snookerInventory = useMemo(
+    () => getSnookerClubInventory(resolvedAccountId),
+    [resolvedAccountId, inventoryVersion]
+  );
+  const resolveStoredSelection = useCallback(
+    (type, storageKey, isValid, fallbackId) => {
+      const inventory = snookerInventory;
+      if (typeof window !== 'undefined' && storageKey) {
+        const stored = window.localStorage.getItem(storageKey);
+        if (
+          stored &&
+          isValid(stored) &&
+          isSnookerOptionUnlocked(type, stored, inventory)
+        ) {
+          return stored;
+        }
       }
-    }
-    return DEFAULT_TABLE_FINISH_ID;
+      if (isValid(fallbackId) && isSnookerOptionUnlocked(type, fallbackId, inventory)) {
+        return fallbackId;
+      }
+      const firstUnlocked = (inventory?.[type] || []).find((optionId) => isValid(optionId));
+      if (firstUnlocked) return firstUnlocked;
+      return fallbackId;
+    },
+    [snookerInventory]
+  );
+  const [tableFinishId, setTableFinishId] = useState(() => {
+    return resolveStoredSelection(
+      'tableFinish',
+      TABLE_FINISH_STORAGE_KEY,
+      (id) => Boolean(TABLE_FINISHES[id]),
+      DEFAULT_TABLE_FINISH_ID
+    );
   });
   const [clothColorId, setClothColorId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem(CLOTH_COLOR_STORAGE_KEY);
-      if (stored && CLOTH_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_CLOTH_COLOR_ID;
+    return resolveStoredSelection(
+      'clothColor',
+      CLOTH_COLOR_STORAGE_KEY,
+      (id) => CLOTH_COLOR_OPTIONS.some((opt) => opt.id === id),
+      DEFAULT_CLOTH_COLOR_ID
+    );
   });
   const [pocketLinerId, setPocketLinerId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -8234,23 +8279,21 @@ export function PoolRoyaleGame({
     return DEFAULT_RAIL_MARKER_SHAPE;
   });
   const [railMarkerColorId, setRailMarkerColorId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('poolRailMarkerColor');
-      if (stored && RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_RAIL_MARKER_COLOR_ID;
+    return resolveStoredSelection(
+      'railMarkerColor',
+      'poolRailMarkerColor',
+      (id) => RAIL_MARKER_COLOR_OPTIONS.some((opt) => opt.id === id),
+      DEFAULT_RAIL_MARKER_COLOR_ID
+    );
   });
   const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
   const [chromeColorId, setChromeColorId] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const stored = window.localStorage.getItem('poolChromeColor');
-      if (stored && CHROME_COLOR_OPTIONS.some((opt) => opt.id === stored)) {
-        return stored;
-      }
-    }
-    return DEFAULT_CHROME_COLOR_ID;
+    return resolveStoredSelection(
+      'chromeColor',
+      'poolChromeColor',
+      (id) => CHROME_COLOR_OPTIONS.some((opt) => opt.id === id),
+      DEFAULT_CHROME_COLOR_ID
+    );
   });
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -8303,18 +8346,93 @@ export function PoolRoyaleGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
+  const availableTableFinishes = useMemo(
+    () =>
+      TABLE_FINISH_OPTIONS.filter((option) =>
+        isSnookerOptionUnlocked('tableFinish', option.id, snookerInventory)
+      ),
+    [snookerInventory]
+  );
+  const availableChromeOptions = useMemo(
+    () =>
+      CHROME_COLOR_OPTIONS.filter((option) =>
+        isSnookerOptionUnlocked('chromeColor', option.id, snookerInventory)
+      ),
+    [snookerInventory]
+  );
+  const availableRailMarkerColors = useMemo(
+    () =>
+      RAIL_MARKER_COLOR_OPTIONS.filter((option) =>
+        isSnookerOptionUnlocked('railMarkerColor', option.id, snookerInventory)
+      ),
+    [snookerInventory]
+  );
+  const availableClothOptions = useMemo(
+    () =>
+      CLOTH_COLOR_OPTIONS.filter((option) =>
+        isSnookerOptionUnlocked('clothColor', option.id, snookerInventory)
+      ),
+    [snookerInventory]
+  );
+  const availablePocketLiners = useMemo(
+    () =>
+      POCKET_LINER_OPTIONS.filter((option) =>
+        isSnookerOptionUnlocked('pocketLiner', option.id, snookerInventory)
+      ),
+    [snookerInventory]
+  );
+  const availableCueStyles = useMemo(
+    () =>
+      CUE_STYLE_PRESETS.map((preset, index) => ({ preset, index })).filter(({ preset }) =>
+        isSnookerOptionUnlocked('cueStyle', preset.id, snookerInventory)
+      ),
+    [snookerInventory]
+  );
   const activeChromeOption = useMemo(
-    () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
-    [chromeColorId]
+    () =>
+      availableChromeOptions.find((opt) => opt.id === chromeColorId) ??
+      availableChromeOptions[0] ??
+      CHROME_COLOR_OPTIONS[0],
+    [availableChromeOptions, chromeColorId]
   );
   const activeClothOption = useMemo(
-    () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
-    [clothColorId]
+    () =>
+      availableClothOptions.find((opt) => opt.id === clothColorId) ??
+      availableClothOptions[0] ??
+      CLOTH_COLOR_OPTIONS[0],
+    [availableClothOptions, clothColorId]
   );
   const activePocketLinerOption = useMemo(
-    () => POCKET_LINER_OPTIONS.find((opt) => opt?.id === pocketLinerId) ?? POCKET_LINER_OPTIONS[0],
-    [pocketLinerId]
+    () =>
+      availablePocketLiners.find((opt) => opt?.id === pocketLinerId) ??
+      availablePocketLiners[0] ??
+      POCKET_LINER_OPTIONS[0],
+    [availablePocketLiners, pocketLinerId]
   );
+  useEffect(() => {
+    if (!isSnookerOptionUnlocked('tableFinish', tableFinishId, snookerInventory)) {
+      setTableFinishId(DEFAULT_TABLE_FINISH_ID);
+    }
+    if (!isSnookerOptionUnlocked('clothColor', clothColorId, snookerInventory)) {
+      setClothColorId(DEFAULT_CLOTH_COLOR_ID);
+    }
+    if (!isSnookerOptionUnlocked('chromeColor', chromeColorId, snookerInventory)) {
+      setChromeColorId(DEFAULT_CHROME_COLOR_ID);
+    }
+    if (!isSnookerOptionUnlocked('railMarkerColor', railMarkerColorId, snookerInventory)) {
+      setRailMarkerColorId(DEFAULT_RAIL_MARKER_COLOR_ID);
+    }
+    if (!isSnookerOptionUnlocked('pocketLiner', pocketLinerId, snookerInventory)) {
+      setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
+    }
+  }, [
+    chromeColorId,
+    clothColorId,
+    pocketLinerId,
+    railMarkerColorId,
+    snookerInventory,
+    tableFinishId
+  ]);
   const isTraining = playType === 'training';
   const [trainingMenuOpen, setTrainingMenuOpen] = useState(false);
   const [trainingModeState, setTrainingModeState] = useState(
@@ -8329,6 +8447,16 @@ export function PoolRoyaleGame({
   useEffect(() => {
     trainingRulesRef.current = trainingRulesOn;
   }, [trainingRulesOn]);
+  useEffect(() => {
+    const handleInventoryUpdate = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setInventoryVersion((value) => value + 1);
+      }
+    };
+    window.addEventListener('snookerClubInventoryUpdate', handleInventoryUpdate);
+    return () =>
+      window.removeEventListener('snookerClubInventoryUpdate', handleInventoryUpdate);
+  }, [resolvedAccountId]);
   const railMarkerStyleRef = useRef({
     shape: railMarkerShapeId,
     colorId: railMarkerColorId
@@ -8462,18 +8590,35 @@ export function PoolRoyaleGame({
   const chalkAssistEnabledRef = useRef(false);
   const chalkAssistTargetRef = useRef(false);
   const visibleChalkIndexRef = useRef(null);
-  const [cueStyleIndex, setCueStyleIndex] = useState(() => {
+  const resolveCueIndex = useCallback(() => {
+    const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(CUE_STYLE_STORAGE_KEY);
       if (stored != null) {
         const parsed = Number.parseInt(stored, 10);
-        if (Number.isFinite(parsed) && parsed >= 0) {
-          return parsed % CUE_RACK_PALETTE.length;
+        if (Number.isFinite(parsed)) {
+          const normalized = ((parsed % paletteLength) + paletteLength) % paletteLength;
+          const preset = CUE_STYLE_PRESETS[normalized % CUE_STYLE_PRESETS.length];
+          if (preset && isSnookerOptionUnlocked('cueStyle', preset.id, snookerInventory)) {
+            return normalized;
+          }
         }
       }
     }
-    return 0;
-  });
+    const defaultPreset = CUE_STYLE_PRESETS[DEFAULT_CUE_STYLE_INDEX];
+    if (
+      defaultPreset &&
+      isSnookerOptionUnlocked('cueStyle', defaultPreset.id, snookerInventory)
+    ) {
+      return DEFAULT_CUE_STYLE_INDEX;
+    }
+    const firstUnlocked = CUE_STYLE_PRESETS.findIndex((preset) =>
+      isSnookerOptionUnlocked('cueStyle', preset.id, snookerInventory)
+    );
+    if (firstUnlocked >= 0) return firstUnlocked;
+    return DEFAULT_CUE_STYLE_INDEX;
+  }, [snookerInventory]);
+  const [cueStyleIndex, setCueStyleIndex] = useState(() => resolveCueIndex());
   const cueStyleIndexRef = useRef(cueStyleIndex);
   const cueRackGroupsRef = useRef([]);
   const cueOptionGroupsRef = useRef([]);
@@ -8500,6 +8645,12 @@ export function PoolRoyaleGame({
     prev: null
   });
   const [cueGalleryActive, setCueGalleryActive] = useState(false);
+  useEffect(() => {
+    const preset = CUE_STYLE_PRESETS[cueStyleIndex];
+    if (!preset || !isSnookerOptionUnlocked('cueStyle', preset.id, snookerInventory)) {
+      setCueStyleIndex(resolveCueIndex());
+    }
+  }, [cueStyleIndex, resolveCueIndex, snookerInventory]);
 
   const getCueColorFromIndex = useCallback((index) => {
     if (!Array.isArray(CUE_RACK_PALETTE) || CUE_RACK_PALETTE.length === 0) {
@@ -9282,10 +9433,15 @@ export function PoolRoyaleGame({
       if (!charged) return;
       const paletteLength = CUE_RACK_PALETTE.length || 1;
       const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
+      const preset = CUE_STYLE_PRESETS[normalized % CUE_STYLE_PRESETS.length];
+      if (!preset || !isSnookerOptionUnlocked('cueStyle', preset.id, snookerInventory)) {
+        setCueStyleIndex(resolveCueIndex());
+        return;
+      }
       applySelectedCueStyle(normalized);
       setCueStyleIndex(normalized);
     },
-    [applySelectedCueStyle, ensureCueFeePaid]
+    [applySelectedCueStyle, ensureCueFeePaid, resolveCueIndex, snookerInventory]
   );
 
   const playCueHit = useCallback((vol = 1) => {
@@ -16680,7 +16836,7 @@ export function PoolRoyaleGame({
                   Table Finish
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {TABLE_FINISH_OPTIONS.map((option) => {
+                  {availableTableFinishes.map((option) => {
                     const active = option.id === tableFinishId;
                     return (
                       <button
@@ -16705,7 +16861,7 @@ export function PoolRoyaleGame({
                   Chrome Plates
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {CHROME_COLOR_OPTIONS.map((option) => {
+                  {availableChromeOptions.map((option) => {
                     const active = option.id === chromeColorId;
                     return (
                       <button
@@ -16737,7 +16893,7 @@ export function PoolRoyaleGame({
                   Cue Styles
                 </h3>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {CUE_STYLE_PRESETS.map((preset, index) => {
+                  {availableCueStyles.map(({ preset, index }) => {
                     const active = cueStyleIndex === index;
                     return (
                       <button
@@ -16757,13 +16913,13 @@ export function PoolRoyaleGame({
                   })}
                 </div>
               </div>
-              {CLOTH_COLOR_OPTIONS.length > 1 ? (
+              {availableClothOptions.length > 1 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                     Cloth Color
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {CLOTH_COLOR_OPTIONS.map((option) => {
+                    {availableClothOptions.map((option) => {
                       const active = option.id === clothColorId;
                       return (
                         <button
@@ -16816,7 +16972,7 @@ export function PoolRoyaleGame({
                   })}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {RAIL_MARKER_COLOR_OPTIONS.map((option) => {
+                  {availableRailMarkerColors.map((option) => {
                     const active = option.id === railMarkerColorId;
                     return (
                       <button
