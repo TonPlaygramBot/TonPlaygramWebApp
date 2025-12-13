@@ -72,6 +72,11 @@ import {
   DOMINO_ROYAL_STORE_ITEMS
 } from '../config/dominoRoyalInventoryConfig.js';
 import {
+  TEXAS_HOLDEM_DEFAULT_LOADOUT,
+  TEXAS_HOLDEM_OPTION_LABELS,
+  TEXAS_HOLDEM_STORE_ITEMS
+} from '../config/texasHoldemInventoryConfig.js';
+import {
   SNAKE_DEFAULT_LOADOUT,
   SNAKE_OPTION_LABELS,
   SNAKE_STORE_ITEMS
@@ -97,6 +102,13 @@ import {
   listOwnedBlackjackOptions,
   blackjackAccountId
 } from '../utils/blackjackInventory.js';
+import {
+  addTexasHoldemUnlock,
+  getTexasHoldemInventory,
+  isTexasOptionUnlocked,
+  listOwnedTexasOptions,
+  texasHoldemAccountId
+} from '../utils/texasHoldemInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { catalogWithSlugs } from '../config/gamesCatalog.js';
@@ -175,6 +187,15 @@ const SNAKE_TYPE_LABELS = {
   tokenFinish: 'Token Finish'
 };
 
+const TEXAS_TYPE_LABELS = {
+  tableWood: 'Table Wood',
+  tableCloth: 'Table Cloth',
+  tableBase: 'Table Base',
+  chairColor: 'Chairs',
+  tableShape: 'Table Shape',
+  cards: 'Cards'
+};
+
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const AIR_HOCKEY_STORE_ACCOUNT_ID = import.meta.env.VITE_AIR_HOCKEY_STORE_ACCOUNT_ID || DEV_INFO.account;
@@ -184,6 +205,7 @@ const LUDO_STORE_ACCOUNT_ID = import.meta.env.VITE_LUDO_BATTLE_STORE_ACCOUNT_ID 
 const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SNAKE_STORE_ACCOUNT_ID = import.meta.env.VITE_SNAKE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_ID || DEV_INFO.account;
 const SUPPORTED_STORE_SLUGS = [
   'poolroyale',
   'airhockey',
@@ -192,7 +214,8 @@ const SUPPORTED_STORE_SLUGS = [
   'ludobattleroyal',
   'murlanroyale',
   'domino-royal',
-  'snake'
+  'snake',
+  'texasholdem'
 ];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
@@ -210,6 +233,7 @@ export default function Store() {
   const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   const [snakeOwned, setSnakeOwned] = useState(() => getSnakeInventory(snakeAccountId(accountId)));
+  const [texasOwned, setTexasOwned] = useState(() => getTexasHoldemInventory(texasHoldemAccountId(accountId)));
   const [info, setInfo] = useState('');
   const [marketInfo, setMarketInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -247,6 +271,7 @@ export default function Store() {
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
+    setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
   }, [accountId]);
 
   useEffect(() => {
@@ -343,6 +368,16 @@ export default function Store() {
     };
     window.addEventListener('snakeInventoryUpdate', handler);
     return () => window.removeEventListener('snakeInventoryUpdate', handler);
+  }, [accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
+        setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
+      }
+    };
+    window.addEventListener('texasHoldemInventoryUpdate', handler);
+    return () => window.removeEventListener('texasHoldemInventoryUpdate', handler);
   }, [accountId]);
 
   useEffect(() => {
@@ -519,6 +554,27 @@ export default function Store() {
     [snakeOwned]
   );
 
+  const texasGroupedItems = useMemo(() => {
+    const items = TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({
+      ...item,
+      owned: isTexasOptionUnlocked(item.type, item.optionId, texasOwned)
+    }));
+    return items.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item);
+      return acc;
+    }, {});
+  }, [texasOwned]);
+
+  const texasDefaultLoadout = useMemo(
+    () =>
+      TEXAS_HOLDEM_DEFAULT_LOADOUT.map((entry) => ({
+        ...entry,
+        owned: isTexasOptionUnlocked(entry.type, entry.optionId, texasOwned)
+      })),
+    [texasOwned]
+  );
+
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
@@ -528,7 +584,8 @@ export default function Store() {
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
+      snake: SNAKE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
+      texasholdem: TEXAS_HOLDEM_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
     }),
     []
   );
@@ -553,9 +610,10 @@ export default function Store() {
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
       'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned),
-      snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned)
+      snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
+      texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, blackjackOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned]
+    [airOwned, poolOwned, blackjackOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
   );
 
     const labelResolvers = useMemo(
@@ -567,7 +625,8 @@ export default function Store() {
         ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
         'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-        snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+        snake: (item) => SNAKE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+        texasholdem: (item) => TEXAS_HOLDEM_OPTION_LABELS[item.type]?.[item.optionId] || item.name
       }),
       []
     );
@@ -606,7 +665,8 @@ export default function Store() {
       ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
       murlanroyale: MURLAN_STORE_ACCOUNT_ID,
       'domino-royal': DOMINO_STORE_ACCOUNT_ID,
-      snake: SNAKE_STORE_ACCOUNT_ID
+      snake: SNAKE_STORE_ACCOUNT_ID,
+      texasholdem: TEXAS_STORE_ACCOUNT_ID
     };
     const storeId = storeAccounts[activeSlug];
     if (!storeId) {
@@ -622,7 +682,8 @@ export default function Store() {
       ludobattleroyal: LUDO_BATTLE_OPTION_LABELS,
       murlanroyale: MURLAN_ROYALE_OPTION_LABELS,
       'domino-royal': DOMINO_ROYAL_OPTION_LABELS,
-      snake: SNAKE_OPTION_LABELS
+      snake: SNAKE_OPTION_LABELS,
+      texasholdem: TEXAS_HOLDEM_OPTION_LABELS
     };
     const labels = labelMaps[activeSlug]?.[item.type] || {};
     const ownedLabel = labels[item.optionId] || item.name;
@@ -678,6 +739,10 @@ export default function Store() {
         const updatedInventory = addSnakeUnlock(item.type, item.optionId, accountId);
         setSnakeOwned(updatedInventory);
         setInfo(`${ownedLabel} purchased and added to your Snake & Ladder account.`);
+      } else if (activeSlug === 'texasholdem') {
+        const updatedInventory = addTexasHoldemUnlock(item.type, item.optionId, accountId);
+        setTexasOwned(updatedInventory);
+        setInfo(`${ownedLabel} purchased and added to your Texas Hold'em account.`);
       }
 
       const bal = await getAccountBalance(accountId);
@@ -759,6 +824,7 @@ export default function Store() {
     const murlanOwnedOptions = useMemo(() => listOwnedMurlanOptions(accountId), [accountId]);
     const dominoOwnedOptions = useMemo(() => listOwnedDominoOptions(accountId), [accountId]);
     const snakeOwnedOptions = useMemo(() => listOwnedSnakeOptions(accountId), [accountId]);
+    const texasOwnedOptions = useMemo(() => listOwnedTexasOptions(accountId), [accountId]);
 
     const ownedItemLookup = useMemo(
       () => ({
@@ -769,7 +835,8 @@ export default function Store() {
         ludobattleroyal: ludoOwnedOptions,
         murlanroyale: murlanOwnedOptions,
         'domino-royal': dominoOwnedOptions,
-        snake: snakeOwnedOptions
+        snake: snakeOwnedOptions,
+        texasholdem: texasOwnedOptions
       }),
       [
         poolOwnedOptions,
@@ -779,7 +846,8 @@ export default function Store() {
         ludoOwnedOptions,
         murlanOwnedOptions,
         dominoOwnedOptions,
-        snakeOwnedOptions
+        snakeOwnedOptions,
+        texasOwnedOptions
       ]
     );
 
@@ -1079,6 +1147,76 @@ export default function Store() {
                             <p className="font-semibold text-lg leading-tight">{item.name}</p>
                             <p className="text-xs text-subtext">{item.description}</p>
                             <p className="text-xs text-subtext mt-1">Applies to: {DOMINO_TYPE_LABELS[item.type] || item.type}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeSlug === 'texasholdem' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Texas Hold'em Defaults (Free)</h3>
+            <p className="text-sm text-subtext">
+              The first option in each category stays free. Purchase additional table, chair, and card looks here to surface them
+              inside the Texas Hold'em table setup menu.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {texasDefaultLoadout.map((item) => (
+                <li
+                  key={`texas-${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{TEXAS_TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Texas Hold'em Collection</h3>
+            {Object.entries(texasGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{TEXAS_TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = TEXAS_HOLDEM_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">Applies to: {TEXAS_TYPE_LABELS[item.type] || item.type}</p>
                           </div>
                           <div className="flex items-center gap-1 text-sm font-semibold">
                             {item.price}
