@@ -37,6 +37,11 @@ import {
   getDefaultDominoRoyalLoadout,
   listOwnedDominoOptions
 } from '../utils/dominoRoyalInventory.js';
+import {
+  getDefaultSnakeLoadout,
+  listOwnedSnakeOptions,
+  snakeAccountId
+} from '../utils/snakeInventory.js';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -55,6 +60,15 @@ const DOMINO_ROYALE_TYPE_LABELS = {
   dominoStyle: 'Domino Style',
   highlightStyle: 'Highlight Style',
   chairTheme: 'Chair Theme'
+};
+
+const SNAKE_TYPE_LABELS = {
+  arenaTheme: 'Arena Atmosphere',
+  boardPalette: 'Board Palette',
+  snakeSkin: 'Snake Skin',
+  diceTheme: 'Dice Theme',
+  railTheme: 'Rail Theme',
+  tokenFinish: 'Token Finish'
 };
 
 function formatValue(value, decimals = 2) {
@@ -113,6 +127,8 @@ export default function MyAccount() {
   const [dominoInventory, setDominoInventory] = useState(() =>
     listOwnedDominoOptions(dominoRoyalAccountId())
   );
+  const [snakeAccount, setSnakeAccount] = useState(snakeAccountId());
+  const [snakeInventory, setSnakeInventory] = useState(() => listOwnedSnakeOptions(snakeAccountId()));
   const refreshPoolRoyale = useCallback(() => {
     const resolved = poolRoyalAccountId();
     setPoolAccountId(resolved);
@@ -131,6 +147,16 @@ export default function MyAccount() {
       setDominoInventory(owned);
     } else {
       setDominoInventory(getDefaultDominoRoyalLoadout());
+    }
+  }, []);
+  const refreshSnakeInventory = useCallback(() => {
+    const resolved = snakeAccountId();
+    setSnakeAccount(resolved);
+    const owned = listOwnedSnakeOptions(resolved);
+    if (Array.isArray(owned) && owned.length > 0) {
+      setSnakeInventory(owned);
+    } else {
+      setSnakeInventory(getDefaultSnakeLoadout());
     }
   }, []);
 
@@ -203,6 +229,8 @@ export default function MyAccount() {
         setShowAvatarPrompt(true);
       }
       refreshPoolRoyale();
+      refreshDominoRoyal();
+      refreshSnakeInventory();
     }
 
     load();
@@ -210,7 +238,7 @@ export default function MyAccount() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [telegramId, googleId]);
+  }, [telegramId, googleId, refreshDominoRoyal, refreshPoolRoyale, refreshSnakeInventory]);
 
   useEffect(() => {
     if (!telegramId) return;
@@ -230,7 +258,8 @@ export default function MyAccount() {
   useEffect(() => {
     refreshPoolRoyale();
     refreshDominoRoyal();
-  }, [profile, refreshPoolRoyale, refreshDominoRoyal]);
+    refreshSnakeInventory();
+  }, [profile, refreshPoolRoyale, refreshDominoRoyal, refreshSnakeInventory]);
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === poolAccountId) {
@@ -249,6 +278,16 @@ export default function MyAccount() {
     window.addEventListener('dominoRoyalInventoryUpdate', handler);
     return () => window.removeEventListener('dominoRoyalInventoryUpdate', handler);
   }, [dominoAccountId, refreshDominoRoyal]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === snakeAccount) {
+        refreshSnakeInventory();
+      }
+    };
+    window.addEventListener('snakeInventoryUpdate', handler);
+    return () => window.removeEventListener('snakeInventoryUpdate', handler);
+  }, [refreshSnakeInventory, snakeAccount]);
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -529,6 +568,26 @@ export default function MyAccount() {
               <span className="text-[11px] uppercase text-subtext">
                 {DOMINO_ROYALE_TYPE_LABELS[item.type] || item.type}
               </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Snake &amp; Ladder Inventory</h3>
+          <span className="text-xs text-subtext">Account: {snakeAccount}</span>
+        </div>
+        <p className="text-sm text-subtext">
+          The first table setup choices are free. Purchased NFTs surface here and in the Snake &amp; Ladder setup menu.
+        </p>
+        <div className="space-y-1">
+          {snakeInventory.map((item) => (
+            <div
+              key={`${item.type}-${item.optionId}`}
+              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
+            >
+              <span className="font-medium">{item.label}</span>
+              <span className="text-[11px] uppercase text-subtext">{SNAKE_TYPE_LABELS[item.type] || item.type}</span>
             </div>
           ))}
         </div>
