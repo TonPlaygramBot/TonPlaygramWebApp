@@ -1088,13 +1088,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('rollDice', async (payload = {}) => {
-    const { accountId, tableId, values: payloadValues } = payload;
-    const diceValues = Array.isArray(payloadValues)
-      ? payloadValues
-          .filter((v) => Number.isFinite(v))
-          .map((v) => Math.max(1, Math.min(6, Math.floor(v))))
-      : undefined;
-
+    const { accountId, tableId } = payload;
     if (accountId && tableId && tableMap.has(tableId)) {
       if (!ensureRegistered(socket, accountId)) return;
       if (isRateLimited(socket, 'rollDice', rollRateLimitMs)) {
@@ -1106,13 +1100,11 @@ io.on('connection', (socket) => {
       }
       const player = table.players.find((p) => p.id === accountId);
       if (!player) return;
-      const diceArray = diceValues?.length ? diceValues.slice(0, 2) : null;
-      const dice = diceArray?.reduce((a, b) => a + b, 0) || Math.floor(Math.random() * 6) + 1;
+      const dice = Math.floor(Math.random() * 6) + 1;
       player.position += dice;
       io.to(tableId).emit('diceRolled', {
         accountId,
         dice,
-        values: diceArray || undefined,
         newPosition: player.position
       });
       const idx = table.players.findIndex((p) => p.id === accountId);
@@ -1131,7 +1123,7 @@ io.on('connection', (socket) => {
     if (!current || current.socketId !== socket.id) {
       return socket.emit('errorMessage', 'Not your turn');
     }
-    await gameManager.rollDice(socket, diceValues);
+    await gameManager.rollDice(socket);
   });
 
   socket.on('invite1v1', async (payload, cb) => {
