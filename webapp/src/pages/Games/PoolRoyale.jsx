@@ -993,12 +993,12 @@ const POCKET_CAM = Object.freeze({
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 1.12,
+  heightOffset: BALL_R * 3.2,
   heightOffsetShortMultiplier: 1.0,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
   heightDrop: BALL_R * 1.3,
-  distanceScale: 0.78,
+  distanceScale: 0.84,
   heightScale: 1.28,
   focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
@@ -8987,8 +8987,6 @@ function PoolRoyaleGame({
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
-    initialRackAimAppliedRef.current = false;
-    rackCenterRef.current = null;
   }, [initialFrame]);
   const frameRef = useRef(frameState);
   useEffect(() => {
@@ -9006,8 +9004,6 @@ function PoolRoyaleGame({
     contactMade: false,
     cushionAfterContact: false
   });
-  const rackCenterRef = useRef(null);
-  const initialRackAimAppliedRef = useRef(false);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const gameOverHandledRef = useRef(false);
@@ -12204,22 +12200,17 @@ function PoolRoyaleGame({
             shotPrediction?.ballId === ballId && shotPrediction?.dir
               ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
               : null;
+          const isGuaranteedLongPocket =
+            shotPrediction?.ballId === ballId &&
+            shotPrediction?.longShot &&
+            predictedAlignment != null &&
+            predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+          if (!isGuaranteedLongPocket) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
               : null;
           if (
-            predictedAlignment == null ||
-            predictedAlignment < POCKET_GUARANTEED_ALIGNMENT
-          ) {
-            return null;
-          }
-          const meetsDistance =
-            predictedTravelForBall != null
-              ? predictedTravelForBall >= SHORT_SHOT_CAMERA_DISTANCE
-              : best.dist >= SHORT_SHOT_CAMERA_DISTANCE;
-          if (
-            !meetsDistance ||
             (predictedTravelForBall != null &&
               predictedTravelForBall < SHORT_SHOT_CAMERA_DISTANCE) ||
             best.dist < SHORT_SHOT_CAMERA_DISTANCE
@@ -12996,21 +12987,6 @@ function PoolRoyaleGame({
           BALL_R,
           rackStartZ
         );
-        if (rackPositions.length > 0) {
-          const sum = rackPositions.reduce(
-            (acc, pos) => {
-              acc.x += pos.x ?? 0;
-              acc.z += pos.z ?? 0;
-              return acc;
-            },
-            { x: 0, z: 0 }
-          );
-          const center = new THREE.Vector2(
-            sum.x / rackPositions.length,
-            sum.z / rackPositions.length
-          );
-          rackCenterRef.current = center;
-        }
         for (let rid = 0; rid < rackColors.length; rid++) {
           const pos = rackPositions[rid] || rackPositions[rackPositions.length - 1] || {
             x: 0,
@@ -14063,20 +14039,6 @@ function PoolRoyaleGame({
         );
       };
 
-      const aimAtRackIfNeeded = () => {
-        if (initialRackAimAppliedRef.current) return;
-        const rackCenter = rackCenterRef.current;
-        const cueBall = cueRef.current || cue;
-        if (!rackCenter || !cueBall) return;
-        const dir = rackCenter.clone().sub(cueBall.pos);
-        if (dir.lengthSq() < 1e-6) return;
-        dir.normalize();
-        aimDirRef.current.copy(dir);
-        alignStandingCameraToAim(cueBall, dir);
-        initialRackAimAppliedRef.current = true;
-      };
-      aimAtRackIfNeeded();
-
       // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
@@ -14210,8 +14172,7 @@ function PoolRoyaleGame({
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const allowActionCamera = allowLongShotCameraSwitch && !isBreakShot;
-          const actionView = allowActionCamera
+          const actionView = allowLongShotCameraSwitch
             ? makeActionCameraView(
                 cue,
                 shotPrediction.ballId,
@@ -14509,8 +14470,7 @@ function PoolRoyaleGame({
             return fallback;
           }
         };
-        const evaluateShotOptionsBaseline = (options = {}) => {
-          const { allowCushionRoutes = true } = options;
+        const evaluateShotOptionsBaseline = () => {
           if (!cue?.active) return { bestPot: null, bestSafety: null };
           const state = frameRef.current ?? frameState;
           const activeVariantId = activeVariantRef.current?.id ?? variantKey;
@@ -14563,7 +14523,6 @@ function PoolRoyaleGame({
             return true;
           };
           const tryCushionRoute = (start, target, ignoreIds = new Set()) => {
-            if (!allowCushionRoutes) return [];
             const walls = [
               { axis: 'x', wall: halfW - cushionMargin, normal: new THREE.Vector2(-1, 0) },
               { axis: 'x', wall: -halfW + cushionMargin, normal: new THREE.Vector2(1, 0) },
@@ -15003,9 +14962,9 @@ function PoolRoyaleGame({
           }
         };
 
-        const evaluateShotOptions = (options = {}) => {
+        const evaluateShotOptions = () => {
           try {
-            const baseline = evaluateShotOptionsBaseline(options);
+            const baseline = evaluateShotOptionsBaseline();
             const variantId = activeVariantRef.current?.id ?? variantKey;
             if (variantId !== 'uk' || !cue?.active) return baseline;
             const stateSnapshot = frameRef.current ?? frameState;
@@ -15106,53 +15065,8 @@ function PoolRoyaleGame({
           think();
         };
         const updateUserSuggestion = () => {
-          const frameSnapshot = frameRef.current ?? frameState;
-          const breakCount = frameSnapshot?.currentBreak ?? 0;
-          if (!initialRackAimAppliedRef.current && breakCount === 0) {
-            aimAtRackIfNeeded();
-            autoAimRequestRef.current = false;
-            return;
-          }
-          const options = evaluateShotOptions({ allowCushionRoutes: false });
-          let plan = options.bestPot ?? null;
-          if (!plan) {
-            const state = frameRef.current ?? frameState;
-            const legalTargetsRaw = Array.isArray(state?.ballOn)
-              ? state.ballOn
-              : ['RED'];
-            const legalTargets = new Set(
-              legalTargetsRaw
-                .map((entry) =>
-                  typeof entry === 'string' ? entry.toUpperCase() : entry
-                )
-                .filter(Boolean)
-            );
-            if (legalTargets.size === 0) legalTargets.add('RED');
-            const cueBall = cueRef.current || cue;
-            if (cueBall) {
-              const nearest = balls
-                .filter((b) => b.active && legalTargets.has(toBallColorId(b.id)))
-                .map((ball) => ({
-                  ball,
-                  dist: cueBall.pos.distanceTo(ball.pos)
-                }))
-                .sort((a, b) => a.dist - b.dist)[0];
-              if (nearest?.ball) {
-                const aimDir = nearest.ball.pos.clone().sub(cueBall.pos);
-                if (aimDir.lengthSq() >= 1e-6) {
-                  aimDir.normalize();
-                  plan = {
-                    type: 'pot',
-                    aimDir,
-                    power: computePowerFromDistance(nearest.dist),
-                    target: toBallColorId(nearest.ball.id),
-                    targetBall: nearest.ball,
-                    pocketId: 'SAFETY'
-                  };
-                }
-              }
-            }
-          }
+          const options = evaluateShotOptions();
+          const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
