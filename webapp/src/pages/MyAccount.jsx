@@ -32,6 +32,11 @@ import {
   listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
+import {
+  dominoRoyalAccountId,
+  getDefaultDominoRoyalLoadout,
+  listOwnedDominoOptions
+} from '../utils/dominoRoyalInventory.js';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -41,6 +46,15 @@ const POOL_ROYALE_TYPE_LABELS = {
   railMarkerColor: 'Rail Markers',
   clothColor: 'Cloth Color',
   cueStyle: 'Cue Style'
+};
+
+const DOMINO_ROYALE_TYPE_LABELS = {
+  tableWood: 'Table Wood',
+  tableCloth: 'Table Cloth',
+  tableBase: 'Table Base',
+  dominoStyle: 'Domino Style',
+  highlightStyle: 'Highlight Style',
+  chairTheme: 'Chair Theme'
 };
 
 function formatValue(value, decimals = 2) {
@@ -95,6 +109,10 @@ export default function MyAccount() {
   const [poolRoyaleInventory, setPoolRoyaleInventory] = useState(() =>
     listOwnedPoolRoyalOptions(poolRoyalAccountId())
   );
+  const [dominoAccountId, setDominoAccountId] = useState(dominoRoyalAccountId());
+  const [dominoInventory, setDominoInventory] = useState(() =>
+    listOwnedDominoOptions(dominoRoyalAccountId())
+  );
   const refreshPoolRoyale = useCallback(() => {
     const resolved = poolRoyalAccountId();
     setPoolAccountId(resolved);
@@ -103,6 +121,16 @@ export default function MyAccount() {
       setPoolRoyaleInventory(owned);
     } else {
       setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
+    }
+  }, []);
+  const refreshDominoRoyal = useCallback(() => {
+    const resolved = dominoRoyalAccountId();
+    setDominoAccountId(resolved);
+    const owned = listOwnedDominoOptions(resolved);
+    if (Array.isArray(owned) && owned.length > 0) {
+      setDominoInventory(owned);
+    } else {
+      setDominoInventory(getDefaultDominoRoyalLoadout());
     }
   }, []);
 
@@ -201,7 +229,8 @@ export default function MyAccount() {
   }, [telegramId]);
   useEffect(() => {
     refreshPoolRoyale();
-  }, [profile, refreshPoolRoyale]);
+    refreshDominoRoyal();
+  }, [profile, refreshPoolRoyale, refreshDominoRoyal]);
   useEffect(() => {
     const handler = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === poolAccountId) {
@@ -211,6 +240,15 @@ export default function MyAccount() {
     window.addEventListener('poolRoyalInventoryUpdate', handler);
     return () => window.removeEventListener('poolRoyalInventoryUpdate', handler);
   }, [poolAccountId, refreshPoolRoyale]);
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === dominoAccountId) {
+        refreshDominoRoyal();
+      }
+    };
+    window.addEventListener('dominoRoyalInventoryUpdate', handler);
+    return () => window.removeEventListener('dominoRoyalInventoryUpdate', handler);
+  }, [dominoAccountId, refreshDominoRoyal]);
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -467,6 +505,29 @@ export default function MyAccount() {
               <span className="font-medium">{item.label}</span>
               <span className="text-[11px] uppercase text-subtext">
                 {POOL_ROYALE_TYPE_LABELS[item.type] || item.type}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold">Domino Royal Inventory</h3>
+          <span className="text-xs text-subtext">Account: {dominoAccountId}</span>
+        </div>
+        <p className="text-sm text-subtext">
+          First-look options are free. Purchased NFTs appear here and inside the Domino Royal table setup menu once
+          unlocked.
+        </p>
+        <div className="space-y-1">
+          {dominoInventory.map((item) => (
+            <div
+              key={`${item.type}-${item.optionId}`}
+              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
+            >
+              <span className="font-medium">{item.label}</span>
+              <span className="text-[11px] uppercase text-subtext">
+                {DOMINO_ROYALE_TYPE_LABELS[item.type] || item.type}
               </span>
             </div>
           ))}
