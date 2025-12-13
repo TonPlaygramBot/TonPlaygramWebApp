@@ -40,14 +40,26 @@ export class SnakeGame {
     const player = this.players[this.currentTurn];
     if (!player) return null;
 
-    const dice = Array.isArray(diceValues)
-      ? diceValues.map((v) => Math.max(1, Math.min(6, Math.floor(v))))
-      : [Math.floor(Math.random() * 6) + 1];
+    const diceToRoll = Math.max(1, player.diceCount || 2);
+    const rand = () => Math.floor(Math.random() * 6) + 1;
+    const provided = Array.isArray(diceValues)
+      ? diceValues
+      : Number.isFinite(diceValues)
+        ? [diceValues]
+        : [];
+
+    const dice = Array.from({ length: diceToRoll }, (_, i) => {
+      const val = Number(provided[i]);
+      if (Number.isFinite(val)) return Math.max(1, Math.min(6, Math.floor(val)));
+      return rand();
+    });
+
     const total = dice.reduce((a, b) => a + b, 0);
     const rolledSix = dice.includes(6);
-    const doubleSix = dice.length === 2 && dice[0] === 6 && dice[1] === 6;
+    const doubleSix = dice.length >= 2 && dice[0] === 6 && dice[1] === 6;
 
     let target = player.position;
+    let extraTurn = false;
 
     if (player.position === 0) {
       if (rolledSix) {
@@ -56,7 +68,10 @@ export class SnakeGame {
       }
     } else if (player.position === 100) {
       if (player.diceCount === 2) {
-        if (rolledSix) player.diceCount = 1;
+        if (rolledSix) {
+          player.diceCount = 1;
+          extraTurn = true;
+        }
       } else if (total === 1) {
         target = FINAL_TILE;
       }
@@ -83,7 +98,6 @@ export class SnakeGame {
       }
     }
 
-    let extraTurn = false;
     let bonus = null;
     let bonusCell = null;
     if (this.diceCells[player.position]) {

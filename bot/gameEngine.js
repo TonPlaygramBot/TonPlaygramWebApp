@@ -289,7 +289,12 @@ export class GameRoom {
     const prevPositions = this.players.map((p) => p.position);
 
     if (this.gameType === 'snake') {
-      const result = this.game.rollDice(value != null ? [value] : undefined);
+      const diceInput = Array.isArray(value)
+        ? value
+        : value != null
+          ? [value]
+          : undefined;
+      const result = this.game.rollDice(diceInput);
       if (!result) return;
 
       const total = result.dice.reduce((a, b) => a + b, 0);
