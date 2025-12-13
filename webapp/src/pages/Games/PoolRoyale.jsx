@@ -15064,12 +15064,97 @@ function PoolRoyaleGame({
           };
           think();
         };
+        const resolveAutoAimDirection = () => {
+          if (!cue?.active) return null;
+          const ballsList =
+            ballsRef.current?.length > 0 ? ballsRef.current : balls;
+          if (!Array.isArray(ballsList) || ballsList.length === 0) return null;
+          const frameSnapshot = frameRef.current ?? frameState;
+          const cuePos = cue?.pos
+            ? new THREE.Vector2(cue.pos.x, cue.pos.y)
+            : null;
+          if (!cuePos) return null;
+
+          const activeBalls = ballsList.filter(
+            (ball) => ball.active && String(ball.id) !== 'cue'
+          );
+          if (activeBalls.length === 0) return null;
+
+          const legalTargetsRaw = frameSnapshot?.ballOn ?? [];
+          const legalTargets = Array.isArray(legalTargetsRaw)
+            ? legalTargetsRaw
+                .map((entry) =>
+                  typeof entry === 'string' ? entry.toUpperCase() : entry
+                )
+                .filter(Boolean)
+            : [];
+
+          const findRackApex = () =>
+            activeBalls.reduce((best, ball) => {
+              if (!best) return ball;
+              if (ball.pos.y > best.pos.y + 1e-6) return ball;
+              if (
+                Math.abs(ball.pos.y - best.pos.y) < 1e-6 &&
+                Math.abs(ball.pos.x) < Math.abs(best.pos.x)
+              ) {
+                return ball;
+              }
+              return best;
+            }, null);
+
+          let targetBall = null;
+          if ((frameSnapshot?.currentBreak ?? 0) === 0) {
+            targetBall = findRackApex();
+          }
+
+          if (!targetBall && legalTargets.length > 0) {
+            const legalBalls = activeBalls.filter((ball) =>
+              legalTargets.includes(toBallColorId(ball.id))
+            );
+            if (legalBalls.length > 0) {
+              targetBall = legalBalls.reduce((best, ball) => {
+                if (!best) return ball;
+                const bestDist = cuePos.distanceTo(best.pos);
+                const dist = cuePos.distanceTo(ball.pos);
+                return dist < bestDist ? ball : best;
+              }, null);
+            }
+          }
+
+          if (!targetBall) {
+            targetBall = activeBalls.reduce((best, ball) => {
+              if (!best) return ball;
+              const bestDist = cuePos.distanceTo(best.pos);
+              const dist = cuePos.distanceTo(ball.pos);
+              return dist < bestDist ? ball : best;
+            }, null);
+          }
+
+          if (!targetBall) return null;
+          const dir = new THREE.Vector2(
+            targetBall.pos.x - cuePos.x,
+            targetBall.pos.y - cuePos.y
+          );
+          if (dir.lengthSq() < 1e-6) return null;
+          return dir.normalize();
+        };
+
         const updateUserSuggestion = () => {
           const options = evaluateShotOptions();
           const plan = options.bestPot ?? null;
           userSuggestionPlanRef.current = plan;
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
+          if (autoAimRequestRef.current) {
+            const autoDir = resolveAutoAimDirection();
+            autoAimRequestRef.current = false;
+            suggestionAimKeyRef.current = null;
+            if (autoDir) {
+              aimDirRef.current.copy(autoDir);
+              alignStandingCameraToAim(cue, autoDir);
+              return;
+            }
+          }
           if (plan?.aimDir) {
             const dir = plan.aimDir.clone();
             if (dir.lengthSq() > 1e-6) {
