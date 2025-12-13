@@ -42,6 +42,11 @@ import { getAIOpponentFlag } from '../../utils/aiOpponentFlag.js';
 import { ipToFlag } from '../../utils/conflictMatchmaking.js';
 import AvatarTimer from '../../components/AvatarTimer.jsx';
 import { socket } from '../../utils/socket.js';
+import {
+  chessBattleAccountId,
+  getChessBattleRoyalInventory,
+  isChessBattleOptionUnlocked
+} from '../../utils/chessBattleRoyalInventory.js';
 
 /**
  * CHESS 3D — Procedural, Modern Look (no external models)
@@ -1012,6 +1017,7 @@ const PLAYER_FLAG_STORAGE_KEY = 'chessBattleRoyalPlayerFlag';
 const FALLBACK_FLAG = '🇺🇸';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
+  tableCloth: 0,
   chairColor: 0,
   tableShape: 0,
   boardColor: 0,
@@ -1076,11 +1082,16 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
 ];
 
-function normalizeAppearance(value = {}) {
+function normalizeAppearance(value = {}, availability = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const fallbackPieceStyleIndex = Number.isFinite(value?.pieceStyle)
     ? Math.min(Math.max(0, Math.round(value.pieceStyle)), PIECE_STYLE_OPTIONS.length - 1)
     : null;
+  const resolveAllowed = (key, max) => {
+    const allowed = (availability?.[key] || []).filter((idx) => Number.isFinite(idx) && idx >= 0 && idx < max);
+    if (allowed.length > 0) return allowed;
+    return Array.from({ length: max }, (_, idx) => idx);
+  };
   const entries = [
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
@@ -1089,11 +1100,14 @@ function normalizeAppearance(value = {}) {
     ['tableShape', TABLE_SHAPE_MENU_OPTIONS.length]
   ];
   entries.forEach(([key, max]) => {
+    const allowed = resolveAllowed(key, max);
     const raw = Number(value?.[key]);
-    const source = Number.isFinite(raw) ? raw : fallbackPieceStyleIndex;
-    if (!Number.isFinite(source)) return;
-    const clamped = Math.min(Math.max(0, Math.round(source)), max - 1);
-    normalized[key] = clamped;
+    const source = Number.isFinite(raw) ? Math.round(raw) : fallbackPieceStyleIndex;
+    if (Number.isFinite(source) && allowed.includes(source)) {
+      normalized[key] = source;
+      return;
+    }
+    normalized[key] = allowed[0] ?? 0;
   });
   normalized.boardColor = DEFAULT_APPEARANCE.boardColor;
   normalized.whitePieceStyle = DEFAULT_APPEARANCE.whitePieceStyle;
@@ -5140,21 +5154,53 @@ function Chess3D({
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
+  const [inventory, setInventory] = useState(() => getChessBattleRoyalInventory(accountId));
+  const availability = useMemo(() => {
+    const build = (type, options) =>
+      options.reduce((acc, option, idx) => {
+        if (idx === 0 || isChessBattleOptionUnlocked(type, option.id, inventory)) {
+          acc.push(idx);
+        }
+        return acc;
+      }, []);
+    return {
+      tableWood: build('tableWood', TABLE_WOOD_OPTIONS),
+      tableCloth: build('tableCloth', TABLE_CLOTH_OPTIONS),
+      tableBase: build('tableBase', TABLE_BASE_OPTIONS),
+      chairColor: build('chairColor', CHAIR_COLOR_OPTIONS),
+      tableShape: build('tableShape', TABLE_SHAPE_MENU_OPTIONS)
+    };
+  }, [inventory]);
+  const availabilityRef = useRef(availability);
+  const customizationSections = useMemo(() => {
+    const attachIndices = (section) => {
+      const sourceOptions = section.options || [];
+      const allowed = availability?.[section.key];
+      const options = (Array.isArray(allowed) && allowed.length
+        ? allowed
+            .map((idx) => (sourceOptions[idx] ? { ...sourceOptions[idx], __index: idx } : null))
+            .filter(Boolean)
+        : sourceOptions.map((opt, idx) => ({ ...opt, __index: idx }))
+      ).filter(Boolean);
+      return { ...section, options };
+    };
+    return CUSTOMIZATION_SECTIONS.map(attachIndices);
+  }, [availability]);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
       const stored = window.localStorage?.getItem(APPEARANCE_STORAGE_KEY);
       if (stored) {
-        const normalized = normalizeAppearance(JSON.parse(stored));
+        const normalized = normalizeAppearance(JSON.parse(stored), availability);
         return normalized;
       }
     } catch {}
-    return { ...DEFAULT_APPEARANCE };
+    return normalizeAppearance(DEFAULT_APPEARANCE, availability);
   });
   const appearanceRef = useRef(appearance);
   const paletteRef = useRef(createChessPalette(appearance));
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
-    CUSTOMIZATION_SECTIONS[0]?.key ?? 'tableWood'
+    customizationSections[0]?.key ?? 'tableWood'
   );
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
@@ -5420,7 +5466,7 @@ function Chess3D({
   }, []);
 
   const resetAppearance = useCallback(() => {
-    setAppearance({ ...DEFAULT_APPEARANCE });
+    setAppearance(normalizeAppearance(DEFAULT_APPEARANCE, availabilityRef.current));
     if (typeof window !== 'undefined') {
       try {
         window.localStorage?.removeItem(APPEARANCE_STORAGE_KEY);
@@ -5439,7 +5485,26 @@ function Chess3D({
   }, [seatAnchors]);
 
   const activeCustomizationSection =
-    CUSTOMIZATION_SECTIONS.find(({ key }) => key === activeCustomizationKey) ?? CUSTOMIZATION_SECTIONS[0];
+    customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
+
+  useEffect(() => {
+    setInventory(getChessBattleRoyalInventory(accountId));
+  }, [accountId]);
+
+  useEffect(() => {
+    availabilityRef.current = availability;
+    setAppearance((prev) => normalizeAppearance(prev, availability));
+  }, [availability]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === chessBattleAccountId(accountId)) {
+        setInventory(event.detail.inventory || getChessBattleRoyalInventory(accountId));
+      }
+    };
+    window.addEventListener('chessBattleRoyalInventoryUpdate', handler);
+    return () => window.removeEventListener('chessBattleRoyalInventoryUpdate', handler);
+  }, [accountId]);
 
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
@@ -5679,7 +5744,7 @@ function Chess3D({
     const arena = arenaRef.current;
     if (!arena) return;
 
-    const normalized = normalizeAppearance(appearance);
+    const normalized = normalizeAppearance(appearance, availabilityRef.current);
     const palette = createChessPalette(normalized);
     paletteRef.current = palette;
     arena.palette = palette;
@@ -5691,10 +5756,12 @@ function Chess3D({
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
     const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
-    const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-    const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-    const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const fallbackIndex = (key) => availabilityRef.current?.[key]?.[0] ?? 0;
+    const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[fallbackIndex('tableWood')];
+    const clothOption =
+      TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[fallbackIndex('tableCloth')];
+    const baseOption = TABLE_BASE_OPTIONS[normalized.tableBase] ?? TABLE_BASE_OPTIONS[fallbackIndex('tableBase')];
+    const chairOption = CHAIR_COLOR_OPTIONS[normalized.chairColor] ?? CHAIR_COLOR_OPTIONS[fallbackIndex('chairColor')];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(normalized.tableShape);
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
@@ -5913,7 +5980,7 @@ function Chess3D({
       const pixelRatioCap = performanceProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP;
       const pixelRatioScale = performanceProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE;
 
-      const normalizedAppearance = normalizeAppearance(appearanceRef.current);
+      const normalizedAppearance = normalizeAppearance(appearanceRef.current, availabilityRef.current);
       const palette = createChessPalette(normalizedAppearance);
       paletteRef.current = palette;
       const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
@@ -5929,10 +5996,16 @@ function Chess3D({
         (FLAG_EMOJIS.length > 0 ? FLAG_EMOJIS[0] : FALLBACK_FLAG);
       const initialAiFlagValue =
         aiFlag || initialAiFlag || getAIOpponentFlag(initialPlayerFlag || FALLBACK_FLAG);
-      const woodOption = TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
-      const clothOption = TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
-      const baseOption = TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-      const chairOption = CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+      const fallbackIndex = (key) => availabilityRef.current?.[key]?.[0] ?? 0;
+      const woodOption =
+        TABLE_WOOD_OPTIONS[normalizedAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[fallbackIndex('tableWood')];
+      const clothOption =
+        TABLE_CLOTH_OPTIONS[normalizedAppearance.tableCloth] ??
+        TABLE_CLOTH_OPTIONS[fallbackIndex('tableCloth')];
+      const baseOption =
+        TABLE_BASE_OPTIONS[normalizedAppearance.tableBase] ?? TABLE_BASE_OPTIONS[fallbackIndex('tableBase')];
+      const chairOption =
+        CHAIR_COLOR_OPTIONS[normalizedAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[fallbackIndex('chairColor')];
       const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
         normalizedAppearance.tableShape
       );
@@ -7996,7 +8069,7 @@ function Chess3D({
                   </div>
                   <div className="mt-3 max-h-72 space-y-3">
                     <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
-                      {CUSTOMIZATION_SECTIONS.map(({ key, label }) => {
+                      {customizationSections.map(({ key, label }) => {
                         const selectedSection = key === activeCustomizationKey;
                         return (
                           <button
@@ -8020,18 +8093,22 @@ function Chess3D({
                           {activeCustomizationSection.label}
                         </p>
                         <div className="space-y-1.5">
-                          {activeCustomizationSection.options.map((option, idx) => {
-                            const selected = appearance[activeCustomizationSection.key] === idx;
+                          {activeCustomizationSection.options.map((option) => {
+                            const optionIndex = Number.isFinite(option.__index) ? option.__index : 0;
+                            const selected = appearance[activeCustomizationSection.key] === optionIndex;
                             return (
                               <button
                                 key={option.id}
                                 type="button"
                                 onClick={() =>
                                   setAppearance((prev) =>
-                                    normalizeAppearance({
-                                      ...prev,
-                                      [activeCustomizationSection.key]: idx
-                                    })
+                                    normalizeAppearance(
+                                      {
+                                        ...prev,
+                                        [activeCustomizationSection.key]: optionIndex
+                                      },
+                                      availabilityRef.current
+                                    )
                                   )
                                 }
                                 aria-pressed={selected}
