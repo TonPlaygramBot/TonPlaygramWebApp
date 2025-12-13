@@ -11799,56 +11799,28 @@ function PoolRoyaleGame({
                   setOrbitFocusToDefault();
                 }
               }
-              focusTarget = store.target.clone();
-            }
-            const cueCenter =
-              cue?.active &&
-              Number.isFinite(cue.pos?.x) &&
-              Number.isFinite(cue.pos?.y)
-                ? new THREE.Vector3(cue.pos.x, BALL_CENTER_Y, cue.pos.y)
-                : null;
-            const broadcastFocusLocal = (() => {
-              if (focusTarget && cueCenter) {
-                return focusTarget.clone().add(cueCenter).multiplyScalar(0.5);
-              }
-              if (focusTarget) return focusTarget.clone();
-              if (cueCenter) return cueCenter.clone();
-              return null;
-            })();
-            const focusTargetWorld = focusTarget
-              ? focusTarget.clone().multiplyScalar(worldScaleFactor)
-              : null;
-            const broadcastFocusWorld = broadcastFocusLocal
-              ? broadcastFocusLocal.multiplyScalar(worldScaleFactor)
-              : null;
-            const resolvedLookTarget =
-              focusTargetWorld ?? broadcastFocusWorld ?? null;
-            lookTarget =
-              resolvedLookTarget ??
-              new THREE.Vector3(0, BALL_CENTER_Y, 0).multiplyScalar(worldScaleFactor);
-            if (topViewRef.current) {
-              const topRadius = clampOrbitRadius(
-                Math.max(
-                  getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
-                  CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-                )
-              );
-              const topTheta = sph.theta;
-              const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
-              TMP_SPH.set(topRadius, topPhi, topTheta);
-              camera.up.set(0, 1, 0);
-              camera.position.setFromSpherical(TMP_SPH);
-              camera.position.add(lookTarget);
-              camera.lookAt(lookTarget);
-              renderCamera = camera;
-              const resolvedBroadcastTarget =
-                broadcastFocusWorld ?? lookTarget ?? focusTargetWorld;
-              broadcastArgs.focusWorld =
-                resolvedBroadcastTarget ??
-                broadcastCamerasRef.current?.defaultFocusWorld ??
-                lookTarget;
-              broadcastArgs.targetWorld =
-                resolvedBroadcastTarget?.clone() ?? lookTarget.clone();
+            focusTarget = store.target.clone();
+          }
+          focusTarget.multiplyScalar(worldScaleFactor);
+          lookTarget = focusTarget;
+          if (topViewRef.current) {
+            const topRadius = clampOrbitRadius(
+              Math.max(
+                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
+                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+              )
+            );
+            const topTheta = sph.theta;
+            const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+            TMP_SPH.set(topRadius, topPhi, topTheta);
+            camera.up.set(0, 1, 0);
+            camera.position.setFromSpherical(TMP_SPH);
+            camera.position.add(focusTarget);
+            camera.lookAt(focusTarget);
+            renderCamera = camera;
+            broadcastArgs.focusWorld =
+              broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
+            broadcastArgs.targetWorld = focusTarget.clone();
               broadcastArgs.lerp = 0.12;
             } else {
               camera.up.set(0, 1, 0);
@@ -11920,14 +11892,9 @@ function PoolRoyaleGame({
               }
               camera.lookAt(lookTarget);
               renderCamera = camera;
-              const resolvedBroadcastTarget =
-                broadcastFocusWorld ?? lookTarget ?? focusTargetWorld;
               broadcastArgs.focusWorld =
-                resolvedBroadcastTarget ??
-                broadcastCamerasRef.current?.defaultFocusWorld ??
-                lookTarget;
-              broadcastArgs.targetWorld =
-                resolvedBroadcastTarget?.clone() ?? lookTarget.clone();
+                broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+              broadcastArgs.targetWorld = null;
               broadcastArgs.lerp = 0.22;
             }
           }
