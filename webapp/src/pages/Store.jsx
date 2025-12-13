@@ -11,6 +11,8 @@ import {
   isPoolOptionUnlocked,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
+import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
+import { DEV_INFO } from '../utils/constants.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -21,12 +23,15 @@ const TYPE_LABELS = {
 };
 
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 
 export default function Store() {
   useTelegramBackButton();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [owned, setOwned] = useState(() => getPoolRoyalInventory(accountId));
   const [info, setInfo] = useState('');
+  const [tpcBalance, setTpcBalance] = useState(null);
+  const [processing, setProcessing] = useState('');
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -34,6 +39,21 @@ export default function Store() {
 
   useEffect(() => {
     setOwned(getPoolRoyalInventory(accountId));
+  }, [accountId]);
+
+  useEffect(() => {
+    const loadBalance = async () => {
+      if (!accountId || accountId === 'guest') return;
+      try {
+        const res = await getAccountBalance(accountId);
+        if (typeof res?.balance === 'number') {
+          setTpcBalance(res.balance);
+        }
+      } catch (err) {
+        console.error('Failed to load TPC balance', err);
+      }
+    };
+    loadBalance();
   }, [accountId]);
 
   useEffect(() => {
@@ -67,11 +87,53 @@ export default function Store() {
     [owned]
   );
 
-  const handlePurchase = (item) => {
-    addPoolRoyalUnlock(item.type, item.optionId, accountId);
-    setOwned(getPoolRoyalInventory(accountId));
+  const handlePurchase = async (item) => {
+    if (item.owned || processing === item.id) return;
+    if (!accountId || accountId === 'guest') {
+      setInfo('Link your TPC account in the wallet first.');
+      return;
+    }
+    if (!STORE_ACCOUNT_ID) {
+      setInfo('Store account unavailable. Please try again later.');
+      return;
+    }
+
     const labels = POOL_ROYALE_OPTION_LABELS[item.type] || {};
-    setInfo(`${labels[item.optionId] || item.name} unlocked for Pool Royale.`);
+    const ownedLabel = labels[item.optionId] || item.name;
+
+    if (tpcBalance !== null && item.price > tpcBalance) {
+      setInfo('Insufficient TPC balance for this purchase.');
+      return;
+    }
+
+    setProcessing(item.id);
+    setInfo('');
+    try {
+      const res = await sendAccountTpc(
+        accountId,
+        STORE_ACCOUNT_ID,
+        item.price,
+        `Pool Royale: ${ownedLabel}`
+      );
+      if (res?.error) {
+        setInfo(res.error || 'Purchase failed.');
+        return;
+      }
+
+      const updatedInventory = addPoolRoyalUnlock(item.type, item.optionId, accountId);
+      setOwned(updatedInventory);
+      setInfo(`${ownedLabel} purchased and added to your Pool Royale account.`);
+
+      const bal = await getAccountBalance(accountId);
+      if (typeof bal?.balance === 'number') {
+        setTpcBalance(bal.balance);
+      }
+    } catch (err) {
+      console.error('Purchase failed', err);
+      setInfo('Failed to process purchase.');
+    } finally {
+      setProcessing('');
+    }
   };
 
   return (
@@ -87,6 +149,9 @@ export default function Store() {
         <span className="font-semibold">Pool Royale</span>
         <span className="text-xs text-subtext">Account: {accountId}</span>
         <span className="text-xs text-subtext">Prices shown in TPC</span>
+        <span className="text-xs text-subtext">
+          Balance: {tpcBalance === null ? '...' : tpcBalance.toLocaleString()} TPC
+        </span>
       </div>
 
       <div className="store-card max-w-2xl">
@@ -139,12 +204,18 @@ export default function Store() {
                     <button
                       type="button"
                       onClick={() => handlePurchase(item)}
-                      disabled={item.owned}
+                      disabled={item.owned || processing === item.id}
                       className={`buy-button mt-2 text-center ${
-                        item.owned ? 'cursor-not-allowed opacity-60' : ''
+                        item.owned || processing === item.id
+                          ? 'cursor-not-allowed opacity-60'
+                          : ''
                       }`}
                     >
-                      {item.owned ? `${ownedLabel} Owned` : `Unlock ${ownedLabel}`}
+                      {item.owned
+                        ? `${ownedLabel} Owned`
+                        : processing === item.id
+                        ? 'Purchasing...'
+                        : `Purchase ${ownedLabel}`}
                     </button>
                   </div>
                 );
