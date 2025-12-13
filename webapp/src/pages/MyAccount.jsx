@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   getAccountInfo,
   createAccount,
@@ -27,12 +27,6 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
-import {
-  POOL_ROYALE_INVENTORY_EVENT,
-  POOL_ROYALE_STORE_ITEMS,
-  getPoolRoyaleItemMeta,
-  loadPoolRoyaleOwnedSet
-} from '../utils/poolRoyaleStore.js';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -84,9 +78,6 @@ export default function MyAccount() {
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
   const [googleLinked, setGoogleLinked] = useState(!!googleId);
-  const [poolRoyaleOwned, setPoolRoyaleOwned] = useState(() =>
-    loadPoolRoyaleOwnedSet()
-  );
 
   useEffect(() => {
     async function load() {
@@ -180,33 +171,6 @@ export default function MyAccount() {
     window.addEventListener('profilePhotoUpdated', handler);
     return () => window.removeEventListener('profilePhotoUpdated', handler);
   }, [telegramId]);
-  useEffect(() => {
-    const handleInventory = () => setPoolRoyaleOwned(loadPoolRoyaleOwnedSet());
-    window.addEventListener(POOL_ROYALE_INVENTORY_EVENT, handleInventory);
-    window.addEventListener('storage', handleInventory);
-    return () => {
-      window.removeEventListener(POOL_ROYALE_INVENTORY_EVENT, handleInventory);
-      window.removeEventListener('storage', handleInventory);
-    };
-  }, []);
-
-  const poolRoyaleOwnedList = useMemo(
-    () => Array.from(poolRoyaleOwned ?? []),
-    [poolRoyaleOwned]
-  );
-  const poolRoyalePremium = useMemo(
-    () =>
-      poolRoyaleOwnedList
-        .map((id) => getPoolRoyaleItemMeta(id))
-        .filter((meta) =>
-          meta ? POOL_ROYALE_STORE_ITEMS.some((item) => item.id === meta.id) : false
-        ),
-    [poolRoyaleOwnedList]
-  );
-  const poolRoyaleDefaultCount = Math.max(
-    0,
-    poolRoyaleOwnedList.length - poolRoyalePremium.length
-  );
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -445,34 +409,6 @@ export default function MyAccount() {
       </div>
 
       <BalanceSummary className="bg-surface border border-border rounded-xl p-4 wide-card" />
-      <div className="bg-surface border border-border rounded-xl p-4 wide-card space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-lg font-semibold text-white">Pool Royale NFTs</h3>
-          <span className="text-xs uppercase tracking-[0.2em] text-subtext">Ready</span>
-        </div>
-        <p className="text-sm text-subtext">
-          Charred Timber table, gold fascia and diamonds, Tour Green cloth, and the Birch Frost cue load for free. Premium
-          Pool Royale NFTs you own are listed below.
-        </p>
-        <div className="text-sm text-white-shadow">Default loadouts: {poolRoyaleDefaultCount}</div>
-        <div className="space-y-1">
-          <p className="text-sm font-semibold text-white">Premium unlocks</p>
-          {poolRoyalePremium.length ? (
-            <ul className="list-disc list-inside space-y-1 text-sm text-subtext">
-              {poolRoyalePremium.map((item) => (
-                <li key={item.id} className="flex items-center justify-between">
-                  <span className="text-white-shadow">{item.name}</span>
-                  {item.category ? (
-                    <span className="text-[11px] uppercase tracking-[0.2em] text-subtext">{item.category}</span>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-subtext">No premium Pool Royale NFTs yet.</p>
-          )}
-        </div>
-      </div>
       {profile && profile.accountId === DEV_ACCOUNT_ID && (
         <>
           <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
