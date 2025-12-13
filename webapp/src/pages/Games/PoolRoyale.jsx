@@ -14039,6 +14039,66 @@ function PoolRoyaleGame({
         );
       };
 
+      const applyAutoAim = (frameSnapshot) => {
+        const cueBall = cueRef.current;
+        const ballsList = ballsRef.current?.length ? ballsRef.current : balls;
+        if (!cueBall || !Array.isArray(ballsList) || ballsList.length === 0)
+          return false;
+
+        const legalTargetsRaw = frameSnapshot?.ballOn ?? frameState.ballOn ?? [];
+        const legalTargets = Array.isArray(legalTargetsRaw)
+          ? legalTargetsRaw
+              .map((entry) =>
+                typeof entry === 'string' ? entry.toUpperCase() : entry
+              )
+              .filter(Boolean)
+          : [];
+        const activeBalls = ballsList.filter(
+          (ball) => ball?.active && toBallColorId(ball.id) !== 'CUE'
+        );
+        if (activeBalls.length === 0) return false;
+
+        if ((frameSnapshot?.currentBreak ?? 0) === 0) {
+          const rackCenter = activeBalls
+            .reduce(
+              (acc, ball) => acc.add(ball.pos),
+              new THREE.Vector2()
+            )
+            .multiplyScalar(1 / activeBalls.length);
+          const dir = rackCenter.clone().sub(cueBall.pos);
+          if (dir.lengthSq() > 1e-8) {
+            dir.normalize();
+            aimDirRef.current.copy(dir);
+            alignStandingCameraToAim(cueBall, dir);
+            return true;
+          }
+        }
+
+        const hasLegalTargets = legalTargets.length > 0;
+        const preferLegal = activeBalls.filter((ball) => {
+          if (!hasLegalTargets) return true;
+          const colorId = toBallColorId(ball.id);
+          return colorId ? legalTargets.includes(colorId) : false;
+        });
+        const candidates = preferLegal.length > 0 ? preferLegal : activeBalls;
+        const cuePos = cueBall.pos ?? new THREE.Vector2();
+        const targetBall = candidates.reduce((closest, ball) => {
+          if (!ball) return closest;
+          if (!closest) return ball;
+          const dist = cuePos.distanceTo(ball.pos);
+          const best = cuePos.distanceTo(closest.pos);
+          return dist < best ? ball : closest;
+        }, null);
+
+        if (!targetBall) return false;
+        const dir = targetBall.pos.clone().sub(cuePos);
+        if (dir.lengthSq() < 1e-8) return false;
+        dir.normalize();
+        aimDirRef.current.copy(dir);
+        alignStandingCameraToAim(cueBall, dir);
+        return true;
+      };
+
       // Fire (slider triggers on release)
       const fire = () => {
         const currentHud = hudRef.current;
@@ -15462,6 +15522,18 @@ function PoolRoyaleGame({
           !(currentHud?.over) &&
           !(inHandPlacementModeRef.current) &&
           (!(currentHud?.inHand) || cueBallPlacedFromHandRef.current);
+
+        if (
+          autoAimRequestRef.current &&
+          canShowCue &&
+          isPlayerTurn &&
+          !(currentHud?.inHand)
+        ) {
+          const frameSnapshot = frameRef.current ?? frameState;
+          if (applyAutoAim(frameSnapshot)) {
+            autoAimRequestRef.current = false;
+          }
+        }
 
         if (canShowCue && (isPlayerTurn || previewingAiShot)) {
           const baseAimDir = new THREE.Vector3(aimDir.x, 0, aimDir.y);
