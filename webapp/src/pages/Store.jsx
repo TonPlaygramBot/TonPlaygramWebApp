@@ -38,6 +38,18 @@ import {
   ludoBattleAccountId
 } from '../utils/ludoBattleInventory.js';
 import {
+  MURLAN_ROYALE_DEFAULT_LOADOUT,
+  MURLAN_ROYALE_OPTION_LABELS,
+  MURLAN_ROYALE_STORE_ITEMS
+} from '../config/murlanInventoryConfig.js';
+import {
+  addMurlanUnlock,
+  getMurlanInventory,
+  isMurlanOptionUnlocked,
+  listOwnedMurlanOptions,
+  murlanAccountId
+} from '../utils/murlanInventory.js';
+import {
   DOMINO_ROYAL_DEFAULT_LOADOUT,
   DOMINO_ROYAL_OPTION_LABELS,
   DOMINO_ROYAL_STORE_ITEMS
@@ -84,6 +96,14 @@ const LUDO_TYPE_LABELS = {
   headStyle: 'Heads'
 };
 
+const MURLAN_TYPE_LABELS = {
+  tableWood: 'Table Wood',
+  tableCloth: 'Table Cloth',
+  tableBase: 'Table Base',
+  cards: 'Card Themes',
+  stools: 'Stools'
+};
+
 const DOMINO_TYPE_LABELS = {
   tableWood: 'Table Wood',
   tableCloth: 'Table Cloth',
@@ -97,8 +117,9 @@ const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const LUDO_STORE_ACCOUNT_ID = import.meta.env.VITE_LUDO_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal', 'ludobattleroyal', 'domino-royal'];
+const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal', 'ludobattleroyal', 'murlanroyale', 'domino-royal'];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
@@ -110,6 +131,7 @@ export default function Store() {
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
   const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
+  const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   const [info, setInfo] = useState('');
   const [marketInfo, setMarketInfo] = useState('');
@@ -143,6 +165,7 @@ export default function Store() {
     setPoolOwned(getPoolRoyalInventory(accountId));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
+    setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
   }, [accountId]);
 
@@ -189,6 +212,16 @@ export default function Store() {
     };
     window.addEventListener('ludoBattleInventoryUpdate', handler);
     return () => window.removeEventListener('ludoBattleInventoryUpdate', handler);
+  }, [accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
+        setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
+      }
+    };
+    window.addEventListener('murlanInventoryUpdate', handler);
+    return () => window.removeEventListener('murlanInventoryUpdate', handler);
   }, [accountId]);
 
   useEffect(() => {
@@ -270,6 +303,27 @@ export default function Store() {
     [ludoOwned]
   );
 
+  const murlanGroupedItems = useMemo(() => {
+    const items = MURLAN_ROYALE_STORE_ITEMS.map((item) => ({
+      ...item,
+      owned: isMurlanOptionUnlocked(item.type, item.optionId, murlanOwned)
+    }));
+    return items.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item);
+      return acc;
+    }, {});
+  }, [murlanOwned]);
+
+  const murlanDefaultLoadout = useMemo(
+    () =>
+      MURLAN_ROYALE_DEFAULT_LOADOUT.map((entry) => ({
+        ...entry,
+        owned: isMurlanOptionUnlocked(entry.type, entry.optionId, murlanOwned)
+      })),
+    [murlanOwned]
+  );
+
   const dominoGroupedItems = useMemo(() => {
     const items = DOMINO_ROYAL_STORE_ITEMS.map((item) => ({
       ...item,
@@ -296,6 +350,7 @@ export default function Store() {
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
+      murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
     }),
     []
@@ -317,9 +372,10 @@ export default function Store() {
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
+      murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
       'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned)
     }),
-    [poolOwned, chessOwned, ludoOwned, dominoOwned]
+    [poolOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned]
   );
 
   const labelResolvers = useMemo(
@@ -327,6 +383,7 @@ export default function Store() {
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
@@ -362,6 +419,7 @@ export default function Store() {
       poolroyale: POOL_STORE_ACCOUNT_ID,
       chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
       ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
+      murlanroyale: MURLAN_STORE_ACCOUNT_ID,
       'domino-royal': DOMINO_STORE_ACCOUNT_ID
     };
     const storeId = storeAccounts[activeSlug];
@@ -374,6 +432,7 @@ export default function Store() {
       poolroyale: POOL_ROYALE_OPTION_LABELS,
       chessbattleroyal: CHESS_BATTLE_OPTION_LABELS,
       ludobattleroyal: LUDO_BATTLE_OPTION_LABELS,
+      murlanroyale: MURLAN_ROYALE_OPTION_LABELS,
       'domino-royal': DOMINO_ROYAL_OPTION_LABELS
     };
     const labels = labelMaps[activeSlug]?.[item.type] || {};
@@ -410,6 +469,10 @@ export default function Store() {
         const updatedInventory = addLudoBattleUnlock(item.type, item.optionId, accountId);
         setLudoOwned(updatedInventory);
         setInfo(`${ownedLabel} purchased and added to your Ludo Battle Royal account.`);
+      } else if (activeSlug === 'murlanroyale') {
+        const updatedInventory = addMurlanUnlock(item.type, item.optionId, accountId);
+        setMurlanOwned(updatedInventory);
+        setInfo(`${ownedLabel} purchased and added to your Murlan Royale account.`);
       } else if (activeSlug === 'domino-royal') {
         const updatedInventory = addDominoRoyalUnlock(item.type, item.optionId, accountId);
         setDominoOwned(updatedInventory);
@@ -490,6 +553,7 @@ export default function Store() {
   const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
   const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
   const ludoOwnedOptions = useMemo(() => listOwnedLudoOptions(accountId), [accountId]);
+  const murlanOwnedOptions = useMemo(() => listOwnedMurlanOptions(accountId), [accountId]);
   const dominoOwnedOptions = useMemo(() => listOwnedDominoOptions(accountId), [accountId]);
 
   const ownedItemLookup = useMemo(
@@ -497,9 +561,10 @@ export default function Store() {
       poolroyale: poolOwnedOptions,
       chessbattleroyal: chessOwnedOptions,
       ludobattleroyal: ludoOwnedOptions,
+      murlanroyale: murlanOwnedOptions,
       'domino-royal': dominoOwnedOptions
     }),
-    [poolOwnedOptions, chessOwnedOptions, ludoOwnedOptions, dominoOwnedOptions]
+    [poolOwnedOptions, chessOwnedOptions, ludoOwnedOptions, murlanOwnedOptions, dominoOwnedOptions]
   );
 
   const hasStorefront = SUPPORTED_STORE_SLUGS.includes(activeSlug);
@@ -801,6 +866,76 @@ export default function Store() {
                             <p className="font-semibold text-lg leading-tight">{item.name}</p>
                             <p className="text-xs text-subtext">{item.description}</p>
                             <p className="text-xs text-subtext mt-1">Applies to: {LUDO_TYPE_LABELS[item.type] || item.type}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handlePurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeSlug === 'murlanroyale' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Murlan Royale Defaults (Free)</h3>
+            <p className="text-sm text-subtext">
+              The first option in each category stays free. Purchase the others to surface them inside the Murlan Royale table
+              setup menu.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {murlanDefaultLoadout.map((item) => (
+                <li
+                  key={`murlan-${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{MURLAN_TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Murlan Royale Collection</h3>
+            {Object.entries(murlanGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{MURLAN_TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = MURLAN_ROYALE_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">Applies to: {MURLAN_TYPE_LABELS[item.type] || item.type}</p>
                           </div>
                           <div className="flex items-center gap-1 text-sm font-semibold">
                             {item.price}
