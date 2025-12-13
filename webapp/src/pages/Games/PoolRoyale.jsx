@@ -2344,6 +2344,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     label: 'Analyst Booth Tripod',
     description: 'Locked-off analyst booth angle with steady lensing.',
     method: 'Dual tripod broadcast cams with conservative dolly and focus pulls.',
+    orbitBias: 0.45,
     railPush: BALL_R * 8.6,
     lateralDolly: BALL_R * 2.1,
     focusLift: BALL_R * 4.8,
@@ -4158,6 +4159,7 @@ const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
 const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
+const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
   nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
@@ -11067,12 +11069,14 @@ function PoolRoyaleGame({
           railDir = 1,
           targetWorld = null,
           focusWorld = null,
+          orbitWorld = null,
           lerp = null
         } = {}) => {
           const rig = broadcastCamerasRef.current;
           if (!rig || !rig.cameras) return;
           const safeTargetWorld = sanitizeVector3(targetWorld, null);
           const safeFocusWorld = sanitizeVector3(focusWorld, null);
+          const safeOrbitWorld = sanitizeVector3(orbitWorld, null);
           const system =
             broadcastSystemRef.current ?? activeBroadcastSystem ?? BROADCAST_SYSTEM_OPTIONS[0];
           const smoothing = THREE.MathUtils.clamp(
@@ -11084,10 +11088,20 @@ function PoolRoyaleGame({
             safeFocusWorld ?? rig.defaultFocusWorld ?? rig.defaultFocus ?? null;
           const trackingTarget = safeTargetWorld ?? baseFocus;
           const bias = THREE.MathUtils.clamp(system?.trackingBias ?? 0, 0, 1);
-          const focusTarget =
+          const orbitBias = THREE.MathUtils.clamp(
+            system?.orbitBias ?? BROADCAST_ORBIT_FOCUS_BIAS,
+            0,
+            1
+          );
+          let focusTarget =
             baseFocus && trackingTarget
               ? baseFocus.clone().lerp(trackingTarget, bias)
               : baseFocus ?? trackingTarget;
+          if (safeOrbitWorld) {
+            focusTarget = focusTarget
+              ? focusTarget.lerp(safeOrbitWorld, orbitBias)
+              : safeOrbitWorld.clone();
+          }
           rig.userData = rig.userData || {};
           if (!rig.userData.focus) {
             rig.userData.focus = focusTarget?.clone() ?? new THREE.Vector3();
@@ -11900,6 +11914,9 @@ function PoolRoyaleGame({
           }
           if (lookTarget) {
             lastCameraTargetRef.current.copy(lookTarget);
+          }
+          if (lookTarget && !broadcastArgs.orbitWorld) {
+            broadcastArgs.orbitWorld = lookTarget.clone();
           }
           if (clothMat && lookTarget) {
             const dist = renderCamera.position.distanceTo(lookTarget);
