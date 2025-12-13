@@ -1363,8 +1363,20 @@ export default function SnakeAndLadder() {
         if (playerId === myAccountId) setPos(0);
       }, 1000);
     };
-    const onTurn = ({ playerId }) => {
-      const idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+    const onTurn = ({ playerId, seatIndex }) => {
+      let idx = -1;
+
+      if (Number.isInteger(seatIndex)) {
+        idx = seatIndex;
+      } else {
+        idx = playersRef.current.findIndex((pl) => pl.id === playerId);
+
+        // Some servers emit the active seat index instead of a playerId.
+        if (idx === -1 && Number.isInteger(playerId)) {
+          idx = playerId;
+        }
+      }
+
       if (idx >= 0) {
         setCurrentTurn(idx);
         setDiceCount(playerDiceCounts[idx] ?? 2);
@@ -1474,7 +1486,9 @@ export default function SnakeAndLadder() {
     socket.on('snakeOrLadder', onSnakeOrLadder);
     socket.on('playerReset', onReset);
     socket.on('turnChanged', onTurn);
-    socket.on('turnUpdate', ({ currentTurn }) => onTurn({ playerId: currentTurn }));
+    socket.on('turnUpdate', ({ currentTurn, playerId, seatIndex }) =>
+      onTurn({ playerId, seatIndex: Number.isInteger(currentTurn) ? currentTurn : seatIndex })
+    );
     socket.on('lobbyUpdate', ({ players: list, maxPlayers }) => {
       handleCapacity(maxPlayers);
       if (!Array.isArray(list)) return;
