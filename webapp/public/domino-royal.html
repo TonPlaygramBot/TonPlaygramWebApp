@@ -1637,108 +1637,6 @@ const APPEARANCE_STORAGE_KEY = "dominoRoyalArenaAppearanceV2";
 const LEGACY_APPEARANCE_KEYS = ["dominoRoyalArenaAppearance"];
 let appearance = { ...DEFAULT_APPEARANCE };
 
-const DOMINO_INVENTORY_KEY = 'dominoRoyalInventoryByAccount';
-const DOMINO_DEFAULT_UNLOCKS = Object.freeze({
-  tableWood: ['oakEstate'],
-  tableCloth: ['crimson'],
-  tableBase: ['obsidian'],
-  dominoStyle: ['imperialIvory'],
-  highlightStyle: ['marksmanAmber'],
-  chairTheme: ['crimsonVelvet']
-});
-
-const dominoInventoryDefaults = () =>
-  Object.entries(DOMINO_DEFAULT_UNLOCKS).reduce((acc, [key, values]) => {
-    acc[key] = Array.isArray(values) ? [...values] : [];
-    return acc;
-  }, {});
-
-const resolveDominoAccountId = () => {
-  if (accountId) return accountId;
-  try {
-    const stored = window.localStorage?.getItem('accountId');
-    if (stored) return stored;
-  } catch {}
-  return 'guest';
-};
-
-const readDominoInventories = () => {
-  try {
-    const raw = window.localStorage?.getItem(DOMINO_INVENTORY_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch (error) {
-    console.warn('Failed to read Domino inventory', error);
-    return {};
-  }
-};
-
-const writeDominoInventories = (payload) => {
-  try {
-    window.localStorage?.setItem(DOMINO_INVENTORY_KEY, JSON.stringify(payload));
-  } catch (error) {
-    console.warn('Failed to persist Domino inventory', error);
-  }
-};
-
-const normalizeDominoInventory = (rawInventory) => {
-  const base = dominoInventoryDefaults();
-  if (!rawInventory || typeof rawInventory !== 'object') return base;
-  const merged = { ...base };
-  Object.entries(rawInventory).forEach(([key, value]) => {
-    if (!Array.isArray(value)) return;
-    merged[key] = Array.from(new Set([...(merged[key] || []), ...value]));
-  });
-  return merged;
-};
-
-const getDominoInventory = () => {
-  const resolvedAccount = resolveDominoAccountId();
-  const inventories = readDominoInventories();
-  const normalized = normalizeDominoInventory(inventories[resolvedAccount]);
-  writeDominoInventories({
-    ...inventories,
-    [resolvedAccount]: normalized
-  });
-  return normalized;
-};
-
-const isDominoOptionUnlocked = (type, optionId, inventory = null) => {
-  const inv = inventory || dominoInventory;
-  return Array.isArray(inv?.[type]) && inv[type].includes(optionId);
-};
-
-const optionsByKey = {
-  tableWood: TABLE_WOOD_OPTIONS,
-  tableCloth: TABLE_CLOTH_OPTIONS,
-  tableBase: TABLE_BASE_OPTIONS,
-  dominoStyle: DOMINO_STYLE_OPTIONS,
-  highlightStyle: HIGHLIGHT_STYLE_OPTIONS,
-  chairTheme: CHAIR_THEME_OPTIONS
-};
-
-const ensureAppearanceUnlocked = () => {
-  appearance = normalizeAppearance(appearance);
-  Object.entries(optionsByKey).forEach(([key, options]) => {
-    const currentIndex = Number(appearance[key] ?? 0);
-    const currentOption = options[currentIndex];
-    const fallbackIndex = options.findIndex((opt) => isDominoOptionUnlocked(key, opt.id));
-    if (!currentOption || !isDominoOptionUnlocked(key, currentOption.id)) {
-      appearance[key] = fallbackIndex >= 0 ? fallbackIndex : 0;
-    }
-  });
-};
-
-const dominoAccount = resolveDominoAccountId();
-let dominoInventory = getDominoInventory();
-
-window.addEventListener('dominoInventoryUpdate', (event) => {
-  if (!event?.detail?.accountId || event.detail.accountId === dominoAccount) {
-    dominoInventory = normalizeDominoInventory(event?.detail?.inventory) || getDominoInventory();
-    ensureAppearanceUnlocked();
-    applyAppearanceChange();
-  }
-});
-
 function normalizeAppearance(raw) {
   const normalized = { ...DEFAULT_APPEARANCE };
   const source = raw && typeof raw === "object" ? raw : {};
@@ -1774,11 +1672,9 @@ try {
     }
   }
   appearance = normalizeAppearance(appearance);
-  ensureAppearanceUnlocked();
 } catch (error) {
   console.warn("Failed to load Domino Royal appearance", error);
   appearance = normalizeAppearance(appearance);
-  ensureAppearanceUnlocked();
 }
 
 function adjustHexColor(hex, amount) {
@@ -3477,7 +3373,6 @@ function saveAppearance() {
 
 function applyAppearanceChange({ refresh = true } = {}) {
   appearance = normalizeAppearance(appearance);
-  ensureAppearanceUnlocked();
   clearExistingDominoMeshes();
   updateTableMaterials();
   applyDominoStyle(DOMINO_STYLE_OPTIONS[appearance.dominoStyle] ?? DOMINO_STYLE_OPTIONS[0]);
@@ -3627,10 +3522,7 @@ function refreshConfigUI() {
     wrapper.appendChild(label);
     const optionsGrid = document.createElement('div');
     optionsGrid.className = 'config-options';
-    const unlockedOptions = section.options
-      .map((option, idx) => ({ option, idx }))
-      .filter(({ option }) => isDominoOptionUnlocked(section.key, option.id));
-    unlockedOptions.forEach(({ option, idx }) => {
+    section.options.forEach((option, idx) => {
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'config-option';
