@@ -14,4 +14,4 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   </React.StrictMode>
 );
 
-// Service workers are disabled to avoid unexpected reloads that could interrupt gameplay
+// Service worker lifecycle is coordinated inside usePwaUpdater to avoid gameplay interruptions

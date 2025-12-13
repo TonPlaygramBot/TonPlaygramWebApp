@@ -1,0 +1,24 @@
+{
+  "name": "TonPlaygram",
+  "short_name": "TonPlaygram",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0c1020",
+  "theme_color": "#0c1020",
+  "description": "TonPlaygram is a TON-based gaming platform tailored for Telegram users.",
+  "icons": [
+    {
+      "src": "/assets/icons/telegram.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/profile.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
