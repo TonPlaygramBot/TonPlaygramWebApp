@@ -8277,6 +8277,13 @@ function PoolRoyaleGame({
       ),
     [poolInventory]
   );
+  const availablePocketLiners = useMemo(
+    () =>
+      POCKET_LINER_OPTIONS.filter((option) =>
+        isPoolOptionUnlocked('pocketLiner', option.id, poolInventory)
+      ),
+    [poolInventory]
+  );
   const availableCueStyles = useMemo(
     () =>
       CUE_STYLE_PRESETS.map((preset, index) => ({ preset, index })).filter(({ preset }) =>
@@ -8298,6 +8305,13 @@ function PoolRoyaleGame({
       CLOTH_COLOR_OPTIONS[0],
     [availableClothOptions, clothColorId]
   );
+  const activePocketLinerOption = useMemo(
+    () =>
+      availablePocketLiners.find((opt) => opt?.id === pocketLinerId) ??
+      availablePocketLiners[0] ??
+      POCKET_LINER_OPTIONS[0],
+    [availablePocketLiners, pocketLinerId]
+  );
   useEffect(() => {
     if (!isPoolOptionUnlocked('tableFinish', tableFinishId, poolInventory)) {
       setTableFinishId(DEFAULT_TABLE_FINISH_ID);
@@ -8311,9 +8325,13 @@ function PoolRoyaleGame({
     if (!isPoolOptionUnlocked('railMarkerColor', railMarkerColorId, poolInventory)) {
       setRailMarkerColorId(DEFAULT_RAIL_MARKER_COLOR_ID);
     }
+    if (!isPoolOptionUnlocked('pocketLiner', pocketLinerId, poolInventory)) {
+      setPocketLinerId(DEFAULT_POCKET_LINER_OPTION_ID);
+    }
   }, [
     chromeColorId,
     clothColorId,
+    pocketLinerId,
     poolInventory,
     railMarkerColorId,
     tableFinishId
