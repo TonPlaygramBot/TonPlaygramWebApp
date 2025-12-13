@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -11,6 +11,8 @@ import {
   isPoolOptionUnlocked,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
+import { createAccount, getAccountBalance, sendAccountTpc } from '../utils/api.js';
+import { getTelegramId } from '../utils/telegram.js';
 
 const TYPE_LABELS = {
   tableFinish: 'Table Finishes',
@@ -21,12 +23,17 @@ const TYPE_LABELS = {
 };
 
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
+const STORE_ACCOUNT_ID = import.meta.env.VITE_STORE_ACCOUNT_ID || 'POOL_ROYALE_STORE';
 
 export default function Store() {
   useTelegramBackButton();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [owned, setOwned] = useState(() => getPoolRoyalInventory(accountId));
   const [info, setInfo] = useState('');
+  const [tpcBalance, setTpcBalance] = useState(null);
+  const [loadingBalance, setLoadingBalance] = useState(false);
+  const [processingId, setProcessingId] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -35,6 +42,46 @@ export default function Store() {
   useEffect(() => {
     setOwned(getPoolRoyalInventory(accountId));
   }, [accountId]);
+
+  const loadAccountBalance = useCallback(async () => {
+    setLoadingBalance(true);
+    setError('');
+    try {
+      let telegramId;
+      try {
+        telegramId = getTelegramId();
+      } catch (err) {
+        telegramId = undefined;
+      }
+      const googleId = telegramId ? null : localStorage.getItem('googleId');
+      const acc = await createAccount(telegramId, googleId);
+      if (acc?.error) throw new Error(acc.error);
+      const resolvedAccountId = acc?.accountId || accountId;
+      if (acc?.accountId) {
+        setAccountId(acc.accountId);
+        localStorage.setItem('accountId', acc.accountId);
+      }
+      if (acc?.walletAddress) {
+        localStorage.setItem('walletAddress', acc.walletAddress);
+      }
+      const bal = await getAccountBalance(resolvedAccountId);
+      if (bal?.error) throw new Error(bal.error);
+      const nextBalance = typeof bal.balance === 'number' ? bal.balance : 0;
+      setTpcBalance(nextBalance);
+      return { accountId: resolvedAccountId, balance: nextBalance };
+    } catch (err) {
+      console.error('Failed to load account for store', err);
+      setError('Unable to load TPC account. Please try again.');
+      setTpcBalance(0);
+      return { accountId, balance: 0 };
+    } finally {
+      setLoadingBalance(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => {
+    loadAccountBalance();
+  }, [loadAccountBalance]);
 
   useEffect(() => {
     const handler = (event) => {
@@ -68,10 +115,51 @@ export default function Store() {
   );
 
   const handlePurchase = (item) => {
-    addPoolRoyalUnlock(item.type, item.optionId, accountId);
-    setOwned(getPoolRoyalInventory(accountId));
-    const labels = POOL_ROYALE_OPTION_LABELS[item.type] || {};
-    setInfo(`${labels[item.optionId] || item.name} unlocked for Pool Royale.`);
+    (async () => {
+      if (item.owned || processingId) return;
+      setProcessingId(item.id);
+      setInfo('');
+      setError('');
+      try {
+        const labels = POOL_ROYALE_OPTION_LABELS[item.type] || {};
+        const ownedLabel = labels[item.optionId] || item.name;
+        let resolvedAccountId = accountId;
+        if (!resolvedAccountId || resolvedAccountId === 'guest') {
+          const res = await loadAccountBalance();
+          resolvedAccountId = res?.accountId || resolvedAccountId;
+        }
+        const balance =
+          typeof tpcBalance === 'number'
+            ? tpcBalance
+            : (await getAccountBalance(resolvedAccountId)).balance || 0;
+
+        if (balance < item.price) {
+          setError('Insufficient TPC balance for this purchase.');
+          return;
+        }
+
+        const tx = await sendAccountTpc(
+          resolvedAccountId,
+          STORE_ACCOUNT_ID,
+          item.price,
+          `Pool Royale: ${ownedLabel}`
+        );
+        if (tx?.error) throw new Error(tx.error);
+        const latestBalance =
+          typeof tx?.balance === 'number'
+            ? tx.balance
+            : (await getAccountBalance(resolvedAccountId)).balance || 0;
+        setTpcBalance(latestBalance);
+        addPoolRoyalUnlock(item.type, item.optionId, resolvedAccountId);
+        setOwned(getPoolRoyalInventory(resolvedAccountId));
+        setInfo(`${ownedLabel} purchased with TPC. Statement recorded.`);
+      } catch (err) {
+        console.error('Purchase failed', err);
+        setError('Purchase failed. Please try again.');
+      } finally {
+        setProcessingId('');
+      }
+    })();
   };
 
   return (
@@ -86,7 +174,11 @@ export default function Store() {
       <div className="store-info-bar">
         <span className="font-semibold">Pool Royale</span>
         <span className="text-xs text-subtext">Account: {accountId}</span>
-        <span className="text-xs text-subtext">Prices shown in TPC</span>
+        <span className="text-xs text-subtext">
+          {loadingBalance
+            ? 'Checking balance...'
+            : `Balance: ${tpcBalance?.toLocaleString() || 0} TPC`}
+        </span>
       </div>
 
       <div className="store-card max-w-2xl">
@@ -139,12 +231,18 @@ export default function Store() {
                     <button
                       type="button"
                       onClick={() => handlePurchase(item)}
-                      disabled={item.owned}
+                      disabled={item.owned || !!processingId}
                       className={`buy-button mt-2 text-center ${
-                        item.owned ? 'cursor-not-allowed opacity-60' : ''
+                        item.owned || processingId
+                          ? 'cursor-not-allowed opacity-60'
+                          : ''
                       }`}
                     >
-                      {item.owned ? `${ownedLabel} Owned` : `Unlock ${ownedLabel}`}
+                      {item.owned
+                        ? `${ownedLabel} Owned`
+                        : processingId === item.id
+                          ? 'Processing...'
+                          : `Purchase ${ownedLabel}`}
                     </button>
                   </div>
                 );
@@ -156,6 +254,9 @@ export default function Store() {
 
       {info ? (
         <div className="checkout-card text-center text-sm font-semibold">{info}</div>
+      ) : null}
+      {error ? (
+        <div className="checkout-card text-center text-sm font-semibold text-red-500">{error}</div>
       ) : null}
     </div>
   );
