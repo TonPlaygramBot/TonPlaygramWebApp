@@ -29,12 +29,6 @@ import useTelegramBackButton from "../../hooks/useTelegramBackButton.js";
 import { useNavigate } from "react-router-dom";
 import { getPlayerId, getTelegramId, ensureAccountId } from "../../utils/telegram.js";
 import {
-  addSnakeUnlock,
-  getSnakeInventory,
-  isSnakeOptionUnlocked,
-  snakeAccountId
-} from "../../utils/snakeInventory.js";
-import {
   getProfileByAccount,
   depositAccount,
   getSnakeBoard,
@@ -615,12 +609,6 @@ export default function SnakeAndLadder() {
   const navigate = useNavigate();
 
   const [accountId, setAccountId] = useState(() => getPlayerId());
-  const resolvedSnakeAccountId = useMemo(() => snakeAccountId(accountId), [accountId]);
-  const [snakeInventoryVersion, setSnakeInventoryVersion] = useState(0);
-  const snakeInventory = useMemo(
-    () => getSnakeInventory(resolvedSnakeAccountId),
-    [resolvedSnakeAccountId, snakeInventoryVersion]
-  );
   const [tableCapacity, setTableCapacity] = useState(DEFAULT_CAPACITY);
   const tableCapacityRef = useRef(DEFAULT_CAPACITY);
 
@@ -631,16 +619,6 @@ export default function SnakeAndLadder() {
       })
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === resolvedSnakeAccountId) {
-        setSnakeInventoryVersion((value) => value + 1);
-      }
-    };
-    window.addEventListener('snakeInventoryUpdate', handler);
-    return () => window.removeEventListener('snakeInventoryUpdate', handler);
-  }, [resolvedSnakeAccountId]);
 
   useEffect(() => {
     const handler = () => setMuted(isGameMuted());
@@ -776,54 +754,9 @@ export default function SnakeAndLadder() {
   const [isMultiplayer, setIsMultiplayer] = useState(false);
   const [watchOnly, setWatchOnly] = useState(false);
   const [mpPlayers, setMpPlayers] = useState([]);
-  const ensureAppearanceUnlocked = useCallback(
-    (value = DEFAULT_APPEARANCE) => {
-      const normalized = normalizeAppearance(value);
-      const map = {
-        arenaTheme: ARENA_THEME_OPTIONS,
-        boardPalette: BOARD_PALETTE_OPTIONS,
-        snakeSkin: SNAKE_SKIN_OPTIONS,
-        diceTheme: DICE_THEME_OPTIONS,
-        railTheme: RAIL_THEME_OPTIONS,
-        tokenFinish: TOKEN_FINISH_OPTIONS
-      };
-      let changed = false;
-      const next = { ...normalized };
-      Object.entries(map).forEach(([key, options]) => {
-        const idx = Number.isFinite(next[key]) ? next[key] : 0;
-        const option = options[idx];
-        if (!option || !isSnakeOptionUnlocked(key, option.id, snakeInventory)) {
-          const fallbackIdx = options.findIndex((opt) => isSnakeOptionUnlocked(key, opt.id, snakeInventory));
-          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
-          if (safeIdx !== idx) {
-            next[key] = safeIdx;
-            changed = true;
-          }
-        }
-      });
-      return changed ? next : normalized;
-    },
-    [snakeInventory]
-  );
-  const normalizedAppearance = useMemo(
-    () => ensureAppearanceUnlocked(appearance),
-    [appearance, ensureAppearanceUnlocked]
-  );
-  useEffect(() => {
-    setAppearance((prev) => ensureAppearanceUnlocked(prev));
-  }, [ensureAppearanceUnlocked]);
-  const appearanceKey = useMemo(() => buildAppearanceKey(normalizedAppearance), [normalizedAppearance]);
-  const resolvedAppearance = useMemo(() => resolveAppearance(normalizedAppearance), [normalizedAppearance]);
-  const customizationSections = useMemo(
-    () =>
-      SNAKE_CUSTOMIZATION_SECTIONS.map((section) => ({
-        ...section,
-        options: section.options
-          .map((option, idx) => ({ ...option, idx }))
-          .filter(({ id }) => isSnakeOptionUnlocked(section.key, id, snakeInventory))
-      })).filter((section) => section.options.length > 0),
-    [snakeInventory]
-  );
+  const normalizedAppearance = useMemo(() => normalizeAppearance(appearance), [appearance]);
+  const appearanceKey = useMemo(() => buildAppearanceKey(appearance), [appearance]);
+  const resolvedAppearance = useMemo(() => resolveAppearance(appearance), [appearance]);
   const activeFrameRateOption = useMemo(
     () => FRAME_RATE_OPTIONS.find((option) => option.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
     [frameRateId]
@@ -835,10 +768,10 @@ export default function SnakeAndLadder() {
       if (typeof window === 'undefined') return;
       window.localStorage.setItem(
         APPEARANCE_STORAGE_KEY,
-        JSON.stringify(normalizedAppearance)
+        JSON.stringify(normalizeAppearance(appearance))
       );
     } catch {}
-  }, [appearanceKey, normalizedAppearance]);
+  }, [appearanceKey]);
 
   useEffect(() => {
     try {
@@ -2613,18 +2546,18 @@ export default function SnakeAndLadder() {
                 </button>
               </div>
               <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                {customizationSections.map(({ key, label, options }) => (
+                {SNAKE_CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                     <div className="grid grid-cols-1 gap-2">
-                      {options.map((option) => {
-                        const selected = normalizedAppearance[key] === option.idx;
+                      {options.map((option, idx) => {
+                        const selected = normalizedAppearance[key] === idx;
                         return (
                           <button
-                            key={option.id ?? option.idx}
+                            key={option.id ?? idx}
                             type="button"
                             onClick={() =>
-                              setAppearance((prev) => normalizeAppearance({ ...prev, [key]: option.idx }))
+                              setAppearance((prev) => normalizeAppearance({ ...prev, [key]: idx }))
                             }
                             aria-pressed={selected}
                             className={`flex flex-col items-center gap-2 rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
