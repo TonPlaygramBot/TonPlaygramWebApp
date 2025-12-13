@@ -23,6 +23,11 @@ import {
   getTelegramUsername,
   getTelegramPhotoUrl
 } from '../../utils/telegram.js';
+import {
+  chessAccountId,
+  getChessInventory,
+  isChessOptionUnlocked
+} from '../../utils/chessInventory.js';
 import { bombSound, timerBeep } from '../../assets/soundData.js';
 import { getGameVolume } from '../../utils/sound.js';
 import { ARENA_CAMERA_DEFAULTS } from '../../utils/arenaCameraConfig.js';
@@ -35,6 +40,7 @@ import {
   WOOD_GRAIN_OPTIONS,
   WOOD_GRAIN_OPTIONS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
+import { CHAIR_COLOR_OPTIONS, QUICK_SIDE_COLORS } from '../../config/chessAppearanceOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
@@ -934,16 +940,6 @@ const HEAD_PRESET_OPTIONS = Object.freeze([
   }
 ]);
 
-const QUICK_SIDE_COLORS = [
-  { id: 'marble', hex: 0xffffff, label: 'Marble' },
-  { id: 'darkForest', hex: 0xffffff, label: 'Dark Forest' },
-  { id: 'amberGlow', hex: 0xf59e0b, label: 'Amber Glow' },
-  { id: 'mintVale', hex: 0x10b981, label: 'Mint Vale' },
-  { id: 'royalWave', hex: 0x3b82f6, label: 'Royal Wave' },
-  { id: 'roseMist', hex: 0xef4444, label: 'Rose Mist' },
-  { id: 'amethyst', hex: 0x8b5cf6, label: 'Amethyst' }
-];
-
 const QUICK_HEAD_PRESETS = [
   { id: 'current', label: 'Current' },
   { id: 'headRuby', label: 'Ruby' },
@@ -1020,49 +1016,6 @@ const DEFAULT_APPEARANCE = {
   headStyle: 0
 };
 const APPEARANCE_STORAGE_KEY = 'chessBattleRoyalAppearance';
-const CHAIR_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'crimsonVelvet',
-    label: 'Crimson Velvet',
-    primary: '#8b1538',
-    accent: '#5c0f26',
-    highlight: '#d35a7a',
-    legColor: '#1f1f1f'
-  },
-  {
-    id: 'midnightNavy',
-    label: 'Midnight Blue',
-    primary: '#153a8b',
-    accent: '#0c214f',
-    highlight: '#4d74d8',
-    legColor: '#10131c'
-  },
-  {
-    id: 'emeraldWave',
-    label: 'Emerald Wave',
-    primary: '#0f6a2f',
-    accent: '#063d1b',
-    highlight: '#48b26a',
-    legColor: '#142318'
-  },
-  {
-    id: 'onyxShadow',
-    label: 'Onyx Shadow',
-    primary: '#202020',
-    accent: '#101010',
-    highlight: '#6f6f6f',
-    legColor: '#080808'
-  },
-  {
-    id: 'royalPlum',
-    label: 'Royal Chestnut',
-    primary: '#3f1f5b',
-    accent: '#2c1340',
-    highlight: '#7c4ae0',
-    legColor: '#140a24'
-  }
-]);
-
 const DIAMOND_SHAPE_ID = 'diamondEdge';
 const TABLE_SHAPE_MENU_OPTIONS = TABLE_SHAPE_OPTIONS.filter((option) => option.id !== DIAMOND_SHAPE_ID);
 
@@ -1075,6 +1028,14 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'chairColor', label: 'Chairs', options: CHAIR_COLOR_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_MENU_OPTIONS }
 ];
+
+const CUSTOMIZATION_OPTION_MAP = Object.freeze({
+  tableWood: TABLE_WOOD_OPTIONS,
+  tableCloth: TABLE_CLOTH_OPTIONS,
+  tableBase: TABLE_BASE_OPTIONS,
+  chairColor: CHAIR_COLOR_OPTIONS,
+  tableShape: TABLE_SHAPE_MENU_OPTIONS
+});
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -5156,6 +5117,12 @@ function Chess3D({
   const [activeCustomizationKey, setActiveCustomizationKey] = useState(
     CUSTOMIZATION_SECTIONS[0]?.key ?? 'tableWood'
   );
+  const resolvedAccountId = useMemo(() => chessAccountId(accountId), [accountId]);
+  const [inventoryVersion, setInventoryVersion] = useState(0);
+  const chessInventory = useMemo(
+    () => getChessInventory(resolvedAccountId),
+    [resolvedAccountId, inventoryVersion]
+  );
   const seatPositionsRef = useRef([]);
   const resolvedInitialFlag = useMemo(() => {
     if (initialFlag && FLAG_EMOJIS.includes(initialFlag)) {
@@ -5191,6 +5158,15 @@ function Chess3D({
     const baseFlag = resolvedInitialFlag || fallbackChoice || FALLBACK_FLAG;
     return getAIOpponentFlag(baseFlag);
   });
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setInventoryVersion((value) => value + 1);
+      }
+    };
+    window.addEventListener('chessInventoryUpdate', handler);
+    return () => window.removeEventListener('chessInventoryUpdate', handler);
+  }, [resolvedAccountId]);
   const [onlineStatus, setOnlineStatus] = useState(
     onlineRef.current.enabled ? 'connecting' : 'offline'
   );
@@ -5244,6 +5220,80 @@ function Chess3D({
   useEffect(() => {
     uiRef.current = ui;
   }, [ui]);
+
+  const resolveUnlockedIndex = useCallback(
+    (type, candidateIdx = 0) => {
+      const options = CUSTOMIZATION_OPTION_MAP[type] || [];
+      const clamped = Math.min(Math.max(0, Math.round(candidateIdx)), options.length - 1);
+      if (isChessOptionUnlocked(type, options[clamped]?.id, chessInventory)) return clamped;
+      const firstUnlocked = options.findIndex((option) =>
+        isChessOptionUnlocked(type, option.id, chessInventory)
+      );
+      return firstUnlocked >= 0 ? firstUnlocked : Math.max(0, clamped);
+    },
+    [chessInventory]
+  );
+
+  const availableTableWoods = useMemo(
+    () => TABLE_WOOD_OPTIONS.filter((option) => isChessOptionUnlocked('tableWood', option.id, chessInventory)),
+    [chessInventory]
+  );
+  const availableTableCloths = useMemo(
+    () => TABLE_CLOTH_OPTIONS.filter((option) => isChessOptionUnlocked('tableCloth', option.id, chessInventory)),
+    [chessInventory]
+  );
+  const availableTableBases = useMemo(
+    () => TABLE_BASE_OPTIONS.filter((option) => isChessOptionUnlocked('tableBase', option.id, chessInventory)),
+    [chessInventory]
+  );
+  const availableChairColors = useMemo(
+    () => CHAIR_COLOR_OPTIONS.filter((option) => isChessOptionUnlocked('chairColor', option.id, chessInventory)),
+    [chessInventory]
+  );
+  const availableTableShapes = useMemo(
+    () => TABLE_SHAPE_MENU_OPTIONS.filter((option) => isChessOptionUnlocked('tableShape', option.id, chessInventory)),
+    [chessInventory]
+  );
+  const availableSideColors = useMemo(
+    () => QUICK_SIDE_COLORS.filter((option) => isChessOptionUnlocked('sideColor', option.id, chessInventory)),
+    [chessInventory]
+  );
+
+  const customizationOptionsByKey = useMemo(
+    () => ({
+      tableWood: availableTableWoods,
+      tableCloth: availableTableCloths,
+      tableBase: availableTableBases,
+      chairColor: availableChairColors,
+      tableShape: availableTableShapes
+    }),
+    [availableChairColors, availableTableBases, availableTableCloths, availableTableShapes, availableTableWoods]
+  );
+
+  useEffect(() => {
+    setAppearance((prev) => {
+      const normalized = normalizeAppearance(prev);
+      return {
+        ...normalized,
+        tableWood: resolveUnlockedIndex('tableWood', normalized.tableWood),
+        tableCloth: resolveUnlockedIndex('tableCloth', normalized.tableCloth),
+        tableBase: resolveUnlockedIndex('tableBase', normalized.tableBase),
+        chairColor: resolveUnlockedIndex('chairColor', normalized.chairColor),
+        tableShape: resolveUnlockedIndex('tableShape', normalized.tableShape)
+      };
+    });
+  }, [resolveUnlockedIndex]);
+
+  useEffect(() => {
+    setP1QuickIdx((idx) => {
+      if (!availableSideColors.length) return 0;
+      return Math.min(idx, availableSideColors.length - 1);
+    });
+    setP2QuickIdx((idx) => {
+      if (!availableSideColors.length) return 0;
+      return Math.min(idx, availableSideColors.length - 1);
+    });
+  }, [availableSideColors]);
 
   useEffect(() => {
     if (!onlineRef.current.enabled || !accountId) {
@@ -5438,8 +5488,13 @@ function Chess3D({
     return map;
   }, [seatAnchors]);
 
-  const activeCustomizationSection =
-    CUSTOMIZATION_SECTIONS.find(({ key }) => key === activeCustomizationKey) ?? CUSTOMIZATION_SECTIONS[0];
+  const activeCustomizationSection = useMemo(() => {
+    const base =
+      CUSTOMIZATION_SECTIONS.find(({ key }) => key === activeCustomizationKey) ??
+      CUSTOMIZATION_SECTIONS[0];
+    if (!base) return null;
+    return { ...base, options: customizationOptionsByKey[base.key] || [] };
+  }, [activeCustomizationKey, customizationOptionsByKey]);
 
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
@@ -5656,13 +5711,17 @@ function Chess3D({
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply) apply('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
-  }, [p1QuickIdx]);
+    if (apply && availableSideColors.length) {
+      apply('white', availableSideColors[p1QuickIdx % availableSideColors.length]?.hex);
+    }
+  }, [availableSideColors, p1QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applySideColorHex;
-    if (apply) apply('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
-  }, [p2QuickIdx]);
+    if (apply && availableSideColors.length) {
+      apply('black', availableSideColors[p2QuickIdx % availableSideColors.length]?.hex);
+    }
+  }, [availableSideColors, p2QuickIdx]);
 
   useEffect(() => {
     const apply = arenaRef.current?.applyPawnHeadPreset;
@@ -6657,7 +6716,10 @@ function Chess3D({
       applyMaterialsByOrder(meshB, snapA);
     };
 
-    const applySideColorHex = (sideKey = 'white', hex = QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff) => {
+    const applySideColorHex = (
+      sideKey = 'white',
+      hex = availableSideColors[0]?.hex ?? QUICK_SIDE_COLORS[0]?.hex ?? 0xffffff
+    ) => {
       const meshes = arenaRef.current?.allPieceMeshes || [];
       const target = new THREE.Color(hex);
       meshes.forEach((piece) => {
@@ -6987,8 +7049,9 @@ function Chess3D({
           applyHeadPresetToMeshes(allPieceMeshes, headPreset);
         }
       }
-      applySideColorHex('white', QUICK_SIDE_COLORS[p1QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
-      applySideColorHex('black', QUICK_SIDE_COLORS[p2QuickIdx % QUICK_SIDE_COLORS.length]?.hex);
+      const sideColors = availableSideColors.length ? availableSideColors : QUICK_SIDE_COLORS;
+      applySideColorHex('white', sideColors[p1QuickIdx % sideColors.length]?.hex);
+      applySideColorHex('black', sideColors[p2QuickIdx % sideColors.length]?.hex);
       const headTarget = QUICK_HEAD_PRESETS[headQuickIdx % QUICK_HEAD_PRESETS.length]?.id ?? 'current';
       applyPawnHeadPreset(headTarget);
       applyBoardThemePreset(boardQuickIdx);
@@ -8020,32 +8083,42 @@ function Chess3D({
                           {activeCustomizationSection.label}
                         </p>
                         <div className="space-y-1.5">
-                          {activeCustomizationSection.options.map((option, idx) => {
-                            const selected = appearance[activeCustomizationSection.key] === idx;
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                onClick={() =>
-                                  setAppearance((prev) =>
-                                    normalizeAppearance({
-                                      ...prev,
-                                      [activeCustomizationSection.key]: idx
-                                    })
-                                  )
-                                }
-                                aria-pressed={selected}
-                                className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                                  selected
-                                    ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                    : 'border-white/10 bg-white/5 hover:border-white/20'
-                                }`}
-                              >
-                                <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
-                                {renderCustomizationPreview(activeCustomizationSection.key, option)}
-                              </button>
-                            );
-                          })}
+                          {activeCustomizationSection.options.length ? (
+                            activeCustomizationSection.options.map((option) => {
+                              const optionIndex =
+                                CUSTOMIZATION_OPTION_MAP[activeCustomizationSection.key]?.findIndex(
+                                  (entry) => entry.id === option.id
+                                ) ?? 0;
+                              const selected = appearance[activeCustomizationSection.key] === optionIndex;
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() =>
+                                    setAppearance((prev) =>
+                                      normalizeAppearance({
+                                        ...prev,
+                                        [activeCustomizationSection.key]: optionIndex
+                                      })
+                                    )
+                                  }
+                                  aria-pressed={selected}
+                                  className={`flex items-center justify-between rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                    selected
+                                      ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                      : 'border-white/10 bg-white/5 hover:border-white/20'
+                                  }`}
+                                >
+                                  <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
+                                  {renderCustomizationPreview(activeCustomizationSection.key, option)}
+                                </button>
+                              );
+                            })
+                          ) : (
+                            <p className="text-[0.7rem] text-white/60">
+                              Purchase additional looks in the Store to unlock them here.
+                            </p>
+                          )}
                         </div>
                       </div>
                     )}
@@ -8057,7 +8130,7 @@ function Chess3D({
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P1</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => (
+                        {(availableSideColors.length ? availableSideColors : QUICK_SIDE_COLORS).map((color, idx) => (
                           <button
                             key={`p1-${color.id}`}
                             type="button"
@@ -8082,7 +8155,7 @@ function Chess3D({
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P2</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => (
+                        {(availableSideColors.length ? availableSideColors : QUICK_SIDE_COLORS).map((color, idx) => (
                           <button
                             key={`p2-${color.id}`}
                             type="button"
