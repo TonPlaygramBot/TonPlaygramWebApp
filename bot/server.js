@@ -1045,28 +1045,13 @@ io.on('connection', (socket) => {
   });
 
   socket.on('chessMove', ({ tableId, move }) => {
-    const playerId = socket.data?.playerId;
     if (!tableId || !move) return;
-    if (!ensureRegistered(socket, playerId)) return;
-    const table = tableMap.get(tableId);
-    if (!table || table.gameType !== 'chess') return;
-    const player = table.players.find((p) => String(p.id) === String(playerId));
-    if (!player) return;
-    const state = getChessState(tableId);
-    const isPlayersTurnWhite = player.side === 'white';
-    if (state.turnWhite !== isPlayersTurnWhite) {
-      socket.emit('errorMessage', 'not_your_turn');
-      return;
-    }
-    const nextTurnWhite = !state.turnWhite;
     const next = updateChessState(tableId, {
-      fen: move.fen || state.fen || CHESS_START_FEN,
-      turnWhite: nextTurnWhite,
+      fen: move.fen || CHESS_START_FEN,
+      turnWhite: typeof move.turnWhite === 'boolean' ? move.turnWhite : true,
       lastMove: move.lastMove || null
     });
-    const nextPlayer = table.players.find((p) => p.side === (nextTurnWhite ? 'white' : 'black'));
-    table.currentTurn = nextPlayer?.id || null;
-    io.to(tableId).emit('chessMove', { tableId, ...next });
+    socket.to(tableId).emit('chessMove', { tableId, ...next });
   });
   socket.on('watchRoom', async ({ roomId }) => {
     if (!roomId) return;
