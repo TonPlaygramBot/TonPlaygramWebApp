@@ -30,6 +30,7 @@ import {
   WOOD_PRESETS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
+import { getMurlanInventory, isMurlanOptionUnlocked, murlanAccountId } from '../../utils/murlanInventory.js';
 import {
   ComboType,
   DEFAULT_CONFIG as BASE_CONFIG,
@@ -99,13 +100,16 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
-const CUSTOMIZATION_SECTIONS = [
+const BASE_CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
   { key: 'tableBase', label: 'Table Base', options: TABLE_BASE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES }
-];
+].map((section) => ({
+  ...section,
+  options: section.options.map((option, idx) => ({ ...option, idx }))
+}));
 
 function createRegularPolygonShape(sides = 8, radius = 1) {
   const shape = new THREE.Shape();
@@ -380,6 +384,9 @@ export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
 
+  const [accountId, setAccountId] = useState(() => murlanAccountId());
+  const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory(accountId));
+
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -394,6 +401,24 @@ export default function MurlanRoyaleArena({ search }) {
   });
   const appearanceRef = useRef(appearance);
   const [configOpen, setConfigOpen] = useState(false);
+
+  useEffect(() => {
+    setAccountId(murlanAccountId());
+  }, []);
+
+  useEffect(() => {
+    setMurlanInventory(getMurlanInventory(accountId));
+  }, [accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
+        setMurlanInventory(getMurlanInventory(accountId));
+      }
+    };
+    window.addEventListener('murlanInventoryUpdate', handler);
+    return () => window.removeEventListener('murlanInventoryUpdate', handler);
+  }, [accountId]);
 
   const [gameState, setGameState] = useState(() => initializeGame(players));
   const [selectedIds, setSelectedIds] = useState([]);
@@ -689,12 +714,41 @@ export default function MurlanRoyaleArena({ search }) {
     }
   }, []);
 
+  const ensureAppearanceUnlocked = useCallback(
+    (value = DEFAULT_APPEARANCE) => {
+      const normalized = normalizeAppearance(value);
+      const optionsMap = {
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        cards: CARD_THEMES,
+        stools: STOOL_THEMES
+      };
+      const next = { ...normalized };
+      let changed = false;
+      Object.entries(optionsMap).forEach(([key, options]) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = options[idx];
+        if (!option || !isMurlanOptionUnlocked(key, option.id, murlanInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isMurlanOptionUnlocked(key, opt.id, murlanInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : normalized;
+    },
+    [murlanInventory]
+  );
+
   const updateSceneAppearance = useCallback(
     (nextAppearance, { refreshCards = false } = {}) => {
       if (!threeReady) return;
       const three = threeStateRef.current;
       if (!three.scene) return;
-      const safe = normalizeAppearance(nextAppearance);
+      const safe = ensureAppearanceUnlocked(nextAppearance);
       const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
       const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
       const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
@@ -716,7 +770,20 @@ export default function MurlanRoyaleArena({ search }) {
       ensureCardMeshes(gameStateRef.current);
       applyStateToScene(gameStateRef.current, selectedRef.current, true);
     },
-    [applyStateToScene, ensureCardMeshes, threeReady]
+    [applyStateToScene, ensureAppearanceUnlocked, ensureCardMeshes, threeReady]
+  );
+
+  useEffect(() => {
+    setAppearance((prev) => ensureAppearanceUnlocked(prev));
+  }, [ensureAppearanceUnlocked]);
+
+  const customizationSections = useMemo(
+    () =>
+      BASE_CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options.filter((option) => isMurlanOptionUnlocked(section.key, option.id, murlanInventory))
+      })).filter((section) => section.options.length > 0),
+    [murlanInventory]
   );
 
   const renderPreview = useCallback((type, option) => {
@@ -997,7 +1064,7 @@ export default function MurlanRoyaleArena({ search }) {
       arenaGroup = new THREE.Group();
       scene.add(arenaGroup);
 
-      const currentAppearance = normalizeAppearance(appearanceRef.current);
+      const currentAppearance = ensureAppearanceUnlocked(appearanceRef.current);
       const woodOption =
         TABLE_WOOD_OPTIONS[currentAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
       const clothOption =
@@ -1486,7 +1553,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [applyStateToScene, ensureCardMeshes, players, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [applyStateToScene, ensureAppearanceUnlocked, ensureCardMeshes, players, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -1664,17 +1731,17 @@ export default function MurlanRoyaleArena({ search }) {
                   </button>
                 </div>
                 <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                  {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                  {customizationSections.map(({ key, label, options }) => (
                     <div key={key} className="space-y-2">
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {options.map((option, idx) => {
-                          const selected = appearance[key] === idx;
+                        {options.map((option) => {
+                          const selected = appearance[key] === option.idx;
                           return (
                             <button
                               key={option.id}
                               type="button"
-                              onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                              onClick={() => setAppearance((prev) => ({ ...prev, [key]: option.idx }))}
                               aria-pressed={selected}
                               className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                 selected
