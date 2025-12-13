@@ -25,6 +25,18 @@ import {
   listOwnedChessOptions,
   chessBattleAccountId
 } from '../utils/chessBattleInventory.js';
+import {
+  MURLAN_DEFAULT_LOADOUT,
+  MURLAN_OPTION_LABELS,
+  MURLAN_STORE_ITEMS
+} from '../config/murlanRoyaleInventoryConfig.js';
+import {
+  addMurlanUnlock,
+  getMurlanInventory,
+  isMurlanOptionUnlocked,
+  listOwnedMurlanOptions,
+  murlanAccountId
+} from '../utils/murlanInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { catalogWithSlugs } from '../config/gamesCatalog.js';
@@ -48,10 +60,20 @@ const CHESS_TYPE_LABELS = {
   headStyle: 'Pawn Heads'
 };
 
+const MURLAN_TYPE_LABELS = {
+  tableWood: 'Table Wood',
+  tableCloth: 'Table Cloth',
+  tableBase: 'Table Base',
+  cards: 'Card Themes',
+  stools: 'Stools',
+  outfit: 'Outfit'
+};
+
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal'];
+const MURLAN_STORE_ACCOUNT_ID = import.meta.env.VITE_MURLAN_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
+const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal', 'murlanroyale'];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
@@ -62,6 +84,7 @@ export default function Store() {
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
+  const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
   const [info, setInfo] = useState('');
   const [marketInfo, setMarketInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -93,6 +116,7 @@ export default function Store() {
   useEffect(() => {
     setPoolOwned(getPoolRoyalInventory(accountId));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
+    setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
   }, [accountId]);
 
   useEffect(() => {
@@ -128,6 +152,16 @@ export default function Store() {
     };
     window.addEventListener('chessBattleInventoryUpdate', handler);
     return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
+  }, [accountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
+        setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
+      }
+    };
+    window.addEventListener('murlanInventoryUpdate', handler);
+    return () => window.removeEventListener('murlanInventoryUpdate', handler);
   }, [accountId]);
 
   useEffect(() => {
@@ -178,10 +212,32 @@ export default function Store() {
     [chessOwned]
   );
 
+  const murlanGroupedItems = useMemo(() => {
+    const items = MURLAN_STORE_ITEMS.map((item) => ({
+      ...item,
+      owned: isMurlanOptionUnlocked(item.type, item.optionId, murlanOwned)
+    }));
+    return items.reduce((acc, item) => {
+      acc[item.type] = acc[item.type] || [];
+      acc[item.type].push(item);
+      return acc;
+    }, {});
+  }, [murlanOwned]);
+
+  const murlanDefaultLoadout = useMemo(
+    () =>
+      MURLAN_DEFAULT_LOADOUT.map((entry) => ({
+        ...entry,
+        owned: isMurlanOptionUnlocked(entry.type, entry.optionId, murlanOwned)
+      })),
+    [murlanOwned]
+  );
+
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
+      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
+      murlanroyale: MURLAN_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
     }),
     []
   );
@@ -200,15 +256,17 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
-      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned)
+      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
+      murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned)
     }),
-    [poolOwned, chessOwned]
+    [chessOwned, murlanOwned, poolOwned]
   );
 
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
+      murlanroyale: (item) => MURLAN_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -331,6 +389,50 @@ export default function Store() {
     }
   };
 
+  const handleMurlanPurchase = async (item) => {
+    if (item.owned || processing === item.id) return;
+    if (!accountId || accountId === 'guest') {
+      setInfo('Link your TPC account in the wallet first.');
+      return;
+    }
+    if (!MURLAN_STORE_ACCOUNT_ID) {
+      setInfo('Store account unavailable. Please try again later.');
+      return;
+    }
+
+    const labels = MURLAN_OPTION_LABELS[item.type] || {};
+    const ownedLabel = labels[item.optionId] || item.name;
+
+    if (tpcBalance !== null && item.price > tpcBalance) {
+      setInfo('Insufficient TPC balance for this purchase.');
+      return;
+    }
+
+    setProcessing(item.id);
+    setInfo('');
+    try {
+      const res = await sendAccountTpc(accountId, MURLAN_STORE_ACCOUNT_ID, item.price, `Murlan Royale: ${ownedLabel}`);
+      if (res?.error) {
+        setInfo(res.error || 'Purchase failed.');
+        return;
+      }
+
+      const updatedInventory = addMurlanUnlock(item.type, item.optionId, accountId);
+      setMurlanOwned(updatedInventory);
+      setInfo(`${ownedLabel} purchased and added to your Murlan Royale account.`);
+
+      const bal = await getAccountBalance(accountId);
+      if (typeof bal?.balance === 'number') {
+        setTpcBalance(bal.balance);
+      }
+    } catch (err) {
+      console.error('Purchase failed', err);
+      setInfo('Failed to process purchase.');
+    } finally {
+      setProcessing('');
+    }
+  };
+
   const handleCreateListing = () => {
     const item = tradableOwnedItems.find((entry) => entry.key === selectedItemKey);
     if (!item) {
@@ -392,13 +494,15 @@ export default function Store() {
 
   const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
   const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
+  const murlanOwnedOptions = useMemo(() => listOwnedMurlanOptions(accountId), [accountId]);
 
   const ownedItemLookup = useMemo(
     () => ({
       poolroyale: poolOwnedOptions,
-      chessbattleroyal: chessOwnedOptions
+      chessbattleroyal: chessOwnedOptions,
+      murlanroyale: murlanOwnedOptions
     }),
-    [poolOwnedOptions, chessOwnedOptions]
+    [chessOwnedOptions, murlanOwnedOptions, poolOwnedOptions]
   );
 
   const hasStorefront = SUPPORTED_STORE_SLUGS.includes(activeSlug);
@@ -569,6 +673,76 @@ export default function Store() {
                         <button
                           type="button"
                           onClick={() => handleChessPurchase(item)}
+                          disabled={item.owned || processing === item.id}
+                          className={`buy-button mt-2 text-center ${
+                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
+                          }`}
+                        >
+                          {item.owned
+                            ? `${ownedLabel} Owned`
+                            : processing === item.id
+                            ? 'Purchasing...'
+                            : `Purchase ${ownedLabel}`}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {activeSlug === 'murlanroyale' && (
+        <>
+          <div className="store-card max-w-2xl">
+            <h3 className="text-lg font-semibold">Murlan Royale Defaults (Free)</h3>
+            <p className="text-sm text-subtext">
+              First-look cosmetics stay free and selectable inside the table setup menu. Purchase additional presets to unlock
+              them in-game.
+            </p>
+            <ul className="mt-2 space-y-1 w-full">
+              {murlanDefaultLoadout.map((item) => (
+                <li
+                  key={`murlan-${item.type}-${item.optionId}`}
+                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
+                >
+                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xs uppercase text-subtext">{MURLAN_TYPE_LABELS[item.type] || item.type}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full space-y-3">
+            <h3 className="text-lg font-semibold text-center">Murlan Royale Collection</h3>
+            {Object.entries(murlanGroupedItems).map(([type, items]) => (
+              <div key={type} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-semibold">{MURLAN_TYPE_LABELS[type] || type}</h4>
+                  <span className="text-xs text-subtext">NFT unlocks</span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {items.map((item) => {
+                    const labels = MURLAN_OPTION_LABELS[item.type] || {};
+                    const ownedLabel = labels[item.optionId] || item.name;
+                    return (
+                      <div key={item.id} className="store-card">
+                        <div className="flex w-full items-start justify-between gap-2">
+                          <div>
+                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
+                            <p className="text-xs text-subtext">{item.description}</p>
+                            <p className="text-xs text-subtext mt-1">Applies to: {MURLAN_TYPE_LABELS[item.type] || item.type}</p>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm font-semibold">
+                            {item.price}
+                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleMurlanPurchase(item)}
                           disabled={item.owned || processing === item.id}
                           className={`buy-button mt-2 text-center ${
                             item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
