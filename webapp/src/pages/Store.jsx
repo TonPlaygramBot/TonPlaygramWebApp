@@ -19,24 +19,12 @@ import {
   CHESS_BATTLE_STORE_ITEMS
 } from '../config/chessBattleInventoryConfig.js';
 import {
-  DOMINO_DEFAULT_LOADOUT,
-  DOMINO_OPTION_LABELS,
-  DOMINO_STORE_ITEMS
-} from '../config/dominoInventoryConfig.js';
-import {
   addChessBattleUnlock,
   getChessBattleInventory,
   isChessOptionUnlocked,
   listOwnedChessOptions,
   chessBattleAccountId
 } from '../utils/chessBattleInventory.js';
-import {
-  addDominoUnlock,
-  dominoAccountId,
-  getDominoInventory,
-  isDominoOptionUnlocked,
-  listOwnedDominoOptions
-} from '../utils/dominoInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
 import { DEV_INFO } from '../utils/constants.js';
 import { catalogWithSlugs } from '../config/gamesCatalog.js';
@@ -60,20 +48,10 @@ const CHESS_TYPE_LABELS = {
   headStyle: 'Pawn Heads'
 };
 
-const DOMINO_TYPE_LABELS = {
-  tableWood: 'Table Wood',
-  tableCloth: 'Table Cloth',
-  tableBase: 'Table Base',
-  dominoStyle: 'Domino Styles',
-  highlightStyle: 'Highlights',
-  chairTheme: 'Chairs'
-};
-
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const POOL_STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
 const CHESS_STORE_ACCOUNT_ID = import.meta.env.VITE_CHESS_BATTLE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const DOMINO_STORE_ACCOUNT_ID = import.meta.env.VITE_DOMINO_ROYAL_STORE_ACCOUNT_ID || DEV_INFO.account;
-const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal', 'domino-royal'];
+const SUPPORTED_STORE_SLUGS = ['poolroyale', 'chessbattleroyal'];
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
@@ -84,7 +62,6 @@ export default function Store() {
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
   const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
-  const [dominoOwned, setDominoOwned] = useState(() => getDominoInventory(dominoAccountId(accountId)));
   const [info, setInfo] = useState('');
   const [marketInfo, setMarketInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
@@ -116,7 +93,6 @@ export default function Store() {
   useEffect(() => {
     setPoolOwned(getPoolRoyalInventory(accountId));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
-    setDominoOwned(getDominoInventory(dominoAccountId(accountId)));
   }, [accountId]);
 
   useEffect(() => {
@@ -155,16 +131,6 @@ export default function Store() {
   }, [accountId]);
 
   useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === accountId) {
-        setDominoOwned(getDominoInventory(dominoAccountId(accountId)));
-      }
-    };
-    window.addEventListener('dominoInventoryUpdate', handler);
-    return () => window.removeEventListener('dominoInventoryUpdate', handler);
-  }, [accountId]);
-
-  useEffect(() => {
     setSelectedItemKey('');
     setListingPrice('');
     setMarketInfo('');
@@ -191,27 +157,6 @@ export default function Store() {
     [poolOwned]
   );
 
-  const dominoGroupedItems = useMemo(() => {
-    const items = DOMINO_STORE_ITEMS.map((item) => ({
-      ...item,
-      owned: isDominoOptionUnlocked(item.type, item.optionId, dominoOwned)
-    }));
-    return items.reduce((acc, item) => {
-      acc[item.type] = acc[item.type] || [];
-      acc[item.type].push(item);
-      return acc;
-    }, {});
-  }, [dominoOwned]);
-
-  const dominoDefaultLoadout = useMemo(
-    () =>
-      DOMINO_DEFAULT_LOADOUT.map((entry) => ({
-        ...entry,
-        owned: isDominoOptionUnlocked(entry.type, entry.optionId, dominoOwned)
-      })),
-    [dominoOwned]
-  );
-
   const chessGroupedItems = useMemo(() => {
     const items = CHESS_BATTLE_STORE_ITEMS.map((item) => ({
       ...item,
@@ -236,8 +181,7 @@ export default function Store() {
   const storeItemsBySlug = useMemo(
     () => ({
       poolroyale: POOL_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) })),
-      'domino-royal': DOMINO_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
+      chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId) }))
     }),
     []
   );
@@ -256,17 +200,15 @@ export default function Store() {
   const ownedCheckers = useMemo(
     () => ({
       poolroyale: (type, optionId) => isPoolOptionUnlocked(type, optionId, poolOwned),
-      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
-      'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned)
+      chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned)
     }),
-    [poolOwned, chessOwned, dominoOwned]
+    [poolOwned, chessOwned]
   );
 
   const labelResolvers = useMemo(
     () => ({
       poolroyale: (item) => POOL_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      'domino-royal': (item) => DOMINO_OPTION_LABELS[item.type]?.[item.optionId] || item.name
+      chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name
     }),
     []
   );
@@ -389,50 +331,6 @@ export default function Store() {
     }
   };
 
-  const handleDominoPurchase = async (item) => {
-    if (item.owned || processing === item.id) return;
-    if (!accountId || accountId === 'guest') {
-      setInfo('Link your TPC account in the wallet first.');
-      return;
-    }
-    if (!DOMINO_STORE_ACCOUNT_ID) {
-      setInfo('Store account unavailable. Please try again later.');
-      return;
-    }
-
-    const labels = DOMINO_OPTION_LABELS[item.type] || {};
-    const ownedLabel = labels[item.optionId] || item.name;
-
-    if (tpcBalance !== null && item.price > tpcBalance) {
-      setInfo('Insufficient TPC balance for this purchase.');
-      return;
-    }
-
-    setProcessing(item.id);
-    setInfo('');
-    try {
-      const res = await sendAccountTpc(accountId, DOMINO_STORE_ACCOUNT_ID, item.price, `Domino Royal 3D: ${ownedLabel}`);
-      if (res?.error) {
-        setInfo(res.error || 'Purchase failed.');
-        return;
-      }
-
-      const updatedInventory = addDominoUnlock(item.type, item.optionId, accountId);
-      setDominoOwned(updatedInventory);
-      setInfo(`${ownedLabel} purchased and added to your Domino Royal account.`);
-
-      const bal = await getAccountBalance(accountId);
-      if (typeof bal?.balance === 'number') {
-        setTpcBalance(bal.balance);
-      }
-    } catch (err) {
-      console.error('Purchase failed', err);
-      setInfo('Failed to process purchase.');
-    } finally {
-      setProcessing('');
-    }
-  };
-
   const handleCreateListing = () => {
     const item = tradableOwnedItems.find((entry) => entry.key === selectedItemKey);
     if (!item) {
@@ -494,15 +392,13 @@ export default function Store() {
 
   const poolOwnedOptions = useMemo(() => listOwnedPoolRoyalOptions(accountId), [accountId]);
   const chessOwnedOptions = useMemo(() => listOwnedChessOptions(accountId), [accountId]);
-  const dominoOwnedOptions = useMemo(() => listOwnedDominoOptions(accountId), [accountId]);
 
   const ownedItemLookup = useMemo(
     () => ({
       poolroyale: poolOwnedOptions,
-      chessbattleroyal: chessOwnedOptions,
-      'domino-royal': dominoOwnedOptions
+      chessbattleroyal: chessOwnedOptions
     }),
-    [chessOwnedOptions, dominoOwnedOptions, poolOwnedOptions]
+    [poolOwnedOptions, chessOwnedOptions]
   );
 
   const hasStorefront = SUPPORTED_STORE_SLUGS.includes(activeSlug);
@@ -673,76 +569,6 @@ export default function Store() {
                         <button
                           type="button"
                           onClick={() => handleChessPurchase(item)}
-                          disabled={item.owned || processing === item.id}
-                          className={`buy-button mt-2 text-center ${
-                            item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
-                          }`}
-                        >
-                          {item.owned
-                            ? `${ownedLabel} Owned`
-                            : processing === item.id
-                            ? 'Purchasing...'
-                            : `Purchase ${ownedLabel}`}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {activeSlug === 'domino-royal' && (
-        <>
-          <div className="store-card max-w-2xl">
-            <h3 className="text-lg font-semibold">Domino Royal Defaults (Free)</h3>
-            <p className="text-sm text-subtext">
-              First-look options stay unlocked; purchase the premium finishes below to surface them inside the table setup
-              menu.
-            </p>
-            <ul className="mt-2 space-y-1 w-full">
-              {dominoDefaultLoadout.map((item) => (
-                <li
-                  key={`domino-${item.type}-${item.optionId}`}
-                  className="flex items-center justify-between rounded-lg border border-border px-3 py-2 w-full"
-                >
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs uppercase text-subtext">{DOMINO_TYPE_LABELS[item.type] || item.type}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="w-full space-y-3">
-            <h3 className="text-lg font-semibold text-center">Domino Royal Collection</h3>
-            {Object.entries(dominoGroupedItems).map(([type, items]) => (
-              <div key={type} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-base font-semibold">{DOMINO_TYPE_LABELS[type] || type}</h4>
-                  <span className="text-xs text-subtext">NFT unlocks</span>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  {items.map((item) => {
-                    const labels = DOMINO_OPTION_LABELS[item.type] || {};
-                    const ownedLabel = labels[item.optionId] || item.name;
-                    return (
-                      <div key={item.id} className="store-card">
-                        <div className="flex w-full items-start justify-between gap-2">
-                          <div>
-                            <p className="font-semibold text-lg leading-tight">{item.name}</p>
-                            <p className="text-xs text-subtext">{item.description}</p>
-                            <p className="text-xs text-subtext mt-1">Applies to: {DOMINO_TYPE_LABELS[item.type] || item.type}</p>
-                          </div>
-                          <div className="flex items-center gap-1 text-sm font-semibold">
-                            {item.price}
-                            <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDominoPurchase(item)}
                           disabled={item.owned || processing === item.id}
                           className={`buy-button mt-2 text-center ${
                             item.owned || processing === item.id ? 'cursor-not-allowed opacity-60' : ''
