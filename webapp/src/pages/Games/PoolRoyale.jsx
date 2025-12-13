@@ -10436,7 +10436,7 @@ function PoolRoyaleGame({
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 8.8,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 9.2,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
