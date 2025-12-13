@@ -5228,6 +5228,7 @@ function Chess3D({
       if (payload.tableId && tableJoin.current && payload.tableId !== tableJoin.current)
         return;
       onlineRef.current.synced = true;
+      if (onlineRef.current.status !== 'started') onlineRef.current.status = 'in-progress';
       setOnlineStatus('in-game');
       onlineRef.current.applyRemoteMove?.(payload);
     };
@@ -7243,6 +7244,32 @@ function Chess3D({
     }
     clearHighlightsRef.current = clearHighlights;
 
+    const isPlayerPiece = (piece) => {
+      if (!piece) return false;
+      if (onlineRef.current.enabled) {
+        const playerSide = onlineRef.current.side;
+        if (!playerSide) return false;
+        return playerSide === 'white' ? piece.w : !piece.w;
+      }
+      // Offline games only allow the human to control white; AI plays black
+      return piece.w;
+    };
+
+    const canInteractWithPiece = (piece) => {
+      if (!isPlayerPiece(piece)) return false;
+      if (!uiRef.current.turnWhite && piece.w) return false;
+      if (uiRef.current.turnWhite && !piece.w) return false;
+      if (onlineRef.current.enabled) {
+        if (!onlineRef.current.synced) return false;
+        if (
+          onlineRef.current.status !== 'started' &&
+          onlineRef.current.status !== 'in-progress'
+        )
+          return false;
+      }
+      return true;
+    };
+
     function selectAt(r, c, options = {}) {
       const { force = false, selectionColor } = options;
       if (isReplayingRef.current) return;
@@ -7251,7 +7278,7 @@ function Chess3D({
         resetSelectedMeshElevation();
         return ((sel = null), clearHighlights());
       }
-      if (!force && p.w !== uiRef.current.turnWhite) return; // not your turn
+      if (!force && !canInteractWithPiece(p)) return;
 
       resetSelectedMeshElevation();
       sel = { r, c, p };
@@ -7277,7 +7304,15 @@ function Chess3D({
       if (!legal.some(([r, c]) => r === rr && c === cc)) return;
       if (onlineRef.current.enabled) {
         const myTurnIsWhite = onlineRef.current.side === 'white';
+        if (!onlineRef.current.synced) return;
+        if (
+          onlineRef.current.status !== 'started' &&
+          onlineRef.current.status !== 'in-progress'
+        )
+          return;
         if (uiRef.current.turnWhite !== myTurnIsWhite) return;
+      } else if (!isPlayerPiece(sel.p)) {
+        return;
       }
       // capture mesh if any
       const targetMesh = pieceMeshes[rr][cc];
