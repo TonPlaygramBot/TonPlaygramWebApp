@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { TonConnectUIProvider } from '@tonconnect/ui-react';
 
@@ -30,14 +30,15 @@ import AirHockey from './pages/Games/AirHockey.jsx';
 import AirHockeyLobby from './pages/Games/AirHockeyLobby.jsx';
 import MurlanRoyale from './pages/Games/MurlanRoyale.jsx';
 import MurlanRoyaleLobby from './pages/Games/MurlanRoyaleLobby.jsx';
-import ChessBattleRoyal from './pages/Games/ChessBattleRoyal.jsx';
-import ChessBattleRoyalLobby from './pages/Games/ChessBattleRoyalLobby.jsx';
 import LudoBattleRoyal from './pages/Games/LudoBattleRoyal.jsx';
 import LudoBattleRoyalLobby from './pages/Games/LudoBattleRoyalLobby.jsx';
 import TexasHoldem from './pages/Games/TexasHoldem.jsx';
 import TexasHoldemLobby from './pages/Games/TexasHoldemLobby.jsx';
 import DominoRoyal from './pages/Games/DominoRoyal.jsx';
 import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
+
+const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal.jsx'));
+const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
 import BlackJack from './pages/Games/BlackJack.jsx';
 import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
@@ -83,11 +84,19 @@ export default function App() {
             <Route path="/games/airhockey" element={<AirHockey />} />
             <Route
               path="/games/chessbattleroyal/lobby"
-              element={<ChessBattleRoyalLobby />}
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Chess Lobby…</div>}>
+                  <ChessBattleRoyalLobby />
+                </Suspense>
+              )}
             />
             <Route
               path="/games/chessbattleroyal"
-              element={<ChessBattleRoyal />}
+              element={(
+                <Suspense fallback={<div className="p-4 text-center">Loading Chess Battle Royal…</div>}>
+                  <ChessBattleRoyal />
+                </Suspense>
+              )}
             />
             <Route
               path="/games/ludobattleroyal/lobby"
