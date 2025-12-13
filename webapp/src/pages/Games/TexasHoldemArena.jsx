@@ -14,6 +14,8 @@ import {
   setCardFace,
   CARD_THEMES
 } from '../../utils/cards3d.js';
+import { TEXAS_CHAIR_COLOR_OPTIONS } from '../../config/texasHoldemOptions.js';
+import { getTexasHoldemInventory, isTexasOptionUnlocked, texasHoldemAccountId } from '../../utils/texasHoldemInventory.js';
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { AVATARS } from '../../components/AvatarPickerModal.jsx';
@@ -139,15 +141,6 @@ const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
-
-const CHAIR_COLOR_OPTIONS = Object.freeze([
-  { id: 'ruby', label: 'Ruby', primary: '#8b0000', accent: '#8b0000', highlight: '#b22222', legColor: '#1f1f1f' },
-  { id: 'slate', label: 'Slate', primary: '#374151', accent: '#374151', highlight: '#6b7280', legColor: '#0f172a' },
-  { id: 'teal', label: 'Teal', primary: '#0f766e', accent: '#0f766e', highlight: '#38b2ac', legColor: '#082f2a' },
-  { id: 'amber', label: 'Amber', primary: '#b45309', accent: '#b45309', highlight: '#f59e0b', legColor: '#2f2410' },
-  { id: 'violet', label: 'Violet', primary: '#7c3aed', accent: '#7c3aed', highlight: '#c084fc', legColor: '#2b1059' },
-  { id: 'frost', label: 'Ice', primary: '#1f2937', accent: '#1f2937', highlight: '#9ca3af', legColor: '#0f172a' }
-]);
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -285,6 +278,7 @@ function setCardHighlight(mesh, highlighted) {
 const APPEARANCE_STORAGE_KEY = 'texasHoldemArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
+  tableCloth: 0,
   chairColor: 0,
   tableShape: 0
 };
@@ -292,7 +286,7 @@ const DEFAULT_APPEARANCE = {
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
-  { key: 'chairColor', label: 'Chair Color', options: CHAIR_COLOR_OPTIONS },
+  { key: 'chairColor', label: 'Chair Color', options: TEXAS_CHAIR_COLOR_OPTIONS },
   { key: 'tableShape', label: 'Table Shape', options: TABLE_SHAPE_OPTIONS },
   { key: 'cards', label: 'Cards', options: CARD_THEMES }
 ];
@@ -451,7 +445,7 @@ function normalizeAppearance(value = {}) {
     ['tableWood', TABLE_WOOD_OPTIONS.length],
     ['tableCloth', TABLE_CLOTH_OPTIONS.length],
     ['tableBase', TABLE_BASE_OPTIONS.length],
-    ['chairColor', CHAIR_COLOR_OPTIONS.length],
+    ['chairColor', TEXAS_CHAIR_COLOR_OPTIONS.length],
     ['tableShape', TABLE_SHAPE_OPTIONS.length],
     ['cards', CARD_THEMES.length]
   ];
@@ -1782,6 +1776,12 @@ function TexasHoldemArena({ search }) {
   const hoverTargetRef = useRef(null);
   const searchOptions = useMemo(() => parseSearch(search), [search]);
   const effectivePlayerCount = clampPlayerCount(searchOptions.playerCount);
+  const resolvedAccountId = useMemo(() => texasHoldemAccountId(), []);
+  const [inventoryVersion, setInventoryVersion] = useState(0);
+  const texasInventory = useMemo(
+    () => getTexasHoldemInventory(resolvedAccountId),
+    [resolvedAccountId, inventoryVersion]
+  );
   const [gameState, setGameState] = useState(() => {
     const players = buildPlayers(searchOptions);
     const baseState = buildInitialState(players, searchOptions.token, searchOptions.stake);
@@ -1813,6 +1813,35 @@ function TexasHoldemArena({ search }) {
   });
   const [turnCountdown, setTurnCountdown] = useState(TURN_DURATION);
   const appearanceRef = useRef(appearance);
+  const ensureAppearanceUnlocked = useCallback(
+    (value = DEFAULT_APPEARANCE) => {
+      const normalized = normalizeAppearance(value);
+      const map = {
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        chairColor: TEXAS_CHAIR_COLOR_OPTIONS,
+        tableShape: TABLE_SHAPE_OPTIONS,
+        cards: CARD_THEMES
+      };
+      let changed = false;
+      const next = { ...normalized };
+      Object.entries(map).forEach(([key, options]) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = options[idx];
+        if (!option || !isTexasOptionUnlocked(key, option.id, texasInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isTexasOptionUnlocked(key, opt.id, texasInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : normalized;
+    },
+    [texasInventory]
+  );
   useEffect(() => {
     if (effectivePlayerCount > 4) {
       const currentShape = TABLE_SHAPE_OPTIONS[appearance.tableShape];
@@ -1827,6 +1856,19 @@ function TexasHoldemArena({ search }) {
       }
     }
   }, [effectivePlayerCount, appearance.tableShape]);
+  useEffect(() => {
+    setAppearance((prev) => ensureAppearanceUnlocked(prev));
+  }, [ensureAppearanceUnlocked]);
+  const customizationSections = useMemo(
+    () =>
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isTexasOptionUnlocked(section.key, id, texasInventory))
+      })).filter((section) => section.options.length > 0),
+    [texasInventory]
+  );
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
   const turnIntervalRef = useRef(null);
@@ -1844,6 +1886,16 @@ function TexasHoldemArena({ search }) {
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setInventoryVersion((value) => value + 1);
+      }
+    };
+    window.addEventListener('texasHoldemInventoryUpdate', handler);
+    return () => window.removeEventListener('texasHoldemInventoryUpdate', handler);
+  }, [resolvedAccountId]);
 
   useEffect(() => {
     const activeIndex = cameraAutoTargetRef.current?.activeIndex;
@@ -2012,7 +2064,7 @@ function TexasHoldemArena({ search }) {
     const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const chairOption = CHAIR_COLOR_OPTIONS[safe.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const chairOption = TEXAS_CHAIR_COLOR_OPTIONS[safe.chairColor] ?? TEXAS_CHAIR_COLOR_OPTIONS[0];
     const { option: shapeOption, rotationY } = getEffectiveShapeConfig(
       safe.tableShape,
       effectivePlayerCount
@@ -2302,7 +2354,7 @@ function TexasHoldemArena({ search }) {
     const initialWood = TABLE_WOOD_OPTIONS[initialAppearance.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const initialCloth = TABLE_CLOTH_OPTIONS[initialAppearance.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
     const initialBase = TABLE_BASE_OPTIONS[initialAppearance.tableBase] ?? TABLE_BASE_OPTIONS[0];
-    const initialChair = CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? CHAIR_COLOR_OPTIONS[0];
+    const initialChair = TEXAS_CHAIR_COLOR_OPTIONS[initialAppearance.chairColor] ?? TEXAS_CHAIR_COLOR_OPTIONS[0];
     const { option: initialShape, rotationY: initialRotation } = getEffectiveShapeConfig(
       initialAppearance.tableShape,
       effectivePlayerCount
@@ -3794,12 +3846,12 @@ function TexasHoldemArena({ search }) {
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+              {customizationSections.map(({ key, label, options }) => (
                 <div key={key} className="space-y-2">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {options.map((option, idx) => {
-                      const selected = appearance[key] === idx;
+                    {options.map((option) => {
+                      const selected = appearance[key] === option.idx;
                       const disabled =
                         key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
                       return (
@@ -3808,7 +3860,7 @@ function TexasHoldemArena({ search }) {
                           type="button"
                           onClick={() => {
                             if (disabled) return;
-                            setAppearance((prev) => ({ ...prev, [key]: idx }));
+                            setAppearance((prev) => ({ ...prev, [key]: option.idx }));
                           }}
                           aria-pressed={selected}
                           disabled={disabled}
