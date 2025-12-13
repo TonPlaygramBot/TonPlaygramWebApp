@@ -36,6 +36,12 @@ import {
   disposeMaterialWithWood,
 } from '../../utils/woodMaterials.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import {
+  DEFAULT_POOL_ROYALE_OWNERSHIP,
+  POOL_ROYALE_OWNERSHIP_STORAGE_KEY,
+  filterOwnedOptions,
+  loadPoolRoyaleOwnership
+} from '../../utils/poolRoyaleEntitlements.js';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -743,6 +749,7 @@ const WORLD_SCALE = 0.85 * GLOBAL_SIZE_FACTOR * 0.7 * TABLE_DISPLAY_SCALE;
 const TOUCH_UI_SCALE = SIZE_REDUCTION;
 const POINTER_UI_SCALE = 1;
 const CUE_STYLE_STORAGE_KEY = 'tonplayCueStyleIndex';
+const DEFAULT_CUE_STYLE_INDEX = 1;
 const TABLE_FINISH_STORAGE_KEY = 'poolRoyaleTableFinish';
 const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
@@ -1700,7 +1707,7 @@ const DEFAULT_WOOD_PRESET_ID = 'walnut';
 // rails as a plain material without any texture maps.
 const WOOD_TEXTURES_ENABLED = false;
 
-const DEFAULT_TABLE_FINISH_ID = 'rusticSplit';
+const DEFAULT_TABLE_FINISH_ID = 'charredTimber';
 
 const POOL_ROYALE_WOOD_PRESET_FOR_FINISH = Object.freeze({
   rusticSplit: 'walnut',
@@ -2072,7 +2079,7 @@ const TABLE_FINISH_OPTIONS = Object.freeze(
   ].filter(Boolean)
 );
 
-const DEFAULT_CHROME_COLOR_ID = 'chrome';
+const DEFAULT_CHROME_COLOR_ID = 'gold';
 const CHROME_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
@@ -2191,7 +2198,7 @@ const RAIL_MARKER_SHAPE_OPTIONS = Object.freeze([
 ]);
 const RAIL_MARKER_THICKNESS = TABLE.THICK * 0.06;
 
-const DEFAULT_RAIL_MARKER_COLOR_ID = 'chrome';
+const DEFAULT_RAIL_MARKER_COLOR_ID = 'gold';
 const RAIL_MARKER_COLOR_OPTIONS = Object.freeze([
   {
     id: 'chrome',
@@ -8132,6 +8139,20 @@ function PoolRoyaleGame({
     [tableSizeKey]
   );
   const responsiveTableSize = useResponsiveTableSize(activeTableSize);
+  const [poolRoyaleOwnership, setPoolRoyaleOwnership] = useState(() =>
+    loadPoolRoyaleOwnership()
+  );
+  useEffect(() => {
+    setPoolRoyaleOwnership(loadPoolRoyaleOwnership());
+    if (typeof window === 'undefined') return undefined;
+    const handleStorage = (event) => {
+      if (event.key === POOL_ROYALE_OWNERSHIP_STORAGE_KEY) {
+        setPoolRoyaleOwnership(loadPoolRoyaleOwnership());
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
   const [tableFinishId, setTableFinishId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(TABLE_FINISH_STORAGE_KEY);
@@ -8187,6 +8208,52 @@ function PoolRoyaleGame({
     }
     return DEFAULT_CHROME_COLOR_ID;
   });
+  const availableTableFinishes = useMemo(
+    () => filterOwnedOptions(TABLE_FINISH_OPTIONS, 'tableFinish', poolRoyaleOwnership),
+    [poolRoyaleOwnership]
+  );
+  const availableChromeOptions = useMemo(
+    () => filterOwnedOptions(CHROME_COLOR_OPTIONS, 'chromeColor', poolRoyaleOwnership),
+    [poolRoyaleOwnership]
+  );
+  const availableClothOptions = useMemo(
+    () => filterOwnedOptions(CLOTH_COLOR_OPTIONS, 'clothColor', poolRoyaleOwnership),
+    [poolRoyaleOwnership]
+  );
+  const availableRailMarkerColors = useMemo(
+    () =>
+      filterOwnedOptions(
+        RAIL_MARKER_COLOR_OPTIONS,
+        'railMarkerColor',
+        poolRoyaleOwnership
+      ),
+    [poolRoyaleOwnership]
+  );
+  const availableRailMarkerShapes = useMemo(
+    () =>
+      filterOwnedOptions(
+        RAIL_MARKER_SHAPE_OPTIONS,
+        'railMarkerShape',
+        poolRoyaleOwnership
+      ),
+    [poolRoyaleOwnership]
+  );
+  const availableCueStyleIndices = useMemo(() => {
+    const ownedIds = new Set(
+      poolRoyaleOwnership?.cueStyle ?? DEFAULT_POOL_ROYALE_OWNERSHIP.cueStyle
+    );
+    return CUE_STYLE_PRESETS.map((preset, index) =>
+      ownedIds.has(preset.id) ? index : null
+    ).filter((index) => index != null);
+  }, [poolRoyaleOwnership]);
+  const availableCueStyles = useMemo(
+    () =>
+      availableCueStyleIndices.map((presetIndex) => ({
+        ...CUE_STYLE_PRESETS[presetIndex],
+        presetIndex
+      })),
+    [availableCueStyleIndices]
+  );
   const [frameRateId, setFrameRateId] = useState(() => {
     if (typeof window !== 'undefined') {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
@@ -8200,6 +8267,46 @@ function PoolRoyaleGame({
     }
     return DEFAULT_FRAME_RATE_ID;
   });
+  useEffect(() => {
+    if (!availableTableFinishes.some((option) => option.id === tableFinishId)) {
+      const fallback = availableTableFinishes[0]?.id ?? DEFAULT_TABLE_FINISH_ID;
+      setTableFinishId(fallback);
+    }
+  }, [availableTableFinishes, tableFinishId]);
+  useEffect(() => {
+    if (!availableChromeOptions.some((option) => option.id === chromeColorId)) {
+      const fallback = availableChromeOptions[0]?.id ?? DEFAULT_CHROME_COLOR_ID;
+      setChromeColorId(fallback);
+    }
+  }, [availableChromeOptions, chromeColorId]);
+  useEffect(() => {
+    if (!availableClothOptions.some((option) => option.id === clothColorId)) {
+      const fallback = availableClothOptions[0]?.id ?? DEFAULT_CLOTH_COLOR_ID;
+      setClothColorId(fallback);
+    }
+  }, [availableClothOptions, clothColorId]);
+  useEffect(() => {
+    if (!availableRailMarkerColors.some((option) => option.id === railMarkerColorId)) {
+      const fallback = availableRailMarkerColors[0]?.id ?? DEFAULT_RAIL_MARKER_COLOR_ID;
+      setRailMarkerColorId(fallback);
+    }
+  }, [availableRailMarkerColors, railMarkerColorId]);
+  useEffect(() => {
+    if (!availableRailMarkerShapes.some((option) => option.id === railMarkerShapeId)) {
+      const fallback = availableRailMarkerShapes[0]?.id ?? DEFAULT_RAIL_MARKER_SHAPE;
+      setRailMarkerShapeId(fallback);
+    }
+  }, [availableRailMarkerShapes, railMarkerShapeId]);
+  useEffect(() => {
+    if (!availableCueStyleIndices.includes(cueStyleIndex)) {
+      const fallback =
+        availableCueStyleIndices[0] ?? availableCueStyleIndices[availableCueStyleIndices.length - 1];
+      if (fallback != null) {
+        setCueStyleIndex(fallback);
+        cueStyleIndexRef.current = fallback;
+      }
+    }
+  }, [availableCueStyleIndices, cueStyleIndex]);
   const [broadcastSystemId, setBroadcastSystemId] = useState(() => DEFAULT_BROADCAST_SYSTEM_ID);
   const activeFrameRateOption = useMemo(
     () =>
@@ -8212,12 +8319,18 @@ function PoolRoyaleGame({
     [broadcastSystemId]
   );
   const activeChromeOption = useMemo(
-    () => CHROME_COLOR_OPTIONS.find((opt) => opt.id === chromeColorId) ?? CHROME_COLOR_OPTIONS[0],
-    [chromeColorId]
+    () =>
+      availableChromeOptions.find((opt) => opt.id === chromeColorId) ??
+      availableChromeOptions[0] ??
+      CHROME_COLOR_OPTIONS[0],
+    [availableChromeOptions, chromeColorId]
   );
   const activeClothOption = useMemo(
-    () => CLOTH_COLOR_OPTIONS.find((opt) => opt.id === clothColorId) ?? CLOTH_COLOR_OPTIONS[0],
-    [clothColorId]
+    () =>
+      availableClothOptions.find((opt) => opt.id === clothColorId) ??
+      availableClothOptions[0] ??
+      CLOTH_COLOR_OPTIONS[0],
+    [availableClothOptions, clothColorId]
   );
   const activePocketLinerOption = useMemo(
     () => POCKET_LINER_OPTIONS.find((opt) => opt?.id === pocketLinerId) ?? POCKET_LINER_OPTIONS[0],
@@ -8384,7 +8497,7 @@ function PoolRoyaleGame({
         }
       }
     }
-    return 0;
+    return DEFAULT_CUE_STYLE_INDEX;
   });
   const cueStyleIndexRef = useRef(cueStyleIndex);
   const cueRackGroupsRef = useRef([]);
@@ -9167,10 +9280,11 @@ function PoolRoyaleGame({
       if (!charged) return;
       const paletteLength = CUE_RACK_PALETTE.length || 1;
       const normalized = ((index % paletteLength) + paletteLength) % paletteLength;
+      if (!availableCueStyleIndices.includes(normalized)) return;
       applySelectedCueStyle(normalized);
       setCueStyleIndex(normalized);
     },
-    [applySelectedCueStyle, ensureCueFeePaid]
+    [applySelectedCueStyle, availableCueStyleIndices, ensureCueFeePaid]
   );
 
   const playCueHit = useCallback((vol = 1) => {
@@ -16594,7 +16708,7 @@ function PoolRoyaleGame({
                   Table Finish
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {TABLE_FINISH_OPTIONS.map((option) => {
+                  {availableTableFinishes.map((option) => {
                     const active = option.id === tableFinishId;
                     return (
                       <button
@@ -16619,7 +16733,7 @@ function PoolRoyaleGame({
                   Chrome Plates
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {CHROME_COLOR_OPTIONS.map((option) => {
+                  {availableChromeOptions.map((option) => {
                     const active = option.id === chromeColorId;
                     return (
                       <button
@@ -16651,13 +16765,13 @@ function PoolRoyaleGame({
                   Cue Styles
                 </h3>
                 <div className="mt-2 grid grid-cols-2 gap-2">
-                  {CUE_STYLE_PRESETS.map((preset, index) => {
-                    const active = cueStyleIndex === index;
+                  {availableCueStyles.map((preset) => {
+                    const active = cueStyleIndex === preset.presetIndex;
                     return (
                       <button
                         key={preset.id}
                         type="button"
-                        onClick={() => selectCueStyleFromMenu(index)}
+                        onClick={() => selectCueStyleFromMenu(preset.presetIndex)}
                         aria-pressed={active}
                         className={`rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-[0.2em] transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
                           active
@@ -16671,13 +16785,13 @@ function PoolRoyaleGame({
                   })}
                 </div>
               </div>
-              {CLOTH_COLOR_OPTIONS.length > 1 ? (
+              {availableClothOptions.length > 0 ? (
                 <div>
                   <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                     Cloth Color
                   </h3>
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {CLOTH_COLOR_OPTIONS.map((option) => {
+                    {availableClothOptions.map((option) => {
                       const active = option.id === clothColorId;
                       return (
                         <button
@@ -16710,7 +16824,7 @@ function PoolRoyaleGame({
                   Rail Markers
                 </h3>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {RAIL_MARKER_SHAPE_OPTIONS.map((option) => {
+                  {availableRailMarkerShapes.map((option) => {
                     const active = option.id === railMarkerShapeId;
                     return (
                       <button
@@ -16730,7 +16844,7 @@ function PoolRoyaleGame({
                   })}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {RAIL_MARKER_COLOR_OPTIONS.map((option) => {
+                  {availableRailMarkerColors.map((option) => {
                     const active = option.id === railMarkerColorId;
                     return (
                       <button
