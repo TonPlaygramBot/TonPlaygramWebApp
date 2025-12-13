@@ -2346,9 +2346,9 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
-    railPush: BALL_R * 7.2,
+    railPush: BALL_R * 6.6,
     lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 6.0,
+    focusLift: BALL_R * 5.7,
     focusDepthBias: BALL_R * 1.8,
     focusPan: 0,
     trackingBias: 0.52,
@@ -8268,6 +8268,10 @@ function PoolRoyaleGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
+  const broadcastSystemIdRef = useRef(broadcastSystemId);
+  useEffect(() => {
+    broadcastSystemIdRef.current = broadcastSystemId;
+  }, [broadcastSystemId]);
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -9012,6 +9016,8 @@ function PoolRoyaleGame({
   const stopAiThinkingRef = useRef(() => {});
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
+  const autoRailOverheadRef = useRef(false);
+  const previousBroadcastSystemIdRef = useRef(null);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const initialHudInHand = useMemo(
@@ -15541,6 +15547,66 @@ function PoolRoyaleGame({
           autoPlaceAiCueBall();
         }
         const activeAiPlan = isAiTurn ? aiPlanRef.current : null;
+        const resolveLegalTargetsForAim = (frameSnapshot) => {
+          const variantId = frameSnapshot?.meta?.variant ?? variantKey;
+          const hudTurn = hudRef.current?.turn ?? 0;
+          const metaState = frameSnapshot?.meta?.state ?? null;
+          const activePlayer =
+            metaState?.currentPlayer ?? (hudTurn === 0 ? 'A' : 'B');
+          const targets = new Set(
+            Array.isArray(frameSnapshot?.ballOn)
+              ? frameSnapshot.ballOn
+                  .map((entry) =>
+                    typeof entry === 'string' ? entry.toUpperCase() : entry
+                  )
+                  .filter(Boolean)
+              : []
+          );
+
+          if (variantId === 'uk' && metaState) {
+            const assignments = metaState.assignments ?? {};
+            const assigned = assignments[activePlayer];
+            if (assigned === 'blue' || assigned === 'yellow') {
+              targets.clear();
+              targets.add('YELLOW');
+            } else if (assigned === 'red') {
+              targets.clear();
+              targets.add('RED');
+            } else if (assigned === 'black') {
+              targets.clear();
+              targets.add('BLACK');
+            } else if (metaState.isOpenTable && targets.size === 0) {
+              targets.add('YELLOW');
+              targets.add('RED');
+            }
+          }
+
+          if (
+            (variantId === 'american' || variantId === '9ball') &&
+            targets.size === 0
+          ) {
+            const lowestActive = (balls || [])
+              .filter((b) => b.active && b.id !== 'cue')
+              .reduce((best, ball) => {
+                const bestId =
+                  typeof best?.id === 'number'
+                    ? best.id
+                    : parseInt(best?.id, 10);
+                const ballId =
+                  typeof ball.id === 'number'
+                    ? ball.id
+                    : parseInt(ball.id, 10);
+                if (!Number.isFinite(ballId)) return best;
+                if (!Number.isFinite(bestId)) return ball;
+                return ballId < bestId ? ball : best;
+              }, null);
+            const mapped = lowestActive ? toBallColorId(lowestActive.id) : null;
+            if (mapped) targets.add(mapped);
+          }
+
+          return Array.from(targets);
+        };
+
         const canShowCue =
           allStopped(balls) &&
           cue?.active &&
@@ -15591,22 +15657,29 @@ function PoolRoyaleGame({
               precisionArea.material.needsUpdate = true;
             }
           }
+          const frameSnapshot = frameRef.current ?? frameState;
+          const legalTargets = resolveLegalTargetsForAim(frameSnapshot);
           const targetBallColor = targetBall ? toBallColorId(targetBall.id) : null;
-          const legalTargetsRaw =
-            frameRef.current?.ballOn ?? frameState.ballOn ?? [];
-          const legalTargets = Array.isArray(legalTargetsRaw)
-            ? legalTargetsRaw
-                .map((entry) =>
-                  typeof entry === 'string' ? entry.toUpperCase() : entry
-                )
-                .filter(Boolean)
-            : [];
           const aimingWrong =
             targetBall &&
             !railNormal &&
             targetBallColor &&
             legalTargets.length > 0 &&
             !legalTargets.includes(targetBallColor);
+          const aimingTowardSidePocket = (() => {
+            if (!targetBall || !cue || aimDir2D.lengthSq() < 1e-6) return false;
+            const forward = aimDir2D.clone().normalize();
+            const cuePos2D = cue.pos.clone();
+            const centers = pocketCenters();
+            const angleThreshold = Math.cos(Math.PI / 8);
+            for (let i = 4; i < centers.length; i += 1) {
+              const vec = centers[i].clone().sub(cuePos2D);
+              if (vec.lengthSq() < 1e-6) continue;
+              vec.normalize();
+              if (forward.dot(vec) >= angleThreshold) return true;
+            }
+            return false;
+          })();
           const primaryColor = aimingWrong
             ? 0xff3333
             : targetBall && !railNormal
@@ -15614,6 +15687,26 @@ function PoolRoyaleGame({
               : 0x7ce7ff;
           aim.material.color.set(primaryColor);
           aim.material.opacity = 0.55 + 0.35 * powerStrength;
+          if (aimingTowardSidePocket) {
+            if (!autoRailOverheadRef.current) {
+              autoRailOverheadRef.current = true;
+              previousBroadcastSystemIdRef.current = broadcastSystemIdRef.current;
+            }
+            if (broadcastSystemIdRef.current !== 'rail-overhead') {
+              setBroadcastSystemId('rail-overhead');
+            }
+          } else if (autoRailOverheadRef.current) {
+            autoRailOverheadRef.current = false;
+            const previousId = previousBroadcastSystemIdRef.current;
+            previousBroadcastSystemIdRef.current = null;
+            if (
+              previousId &&
+              previousId !== 'rail-overhead' &&
+              previousId !== broadcastSystemIdRef.current
+            ) {
+              setBroadcastSystemId(previousId);
+            }
+          }
           const perp = new THREE.Vector3(-dir.z, 0, dir.x);
           if (perp.lengthSq() > 1e-8) perp.normalize();
           tickGeom.setFromPoints([
@@ -15853,6 +15946,17 @@ function PoolRoyaleGame({
             target.computeLineDistances();
           } else {
             target.visible = false;
+          }
+        } else if (autoRailOverheadRef.current) {
+          autoRailOverheadRef.current = false;
+          const previousId = previousBroadcastSystemIdRef.current;
+          previousBroadcastSystemIdRef.current = null;
+          if (
+            previousId &&
+            previousId !== 'rail-overhead' &&
+            previousId !== broadcastSystemIdRef.current
+          ) {
+            setBroadcastSystemId(previousId);
           }
         } else if (canShowCue && activeAiPlan && !previewingAiShot) {
           aim.visible = false;
