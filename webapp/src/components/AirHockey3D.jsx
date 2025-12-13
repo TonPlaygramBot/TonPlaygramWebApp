@@ -1,52 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { getGameVolume } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
+import { AIR_HOCKEY_CUSTOMIZATION } from '../config/airHockeyInventoryConfig.js';
+import {
+  airHockeyAccountId,
+  getAirHockeyInventory,
+  isAirHockeyOptionUnlocked
+} from '../utils/airHockeyInventory.js';
 
-const CUSTOMIZATION = {
-  field: [
-    { name: 'Aurora Ice', surface: '#3b83c3', lines: '#ffffff', rings: '#d8f3ff' },
-    { name: 'Neon Night', surface: '#152238', lines: '#4de1ff', rings: '#9bf1ff' },
-    { name: 'Sunset Clash', surface: '#c93f4b', lines: '#ffe8d0', rings: '#ffd1a1' },
-    { name: 'Midnight Steel', surface: '#0f172a', lines: '#a1a1aa', rings: '#d4d4d8' },
-    { name: 'Mint Rush', surface: '#0f766e', lines: '#d1fae5', rings: '#34d399' }
-  ],
-  table: [
-    { name: 'Walnut', wood: '#5d3725', trim: '#2c1a11' },
-    { name: 'Ash Grey', wood: '#6b7280', trim: '#111827' },
-    { name: 'Ivory Edge', wood: '#f8fafc', trim: '#cbd5e1' },
-    { name: 'Obsidian', wood: '#0b0f1a', trim: '#1f2937' },
-    { name: 'Sapphire', wood: '#1d4ed8', trim: '#0f172a' }
-  ],
-  puck: [
-    { name: 'Carbon', color: '#111111', emissive: '#1f2937' },
-    { name: 'Volt', color: '#eab308', emissive: '#854d0e' },
-    { name: 'Magenta', color: '#be185d', emissive: '#9f1239' },
-    { name: 'Frost', color: '#e0f2fe', emissive: '#0ea5e9' },
-    { name: 'Jade', color: '#064e3b', emissive: '#10b981' }
-  ],
-  mallet: [
-    { name: 'Crimson', color: '#ff5577', knob: '#1f2937' },
-    { name: 'Cyan', color: '#22d3ee', knob: '#0f172a' },
-    { name: 'Amber', color: '#f59e0b', knob: '#451a03' },
-    { name: 'Violet', color: '#a855f7', knob: '#312e81' },
-    { name: 'Lime', color: '#84cc16', knob: '#1a2e05' }
-  ],
-  rails: [
-    { name: 'Glass', color: '#dbe9ff', opacity: 0.32 },
-    { name: 'Shadow', color: '#0b1224', opacity: 0.6 },
-    { name: 'Coral', color: '#f97316', opacity: 0.4 },
-    { name: 'Mint', color: '#10b981', opacity: 0.35 },
-    { name: 'Frosted', color: '#e5e7eb', opacity: 0.28 }
-  ],
-  goals: [
-    { name: 'Mint Net', color: '#99ffd6', emissive: '#1aaf80' },
-    { name: 'Crimson Net', color: '#ef4444', emissive: '#7f1d1d' },
-    { name: 'Cobalt Net', color: '#60a5fa', emissive: '#1d4ed8' },
-    { name: 'Amber Net', color: '#f59e0b', emissive: '#92400e' },
-    { name: 'Ghost Net', color: '#e5e7eb', emissive: '#6b7280' }
-  ]
-};
+const CUSTOMIZATION_KEYS = Object.freeze(['field', 'table', 'puck', 'mallet', 'rails', 'goals']);
 
 const POOL_ENVIRONMENT = (() => {
   const TABLE_SCALE = 1.17;
@@ -127,7 +90,7 @@ const POOL_ENVIRONMENT = (() => {
  * • Scoreboard with avatars
  */
 
-export default function AirHockey3D({ player, ai, target = 11, playType = 'regular' }) {
+export default function AirHockey3D({ player, ai, target = 11, playType = 'regular', accountId }) {
   const targetValue = Number(target) || 11;
   const hostRef = useRef(null);
   const raf = useRef(0);
@@ -137,13 +100,18 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   const [goalPopup, setGoalPopup] = useState(null);
   const [postPopup, setPostPopup] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
+  const resolvedAccountId = useMemo(() => airHockeyAccountId(accountId), [accountId]);
+  const [airInventory, setAirInventory] = useState(() => getAirHockeyInventory(resolvedAccountId));
+  const defaultSelections = useMemo(
+    () =>
+      CUSTOMIZATION_KEYS.reduce((acc, key) => {
+        acc[key] = AIR_HOCKEY_CUSTOMIZATION[key]?.[0]?.id;
+        return acc;
+      }, {}),
+    []
+  );
   const [selections, setSelections] = useState({
-    field: 0,
-    table: 0,
-    puck: 0,
-    mallet: 0,
-    rails: 0,
-    goals: 0
+    ...defaultSelections
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
   const targetRef = useRef(Number(target) || 3);
@@ -183,6 +151,44 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   });
   const tableGroupRef = useRef(null);
   const avatarSpritesRef = useRef({ player: null, ai: null });
+  const getOption = (key, optionId) => {
+    const options = AIR_HOCKEY_CUSTOMIZATION[key] || [];
+    return options.find((option) => option.id === optionId) || options[0];
+  };
+
+  useEffect(() => {
+    setAirInventory(getAirHockeyInventory(resolvedAccountId));
+  }, [resolvedAccountId]);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setAirInventory(getAirHockeyInventory(resolvedAccountId));
+      }
+    };
+    window.addEventListener('airHockeyInventoryUpdate', handler);
+    return () => window.removeEventListener('airHockeyInventoryUpdate', handler);
+  }, [resolvedAccountId]);
+
+  useEffect(() => {
+    setSelections((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      CUSTOMIZATION_KEYS.forEach((key) => {
+        const currentId = prev[key];
+        if (!isAirHockeyOptionUnlocked(key, currentId, airInventory)) {
+          const fallback = (AIR_HOCKEY_CUSTOMIZATION[key] || []).find((option) =>
+            isAirHockeyOptionUnlocked(key, option.id, airInventory)
+          );
+          if (fallback && fallback.id !== currentId) {
+            next[key] = fallback.id;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [airInventory]);
 
   useEffect(() => {
     if (!gameOver) return undefined;
@@ -1295,12 +1301,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     const mats = materialsRef.current;
     if (!mats.tableSurface) return;
 
-    const fieldTheme = CUSTOMIZATION.field[selections.field] || CUSTOMIZATION.field[0];
-    const tableTheme = CUSTOMIZATION.table[selections.table] || CUSTOMIZATION.table[0];
-    const puckTheme = CUSTOMIZATION.puck[selections.puck] || CUSTOMIZATION.puck[0];
-    const malletTheme = CUSTOMIZATION.mallet[selections.mallet] || CUSTOMIZATION.mallet[0];
-    const railTheme = CUSTOMIZATION.rails[selections.rails] || CUSTOMIZATION.rails[0];
-    const goalTheme = CUSTOMIZATION.goals[selections.goals] || CUSTOMIZATION.goals[0];
+    const fieldTheme = getOption('field', selections.field);
+    const tableTheme = getOption('table', selections.table);
+    const puckTheme = getOption('puck', selections.puck);
+    const malletTheme = getOption('mallet', selections.mallet);
+    const railTheme = getOption('rails', selections.rails);
+    const goalTheme = getOption('goals', selections.goals);
 
     mats.tableSurface.color.set(fieldTheme.surface);
     if (mats.line) mats.line.color.set(fieldTheme.lines);
@@ -1327,21 +1333,24 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   }, [selections]);
 
   const renderOptionRow = (label, key) => {
-    const options = CUSTOMIZATION[key];
+    const options = (AIR_HOCKEY_CUSTOMIZATION[key] || []).filter((option) =>
+      isAirHockeyOptionUnlocked(key, option.id, airInventory)
+    );
+    if (!options.length) return null;
     return (
       <div className="space-y-1">
         <div className="text-[11px] uppercase tracking-wide text-white/70">{label}</div>
         <div className="grid grid-cols-2 gap-2">
           {options.map((option, idx) => {
             const swatch = option.surface || option.wood || option.color;
-            const active = selections[key] === idx;
+            const active = selections[key] === option.id;
             return (
               <button
                 key={`${key}-${option.name}`}
                 onClick={() =>
                   setSelections((prev) => ({
                     ...prev,
-                    [key]: idx
+                    [key]: option.id
                   }))
                 }
                 className={`flex items-center justify-between rounded px-2 py-1 text-left text-[11px] font-semibold transition ${
