@@ -24,43 +24,6 @@ const TYPE_LABELS = {
 
 const TPC_ICON = '/assets/icons/ezgif-54c96d8a9b9236.webp';
 const STORE_ACCOUNT_ID = import.meta.env.VITE_POOL_ROYALE_STORE_ACCOUNT_ID || DEV_INFO.account;
-const MARKETPLACE_FEE_RATE = 0.02;
-
-const FUTURE_COLLECTIONS = [
-  {
-    id: 'snooker-club',
-    name: 'Snooker Club',
-    badge: 'In design',
-    description: 'Precision-grade cues, cloths, and room themes crafted for focused, tactical play.',
-    items: [
-      { name: 'Marble Arena Cloth', tier: 'Epic', note: 'Championship-grade baize with polished marble rails.' },
-      { name: 'Shadowline Cue', tier: 'Rare', note: 'Low-deflection shaft with inlayed carbon grip.' },
-      { name: 'Gallery Lounge', tier: 'Legendary', note: 'VIP room decor with animated skyline windows.' }
-    ]
-  },
-  {
-    id: 'goal-rush',
-    name: 'Goal Rush',
-    badge: 'Concept',
-    description: 'Stadium-inspired cosmetics that turn every match into a floodlit derby.',
-    items: [
-      { name: 'Neon Goal Trails', tier: 'Rare', note: 'Dynamic particle boosts that respond to every shot.' },
-      { name: 'Ultras Tifo Banner', tier: 'Epic', note: 'Animated crowd choreography behind your team crest.' },
-      { name: 'Midnight Pitch', tier: 'Rare', note: 'Slick night-time arena with volumetric fog.' }
-    ]
-  },
-  {
-    id: 'air-hockey',
-    name: 'Air Hockey',
-    badge: 'Coming soon',
-    description: 'Fast arcade boards, glowing pucks, and sound packs tuned for crisp rebounds.',
-    items: [
-      { name: 'Aurora Table Skin', tier: 'Epic', note: 'Color-shifting surface tied to your win streak.' },
-      { name: 'Ion Core Puck', tier: 'Rare', note: 'Feels lighter in play with a bright impact ripple.' },
-      { name: 'Arcade Legends SFX', tier: 'Rare', note: 'Retro audio kit with layered crowd calls.' }
-    ]
-  }
-];
 
 export default function Store() {
   useTelegramBackButton();
@@ -69,26 +32,6 @@ export default function Store() {
   const [info, setInfo] = useState('');
   const [tpcBalance, setTpcBalance] = useState(null);
   const [processing, setProcessing] = useState('');
-  const [openSections, setOpenSections] = useState(new Set(['pool-royale']));
-  const [marketplaceListings, setMarketplaceListings] = useState(() => [
-    {
-      id: 'mk-1',
-      title: 'Iridescent Cue',
-      game: 'Pool Royale',
-      price: 950,
-      seller: 'billiards.vault',
-      status: 'Live auction'
-    },
-    {
-      id: 'mk-2',
-      title: 'Azure Rail Markers',
-      game: 'Pool Royale',
-      price: 420,
-      seller: 'elite.club',
-      status: 'Buy now'
-    }
-  ]);
-  const [marketplaceForm, setMarketplaceForm] = useState({ title: '', game: 'Pool Royale', price: '' });
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -144,34 +87,6 @@ export default function Store() {
     [owned]
   );
 
-  const gameSections = useMemo(
-    () => [
-      {
-        id: 'pool-royale',
-        name: 'Pool Royale',
-        badge: 'Live',
-        description:
-          'Ownable, non-tradable cosmetics minted as account-bound NFTs. Your defaults stay equipped, while purchases instantly sync to your loadout.',
-        highlight: 'TPC checkout ready',
-        contentType: 'pool'
-      },
-      ...FUTURE_COLLECTIONS
-    ],
-    []
-  );
-
-  const toggleSection = (id) => {
-    setOpenSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
   const handlePurchase = async (item) => {
     if (item.owned || processing === item.id) return;
     if (!accountId || accountId === 'guest') {
@@ -221,58 +136,15 @@ export default function Store() {
     }
   };
 
-  const handleMarketplaceSubmit = (event) => {
-    event.preventDefault();
-    if (!marketplaceForm.title || !marketplaceForm.price) {
-      setInfo('Add a title and price before listing your NFT.');
-      return;
-    }
+  return (
+    <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
+      <h2 className="text-xl font-bold">Store</h2>
+      <p className="text-subtext text-sm text-center max-w-2xl">
+        Pool Royale cosmetics are organized here as non-tradable unlocks. Defaults are already
+        equipped for every player, while the cards below are minted as account-bound NFTs for this
+        game.
+      </p>
 
-    const price = Number(marketplaceForm.price);
-    if (Number.isNaN(price) || price <= 0) {
-      setInfo('Enter a valid sale price.');
-      return;
-    }
-
-    const newListing = {
-      id: `mk-${Date.now()}`,
-      title: marketplaceForm.title,
-      game: marketplaceForm.game,
-      price,
-      seller: accountId || 'you',
-      status: 'Listed'
-    };
-
-    setMarketplaceListings((prev) => [newListing, ...prev]);
-    setMarketplaceForm({ title: '', game: marketplaceForm.game, price: '' });
-    setInfo('NFT added to the marketplace. 2% will be charged to buyer and seller on purchase.');
-  };
-
-  const handleSimulatedPurchase = (listingId) => {
-    const listing = marketplaceListings.find((l) => l.id === listingId);
-    if (!listing) return;
-
-    const buyerFee = Math.ceil(listing.price * MARKETPLACE_FEE_RATE);
-    const sellerFee = Math.ceil(listing.price * MARKETPLACE_FEE_RATE);
-    const total = listing.price + buyerFee;
-
-    setInfo(
-      `Purchase ready: pay ${total.toLocaleString()} TPC (includes ${buyerFee.toLocaleString()} TPC buyer fee). Seller receives ${
-        listing.price - sellerFee
-      } TPC after developer fee.`
-    );
-
-    setMarketplaceListings((prev) =>
-      prev.map((item) =>
-        item.id === listingId
-          ? { ...item, status: 'Reserved for checkout', buyerFee, sellerFee }
-          : item
-      )
-    );
-  };
-
-  const renderPoolCollection = () => (
-    <div className="space-y-3">
       <div className="store-info-bar">
         <span className="font-semibold">Pool Royale</span>
         <span className="text-xs text-subtext">Account: {accountId}</span>
@@ -351,156 +223,6 @@ export default function Store() {
             </div>
           </div>
         ))}
-      </div>
-    </div>
-  );
-
-  const renderFutureCollection = (collection) => (
-    <div className="grid gap-2 md:grid-cols-2">
-      {collection.items.map((item) => (
-        <div key={`${collection.id}-${item.name}`} className="store-card">
-          <div className="flex items-start justify-between w-full">
-            <div>
-              <p className="font-semibold text-lg leading-tight">{item.name}</p>
-              <p className="text-xs text-subtext">{item.note}</p>
-            </div>
-            <span className="text-xs px-2 py-1 rounded-full bg-border text-subtext">{item.tier}</span>
-          </div>
-          <div className="text-xs text-subtext">Tradable cosmetics will list here once the marketplace opens.</div>
-        </div>
-      ))}
-    </div>
-  );
-
-  return (
-    <div className="relative p-4 space-y-4 text-text flex flex-col items-center">
-      <h2 className="text-xl font-bold">Store</h2>
-      <p className="text-subtext text-sm text-center max-w-2xl">
-        Browse every game collection in one organized view. Tap a game card to see its full list of items
-        and how purchases or NFT trades flow through the Store and marketplace.
-      </p>
-
-      <div className="grid w-full gap-3">
-        {gameSections.map((section) => (
-          <div key={section.id} className="store-card">
-            <div className="flex items-start justify-between w-full gap-2">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-semibold">{section.name}</p>
-                  <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-border text-subtext">
-                    {section.badge}
-                  </span>
-                </div>
-                <p className="text-xs text-subtext max-w-2xl">{section.description}</p>
-                {section.highlight ? (
-                  <p className="text-[11px] font-semibold text-primary">{section.highlight}</p>
-                ) : null}
-              </div>
-              <button
-                type="button"
-                onClick={() => toggleSection(section.id)}
-                className="buy-button !w-auto px-4 py-2 text-sm"
-              >
-                {openSections.has(section.id) ? 'Hide items' : 'View collection'}
-              </button>
-            </div>
-
-            {openSections.has(section.id) && (
-              <div className="pt-3 w-full">
-                {section.contentType === 'pool'
-                  ? renderPoolCollection()
-                  : renderFutureCollection(section)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div className="store-card w-full max-w-3xl">
-        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 w-full">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <p className="text-lg font-semibold">Marketplace</p>
-              <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-border text-subtext">
-                2% fee each side
-              </span>
-            </div>
-            <p className="text-xs text-subtext max-w-2xl">
-              List or buy player-owned NFTs. A 2% developer fee applies to buyer and seller on every
-              settlement; listings remain free until a purchase clears.
-            </p>
-          </div>
-          <div className="text-xs text-right text-subtext">
-            Developer fee destination: {STORE_ACCOUNT_ID || 'Unavailable'}
-          </div>
-        </div>
-
-        <form className="mt-3 grid gap-2 md:grid-cols-3" onSubmit={handleMarketplaceSubmit}>
-          <input
-            required
-            value={marketplaceForm.title}
-            onChange={(e) => setMarketplaceForm((prev) => ({ ...prev, title: e.target.value }))}
-            placeholder="NFT title"
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-          />
-          <select
-            value={marketplaceForm.game}
-            onChange={(e) => setMarketplaceForm((prev) => ({ ...prev, game: e.target.value }))}
-            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-          >
-            {gameSections.map((game) => (
-              <option key={game.id} value={game.name}>
-                {game.name}
-              </option>
-            ))}
-          </select>
-          <div className="flex gap-2">
-            <input
-              required
-              value={marketplaceForm.price}
-              onChange={(e) => setMarketplaceForm((prev) => ({ ...prev, price: e.target.value }))}
-              placeholder="Price in TPC"
-              className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
-            />
-            <button type="submit" className="buy-button text-sm px-4 py-2 whitespace-nowrap">
-              List NFT
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-3 space-y-2">
-          {marketplaceListings.map((item) => (
-            <div
-              key={item.id}
-              className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 rounded-lg border border-border px-3 py-2"
-            >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <p className="font-semibold text-sm">{item.title}</p>
-                  <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-border text-subtext">
-                    {item.game}
-                  </span>
-                  <span className="text-[10px] uppercase tracking-wide px-2 py-1 rounded-full bg-border text-subtext">
-                    {item.status}
-                  </span>
-                </div>
-                <p className="text-[11px] text-subtext">Seller: {item.seller}</p>
-              </div>
-              <div className="flex items-center gap-3 text-sm font-semibold">
-                <span className="flex items-center gap-1">
-                  {item.price.toLocaleString()} <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleSimulatedPurchase(item.id)}
-                  className="buy-button !w-auto px-3 py-1 text-sm"
-                >
-                  Purchase
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
 
       {info ? (
