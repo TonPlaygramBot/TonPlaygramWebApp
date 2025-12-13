@@ -12,7 +12,6 @@ const fallbackGameNames = [
   'Horse Racing',
   'Pool Royale',
   'Free Kick',
-  'Table Tennis',
   'Texas Holdem',
   'Domino Royal 3D',
   'Blackjack Multi',
