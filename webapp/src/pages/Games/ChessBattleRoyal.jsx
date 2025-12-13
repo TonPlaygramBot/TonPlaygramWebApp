@@ -3656,18 +3656,16 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
   throw new Error('ABeautifulGame pieces unavailable');
 }
 
-  async function resolveBeautifulGameAssets(targetBoardSize) {
-    let boardAssets = null;
-    let lastError = null;
-    try {
-      boardAssets = await resolveBeautifulGameBoardStrict(targetBoardSize);
-    } catch (error) {
-      lastError = error;
-      console.warn('Chess Battle Royal: GLTF board failed, trying swap pieces', error);
-    }
+async function resolveBeautifulGameAssets(targetBoardSize) {
+  let boardAssets = null;
+  try {
+    boardAssets = await resolveBeautifulGameBoardStrict(targetBoardSize);
+  } catch (error) {
+    console.warn('Chess Battle Royal: GLTF board failed, trying swap pieces', error);
+  }
 
-    try {
-      const swapAssets = await loadBeautifulGamePiecesOnly(targetBoardSize);
+  try {
+    const swapAssets = await loadBeautifulGamePiecesOnly(targetBoardSize);
     if (boardAssets) {
       const { userData: boardUserData, tileSize, pieceYOffset, ...rest } = boardAssets;
       return {
@@ -3679,16 +3677,16 @@ async function loadBeautifulGamePiecesOnly(targetBoardSize) {
         userData: { ...(boardUserData || {}), ...(swapAssets?.userData || {}) }
       };
     }
-      return swapAssets;
-    } catch (error) {
-      lastError = lastError || error;
-      console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
-    }
-
-    if (boardAssets) return boardAssets;
-
-    throw lastError || new Error('A Beautiful Game assets unavailable');
+    return swapAssets;
+  } catch (error) {
+    console.warn('Chess Battle Royal: GLTF swap pieces failed', error);
   }
+
+  if (boardAssets) return boardAssets;
+
+  console.warn('Chess Battle Royal: using procedural ABeautifulGame fallback assets');
+  return buildBattleRoyalProceduralAssets(targetBoardSize);
+}
 
 async function resolveBeautifulGameTouchAssets(targetBoardSize) {
   const timeoutMs = 15000;
@@ -5111,31 +5109,29 @@ const formatTime = (t) =>
   `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
 
 // ======================= Main Component =======================
-  function Chess3D({
-    avatar,
-    username,
-    initialFlag,
-    initialAiFlag,
-    accountId,
-    initialTableId,
-    initialSide,
-    initialOpponent,
-    mode = 'ai'
-  }) {
-    const wrapRef = useRef(null);
-    const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
-    const isOnlineMode = mode === 'online';
-    const onlineRef = useRef({
-      enabled: isOnlineMode && Boolean(accountId),
-      tableId: null,
-      side: normalizedInitialSide,
-      synced: false,
+function Chess3D({
+  avatar,
+  username,
+  initialFlag,
+  initialAiFlag,
+  accountId,
+  initialTableId,
+  initialSide,
+  initialOpponent
+}) {
+  const wrapRef = useRef(null);
+  const normalizedInitialSide = initialSide === 'black' ? 'black' : 'white';
+  const onlineRef = useRef({
+    enabled: Boolean(accountId),
+    tableId: null,
+    side: normalizedInitialSide,
+    synced: false,
     opponent: null,
     emitMove: () => {},
     requestSync: () => {},
-      status: isOnlineMode ? 'connecting' : 'offline'
-    });
-    onlineRef.current.enabled = isOnlineMode && Boolean(accountId);
+    status: 'connecting'
+  });
+  onlineRef.current.enabled = Boolean(accountId);
   const rafRef = useRef(0);
   const timerRef = useRef(null);
   const bombSoundRef = useRef(null);
@@ -5209,18 +5205,14 @@ const formatTime = (t) =>
     const baseFlag = resolvedInitialFlag || fallbackChoice || FALLBACK_FLAG;
     return getAIOpponentFlag(baseFlag);
   });
-    const [onlineStatus, setOnlineStatus] = useState(
-      onlineRef.current.enabled ? 'connecting' : 'offline'
-    );
-    useEffect(() => {
-      if (!isOnlineMode) {
-        setOnlineStatus('offline');
-        return;
-      }
-      if (accountId) {
-        setOnlineStatus((prev) => (prev === 'offline' ? 'connecting' : prev));
-      }
-    }, [accountId, isOnlineMode]);
+  const [onlineStatus, setOnlineStatus] = useState(
+    onlineRef.current.enabled ? 'connecting' : 'offline'
+  );
+  useEffect(() => {
+    if (accountId) {
+      setOnlineStatus((prev) => (prev === 'offline' ? 'connecting' : prev));
+    }
+  }, [accountId]);
   const [tableId, setTableId] = useState('');
   const [opponent, setOpponent] = useState(null);
   useEffect(() => {
@@ -6541,46 +6533,54 @@ const formatTime = (t) =>
         });
         const g = new THREE.BoxGeometry(tile, 0.1, tile);
         const mesh = new THREE.Mesh(g, m);
-        mesh.material.transparent = true;
-        mesh.material.opacity = 0;
         mesh.position.set(
           c * tile - half + tile / 2,
           BOARD.baseH + 0.12,
           r * tile - half + tile / 2
         );
-        mesh.userData = { r, c, type: 'tile', __baseOpacity: m.opacity ?? 1 };
+        mesh.userData = { r, c, type: 'tile' };
         tileGroup.add(mesh);
         tiles.push(mesh);
       }
     }
 
     // Coordinates (optional minimal markers)
-    const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent, transparent: true, opacity: 0 });
+    const coordMat = new THREE.MeshBasicMaterial({ color: palette.accent });
     for (let i = 0; i < N; i++) {
-      const mSmall = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 0.8), coordMat);
+      const mSmall = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.08, 0.8),
+        coordMat
+      );
       mSmall.rotation.x = -Math.PI / 2;
-      mSmall.position.set(i * tile - half + tile / 2, BOARD.baseH + 0.13, -half - 0.6);
-      boardVisualGroup.add(mSmall);
-      const nSmall = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.08), coordMat);
-      nSmall.rotation.x = -Math.PI / 2;
-      nSmall.position.set(-half - 0.6, BOARD.baseH + 0.13, i * tile - half + tile / 2);
-      boardVisualGroup.add(nSmall);
-    }
+        mSmall.position.set(
+          i * tile - half + tile / 2,
+          BOARD.baseH + 0.13,
+          -half - 0.6
+        );
+        boardVisualGroup.add(mSmall);
+        const nSmall = new THREE.Mesh(
+          new THREE.PlaneGeometry(0.8, 0.08),
+          coordMat
+        );
+        nSmall.rotation.x = -Math.PI / 2;
+      nSmall.position.set(
+          -half - 0.6,
+          BOARD.baseH + 0.13,
+          i * tile - half + tile / 2
+        );
+        boardVisualGroup.add(nSmall);
+      }
 
-    let proceduralBoardVisible = false;
+    let proceduralBoardVisible = true;
     const setProceduralBoardVisible = (visible) => {
       proceduralBoardVisible = visible;
       base.visible = visible;
       top.visible = visible;
       inlay.visible = visible;
-      tileGroup.visible = true;
+      tileGroup.visible = visible;
       coordMat.visible = visible;
       tiles.forEach((tileMesh) => {
-        const mat = Array.isArray(tileMesh.material) ? tileMesh.material[0] : tileMesh.material;
-        if (mat) {
-          mat.transparent = true;
-          mat.opacity = visible ? tileMesh.userData.__baseOpacity ?? 1 : 0;
-        }
+        tileMesh.visible = visible;
       });
       arena.usingProceduralBoard = visible;
       if (arenaRef.current) {
@@ -6589,7 +6589,6 @@ const formatTime = (t) =>
     };
 
     arena.setProceduralBoardVisible = setProceduralBoardVisible;
-    setProceduralBoardVisible(false);
 
     arena.boardMaterials = {
       base: base.material,
@@ -6950,29 +6949,28 @@ const formatTime = (t) =>
         currentBoardCleanup();
         currentBoardCleanup = null;
       }
-        if (boardModel) {
-          boardModel.visible = true;
-          const { top: boardTop } = normalizeBoardModelToDisplaySize(boardModel, RAW_BOARD_SIZE);
-          const preferredYOffset = Math.max(
-            boardTop + PIECE_PLACEMENT_Y_OFFSET,
-            currentPieceYOffset
-          );
-          currentPieceYOffset = preferredYOffset;
-          boardGroup.add(boardModel);
-          applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
-          setProceduralBoardVisible(false);
-          currentBoardModel = boardModel;
-          currentBoardCleanup = () => {
-            try {
-              boardGroup.remove(boardModel);
-            } catch {}
-            disposeObject3D(boardModel);
-          };
-        } else {
-          console.warn('Chess Battle Royal: no GLTF board available');
-          setProceduralBoardVisible(false);
-          currentBoardModel = null;
-        }
+      if (boardModel) {
+        boardModel.visible = true;
+        const { top: boardTop } = normalizeBoardModelToDisplaySize(boardModel, RAW_BOARD_SIZE);
+        const preferredYOffset = Math.max(
+          boardTop + PIECE_PLACEMENT_Y_OFFSET,
+          currentPieceYOffset
+        );
+        currentPieceYOffset = preferredYOffset;
+        boardGroup.add(boardModel);
+        applyBeautifulGameBoardTheme(boardModel, paletteRef.current?.board ?? BEAUTIFUL_GAME_THEME);
+        setProceduralBoardVisible(false);
+        currentBoardModel = boardModel;
+        currentBoardCleanup = () => {
+          try {
+            boardGroup.remove(boardModel);
+          } catch {}
+          disposeObject3D(boardModel);
+        };
+      } else {
+        setProceduralBoardVisible(true);
+        currentBoardModel = null;
+      }
       if (piecePrototypes) {
         currentPiecePrototypes = piecePrototypes;
         if (!preserveOriginalMaterials) {
@@ -7873,19 +7871,19 @@ const formatTime = (t) =>
           )}
         </div>
         <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-3 pointer-events-none">
-            <div className="pointer-events-auto flex gap-2">
-              <button
-                type="button"
-                onClick={() => setConfigOpen((open) => !open)}
-                aria-expanded={configOpen}
+          <div className="pointer-events-auto flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfigOpen((open) => !open)}
+              aria-expanded={configOpen}
               className={`flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-white shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                 configOpen ? 'bg-black/60' : 'hover:bg-black/60'
               }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
                 stroke="currentColor"
                 strokeWidth="1.8"
                 className="h-6 w-6"
@@ -7898,43 +7896,28 @@ const formatTime = (t) =>
                   d="m19.4 13.5-.44 1.74a1 1 0 0 1-1.07.75l-1.33-.14a7.03 7.03 0 0 1-1.01.59l-.2 1.32a1 1 0 0 1-.98.84h-1.9a1 1 0 0 1-.98-.84l-.2-1.32a7.03 7.03 0 0 1-1.01-.59l-1.33.14a1 1 0 0 1-1.07-.75L4.6 13.5a1 1 0 0 1 .24-.96l1-.98a6.97 6.97 0 0 1 0-1.12l-1-.98a1 1 0 0 1-.24-.96l.44-1.74a1 1 0 0 1 1.07-.75l1.33.14c.32-.23.66-.43 1.01-.6l.2-1.31a1 1 0 0 1 .98-.84h1.9a1 1 0 0 1 .98.84l.2 1.31c.35.17.69.37 1.01.6l1.33-.14a1 1 0 0 1 1.07.75l.44 1.74a1 1 0 0 1-.24.96l-1 .98c.03.37.03.75 0 1.12l1 .98a1 1 0 0 1 .24.96z"
                 />
               </svg>
-                <span className="sr-only">Open chess settings</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => replayLastMoveRef.current?.()}
-                disabled={!canReplay}
-                className={`flex h-12 w-12 items-center justify-center rounded-full border shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                  canReplay
-                    ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
-                    : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
-                }`}
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  className="h-6 w-6"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M4 7v6m0-6h6m-6 0 3.2 3.2A7 7 0 1 1 5.2 17"
-                  />
-                </svg>
-                <span className="sr-only">Replay last move</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
-                className="flex h-12 w-12 items-center justify-center rounded-full border border-white/20 bg-black/70 text-sm font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-              >
-                {viewMode === '3d' ? '2D' : '3D'}
-              </button>
-            </div>
+              <span className="sr-only">Open chess settings</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => replayLastMoveRef.current?.()}
+              disabled={!canReplay}
+              className={`h-12 w-32 rounded-full border px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] shadow-lg backdrop-blur transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                canReplay
+                  ? 'border-emerald-300/40 bg-emerald-400/20 text-white hover:bg-emerald-400/25'
+                  : 'border-white/10 bg-white/5 text-white/50 cursor-not-allowed'
+              }`}
+            >
+              Replay Move
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode((mode) => (mode === '3d' ? '2d' : '3d'))}
+              className="h-12 w-32 rounded-full border border-white/20 bg-black/70 px-4 text-[0.75rem] font-semibold uppercase tracking-[0.08em] text-white shadow-lg backdrop-blur transition-colors duration-200 hover:bg-black/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              {viewMode === '3d' ? '2D view' : '3D view'}
+            </button>
+          </div>
           {configOpen && (
             <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[80vh] overflow-y-auto pr-1">
                 <div className="flex items-center justify-between gap-3">
@@ -8282,16 +8265,15 @@ export default function ChessBattleRoyal() {
     );
   }
   return (
-      <Chess3D
-        avatar={avatar}
-        username={username}
-        initialFlag={initialFlag}
-        initialAiFlag={initialAiFlag}
-        accountId={accountId}
-        initialTableId={initialTableId}
-        initialSide={initialSide}
-        initialOpponent={initialOpponent}
-        mode={mode}
-      />
-    );
-  }
+    <Chess3D
+      avatar={avatar}
+      username={username}
+      initialFlag={initialFlag}
+      initialAiFlag={initialAiFlag}
+      accountId={accountId}
+      initialTableId={initialTableId}
+      initialSide={initialSide}
+      initialOpponent={initialOpponent}
+    />
+  );
+}
