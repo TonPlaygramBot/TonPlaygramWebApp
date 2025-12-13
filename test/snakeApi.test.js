@@ -56,7 +56,7 @@ test('other players receive move and turn events', () => {
 
   io.events = [];
 
-  room.rollDice(s1, 6);
+  room.rollDice(s1, [6, 2]);
 
   const move = io.events.find(e => e.event === 'movePlayer');
 
