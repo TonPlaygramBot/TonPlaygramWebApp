@@ -40,6 +40,19 @@ import {
   WOOD_GRAIN_OPTIONS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
+import {
+  CHAIR_COLOR_OPTIONS,
+  HEAD_PRESET_OPTIONS,
+  TOKEN_PALETTE_OPTIONS,
+  TOKEN_PIECE_OPTIONS,
+  TOKEN_STYLE_OPTIONS
+} from '../../config/ludoBattleOptions.js';
+import { TOKEN_TYPE_SEQUENCE } from '../../utils/ludoTokenConstants.js';
+import {
+  getLudoBattleInventory,
+  isLudoOptionUnlocked,
+  ludoBattleAccountId
+} from '../../utils/ludoBattleInventory.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -58,82 +71,6 @@ const ABG_TYPE_ALIASES = Object.freeze([
 ]);
 const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
 const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
-
-const TOKEN_TYPE_SEQUENCE = ['k', 'q', 'b', 'n', 'r', 'p'];
-const HEAD_PRESET_OPTIONS = Object.freeze([
-  {
-    id: 'headGlass',
-    label: 'Glass',
-    preset: {
-      color: '#ffffff',
-      metalness: 0,
-      roughness: 0.05,
-      transmission: 0.95,
-      ior: 1.5,
-      thickness: 0.5
-    }
-  },
-  {
-    id: 'headRuby',
-    label: 'Ruby',
-    preset: {
-      color: '#9b111e',
-      metalness: 0.05,
-      roughness: 0.08,
-      transmission: 0.92,
-      ior: 2.4,
-      thickness: 0.6
-    }
-  },
-  {
-    id: 'headPearl',
-    label: 'Pearl',
-    preset: {
-      color: '#f5f5f5',
-      metalness: 0.05,
-      roughness: 0.25,
-      transmission: 0,
-      ior: 1.3,
-      thickness: 0.2
-    }
-  },
-  {
-    id: 'headSapphire',
-    label: 'Sapphire',
-    preset: {
-      color: '#0f52ba',
-      metalness: 0.05,
-      roughness: 0.08,
-      transmission: 0.9,
-      ior: 1.8,
-      thickness: 0.7
-    }
-  },
-  {
-    id: 'headEmerald',
-    label: 'Emerald',
-    preset: {
-      color: '#046a38',
-      metalness: 0.05,
-      roughness: 0.08,
-      transmission: 0.9,
-      ior: 1.8,
-      thickness: 0.7
-    }
-  },
-  {
-    id: 'headDiamond',
-    label: 'Diamond',
-    preset: {
-      color: '#ffffff',
-      metalness: 0,
-      roughness: 0.03,
-      transmission: 0.98,
-      ior: 2.4,
-      thickness: 0.8
-    }
-  }
-]);
 
 const ARENA_SCALE = 0.85;
 const MODEL_SCALE = 0.75 * ARENA_SCALE;
@@ -223,110 +160,10 @@ const CAMERA_TARGET_LIFT = 0.04 * MODEL_SCALE;
 
 const DEFAULT_STOOL_THEME = Object.freeze({ legColor: '#1f1f1f' });
 
-const TOKEN_STYLE_OPTIONS = Object.freeze([
-  {
-    id: 'battleChess',
-    label: 'Battle Chess Tokens',
-    description: 'Use the Chess Battle Royale GLTF set for every pawn.',
-    typeSequence: TOKEN_TYPE_SEQUENCE,
-    prefersAbg: true
-  },
-  {
-    id: 'towerRooks',
-    label: 'Minimal Rook Set',
-    description: 'Swap every pawn with sleek rooks for a clean read.',
-    typeSequence: ['r']
-  }
-]);
-
-const TOKEN_PIECE_OPTIONS = Object.freeze([
-  { id: 'piecePawn', label: 'Play as Pawn', type: 'p', symbol: '♙' },
-  { id: 'pieceRook', label: 'Play as Rook', type: 'r', symbol: '♖' },
-  { id: 'pieceKnight', label: 'Play as Knight', type: 'n', symbol: '♘' },
-  { id: 'pieceBishop', label: 'Play as Bishop', type: 'b', symbol: '♗' },
-  { id: 'pieceQueen', label: 'Play as Queen', type: 'q', symbol: '♕' },
-  { id: 'pieceKing', label: 'Play as King', type: 'k', symbol: '♔' }
-]);
-
-const TOKEN_PALETTE_OPTIONS = Object.freeze([
-  {
-    id: 'vividCore',
-    label: 'Vivid Core',
-    swatches: [0xef4444, 0x3b82f6, 0xfacc15, 0x22c55e]
-  },
-  {
-    id: 'frostbite',
-    label: 'Frostbite Pastel',
-    swatches: [0xfb7185, 0x60a5fa, 0xfde047, 0x86efac]
-  },
-  {
-    id: 'midnightPulse',
-    label: 'Midnight Pulse',
-    swatches: [0xbe123c, 0x1d4ed8, 0xca8a04, 0x15803d]
-  },
-  {
-    id: 'radiantCandy',
-    label: 'Radiant Candy',
-    swatches: [0xff7aa2, 0x7dd3fc, 0xffe999, 0x6ee7b7]
-  },
-  {
-    id: 'steelPulse',
-    label: 'Steel Pulse',
-    swatches: [0xe2e8f0, 0x94a3b8, 0x475569, 0x0ea5e9]
-  },
-  {
-    id: 'sunsetArena',
-    label: 'Sunset Arena',
-    swatches: [0xfb7185, 0xf97316, 0xfacc15, 0x4ade80]
-  }
-]);
-
-const CHAIR_COLOR_OPTIONS = Object.freeze([
-  {
-    id: 'crimsonVelvet',
-    label: 'Crimson Velvet',
-    primary: '#8b1538',
-    accent: '#5c0f26',
-    highlight: '#d35a7a',
-    legColor: '#1f1f1f'
-  },
-  {
-    id: 'midnightNavy',
-    label: 'Midnight Blue',
-    primary: '#153a8b',
-    accent: '#0c214f',
-    highlight: '#4d74d8',
-    legColor: '#10131c'
-  },
-  {
-    id: 'emeraldWave',
-    label: 'Emerald Wave',
-    primary: '#0f6a2f',
-    accent: '#063d1b',
-    highlight: '#48b26a',
-    legColor: '#142318'
-  },
-  {
-    id: 'onyxShadow',
-    label: 'Onyx Shadow',
-    primary: '#202020',
-    accent: '#101010',
-    highlight: '#6f6f6f',
-    legColor: '#080808'
-  },
-  {
-    id: 'royalPlum',
-    label: 'Royal Chestnut',
-    primary: '#3f1f5b',
-    accent: '#2c1340',
-    highlight: '#7c4ae0',
-    legColor: '#140a24'
-  }
-]);
-
 const APPEARANCE_STORAGE_KEY = 'ludoBattleRoyalArenaAppearance';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
+  tableCloth: 0,
   chairColor: 0,
   tableShape: 0,
   tokenPalette: 0,
@@ -2009,6 +1846,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     () => clamp(Math.floor(aiCount ?? aiSlots), 0, aiSlots),
     [aiCount, aiSlots]
   );
+  const resolvedAccountId = useMemo(() => ludoBattleAccountId(), []);
+  const [inventoryVersion, setInventoryVersion] = useState(0);
+  const ludoInventory = useMemo(
+    () => getLudoBattleInventory(resolvedAccountId),
+    [resolvedAccountId, inventoryVersion]
+  );
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setInventoryVersion((value) => value + 1);
+      }
+    };
+    window.addEventListener('ludoBattleInventoryUpdate', handler);
+    return () => window.removeEventListener('ludoBattleInventoryUpdate', handler);
+  }, [resolvedAccountId]);
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const settingsRef = useRef({ soundEnabled: true });
@@ -2026,6 +1878,51 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   });
   const appearanceRef = useRef(appearance);
   const playerColorsRef = useRef(resolvePlayerColors(appearance));
+  const ensureAppearanceUnlocked = useCallback(
+    (value = DEFAULT_APPEARANCE) => {
+      const normalized = normalizeAppearance(value);
+      const map = {
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        chairColor: CHAIR_COLOR_OPTIONS,
+        tableShape: TABLE_SHAPE_OPTIONS,
+        tokenPalette: TOKEN_PALETTE_OPTIONS,
+        tokenStyle: TOKEN_STYLE_OPTIONS,
+        tokenPiece: TOKEN_PIECE_OPTIONS,
+        headStyle: HEAD_PRESET_OPTIONS
+      };
+      let changed = false;
+      const next = { ...normalized };
+      Object.entries(map).forEach(([key, options]) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = options[idx];
+        if (!option || !isLudoOptionUnlocked(key, option.id, ludoInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isLudoOptionUnlocked(key, opt.id, ludoInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : normalized;
+    },
+    [ludoInventory]
+  );
+  useEffect(() => {
+    setAppearance((prev) => ensureAppearanceUnlocked(prev));
+  }, [ensureAppearanceUnlocked]);
+  const customizationSections = useMemo(
+    () =>
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isLudoOptionUnlocked(section.key, id, ludoInventory))
+      })).filter((section) => section.options.length > 0),
+    [ludoInventory]
+  );
   const arenaRef = useRef(null);
   const [seatAnchors, setSeatAnchors] = useState([]);
   const seatPositionsRef = useRef([]);
@@ -4032,21 +3929,21 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                 </button>
               </div>
               <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                {customizationSections.map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                     <div className="grid grid-cols-2 gap-2">
-                      {options.map((option, idx) => {
-                        const selected = appearance[key] === idx;
+                      {options.map((option) => {
+                        const selected = appearance[key] === option.idx;
                         const disabled =
                           key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && DEFAULT_PLAYER_COUNT > 4;
                         return (
                           <button
-                            key={option.id ?? idx}
+                            key={option.id ?? option.idx}
                             type="button"
                             onClick={() => {
                               if (disabled) return;
-                              setAppearance((prev) => ({ ...prev, [key]: idx }));
+                              setAppearance((prev) => ({ ...prev, [key]: option.idx }));
                             }}
                             aria-pressed={selected}
                             disabled={disabled}
