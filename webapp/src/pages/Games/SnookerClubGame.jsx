@@ -451,13 +451,13 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias in
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // pull the middle chrome arch farther toward centre so the rounded fascia cut tracks the shifted pocket more aggressively
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.18; // ease the centre pull so the middle chrome cut sits a touch farther outboard
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // pinch the middle rail arches slightly tighter so the rounded cut radius comes in further toward the jaws
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.08; // relax the centre pull on the wooden cut so the rounded jaw relief moves outward
 
 function buildChromePlateGeometry({
   width,
@@ -798,7 +798,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION =
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92; // relax the side jaw radius a touch so the middle pocket arc reads larger while still moving outward
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.036; // lower the middle jaws slightly less so the fascia trims down from the top
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.004; // pull the middle pocket jaws inward so the lips sit closer to centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.0; // stop pulling the middle pocket jaws inward so the lips stay farther from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.72; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.4; // ease the taper into the trimmed ends for a smooth falloff
@@ -812,15 +812,16 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPA specifications (playing surface 100" × 50")
-const WIDTH_REF = 2540;
-const HEIGHT_REF = 1270;
-const BALL_D_REF = 57.15;
-const BAULK_FROM_BAULK_REF = 558.8; // WPA head string distance from the head cushion (22")
+// Dimensions reflect WPBSA snooker specifications (playing surface 3569 mm × 1778 mm)
+const WIDTH_REF = 3556;
+const HEIGHT_REF = 1778;
+const BALL_D_REF = 52.5;
+const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
-const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
-const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
+const PINK_FROM_TOP_REF = 737;
+const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
+const CORNER_MOUTH_REF = 86;
+const SIDE_MOUTH_REF = 92;
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -845,7 +846,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.72; // ease the middle pockets slightly while keeping them snug against the chrome hook
-const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.14; // push middle pocket centres farther outward so they sit noticeably away from the field centre
+const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.22; // push middle pocket centres farther outward so they sit more clearly away from the field centre
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // ease the inward pull so the outward bias can push the centres farther toward the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -860,6 +861,7 @@ const CHALK_TARGET_RING_RADIUS = BALL_R * 2;
 const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
+const PINK_FROM_TOP = PINK_FROM_TOP_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
 const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
@@ -945,7 +947,7 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.118; // sink the cushion base further so the pads settle slightly below the rail line
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base further so the pads settle slightly below the rail line
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
@@ -4091,7 +4093,7 @@ const createTripodBroadcastCamera = (() => {
 function spotPositions(baulkZ) {
   const halfH = PLAY_H / 2;
   const topCushion = halfH;
-  const pinkZ = (topCushion + 0) / 2;
+  const pinkZ = topCushion - PINK_FROM_TOP;
   const blackZ = topCushion - BLACK_FROM_TOP;
   return {
     yellow: [-D_RADIUS, baulkZ],
@@ -4158,7 +4160,7 @@ function applySnookerScaling({
       if (green) green.position.set(D_RADIUS, spotY, baulkZ);
       if (blue) blue.position.set(0, spotY, center.z);
       const topCushion = halfWidth;
-      const pinkZ = (topCushion + center.z) / 2;
+      const pinkZ = topCushion - PINK_FROM_TOP_REF * mmToUnits;
       const blackZ = topCushion - BLACK_FROM_TOP_REF * mmToUnits;
       if (pink) pink.position.set(0, spotY, pinkZ);
       if (black) black.position.set(0, spotY, blackZ);
@@ -6024,7 +6026,7 @@ function Table3D(
   addSpot(D_RADIUS, baulkLineZ);
   addSpot(0, 0);
   const topCushionZ = PLAY_H / 2;
-  addSpot(0, (topCushionZ + 0) / 2);
+  addSpot(0, topCushionZ - PINK_FROM_TOP);
   addSpot(0, topCushionZ - BLACK_FROM_TOP);
   markingsGroup.traverse((child) => {
     if (child.isMesh) {
