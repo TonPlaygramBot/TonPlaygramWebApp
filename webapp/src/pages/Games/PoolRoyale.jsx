@@ -2340,6 +2340,23 @@ const DEFAULT_FRAME_RATE_ID = 'balanced60';
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
   {
+    id: 'rail-overhead',
+    label: 'Rail Overhead',
+    description:
+      'Short-rail broadcast heads mounted above the table for the true TV feed.',
+    method: 'Overhead rail mounts with fast post-shot cuts.',
+    orbitBias: 0.68,
+    railPush: BALL_R * 7.2,
+    lateralDolly: BALL_R * 0.6,
+    focusLift: BALL_R * 6.6,
+    focusDepthBias: BALL_R * 1.8,
+    focusPan: 0,
+    trackingBias: 0.52,
+    smoothing: 0.14,
+    avoidPocketCameras: true,
+    forceActionActivation: true
+  },
+  {
     id: 'analyst-tripod',
     label: 'Analyst Booth Tripod',
     description: 'Locked-off analyst booth angle with steady lensing.',
@@ -2354,7 +2371,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     smoothing: 0.18
   }
 ]);
-const DEFAULT_BROADCAST_SYSTEM_ID = 'analyst-tripod';
+const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
 const resolveBroadcastSystem = (id) =>
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === id) ??
   BROADCAST_SYSTEM_OPTIONS.find((opt) => opt.id === DEFAULT_BROADCAST_SYSTEM_ID) ??
@@ -14119,6 +14136,10 @@ function PoolRoyaleGame({
           const allowLongShotCameraSwitch =
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
+          const broadcastSystem =
+            broadcastSystemRef.current ?? activeBroadcastSystem ?? null;
+          const suppressPocketCameras = broadcastSystem?.avoidPocketCameras;
+          const forceActionActivation = broadcastSystem?.forceActionActivation;
           const orbitSnapshot = sphRef.current
             ? {
                 radius: sphRef.current.radius,
@@ -14157,7 +14178,7 @@ function PoolRoyaleGame({
               )
             : null;
           const earlyPocketView =
-            shotPrediction.ballId && followView
+            !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
@@ -14190,12 +14211,13 @@ function PoolRoyaleGame({
             pocketViewActivated = true;
           }
           if (!pocketViewActivated && actionView) {
-            if (isLongShot) {
-              suspendedActionView = actionView;
-            } else {
+            const shouldActivateActionView = !isLongShot || forceActionActivation;
+            if (shouldActivateActionView) {
               suspendedActionView = null;
               activeShotView = actionView;
               updateCamera();
+            } else {
+              suspendedActionView = actionView;
             }
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
@@ -16088,7 +16110,11 @@ function PoolRoyaleGame({
             }
           }
         }
+        const suppressPocketCameras =
+          (broadcastSystemRef.current ?? activeBroadcastSystem ?? null)
+            ?.avoidPocketCameras;
         if (
+          !suppressPocketCameras &&
           shooting &&
           !topViewRef.current &&
           (activeShotView?.mode !== 'pocket' || !activeShotView)
