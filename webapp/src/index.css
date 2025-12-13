@@ -1489,50 +1489,6 @@ input:focus {
   box-shadow: 0 0 16px rgba(0, 247, 255, 0.7);
 }
 
-.store-tabs {
-  @apply w-full grid grid-cols-1 md:grid-cols-3 gap-2;
-}
-
-.store-tab {
-  @apply prism-box flex items-start gap-2 rounded-lg p-3 text-left w-full bg-surface/80 border border-border;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.store-tab:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 12px rgba(0, 247, 255, 0.4);
-}
-
-.store-tab-active {
-  @apply border-primary shadow-lg;
-  box-shadow: 0 0 14px rgba(0, 247, 255, 0.7);
-}
-
-.market-form {
-  @apply w-full space-y-2;
-}
-
-.form-field {
-  @apply flex flex-col space-y-1;
-}
-
-.form-input {
-  @apply bg-black/40 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-primary w-full;
-}
-
-.market-grid {
-  @apply grid grid-cols-1 md:grid-cols-2 gap-3 w-full;
-}
-
-.market-card {
-  @apply prism-box rounded-xl border border-border p-3 space-y-2 bg-surface;
-  box-shadow: 0 0 10px rgba(0, 247, 255, 0.4);
-}
-
-.market-empty {
-  @apply col-span-full text-center text-sm text-subtext border border-dashed border-border rounded-lg py-4;
-}
-
 /* Utility class to widen cards edge-to-edge */
 .wide-card {
   @apply -mx-4;
