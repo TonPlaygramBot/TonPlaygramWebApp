@@ -1,4 +1,5 @@
 #if UNITY_5_3_OR_NEWER
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -76,6 +77,8 @@ public class CueCamera : MonoBehaviour
     public float cueLoweredFieldOfView = 52f;
     // Speed applied when easing the cue zoom toward the desired field of view.
     public float cueAimZoomSmoothSpeed = 8f;
+    // Extra zoom applied to the user camera so the cue view feels slightly closer.
+    public float cueAimAdditionalZoom = 4f;
     // Default blend used when the camera is first enabled. 0 keeps the camera
     // high above the cue, 1 drops it to the closest permitted view.
     [Range(0f, 1f)]
@@ -140,6 +143,10 @@ public class CueCamera : MonoBehaviour
     // Additional height applied when the broadcast camera needs to rise to keep
     // the far short rail within frame.
     public float broadcastHeightPadding = 0.08f;
+    // Additional zoom applied to the overhead broadcast camera so the framing
+    // sits a little closer without clipping the rails.
+    [Range(0.5f, 1f)]
+    public float broadcastZoomMultiplier = 0.92f;
     // Minimum squared velocity to consider a ball as moving.
     public float velocityThreshold = 0.01f;
     // How quickly the camera aligns to the stored shot angle.
@@ -148,6 +155,23 @@ public class CueCamera : MonoBehaviour
     public float returnSpeed = 3f;
     // Choose which short rail the player view should favour before a shot begins.
     public bool startLookingTowardPositiveZ = true;
+    // Use the broadcast camera for the very first shot (rack break).
+    public bool useBroadcastForBreak = true;
+
+    [Header("Pocket cameras")]
+    // Enable/disable pocket cutaways.
+    public bool enablePocketCameras = true;
+    // Height offset above the chrome plates for the pocket view.
+    public float pocketCameraHeightOffset = 0.04f;
+    // How far behind the pocket to place the camera while looking into the shot.
+    public float pocketCameraDistance = 0.22f;
+    // Maximum angle error (degrees) between the ball travel and the pocket line
+    // to consider the pot "guaranteed".
+    public float pocketDetectionAngle = 8f;
+    // Maximum sideways miss distance (metres) allowed when predicting a pot.
+    public float pocketDetectionAllowance = 0.045f;
+    // Minimum planar speed required to trigger a pocket view.
+    public float pocketVelocityThreshold = 0.18f;
 
     private float yaw;
     // Blend controlling how far the cue view slides toward the cue ball. 0 keeps
@@ -164,6 +188,9 @@ public class CueCamera : MonoBehaviour
     private int cueAimSideSign = 1;
     private int broadcastSideSign = -1;
     private bool nextShotIsAi;
+    private bool breakCameraPending = true;
+    private bool pocketCameraActive;
+    private PocketShot currentPocketShot;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
     // blocked by level geometry (walls, scoreboards, etc.). Defaults to all
@@ -181,6 +208,13 @@ public class CueCamera : MonoBehaviour
     public float minimumHeightAboveFocus = 0.05f;
 
     private Camera cachedCamera;
+
+    private struct PocketShot
+    {
+        public Transform Ball;
+        public Vector3 PocketPosition;
+        public Vector3 ApproachDirection;
+    }
 
     /// <summary>Adjust the cue aiming blend (0 = raised, 1 = closest view).</summary>
     public void SetCueAimLowering(float value)
@@ -213,7 +247,7 @@ public class CueCamera : MonoBehaviour
         TargetBall = target;
         currentBall = CueBall;
         shotInProgress = true;
-        usingTargetCamera = target != null;
+        usingTargetCamera = target != null && !(breakCameraPending && useBroadcastForBreak);
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -230,6 +264,7 @@ public class CueCamera : MonoBehaviour
         yaw = targetViewYaw;
 
         nextShotIsAi = false;
+        breakCameraPending = false;
     }
 
     private void Awake()
@@ -551,7 +586,7 @@ public class CueCamera : MonoBehaviour
         }
 
         float raisedFov = Mathf.Clamp(cueRaisedFieldOfView, 10f, 120f);
-        float targetFov = raisedFov;
+        float targetFov = Mathf.Max(10f, raisedFov - Mathf.Max(0f, cueAimAdditionalZoom));
 
         float smoothSpeed = Mathf.Max(0f, cueAimZoomSmoothSpeed);
         if (deltaTime <= 0f || smoothSpeed <= 0f)
@@ -567,6 +602,12 @@ public class CueCamera : MonoBehaviour
     private void UpdateBroadcastCamera()
     {
         currentBall = CueBall;
+
+        if (TryApplyPocketCamera())
+        {
+            return;
+        }
+
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
         ApplyBroadcastCamera(GetBroadcastFocus(focus));
@@ -591,12 +632,187 @@ public class CueCamera : MonoBehaviour
         }
     }
 
+    private bool TryApplyPocketCamera()
+    {
+        if (!shotInProgress || !enablePocketCameras)
+        {
+            pocketCameraActive = false;
+            return false;
+        }
+
+        PocketShot shot;
+        if (!TryGetPocketShot(out shot))
+        {
+            pocketCameraActive = false;
+            return false;
+        }
+
+        pocketCameraActive = true;
+        currentPocketShot = shot;
+        currentBall = shot.Ball != null ? shot.Ball : currentBall;
+        yaw = Mathf.Atan2(shot.ApproachDirection.x, shot.ApproachDirection.z) * Mathf.Rad2Deg;
+
+        ApplyPocketCamera(shot);
+        return true;
+    }
+
+    private bool TryGetPocketShot(out PocketShot shot)
+    {
+        shot = default(PocketShot);
+
+        if (!enablePocketCameras)
+        {
+            return false;
+        }
+
+        List<Transform> candidates = new List<Transform>();
+        HashSet<Transform> unique = new HashSet<Transform>();
+        AddCandidateBall(candidates, unique, CueBall);
+        AddCandidateBall(candidates, unique, TargetBall);
+        if (Balls != null)
+        {
+            foreach (Transform ball in Balls)
+            {
+                AddCandidateBall(candidates, unique, ball);
+            }
+        }
+
+        if (candidates.Count == 0)
+        {
+            return false;
+        }
+
+        float minSpeed = Mathf.Max(0.001f, pocketVelocityThreshold);
+        float minSpeedSqr = minSpeed * minSpeed;
+        float maxAngle = Mathf.Max(0.1f, pocketDetectionAngle);
+        float allowance = Mathf.Max(0f, pocketDetectionAllowance);
+        Vector3[] pockets = GetPocketPositions();
+
+        float bestScore = float.MaxValue;
+
+        foreach (Transform candidate in candidates)
+        {
+            if (candidate == null || !candidate.gameObject.activeInHierarchy)
+            {
+                continue;
+            }
+
+            Rigidbody rb = candidate.GetComponent<Rigidbody>();
+            if (rb == null)
+            {
+                continue;
+            }
+
+            Vector3 velocity = rb.velocity;
+            Vector3 planarVelocity = new Vector3(velocity.x, 0f, velocity.z);
+            if (planarVelocity.sqrMagnitude < minSpeedSqr)
+            {
+                continue;
+            }
+
+            Vector3 velocityDir = planarVelocity.normalized;
+            Vector3 ballPosition = candidate.position;
+
+            foreach (Vector3 pocket in pockets)
+            {
+                Vector3 toPocket = new Vector3(pocket.x - ballPosition.x, 0f, pocket.z - ballPosition.z);
+                if (toPocket.sqrMagnitude < 0.0001f)
+                {
+                    continue;
+                }
+
+                float forwardDistance = Vector3.Dot(toPocket, velocityDir);
+                if (forwardDistance <= 0f)
+                {
+                    continue;
+                }
+
+                float angle = Vector3.Angle(planarVelocity, toPocket);
+                if (angle > maxAngle)
+                {
+                    continue;
+                }
+
+                float lateralDistance = Vector3.Cross(velocityDir, toPocket).magnitude;
+                if (lateralDistance > allowance)
+                {
+                    continue;
+                }
+
+                float score = lateralDistance + angle * 0.001f;
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    shot = new PocketShot
+                    {
+                        Ball = candidate,
+                        PocketPosition = pocket,
+                        ApproachDirection = velocityDir
+                    };
+                }
+            }
+        }
+
+        return bestScore < float.MaxValue;
+    }
+
+    private void ApplyPocketCamera(PocketShot shot)
+    {
+        Vector3 forward = shot.ApproachDirection;
+        forward.y = 0f;
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            forward = Vector3.forward;
+        }
+        forward = forward.normalized;
+
+        Vector3 focus = shot.PocketPosition;
+        float height = railHeight + Mathf.Max(0f, pocketCameraHeightOffset);
+        float distance = Mathf.Max(0.05f, pocketCameraDistance);
+        float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
+        Vector3 lookTarget = focus + forward * 0.1f;
+
+        ApplyCameraAt(focus, forward, distance, height, minimumHeightOffset, lookTarget);
+    }
+
+    private Vector3[] GetPocketPositions()
+    {
+        Vector3 extents = tableBounds.extents;
+        Vector3 centre = tableBounds.center;
+        float x = extents.x;
+        float z = extents.z;
+        float y = centre.y;
+
+        return new[]
+        {
+            new Vector3(centre.x - x, y, centre.z - z),
+            new Vector3(centre.x + x, y, centre.z - z),
+            new Vector3(centre.x - x, y, centre.z + z),
+            new Vector3(centre.x + x, y, centre.z + z),
+            new Vector3(centre.x, y, centre.z - z),
+            new Vector3(centre.x, y, centre.z + z)
+        };
+    }
+
+    private static void AddCandidateBall(List<Transform> list, HashSet<Transform> existing, Transform candidate)
+    {
+        if (candidate != null && existing.Add(candidate))
+        {
+            list.Add(candidate);
+        }
+    }
+
     private void UpdateTargetCamera()
     {
         if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
         {
             targetViewFocus = GetBroadcastFocus(TargetBall.position);
             currentBall = TargetBall;
+        }
+
+        if (TryApplyPocketCamera())
+        {
+            return;
         }
 
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
@@ -666,9 +882,19 @@ public class CueCamera : MonoBehaviour
         focus.x = 0f;
         focus.z = broadcastBounds.center.z;
 
-        float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
-        float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
         Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
+        float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
+        float zoomMultiplier = Mathf.Clamp(broadcastZoomMultiplier, 0.5f, 1f);
+        if (zoomMultiplier < 1f)
+        {
+            float zoomedDistance = Mathf.Max(minRailHeight, distance * zoomMultiplier);
+            Vector3 candidatePosition = focus - forward * zoomedDistance + Vector3.up * height;
+            if (TableFitsAt(candidatePosition, lookTarget, cam, broadcastBounds))
+            {
+                distance = zoomedDistance;
+            }
+        }
+        float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
 
         ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
     }
@@ -940,6 +1166,7 @@ public class CueCamera : MonoBehaviour
         usingTargetCamera = false;
         currentBall = CueBall;
         TargetBall = null;
+        pocketCameraActive = false;
         cueAimSideSign = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         broadcastSideSign = -cueAimSideSign;
         yaw = GetShortRailYaw(cueAimSideSign);
