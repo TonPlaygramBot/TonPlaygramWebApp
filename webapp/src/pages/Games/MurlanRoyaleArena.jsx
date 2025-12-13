@@ -30,6 +30,8 @@ import {
   WOOD_PRESETS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
 import { CARD_THEMES } from '../../utils/cardThemes.js';
+import { OUTFIT_THEMES, STOOL_THEMES } from '../../config/murlanRoyaleAppearance.js';
+import { getMurlanInventory, isMurlanOptionUnlocked } from '../../utils/murlanInventory.js';
 import {
   ComboType,
   DEFAULT_CONFIG as BASE_CONFIG,
@@ -64,24 +66,6 @@ const SUIT_COLORS = {
   '🃏': '#111111'
 };
 
-const OUTFIT_THEMES = [
-  { id: 'midnight', label: 'Royal Blue', baseColor: '#1f3c88', accentColor: '#f5d547', glow: '#0f172a' },
-  { id: 'ember', label: 'Neon Red', baseColor: '#a31621', accentColor: '#ff8e3c', glow: '#22080b' },
-  { id: 'glacier', label: 'Ice', baseColor: '#1b8dbf', accentColor: '#9ff0ff', glow: '#082433' },
-  { id: 'forest', label: 'Forest', baseColor: '#1b7f4a', accentColor: '#b5f44a', glow: '#071f11' },
-  { id: 'royal', label: 'Violet', baseColor: '#6b21a8', accentColor: '#f0abfc', glow: '#220a35' },
-  { id: 'onyx', label: 'Onyx', baseColor: '#1f2937', accentColor: '#9ca3af', glow: '#090b10' }
-];
-
-const STOOL_THEMES = [
-  { id: 'ruby', label: 'Ruby', seatColor: '#8b0000', legColor: '#1f1f1f' },
-  { id: 'slate', label: 'Slate', seatColor: '#374151', legColor: '#0f172a' },
-  { id: 'teal', label: 'Teal', seatColor: '#0f766e', legColor: '#082f2a' },
-  { id: 'amber', label: 'Amber', seatColor: '#b45309', legColor: '#2f2410' },
-  { id: 'violet', label: 'Violet', seatColor: '#7c3aed', legColor: '#2b1059' },
-  { id: 'frost', label: 'Ice', seatColor: '#1f2937', legColor: '#0f172a' }
-];
-
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
@@ -96,7 +80,8 @@ const TARGET_CHAIR_CENTER_Z = -0.1553906416893005 * CHAIR_SIZE_SCALE;
 const DEFAULT_APPEARANCE = {
   outfit: 0,
   stools: 0,
-  ...DEFAULT_TABLE_CUSTOMIZATION
+  ...DEFAULT_TABLE_CUSTOMIZATION,
+  tableCloth: 0
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
 const CUSTOMIZATION_SECTIONS = [
@@ -380,6 +365,7 @@ export default function MurlanRoyaleArena({ search }) {
   const mountRef = useRef(null);
   const players = useMemo(() => buildPlayers(search), [search]);
 
+  const [murlanInventory, setMurlanInventory] = useState(() => getMurlanInventory());
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -439,6 +425,59 @@ export default function MurlanRoyaleArena({ search }) {
   const soundsRef = useRef({ card: null, turn: null });
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
   const prevStateRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (event) => {
+      setMurlanInventory(getMurlanInventory(event?.detail?.accountId));
+    };
+    window.addEventListener('murlanInventoryUpdate', handler);
+    return () => window.removeEventListener('murlanInventoryUpdate', handler);
+  }, []);
+
+  const ensureAppearanceUnlocked = useCallback(
+    (value = DEFAULT_APPEARANCE) => {
+      const normalized = normalizeAppearance(value);
+      const map = {
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        cards: CARD_THEMES,
+        stools: STOOL_THEMES,
+        outfit: OUTFIT_THEMES
+      };
+      let changed = false;
+      const next = { ...normalized };
+      Object.entries(map).forEach(([key, options]) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = options[idx];
+        if (!option || !isMurlanOptionUnlocked(key, option.id, murlanInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isMurlanOptionUnlocked(key, opt.id, murlanInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : normalized;
+    },
+    [murlanInventory]
+  );
+
+  useEffect(() => {
+    setAppearance((prev) => ensureAppearanceUnlocked(prev));
+  }, [ensureAppearanceUnlocked]);
+
+  const customizationSections = useMemo(
+    () =>
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isMurlanOptionUnlocked(section.key, id, murlanInventory))
+      })).filter((section) => section.options.length > 0),
+    [murlanInventory]
+  );
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -694,7 +733,7 @@ export default function MurlanRoyaleArena({ search }) {
       if (!threeReady) return;
       const three = threeStateRef.current;
       if (!three.scene) return;
-      const safe = normalizeAppearance(nextAppearance);
+      const safe = ensureAppearanceUnlocked(nextAppearance);
       const woodOption = TABLE_WOOD_OPTIONS[safe.tableWood] ?? TABLE_WOOD_OPTIONS[0];
       const clothOption = TABLE_CLOTH_OPTIONS[safe.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
       const baseOption = TABLE_BASE_OPTIONS[safe.tableBase] ?? TABLE_BASE_OPTIONS[0];
@@ -716,7 +755,7 @@ export default function MurlanRoyaleArena({ search }) {
       ensureCardMeshes(gameStateRef.current);
       applyStateToScene(gameStateRef.current, selectedRef.current, true);
     },
-    [applyStateToScene, ensureCardMeshes, threeReady]
+    [applyStateToScene, ensureAppearanceUnlocked, ensureCardMeshes, threeReady]
   );
 
   const renderPreview = useCallback((type, option) => {
@@ -1664,17 +1703,17 @@ export default function MurlanRoyaleArena({ search }) {
                   </button>
                 </div>
                 <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-                  {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+                  {customizationSections.map(({ key, label, options }) => (
                     <div key={key} className="space-y-2">
                       <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                       <div className="grid grid-cols-2 gap-2">
-                        {options.map((option, idx) => {
-                          const selected = appearance[key] === idx;
+                        {options.map((option) => {
+                          const selected = appearance[key] === option.idx;
                           return (
                             <button
                               key={option.id}
                               type="button"
-                              onClick={() => setAppearance((prev) => ({ ...prev, [key]: idx }))}
+                              onClick={() => setAppearance((prev) => ({ ...prev, [key]: option.idx }))}
                               aria-pressed={selected}
                               className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                                 selected
