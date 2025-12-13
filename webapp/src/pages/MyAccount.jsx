@@ -32,7 +32,6 @@ import {
   listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
-import { getDefaultChessLoadout, listOwnedChessOptions, chessAccountId } from '../utils/chessInventory.js';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -42,14 +41,6 @@ const POOL_ROYALE_TYPE_LABELS = {
   railMarkerColor: 'Rail Markers',
   clothColor: 'Cloth Color',
   cueStyle: 'Cue Style'
-};
-const CHESS_TYPE_LABELS = {
-  tableWood: 'Table Wood',
-  tableCloth: 'Table Cloth',
-  tableBase: 'Table Base',
-  chairColor: 'Chair Colors',
-  tableShape: 'Table Shape',
-  sideColor: 'Piece Side Color'
 };
 
 function formatValue(value, decimals = 2) {
@@ -104,10 +95,6 @@ export default function MyAccount() {
   const [poolRoyaleInventory, setPoolRoyaleInventory] = useState(() =>
     listOwnedPoolRoyalOptions(poolRoyalAccountId())
   );
-  const [chessAccount, setChessAccount] = useState(chessAccountId());
-  const [chessInventory, setChessInventory] = useState(() =>
-    listOwnedChessOptions(chessAccountId())
-  );
   const refreshPoolRoyale = useCallback(() => {
     const resolved = poolRoyalAccountId();
     setPoolAccountId(resolved);
@@ -116,16 +103,6 @@ export default function MyAccount() {
       setPoolRoyaleInventory(owned);
     } else {
       setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
-    }
-  }, []);
-  const refreshChessInventory = useCallback(() => {
-    const resolved = chessAccountId();
-    setChessAccount(resolved);
-    const owned = listOwnedChessOptions(resolved);
-    if (Array.isArray(owned) && owned.length > 0) {
-      setChessInventory(owned);
-    } else {
-      setChessInventory(getDefaultChessLoadout());
     }
   }, []);
 
@@ -198,7 +175,6 @@ export default function MyAccount() {
         setShowAvatarPrompt(true);
       }
       refreshPoolRoyale();
-      refreshChessInventory();
     }
 
     load();
@@ -206,7 +182,7 @@ export default function MyAccount() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [googleId, refreshChessInventory, refreshPoolRoyale, telegramId]);
+  }, [telegramId, googleId]);
 
   useEffect(() => {
     if (!telegramId) return;
@@ -235,16 +211,6 @@ export default function MyAccount() {
     window.addEventListener('poolRoyalInventoryUpdate', handler);
     return () => window.removeEventListener('poolRoyalInventoryUpdate', handler);
   }, [poolAccountId, refreshPoolRoyale]);
-
-  useEffect(() => {
-    const handler = (event) => {
-      if (!event?.detail?.accountId || event.detail.accountId === chessAccount) {
-        refreshChessInventory();
-      }
-    };
-    window.addEventListener('chessInventoryUpdate', handler);
-    return () => window.removeEventListener('chessInventoryUpdate', handler);
-  }, [chessAccount, refreshChessInventory]);
 
   if (!profile) return <div className="p-4 text-subtext">Loading...</div>;
 
@@ -501,29 +467,6 @@ export default function MyAccount() {
               <span className="font-medium">{item.label}</span>
               <span className="text-[11px] uppercase text-subtext">
                 {POOL_ROYALE_TYPE_LABELS[item.type] || item.type}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
-        <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold">Chess Battle Royal Inventory</h3>
-          <span className="text-xs text-subtext">Account: {chessAccount}</span>
-        </div>
-        <p className="text-sm text-subtext">
-          Defaults are applied automatically. Purchased NFTs show here and inside the Chess Battle
-          Royal table setup menu.
-        </p>
-        <div className="space-y-1">
-          {chessInventory.map((item) => (
-            <div
-              key={`${item.type}-${item.optionId}`}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 bg-surface/60"
-            >
-              <span className="font-medium">{item.label}</span>
-              <span className="text-[11px] uppercase text-subtext">
-                {CHESS_TYPE_LABELS[item.type] || item.type}
               </span>
             </div>
           ))}
