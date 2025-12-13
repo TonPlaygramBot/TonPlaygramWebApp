@@ -14322,89 +14322,6 @@ function PoolRoyaleGame({
           const halfW = PLAY_W / 2;
           const halfH = PLAY_H / 2;
           const cushionMargin = BALL_R * 1.4;
-          const computeClearancePenalty = (start, end, ignoreIds = new Set()) => {
-            let worst = 0;
-            const delta = end.clone().sub(start);
-            const lenSq = delta.lengthSq();
-            if (lenSq < 1e-6) return 0;
-            const len = Math.sqrt(lenSq);
-            const dir = delta.clone().divideScalar(len);
-            for (const ball of activeBalls) {
-              if (!ball.active || ignoreIds.has(ball.id)) continue;
-              const rel = ball.pos.clone().sub(start);
-              const proj = THREE.MathUtils.clamp(rel.dot(dir), 0, len);
-              const closest = start.clone().add(dir.clone().multiplyScalar(proj));
-              const dist = Math.max(ball.pos.distanceTo(closest) - BALL_R, 0);
-              const slack = dist - clearance;
-              if (slack < 0) {
-                // Guaranteed foul/ricochet
-                return 2_000 + Math.abs(slack) * 4000;
-              }
-              const pressure = clearance / (slack + BALL_R * 0.35);
-              worst = Math.max(worst, pressure * 28);
-            }
-            return worst;
-          };
-          const estimateCuePostContact = (
-            aimDir,
-            toPocketDir,
-            ghostPos,
-            contactPos,
-            power
-          ) => {
-            const incoming = aimDir.clone().normalize();
-            const normal = toPocketDir.clone().normalize();
-            const normalMag = incoming.dot(normal);
-            const tangent = incoming.clone().sub(normal.clone().multiplyScalar(normalMag));
-            if (tangent.lengthSq() < 1e-6) {
-              tangent.set(-normal.y, normal.x);
-            }
-            tangent.normalize();
-            const contact = contactPos ?? ghostPos;
-            const roll = THREE.MathUtils.clamp(power, 0.3, 0.95);
-            const travel = BALL_R * (14 + roll * 28);
-            return contact.clone().add(tangent.multiplyScalar(travel));
-          };
-          const computeScratchPenalty = (start, end) => {
-            let penalty = 0;
-            const pockets = pocketEntranceCenters();
-            for (const center of pockets) {
-              const toPocket = center.clone().sub(start);
-              const toEnd = end.clone().sub(start);
-              const lenSq = toEnd.lengthSq();
-              if (lenSq < 1e-6) continue;
-              const t = THREE.MathUtils.clamp(toPocket.dot(toEnd) / lenSq, 0, 1);
-              const closest = start.clone().add(toEnd.multiplyScalar(t));
-              const dist = closest.distanceTo(center);
-              if (dist < BALL_R * 1.1) {
-                penalty += 1600;
-              } else if (dist < BALL_R * 2.4) {
-                penalty += (BALL_R * 2.4 - dist) * 260;
-              }
-            }
-            return penalty;
-          };
-          const computeShapeBonus = (cueRestPos, currentTargetId) => {
-            const potential = activeBalls.filter(
-              (b) =>
-                b.active &&
-                b.id !== cue.id &&
-                b.id !== currentTargetId &&
-                b !== cue &&
-                legalTargets.has(toBallColorId(b.id))
-            );
-            if (!potential.length) return 0;
-            const nearest = potential.reduce((best, ball) => {
-              const d = cueRestPos.distanceTo(ball.pos);
-              if (!best || d < best.dist) return { dist: d, ball };
-              return best;
-            }, null);
-            const dist = nearest?.dist ?? Infinity;
-            const maxUseful = BALL_R * 85;
-            if (!Number.isFinite(dist)) return 0;
-            const readiness = THREE.MathUtils.clamp(1 - dist / maxUseful, 0, 1);
-            return readiness * 120;
-          };
           const isPathClear = (start, end, ignoreIds = new Set()) => {
             const delta = end.clone().sub(start);
             const lenSq = delta.lengthSq();
@@ -14527,22 +14444,6 @@ function PoolRoyaleGame({
               const cushionTax = cushionAid ? BALL_R * 30 + cushionAid.totalDist * 0.08 : 0;
               const baseDifficulty =
                 cueDist + toPocketLen * 1.15 + cutAngle * BALL_R * 40 + cushionTax;
-              const contactPos = ghost.clone();
-              const cuePost = estimateCuePostContact(
-                aimDir,
-                toPocketDir,
-                ghost,
-                contactPos,
-                computePowerFromDistance(totalDist + cushionTax)
-              );
-              const cueClearPenalty = computeClearancePenalty(cuePos, contactPos, ignore);
-              const targetPathPenalty = computeClearancePenalty(
-                targetBall.pos,
-                pocketCenter,
-                ignore
-              );
-              const scratchPenalty = computeScratchPenalty(contactPos, cuePost);
-              const shapeBonus = computeShapeBonus(cuePost, targetBall.id);
               const plan = {
                 type: 'pot',
                 aimDir,
@@ -14551,12 +14452,7 @@ function PoolRoyaleGame({
                 targetBall,
                 pocketId: POCKET_IDS[i],
                 pocketCenter: pocketCenter.clone(),
-                difficulty:
-                  baseDifficulty / entranceFavor +
-                  cueClearPenalty +
-                  targetPathPenalty +
-                  scratchPenalty -
-                  shapeBonus,
+                difficulty: baseDifficulty / entranceFavor,
                 cueToTarget: cueDist,
                 targetToPocket: toPocketLen,
                 railNormal: cushionAid?.railNormal ?? null,
