@@ -35,6 +35,11 @@ import {
   WOOD_GRAIN_OPTIONS,
   WOOD_GRAIN_OPTIONS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
+import {
+  chessBattleAccountId,
+  getChessBattleInventory,
+  isChessOptionUnlocked
+} from '../../utils/chessBattleInventory.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { avatarToName } from '../../utils/avatarUtils.js';
@@ -1012,6 +1017,7 @@ const PLAYER_FLAG_STORAGE_KEY = 'chessBattleRoyalPlayerFlag';
 const FALLBACK_FLAG = '🇺🇸';
 const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION,
+  tableCloth: 0,
   chairColor: 0,
   tableShape: 0,
   boardColor: 0,
@@ -5214,8 +5220,23 @@ function Chess3D({
       onlineRef.current.opponent = initialOpponent;
     }
   }, [initialOpponent]);
-  const [p1QuickIdx, setP1QuickIdx] = useState(0);
-  const [p2QuickIdx, setP2QuickIdx] = useState(1);
+  const resolvedAccountId = useMemo(() => chessBattleAccountId(accountId), [accountId]);
+  const [inventoryVersion, setInventoryVersion] = useState(0);
+  const chessInventory = useMemo(
+    () => getChessBattleInventory(resolvedAccountId),
+    [resolvedAccountId, inventoryVersion]
+  );
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setInventoryVersion((value) => value + 1);
+      }
+    };
+    window.addEventListener('chessBattleInventoryUpdate', handler);
+    return () => window.removeEventListener('chessBattleInventoryUpdate', handler);
+  }, [resolvedAccountId]);
+  const [p1QuickIdx, setP1QuickIdx] = useState(2);
+  const [p2QuickIdx, setP2QuickIdx] = useState(3);
   const [headQuickIdx, setHeadQuickIdx] = useState(0);
   const [boardQuickIdx, setBoardQuickIdx] = useState(0);
   const [whiteTime, setWhiteTime] = useState(60);
@@ -5362,6 +5383,86 @@ function Chess3D({
     setMoveMode('click');
   }, [viewMode]);
 
+  const customizationSections = useMemo(
+    () =>
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isChessOptionUnlocked(section.key, id, chessInventory))
+      })).filter((section) => section.options.length > 0),
+    [chessInventory]
+  );
+
+  const quickSideOptions = useMemo(
+    () =>
+      QUICK_SIDE_COLORS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
+        isChessOptionUnlocked('sideColor', id, chessInventory)
+      ),
+    [chessInventory]
+  );
+
+  const quickBoardOptions = useMemo(
+    () =>
+      QUICK_BOARD_THEMES.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
+        isChessOptionUnlocked('boardTheme', id, chessInventory)
+      ),
+    [chessInventory]
+  );
+
+  const quickHeadOptions = useMemo(
+    () =>
+      QUICK_HEAD_PRESETS.map((option, idx) => ({ ...option, idx })).filter(({ id }) =>
+        isChessOptionUnlocked('headStyle', id, chessInventory)
+      ),
+    [chessInventory]
+  );
+
+  const clampQuickSelection = useCallback((currentIdx, list, fallback = 0) => {
+    if (list.some((entry) => entry.idx === currentIdx)) return currentIdx;
+    return list[0]?.idx ?? fallback;
+  }, []);
+
+  useEffect(() => {
+    setP1QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions));
+    setP2QuickIdx((prev) => clampQuickSelection(prev, quickSideOptions, quickSideOptions[1]?.idx ?? 0));
+    setHeadQuickIdx((prev) => clampQuickSelection(prev, quickHeadOptions));
+    setBoardQuickIdx((prev) => clampQuickSelection(prev, quickBoardOptions));
+  }, [clampQuickSelection, quickBoardOptions, quickHeadOptions, quickSideOptions]);
+
+  const ensureAppearanceUnlocked = useCallback(
+    (value = DEFAULT_APPEARANCE) => {
+      const normalized = normalizeAppearance(value);
+      const map = {
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        chairColor: CHAIR_COLOR_OPTIONS,
+        tableShape: TABLE_SHAPE_MENU_OPTIONS
+      };
+      let changed = false;
+      const next = { ...normalized };
+      Object.entries(map).forEach(([key, options]) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = options[idx];
+        if (!option || !isChessOptionUnlocked(key, option.id, chessInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isChessOptionUnlocked(key, opt.id, chessInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : normalized;
+    },
+    [chessInventory]
+  );
+
+  useEffect(() => {
+    setAppearance((prev) => ensureAppearanceUnlocked(prev));
+  }, [ensureAppearanceUnlocked]);
+
   const renderCustomizationPreview = useCallback((key, option) => {
     if (!option) return null;
     const swatchClass = 'h-5 w-10 rounded-md border border-white/15 shadow-inner';
@@ -5438,8 +5539,14 @@ function Chess3D({
     return map;
   }, [seatAnchors]);
 
+  useEffect(() => {
+    if (!customizationSections.some((section) => section.key === activeCustomizationKey)) {
+      setActiveCustomizationKey(customizationSections[0]?.key ?? 'tableWood');
+    }
+  }, [activeCustomizationKey, customizationSections]);
+
   const activeCustomizationSection =
-    CUSTOMIZATION_SECTIONS.find(({ key }) => key === activeCustomizationKey) ?? CUSTOMIZATION_SECTIONS[0];
+    customizationSections.find(({ key }) => key === activeCustomizationKey) ?? customizationSections[0];
 
   const updateSandTimerPlacement = useCallback(
     (_turnWhiteValue = uiRef.current?.turnWhite ?? true) => {
@@ -7996,7 +8103,7 @@ function Chess3D({
                   </div>
                   <div className="mt-3 max-h-72 space-y-3">
                     <div className="-mx-1 flex gap-2 overflow-x-auto pb-1 px-1">
-                      {CUSTOMIZATION_SECTIONS.map(({ key, label }) => {
+                      {customizationSections.map(({ key, label }) => {
                         const selectedSection = key === activeCustomizationKey;
                         return (
                           <button
@@ -8020,8 +8127,8 @@ function Chess3D({
                           {activeCustomizationSection.label}
                         </p>
                         <div className="space-y-1.5">
-                          {activeCustomizationSection.options.map((option, idx) => {
-                            const selected = appearance[activeCustomizationSection.key] === idx;
+                          {activeCustomizationSection.options.map((option) => {
+                            const selected = appearance[activeCustomizationSection.key] === option.idx;
                             return (
                               <button
                                 key={option.id}
@@ -8030,7 +8137,7 @@ function Chess3D({
                                   setAppearance((prev) =>
                                     normalizeAppearance({
                                       ...prev,
-                                      [activeCustomizationSection.key]: idx
+                                      [activeCustomizationSection.key]: option.idx
                                     })
                                   )
                                 }
@@ -8057,13 +8164,13 @@ function Chess3D({
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P1</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => (
+                        {quickSideOptions.map((color) => (
                           <button
                             key={`p1-${color.id}`}
                             type="button"
-                            onClick={() => setP1QuickIdx(idx)}
+                            onClick={() => setP1QuickIdx(color.idx)}
                             className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              p1QuickIdx === idx
+                              p1QuickIdx === color.idx
                                 ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] bg-white/10'
                                 : 'border-white/20 hover:border-white/40 bg-white/5 text-white/80'
                             }`}
@@ -8082,13 +8189,13 @@ function Chess3D({
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pieces P2</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_SIDE_COLORS.map((color, idx) => (
+                        {quickSideOptions.map((color) => (
                           <button
                             key={`p2-${color.id}`}
                             type="button"
-                            onClick={() => setP2QuickIdx(idx)}
+                            onClick={() => setP2QuickIdx(color.idx)}
                             className={`flex items-center gap-2 rounded-lg border px-2 py-1 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              p2QuickIdx === idx
+                              p2QuickIdx === color.idx
                                 ? 'border-white/70 shadow-[0_0_0_2px_rgba(255,255,255,0.4)] bg-white/10'
                                 : 'border-white/20 hover:border-white/40 bg-white/5 text-white/80'
                             }`}
@@ -8107,13 +8214,13 @@ function Chess3D({
                     <div>
                       <p className="text-[0.7rem] text-white/70">Pawn heads</p>
                       <div className="mt-1 flex flex-wrap gap-2">
-                        {QUICK_HEAD_PRESETS.map((preset, idx) => (
+                        {quickHeadOptions.map((preset) => (
                           <button
                             key={preset.id}
                             type="button"
-                            onClick={() => setHeadQuickIdx(idx)}
+                            onClick={() => setHeadQuickIdx(preset.idx)}
                             className={`rounded-full border px-3 py-1 text-[0.7rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              headQuickIdx === idx
+                              headQuickIdx === preset.idx
                                 ? 'border-white/70 bg-white/10 text-white'
                                 : 'border-white/20 bg-white/5 text-white/70 hover:border-white/40 hover:text-white'
                             }`}
@@ -8126,13 +8233,13 @@ function Chess3D({
                     <div>
                       <p className="text-[0.7rem] text-white/70">Board theme</p>
                       <div className="mt-1 grid grid-cols-3 gap-2">
-                        {QUICK_BOARD_THEMES.map((theme, idx) => (
+                        {quickBoardOptions.map((theme) => (
                           <button
                             key={theme.id}
                             type="button"
-                            onClick={() => setBoardQuickIdx(idx)}
+                            onClick={() => setBoardQuickIdx(theme.idx)}
                             className={`flex items-center justify-center rounded-lg border px-2 py-2 text-[0.65rem] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              boardQuickIdx === idx
+                              boardQuickIdx === theme.idx
                                 ? 'border-white/70 bg-white/10 text-white'
                                 : 'border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white'
                             }`}
