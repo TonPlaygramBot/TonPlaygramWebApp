@@ -40,24 +40,14 @@ import {
   WOOD_GRAIN_OPTIONS_BY_ID
 } from '../../utils/tableCustomizationOptions.js';
 import { hslToHexNumber, WOOD_FINISH_PRESETS } from '../../utils/woodMaterials.js';
+import {
+  loadAbgAssets,
+  cloneAbgWithMats,
+  abgApplyPalette,
+  abgTintPalette
+} from '../../utils/abgAssets.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-
-const ABG_MODEL_URLS = Object.freeze([
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
-  'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF/ABeautifulGame.gltf'
-]);
-const ABG_TYPES = Object.freeze(['p', 'r', 'n', 'b', 'q', 'k']);
-const ABG_TYPE_ALIASES = Object.freeze([
-  ['p', /pawn/],
-  ['r', /rook|castle/],
-  ['n', /knight|horse/],
-  ['b', /bishop/],
-  ['q', /queen/],
-  ['k', /king/]
-]);
-const ABG_COLOR_W = /\b(white|ivory|light|w)\b/i;
-const ABG_COLOR_B = /\b(black|ebony|dark|b)\b/i;
 
 const TOKEN_TYPE_SEQUENCE = ['k', 'q', 'b', 'n', 'r', 'p'];
 const HEAD_PRESET_OPTIONS = Object.freeze([
@@ -400,215 +390,6 @@ function adjustHexColor(hex, amount) {
   const target = amount >= 0 ? new THREE.Color(0xffffff) : new THREE.Color(0x000000);
   base.lerp(target, Math.min(Math.abs(amount), 1));
   return `#${base.getHexString()}`;
-}
-
-function abgNodePath(node) {
-  const names = [];
-  let current = node;
-  while (current) {
-    if (current.name) names.push(current.name);
-    current = current.parent;
-  }
-  return names.reverse().join('/');
-}
-
-function abgDetectType(path) {
-  const lower = path.toLowerCase();
-  for (const [t, re] of ABG_TYPE_ALIASES) {
-    if (re.test(lower)) return t;
-  }
-  return undefined;
-}
-
-function abgDetectColor(path, luminanceHint = 0.6) {
-  if (ABG_COLOR_W.test(path)) return 'w';
-  if (ABG_COLOR_B.test(path)) return 'b';
-  return luminanceHint >= 0.5 ? 'w' : 'b';
-}
-
-function abgAverageLuminance(root) {
-  let sum = 0;
-  let count = 0;
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-    const mats = Array.isArray(node.material) ? node.material : [node.material];
-    mats.forEach((mat) => {
-      if (mat?.color) {
-        const c = mat.color;
-        sum += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-        count += 1;
-      }
-    });
-  });
-  return count ? sum / count : 0.5;
-}
-
-function abgCloneWithMats(src) {
-  const clone = src.clone(true);
-  clone.traverse((node) => {
-    if (node.isMesh) {
-      if (Array.isArray(node.material)) {
-        node.material = node.material.map((m) => m?.clone?.() ?? m);
-      } else if (node.material) {
-        node.material = node.material.clone();
-      }
-      node.castShadow = true;
-      node.receiveShadow = false;
-    }
-  });
-  return clone;
-}
-
-function abgBbox(obj) {
-  const box = new THREE.Box3().setFromObject(obj);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  return { box, size };
-}
-
-function abgPreparePiece(src) {
-  const clone = abgCloneWithMats(src);
-  const { size } = abgBbox(clone);
-  const footprint = Math.max(size.x, size.z) || 1;
-  const target = LUDO_TILE * 0.7;
-  const scale = target / footprint;
-  clone.scale.setScalar(scale);
-  const { box } = abgBbox(clone);
-  const baseLift = -box.min.y + TOKEN_TRACK_HEIGHT;
-  const group = new THREE.Group();
-  group.add(clone);
-  group.position.y = baseLift;
-  group.traverse((node) => {
-    if (node.isMesh) node.castShadow = true;
-  });
-  return group;
-}
-
-function abgApplyPalette(node, palette) {
-  if (!Array.isArray(palette) || !palette.length) return;
-  node.traverse((child) => {
-    if (!child.isMesh) return;
-    const mats = Array.isArray(child.material) ? child.material : [child.material];
-    const next = mats.map((_, idx) => palette[idx % palette.length].clone());
-    child.material = Array.isArray(child.material) ? next : next[0];
-  });
-}
-
-function abgTintPalette(palette, color) {
-  const tint = new THREE.Color(color);
-  return (palette || []).map((mat) => {
-    const clone = mat?.clone?.() ?? mat;
-    if (clone?.color) {
-      clone.color.copy(tint);
-    }
-    if (clone?.emissive) {
-      clone.emissive.set(0x000000);
-    }
-    return clone;
-  });
-}
-
-function abgSnapshotBoardPalette(root) {
-  const swatches = [];
-  root.traverse((node) => {
-    if (!node.isMesh) return;
-    const mats = Array.isArray(node.material) ? node.material : [node.material];
-    mats.forEach((mat) => {
-      if (mat?.color) swatches.push(mat);
-    });
-  });
-  if (!swatches.length) return { light: null, dark: null };
-  const withLum = swatches.map((mat) => {
-    const c = mat.color;
-    const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-    return { mat, lum };
-  });
-  withLum.sort((a, b) => b.lum - a.lum);
-  return {
-    light: withLum[0]?.mat?.clone?.() ?? null,
-    dark: withLum[withLum.length - 1]?.mat?.clone?.() ?? null
-  };
-}
-
-let abgAssetPromise = null;
-async function getAbgAssets() {
-  if (abgAssetPromise) return abgAssetPromise;
-  abgAssetPromise = (async () => {
-    const loader = new GLTFLoader();
-    loader.setCrossOrigin('anonymous');
-    const draco = new DRACOLoader();
-    draco.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    loader.setDRACOLoader(draco);
-
-    let root = null;
-    for (const url of ABG_MODEL_URLS) {
-      try {
-        const gltf = await loader.loadAsync(url);
-        root = gltf?.scene;
-        if (root) break;
-      } catch (error) {
-        console.warn('ABG load failed', url, error);
-      }
-    }
-    if (!root) return null;
-    root.updateMatrixWorld(true);
-
-    const proto = { w: {}, b: {} };
-    const palettes = { w: [], b: [] };
-    const boards = [];
-
-    root.traverse((node) => {
-      const path = abgNodePath(node);
-      const type = abgDetectType(path);
-      if (node.isMesh) {
-        const mats = Array.isArray(node.material) ? node.material : [node.material];
-        let lum = 0;
-        let cnt = 0;
-        mats.forEach((mat) => {
-          if (mat?.map) applySRGBColorSpace(mat.map);
-          if (mat?.emissiveMap) applySRGBColorSpace(mat.emissiveMap);
-          if (mat?.color) {
-            const c = mat.color;
-            lum += 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
-            cnt += 1;
-          }
-        });
-        const lumAvg = cnt ? lum / cnt : 0.6;
-        const colorKey = abgDetectColor(path, lumAvg);
-        mats.forEach((mat) => {
-          if (mat?.isMaterial) palettes[colorKey].push(mat.clone());
-        });
-        if (/board|table|chessboard/i.test(node.name || '')) boards.push(node);
-      }
-      if (!type) return;
-      const color = abgDetectColor(path, abgAverageLuminance(node));
-      if (!proto[color][type]) {
-        proto[color][type] = node;
-      }
-    });
-
-    const boardNode = boards[0] || root;
-    const boardPalette = abgSnapshotBoardPalette(boardNode);
-
-    (['w', 'b']).forEach((color) => {
-      ABG_TYPES.forEach((type) => {
-        if (!proto[color][type]) {
-          const other = color === 'w' ? 'b' : 'w';
-          if (proto[other][type]) {
-            const clone = abgCloneWithMats(proto[other][type]);
-            abgApplyPalette(clone, palettes[color]);
-            proto[color][type] = clone;
-          }
-        }
-        if (proto[color][type]) {
-          proto[color][type] = abgPreparePiece(proto[color][type]);
-        }
-      });
-    });
-
-    return { proto, palettes, boardPalette, boardPrototype: abgCloneWithMats(boardNode) };
-  })();
-  return abgAssetPromise;
 }
 
 function cloneBoardMaterial(base, color) {
@@ -4189,6 +3970,18 @@ async function buildLudoBoard(
 ) {
   const scene = boardGroup;
 
+  let abgAssets = null;
+  try {
+    abgAssets = await loadAbgAssets({
+      targetFootprint: LUDO_TILE * 0.7,
+      baseLift: TOKEN_TRACK_HEIGHT
+    });
+  } catch (error) {
+    console.warn('Failed to load ABG assets for Ludo tokens', error);
+  }
+  const bishopPrototype = abgAssets?.proto?.w?.b || abgAssets?.proto?.b?.b;
+  const bishopPalette = abgAssets?.palettes?.w || null;
+
   const lightBoardMat = cloneBoardMaterial(null, 0xfef9ef);
   const darkBoardMat = cloneBoardMaterial(null, 0xdccfb0);
   let tokenTypeSequence =
@@ -4303,9 +4096,17 @@ async function buildLudoBoard(
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
     return Array.from({ length: 4 }, (_, i) => {
       const type = tokenTypeSequence[i % tokenTypeSequence.length];
-      const token = makeRook(makeTokenMaterial(color));
-      if (headPreset) {
-        applyHeadPresetToToken(token, headPreset);
+      let token = null;
+      if (bishopPrototype && bishopPalette) {
+        token = cloneAbgWithMats(bishopPrototype);
+        const palette = abgTintPalette(bishopPalette, colorNumberToHex(color));
+        abgApplyPalette(token, palette);
+        token.userData = { ...(token.userData || {}), isAbgToken: true };
+      } else {
+        token = makeRook(makeTokenMaterial(color));
+        if (headPreset) {
+          applyHeadPresetToToken(token, headPreset);
+        }
       }
       const label = createTokenCountLabel();
       if (label) {
