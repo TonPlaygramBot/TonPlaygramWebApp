@@ -88,6 +88,7 @@ import QuickMessagePopup from "../../components/QuickMessagePopup.jsx";
 import GiftPopup from "../../components/GiftPopup.jsx";
 import { giftSounds } from "../../utils/giftSounds.js";
 import { moveSeq, flashHighlight, applyEffect as applyEffectHelper } from "../../utils/moveHelpers.js";
+import { getSnakeInventory, isSnakeOptionUnlocked, snakeAccountId } from "../../utils/snakeInventory.js";
 
 const TOKEN_COLORS = [
   { name: "blue", color: "#60a5fa" },
@@ -609,6 +610,12 @@ export default function SnakeAndLadder() {
   const navigate = useNavigate();
 
   const [accountId, setAccountId] = useState(() => getPlayerId());
+  const resolvedAccountId = useMemo(() => snakeAccountId(accountId), [accountId]);
+  const [snakeInventoryVersion, setSnakeInventoryVersion] = useState(0);
+  const snakeInventory = useMemo(
+    () => getSnakeInventory(resolvedAccountId),
+    [resolvedAccountId, snakeInventoryVersion]
+  );
   const [tableCapacity, setTableCapacity] = useState(DEFAULT_CAPACITY);
   const tableCapacityRef = useRef(DEFAULT_CAPACITY);
 
@@ -619,6 +626,16 @@ export default function SnakeAndLadder() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setSnakeInventoryVersion((prev) => prev + 1);
+      }
+    };
+    window.addEventListener('snakeInventoryUpdate', handler);
+    return () => window.removeEventListener('snakeInventoryUpdate', handler);
+  }, [resolvedAccountId]);
 
   useEffect(() => {
     const handler = () => setMuted(isGameMuted());
@@ -762,6 +779,27 @@ export default function SnakeAndLadder() {
     [frameRateId]
   );
   const frameRateValue = activeFrameRateOption?.fps ?? FRAME_RATE_OPTIONS[0]?.fps ?? 90;
+
+  useEffect(() => {
+    setAppearance((prev) => {
+      const normalized = normalizeAppearance(prev);
+      const corrected = { ...normalized };
+      let changed = false;
+      SNAKE_CUSTOMIZATION_SECTIONS.forEach(({ key, options }) => {
+        const selected = options[corrected[key]];
+        const unlocked = selected && isSnakeOptionUnlocked(key, selected.id, snakeInventory);
+        if (!unlocked) {
+          const firstUnlockedIndex = options.findIndex((option) =>
+            isSnakeOptionUnlocked(key, option.id, snakeInventory)
+          );
+          corrected[key] = firstUnlockedIndex >= 0 ? firstUnlockedIndex : 0;
+          changed = true;
+        }
+      });
+      if (changed) return corrected;
+      return prev;
+    });
+  }, [snakeInventory]);
 
   useEffect(() => {
     try {
@@ -2551,6 +2589,8 @@ export default function SnakeAndLadder() {
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                     <div className="grid grid-cols-1 gap-2">
                       {options.map((option, idx) => {
+                        const unlocked = isSnakeOptionUnlocked(key, option.id, snakeInventory);
+                        if (!unlocked) return null;
                         const selected = normalizedAppearance[key] === idx;
                         return (
                           <button
