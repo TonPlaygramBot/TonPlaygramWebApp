@@ -1,9 +1,18 @@
-import { FrameState, Player, ShotContext, ShotEvent } from '../types';
+import { BallColor, FrameState, Player, ShotContext, ShotEvent } from '../types';
 import { UkPool } from '../../lib/poolUk8Ball.js';
 import { AmericanBilliards } from '../../lib/americanBilliards.js';
 import { NineBall } from '../../lib/nineBall.js';
 
-type PoolVariantId = 'american' | 'uk' | '9ball';
+type PoolVariantId = 'american' | 'uk' | '9ball' | 'snooker';
+
+type SnookerSerializedState = {
+  redsRemaining: number;
+  colorsOnTable: BallColor[];
+  colorOnAfterRed: boolean;
+  currentPlayer: 'A' | 'B';
+  frameOver: boolean;
+  winner: 'A' | 'B' | null;
+};
 
 type UkColour = 'blue' | 'red' | 'black' | 'cue';
 
@@ -55,6 +64,11 @@ type PoolMeta =
       state: UkSerializedState;
       totals: { blue: number; red: number };
       hud: HudInfo;
+    }
+  | {
+      variant: 'snooker';
+      state: SnookerSerializedState;
+      hud?: HudInfo;
     }
   | {
       variant: 'american';
@@ -218,7 +232,7 @@ export class PoolRoyaleRules {
       normalized === 'uk8' ||
       normalized === 'snooker'
     ) {
-      this.variant = 'uk';
+      this.variant = normalized === 'snooker' ? 'snooker' : 'uk';
     } else if (normalized === '9ball' || normalized === 'nineball' || normalized === '9') {
       this.variant = '9ball';
     } else {
@@ -228,6 +242,32 @@ export class PoolRoyaleRules {
 
   getInitialFrame(playerA: string, playerB: string): FrameState {
     switch (this.variant) {
+      case 'snooker': {
+        const colorsOnTable: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
+        const base: FrameState = {
+          balls: [],
+          activePlayer: 'A',
+          players: basePlayers(playerA, playerB),
+          currentBreak: 0,
+          phase: 'REDS_AND_COLORS',
+          redsRemaining: 15,
+          colorOnAfterRed: false,
+          ballOn: ['RED'],
+          frameOver: false
+        };
+        base.meta = {
+          variant: 'snooker',
+          state: {
+            redsRemaining: 15,
+            colorsOnTable,
+            colorOnAfterRed: false,
+            currentPlayer: 'A',
+            frameOver: false,
+            winner: null
+          }
+        } satisfies PoolMeta;
+        return base;
+      }
       case 'uk': {
         const game = new UkPool();
         game.startBreak();
@@ -316,6 +356,8 @@ export class PoolRoyaleRules {
 
   applyShot(state: FrameState, events: ShotEvent[], context: ShotContext = {}): FrameState {
     switch (this.variant) {
+      case 'snooker':
+        return this.applySnookerShot(state, events, context);
       case 'uk':
         return this.applyUkShot(state, events, context);
       case '9ball':
@@ -323,6 +365,256 @@ export class PoolRoyaleRules {
       default:
         return this.applyAmericanShot(state, events, context);
     }
+  }
+
+  private resolveBallColor(value: unknown): BallColor | null {
+    if (typeof value === 'string') {
+      const norm = value.toLowerCase();
+      if (norm.startsWith('red')) return 'RED';
+      if (norm.startsWith('yellow')) return 'YELLOW';
+      if (norm.startsWith('green')) return 'GREEN';
+      if (norm.startsWith('brown')) return 'BROWN';
+      if (norm.startsWith('blue')) return 'BLUE';
+      if (norm.startsWith('pink')) return 'PINK';
+      if (norm.startsWith('black')) return 'BLACK';
+      if (norm.startsWith('cue')) return 'CUE';
+    }
+    return null;
+  }
+
+  private ballValue(color: BallColor | null | undefined): number {
+    switch (color) {
+      case 'RED':
+        return 1;
+      case 'YELLOW':
+        return 2;
+      case 'GREEN':
+        return 3;
+      case 'BROWN':
+        return 4;
+      case 'BLUE':
+        return 5;
+      case 'PINK':
+        return 6;
+      case 'BLACK':
+        return 7;
+      default:
+        return 0;
+    }
+  }
+
+  private computeSnookerBallOn(
+    phase: FrameState['phase'],
+    redsRemaining: number,
+    colorOnAfterRed: boolean,
+    colorsOnTable: Set<BallColor>
+  ): string[] {
+    const orderedColors: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
+    if (phase === 'COLORS_ORDER') {
+      const next = orderedColors.find((c) => colorsOnTable.has(c));
+      return next ? [next] : [];
+    }
+    if (colorOnAfterRed) {
+      const remaining = orderedColors.filter((c) => colorsOnTable.has(c));
+      return remaining.length > 0 ? remaining : orderedColors;
+    }
+    if (redsRemaining > 0) return ['RED'];
+    const next = orderedColors.find((c) => colorsOnTable.has(c));
+    return next ? [next] : [];
+  }
+
+  private applySnookerShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {
+    const defaultColors: BallColor[] = ['YELLOW', 'GREEN', 'BROWN', 'BLUE', 'PINK', 'BLACK'];
+    const meta = (state.meta ?? {}) as PoolMeta;
+    const previous: SnookerSerializedState | null =
+      meta.variant === 'snooker' && meta.state ? (meta.state as SnookerSerializedState) : null;
+
+    let redsRemaining = Number.isFinite(state.redsRemaining) ? state.redsRemaining : 15;
+    let colorOnAfterRed = Boolean(state.colorOnAfterRed);
+    let phase: FrameState['phase'] = state.phase === 'COLORS_ORDER' ? 'COLORS_ORDER' : 'REDS_AND_COLORS';
+    const colorsOnTable = new Set<BallColor>(previous?.colorsOnTable ?? defaultColors);
+    let activePlayer: 'A' | 'B' = state.activePlayer ?? 'A';
+    const opponent: 'A' | 'B' = activePlayer === 'A' ? 'B' : 'A';
+    const players: { A: Player; B: Player } = {
+      A: { ...state.players.A },
+      B: { ...state.players.B }
+    };
+    let currentBreak = state.currentBreak ?? 0;
+
+    const ballOn = this.computeSnookerBallOn(phase, redsRemaining, colorOnAfterRed, colorsOnTable);
+    const ballOnSet = new Set(ballOn);
+
+    let firstContact: BallColor | null = null;
+    for (const ev of events) {
+      if (ev.type !== 'HIT') continue;
+      firstContact = this.resolveBallColor(ev.ballId ?? ev.firstContact);
+      if (firstContact) break;
+    }
+
+    const potted: BallColor[] = [];
+    let cueBallPotted = Boolean(context.cueBallPotted);
+    for (const ev of events) {
+      if (ev.type !== 'POTTED') continue;
+      const colour = this.resolveBallColor(ev.ballId ?? ev.ball);
+      if (!colour) continue;
+      if (colour === 'CUE') {
+        cueBallPotted = true;
+      } else {
+        potted.push(colour);
+      }
+    }
+
+    const ballOnValue = Math.max(...Array.from(ballOnSet).map((b) => this.ballValue(b)), 0);
+    let foulReason: string | null = null;
+    let foulValue = ballOnValue;
+
+    if (!context.contactMade) {
+      foulReason = 'No ball struck';
+    } else if (!firstContact) {
+      foulReason = 'No legal contact';
+    } else if (!ballOnSet.has(firstContact)) {
+      foulReason = `Incorrect first contact (${firstContact.toLowerCase()})`;
+      foulValue = Math.max(foulValue, this.ballValue(firstContact));
+    }
+
+    const illegalPot = potted.find((c) => !ballOnSet.has(c));
+    if (!foulReason && illegalPot) {
+      foulReason = `Illegal pot (${illegalPot.toLowerCase()})`;
+      foulValue = Math.max(foulValue, this.ballValue(illegalPot));
+    }
+
+    if (!foulReason && context.noCushionAfterContact && potted.length === 0) {
+      foulReason = 'No cushion after contact';
+    }
+
+    if (!foulReason && cueBallPotted) {
+      foulReason = 'Cue ball potted';
+      foulValue = Math.max(foulValue, 4);
+    }
+
+    const redPots = potted.filter((c) => c === 'RED').length;
+    redsRemaining = Math.max(0, redsRemaining - redPots);
+
+    if (foulReason) {
+      const foulPoints = Math.max(4, foulValue || 4);
+      players[opponent].score = (players[opponent].score ?? 0) + foulPoints;
+      activePlayer = opponent;
+      currentBreak = 0;
+      if (redsRemaining === 0 && phase === 'REDS_AND_COLORS' && !colorOnAfterRed) {
+        phase = 'COLORS_ORDER';
+      }
+      const ballOnNext = this.computeSnookerBallOn(
+        phase,
+        redsRemaining,
+        colorOnAfterRed,
+        colorsOnTable
+      );
+      const frameOver = ballOnNext.length === 0 && phase === 'COLORS_ORDER';
+      const winner = frameOver
+        ? players.A.score === players.B.score
+          ? 'TIE'
+          : players.A.score > players.B.score
+            ? 'A'
+            : 'B'
+        : undefined;
+      return {
+        ...state,
+        activePlayer,
+        players,
+        currentBreak,
+        phase,
+        redsRemaining,
+        colorOnAfterRed,
+        ballOn: ballOnNext,
+        frameOver,
+        winner,
+        foul: {
+          points: foulPoints,
+          reason: foulReason
+        },
+        meta: {
+          variant: 'snooker',
+          state: {
+            redsRemaining,
+            colorsOnTable: Array.from(colorsOnTable),
+            colorOnAfterRed,
+            currentPlayer: activePlayer,
+            frameOver,
+            winner: winner ?? null
+          }
+        } satisfies PoolMeta
+      };
+    }
+
+    let scored = 0;
+    potted.forEach((colour) => {
+      scored += this.ballValue(colour);
+      if (colour === 'RED') return;
+      if (phase === 'COLORS_ORDER') {
+        colorsOnTable.delete(colour);
+      }
+    });
+
+    if (phase === 'REDS_AND_COLORS') {
+      if (!colorOnAfterRed && redPots > 0) {
+        colorOnAfterRed = true;
+      }
+      if (colorOnAfterRed && potted.some((c) => c !== 'RED')) {
+        colorOnAfterRed = false;
+        if (redsRemaining === 0) {
+          phase = 'COLORS_ORDER';
+        }
+      }
+      if (redsRemaining === 0 && !colorOnAfterRed) {
+        phase = 'COLORS_ORDER';
+      }
+    }
+
+    const frameOver = phase === 'COLORS_ORDER' && colorsOnTable.size === 0;
+    const ballOnNext = frameOver
+      ? []
+      : this.computeSnookerBallOn(phase, redsRemaining, colorOnAfterRed, colorsOnTable);
+
+    if (scored > 0) {
+      players[activePlayer].score = (players[activePlayer].score ?? 0) + scored;
+      currentBreak = currentBreak + scored;
+    } else {
+      activePlayer = opponent;
+      currentBreak = 0;
+    }
+
+    const winner = frameOver
+      ? players.A.score === players.B.score
+        ? 'TIE'
+        : players.A.score > players.B.score
+          ? 'A'
+          : 'B'
+      : undefined;
+
+    return {
+      ...state,
+      activePlayer,
+      players,
+      currentBreak,
+      phase,
+      redsRemaining,
+      colorOnAfterRed,
+      ballOn: ballOnNext,
+      frameOver,
+      winner,
+      foul: undefined,
+      meta: {
+        variant: 'snooker',
+        state: {
+          redsRemaining,
+          colorsOnTable: Array.from(colorsOnTable),
+          colorOnAfterRed,
+          currentPlayer: activePlayer,
+          frameOver,
+          winner: winner ?? null
+        }
+      } satisfies PoolMeta
+    };
   }
 
   private applyUkShot(state: FrameState, events: ShotEvent[], context: ShotContext): FrameState {

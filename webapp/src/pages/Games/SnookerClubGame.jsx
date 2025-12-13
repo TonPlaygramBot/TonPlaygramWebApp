@@ -443,11 +443,11 @@ const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther
 const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides (~30% boost)
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.14; // trim fascia span slightly so the middle plates sit closer to the pocket centres without widening the rounded pocket edge
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 0.88; // trim back the middle fascia overhang so the outer chrome edge cleans up while leaving the rounded cut untouched
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.28; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
-const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.132; // push the side fascias outward so the chrome steps away from the cloth while keeping the rounded cut aligned
+const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
@@ -4195,7 +4195,7 @@ const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
-const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
+const PLAYER_CAMERA_DISTANCE_FACTOR = 0.019; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
