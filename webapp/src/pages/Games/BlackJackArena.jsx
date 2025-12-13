@@ -11,6 +11,7 @@ import { createCardGeometry, createCardMesh, orientCard, setCardFace, CARD_THEME
 import { createChipFactory } from '../../utils/chips3d.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { getAvatarUrl } from '../../utils/avatarUtils.js';
+import { CHAIR_COLOR_OPTIONS } from '../../config/blackjackOptions.js';
 import {
   TABLE_WOOD_OPTIONS,
   TABLE_CLOTH_OPTIONS,
@@ -30,6 +31,7 @@ import {
   isBust,
   aiAction
 } from '../../utils/blackjackLogic.js';
+import { getBlackjackInventory, isBlackjackOptionUnlocked, blackjackAccountId } from '../../utils/blackjackInventory.js';
 
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
@@ -125,15 +127,6 @@ function createAudio(src, volume = 0.9) {
   audio.volume = volume;
   return audio;
 }
-
-const CHAIR_COLOR_OPTIONS = Object.freeze([
-  { id: 'ruby', label: 'Ruby', primary: '#8b0000', accent: '#8b0000', highlight: '#b22222', legColor: '#1f1f1f' },
-  { id: 'slate', label: 'Slate', primary: '#374151', accent: '#374151', highlight: '#6b7280', legColor: '#0f172a' },
-  { id: 'teal', label: 'Teal', primary: '#0f766e', accent: '#0f766e', highlight: '#38b2ac', legColor: '#082f2a' },
-  { id: 'amber', label: 'Amber', primary: '#b45309', accent: '#b45309', highlight: '#f59e0b', legColor: '#2f2410' },
-  { id: 'violet', label: 'Violet', primary: '#7c3aed', accent: '#7c3aed', highlight: '#c084fc', legColor: '#2b1059' },
-  { id: 'frost', label: 'Ice', primary: '#1f2937', accent: '#1f2937', highlight: '#9ca3af', legColor: '#0f172a' }
-]);
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -786,13 +779,14 @@ function parseSearch(search) {
   const stake = Number.isFinite(amount) && amount > 0 ? amount : 500;
   const rawPlayers = Number.parseInt(params.get('players') || params.get('playerCount') || '', 10);
   const playerCount = clampPlayerCount(rawPlayers);
+  const accountId = params.get('accountId') || params.get('acct');
   const flags = (params.get('flags') || '')
     .split(',')
     .map((value) => Number.parseInt(value, 10))
     .filter(Number.isFinite)
     .map((index) => FLAG_EMOJIS[index])
     .filter(Boolean);
-  return { username, avatar, stake, token, playerCount, flags };
+  return { username, avatar, stake, token, playerCount, flags, accountId };
 }
 
 function buildPlayers(searchOrOptions) {
@@ -1377,6 +1371,22 @@ function BlackJackArena({ search }) {
   const effectivePlayerCount = clampPlayerCount(
     gameState?.players?.length || searchOptions.playerCount
   );
+  const resolvedAccountId = useMemo(() => blackjackAccountId(searchOptions?.accountId), [searchOptions?.accountId]);
+  const [inventoryVersion, setInventoryVersion] = useState(0);
+  const blackjackInventory = useMemo(
+    () => getBlackjackInventory(resolvedAccountId),
+    [resolvedAccountId, inventoryVersion]
+  );
+
+  useEffect(() => {
+    const handler = (event) => {
+      if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
+        setInventoryVersion((value) => value + 1);
+      }
+    };
+    window.addEventListener('blackjackInventoryUpdate', handler);
+    return () => window.removeEventListener('blackjackInventoryUpdate', handler);
+  }, [resolvedAccountId]);
 
   useEffect(() => {
     appearanceRef.current = appearance;
@@ -1388,6 +1398,51 @@ function BlackJackArena({ search }) {
       knock: createAudio('/assets/sounds/wooden-door-knock-102902.mp3', 0.9)
     };
   }, []);
+
+  const customizationSections = useMemo(
+    () =>
+      CUSTOMIZATION_SECTIONS.map((section) => ({
+        ...section,
+        options: section.options
+          .map((option, idx) => ({ ...option, idx }))
+          .filter(({ id }) => isBlackjackOptionUnlocked(section.key, id, blackjackInventory))
+      })).filter((section) => section.options.length > 0),
+    [blackjackInventory]
+  );
+
+  const ensureAppearanceUnlocked = useCallback(
+    (value = DEFAULT_APPEARANCE) => {
+      const normalized = normalizeAppearance(value);
+      const map = {
+        tableWood: TABLE_WOOD_OPTIONS,
+        tableCloth: TABLE_CLOTH_OPTIONS,
+        tableBase: TABLE_BASE_OPTIONS,
+        chairColor: CHAIR_COLOR_OPTIONS,
+        tableShape: TABLE_SHAPE_OPTIONS,
+        cards: CARD_THEMES
+      };
+      let changed = false;
+      const next = { ...normalized };
+      Object.entries(map).forEach(([key, options]) => {
+        const idx = Number.isFinite(next[key]) ? next[key] : 0;
+        const option = options[idx];
+        if (!option || !isBlackjackOptionUnlocked(key, option.id, blackjackInventory)) {
+          const fallbackIdx = options.findIndex((opt) => isBlackjackOptionUnlocked(key, opt.id, blackjackInventory));
+          const safeIdx = fallbackIdx >= 0 ? fallbackIdx : 0;
+          if (safeIdx !== idx) {
+            next[key] = safeIdx;
+            changed = true;
+          }
+        }
+      });
+      return changed ? next : normalized;
+    },
+    [blackjackInventory]
+  );
+
+  useEffect(() => {
+    setAppearance((prev) => ensureAppearanceUnlocked(prev));
+  }, [ensureAppearanceUnlocked]);
 
   const playSound = useCallback((name) => {
     const audio = audioRef.current?.[name];
@@ -2690,12 +2745,12 @@ function BlackJackArena({ search }) {
               </button>
             </div>
             <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
-              {CUSTOMIZATION_SECTIONS.map(({ key, label, options }) => (
+              {customizationSections.map(({ key, label, options }) => (
                 <div key={key} className="space-y-2">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
                   <div className="grid grid-cols-2 gap-2">
-                    {options.map((option, idx) => {
-                      const selected = appearance[key] === idx;
+                    {options.map((option) => {
+                      const selected = appearance[key] === option.idx;
                       const disabled =
                         key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && effectivePlayerCount > 4;
                       return (
@@ -2704,7 +2759,7 @@ function BlackJackArena({ search }) {
                           type="button"
                           onClick={() => {
                             if (disabled) return;
-                            setAppearance((prev) => ({ ...prev, [key]: idx }));
+                            setAppearance((prev) => ({ ...prev, [key]: option.idx }));
                           }}
                           aria-pressed={selected}
                           disabled={disabled}
