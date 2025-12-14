@@ -987,22 +987,19 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.62 +
   POCKET_VIS_R * 2.82 +
   BALL_R * 1.92;
-const POCKET_CAM_PULL_IN = 0.94;
-const POCKET_CAM_OUTWARD_PULL_IN = 0.92;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
-  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE * POCKET_CAM_PULL_IN,
-  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06 * POCKET_CAM_PULL_IN,
+  minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
+  minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
   heightOffset: BALL_R * 3.2,
   heightOffsetShortMultiplier: 1.0,
-  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET * POCKET_CAM_OUTWARD_PULL_IN,
-  outwardOffsetShort:
-    POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08 * POCKET_CAM_OUTWARD_PULL_IN,
+  outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
+  outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
   heightDrop: BALL_R * 1.3,
-  distanceScale: 0.78,
-  heightScale: 1.24,
+  distanceScale: 0.84,
+  heightScale: 1.28,
   focusBlend: 0.38,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
@@ -1012,9 +1009,9 @@ const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
-  pairMinDistance: BALL_R * 26,
-  pairMaxDistance: BALL_R * 68,
-  pairDistanceScale: 1.02,
+  pairMinDistance: BALL_R * 28,
+  pairMaxDistance: BALL_R * 72,
+  pairDistanceScale: 1.05,
   sideBias: 1.24,
   forwardBias: 0.1,
   shortRailBias: 0.52,
@@ -1022,8 +1019,8 @@ const ACTION_CAM = Object.freeze({
   heightOffset: BALL_R * 9.2,
   smoothingTime: 0.32,
   followSmoothingTime: 0.24,
-  followDistance: BALL_R * 50,
-  followHeightOffset: BALL_R * 6.8,
+  followDistance: BALL_R * 54,
+  followHeightOffset: BALL_R * 7.4,
   followHoldMs: 900
 });
 /**
@@ -4184,10 +4181,10 @@ const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
-  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.89, margin: 0.97 }),
-  portrait: Object.freeze({ cue: 0.82, broadcast: 0.87, margin: 0.96 }),
-  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.86, margin: 0.955 })
+  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
+  portrait: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
+  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -9322,7 +9319,6 @@ function PoolRoyaleGame({
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
-  const cueLengthRef = useRef(null);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
@@ -13181,7 +13177,6 @@ function PoolRoyaleGame({
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
       const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
-      cueLengthRef.current = cueLen;
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
@@ -14359,29 +14354,28 @@ function PoolRoyaleGame({
           cueAnimating = true;
           const startPos = cueStick.position.clone();
           const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
-          const forwardDurationMs = Math.max(
-            60,
-            THREE.MathUtils.lerp(150, 80, clampedPower)
-          );
-          const backwardDurationMs = forwardDurationMs * 0.6;
-          const animateCue = (startedAt) => {
-            const elapsed = performance.now() - startedAt;
-            const t = THREE.MathUtils.clamp(elapsed / forwardDurationMs, 0, 1);
-            cueStick.position.lerpVectors(startPos, endPos, t);
-            if (t < 1) {
-              requestAnimationFrame(() => animateCue(startedAt));
+          let animFrame = 0;
+          const animSteps = 5;
+          const animateCue = () => {
+            animFrame++;
+            cueStick.position.lerpVectors(
+              startPos,
+              endPos,
+              animFrame / animSteps
+            );
+            if (animFrame < animSteps) {
+              requestAnimationFrame(animateCue);
             } else {
-              const animateBack = (backStartedAt) => {
-                const backElapsed = performance.now() - backStartedAt;
-                const backT = THREE.MathUtils.clamp(
-                  backElapsed / backwardDurationMs,
-                  0,
-                  1
+              let backFrame = 0;
+              const animateBack = () => {
+                backFrame++;
+                cueStick.position.lerpVectors(
+                  endPos,
+                  startPos,
+                  backFrame / animSteps
                 );
-                cueStick.position.lerpVectors(endPos, startPos, backT);
-                if (backT < 1) {
-                  requestAnimationFrame(() => animateBack(backStartedAt));
-                } else {
+                if (backFrame < animSteps) requestAnimationFrame(animateBack);
+                else {
                   cuePullCurrentRef.current = 0;
                   cuePullTargetRef.current = 0;
                   cueStick.visible = false;
@@ -14396,10 +14390,10 @@ function PoolRoyaleGame({
                   }
                 }
               };
-              requestAnimationFrame((ts) => animateBack(ts));
+              requestAnimationFrame(animateBack);
             }
           };
-          requestAnimationFrame((ts) => animateCue(ts));
+          animateCue();
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -16780,37 +16774,6 @@ function PoolRoyaleGame({
   // --------------------------------------------------
   // NEW Big Pull Slider (right side): drag DOWN to set power, releases → fire()
   // --------------------------------------------------
-  const syncPowerChange = useCallback(
-    (rawValue) => {
-      const normalized = THREE.MathUtils.clamp(rawValue, 0, 1);
-      powerRef.current = normalized;
-      setHud((s) => ({ ...s, power: normalized }));
-
-      const cue = cueRef.current;
-      const aimDir = aimDirRef.current;
-      const balls = ballsRef.current;
-      const cueLen = cueLengthRef.current;
-      if (!cue || !aimDir || !balls?.length || !Number.isFinite(cueLen)) return;
-      if (aimDir.lengthSq() < 1e-8) return;
-
-      const backInfo = calcTarget(
-        cue,
-        aimDir.clone().multiplyScalar(-1),
-        balls
-      );
-      const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-      const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-      const desiredPull = Math.min(CUE_PULL_BASE * normalized, maxPull);
-      cuePullTargetRef.current = desiredPull;
-      cuePullCurrentRef.current = THREE.MathUtils.lerp(
-        cuePullCurrentRef.current ?? 0,
-        desiredPull,
-        CUE_PULL_SMOOTHING
-      );
-    },
-    [setHud]
-  );
-
   const sliderRef = useRef(null);
   const showPowerSlider = !hud.over;
   useEffect(() => {
@@ -16824,7 +16787,7 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => syncPowerChange(v / 100),
+      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
@@ -16838,7 +16801,7 @@ function PoolRoyaleGame({
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, showPowerSlider, syncPowerChange]);
+  }, [applySliderLock, showPowerSlider]);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
