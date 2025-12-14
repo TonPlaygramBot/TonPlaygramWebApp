@@ -1006,7 +1006,7 @@ const POCKET_CAM = Object.freeze({
   railFocusShort: BALL_R * 5.4
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
-const POCKET_GUARANTEED_ALIGNMENT = 0.82;
+const POCKET_GUARANTEED_ALIGNMENT = 0.76;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -1061,7 +1061,7 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 15; // bring the broadcast cams closer while keeping at least half the field visible
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 12; // pull the rail overhead broadcast heads tighter for a fuller table view
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -4168,7 +4168,7 @@ const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
-const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
+const BROADCAST_DISTANCE_MULTIPLIER = 0.07;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
@@ -4238,10 +4238,10 @@ const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.045;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.17;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.15;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+  STANDING_VIEW_PHI + 0.26
 );
 const CUE_VIEW_PHI_LIFT = 0.12;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
@@ -4265,7 +4265,7 @@ const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
-const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
+const RAIL_OVERHEAD_AIM_ZOOM = 0.9; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
 const AIM_SPIN_PREVIEW_SIDE = 0.22;
@@ -6122,7 +6122,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.032; // trim the side cushions further so the tips no longer protrude into the pocket mouths
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.058; // trim the side cushions further so the tips no longer protrude into the pocket mouths
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -11293,31 +11293,16 @@ function PoolRoyaleGame({
                 activeShotView.railDir = railDir;
               }
               if (!activeShotView.hasSwitchedRail) {
-                const cueMoving = cueBall.vel.lengthSq() > STOP_EPS * STOP_EPS;
-                if (shooting || cueMoving) {
-                  const fallbackRailDir =
-                    axis === 'side'
-                      ? signed(
-                          cueBall.pos.x ??
-                            cueBall.launchDir?.x ??
-                            activeShotView.railNormal?.x ??
-                            1,
-                          1
-                        )
-                      : signed(
-                          cueBall.pos.y ??
-                            cueBall.launchDir?.y ??
-                            activeShotView.railNormal?.y ??
-                            1,
-                          1
-                        );
-                  const currentDir = signed(railDir, fallbackRailDir);
-                  railDir = -currentDir;
-                  activeShotView.railDir = railDir;
-                  activeShotView.hasSwitchedRail = true;
-                }
+                railDir = resolveOppositeShortRailCamera({
+                  cueBall,
+                  fallback: railDir
+                });
+                activeShotView.railDir = railDir;
+                activeShotView.hasSwitchedRail = true;
               }
+              railDir = activeShotView.railDir;
               const heightBase = TABLE_Y + TABLE.THICK;
+              const preferRailOverhead = Boolean(activeShotView.preferRailOverhead);
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -11459,10 +11444,13 @@ function PoolRoyaleGame({
                   dir.set(0, 1);
                 }
                 const lookAhead = activeShotView.cueLookAhead ?? BALL_R * 6;
+                const cueReference = activeShotView.startCuePos
+                  ? activeShotView.startCuePos.clone()
+                  : cuePos2.clone();
                 const anchor = new THREE.Vector3(
-                  cueBall.pos.x + dir.x * lookAhead,
+                  cueReference.x + dir.x * lookAhead,
                   BALL_CENTER_Y + BALL_R * 0.3,
-                  cueBall.pos.y + dir.y * lookAhead
+                  cueReference.y + dir.y * lookAhead
                 );
                 const perp = new THREE.Vector2(-dir.y, dir.x);
                 const distance = THREE.MathUtils.clamp(
@@ -11559,6 +11547,24 @@ function PoolRoyaleGame({
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
+              }
+              if (preferRailOverhead && axis === 'short' && focusTargetVec3 && desiredPosition) {
+                const overheadDistance = Math.max(
+                  SHORT_RAIL_CAMERA_DISTANCE,
+                  Math.abs(desiredPosition.z / worldScaleFactor)
+                );
+                const overheadHeight =
+                  heightBase + ACTION_CAM.followHeightOffset + BALL_R * 6;
+                focusTargetVec3 = new THREE.Vector3(
+                  0,
+                  BALL_CENTER_Y + BALL_R * 0.5,
+                  0
+                ).multiplyScalar(worldScaleFactor);
+                desiredPosition = new THREE.Vector3(
+                  0,
+                  overheadHeight,
+                  railDir * overheadDistance
+                ).multiplyScalar(worldScaleFactor);
               }
               const broadcastRailDir =
                 activeShotView.axis === 'short'
@@ -12216,6 +12222,7 @@ function PoolRoyaleGame({
             broadcastRailDir: shortRailDir,
             hasSwitchedRail: false,
             railNormal: railNormal ? railNormal.clone() : null,
+            preferRailOverhead: Boolean(shotPrediction?.railNormal),
             longShot,
             travelDistance,
             activationDelay,
@@ -16387,6 +16394,7 @@ function PoolRoyaleGame({
                 shotPrediction?.railNormal === undefined);
             const qualifiesAsGuaranteed =
               isDirectPrediction && predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
+            candidate.forcedEarly = candidate.forcedEarly || qualifiesAsGuaranteed;
             const allowDuringChaos =
               movingCount <= POCKET_CHAOS_MOVING_THRESHOLD ||
               matchesIntent ||
