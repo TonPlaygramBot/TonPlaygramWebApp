@@ -1082,11 +1082,8 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Latest request: add a 20% global boost so every stroke carries more energy.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_BOOST = 1.2;
-const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_BOOST;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -12534,43 +12531,15 @@ function PoolRoyaleGame({
           exit: (immediate = true) => exitTopView(immediate)
         };
         cameraUpdateRef.current = () => updateCamera();
-        const resolveDirectionalSpinLimit = (dir, limits) => {
-          let maxReach = 1;
-          const { minX, maxX, minY, maxY } = limits || DEFAULT_SPIN_LIMITS;
-          if (Math.abs(dir.x) > 1e-5) {
-            const bound = dir.x > 0 ? maxX : minX;
-            maxReach = Math.min(maxReach, bound / dir.x);
-          }
-          if (Math.abs(dir.y) > 1e-5) {
-            const bound = dir.y > 0 ? maxY : minY;
-            maxReach = Math.min(maxReach, bound / dir.y);
-          }
-          return clamp(Math.abs(maxReach), 0, 1);
-        };
-
-        const solveSpinWithinLimits = (requested, limits) => {
-          const safeLimits = limits || DEFAULT_SPIN_LIMITS;
-          const target = {
-            x: clamp(requested?.x ?? 0, -1, 1),
-            y: clamp(requested?.y ?? 0, -1, 1)
-          };
-          TMP_VEC2_SPIN.set(target.x, target.y);
-          const magnitude = TMP_VEC2_SPIN.length();
-          if (magnitude < SPIN_INPUT_DEAD_ZONE) return { x: 0, y: 0 };
-          TMP_VEC2_SPIN.divideScalar(magnitude);
-          const maxReach = resolveDirectionalSpinLimit(TMP_VEC2_SPIN, safeLimits);
-          const cappedMagnitude = clamp(magnitude, 0, maxReach);
-          const normalizedReach = maxReach > 1e-5 ? cappedMagnitude / maxReach : 0;
-          const contactRetention = THREE.MathUtils.lerp(0.82, 1, normalizedReach);
-          TMP_VEC2_SPIN.multiplyScalar(cappedMagnitude * contactRetention);
-          return { x: TMP_VEC2_SPIN.x, y: TMP_VEC2_SPIN.y };
-        };
-
-        const clampSpinToLimits = (requested = spinRef.current) => {
+        const clampSpinToLimits = () => {
           const limits = spinLimitsRef.current || DEFAULT_SPIN_LIMITS;
-          const solved = solveSpinWithinLimits(requested, limits);
-          spinRef.current = solved;
-          return solved;
+          const current = spinRef.current || { x: 0, y: 0 };
+          const clamped = {
+            x: clamp(current.x ?? 0, limits.minX, limits.maxX),
+            y: clamp(current.y ?? 0, limits.minY, limits.maxY)
+          };
+          spinRef.current = clamped;
+          return clamped;
         };
         const applySpinConstraints = (aimVec, updateUi = false) => {
           const cueBall = cueRef.current || cue;
@@ -12593,7 +12562,7 @@ function PoolRoyaleGame({
             });
             spinLegalityRef.current = legality;
           }
-          const applied = clampSpinToLimits(spinRequestRef.current);
+          const applied = clampSpinToLimits();
           if (updateUi) {
             updateSpinDotPosition(applied, legality.blocked);
           }
