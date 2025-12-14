@@ -12282,7 +12282,8 @@ function PoolRoyaleGame({
             shotPrediction?.ballId === ballId &&
             predictedAlignment != null &&
             predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
-          if (!isGuaranteedPocket) return null;
+          const isAlreadyDropping = best.dist <= POCKET_CAM.triggerDist;
+          if (!isGuaranteedPocket && !isAlreadyDropping) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
               ? shotPrediction?.travel ?? null
