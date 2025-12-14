@@ -4163,7 +4163,7 @@ function applySnookerScaling({
 const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a clearer overview
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
-const STANDING_VIEW_FOV = 66;
+const STANDING_VIEW_FOV = 64; // tighten the field of view slightly so the table and balls appear closer on every camera
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
@@ -4181,10 +4181,11 @@ const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
-  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
-  portrait: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
-  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 })
+  // Pull every view in a touch closer so balls read larger without altering camera behavior
+  default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.975 }),
+  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.89, margin: 0.975 }),
+  portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.965 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.96 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -16787,7 +16788,11 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
+      onChange: (v) => {
+        const nextPower = v / 100;
+        powerRef.current = nextPower;
+        setHud((s) => ({ ...s, power: nextPower }));
+      },
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
