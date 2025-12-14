@@ -978,27 +978,27 @@ const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
 const SIDE_POCKET_PLYWOOD_LIFT = 0; // remove the underlay lift so pocket rims sit flush on the cloth
 const POCKET_CAM_BASE_MIN_OUTSIDE =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.44 +
-  POCKET_VIS_R * 2.9 +
-  BALL_R * 2.02;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.36 +
+  POCKET_VIS_R * 2.6 +
+  BALL_R * 1.9;
 const POCKET_CAM_BASE_OUTWARD_OFFSET =
-  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.62 +
-  POCKET_VIS_R * 2.82 +
-  BALL_R * 1.92;
+  Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.48 +
+  POCKET_VIS_R * 2.56 +
+  BALL_R * 1.78;
 const POCKET_CAM = Object.freeze({
   triggerDist: CAPTURE_R * 10.5,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
   maxOutside: BALL_R * 30,
-  heightOffset: BALL_R * 9.6,
-  heightOffsetShortMultiplier: 1.08,
+  heightOffset: BALL_R * 8.4,
+  heightOffsetShortMultiplier: 1.04,
   outwardOffset: POCKET_CAM_BASE_OUTWARD_OFFSET,
   outwardOffsetShort: POCKET_CAM_BASE_OUTWARD_OFFSET * 1.08,
-  heightDrop: BALL_R * 1.3,
-  distanceScale: 0.84,
-  heightScale: 1.28,
-  focusBlend: 0.38,
+  heightDrop: BALL_R * 1.15,
+  distanceScale: 0.86,
+  heightScale: 1.12,
+  focusBlend: 0.32,
   lateralFocusShift: POCKET_VIS_R * 0.4,
   railFocusLong: BALL_R * 8,
   railFocusShort: BALL_R * 5.4
@@ -1059,7 +1059,7 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 20; // bring the broadcast cams closer while keeping at least half the field visible
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 14; // bring the rail overhead broadcast cams noticeably closer while keeping at least half the field visible
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -4209,7 +4209,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.26; // halt the downward sweep a touch earlier so the lowest angle stays just above the cue
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.019; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -4282,8 +4282,8 @@ const TOP_VIEW_MARGIN = 0.32;
 const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
-const CUE_VIEW_RADIUS_RATIO = 0.045;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.19;
+const CUE_VIEW_RADIUS_RATIO = 0.042;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.17;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.18
@@ -6155,7 +6155,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.214; // stretch the short rail cushions deeper into the corner pocket throats per latest spec tweak and extend them slightly toward the corners so the cushion noses kiss the jaw shoulders
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.01; // trim the side cushions slightly so they stop right as the rail arch begins
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.05; // trim the side cushions more so they clear the middle pocket perimeter
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -11328,6 +11328,9 @@ export function PoolRoyaleGame({
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
+              const railShot =
+                activeShotView.railNormal &&
+                activeShotView.railNormal.lengthSq() > 1e-6;
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -11383,57 +11386,73 @@ export function PoolRoyaleGame({
                     baseDistance + longShotPullback,
                     pairFraming ? pairFraming.requiredDistance : 0
                   );
-                  const desired = new THREE.Vector3(
-                    0,
-                    heightBase + ACTION_CAM.heightOffset + heightLift,
-                    railDir * desiredDistance
-                  );
-                  const lookAnchor = anchor.clone();
-                  if (activeShotView.longShot) {
-                    lookAnchor.x = THREE.MathUtils.lerp(
-                      lookAnchor.x,
+                  if (railShot) {
+                    const desired = new THREE.Vector3(
                       0,
-                      0.35
+                      heightBase + ACTION_CAM.heightOffset + BALL_R * 8,
+                      railDir * (desiredDistance * 0.9)
                     );
-                  }
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
-                  const focusShiftSign = signed(
-                    cueOffsetX,
-                    signed(anchor.x, 1)
-                  );
-                  lookAnchor.x +=
-                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  let clampedZTarget = -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
-                  if (pairFraming) {
-                    const horizontalAllowance = Math.max(
+                    const lookAnchor = new THREE.Vector3(
                       0,
-                      Math.tan(pairFraming.halfHorizontal) * desiredDistance -
-                        pairFraming.halfWidth
+                      BALL_CENTER_Y + BALL_R * 0.3,
+                      0
                     );
-                    const depthAllowance = Math.max(
+                    applyStandingViewElevation(desired, lookAnchor, heightBase);
+                    focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
+                    desiredPosition = desired.multiplyScalar(worldScaleFactor);
+                  } else {
+                    const desired = new THREE.Vector3(
                       0,
-                      Math.tan(pairFraming.halfVertical) * desiredDistance -
-                        pairFraming.halfLength
+                      heightBase + ACTION_CAM.heightOffset + heightLift,
+                      railDir * desiredDistance
                     );
-                    const minX = pairFraming.centerX - horizontalAllowance;
-                    const maxX = pairFraming.centerX + horizontalAllowance;
-                    lookAnchor.x = THREE.MathUtils.clamp(lookAnchor.x, minX, maxX);
-                    const minZ = pairFraming.centerZ - depthAllowance;
-                    const maxZ = pairFraming.centerZ + depthAllowance;
-                    clampedZTarget = THREE.MathUtils.clamp(
+                    const lookAnchor = anchor.clone();
+                    if (activeShotView.longShot) {
+                      lookAnchor.x = THREE.MathUtils.lerp(
+                        lookAnchor.x,
+                        0,
+                        0.35
+                      );
+                    }
+                    lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
+                    const focusShiftSign = signed(
+                      cueOffsetX,
+                      signed(anchor.x, 1)
+                    );
+                    lookAnchor.x +=
+                      focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                    let clampedZTarget = -railDir * BALL_R * (activeShotView.longShot ? 6.5 : 4);
+                    if (pairFraming) {
+                      const horizontalAllowance = Math.max(
+                        0,
+                        Math.tan(pairFraming.halfHorizontal) * desiredDistance -
+                          pairFraming.halfWidth
+                      );
+                      const depthAllowance = Math.max(
+                        0,
+                        Math.tan(pairFraming.halfVertical) * desiredDistance -
+                          pairFraming.halfLength
+                      );
+                      const minX = pairFraming.centerX - horizontalAllowance;
+                      const maxX = pairFraming.centerX + horizontalAllowance;
+                      lookAnchor.x = THREE.MathUtils.clamp(lookAnchor.x, minX, maxX);
+                      const minZ = pairFraming.centerZ - depthAllowance;
+                      const maxZ = pairFraming.centerZ + depthAllowance;
+                      clampedZTarget = THREE.MathUtils.clamp(
+                        clampedZTarget,
+                        minZ,
+                        maxZ
+                      );
+                    }
+                    lookAnchor.z = THREE.MathUtils.lerp(
+                      lookAnchor.z,
                       clampedZTarget,
-                      minZ,
-                      maxZ
+                      0.65
                     );
+                    applyStandingViewElevation(desired, lookAnchor, heightBase);
+                    focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
+                    desiredPosition = desired.multiplyScalar(worldScaleFactor);
                   }
-                  lookAnchor.z = THREE.MathUtils.lerp(
-                    lookAnchor.z,
-                    clampedZTarget,
-                    0.65
-                  );
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.side;
                   const baseZ = THREE.MathUtils.clamp(
@@ -11488,67 +11507,89 @@ export function PoolRoyaleGame({
                     -lateralClamp,
                     lateralClamp
                   );
-                  const longShotPullback =
-                    activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
-                  const heightLift =
-                    activeShotView.longShot ? BALL_R * 2.2 : 0;
-                  const baseDistance = computeShortRailBroadcastDistance(camera);
-                  const cueFraming = computeShortRailPairFraming(camera, cuePos2);
-                  const desiredDistance = Math.max(
-                    baseDistance + longShotPullback,
-                    cueFraming ? cueFraming.requiredDistance : 0
-                  );
-                  const desired = new THREE.Vector3(
-                    0,
-                    heightBase + ACTION_CAM.followHeightOffset + heightLift,
-                    railDir * desiredDistance
-                  );
-                  const lookAnchor = anchor.clone();
-                  if (activeShotView.longShot) {
-                    lookAnchor.x = THREE.MathUtils.lerp(
-                      lookAnchor.x,
+                  const railShot =
+                    activeShotView.railNormal &&
+                    activeShotView.railNormal.lengthSq() > 1e-6;
+                  if (railShot) {
+                    const overheadDistance =
+                      computeShortRailBroadcastDistance(camera) * 0.9;
+                    const desired = new THREE.Vector3(
                       0,
-                      0.35
+                      heightBase + ACTION_CAM.followHeightOffset + BALL_R * 6,
+                      railDir * overheadDistance
                     );
-                  }
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
-                  const focusShiftSign = signed(
-                    cueOffsetX,
-                    signed(anchor.x, 1)
-                  );
-                  lookAnchor.x +=
-                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  let clampedZTarget = -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
-                  if (cueFraming) {
-                    const horizontalAllowance = Math.max(
+                    const lookAnchor = new THREE.Vector3(
                       0,
-                      Math.tan(cueFraming.halfHorizontal) * desiredDistance -
-                        cueFraming.halfWidth
+                      BALL_CENTER_Y + BALL_R * 0.3,
+                      0
                     );
-                    const depthAllowance = Math.max(
+                    applyStandingViewElevation(desired, lookAnchor, heightBase);
+                    focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
+                    desiredPosition = desired.multiplyScalar(worldScaleFactor);
+                  } else {
+                    const longShotPullback =
+                      activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
+                    const heightLift =
+                      activeShotView.longShot ? BALL_R * 2.2 : 0;
+                    const baseDistance = computeShortRailBroadcastDistance(camera);
+                    const cueFraming = computeShortRailPairFraming(camera, cuePos2);
+                    const desiredDistance = Math.max(
+                      baseDistance + longShotPullback,
+                      cueFraming ? cueFraming.requiredDistance : 0
+                    );
+                    const desired = new THREE.Vector3(
                       0,
-                      Math.tan(cueFraming.halfVertical) * desiredDistance -
-                        cueFraming.halfLength
+                      heightBase + ACTION_CAM.followHeightOffset + heightLift,
+                      railDir * desiredDistance
                     );
-                    const minX = cueFraming.centerX - horizontalAllowance;
-                    const maxX = cueFraming.centerX + horizontalAllowance;
-                    lookAnchor.x = THREE.MathUtils.clamp(lookAnchor.x, minX, maxX);
-                    const minZ = cueFraming.centerZ - depthAllowance;
-                    const maxZ = cueFraming.centerZ + depthAllowance;
-                    clampedZTarget = THREE.MathUtils.clamp(
+                    const lookAnchor = anchor.clone();
+                    if (activeShotView.longShot) {
+                      lookAnchor.x = THREE.MathUtils.lerp(
+                        lookAnchor.x,
+                        0,
+                        0.35
+                      );
+                    }
+                    lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
+                    const focusShiftSign = signed(
+                      cueOffsetX,
+                      signed(anchor.x, 1)
+                    );
+                    lookAnchor.x +=
+                      focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
+                    let clampedZTarget =
+                      -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
+                    if (cueFraming) {
+                      const horizontalAllowance = Math.max(
+                        0,
+                        Math.tan(cueFraming.halfHorizontal) * desiredDistance -
+                          cueFraming.halfWidth
+                      );
+                      const depthAllowance = Math.max(
+                        0,
+                        Math.tan(cueFraming.halfVertical) * desiredDistance -
+                          cueFraming.halfLength
+                      );
+                      const minX = cueFraming.centerX - horizontalAllowance;
+                      const maxX = cueFraming.centerX + horizontalAllowance;
+                      lookAnchor.x = THREE.MathUtils.clamp(lookAnchor.x, minX, maxX);
+                      const minZ = cueFraming.centerZ - depthAllowance;
+                      const maxZ = cueFraming.centerZ + depthAllowance;
+                      clampedZTarget = THREE.MathUtils.clamp(
+                        clampedZTarget,
+                        minZ,
+                        maxZ
+                      );
+                    }
+                    lookAnchor.z = THREE.MathUtils.lerp(
+                      lookAnchor.z,
                       clampedZTarget,
-                      minZ,
-                      maxZ
+                      0.65
                     );
+                    applyStandingViewElevation(desired, lookAnchor, heightBase);
+                    focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
+                    desiredPosition = desired.multiplyScalar(worldScaleFactor);
                   }
-                  lookAnchor.z = THREE.MathUtils.lerp(
-                    lookAnchor.z,
-                    clampedZTarget,
-                    0.65
-                  );
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
                   const lateralClamp = CAMERA_LATERAL_CLAMP.side;
                   const baseZ = THREE.MathUtils.clamp(
@@ -11580,8 +11621,12 @@ export function PoolRoyaleGame({
               activeShotView.broadcastRailDir = broadcastRailDir;
               broadcastArgs = {
                 railDir: broadcastRailDir,
-                targetWorld: desiredPosition ?? null,
-                focusWorld: focusTargetVec3 ?? null,
+                targetWorld: null,
+                focusWorld:
+                  broadcastCamerasRef.current?.defaultFocusWorld ??
+                  broadcastCamerasRef.current?.defaultFocus ??
+                  focusTargetVec3 ??
+                  null,
                 lerp: lerpT
               };
               if (focusTargetVec3 && desiredPosition) {
@@ -16222,7 +16267,13 @@ export function PoolRoyaleGame({
             let priority = baseScore;
             if (matchesIntent && (pocketIntent?.forced ?? false)) priority += 1.2;
             else if (matchesIntent) priority += 0.6;
-            if (qualifiesAsGuaranteed) priority += 0.4;
+            if (qualifiesAsGuaranteed) {
+              priority += 0.8;
+              candidate.holdUntil = Math.max(
+                candidate.holdUntil ?? now,
+                now + POCKET_VIEW_MAX_HOLD_MS
+              );
+            }
             if (candidate.forcedEarly) priority += 0.3;
             candidate.priority = priority;
             candidate.intentMatched = matchesIntent;
