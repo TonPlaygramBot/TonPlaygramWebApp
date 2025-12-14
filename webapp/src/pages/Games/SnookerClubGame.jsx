@@ -5376,36 +5376,7 @@ function alignRailsToCushions(table, frame) {
   const sampleCushion = table.userData.cushions[0];
   if (!sampleCushion) return;
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
-
-  const nodeBox = new THREE.Box3();
-  const frameBox = new THREE.Box3();
-  let frameBoxInitialised = false;
-
-  frame.traverse((node) => {
-    if (
-      !node.visible ||
-      node.userData?.isChalk ||
-      node.userData?.skipRailAlign ||
-      (!node.isMesh && !node.isLine && !node.isLineSegments)
-    ) {
-      return;
-    }
-
-    nodeBox.setFromObject(node);
-    if (!Number.isFinite(nodeBox.max.y)) return;
-
-    if (!frameBoxInitialised) {
-      frameBox.copy(nodeBox);
-      frameBoxInitialised = true;
-      return;
-    }
-
-    frameBox.union(nodeBox);
-  });
-
-  if (!frameBoxInitialised) {
-    frameBox.setFromObject(frame);
-  }
+  const frameBox = new THREE.Box3().setFromObject(frame);
   const diff = frameBox.max.y - cushionBox.max.y;
   const tolerance = 1e-3;
   if (Math.abs(diff) > tolerance) {
