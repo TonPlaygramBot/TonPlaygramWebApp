@@ -1082,12 +1082,10 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-// Boost every strike by a further 20% to give shots more authority without inflating cue pull distances.
 const SHOT_POWER_REDUCTION = 0.85;
 const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
-const SHOT_POWER_BOOST = 1.2;
 const SHOT_BREAK_MULTIPLIER = 1.5;
-const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST * SHOT_POWER_BOOST;
+const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
 const SHOT_POWER_RANGE = 0.75;
 const BALL_COLLISION_SOUND_REFERENCE_SPEED = SHOT_BASE_SPEED * 1.8;
@@ -4422,8 +4420,6 @@ const DEFAULT_SPIN_LIMITS = Object.freeze({
 const clampSpinValue = (value) => clamp(value, -1, 1);
 const SPIN_INPUT_DEAD_ZONE = 0.06;
 const SPIN_CUSHION_EPS = BALL_R * 0.5;
-const SPIN_EDGE_RESPONSE = 1.8;
-const SPIN_SMOOTHING = 0.38;
 
 const clampToUnitCircle = (x, y) => {
   const L = Math.hypot(x, y);
@@ -4432,24 +4428,6 @@ const clampToUnitCircle = (x, y) => {
   }
   const scale = L > 1e-6 ? 1 / L : 0;
   return { x: x * scale, y: y * scale };
-};
-
-const buildRealisticSpinRequest = (nx, ny, ranges = {}) => {
-  const raw = clampToUnitCircle(nx, ny);
-  const magnitude = Math.hypot(raw.x, raw.y);
-  const safeMag = Math.max(0, magnitude - SPIN_INPUT_DEAD_ZONE);
-  const normalizedMag = safeMag / Math.max(1e-6, 1 - SPIN_INPUT_DEAD_ZONE);
-  const response = 1 - Math.exp(-normalizedMag * SPIN_EDGE_RESPONSE);
-  const dir = magnitude > 1e-6 ? { x: raw.x / magnitude, y: raw.y / magnitude } : { x: 0, y: 0 };
-  const shaped = { x: dir.x * response, y: dir.y * response };
-  const sideRange = Math.max(ranges.offsetSide ?? MAX_SPIN_CONTACT_OFFSET, 1e-6);
-  const verticalRange = Math.max(ranges.offsetVertical ?? MAX_SPIN_VERTICAL, 1e-6);
-  const largest = Math.max(sideRange, verticalRange);
-  const elliptical = {
-    x: (shaped.x * sideRange) / largest,
-    y: (shaped.y * verticalRange) / largest
-  };
-  return clampToUnitCircle(elliptical.x, elliptical.y);
 };
 
 const prepareSpinAxes = (aimDir) => {
@@ -16837,15 +16815,10 @@ function PoolRoyaleGame({
     };
 
     const setSpin = (nx, ny) => {
-      const ranges = spinRangeRef.current || {};
-      const desired = buildRealisticSpinRequest(nx, ny, ranges);
-      spinRequestRef.current = desired;
-      const limited = clampToLimits(desired.x, desired.y);
-      const smoothed = {
-        x: THREE.MathUtils.lerp(spinRef.current?.x ?? 0, limited.x, SPIN_SMOOTHING),
-        y: THREE.MathUtils.lerp(spinRef.current?.y ?? 0, limited.y, SPIN_SMOOTHING)
-      };
-      spinRef.current = clampToLimits(smoothed.x, smoothed.y);
+      const normalized = clampToUnitCircle(nx, ny);
+      spinRequestRef.current = normalized;
+      const limited = clampToLimits(normalized.x, normalized.y);
+      spinRef.current = limited;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -16858,7 +16831,7 @@ function PoolRoyaleGame({
         : null;
       const legality = checkSpinLegality2D(
         cueBall,
-        spinRef.current,
+        normalized,
         ballsList || [],
         {
           axes,
@@ -16866,7 +16839,7 @@ function PoolRoyaleGame({
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(spinRef.current, legality.blocked);
+      updateSpinDotPosition(limited, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
