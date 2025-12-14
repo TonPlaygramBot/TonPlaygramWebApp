@@ -955,8 +955,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.118; // sink the cushion base further so the pads settle slightly below the rail line
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.082; // sink the cushion base slightly so the pads sit lower without towering over the rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.164; // trim more from the cushion tops so their surface comes down level with the rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -5333,7 +5333,8 @@ function alignRailsToCushions(table, frame) {
   const sampleCushion = table.userData.cushions[0];
   if (!sampleCushion) return;
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
-  const frameBox = new THREE.Box3().setFromObject(frame);
+  const frameTarget = frame.userData?.primaryRailMesh ?? frame;
+  const frameBox = new THREE.Box3().setFromObject(frameTarget);
   const diff = frameBox.max.y - cushionBox.max.y;
   const tolerance = 1e-3;
   if (Math.abs(diff) > tolerance) {
@@ -6117,6 +6118,7 @@ function Table3D(
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
+  railsGroup.userData = { ...railsGroup.userData, primaryRailMesh: null };
   finishParts.accentParent = railsGroup;
   const outerCornerRadius =
     Math.min(Math.min(longRailW, endRailW) * 1.6, Math.min(outerHalfW, outerHalfH) * 0.2) *
@@ -7245,6 +7247,7 @@ function Table3D(
   railsMesh.castShadow = true;
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
+  railsGroup.userData.primaryRailMesh = railsMesh;
   finishParts.railMeshes.push(railsMesh);
 
   let activeRailMarkerStyle =
