@@ -18,7 +18,6 @@
     "claim-test": "node bot/scripts/claimTest.js",
     "refund-withdrawals": "node bot/scripts/refundPendingWithdrawals.js",
     "reset-tpc-balances": "node bot/scripts/resetTPCBalances.js",
-    "find-anonymous-accounts": "node bot/scripts/findAnonymousAccounts.js",
     "reset-db": "node bot/scripts/resetDatabase.js",
     "dev": "concurrently -k \"npm --prefix webapp run dev\" \"node bot/server.js\""
   },

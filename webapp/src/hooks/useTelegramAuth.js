@@ -15,10 +15,9 @@ export default function useTelegramAuth() {
       });
     } else {
       (async () => {
-        const googleId = localStorage.getItem('googleId');
         const accountId = acc || (await ensureAccountId());
         socket.emit('register', { playerId: accountId });
-        if (!googleId) return;
+        const googleId = localStorage.getItem('googleId');
         try {
           const res = await createAccount(undefined, googleId);
           if (res?.accountId) {
