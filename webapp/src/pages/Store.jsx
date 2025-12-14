@@ -320,6 +320,7 @@ export default function Store() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOption, setSortOption] = useState('featured');
   const [activeGame, setActiveGame] = useState('all');
+  const [activeType, setActiveType] = useState('all');
   const [confirmItem, setConfirmItem] = useState(null);
   const [purchaseStatus, setPurchaseStatus] = useState('');
 
@@ -440,11 +441,22 @@ export default function Store() {
     return entries;
   }, [labelResolvers, ownedCheckers, storeItemsBySlug, typeLabelResolver]);
 
+  const typeFilters = useMemo(() => {
+    const types = new Set();
+    allMarketplaceItems.forEach((item) => {
+      if (item.typeLabel) {
+        types.add(item.typeLabel);
+      }
+    });
+    return ['all', ...Array.from(types)];
+  }, [allMarketplaceItems]);
+
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return allMarketplaceItems
       .filter((item) => {
         if (activeGame !== 'all' && item.slug !== activeGame) return false;
+        if (activeType !== 'all' && item.typeLabel !== activeType) return false;
         if (!term) return true;
         return (
           item.displayLabel.toLowerCase().includes(term) ||
@@ -459,7 +471,7 @@ export default function Store() {
         if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
         return a.slug.localeCompare(b.slug);
       });
-  }, [activeGame, allMarketplaceItems, searchTerm, sortOption]);
+  }, [activeGame, activeType, allMarketplaceItems, searchTerm, sortOption]);
 
   const resetStatus = () => {
     setPurchaseStatus('');
@@ -553,37 +565,57 @@ export default function Store() {
     const gameName = storeMeta[confirmItem.slug]?.name || confirmItem.slug;
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-md rounded-2xl bg-surface border border-border p-5 shadow-xl space-y-4">
-          <div className="flex items-start justify-between gap-4">
+        <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
-              <p className="text-xs uppercase text-subtext">Confirm purchase</p>
-              <h3 className="text-lg font-semibold leading-tight">{confirmItem.displayLabel}</h3>
-              <p className="text-sm text-subtext">{gameName} • {confirmItem.typeLabel}</p>
+              <p className="text-xs text-white/60">Confirm purchase</p>
+              <h3 className="text-lg font-semibold text-white">{confirmItem.displayLabel}</h3>
+              <p className="text-sm text-white/60">{gameName} • {confirmItem.typeLabel}</p>
             </div>
-            <div className="flex items-center gap-1 font-semibold">
+            <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
               {confirmItem.price}
               <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
             </div>
           </div>
-          <p className="text-sm text-subtext">
-            This NFT cosmetic will be unlocked instantly for your account. Please confirm the payment to continue.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <button
-              type="button"
-              onClick={() => setConfirmItem(null)}
-              className="w-full rounded-xl border border-border px-4 py-2 text-sm font-semibold text-text sm:w-auto"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePurchase(confirmItem)}
-              className="w-full rounded-xl bg-gradient-to-r from-[#00B2FF] to-[#6D5DF6] px-4 py-2 text-sm font-semibold text-white shadow sm:w-auto"
-              disabled={processing === confirmItem.id}
-            >
-              {processing === confirmItem.id ? 'Processing...' : 'Confirm & Buy'}
-            </button>
+
+          <div className="space-y-3 p-4 text-sm text-white/70">
+            <p>
+              This NFT cosmetic will be unlocked instantly for your account. Please confirm the payment to continue.
+            </p>
+            <div className="grid gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-white/80">
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Game</span>
+                <span className="font-semibold">{gameName}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Type</span>
+                <span className="font-semibold">{confirmItem.typeLabel}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-white/60">Price</span>
+                <span className="flex items-center gap-1 font-semibold">
+                  {confirmItem.price}
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmItem(null)}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handlePurchase(confirmItem)}
+                className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                disabled={processing === confirmItem.id}
+              >
+                {processing === confirmItem.id ? 'Processing…' : 'Confirm & Buy'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -591,133 +623,278 @@ export default function Store() {
   };
 
   return (
-    <div className="page">
-      <div className="flex flex-col gap-4">
-        <div className="rounded-2xl border border-border bg-surface/80 p-4 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-xs uppercase tracking-wide text-subtext">Marketplace</p>
-              <h1 className="text-2xl font-bold leading-tight">All NFTs in one modern store</h1>
-              <p className="text-sm text-subtext">
-                Browse every cosmetic across our games, search instantly, sort by price, and confirm before buying.
-              </p>
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div className="grid h-10 w-10 place-items-center rounded-2xl bg-white/10 shadow-sm">
+              <span className="text-lg">🛍️</span>
             </div>
-            <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 text-sm">
-              <div className="text-left">
-                <p className="text-xs text-subtext">Items</p>
-                <p className="font-semibold">{featuredCount.toLocaleString()}</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-left">
-                <p className="text-xs text-subtext">Owned</p>
-                <p className="font-semibold">{ownedCount}</p>
-              </div>
-              <div className="h-8 w-px bg-border" />
-              <div className="text-left">
-                <p className="text-xs text-subtext">Balance</p>
-                <p className="font-semibold flex items-center gap-1">
-                  {tpcBalance === null ? '—' : tpcBalance}
-                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                </p>
-              </div>
+            <div className="leading-tight">
+              <div className="text-sm font-semibold tracking-wide">TonPlaygram</div>
+              <div className="text-xs text-white/60">NFT Storefront</div>
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr]">
-            <div className="rounded-xl border border-border bg-surface px-3 py-2 flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-5 w-5 text-subtext">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35m0 0A7.5 7.5 0 1 0 5.25 5.25a7.5 7.5 0 0 0 11.4 11.4Z" />
-              </svg>
-              <input
-                type="search"
-                placeholder="Search items, games, or styles"
-                className="w-full bg-transparent text-sm focus:outline-none"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+          <div className="flex items-center gap-2">
+            <div className="hidden items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/80 md:flex">
+              <span className="text-white/60">TPC</span>
+              <span className="flex items-center gap-1 font-semibold text-white">
+                {tpcBalance === null ? '—' : tpcBalance}
+                <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+              </span>
             </div>
-            <select
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-              value={activeGame}
-              onChange={(e) => setActiveGame(e.target.value)}
-            >
-              <option value="all">All games</option>
-              {Object.entries(storeMeta).map(([slug, meta]) => (
-                <option key={slug} value={slug}>
-                  {meta.name}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rounded-xl border border-border bg-surface px-3 py-2 text-sm"
-              value={sortOption}
-              onChange={(e) => setSortOption(e.target.value)}
-            >
-              <option value="featured">Featured</option>
-              <option value="price-low">Price: Low to High</option>
-              <option value="price-high">Price: High to Low</option>
-              <option value="alpha">Alphabetical</option>
-            </select>
+            <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
+              <div className={`h-2.5 w-2.5 rounded-full ${accountId && accountId !== 'guest' ? 'bg-emerald-400' : 'bg-white/40'}`} />
+              <div className="text-xs font-semibold">{accountId || 'Guest'}</div>
+            </div>
           </div>
         </div>
+      </header>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredItems.map((item) => (
-            <div key={`${item.slug}-${item.id}`} className="flex flex-col gap-3 rounded-2xl border border-border bg-surface/70 p-4 shadow-sm">
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <p className="text-xs uppercase text-subtext">{item.gameName}</p>
-                  <h3 className="text-lg font-semibold leading-tight">{item.displayLabel}</h3>
-                  <p className="text-xs text-subtext">{item.typeLabel}</p>
-                </div>
-                <div className="flex items-center gap-1 rounded-full bg-surface px-3 py-1 text-sm font-semibold">
-                  {item.price}
-                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
-                </div>
-              </div>
-              <p className="text-sm text-subtext line-clamp-2">{item.description}</p>
-              <div className="flex items-center justify-between text-xs text-subtext">
-                <span className="rounded-full bg-surface px-3 py-1 capitalize">{item.slug.replace('-', ' ')}</span>
-                <span
-                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
-                    item.owned ? 'bg-green-400/10 text-green-400' : 'bg-[#6D5DF6]/10 text-[#6D5DF6]'
-                  }`}
-                >
-                  {item.owned ? 'Owned' : 'Mintable'}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setConfirmItem(item)}
-                disabled={item.owned || processing === item.id}
-                className={`buy-button text-center ${item.owned ? 'cursor-not-allowed opacity-60' : ''}`}
-              >
-                {item.owned ? 'Already owned' : processing === item.id ? 'Processing...' : 'Buy now'}
+      <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4">
+        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/0 p-5 shadow-sm">
+          <div className="absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/10 blur-2xl" />
+          <div className="absolute -left-10 -bottom-10 h-44 w-44 rounded-full bg-indigo-400/10 blur-2xl" />
+
+          <div className="relative grid gap-2">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-black/20 px-3 py-1 text-xs text-white/70">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              Explore NFT cosmetics across every TonPlaygram game
+            </div>
+
+            <h1 className="text-balance text-xl font-semibold md:text-2xl">
+              Storefront i ri — kërko, filtro dhe bli aksesorë në pak sekonda
+            </h1>
+
+            <p className="max-w-2xl text-sm text-white/70">
+              Dizajn mobil-first i frymëzuar nga mocku më sipër. Çdo kartë shfaq çmimin në TPC, tipin e aksesorit dhe nëse e keni tashmë në inventar.
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90">
+                Shfleto të gjitha
+              </button>
+              <button className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10">
+                Kërko aksesorë
               </button>
             </div>
-          ))}
-        </div>
-
-        {filteredItems.length === 0 && (
-          <div className="rounded-2xl border border-border bg-surface/80 p-6 text-center text-subtext">
-            No items match your filters. Try clearing the search or picking a different game.
           </div>
-        )}
+        </section>
 
-        <div className="rounded-2xl border border-border bg-surface/80 p-4 text-sm text-subtext space-y-2">
-          <p className="font-semibold text-text">Quick tips</p>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>Every purchase opens a confirmation modal before sending TPC.</li>
-            <li>Owned cosmetics show an “Owned” badge immediately after completion.</li>
-            <li>Design is responsive — cards stack on mobile and expand into rows on larger screens.</li>
-          </ul>
+        <div className="mt-4 grid gap-4">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-white/60">Marketplace</p>
+                <h2 className="text-xl font-semibold leading-tight">Aksesorë për çdo lojë TonPlaygram</h2>
+                <p className="text-sm text-white/60">Filtrime të shpejta, listim i qartë dhe modal konfirmimi para blerjes.</p>
+              </div>
+              <div className="grid grid-cols-3 items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm">
+                <div className="text-left">
+                  <p className="text-xs text-white/60">Listings</p>
+                  <p className="font-semibold text-white">{featuredCount.toLocaleString()}</p>
+                </div>
+                <div className="text-left">
+                  <p className="text-xs text-white/60">Owned</p>
+                  <p className="font-semibold text-white">{ownedCount}</p>
+                </div>
+                <div className="text-left">
+                  <p className="text-xs text-white/60">TPC</p>
+                  <p className="flex items-center gap-1 font-semibold text-white">
+                    {tpcBalance === null ? '—' : tpcBalance}
+                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-[2fr_1fr_1fr_1fr]">
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-black/20 px-3 py-2">
+                <span className="text-white/60">🔎</span>
+                <input
+                  type="search"
+                  placeholder="Kërko emër, lojë ose tip aksesor"
+                  className="w-full bg-transparent text-sm text-white/90 outline-none placeholder:text-white/40"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <select
+                className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 outline-none"
+                value={activeGame}
+                onChange={(e) => setActiveGame(e.target.value)}
+              >
+                <option value="all">Të gjitha lojërat</option>
+                {Object.entries(storeMeta).map(([slug, meta]) => (
+                  <option key={slug} value={slug}>
+                    {meta.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 outline-none"
+                value={activeType}
+                onChange={(e) => setActiveType(e.target.value)}
+              >
+                {typeFilters.map((type) => (
+                  <option key={type} value={type}>
+                    {type === 'all' ? 'Të gjitha tipet' : type}
+                  </option>
+                ))}
+              </select>
+              <select
+                className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white/90 outline-none"
+                value={sortOption}
+                onChange={(e) => setSortOption(e.target.value)}
+              >
+                <option value="featured">Trending</option>
+                <option value="price-low">Price: Low</option>
+                <option value="price-high">Price: High</option>
+                <option value="alpha">Alphabetical</option>
+              </select>
+            </div>
+
+            <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="grid gap-2">
+                <div className="text-xs font-semibold text-white/70">Lojërat</div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                      activeGame === 'all'
+                        ? 'border-white/20 bg-white text-zinc-950'
+                        : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
+                    }`}
+                    onClick={() => setActiveGame('all')}
+                  >
+                    All
+                  </button>
+                  {Object.entries(storeMeta).map(([slug, meta]) => (
+                    <button
+                      key={slug}
+                      className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                        activeGame === slug
+                          ? 'border-white/20 bg-white text-zinc-950'
+                          : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
+                      }`}
+                      onClick={() => setActiveGame(slug)}
+                    >
+                      {meta.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <div className="text-xs font-semibold text-white/70">Tipet e aksesorëve</div>
+                <div className="flex flex-wrap gap-2">
+                  {typeFilters.map((type) => (
+                    <button
+                      key={type}
+                      className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
+                        activeType === type
+                          ? 'border-white/20 bg-white text-zinc-950'
+                          : 'border-white/10 bg-black/20 text-white/75 hover:bg-white/10 hover:text-white'
+                      }`}
+                      onClick={() => setActiveType(type)}
+                    >
+                      {type === 'all' ? 'All' : type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-2 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-base font-semibold">Marketplace</div>
+              <div className="text-xs text-white/60">{filteredItems.length} listings · paguaj me TPC · aksesorë për çdo lojë</div>
+            </div>
+            <button className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 md:inline">
+              View analytics
+            </button>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredItems.map((item) => (
+              <button
+                key={`${item.slug}-${item.id}`}
+                onClick={() => setConfirmItem(item)}
+                className="group flex flex-col gap-3 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:bg-white/10"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
+                      {item.gameName[0]}
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-semibold">{item.displayLabel}</div>
+                        {item.owned && (
+                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                            Owned
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs text-white/60">{item.gameName} · {item.typeLabel}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-white/60">Price</div>
+                    <div className="flex items-center gap-1 text-sm font-semibold">
+                      {item.price}
+                      <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
+                    {item.slug.replace('-', ' ')}
+                  </span>
+                  <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs font-semibold text-white/60">
+                    {item.typeLabel}
+                  </span>
+                  <span
+                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                      item.owned ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-indigo-400/30 bg-indigo-400/10 text-indigo-100'
+                    }`}
+                  >
+                    {item.owned ? 'Në inventar' : 'Mintable'}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-white/60">
+                  <div>Seller: Official store</div>
+                  <div className="group-hover:text-white/80">Tap për të parë</div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {filteredItems.length === 0 && (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-white/70">
+              Nuk ka artikuj që përputhen me filtrat. Pastro kërkimin ose zgjidh një lojë tjetër.
+            </div>
+          )}
+
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-white/70 space-y-2">
+            <p className="font-semibold text-white">Udhëzime të shpejta</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Modal konfirmimi përpara çdo blerjeje për transparencë.</li>
+              <li>Badget “Owned” ndizet menjëherë pasi të përfundojë blerja.</li>
+              <li>Dizajni mobile-first — kartat rreshtohen mirë edhe në ekrane të vogla.</li>
+            </ul>
+          </div>
+
+          {info ? <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-white/80">{info}</div> : null}
+          {purchaseStatus ? (
+            <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-center text-sm font-semibold text-emerald-300">{purchaseStatus}</div>
+          ) : null}
         </div>
+      </main>
 
-        {info ? <div className="checkout-card text-center text-sm font-semibold">{info}</div> : null}
-        {purchaseStatus ? (
-          <div className="checkout-card text-center text-sm font-semibold text-green-400">{purchaseStatus}</div>
-        ) : null}
-      </div>
       {renderConfirmModal()}
     </div>
   );
