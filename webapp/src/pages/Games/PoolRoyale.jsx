@@ -9081,6 +9081,10 @@ function PoolRoyaleGame({
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
+  const powerRef = useRef(hud.power);
+  useEffect(() => {
+    powerRef.current = hud.power;
+  }, [hud.power]);
   const hudRef = useRef(hud);
   useEffect(() => {
     hudRef.current = hud;
@@ -9303,7 +9307,6 @@ function PoolRoyaleGame({
   const resetSpinRef = useRef(() => {});
   const tipGroupRef = useRef(null);
   const cueBodyRef = useRef(null);
-  const cueLenRef = useRef(null);
   const spinRangeRef = useRef({
     side: 0,
     forward: 0,
@@ -9316,39 +9319,6 @@ function PoolRoyaleGame({
   const spinLegalityRef = useRef({ blocked: false, reason: '' });
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
-  const syncCuePullWithPower = useCallback(
-    (powerValue) => {
-      const cue = cueRef.current;
-      const balls = ballsRef.current;
-      const aimDir = aimDirRef.current;
-      const cueLen = cueLenRef.current;
-      if (!cue || !balls || !balls.length || !aimDir || !cueLen) return;
-      const aimDir2D = aimDir.clone();
-      if (aimDir2D.lengthSq() < 1e-8) {
-        aimDir2D.set(0, 1);
-      } else {
-        aimDir2D.normalize();
-      }
-      const normalizedPower = THREE.MathUtils.clamp(powerValue ?? 0, 0, 1);
-      const desiredPull = normalizedPower * BALL_R * 10 * 0.65 * 1.2;
-      const backInfo = calcTarget(cue, aimDir2D.clone().multiplyScalar(-1), balls);
-      const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
-      const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
-      const pullTarget = Math.min(desiredPull, maxPull);
-      cuePullTargetRef.current = pullTarget;
-      cuePullCurrentRef.current = THREE.MathUtils.lerp(
-        cuePullCurrentRef.current ?? 0,
-        pullTarget,
-        CUE_PULL_SMOOTHING
-      );
-    },
-    []
-  );
-  const powerRef = useRef(hud.power);
-  useEffect(() => {
-    powerRef.current = hud.power;
-    syncCuePullWithPower(hud.power);
-  }, [hud.power, syncCuePullWithPower]);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
@@ -13207,7 +13177,6 @@ function PoolRoyaleGame({
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
       const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
-      cueLenRef.current = cueLen;
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
       cueStick.add(cueBody);
@@ -13218,23 +13187,15 @@ function PoolRoyaleGame({
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
       );
       const buttTipComp = Math.sin(buttTilt) * cueLen * 0.5;
-      const applyCueButtTilt = (group, extraTilt = 0, baseYOverride = null) => {
+      const applyCueButtTilt = (group, extraTilt = 0) => {
         if (!group) return;
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
-        if (info) {
-          if (typeof baseYOverride === 'number') {
-            info.baseY = baseYOverride;
-          } else if (!Number.isFinite(info.baseY)) {
-            info.baseY = group.position.y;
-          }
-        }
         const tipComp = Math.sin(totalTilt) * len * 0.5;
-        const anchorY = Number.isFinite(info?.baseY) ? info.baseY : group.position.y;
-        group.position.y = anchorY + tipComp;
+        group.position.y += tipComp;
         if (info) {
           info.tipCompensation = tipComp;
           info.current = totalTilt;
@@ -13244,8 +13205,7 @@ function PoolRoyaleGame({
       cueStick.userData.buttTilt = {
         angle: buttTilt,
         tipCompensation: buttTipComp,
-        length: cueLen,
-        baseY: null
+        length: cueLen
       };
 
       const paletteLength = CUE_RACK_PALETTE.length || CUE_STYLE_PRESETS.length || 1;
@@ -13447,7 +13407,7 @@ function PoolRoyaleGame({
       cueBody.add(stripeOverlay);
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
-      applyCueButtTilt(cueStick, 0, cueStick.position.y);
+      applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -15893,13 +15853,9 @@ function PoolRoyaleGame({
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = THREE.MathUtils.clamp(appliedSpin.y || 0, -1, 1);
-          const extraTilt = THREE.MathUtils.clamp(
-            MAX_BACKSPIN_TILT * tiltAmount,
-            -MAX_BACKSPIN_TILT,
-            MAX_BACKSPIN_TILT
-          );
-          applyCueButtTilt(cueStick, extraTilt, CUE_Y + spinWorld.y);
+          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
+          applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -16093,13 +16049,9 @@ function PoolRoyaleGame({
             CUE_Y + spinWorld.y,
             cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          const tiltAmount = THREE.MathUtils.clamp(spinY, -1, 1);
-          const extraTilt = THREE.MathUtils.clamp(
-            MAX_BACKSPIN_TILT * tiltAmount,
-            -MAX_BACKSPIN_TILT,
-            MAX_BACKSPIN_TILT
-          );
-          applyCueButtTilt(cueStick, extraTilt, CUE_Y + spinWorld.y);
+          const tiltAmount = Math.abs(spinY);
+          const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
+          applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
@@ -16818,16 +16770,8 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => {
-        const normalized = (v ?? 0) / 100;
-        powerRef.current = normalized;
-        syncCuePullWithPower(normalized);
-        setHud((s) => ({ ...s, power: normalized }));
-      },
-      onCommit: (v) => {
-        const normalized = (v ?? slider.value ?? 0) / 100;
-        powerRef.current = normalized;
-        syncCuePullWithPower(normalized);
+      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
+      onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
           slider.set(slider.min, { animate: true });
@@ -16840,7 +16784,7 @@ function PoolRoyaleGame({
       sliderInstanceRef.current = null;
       slider.destroy();
     };
-  }, [applySliderLock, showPowerSlider, syncCuePullWithPower]);
+  }, [applySliderLock, showPowerSlider]);
 
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
