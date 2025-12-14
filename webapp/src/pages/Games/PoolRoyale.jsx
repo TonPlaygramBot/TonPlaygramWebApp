@@ -5332,26 +5332,13 @@ function alignRailsToCushions(table, frame) {
   table.updateMatrixWorld(true);
   const sampleCushion = table.userData.cushions[0];
   if (!sampleCushion) return;
-
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
   const frameBox = new THREE.Box3().setFromObject(frame);
-  const diff = cushionBox.max.y - frameBox.max.y;
+  const diff = frameBox.max.y - cushionBox.max.y;
   const tolerance = 1e-3;
-
-  if (diff > tolerance) {
-    // Cushions are sitting higher than the wooden rails—push them down so the
-    // top surfaces level out instead of floating above the rail caps.
-    table.userData.cushions.forEach((cushion) => {
-      cushion.position.y -= diff;
-    });
-  } else if (diff < -tolerance) {
-    // Rails are higher; bring the cushions up to meet them so both surfaces align.
-    table.userData.cushions.forEach((cushion) => {
-      cushion.position.y += Math.abs(diff);
-    });
+  if (Math.abs(diff) > tolerance) {
+    frame.position.y -= diff;
   }
-
-  table.updateMatrixWorld(true);
 }
 
 function updateRailLimitsFromTable(table) {
@@ -7853,6 +7840,14 @@ function Table3D(
   });
 
   table.updateMatrixWorld(true);
+  let cushionTopLocal = frameTopY;
+  if (table.userData.cushions.length) {
+    const box = new THREE.Box3();
+    table.userData.cushions.forEach((cushion) => {
+      box.setFromObject(cushion);
+      cushionTopLocal = Math.max(cushionTopLocal, box.max.y);
+    });
+  }
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
@@ -7871,15 +7866,6 @@ function Table3D(
 
   alignRailsToCushions(table, railsGroup);
   table.updateMatrixWorld(true);
-
-  let cushionTopLocal = frameTopY;
-  if (table.userData.cushions.length) {
-    const box = new THREE.Box3();
-    table.userData.cushions.forEach((cushion) => {
-      box.setFromObject(cushion);
-      cushionTopLocal = Math.max(cushionTopLocal, box.max.y);
-    });
-  }
   updateRailLimitsFromTable(table);
 
   table.position.y = TABLE_Y;
