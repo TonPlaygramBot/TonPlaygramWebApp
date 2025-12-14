@@ -27,6 +27,9 @@ public static class PhysicsConstants
     // Offset that moves the side pockets slightly outside the rail line so the
     // chrome plates and wooden rails sit flush with the rounded cuts.
     public const double SidePocketOutset = 0.03;
+    // Extra trim applied to the side-rail cushions nearest the middle pockets so
+    // the green bands do not spill past the pocket perimeter.
+    public const double SidePocketCushionTrim = 0.0125;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
