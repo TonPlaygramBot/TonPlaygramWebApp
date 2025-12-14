@@ -9132,19 +9132,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     shootingRef.current = shotActive;
   }, [shotActive]);
-  const longShotReplayRef = useRef({
-    recording: false,
-    playing: false,
-    path: [],
-    startedAt: 0,
-    totalTime: 0,
-    duration: 0,
-    pathDuration: 0,
-    longShot: false,
-    holdUntil: 0,
-    lastIndex: 1
-  });
-  const longShotReplayObjectsRef = useRef(null);
   const sliderInstanceRef = useRef(null);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
@@ -9971,130 +9958,6 @@ function PoolRoyaleGame({
       let lastShotPower = 0;
       let prevCollisions = new Set();
       let cueAnimating = false; // forward stroke animation state
-      const clearLongShotReplay = () => {
-        const state = longShotReplayRef.current;
-        if (state) {
-          state.recording = false;
-          state.playing = false;
-          state.path = [];
-          state.totalTime = 0;
-          state.pathDuration = 0;
-          state.duration = 0;
-          state.longShot = false;
-          state.holdUntil = 0;
-          state.lastIndex = 1;
-        }
-        const replayObjects = longShotReplayObjectsRef.current;
-        if (replayObjects) {
-          replayObjects.group.visible = false;
-          replayObjects.cue.visible = false;
-          replayObjects.cue.material.opacity = 0;
-          replayObjects.line.material.opacity = 0;
-          replayObjects.line.material.needsUpdate = true;
-          replayObjects.pathGeom.setFromPoints([]);
-        }
-      };
-
-      const beginLongShotReplayRecording = (enabled) => {
-        clearLongShotReplay();
-        if (!enabled) return;
-        const state = longShotReplayRef.current;
-        if (!state) return;
-        state.recording = true;
-        state.longShot = true;
-        state.startedAt = performance.now();
-        state.totalTime = 0;
-        state.pathDuration = 0;
-        state.duration = 0;
-        state.lastIndex = 1;
-        const startPath = cue?.pos
-          ? [{ t: 0, x: cue.pos.x, z: cue.pos.y }]
-          : [];
-        state.path = startPath;
-      };
-
-      const startLongShotReplayPlayback = () => {
-        const state = longShotReplayRef.current;
-        const replayObjects = longShotReplayObjectsRef.current;
-        if (!state || !replayObjects) return;
-        if (!state.longShot || !state.path || state.path.length < 2) {
-          clearLongShotReplay();
-          return;
-        }
-        const pathDuration = Math.max(state.totalTime || 0, 1);
-        state.pathDuration = pathDuration;
-        const minDuration = 1600;
-        const maxDuration = 4200;
-        state.duration = Math.min(
-          maxDuration,
-          Math.max(minDuration, state.pathDuration || minDuration)
-        );
-        const height = tableSurfaceY + 0.003;
-        const points = state.path.map(
-          (entry) => new THREE.Vector3(entry.x, height, entry.z)
-        );
-        replayObjects.pathGeom.setFromPoints(points);
-        replayObjects.line.material.opacity = 0.82;
-        replayObjects.line.material.needsUpdate = true;
-        replayObjects.group.visible = true;
-        replayObjects.cue.visible = true;
-        replayObjects.cue.material.opacity = 0.95;
-        state.playing = true;
-        state.startedAt = performance.now();
-        state.holdUntil = state.startedAt + state.duration + 900;
-        state.lastIndex = 1;
-      };
-
-      const updateLongShotReplay = (nowMs) => {
-        const state = longShotReplayRef.current;
-        const replayObjects = longShotReplayObjectsRef.current;
-        if (!state || !replayObjects) return;
-        if (state.playing) {
-          const path = state.path || [];
-          if (!path.length || !Number.isFinite(state.pathDuration)) {
-            clearLongShotReplay();
-            return;
-          }
-          const playbackDuration = Math.max(state.duration || state.pathDuration || 1, 1);
-          const elapsed = nowMs - (state.startedAt ?? nowMs);
-          const tNorm = THREE.MathUtils.clamp(elapsed / playbackDuration, 0, 1);
-          const targetTime = THREE.MathUtils.clamp(
-            state.pathDuration * tNorm,
-            0,
-            state.pathDuration
-          );
-          let idx = Math.max(1, state.lastIndex || 1);
-          while (idx < path.length && path[idx].t < targetTime) idx++;
-          idx = Math.min(idx, path.length - 1);
-          state.lastIndex = idx;
-          const prev = path[idx - 1] || path[0];
-          const next = path[idx] || prev;
-          const span = Math.max((next.t ?? targetTime) - (prev.t ?? 0), 1e-4);
-          const localT = THREE.MathUtils.clamp(
-            (targetTime - (prev.t ?? 0)) / span,
-            0,
-            1
-          );
-          const x = THREE.MathUtils.lerp(prev.x ?? 0, next.x ?? prev.x ?? 0, localT);
-          const z = THREE.MathUtils.lerp(prev.z ?? 0, next.z ?? prev.z ?? 0, localT);
-          replayObjects.cue.position.set(x, BALL_CENTER_Y, z);
-          const fade = 1 - tNorm;
-          replayObjects.line.material.opacity = THREE.MathUtils.lerp(
-            0.35,
-            0.82,
-            fade
-          );
-          replayObjects.line.material.needsUpdate = true;
-          replayObjects.cue.material.opacity = THREE.MathUtils.lerp(0.2, 0.95, fade);
-          if (tNorm >= 1) {
-            state.playing = false;
-            replayObjects.cue.visible = false;
-            state.holdUntil = Math.max(state.holdUntil ?? nowMs, nowMs + 800);
-          }
-        } else if (state.holdUntil && nowMs >= state.holdUntil) {
-          clearLongShotReplay();
-        }
-      };
       const DYNAMIC_TEXTURE_MIN_INTERVAL = 1 / 45;
       const dynamicTextureEntries = [];
       const registerDynamicTexture = (entry) => {
@@ -13328,39 +13191,6 @@ function PoolRoyaleGame({
       table.add(chalkPrecisionArea);
       chalkAreaRef.current = chalkPrecisionArea;
 
-      const replayGroup = new THREE.Group();
-      replayGroup.visible = false;
-      const replayPathGeom = new THREE.BufferGeometry();
-      const replayPath = new THREE.Line(
-        replayPathGeom,
-        new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0,
-          depthWrite: false,
-          depthTest: false
-        })
-      );
-      replayPath.renderOrder = 5;
-      replayGroup.add(replayPath);
-      const replayCue = new THREE.Mesh(
-        new THREE.SphereGeometry(BALL_R * 0.45, 16, 16),
-        new THREE.MeshBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0
-        })
-      );
-      replayCue.visible = false;
-      replayGroup.add(replayCue);
-      table.add(replayGroup);
-      longShotReplayObjectsRef.current = {
-        group: replayGroup,
-        line: replayPath,
-        pathGeom: replayPathGeom,
-        cue: replayCue
-      };
-
       // Cue stick behind cueball
       const SCALE = BALL_R / 0.0525;
       const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
@@ -14362,7 +14192,6 @@ function PoolRoyaleGame({
               ? prediction.targetBall.pos.clone()
               : null
           };
-          beginLongShotReplayRecording(isLongShot);
           const intentTimestamp = performance.now();
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
@@ -15739,14 +15568,6 @@ function PoolRoyaleGame({
           frameRef.current = safeState;
           setFrameState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
-          if (longShotReplayRef.current) {
-            longShotReplayRef.current.recording = false;
-          }
-          if (hadObjectPot && longShotReplayRef.current?.longShot) {
-            startLongShotReplayPlayback();
-          } else {
-            clearLongShotReplay();
-          }
           setShootingState(false);
           shotPrediction = null;
           activeShotView = null;
@@ -16452,26 +16273,6 @@ function PoolRoyaleGame({
                 }
               }
             }
-            const replayState = longShotReplayRef.current;
-            if (replayState?.recording) {
-              const cueBall = cue;
-              if (cueBall?.active) {
-                const sampleNow = performance.now();
-                const lastEntry = replayState.path[replayState.path.length - 1];
-                const dx = lastEntry ? cueBall.pos.x - lastEntry.x : Infinity;
-                const dz = lastEntry ? cueBall.pos.y - lastEntry.z : Infinity;
-                const distSq = dx * dx + dz * dz;
-                const timeSinceLast =
-                  lastEntry != null
-                    ? sampleNow - (replayState.startedAt + (lastEntry.t ?? 0))
-                    : Infinity;
-                if (distSq > BALL_R * BALL_R * 0.06 || timeSinceLast > 45) {
-                  const t = sampleNow - replayState.startedAt;
-                  replayState.path.push({ t, x: cueBall.pos.x, z: cueBall.pos.y });
-                  replayState.totalTime = Math.max(replayState.totalTime ?? 0, t);
-                }
-              }
-            }
         }
         if (
           !activeShotView &&
@@ -16850,7 +16651,6 @@ function PoolRoyaleGame({
               }
             });
           }
-          updateLongShotReplay(now);
           prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
@@ -16902,7 +16702,6 @@ function PoolRoyaleGame({
           cancelAnimationFrame(rafRef.current);
           window.removeEventListener('resize', onResize);
           updatePocketCameraState(false);
-          clearLongShotReplay();
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
           lightingRigRef.current = null;
