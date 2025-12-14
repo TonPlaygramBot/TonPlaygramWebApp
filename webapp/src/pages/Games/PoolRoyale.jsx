@@ -8200,6 +8200,7 @@ function PoolRoyaleGame({
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
+  const cueTrailRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
@@ -9048,6 +9049,13 @@ function PoolRoyaleGame({
     contactMade: false,
     cushionAfterContact: false
   });
+  const shotReplayRef = useRef({
+    enabled: false,
+    frames: [],
+    longShot: false,
+    shotStartedAt: 0
+  });
+  const replayStateRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const gameOverHandledRef = useRef(false);
@@ -9940,6 +9948,17 @@ function PoolRoyaleGame({
       let cushionMat;
       const tableSurfaceY = TABLE_Y - TABLE.THICK + 0.01;
       const baseSurfaceWorldY = tableSurfaceY * WORLD_SCALE;
+      const cueTrailGeometry = new THREE.BufferGeometry();
+      const cueTrailMaterial = new THREE.LineBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.9
+      });
+      cueTrailGeometry.setFromPoints([]);
+      const cueTrail = new THREE.Line(cueTrailGeometry, cueTrailMaterial);
+      cueTrail.visible = false;
+      world.add(cueTrail);
+      cueTrailRef.current = { line: cueTrail, geometry: cueTrailGeometry };
       const getNow = () =>
         typeof performance !== 'undefined' && typeof performance.now === 'function'
           ? performance.now()
@@ -14069,6 +14088,160 @@ function PoolRoyaleGame({
         }
       }
 
+      const resetReplayRecorder = () => {
+        shotReplayRef.current = {
+          enabled: false,
+          frames: [],
+          longShot: false,
+          shotStartedAt: 0
+        };
+      };
+
+      const snapshotBalls = () =>
+        balls.map((ball) => ({
+          id: ball.id,
+          active: ball.active,
+          pos: ball.pos ? new THREE.Vector2(ball.pos.x, ball.pos.y) : null,
+          vel: ball.vel ? ball.vel.clone() : null,
+          spin: ball.spin ? ball.spin.clone() : null,
+          pendingSpin: ball.pendingSpin ? ball.pendingSpin.clone() : null,
+          spinMode: ball.spinMode ?? 'standard',
+          impacted: Boolean(ball.impacted),
+          meshVisible: ball.mesh?.visible ?? false
+        }));
+
+      const applyBallSnapshot = (snapshot) => {
+        if (!Array.isArray(snapshot)) return;
+        snapshot.forEach((entry) => {
+          const ball = balls.find((b) => b.id === entry.id);
+          if (!ball || !entry.pos) return;
+          ball.active = entry.active;
+          ball.pos.copy(entry.pos);
+          if (ball.mesh) {
+            ball.mesh.visible = entry.meshVisible && entry.active;
+            ball.mesh.position.set(entry.pos.x, BALL_CENTER_Y, entry.pos.y);
+          }
+          if (ball.vel && entry.vel) ball.vel.copy(entry.vel);
+          if (ball.spin && entry.spin) ball.spin.copy(entry.spin);
+          if (ball.pendingSpin && entry.pendingSpin) {
+            ball.pendingSpin.copy(entry.pendingSpin);
+          }
+          if (entry.spinMode) ball.spinMode = entry.spinMode;
+          ball.impacted = entry.impacted;
+        });
+      };
+
+      const updateCueTrailProgress = (cuePath, index) => {
+        const trail = cueTrailRef.current;
+        if (!trail || !cuePath || cuePath.length === 0) return;
+        const clamped = Math.max(1, Math.min(cuePath.length, index + 1));
+        const points = cuePath.slice(0, clamped);
+        trail.geometry.setFromPoints(points);
+        trail.line.visible = points.length > 1;
+      };
+
+      const recordReplayFrame = (timestamp) => {
+        const recorder = shotReplayRef.current;
+        if (!(recorder?.enabled)) return;
+        if (!recorder.shotStartedAt) recorder.shotStartedAt = timestamp;
+        const frameBalls = balls.map((ball) => ({
+          id: ball.id,
+          active: ball.active,
+          x: ball.pos?.x ?? 0,
+          y: ball.pos?.y ?? 0,
+          visible: ball.mesh?.visible ?? false
+        }));
+        recorder.frames.push({
+          t: timestamp - recorder.shotStartedAt,
+          balls: frameBalls
+        });
+      };
+
+      const startReplayPlayback = () => {
+        const recorder = shotReplayRef.current;
+        if (!recorder?.enabled || recorder.frames.length < 2) {
+          resetReplayRecorder();
+          return;
+        }
+        const cuePath = recorder.frames
+          .map((frame) => {
+            const cueFrame = frame.balls.find((b) => String(b.id) === 'cue');
+            if (!cueFrame) return null;
+            return new THREE.Vector3(
+              cueFrame.x,
+              BALL_CENTER_Y,
+              cueFrame.y
+            );
+          })
+          .filter(Boolean);
+        replayStateRef.current = {
+          playing: true,
+          startTime: performance.now(),
+          frameIndex: 0,
+          frames: recorder.frames,
+          restore: snapshotBalls(),
+          cuePath
+        };
+        updateCueTrailProgress(cuePath, 0);
+        resetReplayRecorder();
+      };
+
+      const updateReplayPlayback = (now) => {
+        const replay = replayStateRef.current;
+        if (!replay?.playing) return false;
+        const frames = replay.frames;
+        if (!frames || frames.length === 0) {
+          replayStateRef.current = null;
+          return false;
+        }
+        const elapsed = now - replay.startTime;
+        const lastFrame = frames[frames.length - 1];
+        while (
+          replay.frameIndex < frames.length - 1 &&
+          frames[replay.frameIndex + 1].t <= elapsed
+        ) {
+          replay.frameIndex += 1;
+        }
+        const current = frames[replay.frameIndex];
+        const next = frames[Math.min(replay.frameIndex + 1, frames.length - 1)];
+        const span = Math.max(next.t - current.t, 1);
+        const alpha = THREE.MathUtils.clamp(
+          (elapsed - current.t) / span,
+          0,
+          1
+        );
+        balls.forEach((ball) => {
+          const cur = current.balls.find((b) => b.id === ball.id);
+          const nxt = next.balls.find((b) => b.id === ball.id) ?? cur;
+          if (!cur) return;
+          const px = THREE.MathUtils.lerp(cur.x, nxt.x, alpha);
+          const py = THREE.MathUtils.lerp(cur.y, nxt.y, alpha);
+          ball.active = cur.active || nxt.active;
+          if (ball.mesh) {
+            ball.mesh.visible = (cur.visible || nxt.visible) && ball.active;
+            ball.mesh.position.set(px, BALL_CENTER_Y, py);
+          }
+          if (ball.pos) ball.pos.set(px, py);
+          if (ball.vel) ball.vel.set(0, 0);
+          if (ball.spin) ball.spin.set(0, 0);
+          if (ball.pendingSpin) ball.pendingSpin.set(0, 0);
+          ball.impacted = false;
+          ball.spinMode = 'standard';
+        });
+        updateCueTrailProgress(replay.cuePath, replay.frameIndex);
+        if (elapsed >= lastFrame.t) {
+          applyBallSnapshot(replay.restore);
+          updateCueTrailProgress(replay.cuePath, replay.cuePath.length);
+          setTimeout(() => {
+            const trail = cueTrailRef.current;
+            if (trail) trail.line.visible = false;
+          }, 300);
+          replayStateRef.current = null;
+          return false;
+        }
+        return true;
+      };
+
       // Shot lifecycle
       let potted = [];
       let firstHit = null;
@@ -14192,6 +14365,17 @@ function PoolRoyaleGame({
               ? prediction.targetBall.pos.clone()
               : null
           };
+          if (isLongShot) {
+            shotReplayRef.current = {
+              enabled: true,
+              frames: [],
+              longShot: true,
+              shotStartedAt: performance.now()
+            };
+            recordReplayFrame(shotReplayRef.current.shotStartedAt);
+          } else {
+            resetReplayRecorder();
+          }
           const intentTimestamp = performance.now();
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
@@ -15405,6 +15589,8 @@ function PoolRoyaleGame({
         const shotEvents = [];
         const firstContactColor = toBallColorId(firstHit);
         const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
+        const shouldQueueReplay =
+          Boolean(shotPrediction?.longShot) && hadObjectPot;
         if (firstContactColor || firstHit) {
           shotEvents.push({
             type: 'HIT',
@@ -15569,6 +15755,11 @@ function PoolRoyaleGame({
           setFrameState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           setShootingState(false);
+          if (shouldQueueReplay && shotReplayRef.current?.frames.length > 1) {
+            startReplayPlayback();
+          } else {
+            resetReplayRecorder();
+          }
           shotPrediction = null;
           activeShotView = null;
           suspendedActionView = null;
@@ -15653,6 +15844,13 @@ function PoolRoyaleGame({
         );
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
+        const replayPlaying = updateReplayPlayback(now);
+        if (replayPlaying) {
+          const frameCamera = updateCamera();
+          renderer.render(scene, frameCamera ?? camera);
+          rafRef.current = requestAnimationFrame(step);
+          return;
+        }
         camera.getWorldDirection(camFwd);
         tmpAim.set(camFwd.x, camFwd.z).normalize();
         const cameraBlend = THREE.MathUtils.clamp(
@@ -16600,10 +16798,13 @@ function PoolRoyaleGame({
           }
         }
         // Fund i goditjes
-          if (shooting) {
-            const any = balls.some(
-              (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
-            );
+        if (shooting && shotReplayRef.current?.enabled) {
+          recordReplayFrame(now);
+        }
+        if (shooting) {
+          const any = balls.some(
+            (b) => b.active && b.vel.length() * frameScale >= STOP_EPS
+          );
             if (!any) {
               resolve();
             } else if (shotStartedAt > 0 && now - shotStartedAt >= STUCK_SHOT_TIMEOUT_MS) {
@@ -16704,6 +16905,9 @@ function PoolRoyaleGame({
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
+          cueTrailRef.current = null;
+          cueTrailGeometry.dispose?.();
+          cueTrailMaterial.dispose?.();
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
