@@ -1424,117 +1424,6 @@ function createCueEbonyTextures() {
   return { map, bump };
 }
 
-function LongShotReplayOverlay({ replay, onClose }) {
-  const padding = 14;
-  const tableWidth = LONG_SHOT_REPLAY_WIDTH - padding * 2;
-  const tableHeight = LONG_SHOT_REPLAY_HEIGHT - padding * 2;
-  const mappedPoints = useMemo(() => {
-    if (!replay?.path?.length) return [];
-    return replay.path.map((p) => {
-      const nx = (p.x + PLAY_W / 2) / PLAY_W;
-      const ny = (p.y + PLAY_H / 2) / PLAY_H;
-      return {
-        x: padding + tableWidth * THREE.MathUtils.clamp(nx, 0, 1),
-        y: padding + tableHeight * (1 - THREE.MathUtils.clamp(ny, 0, 1))
-      };
-    });
-  }, [replay?.path, tableHeight, tableWidth]);
-
-  const pathLength = useMemo(() => {
-    if (mappedPoints.length < 2) return 0;
-    let length = 0;
-    for (let i = 1; i < mappedPoints.length; i += 1) {
-      const a = mappedPoints[i - 1];
-      const b = mappedPoints[i];
-      length += Math.hypot(b.x - a.x, b.y - a.y);
-    }
-    return length;
-  }, [mappedPoints]);
-
-  const pathD = useMemo(() => {
-    if (mappedPoints.length < 2) return '';
-    return mappedPoints
-      .map((p, index) => `${index === 0 ? 'M' : 'L'}${p.x.toFixed(2)},${p.y.toFixed(2)}`)
-      .join(' ');
-  }, [mappedPoints]);
-
-  const [dashOffset, setDashOffset] = useState(pathLength);
-
-  useEffect(() => {
-    if (!replay || !pathLength) return undefined;
-    setDashOffset(pathLength);
-    const frame = requestAnimationFrame(() => setDashOffset(0));
-    const timer = window.setTimeout(onClose, replay.duration ?? LONG_SHOT_REPLAY_DURATION_MS);
-    return () => {
-      cancelAnimationFrame(frame);
-      window.clearTimeout(timer);
-    };
-  }, [onClose, pathLength, replay]);
-
-  if (!replay || mappedPoints.length < 2) return null;
-
-  const start = mappedPoints[0];
-  const end = mappedPoints[mappedPoints.length - 1];
-
-  return (
-    <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
-      <div className="rounded-2xl bg-black/70 px-4 py-3 shadow-2xl ring-1 ring-white/10 backdrop-blur">
-        <div className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.32em] text-white/70">
-          Long shot replay
-        </div>
-        <svg
-          width={LONG_SHOT_REPLAY_WIDTH}
-          height={LONG_SHOT_REPLAY_HEIGHT}
-          viewBox={`0 0 ${LONG_SHOT_REPLAY_WIDTH} ${LONG_SHOT_REPLAY_HEIGHT}`}
-          role="img"
-          aria-label="Cue ball trajectory replay"
-        >
-          <defs>
-            <linearGradient id="replayCloth" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#0f172a" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#0b5d3f" stopOpacity="0.95" />
-            </linearGradient>
-          </defs>
-          <rect
-            x={padding}
-            y={padding}
-            width={tableWidth}
-            height={tableHeight}
-            rx={12}
-            ry={12}
-            fill="url(#replayCloth)"
-            stroke="rgba(255,255,255,0.18)"
-            strokeWidth="2"
-          />
-          <path
-            d={pathD}
-            fill="none"
-            stroke="white"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              strokeDasharray: pathLength,
-              strokeDashoffset: dashOffset,
-              transition: `stroke-dashoffset ${replay.duration ?? LONG_SHOT_REPLAY_DURATION_MS}ms ease-out`
-            }}
-          />
-          <circle cx={start.x} cy={start.y} r={6} fill="#ffffff" fillOpacity="0.9" />
-          <circle
-            cx={end.x}
-            cy={end.y}
-            r={8}
-            fill="none"
-            stroke="rgba(255,255,255,0.75)"
-            strokeWidth="3"
-            strokeDasharray="4 6"
-          />
-        </svg>
-      </div>
-    </div>
-  );
-}
-
 function useResponsiveTableSize(option) {
   const [scale, setScale] = useState(() => option?.scale ?? 1);
 
@@ -4389,12 +4278,6 @@ const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
 const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
-const LONG_SHOT_REPLAY_DURATION_MS = 3400;
-const LONG_SHOT_REPLAY_SAMPLE_DISTANCE = BALL_R * 0.8;
-const LONG_SHOT_REPLAY_MIN_POINTS = 2;
-const LONG_SHOT_REPLAY_WIDTH = 260;
-const LONG_SHOT_REPLAY_HEIGHT =
-  LONG_SHOT_REPLAY_WIDTH * (PLAY_H / PLAY_W) + LONG_SHOT_REPLAY_WIDTH * 0.12;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -9244,9 +9127,6 @@ function PoolRoyaleGame({
       cueBallPlacedFromHandRef.current = false;
     }
   }, [hud.inHand, hud.turn]);
-  const [longShotReplay, setLongShotReplay] = useState(null);
-  const clearLongShotReplay = useCallback(() => setLongShotReplay(null), []);
-  const longShotPathRef = useRef([]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
@@ -14312,13 +14192,6 @@ function PoolRoyaleGame({
               ? prediction.targetBall.pos.clone()
               : null
           };
-          longShotPathRef.current = [];
-          clearLongShotReplay();
-          if (shotPrediction.longShot && cue?.pos) {
-            longShotPathRef.current.push(
-              new THREE.Vector2(cue.pos.x, cue.pos.y)
-            );
-          }
           const intentTimestamp = performance.now();
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
@@ -15532,10 +15405,6 @@ function PoolRoyaleGame({
         const shotEvents = [];
         const firstContactColor = toBallColorId(firstHit);
         const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-        const shouldQueueReplay =
-          shotPrediction?.longShot &&
-          hadObjectPot &&
-          (longShotPathRef.current?.length ?? 0) >= LONG_SHOT_REPLAY_MIN_POINTS;
         if (firstContactColor || firstHit) {
           shotEvents.push({
             type: 'HIT',
@@ -15715,17 +15584,6 @@ function PoolRoyaleGame({
               }
             }, 0);
           }
-          if (shouldQueueReplay) {
-            const replayPath = longShotPathRef.current.map((p) => ({
-              x: p.x,
-              y: p.y
-            }));
-            setLongShotReplay({
-              id: performance.now(),
-              path: replayPath,
-              duration: LONG_SHOT_REPLAY_DURATION_MS
-            });
-          }
           if (cameraRef.current && sphRef.current) {
             const cuePos = cue?.pos
               ? new THREE.Vector2(cue.pos.x, cue.pos.y)
@@ -15751,7 +15609,6 @@ function PoolRoyaleGame({
               duration: 600
             });
           }
-          longShotPathRef.current = [];
           potted = [];
           firstHit = null;
           lastShotPower = 0;
@@ -16416,17 +16273,6 @@ function PoolRoyaleGame({
                 }
               }
             }
-        }
-        if (shooting && shotPrediction?.longShot && cue?.active) {
-          const cuePos = cue.pos;
-          const cuePath = longShotPathRef.current;
-          const last = cuePath[cuePath.length - 1];
-          const dist2 = last
-            ? (cuePos.x - last.x) ** 2 + (cuePos.y - last.y) ** 2
-            : Infinity;
-          if (!last || dist2 >= LONG_SHOT_REPLAY_SAMPLE_DISTANCE ** 2) {
-            cuePath.push(new THREE.Vector2(cuePos.x, cuePos.y));
-          }
         }
         if (
           !activeShotView &&
@@ -17122,13 +16968,6 @@ function PoolRoyaleGame({
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {longShotReplay && (
-        <LongShotReplayOverlay
-          replay={longShotReplay}
-          onClose={clearLongShotReplay}
-        />
-      )}
 
       {ENABLE_CUE_GALLERY && cueGalleryActive && (
         <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
