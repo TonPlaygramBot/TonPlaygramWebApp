@@ -872,12 +872,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.992; // pinch the middle pocket mouth slightly so the jaws sit a touch tighter while staying balanced
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.972; // make the middle cloth/rail cutouts a touch smaller without altering fascia or jaw geometry
+const SIDE_POCKET_CUT_SCALE = 0.962; // make the middle cloth/rail cutouts a touch smaller without altering fascia or jaw geometry
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -2346,7 +2346,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
-    railPush: BALL_R * 6.8,
+    railPush: BALL_R * 6.1,
     lateralDolly: BALL_R * 0.6,
     focusLift: BALL_R * 6.0,
     focusDepthBias: BALL_R * 1.8,
