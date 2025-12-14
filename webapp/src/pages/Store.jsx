@@ -315,13 +315,19 @@ const OPTION_SWATCH_OVERRIDES = {
 
 const PREVIEW_BY_TYPE = {
   cueStyle: 'cue',
-  boardTheme: 'chess',
-  sideColor: 'chess',
+  chairColor: 'chair',
+  stools: 'chair',
+  boardTheme: 'chess-royals',
+  sideColor: 'chess-royals',
+  headStyle: 'pawn-head',
+  chromeColor: 'chrome',
   cards: 'cards',
   dominoStyle: 'domino',
-  tokenPalette: 'tokens',
-  tokenStyle: 'tokens',
-  tokenPiece: 'tokens',
+  tokenPalette: 'token-stack',
+  tokenStyle: 'token-stack',
+  tokenPiece: 'token-stack',
+  tokenFinish: 'token-stack',
+  diceTheme: 'dice',
   mallet: 'puck',
   puck: 'puck',
   rails: 'table',
@@ -333,19 +339,23 @@ const PREVIEW_BY_TYPE = {
 };
 
 const PREVIEW_BY_SLUG = {
-  chessbattleroyal: 'chess',
+  chessbattleroyal: 'chess-royals',
   blackjack: 'cards',
   'domino-royal': 'domino'
 };
 
 const PREVIEW_LABELS = {
   cue: 'Cue render',
-  chess: 'Chess piece',
+  chair: 'Lounge chair',
+  'chess-royals': 'King & Queen',
+  'pawn-head': 'Pawn heads',
+  chrome: 'Chrome fascia',
   domino: 'Domino tile',
   cards: 'Card stack',
+  dice: 'Dice pair',
   table: 'Table surface',
   puck: 'Rink gear',
-  tokens: 'Token set',
+  'token-stack': 'Token stack',
   default: '3D sample'
 };
 
@@ -786,7 +796,7 @@ export default function Store() {
     const selectedItem = ownedMarketplaceItems.find((item) => item.id === listForm.itemId);
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-        <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+        <div className="flex w-full max-w-xl max-h-[90vh] flex-col overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
           <div className="flex items-center justify-between border-b border-white/10 p-4">
             <div>
               <p className="text-xs text-white/60">List an owned NFT</p>
@@ -802,7 +812,7 @@ export default function Store() {
             </button>
           </div>
 
-          <form className="grid gap-3 p-4" onSubmit={handleListSubmit}>
+          <form className="grid flex-1 gap-3 overflow-y-auto p-4" onSubmit={handleListSubmit}>
             <div className="grid gap-3 md:grid-cols-[7fr_5fr] md:items-start">
               <div className="grid gap-2">
                 <div className="flex items-center justify-between text-sm text-white/80">
@@ -994,31 +1004,60 @@ export default function Store() {
         case 'cue':
           return (
             <g filter={`url(#${shadowId})`}>
-              <rect x="18" y="36" width="124" height="18" rx="9" fill={`url(#${gradientId})`} />
-              <rect
-                x="18"
-                y="36"
-                width="124"
-                height="18"
-                rx="9"
-                stroke={accent}
-                strokeWidth="1.5"
-                fill={`url(#${shineId})`}
-                opacity="0.6"
-              />
-              <rect x="20" y="40" width="40" height="10" rx="5" fill={accent} opacity="0.35" />
+              <rect x="18" y="42" width="106" height="10" rx="5" fill={`url(#${gradientId})`} />
+              <rect x="18" y="40" width="30" height="14" rx="7" fill={accent} opacity="0.25" />
+              <rect x="122" y="44" width="20" height="6" rx="3" fill={accent} />
+              <rect x="18" y="42" width="124" height="10" rx="5" stroke={accent} strokeWidth="1.2" fill="none" />
             </g>
           );
+        case 'chess-royals':
         case 'chess':
           return (
             <g filter={`url(#${shadowId})`}>
               <path
-                d="M80 18c10 4 15 11 15 18 0 6-2 11-5 14h8c4 0 6 3 5 6l-6 20H62l-6-20c-1-3 1-6 5-6h8c-3-3-5-8-5-14 0-7 5-14 15-18Z"
+                d="M54 24c6 4 9 9 9 16 0 5-1 9-4 12h6c3 0 5 2 4 5l-5 17H35l-5-17c-1-3 1-5 4-5h7c-2-3-4-7-4-12 0-7 3-12 9-16Z"
                 fill={`url(#${gradientId})`}
                 stroke={accent}
-                strokeWidth="1.2"
+                strokeWidth="1.3"
               />
-              <ellipse cx="80" cy="74" rx="26" ry="6" fill={`url(#${shineId})`} opacity="0.9" />
+              <path
+                d="M102 22h8v8h8v8h-8v6h-8v-6h-8v-8h8z"
+                fill={accent}
+                opacity="0.75"
+                transform="translate(-6 0)"
+              />
+              <path
+                d="M102 20c8 4 12 11 12 20 0 5-1 9-4 12h7c3 0 5 2 4 5l-4 16H82l-4-16c-1-3 1-5 4-5h7c-3-3-4-7-4-12 0-9 4-16 12-20Z"
+                fill={`url(#${shineId})`}
+                stroke={accent}
+                strokeWidth="1.3"
+                opacity="0.9"
+              />
+              <ellipse cx="52" cy="76" rx="20" ry="5" fill={secondary} opacity="0.5" />
+              <ellipse cx="98" cy="78" rx="24" ry="6" fill={secondary} opacity="0.6" />
+            </g>
+          );
+        case 'pawn-head':
+          return (
+            <g filter={`url(#${shadowId})`}>
+              <ellipse cx="60" cy="36" rx="12" ry="9" fill={accent} opacity="0.85" />
+              <rect x="50" y="42" width="20" height="16" rx="6" fill={`url(#${shineId})`} />
+              <rect x="46" y="56" width="28" height="10" rx="4" fill={`url(#${gradientId})`} />
+              <ellipse cx="104" cy="34" rx="10" ry="10" fill={accent} opacity="0.9" />
+              <rect x="94" y="44" width="20" height="14" rx="5" fill={`url(#${shineId})`} />
+              <rect x="90" y="56" width="28" height="10" rx="4" fill={`url(#${gradientId})`} />
+            </g>
+          );
+        case 'chrome':
+          return (
+            <g filter={`url(#${shadowId})`}>
+              <path
+                d="M40 22h86c4 0 6 3 5 6l-10 48c-1 3-4 5-7 5H36c-4 0-6-3-5-7l9-46c1-4 4-6 7-6Z"
+                fill={`url(#${gradientId})`}
+              />
+              <path d="M40 28h78l-8 40c-.6 3-3 5-6 5H36Z" fill={`url(#${shineId})`} opacity="0.9" />
+              <circle cx="50" cy="34" r="3" fill={accent} opacity="0.7" />
+              <circle cx="112" cy="34" r="3" fill={accent} opacity="0.7" />
             </g>
           );
         case 'domino':
@@ -1028,6 +1067,7 @@ export default function Store() {
               <line x1="80" y1="22" x2="80" y2="78" stroke={accent} strokeWidth="2" opacity="0.6" />
               <circle cx="60" cy="40" r="6" fill={accent} />
               <circle cx="100" cy="60" r="6" fill={accent} />
+              <circle cx="100" cy="40" r="4" fill={accent} opacity="0.6" />
             </g>
           );
         case 'cards':
@@ -1046,6 +1086,7 @@ export default function Store() {
                 fill="none"
                 transform="rotate(3 52 22)"
               />
+              <text x="76" y="56" fill={accent} fontSize="16" fontWeight="700" opacity="0.9">A♠</text>
             </g>
           );
         case 'table':
@@ -1064,12 +1105,40 @@ export default function Store() {
               <circle cx="80" cy="50" r="10" fill={accent} opacity="0.35" />
             </g>
           );
-        case 'tokens':
+        case 'token-stack':
           return (
             <g filter={`url(#${shadowId})`}>
-              <circle cx="54" cy="42" r="12" fill={`url(#${gradientId})`} />
-              <circle cx="86" cy="50" r="12" fill={`url(#${shineId})`} opacity="0.9" />
-              <circle cx="68" cy="60" r="12" fill={accent} opacity="0.7" />
+              <ellipse cx="64" cy="42" rx="18" ry="8" fill={`url(#${gradientId})`} />
+              <rect x="46" y="42" width="36" height="12" rx="6" fill={`url(#${shineId})`} opacity="0.8" />
+              <ellipse cx="96" cy="54" rx="18" ry="8" fill={`url(#${shineId})`} opacity="0.9" />
+              <rect x="78" y="54" width="36" height="12" rx="6" fill={`url(#${gradientId})`} />
+              <ellipse cx="78" cy="66" rx="18" ry="8" fill={accent} opacity="0.6" />
+              <rect x="60" y="66" width="36" height="12" rx="6" fill={`url(#${shineId})`} opacity="0.8" />
+            </g>
+          );
+        case 'dice':
+          return (
+            <g filter={`url(#${shadowId})`}>
+              <rect x="42" y="24" width="44" height="44" rx="8" fill={`url(#${shineId})`} />
+              <rect x="76" y="38" width="44" height="44" rx="8" fill={`url(#${gradientId})`} />
+              <circle cx="54" cy="36" r="3" fill={accent} />
+              <circle cx="64" cy="46" r="3" fill={accent} />
+              <circle cx="54" cy="56" r="3" fill={accent} />
+              <circle cx="88" cy="50" r="3" fill={accent} />
+              <circle cx="110" cy="50" r="3" fill={accent} />
+              <circle cx="99" cy="61" r="3" fill={accent} />
+              <circle cx="88" cy="72" r="3" fill={accent} />
+              <circle cx="110" cy="72" r="3" fill={accent} />
+            </g>
+          );
+        case 'chair':
+          return (
+            <g filter={`url(#${shadowId})`}>
+              <rect x="54" y="26" width="52" height="36" rx="10" fill={`url(#${gradientId})`} />
+              <rect x="50" y="42" width="60" height="24" rx="8" fill={`url(#${shineId})`} opacity="0.85" />
+              <rect x="58" y="62" width="12" height="20" rx="3" fill={accent} opacity="0.8" />
+              <rect x="100" y="62" width="12" height="20" rx="3" fill={accent} opacity="0.8" />
+              <rect x="70" y="64" width="28" height="8" rx="4" fill={secondary} opacity="0.7" />
             </g>
           );
         default:
