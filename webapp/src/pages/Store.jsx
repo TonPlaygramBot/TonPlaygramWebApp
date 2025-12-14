@@ -234,21 +234,9 @@ const resolvePreviewShape = (slug, type, preferredShape) => {
 
 const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
 
-const parseColorInput = (value = '') =>
-  value
-    .split(',')
-    .map((color) => color.trim())
-    .filter(Boolean)
-    .map((color) => (color.startsWith('#') ? color : `#${color}`));
-
 const DEFAULT_LIST_FORM = {
-  name: '',
   price: '',
-  description: '',
-  game: 'poolroyale',
-  typeLabel: 'Player NFT',
-  colors: '#22c55e, #0ea5e9, #facc15',
-  previewShape: 'cue'
+  selectedKey: ''
 };
 
 const TYPE_SWATCHES = {
@@ -586,6 +574,11 @@ export default function Store() {
     return entries;
   }, [labelResolvers, ownedCheckers, storeItemsBySlug, typeLabelResolver]);
 
+  const ownedMarketplaceItems = useMemo(
+    () => baseMarketplaceItems.filter((item) => item.owned),
+    [baseMarketplaceItems]
+  );
+
   const decoratedUserListings = useMemo(
     () =>
       userListings.map((listing) =>
@@ -646,20 +639,32 @@ export default function Store() {
 
   const handleListSubmit = (event) => {
     event?.preventDefault();
-    const slug = listForm.game || 'poolroyale';
-    const swatches = parseColorInput(listForm.colors);
+    const selected = ownedMarketplaceItems.find((item) => item.key === listForm.selectedKey);
+    const price = Number(listForm.price);
+
+    if (!selected) {
+      setInfo('Pick an owned NFT to list.');
+      return;
+    }
+
+    if (!Number.isFinite(price) || price < 0) {
+      setInfo('Enter a valid price in TPC.');
+      return;
+    }
+
     const newListing = decorateMarketplaceItem({
-      id: `user-${Date.now()}`,
-      slug,
-      type: 'playerListing',
-      optionId: (listForm.name || 'player-nft').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      name: listForm.name || 'Custom NFT',
-      displayLabel: listForm.name || 'Custom NFT',
-      description: listForm.description || 'Listed from your inventory for others to purchase.',
-      price: Number(listForm.price) || 0,
-      typeLabel: listForm.typeLabel || 'Player NFT',
-      swatches: swatches.length ? swatches : TYPE_SWATCHES.default,
-      previewShape: listForm.previewShape || 'tokens',
+      id: `user-${selected.key}-${Date.now()}`,
+      slug: selected.slug,
+      type: selected.type,
+      optionId: selected.optionId,
+      name: selected.name,
+      displayLabel: selected.displayLabel,
+      description:
+        selected.description || `${selected.displayLabel} listed from your ${selected.gameName} inventory.`,
+      price,
+      typeLabel: selected.typeLabel,
+      swatches: selected.swatches,
+      previewShape: selected.previewShape,
       owned: true,
       seller: 'You'
     });
@@ -669,6 +674,13 @@ export default function Store() {
     setListForm({ ...DEFAULT_LIST_FORM });
     setInfo('Your NFT listing has been added to the marketplace.');
   };
+
+  useEffect(() => {
+    if (!showListModal) return;
+    if (listForm.selectedKey && ownedMarketplaceItems.some((item) => item.key === listForm.selectedKey)) return;
+    if (ownedMarketplaceItems.length === 0) return;
+    setListForm((prev) => ({ ...prev, selectedKey: ownedMarketplaceItems[0].key }));
+  }, [listForm.selectedKey, ownedMarketplaceItems, showListModal]);
 
   const handlePurchase = async (item) => {
     const slug = item?.slug;
@@ -755,6 +767,7 @@ export default function Store() {
 
   const renderListModal = () => {
     if (!showListModal) return null;
+    const selectedItem = ownedMarketplaceItems.find((item) => item.key === listForm.selectedKey);
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
         <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
@@ -762,7 +775,7 @@ export default function Store() {
             <div>
               <p className="text-xs text-white/60">List an owned NFT</p>
               <h3 className="text-lg font-semibold text-white">Create marketplace listing</h3>
-              <p className="text-sm text-white/60">Share your cosmetic with other players. You stay the seller of record.</p>
+              <p className="text-sm text-white/60">Pick an owned cosmetic and set the price. Everything else is locked for safety.</p>
             </div>
             <button
               type="button"
@@ -774,100 +787,88 @@ export default function Store() {
           </div>
 
           <form className="grid gap-3 p-4" onSubmit={handleListSubmit}>
-            <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Name</span>
-                <input
-                  type="text"
-                  value={listForm.name}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Custom cue or table skin"
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  required
-                />
-              </label>
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Price (TPC)</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={listForm.price}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, price: e.target.value }))}
-                  placeholder="250"
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  required
-                />
-              </label>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs uppercase tracking-wide text-white/60">Your NFTs</div>
+                <div className="text-[11px] font-semibold text-emerald-200">Tap one to select • only price is editable</div>
+              </div>
+              <div className="grid max-h-72 gap-2 overflow-y-auto rounded-2xl border border-white/10 bg-black/20 p-2">
+                {ownedMarketplaceItems.map((item) => {
+                  const isActive = listForm.selectedKey === item.key;
+                  return (
+                    <button
+                      type="button"
+                      key={item.key}
+                      onClick={() => setListForm((prev) => ({ ...prev, selectedKey: item.key }))}
+                      className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                        isActive
+                          ? 'border-emerald-300/60 bg-emerald-400/10 shadow-[0_10px_30px_-12px_rgba(16,185,129,0.65)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {renderPreview3d(item)}
+                        <div className="leading-tight">
+                          <div className="text-sm font-semibold text-white">{item.displayLabel}</div>
+                          <div className="text-xs text-white/60">
+                            {item.gameName} • {item.typeLabel}
+                          </div>
+                        </div>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                          isActive
+                            ? 'bg-white text-zinc-900'
+                            : 'border border-white/10 bg-black/30 text-white/80'
+                        }`}
+                      >
+                        {isActive ? 'Selected' : 'Pick'}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {ownedMarketplaceItems.length === 0 && (
+                  <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-white/60">
+                    No owned NFTs detected for this wallet. Purchase from the marketplace first, then return to list.
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Game</span>
-                <select
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  value={listForm.game}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, game: e.target.value }))}
-                >
-                  {Object.entries(storeMeta).map(([slug, meta]) => (
-                    <option key={slug} value={slug}>
-                      {meta.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Accessory type</span>
-                <input
-                  type="text"
-                  value={listForm.typeLabel}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, typeLabel: e.target.value }))}
-                  placeholder="Cue style, board theme, card back..."
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  required
-                />
-              </label>
-            </div>
-
-            <label className="grid gap-1 text-sm text-white/80">
-              <span className="text-xs uppercase tracking-wide text-white/60">Description</span>
-              <textarea
-                rows="2"
-                value={listForm.description}
-                onChange={(e) => setListForm((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Explain what makes this NFT special or how it looks in-game."
+            <div className="grid gap-1 text-sm text-white/80">
+              <span className="text-xs uppercase tracking-wide text-white/60">Set price (TPC)</span>
+              <input
+                type="number"
+                min="0"
+                value={listForm.price}
+                onChange={(e) => setListForm((prev) => ({ ...prev, price: e.target.value }))}
+                placeholder="250"
                 className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                required
               />
-            </label>
-
-            <div className="grid gap-2 md:grid-cols-[2fr_1fr] md:gap-3">
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Color swatches</span>
-                <input
-                  type="text"
-                  value={listForm.colors}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, colors: e.target.value }))}
-                  placeholder="#22c55e, #0ea5e9, #facc15"
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                />
-                <span className="text-xs text-white/50">Comma-separated hex colors to preview on the card.</span>
-              </label>
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Preview style</span>
-                <select
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  value={listForm.previewShape}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, previewShape: e.target.value }))}
-                >
-                  <option value="cue">Cue render</option>
-                  <option value="chess">Chess piece</option>
-                  <option value="cards">Card stack</option>
-                  <option value="domino">Domino tile</option>
-                  <option value="table">Table surface</option>
-                  <option value="tokens">Token set</option>
-                  <option value="puck">Rink gear</option>
-                </select>
-              </label>
+              <span className="text-xs text-white/50">Name, artwork, and description stay locked to the NFT you own.</span>
             </div>
+
+            {selectedItem && (
+              <div className="grid gap-1 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-white/60">
+                  Listing summary
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>Game</span>
+                  <span className="font-semibold text-white">{selectedItem.gameName}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>Type</span>
+                  <span className="font-semibold text-white">{selectedItem.typeLabel}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>NFT</span>
+                  <span className="font-semibold text-white">{selectedItem.displayLabel}</span>
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <button
@@ -882,7 +883,10 @@ export default function Store() {
               </button>
               <button
                 type="submit"
-                className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                className={`w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto ${
+                  !selectedItem || ownedMarketplaceItems.length === 0 ? 'cursor-not-allowed opacity-60 hover:bg-white' : ''
+                }`}
+                disabled={!selectedItem || ownedMarketplaceItems.length === 0}
               >
                 Publish listing
               </button>
@@ -957,63 +961,77 @@ export default function Store() {
 
   const renderPreview3d = (item) => {
     const previewShape = item.previewShape || 'default';
+    const primary = item.swatches?.[0] || '#0ea5e9';
+    const accent = item.swatches?.[1] || primary;
     const gradient =
       item.swatches && item.swatches.length
-        ? `linear-gradient(135deg, ${item.swatches[0]}, ${item.swatches[1] || item.swatches[0]})`
-        : undefined;
+        ? `linear-gradient(140deg, ${primary}, ${accent})`
+        : 'linear-gradient(140deg, #1f2937, #0f172a)';
 
     const baseClass =
-      'relative h-14 w-20 overflow-hidden rounded-xl border border-white/10 shadow-[0_15px_35px_-20px_rgba(0,0,0,0.8)] backdrop-blur';
+      'relative h-16 w-24 overflow-hidden rounded-2xl border border-white/10 shadow-[0_18px_35px_-18px_rgba(0,0,0,0.85)] backdrop-blur';
+
+    const baseStyle = {
+      backgroundImage: `${gradient}, radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 45%), radial-gradient(circle at 80% 0%, rgba(255,255,255,0.12), transparent 40%)`,
+      boxShadow:
+        '0 18px 45px -22px rgba(0,0,0,0.9), inset 0 1px 0 rgba(255,255,255,0.25), inset 0 -8px 24px rgba(0,0,0,0.4)',
+      transform: 'perspective(900px) rotateX(10deg)'
+    };
+
+    const glow = {
+      background: `radial-gradient(circle at 30% 60%, ${accent}40, transparent 60%), radial-gradient(circle at 80% 40%, ${primary}30, transparent 60%)`
+    };
 
     const layer = (shape) => {
       switch (shape) {
         case 'cue':
           return (
             <>
-              <div className="absolute left-2 right-3 top-4 h-1.5 rounded-full bg-white/80 shadow-sm" />
-              <div className="absolute left-3 right-4 top-6 h-1 rounded-full bg-black/50 blur-sm" />
-              <div className="absolute inset-2 rounded-lg border border-white/10 bg-black/20" />
+              <div className="absolute inset-x-3 top-4 h-1.5 rounded-full bg-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.45)]" />
+              <div className="absolute inset-x-4 top-6 h-1 rounded-full bg-black/60 blur-sm" />
+              <div className="absolute inset-2 rounded-lg border border-white/15 bg-black/30 shadow-inner" />
             </>
           );
         case 'chess':
           return (
             <>
-              <div className="absolute inset-x-6 bottom-2 h-2 rounded-full bg-black/40 blur" />
+              <div className="absolute inset-x-6 bottom-2 h-2 rounded-full bg-black/50 blur" />
               <div className="absolute left-6 right-6 top-4 h-8 rounded-full bg-white/80 shadow-inner" />
-              <div className="absolute left-7 right-7 top-3 h-9 rounded-full border border-white/30 bg-white/20 shadow-inner" />
+              <div className="absolute left-7 right-7 top-3 h-9 rounded-full border border-white/40 bg-white/30 shadow-inner" />
+              <div className="absolute inset-x-10 top-2 h-3 rounded-full bg-white/30 blur" />
             </>
           );
         case 'domino':
           return (
             <>
-              <div className="absolute inset-2 rounded-lg border border-black/30 bg-white/80" />
-              <div className="absolute inset-x-6 top-6 h-0.5 bg-black/40" />
-              <div className="absolute left-6 top-4 h-2 w-2 rounded-full bg-black/60" />
-              <div className="absolute right-6 bottom-4 h-2 w-2 rounded-full bg-black/60" />
+              <div className="absolute inset-2 rounded-xl border border-black/40 bg-white/85 shadow-inner" />
+              <div className="absolute inset-x-6 top-6 h-0.5 bg-black/50" />
+              <div className="absolute left-6 top-4 h-2 w-2 rounded-full bg-black/70 shadow" />
+              <div className="absolute right-6 bottom-4 h-2 w-2 rounded-full bg-black/70 shadow" />
             </>
           );
         case 'cards':
           return (
             <>
-              <div className="absolute left-5 top-3 h-8 w-11 rotate-[-6deg] rounded-lg border border-white/20 bg-white/60 shadow" />
-              <div className="absolute right-4 bottom-2 h-8 w-11 rotate-3 rounded-lg border border-white/30 bg-white/80 shadow" />
+              <div className="absolute left-5 top-3 h-9 w-12 rotate-[-6deg] rounded-lg border border-white/25 bg-white/70 shadow" />
+              <div className="absolute right-4 bottom-2 h-9 w-12 rotate-3 rounded-lg border border-white/35 bg-white/90 shadow" />
               <div className="absolute inset-3 rounded-lg border border-white/40 bg-white/80 shadow-inner" />
             </>
           );
         case 'table':
           return (
             <>
-              <div className="absolute inset-2 rounded-lg border border-white/15 bg-black/20" />
-              <div className="absolute inset-4 rounded-lg border border-white/20 bg-white/10" />
-              <div className="absolute bottom-1 left-4 right-4 h-1.5 rounded-full bg-black/40 blur" />
+              <div className="absolute inset-2 rounded-lg border border-white/20 bg-black/30 shadow-inner" />
+              <div className="absolute inset-4 rounded-lg border border-white/25 bg-white/15" />
+              <div className="absolute bottom-1 left-4 right-4 h-1.5 rounded-full bg-black/50 blur" />
             </>
           );
         case 'puck':
           return (
             <>
-              <div className="absolute inset-2 rounded-lg border border-white/10 bg-slate-900/60" />
-              <div className="absolute inset-x-6 inset-y-3 rounded-full bg-black/70 shadow-inner" />
-              <div className="absolute inset-x-8 inset-y-4 rounded-full border border-white/30 bg-white/10" />
+              <div className="absolute inset-2 rounded-lg border border-white/15 bg-slate-900/70 shadow-inner" />
+              <div className="absolute inset-x-6 inset-y-3 rounded-full bg-black/75 shadow-inner" />
+              <div className="absolute inset-x-8 inset-y-4 rounded-full border border-white/40 bg-white/15" />
             </>
           );
         case 'tokens':
@@ -1032,15 +1050,14 @@ export default function Store() {
 
     return (
       <div className="flex items-center gap-3">
-        <div
-          className={`${baseClass} ${previewShape === 'cue' ? 'skew-y-1' : ''}`}
-          style={{ backgroundImage: gradient, backgroundColor: item.swatches?.[0] || '#0f172a' }}
-        >
+        <div className={`${baseClass} ${previewShape === 'cue' ? 'skew-y-1' : ''}`} style={baseStyle}>
+          <div className="absolute inset-0 opacity-70" style={glow} />
           {layer(previewShape)}
+          <div className="pointer-events-none absolute inset-0 rounded-2xl border border-white/5 bg-gradient-to-b from-white/10 via-transparent to-black/40" />
         </div>
         <div className="grid gap-0.5 text-xs text-white/70">
           <span className="font-semibold text-white">{previewLabel(previewShape)}</span>
-          <span className="text-white/60">Interactive 3D sample</span>
+          <span className="text-white/60">High-fidelity 3D lighting sample</span>
         </div>
       </div>
     );
