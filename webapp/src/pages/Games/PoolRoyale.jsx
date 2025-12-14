@@ -1080,13 +1080,10 @@ const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable, then boost by 20% to meet
-// the latest Pool Royale feedback asking for stronger drives.
+// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_INCREASE = 1.2;
-const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_INCREASE;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -16817,31 +16814,11 @@ function PoolRoyaleGame({
       };
     };
 
-    const responseCurve = (value) => {
-      const deadZone = 0.06;
-      const sign = Math.sign(value);
-      const magnitude = Math.max(0, Math.abs(value) - deadZone) / (1 - deadZone);
-      return sign * Math.pow(magnitude, 0.82);
-    };
-
-    const mapToCueTip = (nx, ny) => {
-      const curvedX = responseCurve(nx);
-      const curvedY = responseCurve(ny);
-      const radial = Math.min(1, Math.hypot(curvedX, curvedY));
-      const falloff = 1 - Math.pow(radial, 2.2) * 0.38;
-      const anisotropy = { x: 1, y: 0.82 }; // favour realistic top/back spin range
-      return clampToUnitCircle(curvedX * anisotropy.x * falloff, curvedY * anisotropy.y * falloff);
-    };
-
     const setSpin = (nx, ny) => {
-      const mapped = mapToCueTip(nx, ny);
-      spinRequestRef.current = mapped;
-      const limited = clampToLimits(mapped.x, mapped.y);
-      const smoothed = {
-        x: THREE.MathUtils.lerp(spinRef.current?.x ?? 0, limited.x, 0.85),
-        y: THREE.MathUtils.lerp(spinRef.current?.y ?? 0, limited.y, 0.85)
-      };
-      spinRef.current = smoothed;
+      const normalized = clampToUnitCircle(nx, ny);
+      spinRequestRef.current = normalized;
+      const limited = clampToLimits(normalized.x, normalized.y);
+      spinRef.current = limited;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -16854,7 +16831,7 @@ function PoolRoyaleGame({
         : null;
       const legality = checkSpinLegality2D(
         cueBall,
-        smoothed,
+        normalized,
         ballsList || [],
         {
           axes,
@@ -16862,7 +16839,7 @@ function PoolRoyaleGame({
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(smoothed, legality.blocked);
+      updateSpinDotPosition(limited, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
