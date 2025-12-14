@@ -1080,10 +1080,11 @@ const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
-// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
-// Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
+// Apply an additional 20% reduction to soften every strike and keep mobile play comfortable, then reboost live play by 20% to
+// answer Pool Royale feedback for stronger, more decisive shots.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
+const SHOT_POWER_INCREASE = 1.2;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_INCREASE;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -16814,11 +16815,40 @@ function PoolRoyaleGame({
       };
     };
 
-    const setSpin = (nx, ny) => {
+    const applyRealisticSpin = (nx, ny) => {
       const normalized = clampToUnitCircle(nx, ny);
       spinRequestRef.current = normalized;
-      const limited = clampToLimits(normalized.x, normalized.y);
-      spinRef.current = limited;
+
+      const radius = Math.hypot(normalized.x, normalized.y);
+      const maxContact = 0.94; // realistic tip offset: keep contact within the cue ball's face
+      const contact = Math.min(radius, maxContact);
+      const sweetSpotBias = 0.18; // keeps center hits stable while allowing expressive side spin
+      const easedContact = THREE.MathUtils.smoothstep(
+        0,
+        1,
+        Math.pow(contact / maxContact || 0, 0.9)
+      );
+      const rimFactor = Math.max(0, contact - 0.78) / (maxContact - 0.78);
+      const rimPenalty = Math.min(1, rimFactor * rimFactor) * 0.55;
+      const effectiveRadius = THREE.MathUtils.clamp(
+        easedContact * (1 - sweetSpotBias) + contact * sweetSpotBias - rimPenalty,
+        0,
+        1
+      );
+      const contactScale = radius > 0 ? effectiveRadius / radius : 0;
+      const shaped = {
+        x: normalized.x * contactScale * 0.96,
+        y: normalized.y * contactScale * 1.06
+      };
+
+      const limited = clampToLimits(shaped.x, shaped.y);
+      const previous = spinRef.current || { x: 0, y: 0 };
+      const inertia = THREE.MathUtils.clamp(0.58 + effectiveRadius * 0.32, 0.58, 0.9);
+      const applied = {
+        x: THREE.MathUtils.lerp(previous.x, limited.x, inertia),
+        y: THREE.MathUtils.lerp(previous.y, limited.y, inertia)
+      };
+
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
         ? ballsRef.current
@@ -16839,9 +16869,12 @@ function PoolRoyaleGame({
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(limited, legality.blocked);
+      const finalSpin = legality.blocked ? { x: 0, y: 0 } : applied;
+      spinRef.current = finalSpin;
+      updateSpinDotPosition(finalSpin, legality.blocked);
+      return finalSpin;
     };
-    const resetSpin = () => setSpin(0, 0);
+    const resetSpin = () => applyRealisticSpin(0, 0);
     resetSpin();
     resetSpinRef.current = resetSpin;
 
@@ -16851,7 +16884,7 @@ function PoolRoyaleGame({
       const cy = clientY ?? rect.top + rect.height / 2;
       let nx = ((cx - rect.left) / rect.width) * 2 - 1;
       let ny = ((cy - rect.top) / rect.height) * 2 - 1;
-      setSpin(nx, ny);
+      applyRealisticSpin(nx, ny);
     };
 
     const scaleBox = (value) => {
