@@ -1130,7 +1130,7 @@ const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
-const CUE_PULL_SMOOTHING = 0.2;
+const CUE_PULL_SMOOTHING = 0.5;
 const CUE_Y = BALL_CENTER_Y - BALL_R * 0.05; // drop cue height slightly so the tip lines up with the cue ball centre
 const CUE_TIP_RADIUS = (BALL_R / 0.0525) * 0.006 * 1.5;
 const CUE_BUTT_LIFT = BALL_R * 0.62; // raise the butt a little more so the rear clears rails while the tip stays aligned
@@ -14344,6 +14344,7 @@ function PoolRoyaleGame({
           const rawMaxPull = Math.max(0, backInfo.tHit - cueLen - CUE_TIP_GAP);
           const maxPull = Number.isFinite(rawMaxPull) ? rawMaxPull : CUE_PULL_BASE;
           cuePullTargetRef.current = Math.min(CUE_PULL_BASE * clampedPower, maxPull);
+          cuePullCurrentRef.current = cuePullTargetRef.current;
           const pull = THREE.MathUtils.clamp(
             Math.max(cuePullCurrentRef.current ?? 0, cuePullTargetRef.current ?? 0),
             0,
@@ -15848,22 +15849,30 @@ function PoolRoyaleGame({
             vert,
             perp.z * side
           );
-          cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+          const contactPoint = new THREE.Vector3(
+            cue.pos.x + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y + spinWorld.z
           );
-          const tiltAmount = Math.abs(appliedSpin.y || 0);
+          cueStick.position.copy(
+            contactPoint.clone().add(
+              dir.clone().multiplyScalar(-(cueLen / 2 + pull + CUE_TIP_GAP))
+            )
+          );
+          const tiltAmount = Math.max(appliedSpin.y || 0, 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          TMP_VEC3_CHALK_DELTA.copy(contactPoint).sub(cueStick.position);
+          TMP_VEC3_CHALK_DELTA.y = 0;
+          cueStick.rotation.y =
+            Math.atan2(TMP_VEC3_CHALK_DELTA.x, TMP_VEC3_CHALK_DELTA.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
+            contactPoint.x - dir.x * (cueLen + pull + CUE_TIP_GAP),
+            contactPoint.y,
+            contactPoint.z - dir.z * (cueLen + pull + CUE_TIP_GAP)
           );
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
@@ -16044,15 +16053,23 @@ function PoolRoyaleGame({
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
+          const contactPoint = new THREE.Vector3(
+            cue.pos.x + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+            cue.pos.y + spinWorld.z
           );
-          const tiltAmount = Math.abs(spinY);
+          cueStick.position.copy(
+            contactPoint.clone().add(
+              dir.clone().multiplyScalar(-(cueLen / 2 + pull + CUE_TIP_GAP))
+            )
+          );
+          const tiltAmount = Math.max(spinY, 0);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt);
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          TMP_VEC3_CHALK_DELTA.copy(contactPoint).sub(cueStick.position);
+          TMP_VEC3_CHALK_DELTA.y = 0;
+          cueStick.rotation.y =
+            Math.atan2(TMP_VEC3_CHALK_DELTA.x, TMP_VEC3_CHALK_DELTA.z) + Math.PI;
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
