@@ -5376,8 +5376,7 @@ function alignRailsToCushions(table, frame) {
   const sampleCushion = table.userData.cushions[0];
   if (!sampleCushion) return;
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
-  const frameTarget = frame.userData?.railTopMesh ?? frame;
-  const frameBox = new THREE.Box3().setFromObject(frameTarget);
+  const frameBox = new THREE.Box3().setFromObject(frame);
   const diff = frameBox.max.y - cushionBox.max.y;
   const tolerance = 1e-3;
   if (Math.abs(diff) > tolerance) {
@@ -7289,7 +7288,6 @@ function Table3D(
   railsMesh.castShadow = true;
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
-  railsGroup.userData.railTopMesh = railsMesh;
   finishParts.railMeshes.push(railsMesh);
 
   let activeRailMarkerStyle =
