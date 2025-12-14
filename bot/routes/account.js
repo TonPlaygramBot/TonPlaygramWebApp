@@ -24,6 +24,12 @@ const router = Router();
 router.post('/create', async (req, res) => {
   const { telegramId, googleId } = req.body;
 
+  if (!telegramId && !googleId) {
+    return res
+      .status(400)
+      .json({ error: 'telegramId or googleId is required to create an account' });
+  }
+
   try {
     let user;
     let telegramProfile = null;
@@ -82,7 +88,7 @@ router.post('/create', async (req, res) => {
         }
         if (updated) await user.save();
       }
-    } else if (googleId) {
+    } else {
       user = await User.findOne({ googleId });
       if (!user) {
         const wallet = await generateWalletAddress();
@@ -108,16 +114,6 @@ router.post('/create', async (req, res) => {
         }
         if (updated) await user.save();
       }
-    } else {
-      const wallet = await generateWalletAddress();
-      const id = uuidv4();
-      user = new User({
-        accountId: id,
-        referralCode: id,
-        walletAddress: wallet.address,
-        walletPublicKey: wallet.publicKey
-      });
-      await user.save();
     }
 
     res.json({
