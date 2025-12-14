@@ -1079,14 +1079,11 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-const CUSHION_SPIN_TRANSFER = 1.15; // amplify spin release when the cue ball meets a cushion
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
 const SHOT_POWER_REDUCTION = 0.85;
-const SHOT_POWER_INCREASE = 1.2; // Pool Royale: raise shot output by 20% for stronger strokes
-const SHOT_FORCE_BOOST =
-  1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION * SHOT_POWER_INCREASE;
+const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
 const SHOT_MIN_FACTOR = 0.25;
@@ -5055,8 +5052,7 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      const spinScale = ball.id === 'cue' ? CUSHION_SPIN_TRANSFER : 0.6;
-      applySpinImpulse(ball, spinScale);
+      applySpinImpulse(ball, 0.6);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -5067,15 +5063,14 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan =
-    SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION + BALL_R * 0.85; // extend the middle pocket guard for more precise collisions
-  const sideDepthLimit = POCKET_VIS_R * 1.55 * POCKET_VISUAL_EXPANSION;
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
+  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
-    TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.35));
+    TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
     TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
@@ -5100,8 +5095,7 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      const spinScale = ball.id === 'cue' ? CUSHION_SPIN_TRANSFER : 0.6;
-      applySpinImpulse(ball, spinScale);
+      applySpinImpulse(ball, 0.6);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -16161,8 +16155,7 @@ function PoolRoyaleGame({
               shotContextRef.current.cushionAfterContact = true;
             }
             if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
-              const spinScale = b.id === 'cue' ? CUSHION_SPIN_TRANSFER : 1;
-              applySpinImpulse(b, spinScale);
+              applySpinImpulse(b, 1);
             }
             if (hitRail) {
               const nowRail = performance.now();
