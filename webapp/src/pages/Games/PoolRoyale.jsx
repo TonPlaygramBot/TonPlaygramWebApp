@@ -1061,7 +1061,7 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 15; // bring the broadcast cams closer while keeping at least half the field visible
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 11; // pull the rail overhead broadcast rigs closer while keeping over half the field visible
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -4237,11 +4237,11 @@ const TOP_VIEW_MARGIN = 0.32;
 const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
-const CUE_VIEW_RADIUS_RATIO = 0.045;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.17;
+const CUE_VIEW_RADIUS_RATIO = 0.042;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.16;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.22
+  STANDING_VIEW_PHI + 0.25
 );
 const CUE_VIEW_PHI_LIFT = 0.12;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
@@ -6122,7 +6122,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.032; // trim the side cushions further so the tips no longer protrude into the pocket mouths
+const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.052; // trim the side cushions further (pocket side only) so their tips clear the middle pocket perimeter
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -11202,10 +11202,12 @@ function PoolRoyaleGame({
         const updateCamera = () => {
           let renderCamera = camera;
           let lookTarget = null;
+          const defaultBroadcastFocus =
+            broadcastCamerasRef.current?.defaultFocusWorld ?? null;
           let broadcastArgs = {
             railDir: 1,
             targetWorld: null,
-            focusWorld: broadcastCamerasRef.current?.defaultFocusWorld ?? null,
+            focusWorld: defaultBroadcastFocus,
             lerp: 0.18
           };
           const broadcastSystem =
@@ -11900,11 +11902,10 @@ function PoolRoyaleGame({
             camera.position.add(focusTarget);
             camera.lookAt(focusTarget);
             renderCamera = camera;
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
+            broadcastArgs.focusWorld = defaultBroadcastFocus ?? focusTarget;
             broadcastArgs.targetWorld = focusTarget.clone();
-              broadcastArgs.lerp = 0.12;
-            } else {
+            broadcastArgs.lerp = 0.12;
+          } else {
               camera.up.set(0, 1, 0);
               TMP_SPH.copy(sph);
               if (sidePocketAimRef.current && !shooting) {
@@ -11984,10 +11985,10 @@ function PoolRoyaleGame({
               }
               camera.lookAt(lookTarget);
               renderCamera = camera;
-              broadcastArgs.focusWorld =
-                broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
-              broadcastArgs.targetWorld = null;
-              broadcastArgs.lerp = 0.22;
+                broadcastArgs.focusWorld = defaultBroadcastFocus ?? lookTarget;
+                broadcastArgs.orbitWorld = defaultBroadcastFocus;
+                broadcastArgs.targetWorld = null;
+                broadcastArgs.lerp = 0.22;
             }
           }
           if (lookTarget) {
@@ -16406,7 +16407,7 @@ function PoolRoyaleGame({
             let priority = baseScore;
             if (matchesIntent && (pocketIntent?.forced ?? false)) priority += 1.2;
             else if (matchesIntent) priority += 0.6;
-            if (qualifiesAsGuaranteed) priority += 0.4;
+            if (qualifiesAsGuaranteed) priority += 1.1;
             if (candidate.forcedEarly) priority += 0.3;
             candidate.priority = priority;
             candidate.intentMatched = matchesIntent;
@@ -16433,16 +16434,24 @@ function PoolRoyaleGame({
                 bestPocketView.smoothedTarget = storedTarget;
               }
             }
-            if (actionResume) {
-              suspendedActionView = actionResume;
-              bestPocketView.resumeAction = actionResume;
-            } else {
-              suspendedActionView = null;
+              if (actionResume) {
+                suspendedActionView = actionResume;
+                bestPocketView.resumeAction = actionResume;
+              } else {
+                suspendedActionView = null;
+              }
+              updatePocketCameraState(true);
+              activeShotView = bestPocketView;
+              if (bestPocketView.guaranteed) {
+                const now = performance.now();
+                bestPocketView.startedAt = bestPocketView.startedAt ?? now;
+                bestPocketView.holdUntil = Math.max(
+                  bestPocketView.holdUntil ?? 0,
+                  now + POCKET_VIEW_MIN_DURATION_MS
+                );
+              }
             }
-            updatePocketCameraState(true);
-            activeShotView = bestPocketView;
           }
-        }
         // Pocket capture
         balls.forEach((b) => {
           if (!b.active) return;
