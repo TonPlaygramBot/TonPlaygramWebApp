@@ -6112,7 +6112,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.032; // trim the side cushions a touch more so their ends clear the middle pocket mouths
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // trim the side cushions further so the tips no longer protrude into the pocket mouths
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -7513,10 +7513,7 @@ function Table3D(
     const backY = baseRailWidth / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
-    const cutAngleDeg = horizontal
-      ? CUSHION_CUT_ANGLE
-      : SIDE_CUSHION_CUT_ANGLE;
-    const rad = THREE.MathUtils.degToRad(cutAngleDeg);
+    const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
     const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
 
     const shape = new THREE.Shape();
