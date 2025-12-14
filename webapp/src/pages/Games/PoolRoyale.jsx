@@ -955,8 +955,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.118; // sink the cushion base further so the pads settle slightly below the rail line
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.128; // trim the cushion tops more so chalks and diamonds stay visible above the pads
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.094; // sink the cushion base slightly while keeping the pads closer to the rail line
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.164; // trim the cushion tops further so the pads sit a touch lower than the wooden rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -5327,13 +5327,23 @@ const toBallColorId = (id) => {
   return lower.toUpperCase();
 };
 
-function alignRailsToCushions(table, frame) {
+function alignRailsToCushions(table, frame, railMeshes = null) {
   if (!frame || !table?.userData?.cushions?.length) return;
   table.updateMatrixWorld(true);
   const sampleCushion = table.userData.cushions[0];
   if (!sampleCushion) return;
   const cushionBox = new THREE.Box3().setFromObject(sampleCushion);
-  const frameBox = new THREE.Box3().setFromObject(frame);
+
+  const candidates = Array.isArray(railMeshes) && railMeshes.length ? railMeshes : [frame];
+  const frameBox = new THREE.Box3();
+  let hasBounds = false;
+  for (const mesh of candidates) {
+    if (!mesh) continue;
+    frameBox.expandByObject(mesh);
+    hasBounds = true;
+  }
+  if (!hasBounds) return;
+
   const diff = frameBox.max.y - cushionBox.max.y;
   const tolerance = 1e-3;
   if (Math.abs(diff) > tolerance) {
@@ -7864,7 +7874,7 @@ function Table3D(
     mesh.position.y = pocketTopY - TABLE.THICK / 2 + lift;
   });
 
-  alignRailsToCushions(table, railsGroup);
+  alignRailsToCushions(table, railsGroup, finishParts.railMeshes);
   table.updateMatrixWorld(true);
   updateRailLimitsFromTable(table);
 
