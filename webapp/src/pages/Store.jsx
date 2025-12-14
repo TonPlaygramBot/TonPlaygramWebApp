@@ -468,6 +468,7 @@ export default function Store() {
   const [showListModal, setShowListModal] = useState(false);
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
   const [showMyListings, setShowMyListings] = useState(false);
+  const [detailItem, setDetailItem] = useState(null);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -1015,6 +1016,114 @@ export default function Store() {
     );
   };
 
+  const renderDetailModal = () => {
+    if (!detailItem) return null;
+    const gameName = storeMeta[detailItem.slug]?.name || detailItem.slug;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-4xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+          <div className="flex items-start justify-between border-b border-white/10 p-4">
+            <div>
+              <p className="text-xs text-white/60">{gameName} • {detailItem.typeLabel}</p>
+              <h3 className="text-lg font-semibold text-white">{detailItem.displayLabel}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-white/70">
+                  {detailItem.slug.replace('-', ' ')}
+                </span>
+                <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-white/60">
+                  {detailItem.typeLabel}
+                </span>
+                <span
+                  className={`rounded-full border px-2.5 py-1 font-semibold ${
+                    detailItem.owned
+                      ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200'
+                      : 'border-indigo-400/30 bg-indigo-400/10 text-indigo-100'
+                  }`}
+                >
+                  {detailItem.owned ? 'In inventory' : 'Mintable'}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
+                {detailItem.price}
+                <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+              </div>
+              <button
+                type="button"
+                onClick={() => setDetailItem(null)}
+                className="rounded-full border border-white/10 p-2 text-white/70 hover:bg-white/10"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 p-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+                <p className="font-semibold text-white">Item overview</p>
+                <p className="mt-1">{detailItem.description || 'Cosmetic details will appear here.'}</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Seller</span>
+                  <span className="font-semibold">{detailItem.seller || 'Official store'}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white/60">Status</span>
+                  <span className="font-semibold text-emerald-200">{detailItem.owned ? 'Unlocked' : 'Available'}</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {(detailItem.swatches || []).slice(0, 6).map((color, index) => (
+                    <span
+                      key={`${detailItem.id}-detail-${color}-${index}`}
+                      className="h-5 w-5 rounded-full border border-white/20 shadow-sm"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                  {(!detailItem.swatches || detailItem.swatches.length === 0) && (
+                    <span className="text-xs text-white/60">Color samples unavailable</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDetailItem(null)}
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
+                >
+                  Close
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmItem(detailItem);
+                    setDetailItem(null);
+                  }}
+                  className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                  disabled={processing === detailItem.id || detailItem.owned}
+                >
+                  {detailItem.owned ? 'Already owned' : 'Buy now'}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3">{renderPreview3d(detailItem)}</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/70">
+                <p className="font-semibold text-white">What you get</p>
+                <p className="mt-1">Unlock this cosmetic instantly for your next match with your linked TPC account.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderPreview3d = (item, showCaption = true) => {
     if (!item) return null;
     const previewShape = item.previewShape || 'default';
@@ -1461,77 +1570,51 @@ export default function Store() {
             </button>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="space-y-2">
             {visibleItems.map((item) => (
-              <button
+              <div
                 key={`${item.slug}-${item.id}`}
-                onClick={() => setConfirmItem(item)}
-                className="group flex flex-col gap-3 overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:bg-white/10"
+                className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left shadow-sm transition hover:border-white/20 hover:bg-white/10 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
-                      {item.gameName[0]}
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-semibold">{item.displayLabel}</div>
-                        {item.owned && (
-                          <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
-                            Owned
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-white/60">{item.gameName} | {item.typeLabel}</div>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="grid h-12 w-12 place-items-center rounded-2xl bg-black/30 text-lg font-semibold">
+                    {item.gameName[0]}
                   </div>
-                  <div className="text-right">
-                    <div className="text-xs text-white/60">Price</div>
-                    <div className="flex items-center gap-1 text-sm font-semibold">
-                      {item.price}
-                      <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm font-semibold">{item.displayLabel}</div>
+                      {item.owned && (
+                        <span className="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-200">
+                          Owned
+                        </span>
+                      )}
                     </div>
+                    <div className="text-xs text-white/60">{item.gameName} • {item.typeLabel}</div>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/80">
-                    {item.slug.replace('-', ' ')}
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-black/20 px-2.5 py-1 text-xs font-semibold text-white/60">
-                    {item.typeLabel}
-                  </span>
-                  <span
-                    className={`rounded-full border px-2.5 py-1 text-xs font-semibold ${
-                      item.owned ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-indigo-400/30 bg-indigo-400/10 text-indigo-100'
-                    }`}
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <div className="flex items-center gap-1 rounded-full bg-white/10 px-3 py-1 text-sm font-semibold">
+                    {item.price}
+                    <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setDetailItem(item)}
+                    className="rounded-2xl border border-white/15 bg-black/30 px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/10"
                   >
-                    {item.owned ? 'In inventory' : 'Mintable'}
-                  </span>
+                    View
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmItem(item)}
+                    className="rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-zinc-950 hover:bg-white/90"
+                    disabled={item.owned}
+                  >
+                    {item.owned ? 'Owned' : 'Buy'}
+                  </button>
                 </div>
-
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div className="flex flex-wrap items-center gap-1">
-                    {(item.swatches || []).slice(0, 5).map((color, index) => (
-                      <span
-                        key={`${item.id}-swatch-${color}-${index}`}
-                        className="h-4 w-4 rounded-full border border-white/20 shadow-sm"
-                        style={{ backgroundColor: color }}
-                        title={color}
-                      />
-                    ))}
-                    {(!item.swatches || item.swatches.length === 0) && (
-                      <span className="text-xs text-white/60">Color samples unavailable</span>
-                    )}
-                  </div>
-                  <div className="w-full md:w-auto">{renderPreview3d(item)}</div>
-                </div>
-
-                <div className="flex items-center justify-between text-xs text-white/60">
-                  <div>Seller: {item.seller || 'Official store'}</div>
-                  <div className="group-hover:text-white/80">Tap to view details</div>
-                </div>
-              </button>
+              </div>
             ))}
           </div>
 
@@ -1560,6 +1643,7 @@ export default function Store() {
       </main>
 
       {renderListModal()}
+      {renderDetailModal()}
       {renderConfirmModal()}
     </div>
   );
