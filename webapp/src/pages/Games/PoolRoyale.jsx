@@ -4181,10 +4181,10 @@ const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.98 }),
-  nearLandscape: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.98 }),
-  portrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 }),
-  ultraPortrait: Object.freeze({ cue: 0.82, broadcast: 0.89, margin: 0.965 })
+  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
+  portrait: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
+  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -14354,44 +14354,46 @@ function PoolRoyaleGame({
           cueAnimating = true;
           const startPos = cueStick.position.clone();
           const endPos = startPos.clone().add(dir.clone().multiplyScalar(pull));
-          const forwardDuration = THREE.MathUtils.lerp(140, 70, clampedPower);
-          const backwardDuration = forwardDuration * 1.2;
-          const animateBack = (backStart) => {
-            const step = (now) => {
-              const t = Math.min(1, (now - backStart) / backwardDuration);
-              cueStick.position.lerpVectors(endPos, startPos, t);
-              if (t < 1) {
-                requestAnimationFrame(step);
-              } else {
-                cuePullCurrentRef.current = 0;
-                cuePullTargetRef.current = 0;
-                cueStick.visible = false;
-                cueAnimating = false;
-                if (cameraRef.current && sphRef.current) {
-                  topViewRef.current = false;
-                  topViewLockedRef.current = false;
-                  setIsTopDownView(false);
-                  const sph = sphRef.current;
-                  sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
-                  updateCamera();
+          let animFrame = 0;
+          const animSteps = 5;
+          const animateCue = () => {
+            animFrame++;
+            cueStick.position.lerpVectors(
+              startPos,
+              endPos,
+              animFrame / animSteps
+            );
+            if (animFrame < animSteps) {
+              requestAnimationFrame(animateCue);
+            } else {
+              let backFrame = 0;
+              const animateBack = () => {
+                backFrame++;
+                cueStick.position.lerpVectors(
+                  endPos,
+                  startPos,
+                  backFrame / animSteps
+                );
+                if (backFrame < animSteps) requestAnimationFrame(animateBack);
+                else {
+                  cuePullCurrentRef.current = 0;
+                  cuePullTargetRef.current = 0;
+                  cueStick.visible = false;
+                  cueAnimating = false;
+                  if (cameraRef.current && sphRef.current) {
+                    topViewRef.current = false;
+                    topViewLockedRef.current = false;
+                    setIsTopDownView(false);
+                    const sph = sphRef.current;
+                    sph.theta = Math.atan2(aimDir.x, aimDir.y) + Math.PI;
+                    updateCamera();
+                  }
                 }
-              }
-            };
-            requestAnimationFrame(step);
+              };
+              requestAnimationFrame(animateBack);
+            }
           };
-          const animateCue = (startTime) => {
-            const step = (now) => {
-              const t = Math.min(1, (now - startTime) / forwardDuration);
-              cueStick.position.lerpVectors(startPos, endPos, t);
-              if (t < 1) {
-                requestAnimationFrame(step);
-              } else {
-                animateBack(performance.now());
-              }
-            };
-            requestAnimationFrame(step);
-          };
-          animateCue(performance.now());
+          animateCue();
         };
         let aiThinkingHandle = null;
         const planKey = (plan) =>
@@ -16785,11 +16787,7 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => {
-        const nextPower = v / 100;
-        powerRef.current = nextPower;
-        setHud((s) => ({ ...s, power: nextPower }));
-      },
+      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
