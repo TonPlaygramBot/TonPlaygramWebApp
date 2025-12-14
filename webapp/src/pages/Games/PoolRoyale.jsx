@@ -4381,6 +4381,10 @@ const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
+const TMP_VEC3_CONTACT = new THREE.Vector3();
+const TMP_VEC3_TIP_ANCHOR = new THREE.Vector3();
+const TMP_VEC3_TIP_OFFSET = new THREE.Vector3();
+const TMP_EULER_CUE = new THREE.Euler();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -13188,19 +13192,19 @@ function PoolRoyaleGame({
       );
       const buttTipComp = Math.sin(buttTilt) * cueLen * 0.5;
       const applyCueButtTilt = (group, extraTilt = 0) => {
-        if (!group) return;
+        if (!group) return 0;
         const info = group.userData?.buttTilt;
         const baseTilt = info?.angle ?? buttTilt;
         const len = info?.length ?? cueLen;
         const totalTilt = baseTilt + extraTilt;
         group.rotation.x = totalTilt;
         const tipComp = Math.sin(totalTilt) * len * 0.5;
-        group.position.y += tipComp;
         if (info) {
           info.tipCompensation = tipComp;
           info.current = totalTilt;
           info.extra = extraTilt;
         }
+        return tipComp;
       };
       cueStick.userData.buttTilt = {
         angle: buttTilt,
@@ -13407,7 +13411,8 @@ function PoolRoyaleGame({
       cueBody.add(stripeOverlay);
 
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
-      applyCueButtTilt(cueStick);
+      const initialTipComp = applyCueButtTilt(cueStick);
+      cueStick.position.y -= initialTipComp;
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
       table.add(cueStick);
@@ -15848,23 +15853,33 @@ function PoolRoyaleGame({
             vert,
             perp.z * side
           );
-          cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+          TMP_VEC3_CONTACT.set(
+            cue.pos.x + spinWorld.x,
+            BALL_CENTER_Y + spinWorld.y,
+            cue.pos.y + spinWorld.z
           );
+          const rotationY = Math.atan2(dir.x, dir.z) + Math.PI;
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          cueStick.rotation.y = rotationY;
+          TMP_EULER_CUE.set(
+            cueStick.rotation.x,
+            cueStick.rotation.y,
+            cueStick.rotation.z,
+            'XYZ'
+          );
+          TMP_VEC3_TIP_OFFSET.set(0, 0, -cueLen / 2).applyEuler(TMP_EULER_CUE);
+          TMP_VEC3_TIP_ANCHOR.copy(TMP_VEC3_CONTACT);
+          TMP_VEC3_A.copy(dir).multiplyScalar(-CUE_TIP_GAP);
+          TMP_VEC3_TIP_ANCHOR.add(TMP_VEC3_A);
+          cueStick.position.copy(TMP_VEC3_TIP_ANCHOR).sub(TMP_VEC3_TIP_OFFSET);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          TMP_VEC3_BUTT.set(
-            cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
-          );
+          TMP_VEC3_BUTT.set(0, 0, cueLen / 2)
+            .applyEuler(TMP_EULER_CUE)
+            .add(cueStick.position);
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -16044,15 +16059,27 @@ function PoolRoyaleGame({
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          cueStick.position.set(
-            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
-            CUE_Y + spinWorld.y,
-            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
+          TMP_VEC3_CONTACT.set(
+            cue.pos.x + spinWorld.x,
+            BALL_CENTER_Y + spinWorld.y,
+            cue.pos.y + spinWorld.z
           );
+          const rotationY = Math.atan2(dir.x, dir.z) + Math.PI;
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt);
-          cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
+          cueStick.rotation.y = rotationY;
+          TMP_EULER_CUE.set(
+            cueStick.rotation.x,
+            cueStick.rotation.y,
+            cueStick.rotation.z,
+            'XYZ'
+          );
+          TMP_VEC3_TIP_OFFSET.set(0, 0, -cueLen / 2).applyEuler(TMP_EULER_CUE);
+          TMP_VEC3_TIP_ANCHOR.copy(TMP_VEC3_CONTACT);
+          TMP_VEC3_A.copy(dir).multiplyScalar(-CUE_TIP_GAP);
+          TMP_VEC3_TIP_ANCHOR.add(TMP_VEC3_A);
+          cueStick.position.copy(TMP_VEC3_TIP_ANCHOR).sub(TMP_VEC3_TIP_OFFSET);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -16770,7 +16797,11 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
+      onChange: (v) => {
+        const nextPower = v / 100;
+        powerRef.current = nextPower;
+        setHud((s) => ({ ...s, power: nextPower }));
+      },
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
