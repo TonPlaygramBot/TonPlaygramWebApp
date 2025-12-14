@@ -1059,7 +1059,7 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 20; // bring the broadcast cams closer while keeping at least half the field visible
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 16; // pull the broadcast cams in slightly so the rail overhead shows more of the table
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
