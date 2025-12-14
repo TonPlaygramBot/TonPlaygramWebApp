@@ -25,14 +25,14 @@ public class CueCamera : MonoBehaviour
 
     [Header("Cue aim view")]
     // Distance from the cue ball when the camera is fully raised above the cue.
-    public float cueRaisedDistanceFromBall = 0.62f;
+    public float cueRaisedDistanceFromBall = 0.68f;
     // Distance from the cue ball used for the lowest aiming view.  This keeps the
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
-    public float cueLoweredDistanceFromBall = 0.04f;
+    public float cueLoweredDistanceFromBall = 0.05f;
     // Additional pull-in applied to the cue camera so the portrait framing hugs
     // the cloth like a player leaning over the shot.
-    public float cueDistancePullIn = 0.54f;
+    public float cueDistancePullIn = 0.48f;
     // Minimum separation we allow once the pull-in is applied. Prevents the
     // camera from intersecting the cue or cloth when the player drops in tight.
     public float cueMinimumDistance = 0.02f;
@@ -43,7 +43,7 @@ public class CueCamera : MonoBehaviour
     // view.
     public float cueRaisedHeightPadding = 0.05f;
     // Minimum height maintained when the player drops the camera toward the cue.
-    public float cueLoweredHeight = 0.31f;
+    public float cueLoweredHeight = 0.27f;
     // Extra forward push applied as the player lowers the camera so the framing
     // stays tight on the cue ball and shaft instead of drifting backward.
     public float cueLoweredForwardPush = 0.08f;
@@ -51,7 +51,7 @@ public class CueCamera : MonoBehaviour
     // retreats past the stick and always looks down the shaft.
     public float cueButtClearance = 0.12f;
     // Extra clearance to ensure the camera stays above the cue stick.
-    public float cueHeightClearance = 0.065f;
+    public float cueHeightClearance = 0.05f;
     // Limit how far toward the butt end the camera can travel as it lowers.
     // Keeps the framing over the upper half of the cue rather than drifting to
     // the plastic cap.
@@ -89,7 +89,7 @@ public class CueCamera : MonoBehaviour
     // Scale applied once the camera is fully lowered toward the cue. Lower
     // values bring the framing tighter to the cue ball and aiming line.
     [Range(0.1f, 1f)]
-    public float cueLoweredDistanceScale = 0.42f;
+    public float cueLoweredDistanceScale = 0.45f;
     // Bias used when lowering the camera to keep it hovering just above the cue
     // instead of drifting upward toward the player's face.
     [Range(0.1f, 1f)]
@@ -120,18 +120,18 @@ public class CueCamera : MonoBehaviour
     [Header("Broadcast view")]
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 0.9f;
-    public float broadcastHeight = 0.4f;
+    public float broadcastHeight = 0.44f;
     // Bounds that encompass the full playing surface including rails and pockets.
     public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.64465f, 0.72f, 3.301325f));
     // Keep a small margin inside the camera frame so the rails never touch the
     // edge of the screen during broadcast shots.
     [Range(0f, 0.25f)]
-    public float broadcastSafeMargin = 0.015f;
+    public float broadcastSafeMargin = 0.02f;
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
-    public float broadcastMinDistance = 0.82f;
-    public float broadcastMaxDistance = 4.65f;
+    public float broadcastMinDistance = 0.95f;
+    public float broadcastMaxDistance = 5.0875f;
     // Blend between the table centre and the active focus (cue ball or target)
     // when aiming the broadcast view. Keeps the play interesting while still
     // framing the entire table.
@@ -139,22 +139,7 @@ public class CueCamera : MonoBehaviour
     public float broadcastFocusBias = 0.35f;
     // Additional height applied when the broadcast camera needs to rise to keep
     // the far short rail within frame.
-    public float broadcastHeightPadding = 0.03f;
-    [Header("Pocket camera")]
-    // Distance within which we consider a pocketed shot guaranteed and cut to the pocket view.
-    public float pocketTriggerDistance = 0.22f;
-    // Minimum target speed aligned toward the pocket before switching to the pocket camera.
-    public float pocketTriggerVelocity = 0.14f;
-    // Speed below which we consider the shot resolved while holding on the pocket.
-    public float pocketHoldVelocity = 0.0025f;
-    // Horizontal offset from the pocket lip used to place the pocket camera outside the chrome plate.
-    public float pocketCameraOffset = 0.18f;
-    // Extra height for the pocket camera so it sits just above the chrome plate.
-    public float pocketCameraHeight = 0.08f;
-    // Additional upward focus so the pocket camera keeps the pocket mouth framed without zooming.
-    public float pocketCameraLookOffset = 0.05f;
-    // Outset used when computing the side pockets so the camera aligns with the table spec.
-    public float pocketSideOutset = 0.03f;
+    public float broadcastHeightPadding = 0.06f;
     // Minimum squared velocity to consider a ball as moving.
     public float velocityThreshold = 0.01f;
     // How quickly the camera aligns to the stored shot angle.
@@ -178,9 +163,6 @@ public class CueCamera : MonoBehaviour
     private int defaultShortRailSign = 1;
     private int cueAimSideSign = 1;
     private int broadcastSideSign = -1;
-    private bool usingPocketCamera;
-    private Vector3 pocketAnchor;
-    private Vector3 pocketOutward;
     private bool nextShotIsAi;
     [Header("Occlusion settings")]
     // Layers that should be considered when preventing the camera from getting
@@ -232,9 +214,6 @@ public class CueCamera : MonoBehaviour
         currentBall = CueBall;
         shotInProgress = true;
         usingTargetCamera = target != null;
-        usingPocketCamera = false;
-        pocketAnchor = tableBounds.center;
-        pocketOutward = Vector3.forward;
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -265,9 +244,6 @@ public class CueCamera : MonoBehaviour
         cueAimLowering = Mathf.Clamp01(defaultCueAimLowering);
         cueAimForward = GetInitialCueForward();
         targetViewFocus = GetBroadcastFocus(CueBall != null ? CueBall.position : tableBounds.center);
-        usingPocketCamera = false;
-        pocketAnchor = tableBounds.center;
-        pocketOutward = Vector3.forward;
     }
 
     private void LateUpdate()
@@ -590,15 +566,10 @@ public class CueCamera : MonoBehaviour
 
     private void UpdateBroadcastCamera()
     {
-        if (usingPocketCamera)
-        {
-            UpdatePocketCamera();
-            return;
-        }
-
         currentBall = CueBall;
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
-        ApplyBroadcastCamera(targetViewFocus);
+        Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
+        ApplyBroadcastCamera(GetBroadcastFocus(focus));
 
         bool cueMoving = IsMoving(CueBall);
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
@@ -624,19 +595,8 @@ public class CueCamera : MonoBehaviour
     {
         if (TargetBall != null && TargetBall.gameObject.activeInHierarchy)
         {
-            Vector3 desiredFocus = GetBroadcastFocus(TargetBall.position);
-            targetViewFocus = Vector3.Lerp(targetViewFocus, desiredFocus, Time.deltaTime * 3f);
+            targetViewFocus = GetBroadcastFocus(TargetBall.position);
             currentBall = TargetBall;
-            if (!usingPocketCamera)
-            {
-                TryEnterPocketCamera(TargetBall);
-            }
-        }
-
-        if (usingPocketCamera)
-        {
-            UpdatePocketCamera();
-            return;
         }
 
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
@@ -661,131 +621,6 @@ public class CueCamera : MonoBehaviour
             EndShot();
             UpdateCueAimCamera();
         }
-    }
-
-    private void UpdatePocketCamera()
-    {
-        Vector3 forward = pocketOutward.sqrMagnitude > 0.0001f ? -pocketOutward.normalized : Vector3.forward;
-        float offset = Mathf.Max(0.05f, pocketCameraOffset);
-        float baseHeight = Mathf.Max(pocketCameraHeight, railHeight + railClearance);
-        float height = pocketAnchor.y + baseHeight;
-        float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, baseHeight);
-        Vector3 lookTarget = pocketAnchor + Vector3.up * Mathf.Max(0f, pocketCameraLookOffset);
-
-        ApplyCameraAt(pocketAnchor, forward, offset, height, minimumHeightOffset, lookTarget);
-
-        bool targetSettled = TargetBall == null || !TargetBall.gameObject.activeInHierarchy || GetSpeed(TargetBall) <= pocketHoldVelocity;
-        bool cueSettled = !IsMoving(CueBall);
-        if (targetSettled && cueSettled)
-        {
-            EndShot();
-            UpdateCueAimCamera();
-        }
-    }
-
-    private bool TryEnterPocketCamera(Transform target)
-    {
-        if (target == null || !target.gameObject.activeInHierarchy)
-        {
-            return false;
-        }
-
-        Rigidbody rb = target.GetComponent<Rigidbody>();
-        if (rb == null)
-        {
-            return false;
-        }
-
-        Vector3 pocketNormal;
-        Vector3 anchor = GetNearestPocket(target.position, out pocketNormal);
-        Vector3 toPocket = anchor - target.position;
-        toPocket.y = 0f;
-        Vector3 planarVelocity = rb.velocity;
-        planarVelocity.y = 0f;
-
-        float triggerDistance = Mathf.Max(0.01f, pocketTriggerDistance);
-        if (toPocket.magnitude > triggerDistance)
-        {
-            return false;
-        }
-
-        float triggerSpeed = Mathf.Max(0f, pocketTriggerVelocity);
-        if (planarVelocity.sqrMagnitude < triggerSpeed * triggerSpeed)
-        {
-            return false;
-        }
-
-        if (toPocket.sqrMagnitude < 0.0001f || planarVelocity.sqrMagnitude < 0.0001f)
-        {
-            return false;
-        }
-
-        float alignment = Vector3.Dot(planarVelocity.normalized, toPocket.normalized);
-        if (alignment < 0.35f)
-        {
-            return false;
-        }
-
-        pocketAnchor = anchor;
-        pocketOutward = pocketNormal;
-        usingPocketCamera = true;
-        targetViewFocus = GetBroadcastFocus(anchor);
-        return true;
-    }
-
-    private Vector3 GetNearestPocket(Vector3 position, out Vector3 outwardNormal)
-    {
-        Vector3 extents = tableBounds.extents;
-        float outset = Mathf.Max(0f, pocketSideOutset);
-        float pocketHeight = Mathf.Max(tableBounds.center.y, railHeight);
-        Vector3[] anchors = new Vector3[]
-        {
-            new Vector3(-extents.x, pocketHeight, -extents.z),
-            new Vector3(0f, pocketHeight, -extents.z - outset),
-            new Vector3(extents.x, pocketHeight, -extents.z),
-            new Vector3(extents.x + outset, pocketHeight, 0f),
-            new Vector3(extents.x, pocketHeight, extents.z),
-            new Vector3(0f, pocketHeight, extents.z + outset),
-            new Vector3(-extents.x, pocketHeight, extents.z),
-            new Vector3(-extents.x - outset, pocketHeight, 0f)
-        };
-
-        Vector3[] normals = new Vector3[]
-        {
-            new Vector3(-1f, 0f, -1f).normalized,
-            Vector3.back,
-            new Vector3(1f, 0f, -1f).normalized,
-            Vector3.right,
-            new Vector3(1f, 0f, 1f).normalized,
-            Vector3.forward,
-            new Vector3(-1f, 0f, 1f).normalized,
-            Vector3.left
-        };
-
-        float best = float.MaxValue;
-        outwardNormal = Vector3.forward;
-        Vector3 bestAnchor = anchors[0];
-
-        for (int i = 0; i < anchors.Length; i++)
-        {
-            Vector3 flat = position - anchors[i];
-            flat.y = 0f;
-            float sqr = flat.sqrMagnitude;
-            if (sqr < best)
-            {
-                best = sqr;
-                bestAnchor = anchors[i];
-                outwardNormal = normals[i];
-            }
-        }
-
-        return bestAnchor;
-    }
-
-    private float GetSpeed(Transform ball)
-    {
-        Rigidbody rb = ball != null ? ball.GetComponent<Rigidbody>() : null;
-        return rb != null ? rb.velocity.magnitude : 0f;
     }
 
     private void ApplyStandardCamera()
@@ -1103,7 +938,6 @@ public class CueCamera : MonoBehaviour
     {
         shotInProgress = false;
         usingTargetCamera = false;
-        usingPocketCamera = false;
         currentBall = CueBall;
         TargetBall = null;
         cueAimSideSign = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
