@@ -1082,7 +1082,8 @@ const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the c
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
-const SHOT_POWER_REDUCTION = 0.85;
+// New request: give every shot 20% more punch while keeping the existing balance knobs intact.
+const SHOT_POWER_REDUCTION = 1.02;
 const SHOT_FORCE_BOOST = 1.5 * 0.75 * 0.85 * 0.8 * 1.3 * 0.85 * SHOT_POWER_REDUCTION;
 const SHOT_BREAK_MULTIPLIER = 1.5;
 const SHOT_BASE_SPEED = 3.3 * 0.3 * 1.65 * SHOT_FORCE_BOOST;
@@ -4368,6 +4369,7 @@ const TMP_VEC2_A = new THREE.Vector2();
 const TMP_VEC2_B = new THREE.Vector2();
 const TMP_VEC2_C = new THREE.Vector2();
 const TMP_VEC2_D = new THREE.Vector2();
+const TMP_VEC2_NORMAL = new THREE.Vector2();
 const TMP_VEC2_SPIN = new THREE.Vector2();
 const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
@@ -5063,8 +5065,8 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
-  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.45; // extend the middle pocket guard for more precise collisions
+  const sideDepthLimit = POCKET_VIS_R * 1.38 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
@@ -5074,28 +5076,35 @@ function reflectRails(ball) {
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
     TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
-    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-    if (distNormal >= BALL_R) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
+    TMP_VEC2_NORMAL.copy(TMP_VEC2_B);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    const jawBlend = THREE.MathUtils.clamp(
+      (lateral - sideSpan) / (BALL_R * 0.9),
+      0,
+      1
+    );
+    TMP_VEC2_NORMAL.lerp(TMP_VEC2_D, jawBlend).normalize();
+    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_NORMAL);
+    if (distNormal >= BALL_R) continue;
     if (lateral <= sideSpan) continue;
     if (distNormal < -sideDepthLimit) continue;
     const push = BALL_R - distNormal;
-    ball.pos.addScaledVector(TMP_VEC2_B, push);
-    const vn = ball.vel.dot(TMP_VEC2_B);
+    ball.pos.addScaledVector(TMP_VEC2_NORMAL, push);
+    const vn = ball.vel.dot(TMP_VEC2_NORMAL);
     if (vn < 0) {
       const restitution = CUSHION_RESTITUTION;
-      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
+      ball.vel.addScaledVector(TMP_VEC2_NORMAL, -(1 + restitution) * vn);
       const vt = TMP_VEC2_D.copy(ball.vel).sub(
-        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
+        TMP_VEC2_NORMAL.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_NORMAL))
       );
-      const tangentDamping = 0.96;
+      const tangentDamping = 0.94;
       ball.vel
         .sub(vt)
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
+      applySpinImpulse(ball, 0.75);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -16149,8 +16158,9 @@ function PoolRoyaleGame({
             if (hitRail && shotContextRef.current.contactMade) {
               shotContextRef.current.cushionAfterContact = true;
             }
-            if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
-              applySpinImpulse(b, 1);
+            if (hitRail && b.spin?.lengthSq() > 0) {
+              const spinScale = hitRail === 'corner' ? 0.95 : 1.15;
+              applySpinImpulse(b, spinScale);
             }
             if (hitRail) {
               const nowRail = performance.now();
