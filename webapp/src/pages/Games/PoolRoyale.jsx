@@ -4378,7 +4378,6 @@ const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
-const TMP_VEC3_TIP = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
@@ -15849,12 +15848,11 @@ function PoolRoyaleGame({
             vert,
             perp.z * side
           );
-          const tipTarget = TMP_VEC3_TIP.set(
-            cue.pos.x + spinWorld.x - dir.x * (BALL_R + CUE_TIP_GAP + pull),
+          cueStick.position.set(
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y + spinWorld.z - dir.z * (BALL_R + CUE_TIP_GAP + pull)
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          cueStick.position.copy(tipTarget).addScaledVector(dir, cueLen / 2);
           const tiltAmount = Math.abs(appliedSpin.y || 0);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
@@ -15862,7 +15860,11 @@ function PoolRoyaleGame({
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          TMP_VEC3_BUTT.copy(tipTarget).addScaledVector(dir, cueLen);
+          TMP_VEC3_BUTT.set(
+            cue.pos.x - dir.x * (cueLen + pull + CUE_TIP_GAP) + spinWorld.x,
+            CUE_Y + spinWorld.y,
+            cue.pos.y - dir.z * (cueLen + pull + CUE_TIP_GAP) + spinWorld.z
+          );
           let visibleChalkIndex = null;
           const chalkMeta = table.userData?.chalkMeta;
           if (chalkMeta) {
@@ -16042,12 +16044,11 @@ function PoolRoyaleGame({
             }
           }
           const spinWorld = new THREE.Vector3(perp.x * side, vert, perp.z * side);
-          const tipTarget = TMP_VEC3_TIP.set(
-            cue.pos.x + spinWorld.x - dir.x * (BALL_R + CUE_TIP_GAP + pull),
+          cueStick.position.set(
+            cue.pos.x - dir.x * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.x,
             CUE_Y + spinWorld.y,
-            cue.pos.y + spinWorld.z - dir.z * (BALL_R + CUE_TIP_GAP + pull)
+            cue.pos.y - dir.z * (cueLen / 2 + pull + CUE_TIP_GAP) + spinWorld.z
           );
-          cueStick.position.copy(tipTarget).addScaledVector(dir, cueLen / 2);
           const tiltAmount = Math.abs(spinY);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt);
