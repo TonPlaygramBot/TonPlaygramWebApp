@@ -19,19 +19,22 @@ import {
   addPoolRoyalUnlock,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
+  listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
 import {
   addSnookerClubUnlock,
   getSnookerClubInventory,
   isSnookerOptionUnlocked,
+  listOwnedSnookerOptions,
   snookerClubAccountId
 } from '../utils/snookerClubInventory.js';
 import {
   addAirHockeyUnlock,
   airHockeyAccountId,
   getAirHockeyInventory,
-  isAirHockeyOptionUnlocked
+  isAirHockeyOptionUnlocked,
+  listOwnedAirHockeyOptions
 } from '../utils/airHockeyInventory.js';
 import {
   CHESS_BATTLE_DEFAULT_LOADOUT,
@@ -47,7 +50,8 @@ import {
   addChessBattleUnlock,
   getChessBattleInventory,
   isChessOptionUnlocked,
-  chessBattleAccountId
+  chessBattleAccountId,
+  listOwnedChessOptions
 } from '../utils/chessBattleInventory.js';
 import {
   LUDO_BATTLE_DEFAULT_LOADOUT,
@@ -58,6 +62,7 @@ import {
   addLudoBattleUnlock,
   getLudoBattleInventory,
   isLudoOptionUnlocked,
+  listOwnedLudoOptions,
   ludoBattleAccountId
 } from '../utils/ludoBattleInventory.js';
 import {
@@ -69,6 +74,7 @@ import {
   addMurlanUnlock,
   getMurlanInventory,
   isMurlanOptionUnlocked,
+  listOwnedMurlanOptions,
   murlanAccountId
 } from '../utils/murlanInventory.js';
 import {
@@ -90,24 +96,28 @@ import {
   addDominoRoyalUnlock,
   dominoRoyalAccountId,
   getDominoRoyalInventory,
-  isDominoOptionUnlocked
+  isDominoOptionUnlocked,
+  listOwnedDominoOptions
 } from '../utils/dominoRoyalInventory.js';
 import {
   addSnakeUnlock,
   getSnakeInventory,
   isSnakeOptionUnlocked,
+  listOwnedSnakeOptions,
   snakeAccountId
 } from '../utils/snakeInventory.js';
 import {
   addBlackjackUnlock,
   getBlackjackInventory,
   isBlackjackOptionUnlocked,
-  blackjackAccountId
+  blackjackAccountId,
+  listOwnedBlackjackOptions
 } from '../utils/blackjackInventory.js';
 import {
   addTexasHoldemUnlock,
   getTexasHoldemInventory,
   isTexasOptionUnlocked,
+  listOwnedTexasOptions,
   texasHoldemAccountId
 } from '../utils/texasHoldemInventory.js';
 import { getAccountBalance, sendAccountTpc } from '../utils/api.js';
@@ -234,21 +244,9 @@ const resolvePreviewShape = (slug, type, preferredShape) => {
 
 const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
 
-const parseColorInput = (value = '') =>
-  value
-    .split(',')
-    .map((color) => color.trim())
-    .filter(Boolean)
-    .map((color) => (color.startsWith('#') ? color : `#${color}`));
-
 const DEFAULT_LIST_FORM = {
-  name: '',
-  price: '',
-  description: '',
-  game: 'poolroyale',
-  typeLabel: 'Player NFT',
-  colors: '#22c55e, #0ea5e9, #facc15',
-  previewShape: 'cue'
+  itemId: '',
+  price: ''
 };
 
 const TYPE_SWATCHES = {
@@ -586,6 +584,27 @@ export default function Store() {
     return entries;
   }, [labelResolvers, ownedCheckers, storeItemsBySlug, typeLabelResolver]);
 
+  const ownedMarketplaceItems = useMemo(
+    () => baseMarketplaceItems.filter((item) => item.owned),
+    [baseMarketplaceItems]
+  );
+
+  useEffect(() => {
+    if (showListModal && ownedMarketplaceItems.length) {
+      setListForm((prev) => {
+        const validSelection = ownedMarketplaceItems.find((item) => item.id === prev.itemId);
+        const nextItem = validSelection || ownedMarketplaceItems[0];
+        const suggestedPrice = prev.price || (nextItem.price ? String(nextItem.price) : '');
+        if (prev.itemId === nextItem.id && prev.price === suggestedPrice) return prev;
+        return { ...prev, itemId: nextItem.id, price: suggestedPrice };
+      });
+    }
+
+    if (!showListModal) {
+      setListForm({ ...DEFAULT_LIST_FORM });
+    }
+  }, [ownedMarketplaceItems, showListModal]);
+
   const decoratedUserListings = useMemo(
     () =>
       userListings.map((listing) =>
@@ -646,20 +665,29 @@ export default function Store() {
 
   const handleListSubmit = (event) => {
     event?.preventDefault();
-    const slug = listForm.game || 'poolroyale';
-    const swatches = parseColorInput(listForm.colors);
+    const selectedItem = ownedMarketplaceItems.find((item) => item.id === listForm.itemId);
+
+    if (!selectedItem) {
+      setInfo('Select an owned NFT to list.');
+      return;
+    }
+
+    const listingPrice = Number(listForm.price || selectedItem.price || 0);
+
     const newListing = decorateMarketplaceItem({
       id: `user-${Date.now()}`,
-      slug,
-      type: 'playerListing',
-      optionId: (listForm.name || 'player-nft').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      name: listForm.name || 'Custom NFT',
-      displayLabel: listForm.name || 'Custom NFT',
-      description: listForm.description || 'Listed from your inventory for others to purchase.',
-      price: Number(listForm.price) || 0,
-      typeLabel: listForm.typeLabel || 'Player NFT',
-      swatches: swatches.length ? swatches : TYPE_SWATCHES.default,
-      previewShape: listForm.previewShape || 'tokens',
+      slug: selectedItem.slug,
+      type: selectedItem.type,
+      optionId: selectedItem.optionId,
+      name: selectedItem.name,
+      displayLabel: selectedItem.displayLabel,
+      description:
+        selectedItem.description ||
+        `${selectedItem.gameName} ${selectedItem.typeLabel} listed from your collection.`,
+      price: listingPrice,
+      typeLabel: selectedItem.typeLabel,
+      swatches: selectedItem.swatches,
+      previewShape: selectedItem.previewShape,
       owned: true,
       seller: 'You'
     });
@@ -755,6 +783,7 @@ export default function Store() {
 
   const renderListModal = () => {
     if (!showListModal) return null;
+    const selectedItem = ownedMarketplaceItems.find((item) => item.id === listForm.itemId);
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
         <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
@@ -762,7 +791,7 @@ export default function Store() {
             <div>
               <p className="text-xs text-white/60">List an owned NFT</p>
               <h3 className="text-lg font-semibold text-white">Create marketplace listing</h3>
-              <p className="text-sm text-white/60">Share your cosmetic with other players. You stay the seller of record.</p>
+              <p className="text-sm text-white/60">Pick an unlocked cosmetic, then set the sale price. We keep the metadata locked to your NFT.</p>
             </div>
             <button
               type="button"
@@ -774,118 +803,112 @@ export default function Store() {
           </div>
 
           <form className="grid gap-3 p-4" onSubmit={handleListSubmit}>
-            <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Name</span>
-                <input
-                  type="text"
-                  value={listForm.name}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Custom cue or table skin"
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  required
-                />
-              </label>
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Price (TPC)</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={listForm.price}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, price: e.target.value }))}
-                  placeholder="250"
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  required
-                />
-              </label>
-            </div>
+            <div className="grid gap-3 md:grid-cols-[7fr_5fr] md:items-start">
+              <div className="grid gap-2">
+                <div className="flex items-center justify-between text-sm text-white/80">
+                  <span>Choose an owned NFT</span>
+                  <span className="text-xs text-white/60">{ownedMarketplaceItems.length} available</span>
+                </div>
+                <div className="grid max-h-72 gap-2 overflow-y-auto pr-1">
+                  {ownedMarketplaceItems.length ? (
+                    ownedMarketplaceItems.map((item) => {
+                      const active = item.id === listForm.itemId;
+                      return (
+                        <button
+                          type="button"
+                          key={item.id}
+                          onClick={() =>
+                            setListForm((prev) => ({
+                              ...prev,
+                              itemId: item.id,
+                              price: prev.price || (item.price ? String(item.price) : '')
+                            }))
+                          }
+                          className={`flex items-center justify-between gap-3 rounded-2xl border px-3 py-2 text-left transition ${
+                            active
+                              ? 'border-emerald-300/60 bg-emerald-500/10 shadow-[0_10px_30px_-20px_rgba(16,185,129,0.9)]'
+                              : 'border-white/10 bg-black/20 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            {renderPreview3d(item, false)}
+                            <div className="grid gap-0.5 text-sm text-white/80">
+                              <div className="font-semibold text-white">{item.displayLabel}</div>
+                              <div className="text-xs text-white/60">
+                                {item.gameName} • {item.typeLabel}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right text-sm text-white/80">
+                            <div className="flex items-center justify-end gap-1 font-semibold">
+                              <span>{item.price}</span>
+                              <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                            </div>
+                            <div className="text-[11px] text-white/50">Base price</div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-2xl border border-white/10 bg-black/30 p-3 text-sm text-white/70">
+                      You have no cosmetics unlocked yet. Buy an item from the store before listing it.
+                    </div>
+                  )}
+                </div>
+              </div>
 
-            <div className="grid gap-2 md:grid-cols-2 md:gap-3">
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Game</span>
-                <select
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  value={listForm.game}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, game: e.target.value }))}
-                >
-                  {Object.entries(storeMeta).map(([slug, meta]) => (
-                    <option key={slug} value={slug}>
-                      {meta.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Accessory type</span>
-                <input
-                  type="text"
-                  value={listForm.typeLabel}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, typeLabel: e.target.value }))}
-                  placeholder="Cue style, board theme, card back..."
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  required
-                />
-              </label>
-            </div>
+              <div className="grid gap-3 rounded-2xl border border-white/10 bg-black/30 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-1">
+                    <p className="text-xs uppercase tracking-wide text-white/60">Selected NFT</p>
+                    <h4 className="text-base font-semibold text-white">
+                      {selectedItem ? selectedItem.displayLabel : 'No selection'}
+                    </h4>
+                    <p className="text-xs text-white/60">
+                      {selectedItem
+                        ? `${selectedItem.gameName} • ${selectedItem.typeLabel}`
+                        : 'Pick an owned cosmetic to list it.'}
+                    </p>
+                  </div>
+                  {selectedItem ? renderPreview3d(selectedItem, false) : null}
+                </div>
 
-            <label className="grid gap-1 text-sm text-white/80">
-              <span className="text-xs uppercase tracking-wide text-white/60">Description</span>
-              <textarea
-                rows="2"
-                value={listForm.description}
-                onChange={(e) => setListForm((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Explain what makes this NFT special or how it looks in-game."
-                className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-              />
-            </label>
+                <label className="grid gap-1 text-sm text-white/80">
+                  <span className="text-xs uppercase tracking-wide text-white/60">Listing price (TPC)</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={listForm.price}
+                    onChange={(e) => setListForm((prev) => ({ ...prev, price: e.target.value }))}
+                    placeholder={selectedItem?.price || '250'}
+                    className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                    required
+                  />
+                  <span className="text-xs text-white/50">
+                    Metadata stays tied to your NFT. Buyers will only see the price you set here.
+                  </span>
+                </label>
 
-            <div className="grid gap-2 md:grid-cols-[2fr_1fr] md:gap-3">
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Color swatches</span>
-                <input
-                  type="text"
-                  value={listForm.colors}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, colors: e.target.value }))}
-                  placeholder="#22c55e, #0ea5e9, #facc15"
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                />
-                <span className="text-xs text-white/50">Comma-separated hex colors to preview on the card.</span>
-              </label>
-              <label className="grid gap-1 text-sm text-white/80">
-                <span className="text-xs uppercase tracking-wide text-white/60">Preview style</span>
-                <select
-                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
-                  value={listForm.previewShape}
-                  onChange={(e) => setListForm((prev) => ({ ...prev, previewShape: e.target.value }))}
-                >
-                  <option value="cue">Cue render</option>
-                  <option value="chess">Chess piece</option>
-                  <option value="cards">Card stack</option>
-                  <option value="domino">Domino tile</option>
-                  <option value="table">Table surface</option>
-                  <option value="tokens">Token set</option>
-                  <option value="puck">Rink gear</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowListModal(false);
-                  setListForm({ ...DEFAULT_LIST_FORM });
-                }}
-                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
-              >
-                Publish listing
-              </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowListModal(false);
+                      setListForm({ ...DEFAULT_LIST_FORM });
+                    }}
+                    className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+                    disabled={!selectedItem}
+                  >
+                    Publish listing
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
         </div>
@@ -955,93 +978,137 @@ export default function Store() {
     );
   };
 
-  const renderPreview3d = (item) => {
+  const renderPreview3d = (item, showCaption = true) => {
+    if (!item) return null;
     const previewShape = item.previewShape || 'default';
-    const gradient =
-      item.swatches && item.swatches.length
-        ? `linear-gradient(135deg, ${item.swatches[0]}, ${item.swatches[1] || item.swatches[0]})`
-        : undefined;
+    const primary = item.swatches?.[0] || '#0f172a';
+    const secondary = item.swatches?.[1] || primary;
+    const accent = item.swatches?.[2] || '#f8fafc';
+    const safeId = (item.id || item.optionId || 'preview').replace(/[^a-zA-Z0-9_-]/g, '');
+    const gradientId = `${safeId}-grad`;
+    const shineId = `${safeId}-shine`;
+    const shadowId = `${safeId}-shadow`;
 
-    const baseClass =
-      'relative h-14 w-20 overflow-hidden rounded-xl border border-white/10 shadow-[0_15px_35px_-20px_rgba(0,0,0,0.8)] backdrop-blur';
-
-    const layer = (shape) => {
+    const shapeLayer = (shape) => {
       switch (shape) {
         case 'cue':
           return (
-            <>
-              <div className="absolute left-2 right-3 top-4 h-1.5 rounded-full bg-white/80 shadow-sm" />
-              <div className="absolute left-3 right-4 top-6 h-1 rounded-full bg-black/50 blur-sm" />
-              <div className="absolute inset-2 rounded-lg border border-white/10 bg-black/20" />
-            </>
+            <g filter={`url(#${shadowId})`}>
+              <rect x="18" y="36" width="124" height="18" rx="9" fill={`url(#${gradientId})`} />
+              <rect
+                x="18"
+                y="36"
+                width="124"
+                height="18"
+                rx="9"
+                stroke={accent}
+                strokeWidth="1.5"
+                fill={`url(#${shineId})`}
+                opacity="0.6"
+              />
+              <rect x="20" y="40" width="40" height="10" rx="5" fill={accent} opacity="0.35" />
+            </g>
           );
         case 'chess':
           return (
-            <>
-              <div className="absolute inset-x-6 bottom-2 h-2 rounded-full bg-black/40 blur" />
-              <div className="absolute left-6 right-6 top-4 h-8 rounded-full bg-white/80 shadow-inner" />
-              <div className="absolute left-7 right-7 top-3 h-9 rounded-full border border-white/30 bg-white/20 shadow-inner" />
-            </>
+            <g filter={`url(#${shadowId})`}>
+              <path
+                d="M80 18c10 4 15 11 15 18 0 6-2 11-5 14h8c4 0 6 3 5 6l-6 20H62l-6-20c-1-3 1-6 5-6h8c-3-3-5-8-5-14 0-7 5-14 15-18Z"
+                fill={`url(#${gradientId})`}
+                stroke={accent}
+                strokeWidth="1.2"
+              />
+              <ellipse cx="80" cy="74" rx="26" ry="6" fill={`url(#${shineId})`} opacity="0.9" />
+            </g>
           );
         case 'domino':
           return (
-            <>
-              <div className="absolute inset-2 rounded-lg border border-black/30 bg-white/80" />
-              <div className="absolute inset-x-6 top-6 h-0.5 bg-black/40" />
-              <div className="absolute left-6 top-4 h-2 w-2 rounded-full bg-black/60" />
-              <div className="absolute right-6 bottom-4 h-2 w-2 rounded-full bg-black/60" />
-            </>
+            <g filter={`url(#${shadowId})`}>
+              <rect x="26" y="18" width="108" height="64" rx="10" fill={`url(#${gradientId})`} />
+              <line x1="80" y1="22" x2="80" y2="78" stroke={accent} strokeWidth="2" opacity="0.6" />
+              <circle cx="60" cy="40" r="6" fill={accent} />
+              <circle cx="100" cy="60" r="6" fill={accent} />
+            </g>
           );
         case 'cards':
           return (
-            <>
-              <div className="absolute left-5 top-3 h-8 w-11 rotate-[-6deg] rounded-lg border border-white/20 bg-white/60 shadow" />
-              <div className="absolute right-4 bottom-2 h-8 w-11 rotate-3 rounded-lg border border-white/30 bg-white/80 shadow" />
-              <div className="absolute inset-3 rounded-lg border border-white/40 bg-white/80 shadow-inner" />
-            </>
+            <g filter={`url(#${shadowId})`}>
+              <rect x="32" y="18" width="78" height="58" rx="9" fill={secondary} opacity="0.65" transform="rotate(-6 32 18)" />
+              <rect x="56" y="26" width="78" height="58" rx="9" fill={`url(#${gradientId})`} transform="rotate(6 56 26)" />
+              <rect
+                x="52"
+                y="22"
+                width="78"
+                height="58"
+                rx="9"
+                stroke={accent}
+                strokeWidth="1.5"
+                fill="none"
+                transform="rotate(3 52 22)"
+              />
+            </g>
           );
         case 'table':
           return (
-            <>
-              <div className="absolute inset-2 rounded-lg border border-white/15 bg-black/20" />
-              <div className="absolute inset-4 rounded-lg border border-white/20 bg-white/10" />
-              <div className="absolute bottom-1 left-4 right-4 h-1.5 rounded-full bg-black/40 blur" />
-            </>
+            <g filter={`url(#${shadowId})`}>
+              <rect x="22" y="26" width="116" height="48" rx="12" fill={`url(#${gradientId})`} />
+              <rect x="30" y="34" width="100" height="32" rx="10" fill={`url(#${shineId})`} opacity="0.7" />
+              <rect x="36" y="40" width="88" height="20" rx="8" fill={accent} opacity="0.15" />
+            </g>
           );
         case 'puck':
           return (
-            <>
-              <div className="absolute inset-2 rounded-lg border border-white/10 bg-slate-900/60" />
-              <div className="absolute inset-x-6 inset-y-3 rounded-full bg-black/70 shadow-inner" />
-              <div className="absolute inset-x-8 inset-y-4 rounded-full border border-white/30 bg-white/10" />
-            </>
+            <g filter={`url(#${shadowId})`}>
+              <circle cx="80" cy="50" r="26" fill={`url(#${gradientId})`} />
+              <circle cx="80" cy="50" r="18" fill={`url(#${shineId})`} opacity="0.8" />
+              <circle cx="80" cy="50" r="10" fill={accent} opacity="0.35" />
+            </g>
           );
         case 'tokens':
           return (
-            <>
-              <div className="absolute left-4 top-3 h-4 w-4 rounded-full bg-white/80 shadow" />
-              <div className="absolute left-9 top-5 h-4 w-4 rounded-full bg-white/70 shadow" />
-              <div className="absolute left-6 top-7 h-4 w-4 rounded-full bg-white/60 shadow" />
-              <div className="absolute inset-x-8 bottom-2 h-2 rounded-full bg-black/40 blur" />
-            </>
+            <g filter={`url(#${shadowId})`}>
+              <circle cx="54" cy="42" r="12" fill={`url(#${gradientId})`} />
+              <circle cx="86" cy="50" r="12" fill={`url(#${shineId})`} opacity="0.9" />
+              <circle cx="68" cy="60" r="12" fill={accent} opacity="0.7" />
+            </g>
           );
         default:
-          return <div className="absolute inset-2 rounded-lg border border-white/10 bg-black/30" />;
+          return (
+            <g filter={`url(#${shadowId})`}>
+              <rect x="28" y="26" width="104" height="44" rx="10" fill={`url(#${gradientId})`} />
+              <rect x="38" y="34" width="84" height="28" rx="8" fill={`url(#${shineId})`} opacity="0.8" />
+            </g>
+          );
       }
     };
 
     return (
       <div className="flex items-center gap-3">
-        <div
-          className={`${baseClass} ${previewShape === 'cue' ? 'skew-y-1' : ''}`}
-          style={{ backgroundImage: gradient, backgroundColor: item.swatches?.[0] || '#0f172a' }}
-        >
-          {layer(previewShape)}
+        <div className="relative h-16 w-24 overflow-hidden rounded-xl border border-white/10 bg-gradient-to-br from-white/5 to-black/40 shadow-[0_18px_45px_-26px_rgba(0,0,0,0.9)]">
+          <svg viewBox="0 0 160 100" className="h-full w-full">
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor={primary} />
+                <stop offset="100%" stopColor={secondary} />
+              </linearGradient>
+              <radialGradient id={shineId} cx="50%" cy="40%" r="70%">
+                <stop offset="0%" stopColor={accent} stopOpacity="0.9" />
+                <stop offset="100%" stopColor={secondary} stopOpacity="0.2" />
+              </radialGradient>
+              <filter id={shadowId} x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="10" stdDeviation="8" floodColor="rgba(0,0,0,0.6)" />
+              </filter>
+            </defs>
+            {shapeLayer(previewShape)}
+            <ellipse cx="80" cy="82" rx="40" ry="8" fill="rgba(0,0,0,0.35)" />
+          </svg>
         </div>
-        <div className="grid gap-0.5 text-xs text-white/70">
-          <span className="font-semibold text-white">{previewLabel(previewShape)}</span>
-          <span className="text-white/60">Interactive 3D sample</span>
-        </div>
+        {showCaption ? (
+          <div className="grid gap-0.5 text-xs text-white/70">
+            <span className="font-semibold text-white">{previewLabel(previewShape)}</span>
+            <span className="text-white/60">High-fidelity 3D sample</span>
+          </div>
+        ) : null}
       </div>
     );
   };
