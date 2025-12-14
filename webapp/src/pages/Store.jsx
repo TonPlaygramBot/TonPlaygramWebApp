@@ -218,6 +218,139 @@ const TEXAS_STORE_ACCOUNT_ID = import.meta.env.VITE_TEXAS_HOLDEM_STORE_ACCOUNT_I
 
 const createItemKey = (type, optionId) => `${type}:${optionId}`;
 
+const resolveSwatches = (type, optionId, fallbackSwatches = []) => {
+  if (OPTION_SWATCH_OVERRIDES[optionId]) return OPTION_SWATCH_OVERRIDES[optionId];
+  if (TYPE_SWATCHES[type]) return TYPE_SWATCHES[type];
+  if (fallbackSwatches.length) return fallbackSwatches;
+  return TYPE_SWATCHES.default;
+};
+
+const resolvePreviewShape = (slug, type, preferredShape) => {
+  if (preferredShape) return preferredShape;
+  if (PREVIEW_BY_TYPE[type]) return PREVIEW_BY_TYPE[type];
+  if (PREVIEW_BY_SLUG[slug]) return PREVIEW_BY_SLUG[slug];
+  return 'default';
+};
+
+const previewLabel = (shape) => PREVIEW_LABELS[shape] || PREVIEW_LABELS.default;
+
+const parseColorInput = (value = '') =>
+  value
+    .split(',')
+    .map((color) => color.trim())
+    .filter(Boolean)
+    .map((color) => (color.startsWith('#') ? color : `#${color}`));
+
+const DEFAULT_LIST_FORM = {
+  name: '',
+  price: '',
+  description: '',
+  game: 'poolroyale',
+  typeLabel: 'Player NFT',
+  colors: '#22c55e, #0ea5e9, #facc15',
+  previewShape: 'cue'
+};
+
+const TYPE_SWATCHES = {
+  tableFinish: ['#3b2f2f', '#8b5a2b'],
+  chromeColor: ['#f5f5f5', '#d4d4d8'],
+  railMarkerColor: ['#9ca3af', '#fef3c7'],
+  clothColor: ['#0f766e', '#22c55e'],
+  cueStyle: ['#0f172a', '#1e293b'],
+  field: ['#22d3ee', '#0ea5e9'],
+  table: ['#4b5563', '#94a3b8'],
+  puck: ['#111827', '#4b5563'],
+  mallet: ['#111827', '#f59e0b'],
+  rails: ['#1e293b', '#334155'],
+  goals: ['#f97316', '#fb923c'],
+  tableWood: ['#4b3621', '#9a7b4f'],
+  tableCloth: ['#0f172a', '#34d399'],
+  tableBase: ['#0f172a', '#1f2937'],
+  chairColor: ['#111827', '#f59e0b'],
+  tableShape: ['#334155', '#64748b'],
+  sideColor: ['#f8fafc', '#1f2937'],
+  boardTheme: ['#f59e0b', '#14b8a6'],
+  headStyle: ['#0f172a', '#facc15'],
+  cards: ['#f8fafc', '#e5e7eb'],
+  dominoStyle: ['#f8fafc', '#d1d5db'],
+  highlightStyle: ['#22d3ee', '#818cf8'],
+  chairTheme: ['#0f172a', '#eab308'],
+  tokenPalette: ['#ef4444', '#22c55e', '#3b82f6'],
+  tokenStyle: ['#eab308', '#6366f1'],
+  tokenPiece: ['#0f172a', '#e11d48'],
+  arenaTheme: ['#0ea5e9', '#a855f7'],
+  boardPalette: ['#38bdf8', '#10b981'],
+  snakeSkin: ['#16a34a', '#65a30d'],
+  diceTheme: ['#f8fafc', '#e11d48'],
+  railTheme: ['#1e293b', '#64748b'],
+  tokenFinish: ['#facc15', '#fb7185'],
+  default: ['#22c55e', '#0ea5e9']
+};
+
+const OPTION_SWATCH_OVERRIDES = {
+  charredTimber: ['#2f2217', '#6b4226'],
+  rusticSplit: ['#f3e8ff', '#fef3c7'],
+  plankStudio: ['#e0e7ff', '#a78bfa'],
+  weatheredGrey: ['#94a3b8', '#e2e8f0'],
+  jetBlackCarbon: ['#0b1220', '#111827'],
+  gold: ['#f59e0b', '#fbbf24'],
+  freshGreen: ['#0f5132', '#2dd4bf'],
+  graphite: ['#111827', '#4b5563'],
+  arcticBlue: ['#0ea5e9', '#38bdf8'],
+  chrome: ['#e5e7eb', '#a1a1aa'],
+  pearl: ['#f5f3ff', '#e2e8f0'],
+  'redwood-ember': ['#7f1d1d', '#b45309'],
+  'birch-frost': ['#f8fafc', '#cbd5e1'],
+  'wenge-nightfall': ['#111827', '#312e81'],
+  'mahogany-heritage': ['#4c1d95', '#7e22ce'],
+  'walnut-satin': ['#4a3728', '#b68973'],
+  'carbon-matrix': ['#0f172a', '#94a3b8'],
+  'maple-horizon': ['#fef3c7', '#fbbf24'],
+  'graphite-aurora': ['#111827', '#22d3ee'],
+  arcticRidge: ['#bae6fd', '#38bdf8'],
+  basaltStone: ['#1f2937', '#0f172a'],
+  emeraldSide: ['#22c55e', '#16a34a'],
+  royalIvory: ['#f8fafc', '#e2e8f0'],
+  neonRush: ['#f472b6', '#22d3ee'],
+  duskMallet: ['#0f172a', '#1e3a8a']
+};
+
+const PREVIEW_BY_TYPE = {
+  cueStyle: 'cue',
+  boardTheme: 'chess',
+  sideColor: 'chess',
+  cards: 'cards',
+  dominoStyle: 'domino',
+  tokenPalette: 'tokens',
+  tokenStyle: 'tokens',
+  tokenPiece: 'tokens',
+  mallet: 'puck',
+  puck: 'puck',
+  rails: 'table',
+  table: 'table',
+  tableFinish: 'table',
+  tableWood: 'table',
+  tableCloth: 'table',
+  tableBase: 'table'
+};
+
+const PREVIEW_BY_SLUG = {
+  chessbattleroyal: 'chess',
+  blackjack: 'cards',
+  'domino-royal': 'domino'
+};
+
+const PREVIEW_LABELS = {
+  cue: 'Cue render',
+  chess: 'Chess piece',
+  domino: 'Domino tile',
+  cards: 'Card stack',
+  table: 'Table surface',
+  puck: 'Rink gear',
+  tokens: 'Token set',
+  default: '3D sample'
+};
+
 const storeMeta = {
   poolroyale: {
     name: 'Pool Royale',
@@ -323,6 +456,9 @@ export default function Store() {
   const [activeType, setActiveType] = useState('all');
   const [confirmItem, setConfirmItem] = useState(null);
   const [purchaseStatus, setPurchaseStatus] = useState('');
+  const [userListings, setUserListings] = useState([]);
+  const [showListModal, setShowListModal] = useState(false);
+  const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -420,7 +556,13 @@ export default function Store() {
     []
   );
 
-  const allMarketplaceItems = useMemo(() => {
+  const decorateMarketplaceItem = (item) => {
+    const swatches = resolveSwatches(item.type, item.optionId, item.swatches);
+    const previewShape = resolvePreviewShape(item.slug, item.type, item.previewShape);
+    return { ...item, swatches, previewShape };
+  };
+
+  const baseMarketplaceItems = useMemo(() => {
     const entries = [];
     Object.entries(storeItemsBySlug).forEach(([slug, items]) => {
       const ownedChecker = ownedCheckers[slug];
@@ -428,18 +570,42 @@ export default function Store() {
       const typeLabels = typeLabelResolver[slug] || {};
       items.forEach((item) => {
         const displayLabel = labelResolver ? labelResolver(item) : item.name;
-        entries.push({
-          ...item,
-          slug,
-          displayLabel,
-          typeLabel: typeLabels[item.type] || item.type,
-          gameName: storeMeta[slug]?.name || slug,
-          owned: ownedChecker ? ownedChecker(item.type, item.optionId) : false
-        });
+        entries.push(
+          decorateMarketplaceItem({
+            ...item,
+            slug,
+            displayLabel,
+            typeLabel: typeLabels[item.type] || item.type,
+            gameName: storeMeta[slug]?.name || slug,
+            owned: ownedChecker ? ownedChecker(item.type, item.optionId) : false,
+            seller: 'Official store'
+          })
+        );
       });
     });
     return entries;
   }, [labelResolvers, ownedCheckers, storeItemsBySlug, typeLabelResolver]);
+
+  const decoratedUserListings = useMemo(
+    () =>
+      userListings.map((listing) =>
+        decorateMarketplaceItem({
+          ...listing,
+          slug: listing.slug || listing.game,
+          gameName: storeMeta[listing.slug || listing.game]?.name || 'Player listing',
+          typeLabel: listing.typeLabel || 'Player NFT',
+          displayLabel: listing.displayLabel || listing.name || 'Player NFT',
+          owned: true,
+          seller: 'You'
+        })
+      ),
+    [userListings]
+  );
+
+  const allMarketplaceItems = useMemo(
+    () => [...baseMarketplaceItems, ...decoratedUserListings],
+    [baseMarketplaceItems, decoratedUserListings]
+  );
 
   const typeFilters = useMemo(() => {
     const types = new Set();
@@ -476,6 +642,32 @@ export default function Store() {
   const resetStatus = () => {
     setPurchaseStatus('');
     setInfo('');
+  };
+
+  const handleListSubmit = (event) => {
+    event?.preventDefault();
+    const slug = listForm.game || 'poolroyale';
+    const swatches = parseColorInput(listForm.colors);
+    const newListing = decorateMarketplaceItem({
+      id: `user-${Date.now()}`,
+      slug,
+      type: 'playerListing',
+      optionId: (listForm.name || 'player-nft').toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      name: listForm.name || 'Custom NFT',
+      displayLabel: listForm.name || 'Custom NFT',
+      description: listForm.description || 'Listed from your inventory for others to purchase.',
+      price: Number(listForm.price) || 0,
+      typeLabel: listForm.typeLabel || 'Player NFT',
+      swatches: swatches.length ? swatches : TYPE_SWATCHES.default,
+      previewShape: listForm.previewShape || 'tokens',
+      owned: true,
+      seller: 'You'
+    });
+
+    setUserListings((prev) => [...prev, newListing]);
+    setShowListModal(false);
+    setListForm({ ...DEFAULT_LIST_FORM });
+    setInfo('Your NFT listing has been added to the marketplace.');
   };
 
   const handlePurchase = async (item) => {
@@ -559,6 +751,147 @@ export default function Store() {
 
   const featuredCount = allMarketplaceItems.length;
   const ownedCount = allMarketplaceItems.filter((item) => item.owned).length;
+  const walletLabel = accountId && accountId !== 'guest' ? 'Wallet connected' : 'Guest mode';
+
+  const renderListModal = () => {
+    if (!showListModal) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+        <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl">
+          <div className="flex items-center justify-between border-b border-white/10 p-4">
+            <div>
+              <p className="text-xs text-white/60">List an owned NFT</p>
+              <h3 className="text-lg font-semibold text-white">Create marketplace listing</h3>
+              <p className="text-sm text-white/60">Share your cosmetic with other players. You stay the seller of record.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowListModal(false)}
+              className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-white/70 hover:bg-white/10"
+            >
+              Close
+            </button>
+          </div>
+
+          <form className="grid gap-3 p-4" onSubmit={handleListSubmit}>
+            <div className="grid gap-2 md:grid-cols-2 md:gap-3">
+              <label className="grid gap-1 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/60">Name</span>
+                <input
+                  type="text"
+                  value={listForm.name}
+                  onChange={(e) => setListForm((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="Custom cue or table skin"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                  required
+                />
+              </label>
+              <label className="grid gap-1 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/60">Price (TPC)</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={listForm.price}
+                  onChange={(e) => setListForm((prev) => ({ ...prev, price: e.target.value }))}
+                  placeholder="250"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                  required
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-2 md:gap-3">
+              <label className="grid gap-1 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/60">Game</span>
+                <select
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                  value={listForm.game}
+                  onChange={(e) => setListForm((prev) => ({ ...prev, game: e.target.value }))}
+                >
+                  {Object.entries(storeMeta).map(([slug, meta]) => (
+                    <option key={slug} value={slug}>
+                      {meta.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/60">Accessory type</span>
+                <input
+                  type="text"
+                  value={listForm.typeLabel}
+                  onChange={(e) => setListForm((prev) => ({ ...prev, typeLabel: e.target.value }))}
+                  placeholder="Cue style, board theme, card back..."
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                  required
+                />
+              </label>
+            </div>
+
+            <label className="grid gap-1 text-sm text-white/80">
+              <span className="text-xs uppercase tracking-wide text-white/60">Description</span>
+              <textarea
+                rows="2"
+                value={listForm.description}
+                onChange={(e) => setListForm((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Explain what makes this NFT special or how it looks in-game."
+                className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+              />
+            </label>
+
+            <div className="grid gap-2 md:grid-cols-[2fr_1fr] md:gap-3">
+              <label className="grid gap-1 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/60">Color swatches</span>
+                <input
+                  type="text"
+                  value={listForm.colors}
+                  onChange={(e) => setListForm((prev) => ({ ...prev, colors: e.target.value }))}
+                  placeholder="#22c55e, #0ea5e9, #facc15"
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                />
+                <span className="text-xs text-white/50">Comma-separated hex colors to preview on the card.</span>
+              </label>
+              <label className="grid gap-1 text-sm text-white/80">
+                <span className="text-xs uppercase tracking-wide text-white/60">Preview style</span>
+                <select
+                  className="w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-white outline-none"
+                  value={listForm.previewShape}
+                  onChange={(e) => setListForm((prev) => ({ ...prev, previewShape: e.target.value }))}
+                >
+                  <option value="cue">Cue render</option>
+                  <option value="chess">Chess piece</option>
+                  <option value="cards">Card stack</option>
+                  <option value="domino">Domino tile</option>
+                  <option value="table">Table surface</option>
+                  <option value="tokens">Token set</option>
+                  <option value="puck">Rink gear</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowListModal(false);
+                  setListForm({ ...DEFAULT_LIST_FORM });
+                }}
+                className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 sm:w-auto"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="w-full rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90 sm:w-auto"
+              >
+                Publish listing
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
 
   const renderConfirmModal = () => {
     if (!confirmItem) return null;
@@ -622,6 +955,97 @@ export default function Store() {
     );
   };
 
+  const renderPreview3d = (item) => {
+    const previewShape = item.previewShape || 'default';
+    const gradient =
+      item.swatches && item.swatches.length
+        ? `linear-gradient(135deg, ${item.swatches[0]}, ${item.swatches[1] || item.swatches[0]})`
+        : undefined;
+
+    const baseClass =
+      'relative h-14 w-20 overflow-hidden rounded-xl border border-white/10 shadow-[0_15px_35px_-20px_rgba(0,0,0,0.8)] backdrop-blur';
+
+    const layer = (shape) => {
+      switch (shape) {
+        case 'cue':
+          return (
+            <>
+              <div className="absolute left-2 right-3 top-4 h-1.5 rounded-full bg-white/80 shadow-sm" />
+              <div className="absolute left-3 right-4 top-6 h-1 rounded-full bg-black/50 blur-sm" />
+              <div className="absolute inset-2 rounded-lg border border-white/10 bg-black/20" />
+            </>
+          );
+        case 'chess':
+          return (
+            <>
+              <div className="absolute inset-x-6 bottom-2 h-2 rounded-full bg-black/40 blur" />
+              <div className="absolute left-6 right-6 top-4 h-8 rounded-full bg-white/80 shadow-inner" />
+              <div className="absolute left-7 right-7 top-3 h-9 rounded-full border border-white/30 bg-white/20 shadow-inner" />
+            </>
+          );
+        case 'domino':
+          return (
+            <>
+              <div className="absolute inset-2 rounded-lg border border-black/30 bg-white/80" />
+              <div className="absolute inset-x-6 top-6 h-0.5 bg-black/40" />
+              <div className="absolute left-6 top-4 h-2 w-2 rounded-full bg-black/60" />
+              <div className="absolute right-6 bottom-4 h-2 w-2 rounded-full bg-black/60" />
+            </>
+          );
+        case 'cards':
+          return (
+            <>
+              <div className="absolute left-5 top-3 h-8 w-11 rotate-[-6deg] rounded-lg border border-white/20 bg-white/60 shadow" />
+              <div className="absolute right-4 bottom-2 h-8 w-11 rotate-3 rounded-lg border border-white/30 bg-white/80 shadow" />
+              <div className="absolute inset-3 rounded-lg border border-white/40 bg-white/80 shadow-inner" />
+            </>
+          );
+        case 'table':
+          return (
+            <>
+              <div className="absolute inset-2 rounded-lg border border-white/15 bg-black/20" />
+              <div className="absolute inset-4 rounded-lg border border-white/20 bg-white/10" />
+              <div className="absolute bottom-1 left-4 right-4 h-1.5 rounded-full bg-black/40 blur" />
+            </>
+          );
+        case 'puck':
+          return (
+            <>
+              <div className="absolute inset-2 rounded-lg border border-white/10 bg-slate-900/60" />
+              <div className="absolute inset-x-6 inset-y-3 rounded-full bg-black/70 shadow-inner" />
+              <div className="absolute inset-x-8 inset-y-4 rounded-full border border-white/30 bg-white/10" />
+            </>
+          );
+        case 'tokens':
+          return (
+            <>
+              <div className="absolute left-4 top-3 h-4 w-4 rounded-full bg-white/80 shadow" />
+              <div className="absolute left-9 top-5 h-4 w-4 rounded-full bg-white/70 shadow" />
+              <div className="absolute left-6 top-7 h-4 w-4 rounded-full bg-white/60 shadow" />
+              <div className="absolute inset-x-8 bottom-2 h-2 rounded-full bg-black/40 blur" />
+            </>
+          );
+        default:
+          return <div className="absolute inset-2 rounded-lg border border-white/10 bg-black/30" />;
+      }
+    };
+
+    return (
+      <div className="flex items-center gap-3">
+        <div
+          className={`${baseClass} ${previewShape === 'cue' ? 'skew-y-1' : ''}`}
+          style={{ backgroundImage: gradient, backgroundColor: item.swatches?.[0] || '#0f172a' }}
+        >
+          {layer(previewShape)}
+        </div>
+        <div className="grid gap-0.5 text-xs text-white/70">
+          <span className="font-semibold text-white">{previewLabel(previewShape)}</span>
+          <span className="text-white/60">Interactive 3D sample</span>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="sticky top-0 z-30 border-b border-white/10 bg-zinc-950/80 backdrop-blur">
@@ -646,7 +1070,7 @@ export default function Store() {
             </div>
             <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2">
               <div className={`h-2.5 w-2.5 rounded-full ${accountId && accountId !== 'guest' ? 'bg-emerald-400' : 'bg-white/40'}`} />
-              <div className="text-xs font-semibold">{accountId || 'Guest'}</div>
+              <div className="text-xs font-semibold">{walletLabel}</div>
             </div>
           </div>
         </div>
@@ -664,19 +1088,19 @@ export default function Store() {
             </div>
 
             <h1 className="text-balance text-xl font-semibold md:text-2xl">
-              Storefront i ri — kërko, filtro dhe bli aksesorë në pak sekonda
+              Fresh storefront — browse, filter, and grab cosmetics in seconds
             </h1>
 
             <p className="max-w-2xl text-sm text-white/70">
-              Dizajn mobil-first i frymëzuar nga mocku më sipër. Çdo kartë shfaq çmimin në TPC, tipin e aksesorit dhe nëse e keni tashmë në inventar.
+              Mobile-first design inspired by the mock above. Every card shows TPC price, accessory type, and whether you already own it.
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button className="rounded-2xl bg-white px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-white/90">
-                Shfleto të gjitha
+                Browse everything
               </button>
               <button className="rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10">
-                Kërko aksesorë
+                Search accessories
               </button>
             </div>
           </div>
@@ -687,8 +1111,8 @@ export default function Store() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-wide text-white/60">Marketplace</p>
-                <h2 className="text-xl font-semibold leading-tight">Aksesorë për çdo lojë TonPlaygram</h2>
-                <p className="text-sm text-white/60">Filtrime të shpejta, listim i qartë dhe modal konfirmimi para blerjes.</p>
+                <h2 className="text-xl font-semibold leading-tight">Accessories for every TonPlaygram game</h2>
+                <p className="text-sm text-white/60">Quick filters, transparent listings, and a confirmation modal before checkout.</p>
               </div>
               <div className="grid grid-cols-3 items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-3 py-2 text-sm">
                 <div className="text-left">
@@ -714,7 +1138,7 @@ export default function Store() {
                 <span className="text-white/60">🔎</span>
                 <input
                   type="search"
-                  placeholder="Kërko emër, lojë ose tip aksesor"
+                  placeholder="Search by name, game, or accessory type"
                   className="w-full bg-transparent text-sm text-white/90 outline-none placeholder:text-white/40"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -725,7 +1149,7 @@ export default function Store() {
                 value={activeGame}
                 onChange={(e) => setActiveGame(e.target.value)}
               >
-                <option value="all">Të gjitha lojërat</option>
+                <option value="all">All games</option>
                 {Object.entries(storeMeta).map(([slug, meta]) => (
                   <option key={slug} value={slug}>
                     {meta.name}
@@ -739,7 +1163,7 @@ export default function Store() {
               >
                 {typeFilters.map((type) => (
                   <option key={type} value={type}>
-                    {type === 'all' ? 'Të gjitha tipet' : type}
+                    {type === 'all' ? 'All types' : type}
                   </option>
                 ))}
               </select>
@@ -755,9 +1179,22 @@ export default function Store() {
               </select>
             </div>
 
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-white/10 bg-black/10 px-3 py-2">
+              <div className="text-xs text-white/60">
+                List cosmetics you already own so other players can purchase them securely.
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowListModal(true)}
+                className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-400/20"
+              >
+                List an owned NFT
+              </button>
+            </div>
+
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <div className="grid gap-2">
-                <div className="text-xs font-semibold text-white/70">Lojërat</div>
+                <div className="text-xs font-semibold text-white/70">Games</div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition ${
@@ -786,7 +1223,7 @@ export default function Store() {
               </div>
 
               <div className="grid gap-2">
-                <div className="text-xs font-semibold text-white/70">Tipet e aksesorëve</div>
+                <div className="text-xs font-semibold text-white/70">Accessory types</div>
                 <div className="flex flex-wrap gap-2">
                   {typeFilters.map((type) => (
                     <button
@@ -809,7 +1246,7 @@ export default function Store() {
           <div className="mt-2 flex items-end justify-between gap-3">
             <div>
               <div className="text-base font-semibold">Marketplace</div>
-              <div className="text-xs text-white/60">{filteredItems.length} listings · paguaj me TPC · aksesorë për çdo lojë</div>
+              <div className="text-xs text-white/60">{filteredItems.length} listings | pay with TPC | accessories for every game</div>
             </div>
             <button className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 md:inline">
               View analytics
@@ -837,7 +1274,7 @@ export default function Store() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-white/60">{item.gameName} · {item.typeLabel}</div>
+                      <div className="text-xs text-white/60">{item.gameName} | {item.typeLabel}</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -861,13 +1298,30 @@ export default function Store() {
                       item.owned ? 'border-emerald-400/30 bg-emerald-400/10 text-emerald-200' : 'border-indigo-400/30 bg-indigo-400/10 text-indigo-100'
                     }`}
                   >
-                    {item.owned ? 'Në inventar' : 'Mintable'}
+                    {item.owned ? 'In inventory' : 'Mintable'}
                   </span>
                 </div>
 
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div className="flex flex-wrap items-center gap-1">
+                    {(item.swatches || []).slice(0, 5).map((color, index) => (
+                      <span
+                        key={`${item.id}-swatch-${color}-${index}`}
+                        className="h-4 w-4 rounded-full border border-white/20 shadow-sm"
+                        style={{ backgroundColor: color }}
+                        title={color}
+                      />
+                    ))}
+                    {(!item.swatches || item.swatches.length === 0) && (
+                      <span className="text-xs text-white/60">Color samples unavailable</span>
+                    )}
+                  </div>
+                  <div className="w-full md:w-auto">{renderPreview3d(item)}</div>
+                </div>
+
                 <div className="flex items-center justify-between text-xs text-white/60">
-                  <div>Seller: Official store</div>
-                  <div className="group-hover:text-white/80">Tap për të parë</div>
+                  <div>Seller: {item.seller || 'Official store'}</div>
+                  <div className="group-hover:text-white/80">Tap to view details</div>
                 </div>
               </button>
             ))}
@@ -875,16 +1329,16 @@ export default function Store() {
 
           {filteredItems.length === 0 && (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-white/70">
-              Nuk ka artikuj që përputhen me filtrat. Pastro kërkimin ose zgjidh një lojë tjetër.
+              No items match these filters. Clear the search or pick a different game.
             </div>
           )}
 
           <div className="rounded-3xl border border-white/10 bg-white/5 p-4 text-sm text-white/70 space-y-2">
-            <p className="font-semibold text-white">Udhëzime të shpejta</p>
+            <p className="font-semibold text-white">Quick guidance</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Modal konfirmimi përpara çdo blerjeje për transparencë.</li>
-              <li>Badget “Owned” ndizet menjëherë pasi të përfundojë blerja.</li>
-              <li>Dizajni mobile-first — kartat rreshtohen mirë edhe në ekrane të vogla.</li>
+              <li>Confirmation modal appears before every purchase so you always know the total.</li>
+              <li>The “Owned” badge updates immediately when a purchase succeeds.</li>
+              <li>Mobile-first layout keeps the cards readable on small portrait screens.</li>
             </ul>
           </div>
 
@@ -895,6 +1349,7 @@ export default function Store() {
         </div>
       </main>
 
+      {renderListModal()}
       {renderConfirmModal()}
     </div>
   );
