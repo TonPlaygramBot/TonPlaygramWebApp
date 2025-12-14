@@ -4181,10 +4181,10 @@ const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
-  default: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 0.985 }),
-  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.93, margin: 0.985 }),
-  portrait: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
-  ultraPortrait: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 })
+  default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.89, margin: 0.97 }),
+  portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
+  ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
 });
 const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
@@ -9078,10 +9078,15 @@ function PoolRoyaleGame({
     inHand: initialHudInHand,
     over: false
   });
+  const powerRef = useRef(hud.power);
+  const applyPower = useCallback((nextPower) => {
+    const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
+    powerRef.current = clampedPower;
+    setHud((prev) => ({ ...prev, power: clampedPower }));
+  }, []);
   useEffect(() => {
     inHandPlacementModeRef.current = inHandPlacementMode;
   }, [inHandPlacementMode]);
-  const powerRef = useRef(hud.power);
   useEffect(() => {
     powerRef.current = hud.power;
   }, [hud.power]);
@@ -16787,7 +16792,7 @@ function PoolRoyaleGame({
       value: powerRef.current * 100,
       cueSrc: '/assets/snooker/cue.webp',
       labels: true,
-      onChange: (v) => setHud((s) => ({ ...s, power: v / 100 })),
+      onChange: (v) => applyPower(v / 100),
       onCommit: () => {
         fireRef.current?.();
         requestAnimationFrame(() => {
