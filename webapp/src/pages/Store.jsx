@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import {
   POOL_ROYALE_DEFAULT_LOADOUT,
@@ -467,6 +467,7 @@ export default function Store() {
   const [userListings, setUserListings] = useState([]);
   const [showListModal, setShowListModal] = useState(false);
   const [listForm, setListForm] = useState(() => ({ ...DEFAULT_LIST_FORM }));
+  const [showMyListings, setShowMyListings] = useState(false);
 
   useEffect(() => {
     setAccountId(poolRoyalAccountId());
@@ -636,37 +637,63 @@ export default function Store() {
     [baseMarketplaceItems, decoratedUserListings]
   );
 
+  const applyFilters = useCallback(
+    (items) => {
+      const term = searchTerm.trim().toLowerCase();
+      return items
+        .filter((item) => {
+          if (activeGame !== 'all' && item.slug !== activeGame) return false;
+          if (activeType !== 'all' && item.typeLabel !== activeType) return false;
+          if (!term) return true;
+          return (
+            item.displayLabel.toLowerCase().includes(term) ||
+            item.description?.toLowerCase().includes(term) ||
+            item.typeLabel.toLowerCase().includes(term) ||
+            item.gameName.toLowerCase().includes(term)
+          );
+        })
+        .sort((a, b) => {
+          if (sortOption === 'price-low') return a.price - b.price;
+          if (sortOption === 'price-high') return b.price - a.price;
+          if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
+          return a.slug.localeCompare(b.slug);
+        });
+    },
+    [activeGame, activeType, searchTerm, sortOption]
+  );
+
+  const filteredItems = useMemo(() => applyFilters(allMarketplaceItems), [allMarketplaceItems, applyFilters]);
+  const filteredUserListings = useMemo(
+    () => applyFilters(decoratedUserListings),
+    [applyFilters, decoratedUserListings]
+  );
+  const visibleItems = showMyListings ? filteredUserListings : filteredItems;
+
+  const userListingStats = useMemo(() => {
+    const total = decoratedUserListings.length;
+    const prices = decoratedUserListings.map((item) => Number(item.price) || 0);
+    const totalValue = prices.reduce((sum, price) => sum + price, 0);
+    const avgPrice = total ? Math.round((totalValue / total) * 100) / 100 : 0;
+    const floorPrice = total ? Math.min(...prices) : 0;
+    return { total, totalValue, avgPrice, floorPrice };
+  }, [decoratedUserListings]);
+
   const typeFilters = useMemo(() => {
     const types = new Set();
-    allMarketplaceItems.forEach((item) => {
+    const scopedItems = showMyListings ? decoratedUserListings : allMarketplaceItems;
+    scopedItems.forEach((item) => {
       if (item.typeLabel) {
         types.add(item.typeLabel);
       }
     });
     return ['all', ...Array.from(types)];
-  }, [allMarketplaceItems]);
+  }, [activeGame, allMarketplaceItems, decoratedUserListings, showMyListings]);
 
-  const filteredItems = useMemo(() => {
-    const term = searchTerm.trim().toLowerCase();
-    return allMarketplaceItems
-      .filter((item) => {
-        if (activeGame !== 'all' && item.slug !== activeGame) return false;
-        if (activeType !== 'all' && item.typeLabel !== activeType) return false;
-        if (!term) return true;
-        return (
-          item.displayLabel.toLowerCase().includes(term) ||
-          item.description?.toLowerCase().includes(term) ||
-          item.typeLabel.toLowerCase().includes(term) ||
-          item.gameName.toLowerCase().includes(term)
-        );
-      })
-      .sort((a, b) => {
-        if (sortOption === 'price-low') return a.price - b.price;
-        if (sortOption === 'price-high') return b.price - a.price;
-        if (sortOption === 'alpha') return a.displayLabel.localeCompare(b.displayLabel);
-        return a.slug.localeCompare(b.slug);
-      });
-  }, [activeGame, activeType, allMarketplaceItems, searchTerm, sortOption]);
+  useEffect(() => {
+    if (!typeFilters.includes(activeType)) {
+      setActiveType('all');
+    }
+  }, [activeType, typeFilters]);
 
   const resetStatus = () => {
     setPurchaseStatus('');
@@ -1319,13 +1346,58 @@ export default function Store() {
               <div className="text-xs text-white/60">
                 List cosmetics you already own so other players can purchase them securely.
               </div>
-              <button
-                type="button"
-                onClick={() => setShowListModal(true)}
-                className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-400/20"
-              >
-                List an owned NFT
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMyListings((prev) => !prev)}
+                  className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+                    showMyListings
+                      ? 'border-blue-200/40 bg-blue-400/15 text-blue-50 shadow-[0_10px_30px_-20px_rgba(59,130,246,0.8)]'
+                      : 'border-white/10 bg-black/30 text-white/80 hover:border-white/20 hover:text-white'
+                  }`}
+                >
+                  {showMyListings ? 'Show all listings' : 'View my listings'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowListModal(true)}
+                  className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 px-4 py-2 text-sm font-semibold text-emerald-100 hover:bg-emerald-400/20"
+                >
+                  List an owned NFT
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 grid gap-3 rounded-3xl border border-white/10 bg-black/20 p-4 text-sm text-white/80 shadow-sm sm:grid-cols-4">
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-wide text-white/60">Your listings</p>
+                <p className="text-2xl font-semibold text-white">{userListingStats.total}</p>
+                <p className="text-xs text-white/60">Listed items tied to your account</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-wide text-white/60">Total value</p>
+                <p className="flex items-center gap-1 text-2xl font-semibold text-white">
+                  {userListingStats.totalValue.toLocaleString()}
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                </p>
+                <p className="text-xs text-white/60">Sum of your active listings</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-wide text-white/60">Average price</p>
+                <p className="flex items-center gap-1 text-2xl font-semibold text-white">
+                  {userListingStats.avgPrice.toLocaleString()}
+                  <img src={TPC_ICON} alt="TPC" className="h-4 w-4" />
+                </p>
+                <p className="text-xs text-white/60">Per item across your listings</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[11px] uppercase tracking-wide text-white/60">Floor price</p>
+                <p className="flex items-center gap-1 text-2xl font-semibold text-white">
+                  {userListingStats.total ? userListingStats.floorPrice.toLocaleString() : '—'}
+                  {userListingStats.total ? <img src={TPC_ICON} alt="TPC" className="h-4 w-4" /> : null}
+                </p>
+                <p className="text-xs text-white/60">Lowest priced NFT you listed</p>
+              </div>
             </div>
 
             <div className="mt-3 grid gap-3 md:grid-cols-2">
@@ -1381,8 +1453,8 @@ export default function Store() {
 
           <div className="mt-2 flex items-end justify-between gap-3">
             <div>
-              <div className="text-base font-semibold">Marketplace</div>
-              <div className="text-xs text-white/60">{filteredItems.length} listings | pay with TPC | accessories for every game</div>
+              <div className="text-base font-semibold">{showMyListings ? 'Your listings' : 'Marketplace'}</div>
+              <div className="text-xs text-white/60">{visibleItems.length} listings | pay with TPC | accessories for every game</div>
             </div>
             <button className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 md:inline">
               View analytics
@@ -1390,7 +1462,7 @@ export default function Store() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredItems.map((item) => (
+            {visibleItems.map((item) => (
               <button
                 key={`${item.slug}-${item.id}`}
                 onClick={() => setConfirmItem(item)}
@@ -1463,9 +1535,11 @@ export default function Store() {
             ))}
           </div>
 
-          {filteredItems.length === 0 && (
+          {visibleItems.length === 0 && (
             <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-center text-white/70">
-              No items match these filters. Clear the search or pick a different game.
+              {showMyListings
+                ? 'No personal listings are visible with these filters. List an owned NFT or reset the filters to see everything.'
+                : 'No items match these filters. Clear the search or pick a different game.'}
             </div>
           )}
 
