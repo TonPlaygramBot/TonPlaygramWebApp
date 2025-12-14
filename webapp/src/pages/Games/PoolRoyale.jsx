@@ -6112,7 +6112,7 @@ function Table3D(
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.02; // trim the side cushions further so the tips no longer protrude into the pocket mouths
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.032; // trim the side cushions further so the tips no longer protrude into the pocket mouths
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
@@ -7505,7 +7505,7 @@ function Table3D(
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
 
-  function cushionProfileAdvanced(len, horizontal) {
+  function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
@@ -7513,14 +7513,35 @@ function Table3D(
     const backY = baseRailWidth / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
-    const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
+    const defaultCutAngle = typeof cutAngles?.cutAngle === 'number' ? cutAngles.cutAngle : CUSHION_CUT_ANGLE;
+    const leftCutAngle =
+      typeof cutAngles?.leftCutAngle === 'number' ? cutAngles.leftCutAngle : defaultCutAngle;
+    const rightCutAngle =
+      typeof cutAngles?.rightCutAngle === 'number' ? cutAngles.rightCutAngle : defaultCutAngle;
+    const minCutLength = baseThickness * 0.25;
+
+    const computeCut = (angleDeg) => {
+      const rad = THREE.MathUtils.degToRad(angleDeg);
+      const tan = Math.tan(rad);
+      const rawCut = tan > MICRO_EPS ? noseThickness / tan : minCutLength;
+      return Math.max(minCutLength, rawCut);
+    };
+
+    let leftCut = computeCut(leftCutAngle);
+    let rightCut = computeCut(rightCutAngle);
+    const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
+    const totalCut = leftCut + rightCut;
+    if (totalCut > maxTotalCut) {
+      const scale = maxTotalCut / totalCut;
+      leftCut *= scale;
+      rightCut *= scale;
+    }
 
     const shape = new THREE.Shape();
     shape.moveTo(-halfLen, backY);
     shape.lineTo(halfLen, backY);
-    shape.lineTo(halfLen - straightCut, frontY);
-    shape.lineTo(-halfLen + straightCut, frontY);
+    shape.lineTo(halfLen - rightCut, frontY);
+    shape.lineTo(-halfLen + leftCut, frontY);
     shape.lineTo(-halfLen, backY);
 
     const cushionBevel = Math.min(railH, baseThickness) * 0.12;
@@ -7580,7 +7601,18 @@ function Table3D(
   }
 
   function addCushion(x, z, len, horizontal, flip = false) {
-    const geo = cushionProfileAdvanced(len, horizontal);
+    const halfLen = len / 2;
+    const orientationSign = flip ? -1 : 1;
+    const worldZLeft = z + -halfLen * orientationSign;
+    const worldZRight = z + halfLen * orientationSign;
+    const leftCloserToCenter = Math.abs(worldZLeft) <= Math.abs(worldZRight);
+    const sidePocketCuts = !horizontal
+      ? {
+          leftCutAngle: leftCloserToCenter ? SIDE_CUSHION_CUT_ANGLE : CUSHION_CUT_ANGLE,
+          rightCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : SIDE_CUSHION_CUT_ANGLE
+        }
+      : undefined;
+    const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
