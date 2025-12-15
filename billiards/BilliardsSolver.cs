@@ -120,14 +120,7 @@ public class BilliardsSolver
         }
     }
 
-    private void AddSidePocketJaw(
-        Vec2 center,
-        double halfMouth,
-        double depth,
-        bool positive,
-        int segments,
-        bool vertical = false,
-        bool absorbAtMouth = true)
+    private void AddSidePocketJaw(Vec2 center, double halfMouth, double depth, bool positive, int segments, bool vertical = false)
     {
         if (halfMouth <= PhysicsConstants.Epsilon || depth <= PhysicsConstants.Epsilon || segments <= 0)
             return;
@@ -155,11 +148,10 @@ public class BilliardsSolver
         }
 
         Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
-        // Allow the middle pockets to fully absorb shots at the mouth so they behave
-        // like the corner pockets instead of kicking balls back into play.
-        int cushionBands = absorbAtMouth
-            ? 0
-            : Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments - 1, Math.Max(1, pts.Count - 1)));
+        // Use a thinner cushion band on side pockets so balls aren't deflected before
+        // they visually reach the jaw lips. The corner pockets keep the full
+        // PhysicsConstants.JawCushionSegments setting.
+        int cushionBands = Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments - 1, Math.Max(1, pts.Count - 1)));
         for (int i = 0; i < pts.Count - 1; i++)
         {
             Vec2 a = pts[i];
@@ -174,7 +166,7 @@ public class BilliardsSolver
             if (normal.Length > PhysicsConstants.Epsilon)
                 normal = normal.Normalized();
             var edge = new Edge { A = a, B = b, Normal = normal };
-            bool nearMouth = cushionBands > 0 && (i < cushionBands || i >= pts.Count - 1 - cushionBands);
+            bool nearMouth = i < cushionBands || i >= pts.Count - 1 - cushionBands;
             if (nearMouth)
                 CushionEdges.Add(edge);
             else
