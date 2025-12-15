@@ -904,12 +904,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.984; // tighten the middle pocket mouth slightly so the jaws read a bit narrower
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.968; // tighten the middle pocket mouth a touch more so the side holes read smaller
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.948; // trim the middle cloth/rail cutouts a bit more so the apertures read tighter
+const SIDE_POCKET_CUT_SCALE = 0.93; // shrink the middle cloth/rail cutouts further so the apertures sit visibly smaller
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -6182,7 +6182,7 @@ function Table3D(
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION =
-    TABLE.THICK * 0.11; // trim the side cushions further so the tips no longer protrude into the pocket mouths
+    TABLE.THICK * 0.16; // trim the side cushions a bit more so their noses stop short of the middle pocket territory
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
