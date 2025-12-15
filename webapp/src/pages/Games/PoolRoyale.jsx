@@ -454,7 +454,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.04; // tighten the middle chrome arch so the rounded cut stays closer to the pocket centre
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // pull the middle chrome arch farther toward centre so the rounded fascia cut tracks the shifted pocket more aggressively
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -872,12 +872,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.992; // tighten the middle pocket mouth slightly so the jaws read a bit narrower
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.984; // tighten the middle pocket mouth further so the jaws read noticeably narrower
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.962; // trim the middle cloth/rail cutouts a bit more so the apertures read tighter
+const SIDE_POCKET_CUT_SCALE = 0.946; // trim the middle cloth/rail cutouts further so the apertures read tighter
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -2328,11 +2328,49 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
     id: 'balanced60',
     label: 'Snooker Match (60 Hz)',
     fps: 60,
-    resolution: 'Snooker renderer scaling',
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
     description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
+    fps: 144,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'balanced60';
@@ -2346,29 +2384,15 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
-    railPush: BALL_R * 6.2,
+    railPush: BALL_R * 5.5,
     lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 6.0,
-    focusDepthBias: BALL_R * 1.8,
+    focusLift: BALL_R * 5.4,
+    focusDepthBias: BALL_R * 1.6,
     focusPan: 0,
     trackingBias: 0.52,
     smoothing: 0.14,
     avoidPocketCameras: false,
     forceActionActivation: true
-  },
-  {
-    id: 'analyst-tripod',
-    label: 'Analyst Booth Tripod',
-    description: 'Locked-off analyst booth angle with steady lensing.',
-    method: 'Dual tripod broadcast cams with conservative dolly and focus pulls.',
-    orbitBias: 0.45,
-    railPush: BALL_R * 8.6,
-    lateralDolly: BALL_R * 2.1,
-    focusLift: BALL_R * 4.8,
-    focusDepthBias: BALL_R * 2.9,
-    focusPan: BALL_R * 0.4,
-    trackingBias: 0.38,
-    smoothing: 0.18
   }
 ]);
 const DEFAULT_BROADCAST_SYSTEM_ID = 'rail-overhead';
@@ -4280,6 +4304,7 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
+const REPLAY_BANNER_DELAY_MS = 900;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -8314,6 +8339,8 @@ function PoolRoyaleGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
+  const [replayBanner, setReplayBanner] = useState(null);
+  const replayBannerTimeoutRef = useRef(null);
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -8454,6 +8481,15 @@ function PoolRoyaleGame({
   useEffect(() => {
     broadcastSystemRef.current = activeBroadcastSystem;
   }, [activeBroadcastSystem]);
+  useEffect(
+    () => () => {
+      if (replayBannerTimeoutRef.current) {
+        clearTimeout(replayBannerTimeoutRef.current);
+        replayBannerTimeoutRef.current = null;
+      }
+    },
+    []
+  );
   const [configOpen, setConfigOpen] = useState(false);
   const configPanelRef = useRef(null);
   const configButtonRef = useRef(null);
@@ -12511,6 +12547,13 @@ function PoolRoyaleGame({
         let project;
         let replayTrail;
 
+        const clearReplayBannerTimeout = () => {
+          if (replayBannerTimeoutRef.current) {
+            clearTimeout(replayBannerTimeoutRef.current);
+            replayBannerTimeoutRef.current = null;
+          }
+        };
+
         const captureBallSnapshot = () =>
           balls.map((ball) => ({
             id: ball.id,
@@ -12660,12 +12703,13 @@ function PoolRoyaleGame({
 
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
-          if (!shotRecording || !shotRecording.frames?.length) return;
-          const duration = shotRecording.frames[shotRecording.frames.length - 1].t;
+          const recording = shotRecording ?? shotReplayRef.current;
+          if (!recording || !recording.frames?.length) return;
+          const duration = recording.frames[recording.frames.length - 1].t;
           if (!Number.isFinite(duration) || duration <= 0) return;
           replayPlayback = {
-            frames: shotRecording.frames,
-            cuePath: shotRecording.cuePath,
+            frames: recording.frames,
+            cuePath: recording.cuePath,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
@@ -12675,8 +12719,8 @@ function PoolRoyaleGame({
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
-          shotReplayRef.current = shotRecording;
-          applyBallSnapshot(shotRecording.startState ?? []);
+          shotReplayRef.current = recording;
+          applyBallSnapshot(recording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
         };
         const enterTopView = (immediate = false) => {
@@ -15794,8 +15838,16 @@ function PoolRoyaleGame({
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
           if (shouldStartReplay && postShotSnapshot) {
-            startShotReplay(postShotSnapshot);
+            clearReplayBannerTimeout();
+            setReplayBanner('Good shot!');
+            replayBannerTimeoutRef.current = window.setTimeout(() => {
+              startShotReplay(postShotSnapshot);
+              setReplayBanner(null);
+              replayBannerTimeoutRef.current = null;
+            }, REPLAY_BANNER_DELAY_MS);
           } else {
+            clearReplayBannerTimeout();
+            setReplayBanner(null);
             shotReplayRef.current = null;
           }
           shotRecording = null;
@@ -17234,6 +17286,14 @@ function PoolRoyaleGame({
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {replayBanner && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-start justify-center pt-16">
+          <div className="rounded-full bg-emerald-500/90 px-5 py-2 text-sm font-bold uppercase tracking-[0.32em] text-black shadow-[0_12px_28px_rgba(16,185,129,0.35)] backdrop-blur">
+            {replayBanner}
+          </div>
+        </div>
+      )}
 
       {ENABLE_CUE_GALLERY && cueGalleryActive && (
         <div className="pointer-events-none absolute top-6 left-1/2 z-50 -translate-x-1/2 px-4 py-2 text-center text-xs font-semibold uppercase tracking-[0.28em] text-white/80">
