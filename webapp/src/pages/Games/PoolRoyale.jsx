@@ -486,14 +486,14 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.028; // open the middle chrome arch slightly more so the rounded cut hugs the side pockets cleanly
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.19; // ease the pull toward centre so the chrome cut follows the outward-biased pocket position without over-widening
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.06; // widen and deepen the middle chrome arch so the rounded cut opens up while sitting further inboard
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.294; // pull the middle chrome arch farther toward centre so the rounded fascia cut tracks the shifted pocket more aggressively
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // tighten the middle rail arches so the rounded cut radius trims closer to the jaw
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.11; // reduce the centre pull so the wood cut rounds stay closer to the outward-shifted pocket with a smaller reveal
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // pinch the middle rail arches slightly tighter so the rounded cut radius comes in further toward the jaws
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
 
 function buildChromePlateGeometry({
   width,
@@ -887,7 +887,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.72; // ease the middle pockets slightly while keeping them snug against the chrome hook
-const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.2; // push middle pocket centres farther outward so they sit noticeably away from the field centre
+const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.14; // push middle pocket centres farther outward so they sit noticeably away from the field centre
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // ease the inward pull so the outward bias can push the centres farther toward the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -904,12 +904,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.958; // tighten the middle pocket mouth further so the jaws read smaller
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.984; // tighten the middle pocket mouth slightly so the jaws read a bit narrower
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.924; // trim the middle cloth/rail cutouts even more so the apertures read tighter
+const SIDE_POCKET_CUT_SCALE = 0.948; // trim the middle cloth/rail cutouts a bit more so the apertures read tighter
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
