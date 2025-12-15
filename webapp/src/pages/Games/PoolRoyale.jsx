@@ -486,7 +486,7 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // trim the middle chrome arch so the rounded cut sits tighter around the side pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.05; // open the middle chrome arch slightly so the rounded cut hugs the pocket more generously
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.19; // ease the pull toward centre so the chrome cut follows the outward-biased pocket position without over-widening
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
@@ -5125,8 +5125,10 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
-  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const sideGuard =
+    SIDE_POCKET_RADIUS * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // mirror the corner guard so middle pockets ignore near-mouth bounces
+  const sideGuardClearance = Math.max(0, sideGuard - BALL_R * 0.1);
+  const sideDepthLimit = SIDE_POCKET_RADIUS * 1.75 * POCKET_VISUAL_EXPANSION; // allow balls to travel deeper before side-rail collisions apply
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
@@ -5140,7 +5142,7 @@ function reflectRails(ball) {
     if (distNormal >= BALL_R) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral <= sideSpan) continue;
+    if (lateral < sideGuardClearance) continue;
     if (distNormal < -sideDepthLimit) continue;
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(TMP_VEC2_B, push);
