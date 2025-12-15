@@ -35,12 +35,8 @@ import {
   applyWoodTextures,
   disposeMaterialWithWood,
 } from '../../utils/woodMaterials.js';
+import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../config/poolRoyaleInventoryConfig.js';
 import {
-  POOL_ROYALE_DEFAULT_UNLOCKS,
-  POOL_ROYALE_OPTION_LABELS
-} from '../../config/poolRoyaleInventoryConfig.js';
-import {
-  addPoolRoyalUnlock,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
   poolRoyalAccountId
@@ -9163,27 +9159,15 @@ function PoolRoyaleGame({
       },
       []
     );
-  const inHandPlacementModeRef = useRef(inHandPlacementMode);
+    const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const gameOverHandledRef = useRef(false);
   const userSuggestionRef = useRef(null);
-  const highlightShotsRef = useRef([]);
-  const visitPotCountRef = useRef(0);
-  const cleanSweepRef = useRef(false);
-  const rewardGrantedRef = useRef(false);
   const startAiThinkingRef = useRef(() => {});
   const stopAiThinkingRef = useRef(() => {});
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-  const [highlightModal, setHighlightModal] = useState({
-    open: false,
-    status: 'idle',
-    videoUrl: '',
-    videoBlob: null,
-    reward: null,
-    specialRun: false
-  });
   const initialHudInHand = useMemo(
     () => deriveInHandFromFrame(initialFrame),
     [initialFrame]
@@ -9214,185 +9198,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
-
-  const selectRandomUnlock = useCallback(
-    (type) => {
-      const labels = POOL_ROYALE_OPTION_LABELS?.[type] || {};
-      const optionIds = Object.keys(labels);
-      if (optionIds.length === 0) return null;
-      const owned = new Set(poolInventory?.[type] || []);
-      const candidates = optionIds.filter((id) => !owned.has(id));
-      const pool = candidates.length > 0 ? candidates : optionIds;
-      const index = Math.floor(Math.random() * pool.length);
-      return pool[Math.max(0, Math.min(pool.length - 1, index))];
-    },
-    [poolInventory]
-  );
-
-  const buildHighlightClip = useCallback(
-    async ({ specialRun = false, rewardSummary = null }) => {
-      if (typeof document === 'undefined' || typeof window === 'undefined') return null;
-      const canvas = document.createElement('canvas');
-      canvas.width = 720;
-      canvas.height = 1280;
-      const ctx = canvas.getContext('2d');
-      const captureStream = canvas.captureStream?.bind(canvas);
-      if (!ctx || !captureStream || typeof window.MediaRecorder === 'undefined') return null;
-
-      const loadImage = (src) =>
-        new Promise((resolve) => {
-          if (!src) {
-            resolve(null);
-            return;
-          }
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = src;
-        });
-
-      const [playerImg, opponentImg] = await Promise.all([
-        loadImage(player.avatar || getTelegramPhotoUrl() || ''),
-        loadImage(opponentAvatar || '')
-      ]);
-
-      const stream = captureStream(30);
-      const chunks = [];
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      const stopped = new Promise((resolve) => {
-        recorder.ondataavailable = (event) => {
-          if (event.data?.size) chunks.push(event.data);
-        };
-        recorder.onstop = () => resolve(new Blob(chunks, { type: 'video/webm' }));
-      });
-
-      const drawBackdrop = () => {
-        const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-        gradient.addColorStop(0, '#031C1B');
-        gradient.addColorStop(1, '#0B4F46');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(0,0,0,0.35)';
-        ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
-      };
-
-      const drawAvatar = (img, x, y, size, label) => {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, size / 2, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.fillStyle = '#0f172a';
-        ctx.fill();
-        if (img) {
-          ctx.save();
-          ctx.clip();
-          ctx.drawImage(img, x - size / 2, y - size / 2, size, size);
-          ctx.restore();
-        }
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = 'rgba(16,185,129,0.8)';
-        ctx.stroke();
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = 'bold 26px "Inter", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, x, y + size * 0.85);
-        ctx.restore();
-      };
-
-      const drawLine = (text, y, { size = 32, weight = '600', color = '#ecfeff' } = {}) => {
-        ctx.fillStyle = color;
-        ctx.font = `${weight} ${size}px "Inter", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.fillText(text, canvas.width / 2, y);
-      };
-
-      const renderSlide = (drawer, durationMs = 1200) =>
-        new Promise((resolve) => {
-          const start = performance.now();
-          const step = (now) => {
-            const t = Math.min(1, (now - start) / durationMs);
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawBackdrop();
-            drawer(t);
-            if (t < 1) requestAnimationFrame(step);
-            else resolve();
-          };
-          requestAnimationFrame(step);
-        });
-
-      const highlightList = highlightShotsRef.current.slice(-3);
-      if (highlightList.length === 0) {
-        highlightList.push({ banner: 'Smart position play', tags: [] });
-      }
-
-      recorder.start();
-
-      await renderSlide((t) => {
-        const fade = Math.min(1, t * 1.5);
-        ctx.globalAlpha = fade;
-        drawLine('Pool Royale Match Highlights', 110, {
-          size: 36,
-          weight: '800',
-          color: '#34d399'
-        });
-        drawLine('Final Score', 170, { size: 26, color: '#e2e8f0' });
-        drawLine(`${hud.A} - ${hud.B}`, 220, { size: 56, weight: '900', color: '#f8fafc' });
-        drawAvatar(playerImg, canvas.width / 2 - 120, 360, 120, playerLabel);
-        drawAvatar(opponentImg, canvas.width / 2 + 120, 360, 120, opponentLabel);
-        ctx.globalAlpha = 1;
-      }, 1500);
-
-      for (let i = 0; i < highlightList.length; i += 1) {
-        const highlight = highlightList[i];
-        await renderSlide((t) => {
-          const fade = Math.min(1, t * 1.35);
-          ctx.globalAlpha = fade;
-          drawLine(`Highlight ${i + 1}`, 200, { size: 28, color: '#bbf7d0' });
-          drawLine(highlight.banner || 'Clutch pot', 260, {
-            size: 30,
-            weight: '800',
-            color: '#f8fafc'
-          });
-          if (Array.isArray(highlight.tags) && highlight.tags.length > 0) {
-            drawLine(highlight.tags.join(' · '), 320, { size: 20, color: '#a5f3fc' });
-          }
-          ctx.globalAlpha = 1;
-        }, 1100);
-      }
-
-      if (specialRun || rewardSummary) {
-        await renderSlide((t) => {
-          const fade = Math.min(1, t * 1.4);
-          ctx.globalAlpha = fade;
-          drawLine('Clean Visit Jackpot', 220, { size: 34, weight: '900', color: '#22d3ee' });
-          drawLine('All balls cleared in one visit!', 270, { size: 22, color: '#e0f2fe' });
-          if (rewardSummary) {
-            drawLine(
-              `Rewards: ${rewardSummary.tableFinish}, ${rewardSummary.cueStyle}, +${rewardSummary.tpc} TPC`,
-              330,
-              { size: 20, color: '#c7d2fe' }
-            );
-          }
-          ctx.globalAlpha = 1;
-        }, 1500);
-      }
-
-      await renderSlide((t) => {
-        const fade = Math.min(1, t * 1.6);
-        ctx.globalAlpha = fade;
-        drawLine('Download or share your clip', 260, { size: 28, color: '#f8fafc' });
-        drawLine('Thanks for playing Pool Royale!', 310, { size: 20, color: '#d1fae5' });
-        ctx.globalAlpha = 1;
-      }, 900);
-
-      recorder.stop();
-      const blob = await stopped;
-      const url = URL.createObjectURL(blob);
-      return { blob, url };
-    },
-    [hud.A, hud.B, opponentAvatar, opponentLabel, player.avatar, playerLabel]
-  );
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
@@ -9405,19 +9210,6 @@ function PoolRoyaleGame({
       next: 'red',
       inHand: nextInHand,
       over: false
-    }));
-    highlightShotsRef.current = [];
-    visitPotCountRef.current = 0;
-    cleanSweepRef.current = false;
-    rewardGrantedRef.current = false;
-    setHighlightModal((prev) => ({
-      ...prev,
-      open: false,
-      status: 'idle',
-      videoUrl: '',
-      videoBlob: null,
-      reward: null,
-      specialRun: false
     }));
   }, [initialFrame]);
   useEffect(() => {
@@ -10018,56 +9810,6 @@ function PoolRoyaleGame({
       };
     });
   }, [frameState, isTraining, trainingModeState]);
-  useEffect(() => () => {
-    if (highlightModal.videoUrl) {
-      URL.revokeObjectURL(highlightModal.videoUrl);
-    }
-  }, [highlightModal.videoUrl]);
-
-  const handleCloseHighlights = useCallback(() => {
-    setHighlightModal((prev) => ({ ...prev, open: false }));
-    const winnerParam = frameRef.current?.winner === 'A' ? '1' : '0';
-    navigate(`/games/poolroyale/lobby?winner=${winnerParam}`);
-  }, [navigate]);
-
-  const handleDownloadClip = useCallback(() => {
-    if (!highlightModal.videoUrl) return;
-    const link = document.createElement('a');
-    link.href = highlightModal.videoUrl;
-    link.download = 'pool-royale-highlight.webm';
-    link.click();
-  }, [highlightModal.videoUrl]);
-
-  const handleShareClip = useCallback(async () => {
-    if (!highlightModal.videoBlob) {
-      handleDownloadClip();
-      return;
-    }
-    const share = navigator?.share;
-    if (!share) {
-      handleDownloadClip();
-      return;
-    }
-    const file = new File([highlightModal.videoBlob], 'pool-royale-highlight.webm', {
-      type: 'video/webm'
-    });
-    try {
-      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
-        await share({
-          title: 'Pool Royale highlight',
-          text: 'Check out my Pool Royale match highlight clip!'
-        });
-        return;
-      }
-      await share({
-        title: 'Pool Royale highlight',
-        text: 'Check out my Pool Royale match highlight clip!',
-        files: [file]
-      });
-    } catch (err) {
-      console.warn('Pool Royale highlight share failed', err);
-    }
-  }, [handleDownloadClip, highlightModal.videoBlob]);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
@@ -10081,71 +9823,25 @@ function PoolRoyaleGame({
     }
     setHud((prev) => ({ ...prev, over: true }));
     const winnerId = frameState.winner;
-    let rewardSummary = null;
-    if (winnerId === 'A' && cleanSweepRef.current && !rewardGrantedRef.current) {
-      rewardGrantedRef.current = true;
-      const rewardedFinish = selectRandomUnlock('tableFinish');
-      const rewardedCue = selectRandomUnlock('cueStyle');
-      if (rewardedFinish) {
-        addPoolRoyalUnlock('tableFinish', rewardedFinish, resolvedAccountId);
-      }
-      if (rewardedCue) {
-        addPoolRoyalUnlock('cueStyle', rewardedCue, resolvedAccountId);
-      }
-      if (rewardedFinish || rewardedCue) {
-        setInventoryVersion((v) => v + 1);
-      }
-      rewardSummary = {
-        tableFinish: POOL_ROYALE_OPTION_LABELS.tableFinish?.[rewardedFinish] || rewardedFinish || 'Table finish NFT',
-        cueStyle: POOL_ROYALE_OPTION_LABELS.cueStyle?.[rewardedCue] || rewardedCue || 'Cue NFT',
-        tpc: 2500
-      };
-    }
-    setHighlightModal((prev) => ({
-      ...prev,
-      open: true,
-      status: 'building',
-      reward: rewardSummary,
-      specialRun: cleanSweepRef.current
-    }));
-
-    let cancelled = false;
-    buildHighlightClip({ specialRun: cleanSweepRef.current, rewardSummary })
-      .then((result) => {
-        if (cancelled) {
-          if (result?.url) URL.revokeObjectURL(result.url);
-          return;
-        }
-        if (!result) {
-          setHighlightModal((prev) => ({ ...prev, status: 'error' }));
-          return;
-        }
-        setHighlightModal((prev) => ({
-          ...prev,
-          status: 'ready',
-          videoUrl: result.url,
-          videoBlob: result.blob
-        }));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setHighlightModal((prev) => ({ ...prev, status: 'error' }));
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    buildHighlightClip,
-    frameState.frameOver,
-    frameState.winner,
-    isTraining,
-    player.name,
-    resolvedAccountId,
-    selectRandomUnlock,
-    setInventoryVersion
-  ]);
+    const winnerLabel = winnerId === 'A'
+      ? player.name || 'You'
+      : winnerId === 'B'
+        ? 'AI'
+        : 'No winner';
+    const announcement =
+      winnerId === 'A'
+        ? `${winnerLabel} wins!`
+        : winnerId === 'B'
+          ? `${winnerLabel} wins!`
+          : 'Frame tied!';
+    window.alert(`${announcement} Returning to the lobby...`);
+    const winnerParam = winnerId === 'A' ? '1' : '0';
+    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
+    const redirectTimer = window.setTimeout(() => {
+      window.location.assign(lobbyUrl);
+    }, 1200);
+    return () => window.clearTimeout(redirectTimer);
+  }, [frameState.frameOver, frameState.winner, isTraining, player.name]);
 
   useEffect(() => {
     let wakeLock;
@@ -16118,28 +15814,16 @@ function PoolRoyaleGame({
           const shotEvents = [];
           const firstContactColor = toBallColorId(firstHit);
           const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-        const replayDecision = resolveReplayDecision({
-          recording: shotRecording,
-          hadObjectPot,
-          pottedBalls: potted,
-          shotContext: shotContextRef.current
-        });
-        if (replayDecision && shotRecording) {
-          shotRecording.replayTags = replayDecision.tags;
-          shotRecording.zoomOnly = replayDecision.zoomOnly;
-          const trimmedRecording = trimReplayRecording(shotRecording);
-          if (trimmedRecording?.duration > 0) {
-            highlightShotsRef.current = [
-              ...highlightShotsRef.current.slice(-4),
-              {
-                ...trimmedRecording,
-                banner: replayDecision.banner,
-                tags: replayDecision.tags || [],
-                potCount
-              }
-            ];
+          const replayDecision = resolveReplayDecision({
+            recording: shotRecording,
+            hadObjectPot,
+            pottedBalls: potted,
+            shotContext: shotContextRef.current
+          });
+          if (replayDecision && shotRecording) {
+            shotRecording.replayTags = replayDecision.tags;
+            shotRecording.zoomOnly = replayDecision.zoomOnly;
           }
-        }
           const shouldStartReplay =
             Boolean(replayDecision?.shouldReplay) &&
             (shotRecording?.frames?.length ?? 0) > 1;
@@ -16176,12 +15860,6 @@ function PoolRoyaleGame({
           noCushionAfterContact,
           variant: variantId
         };
-        const wasPlayerVisit = hudRef.current?.turn === 0;
-        if (wasPlayerVisit && potCount > 0) {
-          visitPotCountRef.current += potCount;
-        } else if (!wasPlayerVisit) {
-          visitPotCountRef.current = 0;
-        }
         let safeState = currentState;
         let shotResolved = false;
         try {
@@ -16205,18 +15883,6 @@ function PoolRoyaleGame({
           if (trainingModeRef.current === 'solo') {
             safeState = { ...safeState, activePlayer: 'A' };
           }
-        }
-        if (safeState.frameOver && safeState.winner === 'A' && wasPlayerVisit) {
-          const targetBalls =
-            safeState?.meta?.objectBallCount && Number.isFinite(safeState.meta.objectBallCount)
-              ? safeState.meta.objectBallCount
-              : 7;
-          if (visitPotCountRef.current >= targetBalls) {
-            cleanSweepRef.current = true;
-          }
-        }
-        if (safeState.activePlayer === 'B') {
-          visitPotCountRef.current = 0;
         }
         shotContextRef.current = {
           placedFromHand: false,
@@ -17804,100 +17470,6 @@ function PoolRoyaleGame({
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {highlightModal.open && (
-        <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/80 px-4 py-6">
-          <div className="w-full max-w-2xl rounded-3xl border border-emerald-400/40 bg-slate-900/95 p-5 text-white shadow-[0_24px_48px_rgba(0,0,0,0.65)] backdrop-blur">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold">Match Highlights</h2>
-                <p className="text-sm text-emerald-100/80">
-                  {highlightModal.status === 'building'
-                    ? 'Preparing your highlight reel...'
-                    : highlightModal.status === 'error'
-                      ? 'Highlight clip unavailable in this browser.'
-                      : 'Replay and share your best shots.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCloseHighlights}
-                className="rounded-full p-2 text-white/80 transition-colors hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                aria-label="Close highlights"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  className="h-5 w-5"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="m6 6 12 12M18 6 6 18" />
-                </svg>
-              </button>
-            </div>
-
-            {highlightModal.reward && (
-              <div className="mb-4 rounded-2xl border border-emerald-300/40 bg-emerald-500/10 p-3 text-sm">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-emerald-200/90">
-                  Clean visit rewards
-                </p>
-                <p className="mt-1 font-semibold text-emerald-50">
-                  {highlightModal.reward.tableFinish}
-                </p>
-                <p className="text-emerald-50">{highlightModal.reward.cueStyle}</p>
-                <p className="text-emerald-50">+{highlightModal.reward.tpc} TPC</p>
-              </div>
-            )}
-
-            <div className="relative mb-4 aspect-video overflow-hidden rounded-2xl border border-white/10 bg-black/60">
-              {highlightModal.videoUrl && highlightModal.status === 'ready' ? (
-                <video
-                  key={highlightModal.videoUrl}
-                  className="h-full w-full"
-                  controls
-                  playsInline
-                  src={highlightModal.videoUrl}
-                  autoPlay
-                />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center text-sm text-emerald-50">
-                  {highlightModal.status === 'building'
-                    ? 'Rendering highlights…'
-                    : 'Video not available. Try downloading instead.'}
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={handleDownloadClip}
-                disabled={!highlightModal.videoUrl || highlightModal.status !== 'ready'}
-                className="flex-1 min-w-[8rem] rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold uppercase tracking-[0.16em] text-black transition disabled:cursor-not-allowed disabled:bg-emerald-500/40"
-              >
-                Download
-              </button>
-              <button
-                type="button"
-                onClick={handleShareClip}
-                disabled={highlightModal.status !== 'ready'}
-                className="flex-1 min-w-[8rem] rounded-full border border-emerald-300/70 px-4 py-2 text-sm font-semibold uppercase tracking-[0.16em] text-emerald-100 transition hover:bg-emerald-300/10 disabled:cursor-not-allowed disabled:border-emerald-300/30 disabled:text-emerald-200/50"
-              >
-                Share
-              </button>
-              <button
-                type="button"
-                onClick={handleCloseHighlights}
-                className="flex-1 min-w-[8rem] rounded-full border border-white/20 px-4 py-2 text-sm font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-white/10"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
