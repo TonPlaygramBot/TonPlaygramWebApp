@@ -2144,16 +2144,15 @@ const CHROME_COLOR_OPTIONS = Object.freeze([
 
 // Palettes derived from CC0 textile scans (ambientCG FabricWool series) and
 // popular tournament felts so every option mirrors a real pool cloth.
-const POOL_ROYALE_GREEN_BASELINE = Object.freeze({
-  shadow: 0x1d8048,
-  base: 0x3ab86e,
-  accent: 0x54cf88,
-  highlight: 0x7ef2af
-});
 const CLOTH_TEXTURE_PRESETS = Object.freeze({
   freshGreen: Object.freeze({
     id: 'freshGreen',
-    palette: POOL_ROYALE_GREEN_BASELINE,
+    palette: {
+      shadow: 0x1d8048,
+      base: 0x3ab86e,
+      accent: 0x54cf88,
+      highlight: 0x7ef2af
+    },
     sparkle: 1,
     stray: 1
   }),
