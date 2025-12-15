@@ -492,8 +492,8 @@ const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.032; // pinch the middle rail arches slightly tighter so the rounded cut radius comes in further toward the jaws
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.2; // pull the middle-pocket wood arch farther toward centre so the smaller radius aligns with the tighter inboard cut
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.072; // pinch the middle rail arches tighter so the rounded cut radius ends before the side-pocket curve intrudes
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.24; // pull the middle-pocket wood arch farther toward centre so the rail stops exactly where the rounded cut begins
 
 function buildChromePlateGeometry({
   width,
