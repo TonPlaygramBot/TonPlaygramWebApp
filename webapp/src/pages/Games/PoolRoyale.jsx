@@ -6184,6 +6184,7 @@ function Table3D(
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.11; // trim the side cushions further so the tips no longer protrude into the pocket mouths
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
+  const SIDE_CUSHION_POCKET_ROUND_CLEARANCE = TABLE.THICK * 0.06; // shorten middle cushions so they stop where the rounded cut begins
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -6241,7 +6242,10 @@ function Table3D(
   );
   const verticalCushionLength = Math.max(
     MICRO_EPS,
-    Math.max(0, cornerIntersectionZ - adjustedSidePocketReach)
+    Math.max(
+      0,
+      cornerIntersectionZ - adjustedSidePocketReach - SIDE_CUSHION_POCKET_ROUND_CLEARANCE
+    )
   );
   const verticalCushionCenter =
     adjustedSidePocketReach +
@@ -17051,6 +17055,11 @@ function PoolRoyaleGame({
               }
             });
           }
+          balls.forEach((ball) => {
+            if (!ball.active && !pocketDropRef.current.has(ball.id)) {
+              ball.mesh.visible = false;
+            }
+          });
           prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
