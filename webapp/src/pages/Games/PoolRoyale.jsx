@@ -904,12 +904,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.984; // tighten the middle pocket mouth slightly so the jaws read a bit narrower
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.992; // tighten the middle pocket mouth slightly so the jaws read a bit narrower
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.948; // trim the middle cloth/rail cutouts a bit more so the apertures read tighter
+const SIDE_POCKET_CUT_SCALE = 0.962; // trim the middle cloth/rail cutouts a bit more so the apertures read tighter
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
