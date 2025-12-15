@@ -486,13 +486,13 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // slightly tighten the middle chrome arch so the rounded cut shrinks around the side pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.038; // open the middle chrome arch a touch more so the rounded cut reads larger around the side pockets
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.214; // ease the pull toward centre so the chrome cut follows the outward-biased pocket position
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.972; // pull the middle rail arches in a touch more so the rounded cut radius trims closer to the jaw
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // tighten the middle rail arches so the rounded cut radius trims closer to the jaw
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.14; // reduce the centre pull so the wood cut rounds stay closer to the outward-shifted pocket
 
 function buildChromePlateGeometry({
@@ -14530,17 +14530,13 @@ function PoolRoyaleGame({
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
-          const shouldRecordReplay =
-            isLongShot || clampedPower >= 0.62 || predictedTravel >= LONG_SHOT_ACTIVATION_TRAVEL;
-          if (shouldRecordReplay) {
+          if (isLongShot) {
             shotRecording = {
-              longShot: isLongShot,
+              longShot: true,
               startTime: performance.now(),
               startState: captureBallSnapshot(),
               frames: [],
-              cuePath: [],
-              power: clampedPower,
-              predictedTravel
+              cuePath: []
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -15734,17 +15730,9 @@ function PoolRoyaleGame({
         const variantId = activeVariantRef.current?.id ?? 'american';
         const shotEvents = [];
         const firstContactColor = toBallColorId(firstHit);
-        const pottedObjects = potted.filter((entry) => entry.id !== 'cue');
-        const potCount = pottedObjects.length;
-        const hadObjectPot = potCount > 0;
-        const bankedShot = shotContextRef.current.contactMade && shotContextRef.current.cushionAfterContact;
-        const powerReplay = (shotRecording?.power ?? lastShotPower) >= 0.62;
-        const travelReplay = (shotRecording?.predictedTravel ?? 0) >= LONG_SHOT_ACTIVATION_TRAVEL;
+        const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
         const shouldStartReplay =
-          !!shotRecording &&
-          hadObjectPot &&
-          (shotRecording.longShot || potCount >= 2 || bankedShot || powerReplay || travelReplay) &&
-          (shotRecording.frames?.length ?? 0) > 1;
+          shotRecording?.longShot && hadObjectPot && (shotRecording.frames?.length ?? 0) > 1;
         let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
