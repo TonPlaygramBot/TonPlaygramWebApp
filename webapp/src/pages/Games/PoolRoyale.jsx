@@ -4335,6 +4335,17 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
+const QUICK_REPLAY_WINDOW_MS = 1800;
+const POWER_REPLAY_THRESHOLD = 0.78;
+const SPIN_REPLAY_THRESHOLD = 0.32;
+const REPLAY_BANNER_VARIANTS = {
+  long: ['Long pot!', 'Full-table finish!', 'Cross-table clearance!'],
+  bank: ['Banked clean!', 'Rail-first beauty!', 'Cushion wizardry!'],
+  multi: ['Double pot!', 'Two for one!', 'What a combo!'],
+  power: ['Power drive!', 'Thunder break!', 'Crushed it!'],
+  spin: ['Swerve magic!', 'Spin control!', 'Curved in!'],
+  default: ['Good shot!', 'Nice pot!', 'Great touch!']
+};
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
@@ -12772,14 +12783,40 @@ function PoolRoyaleGame({
           replayTrail.visible = true;
         };
 
+        const trimReplayRecording = (recording) => {
+          const frames = recording?.frames ?? [];
+          const cuePath = recording?.cuePath ?? [];
+          if (frames.length === 0) return { frames, cuePath, duration: 0 };
+          const fullDuration = frames[frames.length - 1]?.t ?? 0;
+          const trimStart =
+            recording?.zoomOnly && fullDuration > QUICK_REPLAY_WINDOW_MS
+              ? fullDuration - QUICK_REPLAY_WINDOW_MS
+              : 0;
+          const trimmedFrames =
+            trimStart > 0
+              ? frames
+                  .filter((frame) => frame?.t >= trimStart)
+                  .map((frame) => ({ ...frame, t: frame.t - trimStart }))
+              : frames;
+          const trimmedCuePath =
+            trimStart > 0
+              ? cuePath
+                  .filter((entry) => entry?.t >= trimStart)
+                  .map((entry) => ({ ...entry, t: entry.t - trimStart }))
+              : cuePath;
+          const duration = trimmedFrames[trimmedFrames.length - 1]?.t ?? 0;
+          return { frames: trimmedFrames, cuePath: trimmedCuePath, duration };
+        };
+
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
-          const duration = shotRecording.frames[shotRecording.frames.length - 1].t;
+          const trimmed = trimReplayRecording(shotRecording);
+          const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           replayPlayback = {
-            frames: shotRecording.frames,
-            cuePath: shotRecording.cuePath,
+            frames: trimmed.frames,
+            cuePath: trimmed.cuePath,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
@@ -14472,12 +14509,12 @@ function PoolRoyaleGame({
           cushionAfterContact: false
         };
         setShootingState(true);
-          activeShotView = null;
-          aimFocusRef.current = null;
-          potted = [];
-          firstHit = null;
-          clearInterval(timerRef.current);
-          const aimDir = aimDirRef.current.clone();
+        activeShotView = null;
+        aimFocusRef.current = null;
+        potted = [];
+        firstHit = null;
+        clearInterval(timerRef.current);
+        const aimDir = aimDirRef.current.clone();
           const prediction = calcTarget(cue, aimDir.clone(), balls);
           const predictedTravelRaw = prediction.targetBall
             ? cue.pos.distanceTo(prediction.targetBall.pos)
@@ -14489,6 +14526,8 @@ function PoolRoyaleGame({
             predictedTravel > 0 &&
             predictedTravel < SHORT_SHOT_CAMERA_DISTANCE;
           const isLongShot = predictedTravel > LONG_SHOT_DISTANCE;
+          const replayTags = new Set();
+          if (isLongShot) replayTags.add('long');
           shotPrediction = {
             ballId: prediction.targetBall?.id ?? null,
             dir: prediction.targetDir ? prediction.targetDir.clone() : null,
@@ -14504,6 +14543,7 @@ function PoolRoyaleGame({
               ? prediction.targetBall.pos.clone()
               : null
           };
+          if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
@@ -14520,6 +14560,16 @@ function PoolRoyaleGame({
           lastPocketBallRef.current = null;
           const clampedPower = THREE.MathUtils.clamp(powerRef.current, 0, 1);
           lastShotPower = clampedPower;
+          const spinMagnitude = Math.hypot(
+            spinRef.current?.x ?? 0,
+            spinRef.current?.y ?? 0
+          );
+          const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
+          if (isPowerShot) replayTags.add('power');
+          if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
+          const shouldRecordReplay = replayTags.size > 0;
+          const preferZoomReplay =
+            shouldRecordReplay && !replayTags.has('long') && !replayTags.has('bank');
           playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
@@ -14530,13 +14580,15 @@ function PoolRoyaleGame({
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
-          if (isLongShot) {
+          if (shouldRecordReplay) {
             shotRecording = {
-              longShot: true,
+              longShot: replayTags.has('long'),
               startTime: performance.now(),
               startState: captureBallSnapshot(),
               frames: [],
-              cuePath: []
+              cuePath: [],
+              replayTags: Array.from(replayTags),
+              zoomOnly: preferZoomReplay
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -15725,15 +15777,58 @@ function PoolRoyaleGame({
 
         fireRef.current = fire;
 
-      // Resolve shot
-      function resolve() {
-        const variantId = activeVariantRef.current?.id ?? 'american';
-        const shotEvents = [];
-        const firstContactColor = toBallColorId(firstHit);
-        const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-        const shouldStartReplay =
-          shotRecording?.longShot && hadObjectPot && (shotRecording.frames?.length ?? 0) > 1;
-        let postShotSnapshot = null;
+        const selectReplayBanner = (tag = 'default') => {
+          const pool = REPLAY_BANNER_VARIANTS[tag] ?? REPLAY_BANNER_VARIANTS.default;
+          if (!Array.isArray(pool) || pool.length === 0) return 'Good shot!';
+          const index = Math.floor(Math.random() * pool.length);
+          return pool[Math.max(0, Math.min(index, pool.length - 1))] ?? 'Good shot!';
+        };
+
+        const resolveReplayDecision = ({
+          recording,
+          hadObjectPot,
+          pottedBalls,
+          shotContext
+        }) => {
+          if (!recording || !hadObjectPot) return null;
+          const tags = new Set(recording.replayTags ?? []);
+          const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
+          if (potCount > 1) tags.add('multi');
+          if (shotContext?.cushionAfterContact) tags.add('bank');
+          if (lastShotPower >= POWER_REPLAY_THRESHOLD) tags.add('power');
+          if (tags.size === 0) return null;
+          const priority = ['multi', 'bank', 'long', 'power', 'spin'];
+          const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
+          const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          return {
+            shouldReplay: true,
+            banner: selectReplayBanner(primary),
+            zoomOnly,
+            tags: Array.from(tags)
+          };
+        };
+
+        // Resolve shot
+        function resolve() {
+          const variantId = activeVariantRef.current?.id ?? 'american';
+          const shotEvents = [];
+          const firstContactColor = toBallColorId(firstHit);
+          const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
+          const replayDecision = resolveReplayDecision({
+            recording: shotRecording,
+            hadObjectPot,
+            pottedBalls: potted,
+            shotContext: shotContextRef.current
+          });
+          if (replayDecision && shotRecording) {
+            shotRecording.replayTags = replayDecision.tags;
+            shotRecording.zoomOnly = replayDecision.zoomOnly;
+          }
+          const shouldStartReplay =
+            Boolean(replayDecision?.shouldReplay) &&
+            (shotRecording?.frames?.length ?? 0) > 1;
+          const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
+          let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
             type: 'HIT',
@@ -15924,7 +16019,7 @@ function PoolRoyaleGame({
               clearTimeout(replayBannerTimeoutRef.current);
               replayBannerTimeoutRef.current = null;
             }
-            setReplayBanner('Good shot!');
+            setReplayBanner(replayBannerText);
             replayBannerTimeoutRef.current = window.setTimeout(
               launchReplay,
               GOOD_SHOT_REPLAY_DELAY_MS
@@ -16498,6 +16593,13 @@ function PoolRoyaleGame({
         chalkAssistTargetRef.current = shouldSlowAim;
 
         // Fizika
+        balls.forEach((ball) => {
+          if (!ball) return;
+          const dropping = pocketDropRef.current.has(ball.id);
+          if (!ball.active && !dropping) {
+            ball.mesh.visible = false;
+          }
+        });
         for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
           const stepScale = subStepScale;
           balls.forEach((b) => {
