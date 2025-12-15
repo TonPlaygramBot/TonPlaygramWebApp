@@ -22,11 +22,13 @@ public static class PhysicsConstants
 
     // Pocket geometry derived from WPA spec (metres)
     public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
-    public const double SidePocketMouth = 0.117475;    // scaled with table reduction
+    // Slightly tighten side pocket opening so the mid-rail cutouts feel narrower.
+    public const double SidePocketMouth = 0.110;       // scaled with table reduction
     public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
     // Offset that moves the side pockets slightly outside the rail line so the
     // chrome plates and wooden rails sit flush with the rounded cuts.
-    public const double SidePocketOutset = 0.03;
+    // Push side pockets farther outward so the chrome plates sit off the playfield a bit more.
+    public const double SidePocketOutset = 0.04;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
