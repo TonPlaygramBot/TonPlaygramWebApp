@@ -17051,6 +17051,18 @@ function PoolRoyaleGame({
               }
             });
           }
+          balls.forEach((ball) => {
+            if (!ball?.mesh) return;
+            if (ball.active) return;
+            if (pocketDropRef.current.has(ball.id)) return;
+            ball.mesh.visible = false;
+            const sunkenY = BALL_CENTER_Y - POCKET_DROP_DEPTH - BALL_R * 2;
+            ball.mesh.position.set(
+              ball.mesh.position.x,
+              sunkenY,
+              ball.mesh.position.z
+            );
+          });
           prevCollisions = newCollisions;
           const fit = fitRef.current;
           if (fit && cue?.active && !shooting) {
