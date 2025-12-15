@@ -486,14 +486,14 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.038; // open the middle chrome arch a touch more so the rounded cut reads larger around the side pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.214; // ease the pull toward centre so the chrome cut follows the outward-biased pocket position
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // trim the middle chrome arch so the rounded cut sits tighter around the side pockets
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.19; // ease the pull toward centre so the chrome cut follows the outward-biased pocket position without over-widening
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // tighten the middle rail arches so the rounded cut radius trims closer to the jaw
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.14; // reduce the centre pull so the wood cut rounds stay closer to the outward-shifted pocket
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.11; // reduce the centre pull so the wood cut rounds stay closer to the outward-shifted pocket with a smaller reveal
 
 function buildChromePlateGeometry({
   width,
@@ -4337,6 +4337,9 @@ const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
+const REPLAY_POWER_SHOT_THRESHOLD = 0.78; // capture heavy strokes that feel replay-worthy
+const REPLAY_SPIN_THRESHOLD = 0.22; // record shots that lean heavily on english
+const REPLAY_MULTI_POT_COUNT = 2; // encourage replays when multiple object balls drop
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
 const SHORT_SHOT_CAMERA_DISTANCE = BALL_R * 24; // keep camera in standing view for close shots
 const SHORT_RAIL_POCKET_TRIGGER =
@@ -14530,9 +14533,20 @@ function PoolRoyaleGame({
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
-          if (isLongShot) {
+          const spinRequest = spinRef.current || { x: 0, y: 0 };
+          const spinMagnitude = Math.hypot(spinRequest.x ?? 0, spinRequest.y ?? 0);
+          const railFirst = Boolean(shotPrediction.railNormal);
+          const powerShot = clampedPower >= REPLAY_POWER_SHOT_THRESHOLD;
+          const spinHeavy = spinMagnitude >= REPLAY_SPIN_THRESHOLD;
+          const midRangeShot = !isLongShot && predictedTravel > LONG_SHOT_DISTANCE * 0.6;
+          const shouldRecordReplay =
+            isLongShot || midRangeShot || railFirst || powerShot || spinHeavy;
+          if (shouldRecordReplay) {
             shotRecording = {
-              longShot: true,
+              longShot: isLongShot,
+              railFirst,
+              powerShot,
+              spinHeavy,
               startTime: performance.now(),
               startState: captureBallSnapshot(),
               frames: [],
@@ -15731,8 +15745,25 @@ function PoolRoyaleGame({
         const shotEvents = [];
         const firstContactColor = toBallColorId(firstHit);
         const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-        const shouldStartReplay =
-          shotRecording?.longShot && hadObjectPot && (shotRecording.frames?.length ?? 0) > 1;
+        const replayReady = (shotRecording?.frames?.length ?? 0) > 1;
+        const multiPotCount = potted.filter((entry) => entry.id !== 'cue').length;
+        const railShowcase =
+          shotRecording?.railFirst && shotContextRef.current.cushionAfterContact;
+        const spinShowcase =
+          shotRecording?.spinHeavy &&
+          (hadObjectPot || railShowcase || Boolean(firstHit));
+        const powerShowcase = shotRecording?.powerShot && hadObjectPot;
+        const longJourneyHighlight =
+          shotRecording?.longShot && (hadObjectPot || shotContextRef.current.contactMade);
+        const shouldStartReplay = Boolean(
+          replayReady &&
+            (hadObjectPot ||
+              longJourneyHighlight ||
+              powerShowcase ||
+              spinShowcase ||
+              railShowcase ||
+              multiPotCount >= REPLAY_MULTI_POT_COUNT)
+        );
         let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
