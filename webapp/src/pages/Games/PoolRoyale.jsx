@@ -486,13 +486,13 @@ const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.095; // pull the side fascias inward so their outer edge trims back while keeping the reveal tidy
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = 1.02; // trim the middle chrome arch so the rounded cut reads smaller around the side pockets
+const CHROME_SIDE_POCKET_CUT_SCALE = 1.038; // open the middle chrome arch a touch more so the rounded cut reads larger around the side pockets
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.214; // ease the pull toward centre so the chrome cut follows the outward-biased pocket position
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.982; // tighten the middle rail arches further so the rounded cut radius trims closer to the jaw
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 0.99; // tighten the middle rail arches so the rounded cut radius trims closer to the jaw
 const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0.14; // reduce the centre pull so the wood cut rounds stay closer to the outward-shifted pocket
 
 function buildChromePlateGeometry({
@@ -909,7 +909,7 @@ const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.9; // trim the middle cloth/rail cutouts further so the apertures read tighter against the jaws
+const SIDE_POCKET_CUT_SCALE = 0.924; // trim the middle cloth/rail cutouts even more so the apertures read tighter
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -4335,14 +4335,6 @@ const LONG_SHOT_SPEED_SWITCH_THRESHOLD =
   SHOT_BASE_SPEED * 0.82; // skip long-shot cam switch if cue ball launches faster
 const LONG_SHOT_SHORT_RAIL_OFFSET = BALL_R * 18;
 const GOOD_SHOT_REPLAY_DELAY_MS = 900;
-const REPLAY_SINGLE_POT_VALUE = 1.1;
-const REPLAY_MULTI_POT_BONUS = 2.6;
-const REPLAY_BANK_SHOT_BONUS = 1.5;
-const REPLAY_LONG_SHOT_BONUS = 2.4;
-const REPLAY_DISTANCE_BONUS = 1.2;
-const REPLAY_POWER_BONUS_THRESHOLD = 0.78;
-const REPLAY_CUE_BALL_PENALTY = 1.5;
-const REPLAY_SCORE_THRESHOLD = 3.4;
 const REPLAY_TRAIL_HEIGHT = BALL_CENTER_Y + BALL_R * 0.3;
 const REPLAY_TRAIL_COLOR = 0xffffff;
 const RAIL_NEAR_BUFFER = BALL_R * 3.5;
@@ -14538,21 +14530,20 @@ function PoolRoyaleGame({
             .multiplyScalar(speedBase * powerScale);
           const predictedCueSpeed = base.length();
           shotPrediction.speed = predictedCueSpeed;
-          shotRecording = {
-            longShot: isLongShot,
-            startTime: performance.now(),
-            startState: captureBallSnapshot(),
-            frames: [],
-            cuePath: [],
-            meta: {
-              predictedTravel,
-              railIntent: Boolean(shotPrediction.railNormal),
-              power: clampedPower,
-              placedFromHand: shotContextRef.current.placedFromHand
-            }
-          };
-          shotReplayRef.current = shotRecording;
-          recordReplayFrame(shotRecording.startTime);
+          if (isLongShot) {
+            shotRecording = {
+              longShot: true,
+              startTime: performance.now(),
+              startState: captureBallSnapshot(),
+              frames: [],
+              cuePath: []
+            };
+            shotReplayRef.current = shotRecording;
+            recordReplayFrame(shotRecording.startTime);
+          } else {
+            shotRecording = null;
+            shotReplayRef.current = null;
+          }
           const allowLongShotCameraSwitch =
             !isShortShot &&
             (!isLongShot || predictedCueSpeed <= LONG_SHOT_SPEED_SWITCH_THRESHOLD);
@@ -15740,29 +15731,8 @@ function PoolRoyaleGame({
         const shotEvents = [];
         const firstContactColor = toBallColorId(firstHit);
         const hadObjectPot = potted.some((entry) => entry.id !== 'cue');
-        const cueBallPotted = potted.some((entry) => entry.color === 'CUE') || !cue.active;
-        const cuePathDistance = (shotRecording?.cuePath ?? []).reduce((acc, entry, idx, arr) => {
-          if (idx === 0) return acc;
-          const prev = arr[idx - 1];
-          if (!prev?.pos || !entry?.pos) return acc;
-          return acc + prev.pos.distanceTo(entry.pos);
-        }, 0);
-        const replayScore = (() => {
-          if (!shotRecording || (shotRecording.frames?.length ?? 0) < 2) return 0;
-          let score = 0;
-          const potCount = potted.filter((entry) => entry.id !== 'cue').length;
-          if (potCount >= 2) score += REPLAY_MULTI_POT_BONUS;
-          else if (potCount === 1) score += REPLAY_SINGLE_POT_VALUE;
-          if (shotRecording.longShot) score += REPLAY_LONG_SHOT_BONUS;
-          if (shotRecording.meta?.railIntent || shotContextRef.current.cushionAfterContact)
-            score += REPLAY_BANK_SHOT_BONUS;
-          if (cuePathDistance > LONG_SHOT_ACTIVATION_TRAVEL) score += REPLAY_DISTANCE_BONUS;
-          if ((shotRecording.meta?.power ?? 0) >= REPLAY_POWER_BONUS_THRESHOLD)
-            score += REPLAY_SINGLE_POT_VALUE;
-          if (cueBallPotted) score -= REPLAY_CUE_BALL_PENALTY;
-          return score;
-        })();
-        const shouldStartReplay = hadObjectPot && replayScore >= REPLAY_SCORE_THRESHOLD;
+        const shouldStartReplay =
+          shotRecording?.longShot && hadObjectPot && (shotRecording.frames?.length ?? 0) > 1;
         let postShotSnapshot = null;
         if (firstContactColor || firstHit) {
           shotEvents.push({
@@ -15781,6 +15751,8 @@ function PoolRoyaleGame({
           });
         });
         const currentState = frameRef.current ?? frameState;
+        const cueBallPotted =
+          potted.some((entry) => entry.color === 'CUE') || !cue.active;
         const noCushionAfterContact =
           shotContextRef.current.contactMade &&
           !shotContextRef.current.cushionAfterContact &&
