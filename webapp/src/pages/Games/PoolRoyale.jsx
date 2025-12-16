@@ -9811,203 +9811,6 @@ function PoolRoyaleGame({
     });
   }, [frameState, isTraining, trainingModeState]);
   useEffect(() => {
-    const nextBreak = frameState.currentBreak ?? 0;
-    if (Number.isFinite(nextBreak)) {
-      maxBreakRef.current = Math.max(maxBreakRef.current, nextBreak);
-    }
-  }, [frameState.currentBreak]);
-  const resolveClearTarget = useCallback(() => {
-    const variantId = activeVariantRef.current?.id ?? variantKey;
-    if (variantId === '9ball') return 9;
-    return 7;
-  }, [variantKey]);
-  const selectSpecialReward = useCallback(() => {
-    const finishPreset =
-      WOOD_FINISH_PRESETS[Math.floor(Math.random() * WOOD_FINISH_PRESETS.length)] ??
-      WOOD_FINISH_PRESETS[0];
-    const cuePreset =
-      CUE_STYLE_PRESETS[Math.floor(Math.random() * CUE_STYLE_PRESETS.length)] ??
-      CUE_STYLE_PRESETS[0];
-    return {
-      tableFinish: finishPreset?.label ?? 'Signature Finish',
-      cue: cuePreset?.label ?? 'Pro Cue',
-      tpc: 2500
-    };
-  }, []);
-  const buildHighlightClip = useCallback(
-    async ({
-      playerName: localPlayerName,
-      opponentName: localOpponentName,
-      playerScore,
-      opponentScore,
-      winner,
-      specialMoment,
-      reward,
-      playerAvatar: localPlayerAvatar,
-      opponentAvatar: localOpponentAvatar
-    }) => {
-      if (typeof document === 'undefined' || typeof window === 'undefined') {
-        throw new Error('Highlight generation unavailable');
-      }
-      if (!HTMLCanvasElement.prototype.captureStream || typeof MediaRecorder === 'undefined') {
-        throw new Error('MediaRecorder not supported');
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = 640;
-      canvas.height = 360;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas not available');
-      const loadAvatar = (src) =>
-        new Promise((resolve) => {
-          if (!src) return resolve(null);
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = src;
-        });
-      const [playerImg, opponentImg] = await Promise.all([
-        loadAvatar(localPlayerAvatar),
-        loadAvatar(localOpponentAvatar)
-      ]);
-      const stream = canvas.captureStream(30);
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9'
-      });
-      const chunks = [];
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          chunks.push(event.data);
-        }
-      };
-      const drawBackdrop = () => {
-        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-        gradient.addColorStop(0, '#0b1224');
-        gradient.addColorStop(1, '#0a1a2e');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = 'rgba(16,185,129,0.1)';
-        ctx.fillRect(0, canvas.height * 0.65, canvas.width, canvas.height * 0.35);
-      };
-      const drawAvatar = (img, x, y, label) => {
-        const radius = 54;
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.beginPath();
-        ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.fillStyle = '#0b1120';
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(16,185,129,0.6)';
-        ctx.lineWidth = 6;
-        ctx.stroke();
-        if (img) {
-          ctx.save();
-          ctx.clip();
-          ctx.drawImage(img, -radius, -radius, radius * 2, radius * 2);
-          ctx.restore();
-        } else {
-          ctx.fillStyle = '#e2e8f0';
-          ctx.font = 'bold 42px "Segoe UI", "Helvetica Neue", sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(label?.slice(0, 1)?.toUpperCase() || '?', 0, 0);
-        }
-        ctx.restore();
-      };
-      const drawVersusLine = (progress) => {
-        const midX = canvas.width / 2;
-        const lineWidth = canvas.width * 0.55 * progress;
-        ctx.strokeStyle = 'rgba(94,234,212,0.6)';
-        ctx.lineWidth = 6;
-        ctx.beginPath();
-        ctx.moveTo(midX - lineWidth / 2, canvas.height * 0.33);
-        ctx.lineTo(midX + lineWidth / 2, canvas.height * 0.33);
-        ctx.stroke();
-      };
-      const renderSegment = (duration, painter) =>
-        new Promise((resolve) => {
-          const start = performance.now();
-          const step = () => {
-            const elapsed = performance.now() - start;
-            const t = Math.min(1, elapsed / duration);
-            painter(t);
-            if (t < 1) {
-              requestAnimationFrame(step);
-            } else {
-              resolve();
-            }
-          };
-          requestAnimationFrame(step);
-        });
-      recorder.start();
-      const rewardLines = reward
-        ? [`+ ${reward.tableFinish} table finish`, `+ ${reward.cue}`, '+ 2,500 TPC']
-        : [];
-      await renderSegment(1200, (t) => {
-        drawBackdrop();
-        drawAvatar(playerImg, canvas.width * 0.28, canvas.height * 0.35, localPlayerName);
-        drawAvatar(opponentImg, canvas.width * 0.72, canvas.height * 0.35, localOpponentName);
-        drawVersusLine(t);
-        ctx.fillStyle = '#e2e8f0';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = 'bold 48px "Segoe UI", "Helvetica Neue", sans-serif';
-        ctx.fillText('Pool Royale Highlights', canvas.width / 2, 60);
-        ctx.font = '600 26px "Segoe UI", "Helvetica Neue", sans-serif';
-        ctx.fillText('Final score', canvas.width / 2, canvas.height * 0.46);
-        ctx.font = 'bold 64px "Segoe UI", "Helvetica Neue", sans-serif';
-        ctx.fillText(`${playerScore} - ${opponentScore}`, canvas.width / 2, canvas.height * 0.55);
-      });
-      await renderSegment(1400, (t) => {
-        drawBackdrop();
-        ctx.fillStyle = '#22d3ee';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = '800 52px "Segoe UI", "Helvetica Neue", sans-serif';
-        ctx.fillText(winner ? `${winner} takes the win` : 'Match complete', canvas.width / 2, canvas.height * 0.35);
-        ctx.fillStyle = '#a5b4fc';
-        ctx.font = '600 28px "Segoe UI", "Helvetica Neue", sans-serif';
-        const highlightText = specialMoment
-          ? 'Cleared the table in a single visit!'
-          : 'Top shots and clutch finishes.';
-        ctx.fillText(highlightText, canvas.width / 2, canvas.height * 0.45);
-        ctx.fillStyle = 'rgba(52,211,153,0.18)';
-        ctx.fillRect(
-          canvas.width * 0.18,
-          canvas.height * 0.52,
-          canvas.width * 0.64,
-          canvas.height * 0.12 * (0.4 + 0.6 * t)
-        );
-        ctx.fillStyle = '#bbf7d0';
-        ctx.font = '600 24px "Segoe UI", "Helvetica Neue", sans-serif';
-        ctx.fillText('One-touch replay ready to share', canvas.width / 2, canvas.height * 0.6);
-      });
-      await renderSegment(1000, (t) => {
-        drawBackdrop();
-        ctx.fillStyle = '#34d399';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.font = '800 46px "Segoe UI", "Helvetica Neue", sans-serif';
-        ctx.fillText('Rewards unlocked', canvas.width / 2, canvas.height * 0.32);
-        ctx.font = '600 26px "Segoe UI", "Helvetica Neue", sans-serif';
-        if (rewardLines.length) {
-          rewardLines.forEach((line, idx) => {
-            ctx.fillText(line, canvas.width / 2, canvas.height * (0.45 + idx * 0.08) * (0.9 + 0.1 * t));
-          });
-        } else {
-          ctx.fillText('Share your best shots with friends', canvas.width / 2, canvas.height * 0.5);
-        }
-      });
-      recorder.stop();
-      await new Promise((resolve) => {
-        recorder.onstop = resolve;
-      });
-      return new Blob(chunks, { type: 'video/webm' });
-    },
-    []
-  );
-  useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
       return;
@@ -10023,53 +9826,22 @@ function PoolRoyaleGame({
     const winnerLabel = winnerId === 'A'
       ? player.name || 'You'
       : winnerId === 'B'
-        ? opponentLabel || 'AI'
+        ? 'AI'
         : 'No winner';
-    const clearedInOneVisit =
-      winnerId === 'A' && maxBreakRef.current >= resolveClearTarget();
-    setSpecialClearAchieved(clearedInOneVisit);
-    const reward = clearedInOneVisit ? selectSpecialReward() : null;
-    setSpecialClearReward(reward);
-    setShareMessage('');
-    setHighlightGenerating(true);
-    buildHighlightClip({
-      playerName: player.name || 'You',
-      opponentName: opponentLabel || 'Opponent',
-      playerScore: frameState.players?.A?.score ?? 0,
-      opponentScore: frameState.players?.B?.score ?? 0,
-      winner: winnerLabel,
-      specialMoment: clearedInOneVisit,
-      reward,
-      playerAvatar: player.avatar || getTelegramPhotoUrl(),
-      opponentAvatar
-    })
-      .then((blob) => {
-        setHighlightClipBlob(blob);
-        setHighlightClipUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return URL.createObjectURL(blob);
-        });
-        setHighlightModalOpen(true);
-      })
-      .catch((err) => {
-        console.error('Failed to build highlight clip', err);
-        setHighlightModalOpen(true);
-      })
-      .finally(() => setHighlightGenerating(false));
-  }, [
-    buildHighlightClip,
-    frameState.players?.A?.score,
-    frameState.players?.B?.score,
-    frameState.frameOver,
-    frameState.winner,
-    isTraining,
-    opponentAvatar,
-    opponentLabel,
-    player.avatar,
-    player.name,
-    resolveClearTarget,
-    selectSpecialReward
-  ]);
+    const announcement =
+      winnerId === 'A'
+        ? `${winnerLabel} wins!`
+        : winnerId === 'B'
+          ? `${winnerLabel} wins!`
+          : 'Frame tied!';
+    window.alert(`${announcement} Returning to the lobby...`);
+    const winnerParam = winnerId === 'A' ? '1' : '0';
+    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
+    const redirectTimer = window.setTimeout(() => {
+      window.location.assign(lobbyUrl);
+    }, 1200);
+    return () => window.clearTimeout(redirectTimer);
+  }, [frameState.frameOver, frameState.winner, isTraining, player.name]);
 
   useEffect(() => {
     let wakeLock;
@@ -10097,66 +9869,6 @@ function PoolRoyaleGame({
     []
   );
   const aiShoot = useRef(() => {});
-  const [highlightModalOpen, setHighlightModalOpen] = useState(false);
-  const [highlightClipUrl, setHighlightClipUrl] = useState('');
-  const [highlightClipBlob, setHighlightClipBlob] = useState(null);
-  const [highlightGenerating, setHighlightGenerating] = useState(false);
-  const [shareMessage, setShareMessage] = useState('');
-  const [specialClearReward, setSpecialClearReward] = useState(null);
-  const [specialClearAchieved, setSpecialClearAchieved] = useState(false);
-  const maxBreakRef = useRef(0);
-
-  useEffect(
-    () => () => {
-      if (highlightClipUrl) URL.revokeObjectURL(highlightClipUrl);
-    },
-    [highlightClipUrl]
-  );
-
-  const handleDownloadClip = useCallback(() => {
-    if (!highlightClipUrl) return;
-    const link = document.createElement('a');
-    link.href = highlightClipUrl;
-    link.download = 'pool-royale-highlight.webm';
-    link.click();
-  }, [highlightClipUrl]);
-
-  const handleShareClip = useCallback(async () => {
-    if (!highlightClipBlob && !highlightClipUrl) return;
-    try {
-      const files = highlightClipBlob
-        ? [
-            new File([highlightClipBlob], 'pool-royale-highlight.webm', {
-              type: 'video/webm'
-            })
-          ]
-        : [];
-      if (navigator.share && (!files.length || navigator.canShare?.({ files }))) {
-        await navigator.share({
-          title: 'Pool Royale highlight',
-          text: 'Check out my match highlight!',
-          files: files.length ? files : undefined,
-          url: files.length ? undefined : highlightClipUrl
-        });
-        setShareMessage('Shared successfully');
-        return;
-      }
-      if (navigator.clipboard && highlightClipUrl) {
-        await navigator.clipboard.writeText(highlightClipUrl);
-        setShareMessage('Link copied to clipboard');
-        return;
-      }
-      setShareMessage('Sharing not available on this device');
-    } catch (err) {
-      console.error('Share failed', err);
-      setShareMessage('Share failed, try downloading instead');
-    }
-  }, [highlightClipBlob, highlightClipUrl]);
-
-  const handleCloseHighlight = useCallback(() => {
-    setHighlightModalOpen(false);
-    navigate('/games/poolroyale/lobby');
-  }, [navigate]);
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
     const c = ctx.canvas;
@@ -17758,82 +17470,6 @@ function PoolRoyaleGame({
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {highlightModalOpen && (
-        <div className="absolute inset-0 z-[120] flex items-center justify-center bg-black/80 px-4 backdrop-blur-sm">
-          <div className="w-[min(980px,95vw)] max-h-[92vh] overflow-hidden rounded-3xl border border-emerald-400/60 bg-slate-900/90 p-6 shadow-[0_24px_72px_rgba(0,0,0,0.65)]">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.32em] text-emerald-200/80">
-                    Match highlights
-                  </p>
-                  <h2 className="text-2xl font-semibold text-white">Pool Royale recap</h2>
-                </div>
-                {specialClearAchieved && (
-                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold uppercase text-emerald-100">
-                    Single-visit clean sweep
-                  </span>
-                )}
-              </div>
-
-              <div className="aspect-video w-full overflow-hidden rounded-2xl border border-emerald-300/30 bg-black/70">
-                {highlightClipUrl ? (
-                  <video
-                    key={highlightClipUrl}
-                    className="h-full w-full"
-                    src={highlightClipUrl}
-                    controls
-                    autoPlay
-                  />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-sm text-emerald-100">
-                    {highlightGenerating ? 'Building highlight reel...' : 'Highlight unavailable'}
-                  </div>
-                )}
-              </div>
-
-              {specialClearReward && (
-                <div className="rounded-2xl border border-emerald-300/40 bg-emerald-500/10 p-4 text-sm text-emerald-100">
-                  <p className="font-semibold text-emerald-200">Clean visit reward unlocked</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-5 text-emerald-50">
-                    <li>{specialClearReward.tableFinish} table finish NFT</li>
-                    <li>{specialClearReward.cue} cue NFT</li>
-                    <li>2,500 TPC credited</li>
-                  </ul>
-                </div>
-              )}
-
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleDownloadClip}
-                  className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-black shadow-[0_8px_24px_rgba(16,185,129,0.35)] transition hover:bg-emerald-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  Download
-                </button>
-                <button
-                  type="button"
-                  onClick={handleShareClip}
-                  className="rounded-full border border-emerald-300/70 px-5 py-2 text-sm font-semibold text-emerald-50 transition hover:border-emerald-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  Share
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseHighlight}
-                  className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white transition hover:border-white/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  Close
-                </button>
-                {shareMessage && (
-                  <span className="text-xs text-emerald-100">{shareMessage}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
