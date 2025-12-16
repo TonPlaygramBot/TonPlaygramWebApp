@@ -9150,6 +9150,14 @@ function PoolRoyaleGame({
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
+  const HIGHLIGHT_QUALITY_OPTIONS = useMemo(
+    () => [
+      { id: 'hd', label: 'HD', width: 1280, height: 720 },
+      { id: 'full-hd', label: 'Full HD', width: 1920, height: 1080 },
+      { id: 'ultra-hd', label: 'Ultra HD', width: 3840, height: 2160 },
+    ],
+    []
+  );
   const highlightReplaysRef = useRef([]);
   const highlightGeneratorRef = useRef(null);
   const highlightBlobRef = useRef(null);
@@ -9160,6 +9168,11 @@ function PoolRoyaleGame({
   const highlightVideoRef = useRef(null);
   const [highlightGenerating, setHighlightGenerating] = useState(false);
   const [highlightError, setHighlightError] = useState('');
+  const [highlightQuality, setHighlightQuality] = useState('hd');
+  const highlightQualityRef = useRef('hd');
+  useEffect(() => {
+    highlightQualityRef.current = highlightQuality;
+  }, [highlightQuality]);
   useEffect(() => {
     highlightReplaysRef.current = [];
     highlightBlobRef.current = null;
@@ -9558,6 +9571,7 @@ function PoolRoyaleGame({
       const blob = await generator({
         shots: highlightReplaysRef.current,
         matchInfo,
+        quality: highlightQualityRef.current,
       });
       if (!blob) {
         throw new Error('No highlight data was produced.');
@@ -9576,43 +9590,16 @@ function PoolRoyaleGame({
     if (!highlightBlobRef.current || !highlightVideoUrl) return;
     const link = document.createElement('a');
     link.href = highlightVideoUrl;
-    link.download = 'pool-royale-highlights.webm';
+    link.download = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
     link.rel = 'noopener';
+    link.target = '_blank';
     document.body.appendChild(link);
     link.click();
     link.remove();
-  }, [highlightVideoUrl]);
 
-  const handleShareHighlight = useCallback(async () => {
-    if (!highlightBlobRef.current || !highlightVideoUrl) return;
-    try {
-      const blob = highlightBlobRef.current;
-      const file = new File([blob], 'pool-royale-highlights.webm', {
-        type: blob.type || 'video/webm',
-      });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({
-          files: [file],
-          title: 'Pool Royale highlights',
-          text: 'Check out my best shots in Pool Royale!',
-        });
-        return;
-      }
-      if (navigator.share) {
-        await navigator.share({
-          title: 'Pool Royale highlights',
-          text: 'Check out my best shots in Pool Royale!',
-          url: highlightVideoUrl,
-        });
-        return;
-      }
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(highlightVideoUrl);
-      } else {
-        throw new Error('Sharing is not supported on this device yet.');
-      }
-    } catch (err) {
-      setHighlightError(err?.message || 'Unable to share the highlight clip.');
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.openLink) {
+      tg.openLink(highlightVideoUrl, { try_instant_view: false });
     }
   }, [highlightVideoUrl]);
 
@@ -9620,11 +9607,23 @@ function PoolRoyaleGame({
     const node = highlightVideoRef.current;
     if (!node) return;
     const requestFullscreen =
-      node.requestFullscreen ||
-      node.webkitRequestFullscreen ||
-      node.msRequestFullscreen ||
-      node.webkitEnterFullscreen;
-    if (requestFullscreen) requestFullscreen.call(node);
+      node.requestFullscreen || node.webkitRequestFullscreen || node.msRequestFullscreen;
+    if (requestFullscreen) {
+      const attempt = requestFullscreen.call(node, { navigationUI: 'hide' });
+      if (attempt?.catch) {
+        attempt.catch(() => {
+          if (node.webkitEnterFullscreen) {
+            node.webkitEnterFullscreen();
+          }
+        });
+      }
+      return;
+    }
+    if (node.webkitEnterFullscreen) {
+      node.webkitEnterFullscreen();
+    } else if (node.parentElement?.requestFullscreen) {
+      node.parentElement.requestFullscreen();
+    }
   }, []);
 
   const handleCloseHighlights = useCallback(() => {
@@ -13125,7 +13124,7 @@ function PoolRoyaleGame({
           ctx.restore();
         };
 
-        highlightGeneratorRef.current = async ({ shots = [], matchInfo = {} } = {}) => {
+        highlightGeneratorRef.current = async ({ shots = [], matchInfo = {}, quality = 'hd' } = {}) => {
           if (typeof MediaRecorder === 'undefined') {
             throw new Error('Highlight recording is not supported in this browser.');
           }
@@ -13133,8 +13132,19 @@ function PoolRoyaleGame({
           if (!renderer || !renderCanvas) {
             throw new Error('Renderer is not ready yet.');
           }
-          const width = renderCanvas.width || renderCanvas.clientWidth || 1280;
-          const height = renderCanvas.height || renderCanvas.clientHeight || 720;
+          const qualityPresets = Object.fromEntries(
+            HIGHLIGHT_QUALITY_OPTIONS.map((preset) => [preset.id, preset])
+          );
+          const selectedPreset = qualityPresets[quality] ?? qualityPresets['hd'];
+          const baseWidth = renderCanvas.width || renderCanvas.clientWidth || 1280;
+          const baseHeight = renderCanvas.height || renderCanvas.clientHeight || 720;
+          const aspect = baseWidth && baseHeight ? baseWidth / baseHeight : 16 / 9;
+          let width = selectedPreset?.width ?? 1280;
+          let height = Math.round(width / aspect);
+          if (selectedPreset?.height && height > selectedPreset.height) {
+            height = selectedPreset.height;
+            width = Math.round(height * aspect);
+          }
           const compositeCanvas = document.createElement('canvas');
           compositeCanvas.width = width;
           compositeCanvas.height = height;
@@ -17949,7 +17959,7 @@ function PoolRoyaleGame({
                   Building your highlight reel...
                 </div>
               ) : highlightVideoUrl ? (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="relative">
                     <video
                       ref={highlightVideoRef}
@@ -17966,6 +17976,29 @@ function PoolRoyaleGame({
                       Fullscreen
                     </button>
                   </div>
+                  <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-2">
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/70">Quality</span>
+                    <div className="flex flex-wrap gap-2">
+                      {HIGHLIGHT_QUALITY_OPTIONS.map((option) => {
+                        const active = option.id === highlightQuality;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setHighlightQuality(option.id)}
+                            aria-pressed={active}
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                              active
+                                ? 'bg-emerald-400 text-black shadow-[0_0_14px_rgba(16,185,129,0.55)]'
+                                : 'border border-white/10 bg-black/50 text-white/80 hover:bg-white/15'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                   {highlightError && (
                     <p className="mt-2 text-center text-xs text-rose-200">{highlightError}</p>
                   )}
@@ -17980,33 +18013,18 @@ function PoolRoyaleGame({
                 </div>
               )}
             </div>
-            <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="mt-4 flex justify-center">
               <button
                 type="button"
                 onClick={handleDownloadHighlight}
                 disabled={!highlightVideoUrl || highlightGenerating}
-                className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Download
               </button>
-              <button
-                type="button"
-                onClick={handleShareHighlight}
-                disabled={!highlightVideoUrl || highlightGenerating}
-                className="rounded-xl border border-white/20 bg-emerald-500/80 px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] text-black shadow-[0_0_18px_rgba(16,185,129,0.45)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                Share
-              </button>
-              <button
-                type="button"
-                onClick={handleCloseHighlights}
-                className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition hover:bg-white/20"
-              >
-                Close
-              </button>
             </div>
             <p className="mt-3 text-center text-xs text-white/60">
-              Watch, share, or save the auto-generated clip of your best shots.
+              Choose a quality level and download the auto-generated clip of your best shots.
             </p>
           </div>
         </div>
