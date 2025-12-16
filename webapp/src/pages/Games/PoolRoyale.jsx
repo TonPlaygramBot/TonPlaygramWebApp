@@ -9146,15 +9146,9 @@ function PoolRoyaleGame({
       cushionAfterContact: false
     });
     const shotReplayRef = useRef(null);
-  const replayPlaybackRef = useRef(null);
-  const [replayBanner, setReplayBanner] = useState(null);
-  const replayBannerTimeoutRef = useRef(null);
-  const startShotReplayRef = useRef(() => {});
-  const highlightShotsRef = useRef([]);
-  const [highlightClipUrl, setHighlightClipUrl] = useState(null);
-  const [highlightGenerating, setHighlightGenerating] = useState(false);
-  const [highlightVisible, setHighlightVisible] = useState(false);
-  const oneVisitClearRef = useRef(false);
+    const replayPlaybackRef = useRef(null);
+    const [replayBanner, setReplayBanner] = useState(null);
+    const replayBannerTimeoutRef = useRef(null);
     const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
     useEffect(
       () => () => {
@@ -12836,8 +12830,6 @@ function PoolRoyaleGame({
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
         };
-
-        startShotReplayRef.current = startShotReplay;
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
@@ -15807,7 +15799,7 @@ function PoolRoyaleGame({
           if (tags.size === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
-          const zoomOnly = false;
+          const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
             shouldReplay: true,
             banner: selectReplayBanner(primary),
@@ -16012,16 +16004,6 @@ function PoolRoyaleGame({
           updatePocketCameraState(false);
           if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
-            const clearedTable =
-              balls.every((b) => b.id === 'cue' || !b.active) && hadObjectPot;
-            if (clearedTable) {
-              oneVisitClearRef.current = true;
-            }
-            if (recordingForReplay) {
-              const queue = highlightShotsRef.current ?? [];
-              const nextQueue = [...queue.slice(-4), { recording: recordingForReplay, postState: postShotSnapshot, cleared: clearedTable }];
-              highlightShotsRef.current = nextQueue;
-            }
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
@@ -17329,112 +17311,6 @@ function PoolRoyaleGame({
     };
   }, [applySliderLock, showPowerSlider]);
 
-  const waitForReplayCompletion = useCallback(() => {
-    return new Promise((resolve) => {
-      const poll = () => {
-        if (!replayPlaybackRef.current) {
-          resolve();
-          return;
-        }
-        requestAnimationFrame(poll);
-      };
-      poll();
-    });
-  }, []);
-
-  const playShotHighlight = useCallback(
-    async (shot) => {
-      if (!shot?.recording || !shot?.postState) return;
-      shotRecording = shot.recording;
-      startShotReplayRef.current?.(shot.postState);
-      await waitForReplayCompletion();
-    },
-    [waitForReplayCompletion]
-  );
-
-  const buildHighlightClip = useCallback(async () => {
-    if (highlightGenerating || highlightClipUrl) return;
-    const renderer = rendererRef.current;
-    const highlights = highlightShotsRef.current;
-    if (!renderer || !renderer.domElement || !highlights?.length) return;
-    setHighlightGenerating(true);
-    try {
-      const stream = renderer.domElement.captureStream?.(60);
-      if (!stream) throw new Error('Highlight capture unsupported');
-      const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-        ? 'video/webm;codecs=vp9'
-        : 'video/webm';
-      const chunks = [];
-      const recorder = new MediaRecorder(stream, {
-        mimeType,
-        videoBitsPerSecond: 8_000_000
-      });
-      recorder.ondataavailable = (evt) => {
-        if (evt.data?.size) chunks.push(evt.data);
-      };
-      const completed = new Promise((resolve) => {
-        recorder.onstop = () => {
-          resolve(
-            new Blob(chunks, {
-              type: mimeType.split(';')[0] || 'video/webm'
-            })
-          );
-        };
-      });
-      recorder.start();
-      for (const shot of highlights.slice(-5)) {
-        // eslint-disable-next-line no-await-in-loop
-        await playShotHighlight(shot);
-      }
-      recorder.stop();
-      const blob = await completed;
-      const url = URL.createObjectURL(blob);
-      setHighlightClipUrl(url);
-    } catch (err) {
-      console.error('Failed to build highlight clip', err);
-    } finally {
-      setHighlightGenerating(false);
-    }
-  }, [highlightClipUrl, highlightGenerating, playShotHighlight]);
-
-  useEffect(() => {
-    if (hud.over) {
-      setHighlightVisible(true);
-      if (!highlightClipUrl && !highlightGenerating) {
-        buildHighlightClip();
-      }
-    }
-  }, [buildHighlightClip, highlightClipUrl, highlightGenerating, hud.over]);
-
-  const handleDownloadHighlight = useCallback(() => {
-    if (!highlightClipUrl) return;
-    const link = document.createElement('a');
-    link.href = highlightClipUrl;
-    link.download = 'pool-royale-highlight.webm';
-    link.click();
-  }, [highlightClipUrl]);
-
-  const handleShareHighlight = useCallback(async () => {
-    if (!highlightClipUrl) return;
-    try {
-      const response = await fetch(highlightClipUrl);
-      const blob = await response.blob();
-      const shareFile = new File([blob], 'pool-royale-highlight.webm', { type: blob.type });
-      if (navigator.canShare && navigator.canShare({ files: [shareFile] })) {
-        await navigator.share({
-          files: [shareFile],
-          title: 'Pool Royale highlight',
-          text: 'Check out my Pool Royale highlights!'
-        });
-      } else {
-        handleDownloadHighlight();
-      }
-    } catch (err) {
-      console.error('Failed to share highlight', err);
-      handleDownloadHighlight();
-    }
-  }, [handleDownloadHighlight, highlightClipUrl]);
-
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over;
@@ -17602,94 +17478,6 @@ function PoolRoyaleGame({
             aria-live="polite"
           >
             {replayBanner}
-          </div>
-        </div>
-      )}
-
-      {highlightVisible && (
-        <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/70 px-4 py-8">
-          <div className="w-full max-w-4xl rounded-2xl border border-emerald-400/40 bg-slate-900/90 p-4 text-white shadow-[0_24px_48px_rgba(0,0,0,0.7)] backdrop-blur">
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    {playerAvatar ? (
-                      <img src={playerAvatar} alt="Player avatar" className="h-10 w-10 rounded-full object-cover" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-emerald-500/30" />
-                    )}
-                    <div className="text-sm font-semibold leading-tight">
-                      <div className="text-emerald-200">{playerName || 'Player'}</div>
-                      <div className="text-xs text-white/70">vs</div>
-                    </div>
-                    {opponentAvatar ? (
-                      <img
-                        src={opponentAvatar}
-                        alt="Opponent avatar"
-                        className="h-10 w-10 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-full bg-white/10" />
-                    )}
-                    <div className="text-sm font-semibold leading-tight text-emerald-100">
-                      {opponentName || 'Opponent'}
-                    </div>
-                  </div>
-                </div>
-                <div className="rounded-full bg-emerald-500/20 px-4 py-1 text-[11px] uppercase tracking-[0.32em] text-emerald-200">
-                  Match Highlights
-                </div>
-              </div>
-
-              {oneVisitClearRef.current && (
-                <div className="rounded-xl border border-emerald-400/60 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-50">
-                  Incredible clearance! You potted every ball in one visit. Reward: Random table finish NFT, cue NFT, and
-                  2,500 TPC.
-                </div>
-              )}
-
-              <div className="relative overflow-hidden rounded-xl border border-white/10 bg-black/60">
-                {highlightClipUrl ? (
-                  <video
-                    key={highlightClipUrl}
-                    className="h-full w-full max-h-[60vh] rounded-xl bg-black"
-                    src={highlightClipUrl}
-                    controls
-                    autoPlay
-                  />
-                ) : (
-                  <div className="flex h-56 items-center justify-center text-sm text-white/70">
-                    {highlightGenerating ? 'Building your highlight reel…' : 'No highlights recorded this match.'}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleDownloadHighlight}
-                  disabled={!highlightClipUrl}
-                  className="rounded-full border border-emerald-400/50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-50 transition-colors duration-150 disabled:cursor-not-allowed disabled:border-white/20 disabled:text-white/40 hover:bg-emerald-400/10"
-                >
-                  Download
-                </button>
-                <button
-                  type="button"
-                  onClick={handleShareHighlight}
-                  disabled={!highlightClipUrl}
-                  className="rounded-full border border-emerald-400/50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-emerald-50 transition-colors duration-150 disabled:cursor-not-allowed disabled:border-white/20 disabled:text-white/40 hover:bg-emerald-400/10"
-                >
-                  Share
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setHighlightVisible(false)}
-                  className="rounded-full bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-white transition-colors duration-150 hover:bg-white/20"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
           </div>
         </div>
       )}
