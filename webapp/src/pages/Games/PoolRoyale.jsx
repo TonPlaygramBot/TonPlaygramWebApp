@@ -9149,6 +9149,17 @@ function PoolRoyaleGame({
     const replayPlaybackRef = useRef(null);
     const [replayBanner, setReplayBanner] = useState(null);
     const replayBannerTimeoutRef = useRef(null);
+    const highlightReplaysRef = useRef([]);
+    const visitStartBallCountRef = useRef(0);
+    const visitPottedCountRef = useRef(0);
+    const specialClearRewardRef = useRef(false);
+    const compileHighlightClipRef = useRef(null);
+    const [highlightModalOpen, setHighlightModalOpen] = useState(false);
+    const [highlightStatus, setHighlightStatus] = useState('idle');
+    const [highlightClipUrl, setHighlightClipUrl] = useState('');
+    const [highlightError, setHighlightError] = useState('');
+    const [rewardUnlocked, setRewardUnlocked] = useState(false);
+    const [highlightSummary, setHighlightSummary] = useState(null);
     const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
     useEffect(
       () => () => {
@@ -9158,6 +9169,20 @@ function PoolRoyaleGame({
         }
       },
       []
+    );
+    useEffect(
+      () => () => {
+        compileHighlightClipRef.current = null;
+      },
+      []
+    );
+    useEffect(
+      () => () => {
+        if (highlightClipUrl) {
+          URL.revokeObjectURL(highlightClipUrl);
+        }
+      },
+      [highlightClipUrl]
     );
     const inHandPlacementModeRef = useRef(inHandPlacementMode);
   const gameOverHandledRef = useRef(false);
@@ -9198,6 +9223,65 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const countRemainingObjectBalls = useCallback((meta) => {
+    if (!meta || typeof meta !== 'object') return 0;
+    if (meta.variant === 'uk' && meta.state) {
+      const state = meta.state;
+      const redCount = Array.isArray(state.ballsOnTable?.red)
+        ? state.ballsOnTable.red.length
+        : 0;
+      const blueCount = Array.isArray(state.ballsOnTable?.blue)
+        ? state.ballsOnTable.blue.length
+        : 0;
+      const black = state.ballsOnTable?.black8 ? 1 : 0;
+      return redCount + blueCount + black;
+    }
+    if ((meta.variant === 'american' || meta.variant === '9ball') && meta.state) {
+      return Array.isArray(meta.state?.ballsOnTable)
+        ? meta.state.ballsOnTable.length
+        : 0;
+    }
+    return 0;
+  }, []);
+  const refreshVisitStartCount = useCallback(() => {
+    const meta = frameRef.current?.meta;
+    visitStartBallCountRef.current = countRemainingObjectBalls(meta);
+    visitPottedCountRef.current = 0;
+  }, [countRemainingObjectBalls]);
+  const flagSpecialClear = useCallback(() => {
+    if (specialClearRewardRef.current) return;
+    specialClearRewardRef.current = true;
+    setRewardUnlocked(true);
+  }, []);
+  const handleHighlightDownload = useCallback(() => {
+    if (!highlightClipUrl) return;
+    const link = document.createElement('a');
+    link.href = highlightClipUrl;
+    link.download = 'pool-royale-highlights.webm';
+    link.click();
+  }, [highlightClipUrl]);
+  const handleHighlightShare = useCallback(async () => {
+    if (!highlightClipUrl) return;
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Pool Royale Highlights',
+          text: 'Check out my Pool Royale match highlights!',
+          url: highlightClipUrl
+        });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(highlightClipUrl);
+        setHighlightError('Link copied to clipboard for sharing.');
+      }
+    } catch (err) {
+      console.error('Share failed', err);
+      setHighlightError('Unable to share right now.');
+    }
+  }, [highlightClipUrl]);
+  const handleHighlightClose = useCallback(() => {
+    setHighlightModalOpen(false);
+    navigate('/games/poolroyale/lobby');
+  }, [navigate]);
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
@@ -9228,6 +9312,13 @@ function PoolRoyaleGame({
       over: trainingRulesOn ? prev.over : false
     }));
   }, [isTraining, trainingModeState, trainingRulesOn, setFrameState]);
+  useEffect(() => {
+    if (hud.turn === 0) {
+      refreshVisitStartCount();
+    } else {
+      visitPottedCountRef.current = 0;
+    }
+  }, [hud.turn, refreshVisitStartCount]);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
     const playerTurn = (hud.turn ?? 0) === 0;
@@ -9823,25 +9914,51 @@ function PoolRoyaleGame({
     }
     setHud((prev) => ({ ...prev, over: true }));
     const winnerId = frameState.winner;
-    const winnerLabel = winnerId === 'A'
-      ? player.name || 'You'
-      : winnerId === 'B'
-        ? 'AI'
-        : 'No winner';
-    const announcement =
+    const winnerLabel =
       winnerId === 'A'
-        ? `${winnerLabel} wins!`
+        ? player.name || 'You'
         : winnerId === 'B'
-          ? `${winnerLabel} wins!`
-          : 'Frame tied!';
-    window.alert(`${announcement} Returning to the lobby...`);
-    const winnerParam = winnerId === 'A' ? '1' : '0';
-    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
-    const redirectTimer = window.setTimeout(() => {
-      window.location.assign(lobbyUrl);
-    }, 1200);
-    return () => window.clearTimeout(redirectTimer);
-  }, [frameState.frameOver, frameState.winner, isTraining, player.name]);
+          ? opponentName || 'AI'
+          : 'No winner';
+    setHighlightSummary({
+      winner: winnerLabel,
+      opponent: opponentName || 'AI',
+      player: player.name,
+      rewardUnlocked: specialClearRewardRef.current,
+      avatars: { player: player.avatar, opponent: opponentAvatar }
+    });
+    setHighlightModalOpen(true);
+    setHighlightStatus('compiling');
+    setHighlightError('');
+    const compile = async () => {
+      try {
+        const clip = await compileHighlightClipRef.current?.({ winnerLabel });
+        if (clip) {
+          const url = URL.createObjectURL(clip);
+          setHighlightClipUrl((prev) => {
+            if (prev) URL.revokeObjectURL(prev);
+            return url;
+          });
+          setHighlightStatus('ready');
+          return;
+        }
+        throw new Error('No highlight clip generated');
+      } catch (err) {
+        console.error('Failed to build highlight clip:', err);
+        setHighlightStatus('error');
+        setHighlightError(err?.message || 'Could not prepare highlights.');
+      }
+    };
+    compile();
+  }, [
+    frameState.frameOver,
+    frameState.winner,
+    isTraining,
+    opponentAvatar,
+    opponentName,
+    player.avatar,
+    player.name
+  ]);
 
   useEffect(() => {
     let wakeLock;
@@ -12788,10 +12905,7 @@ function PoolRoyaleGame({
           const cuePath = recording?.cuePath ?? [];
           if (frames.length === 0) return { frames, cuePath, duration: 0 };
           const fullDuration = frames[frames.length - 1]?.t ?? 0;
-          const trimStart =
-            recording?.zoomOnly && fullDuration > QUICK_REPLAY_WINDOW_MS
-              ? fullDuration - QUICK_REPLAY_WINDOW_MS
-              : 0;
+          const trimStart = 0;
           const trimmedFrames =
             trimStart > 0
               ? frames
@@ -12830,6 +12944,145 @@ function PoolRoyaleGame({
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
         };
+        const wait = (ms) =>
+          new Promise((resolve) => {
+            window.setTimeout(resolve, ms);
+          });
+        const playStoredHighlight = (recording) =>
+          new Promise((resolve) => {
+            if (!recording || !recording.frames?.length) {
+              resolve();
+              return;
+            }
+            const playback = {
+              frames: recording.frames,
+              cuePath: recording.cuePath ?? [],
+              duration: recording.duration ?? 0,
+              startedAt: performance.now(),
+              lastIndex: 0,
+              postState: recording.postState ?? null,
+              pocketDrops: new Map()
+            };
+            replayPlayback = playback;
+            replayPlaybackRef.current = playback;
+            shotReplayRef.current = recording;
+            applyBallSnapshot(recording.startState ?? []);
+            updateReplayTrail(playback.cuePath, 0);
+            const poll = () => {
+              if (!replayPlaybackRef.current) {
+                resolve();
+                return;
+              }
+              requestAnimationFrame(poll);
+            };
+            poll();
+          });
+        const drawHighlightOverlay = (ctx, overlay, width, height) => {
+          ctx.save();
+          const gradient = ctx.createLinearGradient(0, height, width, 0);
+          gradient.addColorStop(0, 'rgba(0,0,0,0.65)');
+          gradient.addColorStop(1, 'rgba(16,185,129,0.18)');
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, width, height);
+          ctx.fillStyle = '#ecfeff';
+          ctx.font = '24px "Inter", system-ui, sans-serif';
+          ctx.fillText(overlay.heading ?? 'Pool Royale', 24, 40);
+          ctx.font = '18px "Inter", system-ui, sans-serif';
+          ctx.fillText(overlay.subheading ?? '', 24, 70);
+          ctx.font = '16px "Inter", system-ui, sans-serif';
+          ctx.fillText(overlay.badge ?? '', 24, height - 32);
+          if (overlay.reward) {
+            ctx.font = '15px "Inter", system-ui, sans-serif';
+            ctx.fillStyle = '#a7f3d0';
+            ctx.fillText(
+              'Reward: Random table finish NFT · Cue NFT · 2,500 TPC',
+              24,
+              height - 64
+            );
+          }
+          ctx.restore();
+        };
+        const composeHighlightClip = async ({ winnerLabel }) => {
+          const renderer = rendererRef.current;
+          if (!renderer?.domElement || !renderer.domElement.captureStream) {
+            throw new Error('Unable to capture highlight playback.');
+          }
+          const baseCanvas = renderer.domElement;
+          const dpr = window.devicePixelRatio || 1;
+          const targetWidth = Math.max(
+            1280,
+            Math.min(1920, Math.floor((baseCanvas.clientWidth || 1280) * dpr))
+          );
+          const targetHeight = Math.round((targetWidth * 9) / 16);
+          const recordingCanvas = document.createElement('canvas');
+          recordingCanvas.width = targetWidth;
+          recordingCanvas.height = targetHeight;
+          const ctx = recordingCanvas.getContext('2d');
+          if (!ctx) throw new Error('Canvas context unavailable.');
+          const stream = recordingCanvas.captureStream(60);
+          const chunks = [];
+          let recorder;
+          const mimeChoices = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm'
+          ];
+          for (const mime of mimeChoices) {
+            try {
+              recorder = new MediaRecorder(stream, { mimeType: mime });
+              break;
+            } catch (err) {
+              // try next mime type
+            }
+          }
+          if (!recorder) {
+            recorder = new MediaRecorder(stream);
+          }
+          recorder.ondataavailable = (evt) => {
+            if (evt.data && evt.data.size > 0) {
+              chunks.push(evt.data);
+            }
+          };
+          const clipPromise = new Promise((resolve) => {
+            recorder.onstop = () => {
+              resolve(new Blob(chunks, { type: recorder.mimeType }));
+            };
+          });
+          const overlayState = {
+            heading: 'Pool Royale Match Highlights',
+            subheading: `${player.name} vs ${opponentName || 'AI'}`,
+            badge: 'Intro',
+            reward: specialClearRewardRef.current
+          };
+          let recordingActive = true;
+          const mirror = () => {
+            if (!recordingActive) return;
+            ctx.clearRect(0, 0, targetWidth, targetHeight);
+            ctx.drawImage(baseCanvas, 0, 0, targetWidth, targetHeight);
+            drawHighlightOverlay(ctx, overlayState, targetWidth, targetHeight);
+            requestAnimationFrame(mirror);
+          };
+          recorder.start();
+          mirror();
+          await wait(800);
+          overlayState.badge = 'Highlights';
+          const highlights = highlightReplaysRef.current.slice(-6);
+          for (const entry of highlights) {
+            overlayState.subheading = entry.banner || 'Great shot';
+            await playStoredHighlight(entry);
+            await wait(220);
+          }
+          overlayState.badge = specialClearRewardRef.current
+            ? 'Table cleared bonus'
+            : 'Match complete';
+          overlayState.subheading = `${winnerLabel} wins`;
+          await wait(700);
+          recordingActive = false;
+          recorder.stop();
+          return clipPromise;
+        };
+
+        compileHighlightClipRef.current = composeHighlightClip;
         const enterTopView = (immediate = false) => {
           topViewRef.current = true;
           topViewLockedRef.current = true;
@@ -14568,8 +14821,7 @@ function PoolRoyaleGame({
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
           const shouldRecordReplay = replayTags.size > 0;
-          const preferZoomReplay =
-            shouldRecordReplay && !replayTags.has('long') && !replayTags.has('bank');
+          const preferZoomReplay = false;
           playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
@@ -14588,7 +14840,7 @@ function PoolRoyaleGame({
               frames: [],
               cuePath: [],
               replayTags: Array.from(replayTags),
-              zoomOnly: preferZoomReplay
+              zoomOnly: false
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -15799,7 +16051,7 @@ function PoolRoyaleGame({
           if (tags.size === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
-          const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
+          const zoomOnly = false;
           return {
             shouldReplay: true,
             banner: selectReplayBanner(primary),
@@ -15870,6 +16122,18 @@ function PoolRoyaleGame({
           shotResolved = true;
         } catch (err) {
           console.error('Pool Royale shot resolution failed:', err);
+        }
+        if (hudRef.current?.turn === 0 && potCount > 0) {
+          visitPottedCountRef.current += potCount;
+          const remainingAfter = countRemainingObjectBalls(safeState?.meta);
+          if (
+            !specialClearRewardRef.current &&
+            visitStartBallCountRef.current > 0 &&
+            remainingAfter === 0 &&
+            visitPottedCountRef.current >= visitStartBallCountRef.current
+          ) {
+            flagSpecialClear();
+          }
         }
         if (isTraining) {
           if (!trainingRulesRef.current) {
@@ -16003,6 +16267,20 @@ function PoolRoyaleGame({
           lastPocketBallRef.current = null;
           updatePocketCameraState(false);
           if (shouldStartReplay && postShotSnapshot) {
+            const trimmedHighlight = trimReplayRecording(shotRecording);
+            highlightReplaysRef.current = [
+              ...highlightReplaysRef.current.slice(-5),
+              {
+                id: `hl-${Date.now()}`,
+                frames: trimmedHighlight.frames,
+                cuePath: trimmedHighlight.cuePath,
+                duration: trimmedHighlight.duration,
+                startState: shotRecording.startState ?? [],
+                postState: postShotSnapshot,
+                tags: shotRecording.replayTags ?? [],
+                banner: replayBannerText
+              }
+            ];
             const recordingForReplay = shotRecording;
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
@@ -18086,6 +18364,83 @@ function PoolRoyaleGame({
                 top: '50%'
               }}
             ></div>
+          </div>
+        </div>
+      )}
+      {highlightModalOpen && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/70 backdrop-blur">
+          <div className="w-[min(92vw,30rem)] rounded-2xl border border-emerald-300/50 bg-gray-900/95 p-4 text-white shadow-2xl">
+            <div className="flex items-center gap-3">
+              <img
+                src={highlightSummary?.avatars?.player || player.avatar || '/assets/icons/profile.svg'}
+                alt="player avatar"
+                className="h-12 w-12 rounded-full border border-emerald-200/60 object-cover"
+              />
+              <div className="min-w-0">
+                <p className="text-xs uppercase tracking-[0.28em] text-emerald-200/80">Match Highlights</p>
+                <p className="truncate text-lg font-semibold">
+                  {highlightSummary?.player || player.name} vs {highlightSummary?.opponent || opponentLabel}
+                </p>
+                <p className="text-sm text-emerald-100/80">
+                  Winner: {highlightSummary?.winner || player.name}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 aspect-video w-full overflow-hidden rounded-xl border border-white/10 bg-black/80">
+              {highlightStatus === 'ready' && highlightClipUrl ? (
+                <video
+                  className="h-full w-full"
+                  src={highlightClipUrl}
+                  controls
+                  playsInline
+                  preload="auto"
+                />
+              ) : highlightStatus === 'error' ? (
+                <div className="flex h-full items-center justify-center text-sm text-red-200">
+                  {highlightError || 'Could not render highlights.'}
+                </div>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-emerald-100/80">
+                  Preparing high-resolution highlight reel...
+                </div>
+              )}
+            </div>
+            {rewardUnlocked && (
+              <div className="mt-3 rounded-lg border border-amber-300/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-50 shadow-inner">
+                <p className="font-semibold">Table cleared! Bonus unlocked.</p>
+                <p className="text-[13px] text-amber-100/90">
+                  Random table finish NFT, cue NFT, and 2,500 TPC awarded for a single-visit clean up.
+                </p>
+              </div>
+            )}
+            {highlightError && highlightStatus !== 'error' && (
+              <p className="mt-2 text-xs text-amber-200/80">{highlightError}</p>
+            )}
+            <div className="mt-4 grid grid-cols-3 gap-2 text-sm font-semibold uppercase tracking-[0.2em]">
+              <button
+                type="button"
+                className="rounded-full border border-emerald-200/70 bg-emerald-400/20 px-3 py-2 hover:bg-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleHighlightDownload}
+                disabled={!highlightClipUrl}
+              >
+                Download
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-emerald-200/70 bg-emerald-400/20 px-3 py-2 hover:bg-emerald-400/30 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleHighlightShare}
+                disabled={!highlightClipUrl}
+              >
+                Share
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-white/30 bg-white/10 px-3 py-2 hover:bg-white/20"
+                onClick={handleHighlightClose}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
