@@ -42,6 +42,7 @@ import {
   poolRoyalAccountId
 } from '../../utils/poolRoyalInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
+import { saveHighlightClip } from '../../utils/highlightStorage.js';
 
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
@@ -9576,9 +9577,21 @@ function PoolRoyaleGame({
       if (!blob) {
         throw new Error('No highlight data was produced.');
       }
+      const createdAt = Date.now();
       highlightBlobRef.current = blob;
       const url = URL.createObjectURL(blob);
       setHighlightVideoUrl(url);
+      try {
+        await saveHighlightClip({
+          game: 'pool',
+          blob,
+          quality: highlightQualityRef.current,
+          createdAt,
+          metadata: matchInfo,
+        });
+      } catch (storageErr) {
+        console.warn('Unable to persist highlight clip for history', storageErr);
+      }
     } catch (err) {
       setHighlightError(err?.message || 'Unable to create the highlight clip.');
     } finally {
@@ -9586,45 +9599,36 @@ function PoolRoyaleGame({
     }
   }, [frameState.winner, opponentLabel]);
 
-  const handleDownloadHighlight = useCallback(() => {
-    if (!highlightBlobRef.current || !highlightVideoUrl) return;
-    const link = document.createElement('a');
-    link.href = highlightVideoUrl;
-    link.download = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
-    link.rel = 'noopener';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-
+  const handleDownloadHighlight = useCallback(async () => {
+    const blob = highlightBlobRef.current;
+    if (!blob) return;
+    const filename = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
+    const url = highlightVideoUrl || URL.createObjectURL(blob);
     const tg = window?.Telegram?.WebApp;
-    if (tg?.openLink) {
-      tg.openLink(highlightVideoUrl, { try_instant_view: false });
+
+    const triggerDownload = (href) => {
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = filename;
+      link.rel = 'noopener';
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    };
+
+    if (tg?.downloadFile) {
+      tg.downloadFile({ url, file_name: filename });
+    } else if (tg?.openLink) {
+      tg.openLink(url, { try_instant_view: false });
+    }
+
+    triggerDownload(url);
+
+    if (!highlightVideoUrl) {
+      URL.revokeObjectURL(url);
     }
   }, [highlightVideoUrl]);
-
-  const handleEnterHighlightFullscreen = useCallback(() => {
-    const node = highlightVideoRef.current;
-    if (!node) return;
-    const requestFullscreen =
-      node.requestFullscreen || node.webkitRequestFullscreen || node.msRequestFullscreen;
-    if (requestFullscreen) {
-      const attempt = requestFullscreen.call(node, { navigationUI: 'hide' });
-      if (attempt?.catch) {
-        attempt.catch(() => {
-          if (node.webkitEnterFullscreen) {
-            node.webkitEnterFullscreen();
-          }
-        });
-      }
-      return;
-    }
-    if (node.webkitEnterFullscreen) {
-      node.webkitEnterFullscreen();
-    } else if (node.parentElement?.requestFullscreen) {
-      node.parentElement.requestFullscreen();
-    }
-  }, []);
 
   const handleCloseHighlights = useCallback(() => {
     setHighlightModalOpen(false);
@@ -12927,23 +12931,8 @@ function PoolRoyaleGame({
           const frames = recording?.frames ?? [];
           const cuePath = recording?.cuePath ?? [];
           if (frames.length === 0) return { frames, cuePath, duration: 0 };
-          const fullDuration = frames[frames.length - 1]?.t ?? 0;
-          const trimStart =
-            recording?.zoomOnly && fullDuration > QUICK_REPLAY_WINDOW_MS
-              ? fullDuration - QUICK_REPLAY_WINDOW_MS
-              : 0;
-          const trimmedFrames =
-            trimStart > 0
-              ? frames
-                  .filter((frame) => frame?.t >= trimStart)
-                  .map((frame) => ({ ...frame, t: frame.t - trimStart }))
-              : frames;
-          const trimmedCuePath =
-            trimStart > 0
-              ? cuePath
-                  .filter((entry) => entry?.t >= trimStart)
-                  .map((entry) => ({ ...entry, t: entry.t - trimStart }))
-              : cuePath;
+          const trimmedFrames = frames;
+          const trimmedCuePath = cuePath;
           const duration = trimmedFrames[trimmedFrames.length - 1]?.t ?? 0;
           return { frames: trimmedFrames, cuePath: trimmedCuePath, duration };
         };
@@ -14991,8 +14980,6 @@ function PoolRoyaleGame({
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
           const shouldRecordReplay = true;
-          const preferZoomReplay =
-            replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
@@ -15010,8 +14997,7 @@ function PoolRoyaleGame({
               startState: captureBallSnapshot(),
               frames: [],
               cuePath: [],
-              replayTags: Array.from(replayTags),
-              zoomOnly: preferZoomReplay
+              replayTags: Array.from(replayTags)
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -16223,11 +16209,9 @@ function PoolRoyaleGame({
           if (tags.size === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
-          const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
             shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
-            zoomOnly,
             tags: Array.from(tags)
           };
         };
@@ -16246,7 +16230,6 @@ function PoolRoyaleGame({
           });
           if (replayDecision && shotRecording) {
             shotRecording.replayTags = replayDecision.tags;
-            shotRecording.zoomOnly = replayDecision.zoomOnly;
           }
           const shouldStartReplay =
             Boolean(replayDecision?.shouldReplay) &&
@@ -17938,7 +17921,7 @@ function PoolRoyaleGame({
 
       {highlightModalOpen && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 px-4 py-6">
-          <div className="w-full max-w-2xl rounded-2xl border border-emerald-400/60 bg-slate-900/95 p-4 shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+          <div className="flex h-full w-full max-w-5xl flex-col rounded-2xl border border-emerald-400/60 bg-slate-900/95 p-4 shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200/70">Match Highlights</p>
@@ -17953,28 +17936,21 @@ function PoolRoyaleGame({
                 ×
               </button>
             </div>
-            <div className="mt-4 rounded-xl border border-white/15 bg-black/40 p-3">
+            <div className="mt-4 flex-1 overflow-hidden rounded-xl border border-white/15 bg-black/40 p-3">
               {highlightGenerating ? (
-                <div className="flex h-64 items-center justify-center text-sm text-white/80">
+                <div className="flex h-full items-center justify-center text-sm text-white/80">
                   Building your highlight reel...
                 </div>
               ) : highlightVideoUrl ? (
-                <div className="space-y-3">
-                  <div className="relative">
+                <div className="flex h-full flex-col space-y-3">
+                  <div className="relative flex-1 rounded-lg border border-white/10 bg-black">
                     <video
                       ref={highlightVideoRef}
                       src={highlightVideoUrl}
                       controls
                       playsInline
-                      className="h-64 w-full rounded-lg border border-white/10 bg-black"
+                      className="h-full w-full rounded-lg object-contain"
                     />
-                    <button
-                      type="button"
-                      onClick={handleEnterHighlightFullscreen}
-                      className="absolute right-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-[0_6px_18px_rgba(0,0,0,0.45)] transition hover:bg-emerald-500/70"
-                    >
-                      Fullscreen
-                    </button>
                   </div>
                   <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-2">
                     <span className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/70">Quality</span>
@@ -18004,11 +17980,11 @@ function PoolRoyaleGame({
                   )}
                 </div>
               ) : highlightError ? (
-                <div className="flex h-64 items-center justify-center text-center text-sm text-rose-200">
+                <div className="flex h-full items-center justify-center text-center text-sm text-rose-200">
                   {highlightError}
                 </div>
               ) : (
-                <div className="flex h-64 items-center justify-center text-sm text-white/70">
+                <div className="flex h-full items-center justify-center text-sm text-white/70">
                   No highlight clip is available yet.
                 </div>
               )}
