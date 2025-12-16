@@ -9205,7 +9205,6 @@ function PoolRoyaleGame({
   const stopAiThinkingRef = useRef(() => {});
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
-  const lastUkAutoAimKeyRef = useRef('');
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
   const initialHudInHand = useMemo(
@@ -9586,6 +9585,23 @@ function PoolRoyaleGame({
       setHighlightGenerating(false);
     }
   }, [frameState.winner, opponentLabel]);
+
+  const handleDownloadHighlight = useCallback(() => {
+    if (!highlightBlobRef.current || !highlightVideoUrl) return;
+    const link = document.createElement('a');
+    link.href = highlightVideoUrl;
+    link.download = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
+    link.rel = 'noopener';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    const tg = window?.Telegram?.WebApp;
+    if (tg?.openLink) {
+      tg.openLink(highlightVideoUrl, { try_instant_view: false });
+    }
+  }, [highlightVideoUrl]);
 
   const handleEnterHighlightFullscreen = useCallback(() => {
     const node = highlightVideoRef.current;
@@ -10113,36 +10129,6 @@ function PoolRoyaleGame({
       startAiThinkingRef.current?.();
     }
   }, [frameState, hud.turn, hud.over]);
-
-  useEffect(() => {
-    if (hud.over || hud.turn !== 0) return;
-    const meta = frameState?.meta;
-    if (!meta || meta.variant !== 'uk') return;
-    const state = meta.state || {};
-    const assignments = state.assignments || {};
-    const nextKey = [
-      Array.isArray(frameState?.ballOn) ? frameState.ballOn.join('|') : '',
-      assignments.A ?? '',
-      assignments.B ?? '',
-      state.currentPlayer ?? '',
-      state.isOpenTable ? 'open' : 'set',
-      state.shotsRemaining ?? ''
-    ].join(':');
-    if (nextKey === lastUkAutoAimKeyRef.current) return;
-    lastUkAutoAimKeyRef.current = nextKey;
-    autoAimRequestRef.current = true;
-    startUserSuggestionRef.current?.();
-  }, [
-    frameState?.ballOn,
-    frameState?.meta?.state?.assignments?.A,
-    frameState?.meta?.state?.assignments?.B,
-    frameState?.meta?.state?.currentPlayer,
-    frameState?.meta?.state?.isOpenTable,
-    frameState?.meta?.state?.shotsRemaining,
-    frameState?.meta?.variant,
-    hud.over,
-    hud.turn
-  ]);
 
   useEffect(() => {
     const sph = sphRef.current;
@@ -15005,6 +14991,8 @@ function PoolRoyaleGame({
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
           const shouldRecordReplay = true;
+          const preferZoomReplay =
+            replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
@@ -15023,7 +15011,7 @@ function PoolRoyaleGame({
               frames: [],
               cuePath: [],
               replayTags: Array.from(replayTags),
-              zoomOnly: false
+              zoomOnly: preferZoomReplay
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -16235,10 +16223,11 @@ function PoolRoyaleGame({
           if (tags.size === 0) return null;
           const priority = ['multi', 'bank', 'long', 'power', 'spin'];
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
+          const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
             shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
-            zoomOnly: false,
+            zoomOnly,
             tags: Array.from(tags)
           };
         };
@@ -16257,7 +16246,7 @@ function PoolRoyaleGame({
           });
           if (replayDecision && shotRecording) {
             shotRecording.replayTags = replayDecision.tags;
-            shotRecording.zoomOnly = false;
+            shotRecording.zoomOnly = replayDecision.zoomOnly;
           }
           const shouldStartReplay =
             Boolean(replayDecision?.shouldReplay) &&
@@ -17948,80 +17937,95 @@ function PoolRoyaleGame({
       )}
 
       {highlightModalOpen && (
-        <div className="pointer-events-none absolute inset-0 z-[140] flex items-center justify-center px-4 py-6">
-          <div className="pointer-events-auto flex w-full max-w-4xl flex-col gap-3">
-            <div className="flex items-start justify-between gap-4 text-white drop-shadow-[0_4px_16px_rgba(0,0,0,0.55)]">
+        <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 px-4 py-6">
+          <div className="w-full max-w-2xl rounded-2xl border border-emerald-400/60 bg-slate-900/95 p-4 shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+            <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200/80">Match Highlights</p>
-                <h3 className="text-xl font-bold">Pool Royale</h3>
+                <p className="text-[10px] uppercase tracking-[0.3em] text-emerald-200/70">Match Highlights</p>
+                <h3 className="text-xl font-bold text-white">Pool Royale</h3>
               </div>
               <button
                 type="button"
                 onClick={handleCloseHighlights}
-                className="rounded-full bg-black/60 p-2 text-white transition hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                className="rounded-full p-2 text-white/70 transition hover:bg-white/10 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
                 aria-label="Close highlights"
               >
                 ×
               </button>
             </div>
-            {highlightGenerating ? (
-              <div className="flex h-64 items-center justify-center rounded-2xl bg-black/20 text-sm text-white/90 shadow-[0_18px_42px_rgba(0,0,0,0.55)]">
-                Building your highlight reel...
-              </div>
-            ) : highlightVideoUrl ? (
-              <div className="space-y-3">
-                <div className="relative">
-                  <video
-                    ref={highlightVideoRef}
-                    src={highlightVideoUrl}
-                    controls
-                    playsInline
-                    className="h-64 w-full rounded-xl bg-black/30 shadow-[0_24px_48px_rgba(0,0,0,0.6)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleEnterHighlightFullscreen}
-                    className="absolute right-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-[0_6px_18px_rgba(0,0,0,0.45)] transition hover:bg-emerald-500/70"
-                  >
-                    Fullscreen
-                  </button>
+            <div className="mt-4 rounded-xl border border-white/15 bg-black/40 p-3">
+              {highlightGenerating ? (
+                <div className="flex h-64 items-center justify-center text-sm text-white/80">
+                  Building your highlight reel...
                 </div>
-                <div className="flex flex-col gap-2 rounded-xl bg-black/30 p-3 shadow-[0_18px_42px_rgba(0,0,0,0.55)]">
-                  <span className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/80">Quality</span>
-                  <div className="flex flex-wrap gap-2">
-                    {HIGHLIGHT_QUALITY_OPTIONS.map((option) => {
-                      const active = option.id === highlightQuality;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setHighlightQuality(option.id)}
-                          aria-pressed={active}
-                          className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
-                            active
-                              ? 'bg-emerald-400 text-black shadow-[0_0_14px_rgba(16,185,129,0.55)]'
-                              : 'bg-black/60 text-white/80 hover:bg-white/15'
-                          }`}
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
+              ) : highlightVideoUrl ? (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <video
+                      ref={highlightVideoRef}
+                      src={highlightVideoUrl}
+                      controls
+                      playsInline
+                      className="h-64 w-full rounded-lg border border-white/10 bg-black"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleEnterHighlightFullscreen}
+                      className="absolute right-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-[0_6px_18px_rgba(0,0,0,0.45)] transition hover:bg-emerald-500/70"
+                    >
+                      Fullscreen
+                    </button>
                   </div>
+                  <div className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-2">
+                    <span className="text-[10px] uppercase tracking-[0.28em] text-emerald-100/70">Quality</span>
+                    <div className="flex flex-wrap gap-2">
+                      {HIGHLIGHT_QUALITY_OPTIONS.map((option) => {
+                        const active = option.id === highlightQuality;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setHighlightQuality(option.id)}
+                            aria-pressed={active}
+                            className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                              active
+                                ? 'bg-emerald-400 text-black shadow-[0_0_14px_rgba(16,185,129,0.55)]'
+                                : 'border border-white/10 bg-black/50 text-white/80 hover:bg-white/15'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {highlightError && (
+                    <p className="mt-2 text-center text-xs text-rose-200">{highlightError}</p>
+                  )}
                 </div>
-                {highlightError && (
-                  <p className="mt-2 text-center text-xs text-rose-200">{highlightError}</p>
-                )}
-              </div>
-            ) : highlightError ? (
-              <div className="flex h-64 items-center justify-center rounded-2xl bg-black/20 text-center text-sm text-rose-200 shadow-[0_18px_42px_rgba(0,0,0,0.55)]">
-                {highlightError}
-              </div>
-            ) : (
-              <div className="flex h-64 items-center justify-center rounded-2xl bg-black/20 text-sm text-white/70 shadow-[0_18px_42px_rgba(0,0,0,0.55)]">
-                No highlight clip is available yet.
-              </div>
-            )}
+              ) : highlightError ? (
+                <div className="flex h-64 items-center justify-center text-center text-sm text-rose-200">
+                  {highlightError}
+                </div>
+              ) : (
+                <div className="flex h-64 items-center justify-center text-sm text-white/70">
+                  No highlight clip is available yet.
+                </div>
+              )}
+            </div>
+            <div className="mt-4 flex justify-center">
+              <button
+                type="button"
+                onClick={handleDownloadHighlight}
+                disabled={!highlightVideoUrl || highlightGenerating}
+                className="rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Download
+              </button>
+            </div>
+            <p className="mt-3 text-center text-xs text-white/60">
+              Choose a quality level and download the auto-generated clip of your best shots.
+            </p>
           </div>
         </div>
       )}
