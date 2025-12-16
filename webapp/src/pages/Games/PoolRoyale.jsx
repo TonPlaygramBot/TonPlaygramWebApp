@@ -9140,11 +9140,12 @@ function PoolRoyaleGame({
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
   const userSuggestionPlanRef = useRef(null);
-    const shotContextRef = useRef({
-      placedFromHand: false,
-      contactMade: false,
-      cushionAfterContact: false
-    });
+  const shotContextRef = useRef({
+    placedFromHand: false,
+    contactMade: false,
+    cushionAfterContact: false
+  });
+  const currentShooterRef = useRef('A');
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
@@ -9153,6 +9154,9 @@ function PoolRoyaleGame({
   const highlightReplaysRef = useRef([]);
   const highlightPlaybackRef = useRef(null);
   const highlightsPlayedRef = useRef(false);
+  const [highlightShotInfo, setHighlightShotInfo] = useState(null);
+  const [highlightTransition, setHighlightTransition] = useState(false);
+  const [highlightWrapUp, setHighlightWrapUp] = useState(null);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
@@ -9379,6 +9383,33 @@ function PoolRoyaleGame({
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
   const lastPocketBallRef = useRef(null);
+  const captureOrbitSnapshot = useCallback(() => {
+    const sph = sphRef.current;
+    if (!sph) return null;
+    return { radius: sph.radius, phi: sph.phi, theta: sph.theta };
+  }, []);
+  const BALL_SWATCHES = useMemo(
+    () => ({
+      RED: '#ef4444',
+      YELLOW: '#facc15',
+      BLUE: '#3b82f6',
+      GREEN: '#22c55e',
+      BROWN: '#8b5a2b',
+      PINK: '#f472b6',
+      BLACK: '#0f172a',
+      STRIPE: '#e0f2fe',
+      SOLID: '#e2e8f0',
+      CUE: '#e5e7eb'
+    }),
+    []
+  );
+  const formatBallLabel = useCallback((colorId) => {
+    if (!colorId) return '—';
+    const upper = String(colorId).toUpperCase();
+    if (upper.startsWith('BALL_')) return upper.replace('BALL_', '');
+    if (upper === 'CUE') return 'CUE';
+    return upper.charAt(0) + upper.slice(1).toLowerCase();
+  }, []);
   const cameraBlendRef = useRef(ACTION_CAMERA_START_BLEND);
   const lowViewSlideRef = useRef(0);
   const initialCuePhi = THREE.MathUtils.clamp(
@@ -12837,6 +12868,9 @@ function PoolRoyaleGame({
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
           const trimmed = trimReplayRecording(shotRecording);
+          if (shotRecording?.orbitSnapshot) {
+            restoreOrbitCamera({ orbitSnapshot: shotRecording.orbitSnapshot }, true);
+          }
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           replayPlayback = {
@@ -12880,6 +12914,11 @@ function PoolRoyaleGame({
           const highlightShots = Array.isArray(shots)
             ? shots.filter((entry) => entry?.recording?.frames?.length)
             : [];
+          const previewSpin = (spin) => {
+            if (!spin) return;
+            spinAppliedRef.current = spin;
+            requestAnimationFrame(() => updateSpinDotPosition(spin, false));
+          };
           if (!highlightShots.length) {
             setReplayBanner('No recorded highlights yet');
             await waitMs(1200);
@@ -12889,16 +12928,63 @@ function PoolRoyaleGame({
             return;
           }
 
+          setHighlightTransition(true);
+          await waitMs(200);
+          setHighlightTransition(false);
+
           for (const entry of highlightShots) {
             const recordingForShot = entry?.recording;
+            const players = entry.players ?? frameRef.current?.players ?? {};
+            const scores = entry.scores ?? {
+              A: hudRef.current?.A ?? hud.A,
+              B: hudRef.current?.B ?? hud.B
+            };
+            const pottedBy = entry.pottedBy ?? { A: [], B: [] };
+            setHighlightShotInfo({
+              banner: entry.banner || 'Highlight',
+              shooter: entry.shooter ?? 'A',
+              players,
+              scores,
+              pottedBy,
+              pottedBalls: entry.pottedBalls ?? [],
+              spin: entry.spin
+            });
+            setHighlightTransition(true);
+            await waitMs(180);
+            setHighlightTransition(false);
             if (!recordingForShot?.frames?.length) continue;
             shotRecording = { ...recordingForShot };
+            shotRecording.orbitSnapshot =
+              shotRecording.orbitSnapshot ?? entry.orbitSnapshot;
             setReplayBanner(entry.banner || 'Highlight');
+            previewSpin(entry.spin);
+            if (entry.orbitSnapshot) {
+              restoreOrbitCamera({ orbitSnapshot: entry.orbitSnapshot }, true);
+            }
+            playCueHit((entry.power ?? 0.7) * 0.95);
+            if (Array.isArray(entry.pottedBalls)) {
+              entry.pottedBalls.forEach((_, idx) => {
+                window.setTimeout(() => playPocket(0.9), 420 + idx * 190);
+              });
+            }
             startShotReplay(entry.postState);
-            await waitForReplayToFinish((recordingForShot.duration ?? 0) + 3000);
-            await waitMs(300);
+            await waitForReplayToFinish((recordingForShot.duration ?? 0) + 3200);
+            await waitMs(320);
             setReplayBanner(null);
           }
+
+          setHighlightShotInfo(null);
+          setHighlightTransition(true);
+          const finalPlayers = frameRef.current?.players ?? {};
+          const finalScores = {
+            A: hudRef.current?.A ?? hud.A,
+            B: hudRef.current?.B ?? hud.B
+          };
+          const winnerId = frameRef.current?.winner ?? frameState.winner;
+          setHighlightWrapUp({ players: finalPlayers, scores: finalScores, winner: winnerId });
+          await waitMs(2000);
+          setHighlightTransition(false);
+          setHighlightWrapUp(null);
 
           shotRecording = null;
           replayPlaybackRef.current = null;
@@ -14581,6 +14667,8 @@ function PoolRoyaleGame({
           contactMade: false,
           cushionAfterContact: false
         };
+        currentShooterRef.current =
+          frameSnapshot?.activePlayer === 'B' ? 'B' : 'A';
         setShootingState(true);
         activeShotView = null;
         aimFocusRef.current = null;
@@ -14640,6 +14728,19 @@ function PoolRoyaleGame({
           const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
+          const spinSnapshot = spinAppliedRef.current
+            ? { ...spinAppliedRef.current }
+            : { x: 0, y: 0, magnitude: 0, mode: 'standard' };
+          const playersSnapshot =
+            frameRef.current?.players ?? frameState.players ??
+            {
+              A: { name: playerLabel, avatar: player.avatar },
+              B: { name: opponentLabel, avatar: opponentAvatar }
+            };
+          const scoreSnapshot = {
+            A: hudRef.current?.A ?? hud.A,
+            B: hudRef.current?.B ?? hud.B
+          };
           const shouldRecordReplay = true;
           const preferZoomReplay = false;
           playCueHit(clampedPower * 0.6);
@@ -14660,7 +14761,13 @@ function PoolRoyaleGame({
               frames: [],
               cuePath: [],
               replayTags: Array.from(replayTags),
-              zoomOnly: preferZoomReplay
+              zoomOnly: preferZoomReplay,
+              spin: spinSnapshot,
+              orbitSnapshot: captureOrbitSnapshot(),
+              shooter: currentShooterRef.current,
+              scores: scoreSnapshot,
+              players: playersSnapshot,
+              power: clampedPower
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -16087,13 +16194,38 @@ function PoolRoyaleGame({
                 frames: trimmedForHighlights.frames,
                 cuePath: trimmedForHighlights.cuePath,
                 duration: trimmedForHighlights.duration,
+                orbitSnapshot:
+                  recordingForReplay.orbitSnapshot ?? captureOrbitSnapshot(),
+                spin: recordingForReplay.spin,
+                shooter: recordingForReplay.shooter,
+                scores: recordingForReplay.scores,
+                players: recordingForReplay.players,
+                power: recordingForReplay.power
               };
+              const shooterId =
+                recordingForReplay.shooter ?? currentShooterRef.current ?? 'A';
+              const pottedBy = {
+                A: [],
+                B: []
+              };
+              const shooterKey = shooterId === 'B' ? 'B' : 'A';
+              potted.forEach((entry) => {
+                pottedBy[shooterKey].push(entry);
+              });
               const highlightEntry = {
                 id: `highlight-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
                 recording: highlightRecording,
                 postState: postShotSnapshot,
                 banner: replayBannerText,
                 tags: [...recordingTags],
+                shooter: shooterId,
+                pottedBy,
+                pottedBalls: potted,
+                scores: recordingForReplay.scores,
+                players: recordingForReplay.players,
+                spin: recordingForReplay.spin,
+                orbitSnapshot: highlightRecording.orbitSnapshot,
+                power: recordingForReplay.power
               };
               highlightReplaysRef.current = [
                 ...highlightReplaysRef.current,
@@ -17420,14 +17552,25 @@ function PoolRoyaleGame({
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over;
+  const showSpinHud = showPlayerControls || Boolean(highlightShotInfo);
 
   // Spin controller interactions
   useEffect(() => {
     if (!showPlayerControls) {
-      spinDotElRef.current = null;
-      resetSpinRef.current = () => {};
-      spinRequestRef.current = { x: 0, y: 0 };
-      spinLegalityRef.current = { blocked: false, reason: '' };
+      const dot = document.getElementById('spinDot');
+      if (dot) {
+        spinDotElRef.current = dot;
+        if (highlightShotInfo?.spin) {
+          updateSpinDotPosition(highlightShotInfo.spin, false);
+        }
+      } else {
+        spinDotElRef.current = null;
+      }
+      if (!highlightShotInfo) {
+        resetSpinRef.current = () => {};
+        spinRequestRef.current = { x: 0, y: 0 };
+        spinLegalityRef.current = { blocked: false, reason: '' };
+      }
       return;
     }
 
@@ -17568,7 +17711,12 @@ function PoolRoyaleGame({
       box.removeEventListener('pointerup', handlePointerUp);
       box.removeEventListener('pointercancel', handlePointerCancel);
     };
-  }, [showPlayerControls, updateSpinDotPosition]);
+  }, [highlightShotInfo, showPlayerControls, updateSpinDotPosition]);
+
+  useEffect(() => {
+    if (!highlightShotInfo?.spin) return;
+    requestAnimationFrame(() => updateSpinDotPosition(highlightShotInfo.spin, false));
+  }, [highlightShotInfo, updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
 
@@ -17576,6 +17724,85 @@ function PoolRoyaleGame({
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
+
+      {highlightTransition && (
+        <div className="pointer-events-none absolute inset-0 z-40 bg-gradient-to-b from-black/70 via-black/55 to-black/70 opacity-100 transition-opacity duration-300" />
+      )}
+
+      {highlightShotInfo && (
+        <div className="pointer-events-none absolute top-16 left-1/2 z-50 flex -translate-x-1/2 flex-wrap justify-center gap-4 px-4">
+          {(['A', 'B']).map((key) => {
+            const playerInfo = highlightShotInfo.players?.[key] ?? {};
+            const pots = highlightShotInfo.pottedBy?.[key] ?? [];
+            const isShooter = (highlightShotInfo.shooter ?? 'A') === key;
+            return (
+              <div
+                key={key}
+                className={`min-w-[13rem] max-w-[16rem] rounded-2xl border px-4 py-3 shadow-[0_16px_36px_rgba(0,0,0,0.55)] backdrop-blur ${
+                  isShooter
+                    ? 'border-emerald-400/70 bg-emerald-400/10'
+                    : 'border-white/25 bg-black/70'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={playerInfo.avatar || '/assets/icons/profile.svg'}
+                    alt="player avatar"
+                    className="h-10 w-10 rounded-full border border-white/30 object-cover"
+                  />
+                  <div className="flex-1 truncate">
+                    <div className="text-[10px] uppercase tracking-[0.28em] text-white/60">
+                      {isShooter ? 'Shooter' : 'Opponent'}
+                    </div>
+                    <div className="truncate text-sm font-semibold leading-tight">
+                      {playerInfo.name || (key === 'A' ? playerLabel : opponentLabel)}
+                    </div>
+                  </div>
+                  <div className="text-lg font-extrabold text-amber-200">
+                    {highlightShotInfo.scores?.[key] ?? 0}
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] font-semibold">
+                  {pots.length === 0 && <span className="text-white/60">No pots</span>}
+                  {pots.map((pot, idx) => {
+                    const swatch =
+                      BALL_SWATCHES[pot.color?.toUpperCase?.() ?? pot.color] ?? '#e5e7eb';
+                    return (
+                      <span
+                        key={`${pot.id ?? idx}-${pot.color ?? idx}`}
+                        className="flex items-center gap-1 rounded-full px-2 py-1 text-white shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.08)' }}
+                      >
+                        <span
+                          className="h-3 w-3 rounded-full border border-white/50"
+                          style={{ backgroundColor: swatch }}
+                        ></span>
+                        <span>{formatBallLabel(pot.color)}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {highlightWrapUp && (
+        <div className="pointer-events-none absolute bottom-8 left-1/2 z-50 -translate-x-1/2 rounded-2xl border border-emerald-400/60 bg-black/85 px-6 py-4 text-center shadow-[0_20px_38px_rgba(0,0,0,0.55)]">
+          <div className="text-[11px] uppercase tracking-[0.28em] text-emerald-200/90">
+            Match Winner
+          </div>
+          <div className="mt-1 text-xl font-extrabold text-white">
+            {highlightWrapUp.winner === 'B'
+              ? highlightWrapUp.players?.B?.name || opponentLabel
+              : highlightWrapUp.players?.A?.name || playerLabel}
+          </div>
+          <div className="mt-1 text-sm font-semibold text-emerald-100">
+            {(highlightWrapUp.scores?.A ?? 0)} - {(highlightWrapUp.scores?.B ?? 0)}
+          </div>
+        </div>
+      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
@@ -18135,9 +18362,9 @@ function PoolRoyaleGame({
       )}
 
       {/* Spin controller */}
-      {showPlayerControls && (
+      {showSpinHud && (
         <div
-          className="absolute bottom-4 right-4"
+          className={`absolute bottom-4 right-4 ${showPlayerControls ? '' : 'pointer-events-none opacity-95'}`}
           style={{
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
