@@ -71,35 +71,6 @@ export default function GameTransactions() {
             USDT: '/assets/icons/Usdt.webp',
           };
           const icon = iconMap[token] || `/assets/icons/${token}.webp`;
-          const highlightUrl =
-            tx.highlightUrl || tx.highlight?.url || tx.highlight || null;
-          const highlightCreatedAt =
-            tx.highlightCreatedAt || tx.highlight?.createdAt || tx.date || null;
-          const highlightExpiresAt =
-            tx.highlightExpiresAt ||
-            tx.highlight?.expiresAt ||
-            (highlightCreatedAt ? new Date(highlightCreatedAt).getTime() + 24 * 60 * 60 * 1000 : null);
-          const highlightActive =
-            highlightUrl && highlightExpiresAt && Number.isFinite(highlightExpiresAt) && Date.now() < highlightExpiresAt;
-          const expiresLabel = highlightExpiresAt
-            ? new Date(highlightExpiresAt).toLocaleString(undefined, { hour12: false })
-            : null;
-
-          const openHighlight = () => {
-            if (!highlightUrl) return;
-            window.open(highlightUrl, '_blank', 'noreferrer');
-          };
-
-          const downloadHighlight = () => {
-            if (!highlightUrl) return;
-            const link = document.createElement('a');
-            link.href = highlightUrl;
-            link.download = `${tx.game || 'game'}-highlight.webm`;
-            link.rel = 'noopener';
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-          };
           return (
             <div key={i} className="lobby-tile w-full flex justify-between items-center">
               <div className="flex items-center space-x-2">
@@ -118,30 +89,6 @@ export default function GameTransactions() {
                 <div className="text-xs">
                   {tx.date ? new Date(tx.date).toLocaleString(undefined, { hour12: false }) : ''}
                 </div>
-                {highlightActive && (
-                  <div className="mt-2 space-y-1 text-left">
-                    <div className="text-[10px] uppercase tracking-[0.18em] text-emerald-200">Highlight</div>
-                    <div className="flex flex-wrap justify-end gap-2 text-xs">
-                      <button
-                        type="button"
-                        onClick={openHighlight}
-                        className="rounded-lg bg-emerald-500/20 px-2 py-1 font-semibold text-emerald-100 transition hover:bg-emerald-500/40"
-                      >
-                        Watch
-                      </button>
-                      <button
-                        type="button"
-                        onClick={downloadHighlight}
-                        className="rounded-lg bg-white/10 px-2 py-1 font-semibold text-white transition hover:bg-white/20"
-                      >
-                        Download
-                      </button>
-                    </div>
-                    {expiresLabel && (
-                      <div className="text-[11px] text-subtext">Available until {expiresLabel}</div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           );
