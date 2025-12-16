@@ -9155,6 +9155,9 @@ function PoolRoyaleGame({
   const highlightBlobRef = useRef(null);
   const [highlightModalOpen, setHighlightModalOpen] = useState(false);
   const [highlightVideoUrl, setHighlightVideoUrl] = useState('');
+  const highlightAudioDestinationRef = useRef(null);
+  const highlightAudioStreamRef = useRef(null);
+  const highlightVideoRef = useRef(null);
   const [highlightGenerating, setHighlightGenerating] = useState(false);
   const [highlightError, setHighlightError] = useState('');
   useEffect(() => {
@@ -9574,7 +9577,10 @@ function PoolRoyaleGame({
     const link = document.createElement('a');
     link.href = highlightVideoUrl;
     link.download = 'pool-royale-highlights.webm';
+    link.rel = 'noopener';
+    document.body.appendChild(link);
     link.click();
+    link.remove();
   }, [highlightVideoUrl]);
 
   const handleShareHighlight = useCallback(async () => {
@@ -9610,6 +9616,17 @@ function PoolRoyaleGame({
     }
   }, [highlightVideoUrl]);
 
+  const handleEnterHighlightFullscreen = useCallback(() => {
+    const node = highlightVideoRef.current;
+    if (!node) return;
+    const requestFullscreen =
+      node.requestFullscreen ||
+      node.webkitRequestFullscreen ||
+      node.msRequestFullscreen ||
+      node.webkitEnterFullscreen;
+    if (requestFullscreen) requestFullscreen.call(node);
+  }, []);
+
   const handleCloseHighlights = useCallback(() => {
     setHighlightModalOpen(false);
     goToLobby();
@@ -9642,6 +9659,20 @@ function PoolRoyaleGame({
     [applySelectedCueStyle, ensureCueFeePaid, poolInventory, resolveCueIndex]
   );
 
+  const routeAudioNode = useCallback((node) => {
+    const ctx = audioContextRef.current;
+    if (!ctx || !node) return;
+    try {
+      node.connect(ctx.destination);
+    } catch {}
+    const recordingTap = highlightAudioDestinationRef.current;
+    if (recordingTap) {
+      try {
+        node.connect(recordingTap);
+      } catch {}
+    }
+  }, []);
+
   const playCueHit = useCallback((vol = 1) => {
     const ctx = audioContextRef.current;
     const buffer = audioBuffersRef.current.cue;
@@ -9653,7 +9684,8 @@ function PoolRoyaleGame({
     source.buffer = buffer;
     const gain = ctx.createGain();
     gain.gain.value = scaled;
-    source.connect(gain).connect(ctx.destination);
+    source.connect(gain);
+    routeAudioNode(gain);
     source.start(0, 0, 0.5);
   }, []);
 
@@ -9669,7 +9701,8 @@ function PoolRoyaleGame({
     source.buffer = buffer;
     const gain = ctx.createGain();
     gain.gain.value = scaled;
-    source.connect(gain).connect(ctx.destination);
+    source.connect(gain);
+    routeAudioNode(gain);
     source.start(0);
   }, []);
 
@@ -9685,7 +9718,8 @@ function PoolRoyaleGame({
     source.buffer = buffer;
     const gain = ctx.createGain();
     gain.gain.value = scaled;
-    source.connect(gain).connect(ctx.destination);
+    source.connect(gain);
+    routeAudioNode(gain);
     const duration = buffer.duration || 0;
     const offset = Math.max(0, duration - POCKET_SOUND_TAIL);
     const playbackDuration = duration > 0 ? Math.min(POCKET_SOUND_TAIL, duration) : undefined;
@@ -9704,7 +9738,8 @@ function PoolRoyaleGame({
     source.buffer = buffer;
     const gain = ctx.createGain();
     gain.gain.value = scaled;
-    source.connect(gain).connect(ctx.destination);
+    source.connect(gain);
+    routeAudioNode(gain);
     source.start(0);
   }, []);
 
@@ -9721,7 +9756,8 @@ function PoolRoyaleGame({
       source.buffer = buffer;
       const gain = ctx.createGain();
       gain.gain.value = scaled;
-      source.connect(gain).connect(ctx.destination);
+      source.connect(gain);
+      routeAudioNode(gain);
       source.start(0);
       activeCrowdSoundRef.current = source;
       source.onended = () => {
@@ -9746,7 +9782,8 @@ function PoolRoyaleGame({
       source.buffer = buffer;
       const gain = ctx.createGain();
       gain.gain.value = scaled;
-      source.connect(gain).connect(ctx.destination);
+      source.connect(gain);
+      routeAudioNode(gain);
       source.start(0);
       activeCrowdSoundRef.current = source;
       source.onended = () => {
@@ -9828,6 +9865,9 @@ function PoolRoyaleGame({
     if (!AudioContextClass) return undefined;
     const ctx = new AudioContextClass();
     audioContextRef.current = ctx;
+    const recordingDestination = ctx.createMediaStreamDestination();
+    highlightAudioDestinationRef.current = recordingDestination;
+    highlightAudioStreamRef.current = recordingDestination.stream;
     let cancelled = false;
     const decode = (arrayBuffer) =>
       new Promise((resolve, reject) => {
@@ -9872,6 +9912,9 @@ function PoolRoyaleGame({
         cheer: null,
         shock: null
       };
+      recordingDestination.stream.getTracks().forEach((track) => track.stop());
+      highlightAudioDestinationRef.current = null;
+      highlightAudioStreamRef.current = null;
       audioContextRef.current = null;
       ctx.close().catch(() => {});
     };
@@ -13097,7 +13140,10 @@ function PoolRoyaleGame({
           compositeCanvas.height = height;
           const ctx = compositeCanvas.getContext('2d');
           if (!ctx) throw new Error('Unable to prepare recording surface.');
-          const stream = compositeCanvas.captureStream(30);
+          const captureFps = Math.max(30, frameQualityRef.current?.fps ?? 60);
+          const stream = compositeCanvas.captureStream(captureFps);
+          const audioTracks = highlightAudioStreamRef.current?.getAudioTracks?.() ?? [];
+          audioTracks.forEach((track) => stream.addTrack(track));
           let mimeType = 'video/webm;codecs=vp9';
           if (!MediaRecorder.isTypeSupported(mimeType)) {
             mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
@@ -13158,7 +13204,9 @@ function PoolRoyaleGame({
 
           renderOverlay(performance.now());
           recorder.start();
-          const highlightShots = Array.isArray(shots) ? shots.slice(-5) : [];
+          const highlightShots = Array.isArray(shots)
+            ? shots.filter((entry) => entry?.recording?.frames?.length)
+            : [];
           await waitMs(1200);
           overlayState.mode = 'replay';
 
@@ -14932,9 +14980,9 @@ function PoolRoyaleGame({
           const isPowerShot = clampedPower >= POWER_REPLAY_THRESHOLD;
           if (isPowerShot) replayTags.add('power');
           if (spinMagnitude >= SPIN_REPLAY_THRESHOLD) replayTags.add('spin');
-          const shouldRecordReplay = replayTags.size > 0;
+          const shouldRecordReplay = true;
           const preferZoomReplay =
-            shouldRecordReplay && !replayTags.has('long') && !replayTags.has('bank');
+            replayTags.size > 0 && !replayTags.has('long') && !replayTags.has('bank');
           playCueHit(clampedPower * 0.6);
           const frameStateCurrent = frameRef.current ?? null;
           const isBreakShot = (frameStateCurrent?.currentBreak ?? 0) === 0;
@@ -16157,6 +16205,7 @@ function PoolRoyaleGame({
         }) => {
           if (!recording || !hadObjectPot) return null;
           const tags = new Set(recording.replayTags ?? []);
+          if (hadObjectPot) tags.add('pot');
           const potCount = pottedBalls.filter((entry) => entry.id !== 'cue').length;
           if (potCount > 1) tags.add('multi');
           if (shotContext?.cushionAfterContact) tags.add('bank');
@@ -16166,7 +16215,7 @@ function PoolRoyaleGame({
           const primary = priority.find((tag) => tags.has(tag)) ?? 'default';
           const zoomOnly = recording.zoomOnly && !tags.has('long') && !tags.has('bank');
           return {
-            shouldReplay: true,
+            shouldReplay: hadObjectPot || tags.size > 0,
             banner: selectReplayBanner(primary),
             zoomOnly,
             tags: Array.from(tags)
@@ -16388,7 +16437,7 @@ function PoolRoyaleGame({
                 tags: [...recordingTags],
               };
               highlightReplaysRef.current = [
-                ...highlightReplaysRef.current.slice(-4),
+                ...highlightReplaysRef.current,
                 highlightEntry,
               ];
             }
@@ -17900,12 +17949,23 @@ function PoolRoyaleGame({
                   Building your highlight reel...
                 </div>
               ) : highlightVideoUrl ? (
-                <div>
-                  <video
-                    src={highlightVideoUrl}
-                    controls
-                    className="h-64 w-full rounded-lg border border-white/10 bg-black"
-                  />
+                <div className="space-y-2">
+                  <div className="relative">
+                    <video
+                      ref={highlightVideoRef}
+                      src={highlightVideoUrl}
+                      controls
+                      playsInline
+                      className="h-64 w-full rounded-lg border border-white/10 bg-black"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleEnterHighlightFullscreen}
+                      className="absolute right-2 top-2 rounded-full bg-black/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-white shadow-[0_6px_18px_rgba(0,0,0,0.45)] transition hover:bg-emerald-500/70"
+                    >
+                      Fullscreen
+                    </button>
+                  </div>
                   {highlightError && (
                     <p className="mt-2 text-center text-xs text-rose-200">{highlightError}</p>
                   )}
