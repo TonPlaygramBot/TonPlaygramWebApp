@@ -9152,8 +9152,6 @@ function PoolRoyaleGame({
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   const highlightReplaysRef = useRef([]);
   const highlightPlaybackRef = useRef(null);
-  const [highlightOverlay, setHighlightOverlay] = useState(null);
-  const [highlightWinner, setHighlightWinner] = useState(null);
   const highlightsPlayedRef = useRef(false);
   useEffect(
     () => () => {
@@ -9752,39 +9750,6 @@ function PoolRoyaleGame({
       window.removeEventListener('gameVolumeChanged', handleVolume);
     };
   }, [stopActiveCrowdSound]);
-
-  const resolveHighlightPlayer = useCallback(
-    (id, playersOverride) => {
-      const players = playersOverride ?? frameRef.current?.players ?? frameState.players ?? {};
-      const info = players[id] ?? {};
-      const isPlayer = id === 'A';
-      const fallbackName = isPlayer ? player.name || 'Player' : opponentLabel || 'Opponent';
-      const fallbackAvatar = isPlayer
-        ? player.avatar || getTelegramPhotoUrl()
-        : mode === 'online'
-          ? opponentAvatar || ''
-          : '';
-      return {
-        id,
-        name: info.name || fallbackName,
-        avatar: info.avatar || fallbackAvatar,
-        score: info.score ?? 0
-      };
-    },
-    [frameState.players, mode, opponentAvatar, opponentLabel, player.avatar, player.name]
-  );
-
-  const buildSpinSummary = useCallback((spin) => {
-    if (!spin) return 'Center ball';
-    const magnitude = spin.magnitude ?? Math.hypot(spin.x ?? 0, spin.y ?? 0);
-    const side = spin.x > 0.08 ? 'Right' : spin.x < -0.08 ? 'Left' : '';
-    const vertical = spin.y > 0.08 ? 'Top' : spin.y < -0.08 ? 'Back' : '';
-    const parts = [vertical, side].filter(Boolean);
-    const label = parts.length ? parts.join(' • ') : 'Center ball';
-    const percent = Math.round(magnitude * 100);
-    const suffix = spin.mode === 'swerve' ? ' • Swerve' : '';
-    return `${label} (${percent}%)${suffix}`;
-  }, []);
   useEffect(() => {
     if (typeof window === 'undefined') return undefined;
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -12911,25 +12876,6 @@ function PoolRoyaleGame({
             tick();
           });
 
-        const applyCameraSnapshot = (snapshot) => {
-          if (!snapshot || !sphRef.current || !cameraRef.current) return;
-          const sph = sphRef.current;
-          sph.radius = clampOrbitRadius(snapshot.radius ?? sph.radius);
-          sph.phi = THREE.MathUtils.clamp(snapshot.phi ?? sph.phi, CAMERA.minPhi, CAMERA.maxPhi);
-          sph.theta = snapshot.theta ?? sph.theta;
-          syncBlendToSpherical();
-          updateCamera();
-        };
-
-        const triggerHighlightAudio = (pottedBalls = []) => {
-          playCueHit(0.9);
-          pottedBalls
-            .filter((entry) => entry?.id && entry.id !== 'cue')
-            .forEach((entry, idx) => {
-              window.setTimeout(() => playPocket(0.9), 220 + idx * 90);
-            });
-        };
-
         highlightPlaybackRef.current = async ({ shots = [] } = {}) => {
           const highlightShots = Array.isArray(shots)
             ? shots.filter((entry) => entry?.recording?.frames?.length)
@@ -12943,56 +12889,18 @@ function PoolRoyaleGame({
             return;
           }
 
-          setHighlightWinner(null);
           for (const entry of highlightShots) {
             const recordingForShot = entry?.recording;
             if (!recordingForShot?.frames?.length) continue;
-            const shooterId = entry.shooter === 'B' ? 'B' : 'A';
-            const shooter = resolveHighlightPlayer(shooterId, entry.postState?.players);
-            const opponent = resolveHighlightPlayer(shooterId === 'A' ? 'B' : 'A', entry.postState?.players);
-            const spinSummary = buildSpinSummary(entry.spin);
-            setHighlightOverlay({
-              active: true,
-              id: entry.id,
-              banner: entry.banner || 'Highlight',
-              shooter,
-              opponent,
-              pottedBalls: entry.pottedBalls ?? [],
-              spin: entry.spin,
-              spinSummary,
-              scores: entry.scores ?? null
-            });
-            if (entry.camera) applyCameraSnapshot(entry.camera);
             shotRecording = { ...recordingForShot };
             setReplayBanner(entry.banner || 'Highlight');
             startShotReplay(entry.postState);
-            triggerHighlightAudio(entry.pottedBalls);
             await waitForReplayToFinish((recordingForShot.duration ?? 0) + 3000);
-            await waitMs(450);
+            await waitMs(300);
             setReplayBanner(null);
           }
 
           shotRecording = null;
-          setHighlightOverlay(null);
-          const lastShot = highlightShots[highlightShots.length - 1];
-          const winnerId = lastShot?.winner ?? frameRef.current?.winner ?? frameState.winner;
-          const winnerCard = winnerId ? resolveHighlightPlayer(winnerId, lastShot?.postState?.players) : null;
-          setHighlightWinner(
-            winnerId
-              ? {
-                  id: winnerId,
-                  player: winnerCard,
-                  scores:
-                    lastShot?.scores ?? {
-                      A: frameRef.current?.players?.A?.score ?? 0,
-                      B: frameRef.current?.players?.B?.score ?? 0
-                    }
-                }
-              : null
-          );
-          if (winnerId) {
-            await waitMs(1600);
-          }
           replayPlaybackRef.current = null;
         };
         const enterTopView = (immediate = false) => {
@@ -16180,31 +16088,12 @@ function PoolRoyaleGame({
                 cuePath: trimmedForHighlights.cuePath,
                 duration: trimmedForHighlights.duration,
               };
-              const shooterId = currentState.activePlayer ?? frameState.activePlayer ?? 'A';
-              const spinForShot = { ...(spinAppliedRef.current ?? { x: 0, y: 0, mode: 'standard', magnitude: 0 }) };
-              const scoreSnapshot = {
-                A: safeState.players?.A?.score ?? 0,
-                B: safeState.players?.B?.score ?? 0
-              };
-              const cameraSnapshot = sphRef.current
-                ? {
-                    radius: sphRef.current.radius,
-                    phi: sphRef.current.phi,
-                    theta: sphRef.current.theta
-                  }
-                : null;
               const highlightEntry = {
                 id: `highlight-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
                 recording: highlightRecording,
                 postState: postShotSnapshot,
                 banner: replayBannerText,
                 tags: [...recordingTags],
-                shooter: shooterId,
-                pottedBalls: [...potted],
-                spin: spinForShot,
-                scores: scoreSnapshot,
-                camera: cameraSnapshot,
-                winner: safeState.winner ?? null
               };
               highlightReplaysRef.current = [
                 ...highlightReplaysRef.current,
@@ -17531,7 +17420,6 @@ function PoolRoyaleGame({
   const isPlayerTurn = hud.turn === 0;
   const isOpponentTurn = hud.turn === 1;
   const showPlayerControls = isPlayerTurn && !hud.over;
-  const spinHudVisible = showPlayerControls || Boolean(highlightOverlay?.active);
 
   // Spin controller interactions
   useEffect(() => {
@@ -17682,14 +17570,6 @@ function PoolRoyaleGame({
     };
   }, [showPlayerControls, updateSpinDotPosition]);
 
-  useEffect(() => {
-    if (!highlightOverlay?.active) return;
-    const dot = spinDotElRef.current ?? document.getElementById('spinDot');
-    if (!dot) return;
-    spinDotElRef.current = dot;
-    updateSpinDotPosition(highlightOverlay.spin || { x: 0, y: 0 }, false);
-  }, [highlightOverlay, updateSpinDotPosition]);
-
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
 
   return (
@@ -17704,88 +17584,6 @@ function PoolRoyaleGame({
             aria-live="polite"
           >
             {replayBanner}
-          </div>
-        </div>
-      )}
-
-      {highlightOverlay?.active && (
-        <div className="pointer-events-none absolute left-1/2 top-4 z-40 w-[min(720px,92vw)] -translate-x-1/2 space-y-3 rounded-3xl border border-emerald-500/30 bg-black/70 px-4 py-3 shadow-[0_16px_64px_rgba(0,0,0,0.55)] backdrop-blur transition-opacity duration-500">
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.3em] text-emerald-100/80">
-            <span>{highlightOverlay.banner}</span>
-            {highlightOverlay.scores ? (
-              <span>
-                Score {highlightOverlay.scores.A ?? 0} : {highlightOverlay.scores.B ?? 0}
-              </span>
-            ) : null}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[highlightOverlay.shooter, highlightOverlay.opponent].map((card, cardIndex) => {
-              const shooterId = highlightOverlay.shooter?.id;
-              const pottedForCard = (highlightOverlay.pottedBalls || []).filter(
-                (ball) => ball && shooterId && card?.id === shooterId && ball.id !== 'cue'
-              );
-              return (
-                <div
-                  key={`${card?.id || 'card'}-${cardIndex}`}
-                  className="flex flex-col gap-2 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/90 shadow-[0_10px_24px_rgba(0,0,0,0.35)]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 overflow-hidden rounded-full bg-white/10 shadow-inner">
-                      {card?.avatar ? (
-                        <img src={card.avatar} alt="avatar" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-xs text-white/70">{card?.id}</div>
-                      )}
-                    </div>
-                    <div className="flex flex-col leading-tight">
-                      <span className="text-[11px] uppercase tracking-[0.24em] text-white/60">
-                        {card?.id === 'A' ? 'You' : 'Opponent'}
-                      </span>
-                      <span className="text-base font-semibold text-white">{card?.name || 'Player'}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-[12px] text-white/80">
-                    <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-100/80">
-                      Potted
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {pottedForCard.length > 0 ? (
-                        pottedForCard.map((ball, idx) => (
-                          <span
-                            key={`${ball.id}-${idx}`}
-                            className="rounded-full bg-white/15 px-2 py-1 text-[11px] font-semibold text-white shadow"
-                          >
-                            {ball.color || ball.id}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-white/50">—</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-white/80">
-            <span className="rounded-full border border-emerald-300/60 bg-emerald-400/10 px-3 py-1 font-semibold uppercase tracking-[0.2em] text-emerald-100">
-              Spin: {highlightOverlay.spinSummary}
-            </span>
-            <span className="rounded-full border border-white/15 bg-white/5 px-3 py-1 font-semibold tracking-[0.12em] text-white/80">
-              Replay transitions keep your original camera and sound
-            </span>
-          </div>
-        </div>
-      )}
-
-      {highlightWinner && (
-        <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center">
-          <div className="rounded-3xl border border-emerald-400/40 bg-black/80 px-6 py-5 text-center text-white shadow-[0_18px_48px_rgba(0,0,0,0.55)] backdrop-blur">
-            <p className="text-[11px] uppercase tracking-[0.32em] text-emerald-100/90">Winner</p>
-            <p className="mt-1 text-2xl font-bold text-white">{highlightWinner.player?.name || 'Player'}</p>
-            <p className="mt-2 text-sm text-white/80">
-              Final Score {highlightWinner.scores?.A ?? 0} : {highlightWinner.scores?.B ?? 0}
-            </p>
           </div>
         </div>
       )}
@@ -18337,9 +18135,9 @@ function PoolRoyaleGame({
       )}
 
       {/* Spin controller */}
-      {spinHudVisible && (
+      {showPlayerControls && (
         <div
-          className={`absolute bottom-4 right-4 ${showPlayerControls ? '' : 'pointer-events-none opacity-90'}`}
+          className="absolute bottom-4 right-4"
           style={{
             transform: `scale(${uiScale})`,
             transformOrigin: 'bottom right'
