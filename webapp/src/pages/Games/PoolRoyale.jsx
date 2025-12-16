@@ -9237,74 +9237,11 @@ function PoolRoyaleGame({
       cueBallPlacedFromHandRef.current = false;
     }
   }, [hud.inHand, hud.turn]);
-  useEffect(() => {
-    if (!frameState.frameOver) {
-      specialVisitClearedRef.current = false;
-    }
-  }, [frameState.frameOver]);
-  useEffect(() => {
-    if (hud.turn !== 0) {
-      visitStartCountRef.current = null;
-      return;
-    }
-    visitStartCountRef.current = countBallsForPlayer(frameRef.current);
-  }, [countBallsForPlayer, hud.turn]);
-  useEffect(() => {
-    if (hud.turn !== 0) return;
-    const startCount = visitStartCountRef.current;
-    if (startCount == null || startCount <= 0 || specialVisitClearedRef.current) return;
-    const remaining = countBallsForPlayer(frameState);
-    if (remaining === 0) {
-      specialVisitClearedRef.current = true;
-    }
-  }, [countBallsForPlayer, frameState, hud.turn]);
   const [shotActive, setShotActive] = useState(false);
   const shootingRef = useRef(shotActive);
   useEffect(() => {
     shootingRef.current = shotActive;
   }, [shotActive]);
-  const [highlightModalOpen, setHighlightModalOpen] = useState(false);
-  const [highlightClipUrl, setHighlightClipUrl] = useState(null);
-  const [highlightClipBlob, setHighlightClipBlob] = useState(null);
-  const [highlightClipGenerating, setHighlightClipGenerating] = useState(false);
-  const [highlightShareMessage, setHighlightShareMessage] = useState('');
-  const [highlightMeta, setHighlightMeta] = useState(null);
-  const specialVisitClearedRef = useRef(false);
-  const visitStartCountRef = useRef(null);
-
-  const isCueBallId = useCallback((id) => {
-    if (id === 0) return true;
-    if (typeof id === 'string') {
-      const lower = id.toLowerCase();
-      return lower.includes('cue');
-    }
-    return false;
-  }, []);
-
-  const countBallsForPlayer = useCallback(
-    (frame) => {
-      const meta = frame?.meta;
-      if (!meta) return null;
-      if (meta.variant === 'uk' && meta.state) {
-        const assignment = meta.state.assignments?.A;
-        const table = meta.state.ballsOnTable;
-        const reds = Array.isArray(table?.red) ? table.red.length : 0;
-        const blues = Array.isArray(table?.blue) ? table.blue.length : 0;
-        const black = table?.black8 ? 1 : 0;
-        if (assignment === 'red') return reds + black;
-        if (assignment === 'blue') return blues + black;
-        return reds + blues + black;
-      }
-      if ((meta.variant === 'american' || meta.variant === '9ball') && meta.state) {
-        const balls = Array.isArray(meta.state.ballsOnTable)
-          ? meta.state.ballsOnTable
-          : [];
-        return balls.filter((ball) => !isCueBallId(ball)).length;
-      }
-      return null;
-    },
-    [isCueBallId]
-  );
   const sliderInstanceRef = useRef(null);
   const suggestionAimKeyRef = useRef(null);
   const aiEarlyShotIntentRef = useRef(null);
@@ -9873,178 +9810,6 @@ function PoolRoyaleGame({
       };
     });
   }, [frameState, isTraining, trainingModeState]);
-  const pickRandomTableFinish = useCallback(() => {
-    const finishes = Object.values(TABLE_FINISHES ?? {});
-    if (!finishes.length) return null;
-    return finishes[Math.floor(Math.random() * finishes.length)];
-  }, []);
-  const pickRandomCueStyle = useCallback(() => {
-    if (!Array.isArray(CUE_STYLE_PRESETS) || !CUE_STYLE_PRESETS.length) return null;
-    return CUE_STYLE_PRESETS[Math.floor(Math.random() * CUE_STYLE_PRESETS.length)];
-  }, []);
-  const buildRewardBundle = useCallback(() => {
-    const finish = pickRandomTableFinish();
-    const cue = pickRandomCueStyle();
-    return {
-      tableFinish: finish
-        ? { id: finish.id ?? finish.label ?? 'table-finish', label: finish.label ?? finish.name ?? 'Exclusive Finish' }
-        : null,
-      cue: cue
-        ? { id: cue.id ?? cue.label ?? 'cue-style', label: cue.label ?? cue.name ?? 'Signature Cue' }
-        : null,
-      tpc: 2500
-    };
-  }, [pickRandomCueStyle, pickRandomTableFinish]);
-  const createHighlightClip = useCallback(
-    async (meta) => {
-      if (typeof document === 'undefined' || typeof MediaRecorder === 'undefined') {
-        throw new Error('MediaRecorder is unavailable in this environment.');
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = 720;
-      canvas.height = 1280;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas is unavailable.');
-
-      const loadImageSafe = (src) =>
-        new Promise((resolve) => {
-          if (!src) return resolve(null);
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = src;
-        });
-
-      const [playerImg, opponentImg] = await Promise.all([
-        loadImageSafe(meta.playerAvatar),
-        loadImageSafe(meta.opponentAvatar)
-      ]);
-
-      const stream = canvas.captureStream(30);
-      const recorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9,opus',
-        videoBitsPerSecond: 3_500_000
-      });
-      const chunks = [];
-      const totalMs = 6500;
-      const introMs = 2000;
-      const highlightMs = meta.specialVisit ? 2500 : 1800;
-      const outroStart = totalMs - 1100;
-      const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-      gradient.addColorStop(0, '#0b172a');
-      gradient.addColorStop(1, '#041014');
-
-      const drawAvatar = (img, x, y) => {
-        const size = 96;
-        const radius = size / 2;
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x + radius, y + radius, radius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = '#0f172a';
-        ctx.fillRect(x, y, size, size);
-        if (img) ctx.drawImage(img, x, y, size, size);
-        ctx.restore();
-      };
-
-      const drawFrame = (elapsed) => {
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        ctx.fillStyle = '#10b981';
-        ctx.font = '700 48px "Inter", "SF Pro Display", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Pool Royale', canvas.width / 2, 100);
-        ctx.font = '600 26px "Inter", "SF Pro Display", sans-serif';
-        ctx.fillStyle = '#a5f3fc';
-        ctx.fillText('Match Highlights', canvas.width / 2, 140);
-
-        if (elapsed < introMs) {
-          const ease = Math.min(1, elapsed / introMs);
-          ctx.globalAlpha = ease;
-          ctx.fillStyle = 'rgba(16,185,129,0.16)';
-          ctx.fillRect(60, 220, canvas.width - 120, 240);
-          drawAvatar(playerImg, canvas.width / 2 - 180, 250);
-          drawAvatar(opponentImg, canvas.width / 2 + 84, 250);
-          ctx.fillStyle = '#e2e8f0';
-          ctx.textAlign = 'left';
-          ctx.font = '600 24px "Inter", "SF Pro Display", sans-serif';
-          ctx.fillText(meta.playerName || 'You', canvas.width / 2 - 60, 300);
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = '500 18px "Inter", "SF Pro Display", sans-serif';
-          ctx.fillText('vs', canvas.width / 2 - 60, 336);
-          ctx.fillStyle = '#e2e8f0';
-          ctx.fillText(meta.opponentName || 'Opponent', canvas.width / 2 - 60, 372);
-          ctx.globalAlpha = 1;
-        } else if (elapsed < introMs + highlightMs) {
-          const segment = elapsed - introMs;
-          const pulse = 0.55 + 0.45 * Math.sin(segment / 220);
-          ctx.fillStyle = `rgba(16,185,129,${Math.max(0.16, pulse * 0.3)})`;
-          ctx.fillRect(40, 220, canvas.width - 80, 360);
-          ctx.fillStyle = '#ecfeff';
-          ctx.textAlign = 'center';
-          ctx.font = '700 38px "Inter", "SF Pro Display", sans-serif';
-          ctx.fillText('Shot of the Match', canvas.width / 2, 290);
-          ctx.font = '600 24px "Inter", "SF Pro Display", sans-serif';
-          ctx.fillText(meta.winnerLabel ? `${meta.winnerLabel} takes the frame` : 'Frame Complete', canvas.width / 2, 340);
-          ctx.font = '500 20px "Inter", "SF Pro Display", sans-serif';
-          const highlightLabel = meta.specialVisit
-            ? 'Cleared every ball in one visit'
-            : 'Key pots & safety highlights';
-          ctx.fillText(highlightLabel, canvas.width / 2, 380);
-          ctx.font = '500 18px "Inter", "SF Pro Display", sans-serif';
-          ctx.fillStyle = '#a5f3fc';
-          ctx.fillText('Auto-generated replay reel', canvas.width / 2, 420);
-        } else {
-          const outroProgress = Math.min(1, (elapsed - outroStart) / (totalMs - outroStart));
-          ctx.fillStyle = `rgba(16,185,129,${0.16 + outroProgress * 0.3})`;
-          ctx.fillRect(60, 560, canvas.width - 120, 200);
-          ctx.fillStyle = '#ecfeff';
-          ctx.textAlign = 'center';
-          ctx.font = '700 32px "Inter", "SF Pro Display", sans-serif';
-          ctx.fillText('Rewards Unlocked', canvas.width / 2, 620);
-          ctx.font = '600 22px "Inter", "SF Pro Display", sans-serif';
-          if (meta.reward?.tableFinish) {
-            ctx.fillText(`Table Finish: ${meta.reward.tableFinish.label}`, canvas.width / 2, 660);
-          }
-          if (meta.reward?.cue) {
-            ctx.fillText(`Cue: ${meta.reward.cue.label}`, canvas.width / 2, 695);
-          }
-          ctx.font = '600 20px "Inter", "SF Pro Display", sans-serif';
-          ctx.fillText('2500 TPC Bonus', canvas.width / 2, 730);
-        }
-      };
-
-      const blobPromise = new Promise((resolve, reject) => {
-        recorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) chunks.push(event.data);
-        };
-        recorder.onerror = (err) => reject(err);
-        recorder.onstop = () => {
-          resolve(new Blob(chunks, { type: recorder.mimeType || 'video/webm' }));
-        };
-      });
-
-      recorder.start();
-      const start = performance.now();
-      const tick = (now) => {
-        const elapsed = now - start;
-        drawFrame(elapsed);
-        if (elapsed < totalMs) {
-          requestAnimationFrame(tick);
-        } else {
-          recorder.stop();
-        }
-      };
-      requestAnimationFrame(tick);
-
-      const blob = await blobPromise;
-      stream.getTracks().forEach((track) => track.stop());
-      return blob;
-    },
-    []
-  );
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
@@ -10061,90 +9826,22 @@ function PoolRoyaleGame({
     const winnerLabel = winnerId === 'A'
       ? player.name || 'You'
       : winnerId === 'B'
-        ? opponentLabel || 'AI'
+        ? 'AI'
         : 'No winner';
-    const reward = specialVisitClearedRef.current ? buildRewardBundle() : null;
-    const meta = {
-      playerName: playerLabel,
-      playerAvatar,
-      opponentName: opponentLabel,
-      opponentAvatar,
-      winnerLabel,
-      specialVisit: specialVisitClearedRef.current,
-      reward
-    };
-    setHighlightMeta(meta);
-    setHighlightClipGenerating(true);
-    setHighlightShareMessage('');
-    setHighlightModalOpen(true);
-    createHighlightClip(meta)
-      .then((blob) => {
-        setHighlightClipBlob(blob);
-        const url = URL.createObjectURL(blob);
-        setHighlightClipUrl(url);
-      })
-      .catch((err) => {
-        console.error('Highlight clip rendering failed', err);
-        setHighlightShareMessage('Unable to auto-render highlight clip.');
-      })
-      .finally(() => {
-        setHighlightClipGenerating(false);
-      });
-  }, [
-    buildRewardBundle,
-    createHighlightClip,
-    frameState.frameOver,
-    frameState.winner,
-    isTraining,
-    opponentAvatar,
-    opponentLabel,
-    player.name,
-    playerAvatar,
-    playerLabel
-  ]);
-  useEffect(() => {
-    return () => {
-      if (highlightClipUrl) URL.revokeObjectURL(highlightClipUrl);
-    };
-  }, [highlightClipUrl]);
-  const handleDownloadHighlight = useCallback(() => {
-    if (!highlightClipUrl) return;
-    const link = document.createElement('a');
-    link.href = highlightClipUrl;
-    link.download = 'pool-royale-highlight.webm';
-    link.click();
-  }, [highlightClipUrl]);
-  const handleShareHighlight = useCallback(async () => {
-    setHighlightShareMessage('');
-    try {
-      if (navigator.share && highlightClipBlob) {
-        const file = new File([
-          highlightClipBlob
-        ], 'pool-royale-highlight.webm', { type: highlightClipBlob.type || 'video/webm' });
-        await navigator.share({
-          title: 'Pool Royale Highlight',
-          text: 'Check out my Pool Royale highlights! 🎱',
-          files: [file]
-        });
-        setHighlightShareMessage('Shared successfully.');
-        return;
-      }
-      if (navigator.clipboard && highlightClipUrl) {
-        await navigator.clipboard.writeText(highlightClipUrl);
-        setHighlightShareMessage('Link copied to clipboard.');
-        return;
-      }
-      setHighlightShareMessage('Sharing is not available on this device.');
-    } catch (err) {
-      console.error('Share failed', err);
-      setHighlightShareMessage('Unable to share clip.');
-    }
-  }, [highlightClipBlob, highlightClipUrl]);
-  const handleCloseHighlight = useCallback(() => {
-    setHighlightModalOpen(false);
-    const winnerParam = frameState.winner === 'A' ? '1' : '0';
-    navigate(`/games/poolroyale/lobby?winner=${winnerParam}`);
-  }, [frameState.winner, navigate]);
+    const announcement =
+      winnerId === 'A'
+        ? `${winnerLabel} wins!`
+        : winnerId === 'B'
+          ? `${winnerLabel} wins!`
+          : 'Frame tied!';
+    window.alert(`${announcement} Returning to the lobby...`);
+    const winnerParam = winnerId === 'A' ? '1' : '0';
+    const lobbyUrl = `/games/poolroyale/lobby?winner=${winnerParam}`;
+    const redirectTimer = window.setTimeout(() => {
+      window.location.assign(lobbyUrl);
+    }, 1200);
+    return () => window.clearTimeout(redirectTimer);
+  }, [frameState.frameOver, frameState.winner, isTraining, player.name]);
 
   useEffect(() => {
     let wakeLock;
@@ -17773,111 +17470,6 @@ function PoolRoyaleGame({
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {highlightModalOpen && (
-        <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black/80 px-3 py-6 backdrop-blur">
-          <div className="w-full max-w-md rounded-3xl border border-emerald-400/30 bg-slate-950/95 p-4 shadow-[0_20px_60px_rgba(0,0,0,0.55)]">
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-400/20 text-2xl">🎞️</div>
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.35em] text-emerald-200/70">Match Highlights</p>
-                <p className="text-lg font-semibold text-white">Pool Royale</p>
-                <p className="text-xs text-emerald-100/70">
-                  {highlightMeta?.winnerLabel ? `${highlightMeta.winnerLabel} wins` : 'Frame complete'}
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-3">
-              <div className="rounded-2xl border border-white/10 bg-black/60 p-3">
-                {highlightClipUrl ? (
-                  <video
-                    src={highlightClipUrl}
-                    controls
-                    playsInline
-                    className="w-full rounded-xl border border-white/10"
-                    poster={highlightMeta?.playerAvatar || highlightMeta?.opponentAvatar || undefined}
-                  />
-                ) : (
-                  <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-emerald-300/40 bg-slate-900 text-sm text-emerald-100/80">
-                    {highlightClipGenerating ? 'Rendering your highlight…' : 'Highlight clip unavailable'}
-                  </div>
-                )}
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2">
-                    <div className="h-10 w-10 overflow-hidden rounded-full bg-white/10">
-                      {highlightMeta?.playerAvatar ? (
-                        <img src={highlightMeta.playerAvatar} alt="Player avatar" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-lg">🎱</div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.25em] text-emerald-200">You</p>
-                      <p className="text-sm font-semibold">{highlightMeta?.playerName || 'Player'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2">
-                    <div className="h-10 w-10 overflow-hidden rounded-full bg-white/10">
-                      {highlightMeta?.opponentAvatar ? (
-                        <img src={highlightMeta.opponentAvatar} alt="Opponent avatar" className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center text-lg">🤖</div>
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-[11px] uppercase tracking-[0.25em] text-emerald-200">Opponent</p>
-                      <p className="text-sm font-semibold">{highlightMeta?.opponentName || 'Opponent'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {highlightMeta?.specialVisit && highlightMeta?.reward ? (
-                <div className="rounded-2xl border border-emerald-400/40 bg-emerald-500/10 p-3 shadow-[0_0_18px_rgba(16,185,129,0.25)]">
-                  <p className="text-sm font-semibold text-emerald-100">One-visit clearance!</p>
-                  <p className="text-xs text-emerald-50/80">You potted every ball in a single visit and unlocked:</p>
-                  <ul className="mt-2 space-y-1 text-xs text-white/90">
-                    {highlightMeta.reward.tableFinish ? (
-                      <li>• Table finish NFT: {highlightMeta.reward.tableFinish.label}</li>
-                    ) : null}
-                    {highlightMeta.reward.cue ? <li>• Cue NFT: {highlightMeta.reward.cue.label}</li> : null}
-                    <li>• 2500 TPC bonus</li>
-                  </ul>
-                </div>
-              ) : null}
-
-              {highlightShareMessage ? (
-                <p className="text-xs text-emerald-100">{highlightShareMessage}</p>
-              ) : null}
-
-              <div className="grid grid-cols-3 gap-2 text-sm font-semibold uppercase tracking-[0.2em]">
-                <button
-                  type="button"
-                  onClick={handleDownloadHighlight}
-                  className="rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  Download
-                </button>
-                <button
-                  type="button"
-                  onClick={handleShareHighlight}
-                  className="rounded-xl border border-emerald-400/40 bg-emerald-500/20 px-3 py-2 text-emerald-100 transition hover:bg-emerald-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  Share
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCloseHighlight}
-                  className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-white transition hover:bg-white/15 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
