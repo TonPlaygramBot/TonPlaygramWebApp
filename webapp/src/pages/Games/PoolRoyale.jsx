@@ -43,6 +43,17 @@ import {
 } from '../../utils/poolRoyalInventory.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
+const HIGHLIGHT_BALL_STYLES = {
+  RED: { bg: '#b91c1c', text: '#fff', label: 'R' },
+  YELLOW: { bg: '#eab308', text: '#111827', label: 'Y' },
+  GREEN: { bg: '#22c55e', text: '#052e16', label: 'G' },
+  BROWN: { bg: '#92400e', text: '#fef3c7', label: 'Br' },
+  BLUE: { bg: '#2563eb', text: '#e0f2fe', label: 'Bl' },
+  PINK: { bg: '#db2777', text: '#fff', label: 'P' },
+  BLACK: { bg: '#0b1224', text: '#f9fafb', label: '8' },
+  CUE: { bg: '#e5e7eb', text: '#111827', label: 'C' }
+};
+
 function safePolygonUnion(...parts) {
   const valid = parts.filter(Boolean);
   if (!valid.length) return [];
@@ -9153,6 +9164,15 @@ function PoolRoyaleGame({
   const highlightReplaysRef = useRef([]);
   const highlightPlaybackRef = useRef(null);
   const highlightsPlayedRef = useRef(false);
+  const [showHighlightOverlay, setShowHighlightOverlay] = useState(false);
+  const [highlightTransitioning, setHighlightTransitioning] = useState(false);
+  const [highlightHud, setHighlightHud] = useState({
+    activeShot: null,
+    totalShots: 0,
+    winner: null,
+    finished: false,
+    finalScore: { A: 0, B: 0 }
+  });
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
@@ -12880,8 +12900,22 @@ function PoolRoyaleGame({
           const highlightShots = Array.isArray(shots)
             ? shots.filter((entry) => entry?.recording?.frames?.length)
             : [];
+          const winnerId = frameRef.current?.winner ?? frameState.winner ?? null;
+          const latestScore = {
+            A: frameRef.current?.players?.A?.score ?? hudRef.current?.A ?? 0,
+            B: frameRef.current?.players?.B?.score ?? hudRef.current?.B ?? 0
+          };
           if (!highlightShots.length) {
             setReplayBanner('No recorded highlights yet');
+            setHighlightHud((prev) => ({
+              ...prev,
+              activeShot: null,
+              totalShots: 0,
+              winner: winnerId,
+              finished: true,
+              finalScore: latestScore
+            }));
+            setShowHighlightOverlay(false);
             await waitMs(1200);
             setReplayBanner(null);
             shotRecording = null;
@@ -12889,17 +12923,58 @@ function PoolRoyaleGame({
             return;
           }
 
-          for (const entry of highlightShots) {
+          setHighlightHud({
+            activeShot: null,
+            totalShots: highlightShots.length,
+            winner: winnerId,
+            finished: false,
+            finalScore: latestScore
+          });
+          setShowHighlightOverlay(true);
+          setHighlightTransitioning(true);
+          await waitMs(240);
+
+          for (let i = 0; i < highlightShots.length; i++) {
+            const entry = highlightShots[i];
             const recordingForShot = entry?.recording;
             if (!recordingForShot?.frames?.length) continue;
+            const scoreForShot = entry?.score ?? latestScore;
+            const shooterId = entry?.shooter || frameRef.current?.activePlayer || 'A';
+            setHighlightHud((prev) => ({
+              ...prev,
+              activeShot: {
+                id: entry.id,
+                banner: entry.banner || 'Highlight',
+                shooter: shooterId,
+                potted: Array.isArray(entry.potted) ? entry.potted : [],
+                index: i,
+                total: highlightShots.length,
+                score: scoreForShot
+              },
+              totalShots: highlightShots.length,
+              finalScore: scoreForShot,
+              winner: prev.winner ?? winnerId
+            }));
+            setHighlightTransitioning(false);
             shotRecording = { ...recordingForShot };
             setReplayBanner(entry.banner || 'Highlight');
             startShotReplay(entry.postState);
             await waitForReplayToFinish((recordingForShot.duration ?? 0) + 3000);
-            await waitMs(300);
+            await waitMs(320);
+            setHighlightTransitioning(true);
             setReplayBanner(null);
           }
 
+          setHighlightHud((prev) => ({
+            ...prev,
+            finished: true,
+            activeShot: prev.activeShot,
+            finalScore: prev.activeShot?.score ?? prev.finalScore,
+            winner: prev.winner ?? winnerId
+          }));
+          await waitMs(1200);
+          setShowHighlightOverlay(false);
+          setHighlightTransitioning(false);
           shotRecording = null;
           replayPlaybackRef.current = null;
         };
@@ -16082,6 +16157,18 @@ function PoolRoyaleGame({
               const recordingTags = Array.isArray(recordingForReplay.replayTags)
                 ? recordingForReplay.replayTags
                 : [];
+              const highlightShooter = frameRef.current?.activePlayer ?? safeState?.activePlayer ?? 'A';
+              const highlightScore = {
+                A: safeState?.players?.A?.score ?? hudRef.current?.A ?? 0,
+                B: safeState?.players?.B?.score ?? hudRef.current?.B ?? 0
+              };
+              const highlightPotted = Array.isArray(potted)
+                ? potted.map((entry) => ({
+                    id: entry.id,
+                    color: entry.color,
+                    owner: highlightShooter
+                  }))
+                : [];
               const highlightRecording = {
                 ...recordingForReplay,
                 frames: trimmedForHighlights.frames,
@@ -16094,6 +16181,9 @@ function PoolRoyaleGame({
                 postState: postShotSnapshot,
                 banner: replayBannerText,
                 tags: [...recordingTags],
+                potted: highlightPotted,
+                shooter: highlightShooter,
+                score: highlightScore
               };
               highlightReplaysRef.current = [
                 ...highlightReplaysRef.current,
@@ -17571,6 +17661,78 @@ function PoolRoyaleGame({
   }, [showPlayerControls, updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
+  const highlightActiveShot = highlightHud.activeShot;
+  const highlightScore = highlightActiveShot?.score ?? highlightHud.finalScore ?? {
+    A: hud.A,
+    B: hud.B
+  };
+  const highlightPlayers = useMemo(
+    () => ({
+      A: {
+        name: frameState?.players?.A?.name || player.name || 'Player',
+        avatar: frameState?.players?.A?.avatar || player.avatar || '/assets/icons/profile.svg'
+      },
+      B: {
+        name: frameState?.players?.B?.name || opponentLabel || 'Opponent',
+        avatar:
+          frameState?.players?.B?.avatar ||
+          opponentAvatar ||
+          '/assets/icons/profile.svg'
+      }
+    }),
+    [
+      frameState?.players?.A?.avatar,
+      frameState?.players?.A?.name,
+      frameState?.players?.B?.avatar,
+      frameState?.players?.B?.name,
+      opponentAvatar,
+      opponentLabel,
+      player.avatar,
+      player.name
+    ]
+  );
+  const highlightWinnerName =
+    highlightHud.winner === 'A'
+      ? highlightPlayers.A.name
+      : highlightHud.winner === 'B'
+        ? highlightPlayers.B.name
+        : null;
+  const highlightPottedByPlayer = useMemo(
+    () => ({
+      A: (highlightActiveShot?.potted || []).filter(
+        (ball) => (ball?.owner ?? highlightActiveShot?.shooter) === 'A'
+      ),
+      B: (highlightActiveShot?.potted || []).filter(
+        (ball) => (ball?.owner ?? highlightActiveShot?.shooter) === 'B'
+      )
+    }),
+    [highlightActiveShot]
+  );
+  const renderBallBadge = (ball, index, owner) => {
+    const colorKey = typeof ball?.color === 'string' ? ball.color.toUpperCase() : '';
+    const style = HIGHLIGHT_BALL_STYLES[colorKey] || {
+      bg: '#94a3b8',
+      text: '#0f172a',
+      label: '?' // fallback label
+    };
+    const derivedLabel =
+      typeof ball?.id === 'number' || typeof ball?.id === 'string'
+        ? String(ball.id).slice(0, 3)
+        : null;
+    const label = derivedLabel || style.label || colorKey?.charAt(0) || '•';
+    return (
+      <span
+        key={`${owner}-${ball?.id ?? index}-${index}`}
+        className="flex h-8 min-w-[2.25rem] items-center justify-center gap-1 rounded-full px-3 text-xs font-semibold shadow-[0_8px_18px_rgba(0,0,0,0.35)]"
+        style={{
+          background: style.bg,
+          color: style.text
+        }}
+      >
+        {label}
+      </span>
+    );
+  };
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -17584,6 +17746,101 @@ function PoolRoyaleGame({
             aria-live="polite"
           >
             {replayBanner}
+          </div>
+        </div>
+      )}
+
+      {showHighlightOverlay && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className={`w-full max-w-3xl transition-all duration-300 ${
+              highlightTransitioning
+                ? 'translate-y-3 scale-[0.98] opacity-0'
+                : 'translate-y-0 scale-100 opacity-100'
+            }`}
+          >
+            <div className="rounded-2xl border border-emerald-400/35 bg-black/80 p-4 shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+              <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.32em] text-emerald-100/80">
+                <span>Highlight Reel</span>
+                {highlightHud.totalShots > 0 && highlightActiveShot && (
+                  <span className="text-white/70">
+                    Shot {highlightActiveShot.index + 1} / {highlightHud.totalShots}
+                  </span>
+                )}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-sm font-semibold text-white">
+                {['A', 'B'].map((id) => {
+                  const info = highlightPlayers[id];
+                  const isShooter = highlightActiveShot?.shooter === id;
+                  return (
+                    <div
+                      key={id}
+                      className={`flex items-center gap-3 rounded-xl px-3 py-2 ${
+                        isShooter
+                          ? 'bg-emerald-400/10 ring-2 ring-emerald-300/70 shadow-[0_0_24px_rgba(16,185,129,0.3)]'
+                          : 'bg-white/5 ring-1 ring-white/10'
+                      }`}
+                    >
+                      <img
+                        src={info.avatar || '/assets/icons/profile.svg'}
+                        alt={`${info.name} avatar`}
+                        className="h-10 w-10 rounded-full border border-white/30 object-cover"
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[10px] uppercase tracking-[0.28em] text-white/60">
+                          {id === 'A' ? 'Player' : isOnlineMatch ? 'Opponent' : 'AI'}
+                        </div>
+                        <div className="truncate text-base font-semibold">{info.name}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-3 text-xs text-white">
+                {['A', 'B'].map((id) => {
+                  const pots = highlightPottedByPlayer[id] ?? [];
+                  return (
+                    <div
+                      key={`pots-${id}`}
+                      className="rounded-xl border border-white/10 bg-white/5 p-3 shadow-[0_10px_24px_rgba(0,0,0,0.4)]"
+                    >
+                      <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.24em] text-white/70">
+                        <span>{id === 'A' ? 'Player pots' : 'Opponent pots'}</span>
+                        <span className="text-white/50">This shot</span>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {pots.length
+                          ? pots.map((ball, index) => renderBallBadge(ball, index, id))
+                          : (
+                              <span className="text-white/50">No pots</span>
+                            )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 text-sm font-semibold text-white">
+                <span className="rounded-full bg-amber-300/15 px-4 py-1 text-amber-200 shadow-[0_8px_18px_rgba(0,0,0,0.35)]">
+                  Score {highlightScore.A} - {highlightScore.B}
+                </span>
+                {highlightActiveShot?.banner && (
+                  <span className="rounded-full bg-white/10 px-4 py-1 text-[11px] uppercase tracking-[0.32em] text-white/80">
+                    {highlightActiveShot.banner}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {highlightHud.finished && highlightWinnerName && (
+              <div className="mt-3 flex flex-col items-center gap-2 text-white">
+                <div className="rounded-full bg-emerald-400 px-5 py-2 text-sm font-bold uppercase tracking-[0.28em] text-black shadow-[0_14px_32px_rgba(16,185,129,0.45)]">
+                  Winner: {highlightWinnerName}
+                </div>
+                <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
+                  Final score {highlightScore.A} - {highlightScore.B}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
