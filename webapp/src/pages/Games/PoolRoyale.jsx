@@ -9139,14 +9139,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
-  const HIGHLIGHT_QUALITY_OPTIONS = useMemo(
-    () => [
-      { id: 'hd', label: 'HD', width: 1280, height: 720 },
-      { id: 'fhd', label: 'Full HD', width: 1920, height: 1080 },
-      { id: 'uhd', label: 'Ultra HD', width: 2560, height: 1440 },
-    ],
-    []
-  );
   const userSuggestionPlanRef = useRef(null);
     const shotContextRef = useRef({
       placedFromHand: false,
@@ -9168,16 +9160,6 @@ function PoolRoyaleGame({
   const highlightVideoRef = useRef(null);
   const [highlightGenerating, setHighlightGenerating] = useState(false);
   const [highlightError, setHighlightError] = useState('');
-  const [highlightQualityId, setHighlightQualityId] = useState(
-    HIGHLIGHT_QUALITY_OPTIONS[0].id
-  );
-  const highlightQualityRef = useRef(HIGHLIGHT_QUALITY_OPTIONS[0]);
-  useEffect(() => {
-    const match =
-      HIGHLIGHT_QUALITY_OPTIONS.find((option) => option.id === highlightQualityId) ||
-      HIGHLIGHT_QUALITY_OPTIONS[0];
-    highlightQualityRef.current = match;
-  }, [HIGHLIGHT_QUALITY_OPTIONS, highlightQualityId]);
   useEffect(() => {
     highlightReplaysRef.current = [];
     highlightBlobRef.current = null;
@@ -9592,16 +9574,46 @@ function PoolRoyaleGame({
 
   const handleDownloadHighlight = useCallback(() => {
     if (!highlightBlobRef.current || !highlightVideoUrl) return;
-    const extension = highlightBlobRef.current.type?.includes('mp4')
-      ? 'mp4'
-      : 'webm';
     const link = document.createElement('a');
     link.href = highlightVideoUrl;
-    link.download = `pool-royale-highlights.${extension}`;
+    link.download = 'pool-royale-highlights.webm';
     link.rel = 'noopener';
     document.body.appendChild(link);
     link.click();
     link.remove();
+  }, [highlightVideoUrl]);
+
+  const handleShareHighlight = useCallback(async () => {
+    if (!highlightBlobRef.current || !highlightVideoUrl) return;
+    try {
+      const blob = highlightBlobRef.current;
+      const file = new File([blob], 'pool-royale-highlights.webm', {
+        type: blob.type || 'video/webm',
+      });
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: 'Pool Royale highlights',
+          text: 'Check out my best shots in Pool Royale!',
+        });
+        return;
+      }
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Pool Royale highlights',
+          text: 'Check out my best shots in Pool Royale!',
+          url: highlightVideoUrl,
+        });
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(highlightVideoUrl);
+      } else {
+        throw new Error('Sharing is not supported on this device yet.');
+      }
+    } catch (err) {
+      setHighlightError(err?.message || 'Unable to share the highlight clip.');
+    }
   }, [highlightVideoUrl]);
 
   const handleEnterHighlightFullscreen = useCallback(() => {
@@ -9611,33 +9623,9 @@ function PoolRoyaleGame({
       node.requestFullscreen ||
       node.webkitRequestFullscreen ||
       node.msRequestFullscreen ||
-      node.webkitEnterFullscreen ||
-      node.requestFullScreen;
-    try {
-      const result = requestFullscreen?.call(node);
-      if (result instanceof Promise) {
-        result.catch((err) =>
-          setHighlightError(err?.message || 'Unable to enter fullscreen.')
-        );
-      }
-    } catch (err) {
-      setHighlightError(err?.message || 'Unable to enter fullscreen.');
-    }
+      node.webkitEnterFullscreen;
+    if (requestFullscreen) requestFullscreen.call(node);
   }, []);
-
-  const handleSelectHighlightQuality = useCallback(
-    (qualityId) => {
-      const match =
-        HIGHLIGHT_QUALITY_OPTIONS.find((option) => option.id === qualityId) ||
-        HIGHLIGHT_QUALITY_OPTIONS[0];
-      highlightQualityRef.current = match;
-      setHighlightQualityId(qualityId);
-      if (highlightModalOpen && !highlightGenerating) {
-        generateHighlightClip();
-      }
-    },
-    [HIGHLIGHT_QUALITY_OPTIONS, generateHighlightClip, highlightGenerating, highlightModalOpen]
-  );
 
   const handleCloseHighlights = useCallback(() => {
     setHighlightModalOpen(false);
@@ -13145,14 +13133,8 @@ function PoolRoyaleGame({
           if (!renderer || !renderCanvas) {
             throw new Error('Renderer is not ready yet.');
           }
-          const baseWidth = renderCanvas.width || renderCanvas.clientWidth || 1280;
-          const baseHeight = renderCanvas.height || renderCanvas.clientHeight || 720;
-          const aspect = baseWidth && baseHeight ? baseWidth / baseHeight : 16 / 9;
-          const selectedQuality = highlightQualityRef.current;
-          const targetWidth = selectedQuality?.width || baseWidth || 1280;
-          const targetHeight = selectedQuality?.height || baseHeight || 720;
-          const width = Math.round(targetWidth);
-          const height = Math.round(Math.max(targetHeight, targetWidth / aspect));
+          const width = renderCanvas.width || renderCanvas.clientWidth || 1280;
+          const height = renderCanvas.height || renderCanvas.clientHeight || 720;
           const compositeCanvas = document.createElement('canvas');
           compositeCanvas.width = width;
           compositeCanvas.height = height;
@@ -13162,18 +13144,11 @@ function PoolRoyaleGame({
           const stream = compositeCanvas.captureStream(captureFps);
           const audioTracks = highlightAudioStreamRef.current?.getAudioTracks?.() ?? [];
           audioTracks.forEach((track) => stream.addTrack(track));
-          const mimeCandidates = [
-            'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-            'video/mp4',
-            'video/webm;codecs=vp9',
-            'video/webm;codecs=vp8',
-            'video/webm',
-          ];
-          const mimeType = mimeCandidates.find((candidate) =>
-            MediaRecorder.isTypeSupported(candidate)
-          );
-          if (!mimeType) {
-            throw new Error('No supported recording format found for highlights.');
+          let mimeType = 'video/webm;codecs=vp9';
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp8')
+              ? 'video/webm;codecs=vp8'
+              : 'video/webm';
           }
           const chunks = [];
           const recorder = new MediaRecorder(stream, { mimeType });
@@ -18005,54 +17980,33 @@ function PoolRoyaleGame({
                 </div>
               )}
             </div>
-            <div className="mt-4 space-y-3">
-              <div className="rounded-xl border border-white/15 bg-white/5 p-3">
-                <div className="flex items-center justify-between gap-2 text-[10px] uppercase tracking-[0.3em] text-emerald-200/80">
-                  <span>Resolution</span>
-                  <span className="text-[11px] font-semibold text-white/80">
-                    {highlightQualityRef.current?.label}
-                  </span>
-                </div>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {HIGHLIGHT_QUALITY_OPTIONS.map((option) => {
-                    const active = option.id === highlightQualityId;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => handleSelectHighlightQuality(option.id)}
-                        disabled={highlightGenerating && active}
-                        className={`rounded-lg border px-2 py-2 text-sm font-semibold transition ${
-                          active
-                            ? 'border-emerald-300/80 bg-emerald-500/80 text-black shadow-[0_0_14px_rgba(16,185,129,0.45)]'
-                            : 'border-white/20 bg-white/10 text-white hover:bg-white/15'
-                        } ${highlightGenerating && active ? 'opacity-70' : ''}`}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="mt-2 text-[11px] leading-relaxed text-white/70">
-                  Choose HD through Ultra HD before downloading. Changing the resolution rebuilds the clip so it plays cleanly on Telegram.
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleDownloadHighlight}
-                  disabled={!highlightVideoUrl || highlightGenerating}
-                  className="rounded-xl border border-emerald-300/80 bg-emerald-500/90 px-4 py-2 text-sm font-semibold uppercase tracking-[0.14em] text-black shadow-[0_0_18px_rgba(16,185,129,0.45)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Download
-                </button>
-                {highlightGenerating && (
-                  <span className="text-xs text-white/70">Rebuilding highlight…</span>
-                )}
-              </div>
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <button
+                type="button"
+                onClick={handleDownloadHighlight}
+                disabled={!highlightVideoUrl || highlightGenerating}
+                className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Download
+              </button>
+              <button
+                type="button"
+                onClick={handleShareHighlight}
+                disabled={!highlightVideoUrl || highlightGenerating}
+                className="rounded-xl border border-white/20 bg-emerald-500/80 px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] text-black shadow-[0_0_18px_rgba(16,185,129,0.45)] transition hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Share
+              </button>
+              <button
+                type="button"
+                onClick={handleCloseHighlights}
+                className="rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition hover:bg-white/20"
+              >
+                Close
+              </button>
             </div>
             <p className="mt-3 text-center text-xs text-white/60">
-              Download the auto-generated clip and share it easily on Telegram.
+              Watch, share, or save the auto-generated clip of your best shots.
             </p>
           </div>
         </div>
