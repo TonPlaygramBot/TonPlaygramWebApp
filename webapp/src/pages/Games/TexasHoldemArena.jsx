@@ -2009,7 +2009,7 @@ function TexasHoldemArena({ search }) {
       const basis = cameraBasisRef.current;
       if (!three || !basis) return;
       const state = gameStateRef.current;
-      if (!hasSeatAvatar(state, seatIndex)) return;
+      if (!state?.players?.[seatIndex]) return;
       const seat = three.seatGroups?.[seatIndex];
       if (!seat) return;
       const focusPoint = seat.stoolAnchor.clone();
@@ -3361,8 +3361,7 @@ function TexasHoldemArena({ search }) {
     if (currentStage === 'showdown') return;
     const three = threeRef.current;
     if (!three) return;
-    const focusIndex = findSeatWithAvatar(currentActionIndex);
-    if (typeof focusIndex !== 'number') return;
+    const focusIndex = currentActionIndex;
     const seat = three.seatGroups?.[focusIndex];
     const pointerState = pointerStateRef.current;
     const isCameraDragged = pointerState?.active && pointerState.mode === 'camera';
