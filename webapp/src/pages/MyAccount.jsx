@@ -13,7 +13,8 @@ import {
   getTelegramId,
   getTelegramFirstName,
   getTelegramLastName,
-  getTelegramPhotoUrl
+  getTelegramPhotoUrl,
+  extractTelegramPhoto
 } from '../utils/telegram.js';
 import LoginOptions from '../components/LoginOptions.jsx';
 import { DEV_INFO } from '../utils/constants.js';
@@ -162,11 +163,12 @@ export default function MyAccount() {
             console.error('fetchTelegramInfo failed', err);
           }
 
+          const tgPhoto = extractTelegramPhoto(tg);
           const firstName =
             data.firstName || tg?.firstName || getTelegramFirstName();
           const lastName =
             data.lastName || tg?.lastName || getTelegramLastName();
-          const photo = data.photo || tg?.photoUrl || getTelegramPhotoUrl();
+          const photo = data.photo || tgPhoto || getTelegramPhotoUrl();
 
           const updated = await updateProfile({
             telegramId,
@@ -176,7 +178,7 @@ export default function MyAccount() {
             lastName
           });
 
-          const hasRealPhoto = updated.photo || tg?.photoUrl;
+          const hasRealPhoto = updated.photo || tgPhoto;
           const mergedProfile = {
             ...data,
             ...updated,
@@ -217,7 +219,8 @@ export default function MyAccount() {
     async function updatePhoto() {
       try {
         const info = await fetchTelegramInfo(telegramId);
-        if (info?.photoUrl) setPhotoUrl(info.photoUrl);
+        const photo = extractTelegramPhoto(info);
+        if (photo) setPhotoUrl(photo);
       } catch (err) {
         console.error('fetchTelegramInfo failed', err);
       }
