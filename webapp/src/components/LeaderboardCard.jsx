@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FaCircle, FaTv } from 'react-icons/fa';
 import LoginOptions from './LoginOptions.jsx';
-import { getTelegramId, getTelegramPhotoUrl, getPlayerId, extractTelegramPhoto } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
 import {
   getLeaderboard,
   getOnlineCount,
@@ -79,8 +79,7 @@ export default function LeaderboardCard() {
             saveAvatar(p.photo);
           } else {
             fetchTelegramInfo(telegramId).then((info) => {
-              const photo = extractTelegramPhoto(info);
-              if (photo) setMyPhotoUrl(photo);
+              if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
             });
           }
           setMyName(
@@ -89,8 +88,7 @@ export default function LeaderboardCard() {
         })
         .catch(() => {
           fetchTelegramInfo(telegramId).then((info) => {
-            const photo = extractTelegramPhoto(info);
-            if (photo) setMyPhotoUrl(photo);
+            if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
             setMyName(`${info?.firstName || ''} ${info?.lastName || ''}`.trim());
           });
         });

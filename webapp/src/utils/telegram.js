@@ -101,11 +101,6 @@ export function getTelegramUserData() {
   return null;
 }
 
-export function extractTelegramPhoto(info) {
-  if (!info) return '';
-  return info.photoUrl || info.photo_url || info.photo || '';
-}
-
 export function getTelegramPhotoUrl() {
   if (typeof window !== 'undefined') {
     const photo = window?.Telegram?.WebApp?.initDataUnsafe?.user?.photo_url;
@@ -119,9 +114,8 @@ export function getTelegramPhotoUrl() {
     if (id) {
       fetchTelegramInfo(id)
         .then((info) => {
-          const photoUrl = extractTelegramPhoto(info);
-          if (photoUrl) {
-            localStorage.setItem('telegramPhotoUrl', photoUrl);
+          if (info?.photoUrl) {
+            localStorage.setItem('telegramPhotoUrl', info.photoUrl);
             window.dispatchEvent(new Event('profilePhotoUpdated'));
           }
         })
