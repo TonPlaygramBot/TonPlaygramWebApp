@@ -9587,19 +9587,34 @@ function PoolRoyaleGame({
   }, [frameState.winner, opponentLabel]);
 
   const handleDownloadHighlight = useCallback(() => {
-    if (!highlightBlobRef.current || !highlightVideoUrl) return;
-    const link = document.createElement('a');
-    link.href = highlightVideoUrl;
-    link.download = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
-    link.rel = 'noopener';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const blob = highlightBlobRef.current;
+    if (!blob || !highlightVideoUrl) return;
 
     const tg = window?.Telegram?.WebApp;
-    if (tg?.openLink) {
-      tg.openLink(highlightVideoUrl, { try_instant_view: false });
+    const isTelegram = Boolean(tg);
+    const filename = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
+    const blobUrl =
+      highlightVideoUrl.startsWith('blob:') && blob instanceof Blob
+        ? highlightVideoUrl
+        : URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = filename;
+    link.rel = 'noopener';
+    link.target = isTelegram ? '_self' : '_blank';
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    setTimeout(() => {
+      link.remove();
+      if (blobUrl !== highlightVideoUrl && blobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    }, 0);
+
+    if (isTelegram && tg?.openLink) {
+      tg.openLink(blobUrl, { try_instant_view: false });
     }
   }, [highlightVideoUrl]);
 
