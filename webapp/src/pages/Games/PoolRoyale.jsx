@@ -9587,19 +9587,43 @@ function PoolRoyaleGame({
   }, [frameState.winner, opponentLabel]);
 
   const handleDownloadHighlight = useCallback(() => {
-    if (!highlightBlobRef.current || !highlightVideoUrl) return;
-    const link = document.createElement('a');
-    link.href = highlightVideoUrl;
-    link.download = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
-    link.rel = 'noopener';
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    const blob = highlightBlobRef.current;
+    const url = highlightVideoUrl;
+    if (!blob || !url) return;
 
+    const filename = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
     const tg = window?.Telegram?.WebApp;
-    if (tg?.openLink) {
-      tg.openLink(highlightVideoUrl, { try_instant_view: false });
+
+    if (typeof window.navigator?.msSaveOrOpenBlob === 'function') {
+      window.navigator.msSaveOrOpenBlob(blob, filename);
+      return;
+    }
+
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.rel = 'noopener';
+    anchor.target = '_self';
+    anchor.style.position = 'fixed';
+    anchor.style.left = '-9999px';
+
+    document.body.appendChild(anchor);
+
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+      view: window,
+    });
+
+    anchor.click();
+    anchor.dispatchEvent(clickEvent);
+
+    requestAnimationFrame(() => {
+      anchor.remove();
+    });
+
+    if (/^https?:/i.test(url) && tg?.openLink) {
+      tg.openLink(url, { try_instant_view: false });
     }
   }, [highlightVideoUrl]);
 
