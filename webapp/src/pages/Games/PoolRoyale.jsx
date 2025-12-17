@@ -5132,8 +5132,10 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
-  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const sidePocketGuard =
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // mirror the corner guard so middle pockets don't deflect balls early
+  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.1);
+  const sideDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
@@ -5147,7 +5149,7 @@ function reflectRails(ball) {
     if (distNormal >= BALL_R) continue;
     TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
     const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral <= sideSpan) continue;
+    if (lateral < sideGuardClearance) continue;
     if (distNormal < -sideDepthLimit) continue;
     const push = BALL_R - distNormal;
     ball.pos.addScaledVector(TMP_VEC2_B, push);
