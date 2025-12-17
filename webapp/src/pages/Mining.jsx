@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
 import LoginOptions from '../components/LoginOptions.jsx';
-import { getTelegramId, getTelegramPhotoUrl, getPlayerId, extractTelegramPhoto } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl, getPlayerId } from '../utils/telegram.js';
 import { FaCircle } from 'react-icons/fa';
 import DailyCheckIn from '../components/DailyCheckIn.jsx';
 import SpinGame from '../components/SpinGame.jsx';
@@ -82,16 +82,14 @@ export default function Mining() {
             saveAvatar(p.photo);
           } else {
             fetchTelegramInfo(telegramId).then((info) => {
-              const photo = extractTelegramPhoto(info);
-              if (photo) setMyPhotoUrl(photo);
+              if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
             });
           }
           setMyName(p?.nickname || `${p?.firstName || ''} ${p?.lastName || ''}`.trim());
         })
         .catch(() => {
           fetchTelegramInfo(telegramId).then((info) => {
-            const photo = extractTelegramPhoto(info);
-            if (photo) setMyPhotoUrl(photo);
+            if (info?.photoUrl) setMyPhotoUrl(info.photoUrl);
             setMyName(`${info?.firstName || ''} ${info?.lastName || ''}`.trim());
           });
         });

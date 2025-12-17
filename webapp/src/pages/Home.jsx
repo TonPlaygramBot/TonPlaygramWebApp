@@ -32,7 +32,7 @@ import { getAvatarUrl, saveAvatar, loadAvatar } from '../utils/avatarUtils.js';
 import TonConnectButton from '../components/TonConnectButton.jsx';
 import useTokenBalances from '../hooks/useTokenBalances.js';
 import useWalletUsdValue from '../hooks/useWalletUsdValue.js';
-import { getTelegramId, getTelegramPhotoUrl, extractTelegramPhoto } from '../utils/telegram.js';
+import { getTelegramId, getTelegramPhotoUrl } from '../utils/telegram.js';
 
 
 export default function Home() {
@@ -71,14 +71,14 @@ export default function Home() {
             saveAvatar(p.photo);
           } else {
             fetchTelegramInfo(id).then((info) => {
-              setPhotoUrl(extractTelegramPhoto(info) || getTelegramPhotoUrl());
+              setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
             });
           }
         })
         .catch(() => {
           fetchTelegramInfo(id)
             .then((info) => {
-              setPhotoUrl(extractTelegramPhoto(info) || getTelegramPhotoUrl());
+              setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
             })
             .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
         });
@@ -97,14 +97,14 @@ export default function Home() {
               saveAvatar(p.photo);
             } else {
               fetchTelegramInfo(id).then((info) => {
-                setPhotoUrl(extractTelegramPhoto(info) || getTelegramPhotoUrl());
+                setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
               });
             }
           })
           .catch(() => {
             fetchTelegramInfo(id)
               .then((info) => {
-                setPhotoUrl(extractTelegramPhoto(info) || getTelegramPhotoUrl());
+                setPhotoUrl(info?.photoUrl || getTelegramPhotoUrl());
               })
               .catch(() => setPhotoUrl(getTelegramPhotoUrl()));
           });

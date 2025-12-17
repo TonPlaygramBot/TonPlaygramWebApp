@@ -123,8 +123,6 @@ const CAMERA_HEAD_PITCH_UP = THREE.MathUtils.degToRad(8);
 const CAMERA_HEAD_PITCH_DOWN = THREE.MathUtils.degToRad(52);
 const HEAD_YAW_SENSITIVITY = 0.0042;
 const HEAD_PITCH_SENSITIVITY = 0;
-const TURN_INDICATOR_HEIGHT = CARD_H * 0.42;
-const TURN_INDICATOR_RADIUS = CARD_W * 0.62;
 const CAMERA_LATERAL_OFFSETS = Object.freeze({ portrait: -0.08, landscape: 0.5 });
 const CAMERA_RETREAT_OFFSETS = Object.freeze({ portrait: 1.7, landscape: 1.16 });
 const CAMERA_ELEVATION_OFFSETS = Object.freeze({ portrait: 1.6, landscape: 1.18 });
@@ -1748,7 +1746,6 @@ function TexasHoldemArena({ search }) {
   const seatTopPointRef = useRef(null);
   const viewControlsRef = useRef({ applySeatedCamera: null, applyOverheadCamera: null });
   const lastViewRef = useRef(false);
-  const turnIndicatorRef = useRef(null);
   const cameraBasisRef = useRef({
     position: new THREE.Vector3(),
     baseForward: new THREE.Vector3(0, 0, -1),
@@ -2782,22 +2779,6 @@ function TexasHoldemArena({ search }) {
       }
       arenaGroup.add(potLabel);
 
-      const turnIndicator = new THREE.Mesh(
-        new THREE.RingGeometry(TURN_INDICATOR_RADIUS * 0.6, TURN_INDICATOR_RADIUS, 48),
-        new THREE.MeshBasicMaterial({
-          color: new THREE.Color('#38bdf8'),
-          transparent: true,
-          opacity: 0.88,
-          side: THREE.DoubleSide,
-          depthWrite: false
-        })
-      );
-      turnIndicator.rotation.x = -Math.PI / 2;
-      turnIndicator.position.copy(cameraTarget.clone().setY(TABLE_HEIGHT + TURN_INDICATOR_HEIGHT));
-      turnIndicator.visible = false;
-      arenaGroup.add(turnIndicator);
-      turnIndicatorRef.current = turnIndicator;
-
       const orientHumanCards = () => {
         const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
         if (!humanSeatGroup) return;
@@ -2837,7 +2818,6 @@ function TexasHoldemArena({ search }) {
           deckAnchor,
           raiseControls,
           raycaster,
-          turnIndicator,
           orientHumanCards,
           frameId: null,
           chairTemplate,
@@ -3125,16 +3105,6 @@ function TexasHoldemArena({ search }) {
           threeRef.current.potLabel.userData?.dispose?.();
           threeRef.current.potLabel.parent?.remove(threeRef.current.potLabel);
         }
-        if (turnIndicator) {
-          turnIndicator.geometry?.dispose?.();
-          if (Array.isArray(turnIndicator.material)) {
-            turnIndicator.material.forEach((mat) => mat?.dispose?.());
-          } else {
-            turnIndicator.material?.dispose?.();
-          }
-          arena?.remove(turnIndicator);
-          turnIndicatorRef.current = null;
-        }
         factory.disposeStack(threeRef.current.potStack);
         factory.dispose();
         arena?.parent?.remove(arena);
@@ -3388,38 +3358,28 @@ function TexasHoldemArena({ search }) {
   const currentStage = gameState?.stage;
   useEffect(() => {
     if (typeof currentActionIndex !== 'number') return;
-    if (currentStage === 'showdown') {
-      if (turnIndicatorRef.current) {
-        turnIndicatorRef.current.visible = false;
-      }
-      return;
-    }
+    if (currentStage === 'showdown') return;
     const three = threeRef.current;
     if (!three) return;
     const focusIndex = findSeatWithAvatar(currentActionIndex);
     if (typeof focusIndex !== 'number') return;
     const seat = three.seatGroups?.[focusIndex];
-    const indicator = three.turnIndicator;
-    if (indicator) {
-      if (seat) {
-        const anchor = seat.cardAnchor?.clone() ?? seat.seatPos.clone();
-        anchor.y = seat.stoolHeight + TURN_INDICATOR_HEIGHT;
-        indicator.position.copy(anchor);
-        indicator.lookAt(anchor.clone().add(seat.forward));
-        indicator.visible = true;
-      } else {
-        indicator.visible = false;
-      }
-    }
     const pointerState = pointerStateRef.current;
     const isCameraDragged = pointerState?.active && pointerState.mode === 'camera';
     if (!isCameraDragged) {
-      focusCameraOnSeat(focusIndex, Boolean(seat?.isHuman));
-      if (seat?.isHuman && !overheadView) {
-        const mount = mountRef.current;
-        const width = mount?.clientWidth ?? window.innerWidth;
-        const height = mount?.clientHeight ?? window.innerHeight;
-        viewControlsRef.current.applySeatedCamera?.(width, height, { animate: false });
+      if (seat?.isHuman) {
+        headAnglesRef.current.yaw = 0;
+        headAnglesRef.current.pitch = 0;
+        cameraAutoTargetRef.current = { yaw: 0, activeIndex: seat.index ?? focusIndex };
+        applyHeadOrientation();
+        if (!overheadView) {
+          const mount = mountRef.current;
+          const width = mount?.clientWidth ?? window.innerWidth;
+          const height = mount?.clientHeight ?? window.innerHeight;
+          viewControlsRef.current.applySeatedCamera?.(width, height, { animate: false });
+        }
+      } else {
+        focusCameraOnSeat(focusIndex, false);
       }
     }
     if (seat?.isHuman) {
