@@ -9586,52 +9586,22 @@ function PoolRoyaleGame({
     }
   }, [frameState.winner, opponentLabel]);
 
-  const readBlobAsDataUrl = useCallback((blob) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (typeof reader.result === 'string') resolve(reader.result);
-        else reject(new Error('Unable to read highlight file.'));
-      };
-      reader.onerror = () => reject(reader.error || new Error('Failed to read highlight file.'));
-      reader.readAsDataURL(blob);
-    });
-  }, []);
-
-  const handleDownloadHighlight = useCallback(async () => {
+  const handleDownloadHighlight = useCallback(() => {
     if (!highlightBlobRef.current || !highlightVideoUrl) return;
+    const link = document.createElement('a');
+    link.href = highlightVideoUrl;
+    link.download = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
+    link.rel = 'noopener';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 
-    const blob = highlightBlobRef.current;
-    const fileName = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
     const tg = window?.Telegram?.WebApp;
-
-    if (window.navigator?.msSaveOrOpenBlob) {
-      window.navigator.msSaveOrOpenBlob(blob, fileName);
-    } else {
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      link.rel = 'noopener';
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-
-      setTimeout(() => {
-        link.remove();
-        URL.revokeObjectURL(blobUrl);
-      });
-    }
-
     if (tg?.openLink) {
-      try {
-        const dataUrl = await readBlobAsDataUrl(blob);
-        tg.openLink(dataUrl, { try_instant_view: false });
-      } catch (err) {
-        console.error('Unable to open highlight download inside Telegram', err);
-      }
+      tg.openLink(highlightVideoUrl, { try_instant_view: false });
     }
-  }, [highlightVideoUrl, readBlobAsDataUrl]);
+  }, [highlightVideoUrl]);
 
   const handleEnterHighlightFullscreen = useCallback(() => {
     const node = highlightVideoRef.current;
