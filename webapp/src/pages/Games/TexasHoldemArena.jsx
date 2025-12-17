@@ -3367,7 +3367,20 @@ function TexasHoldemArena({ search }) {
     const pointerState = pointerStateRef.current;
     const isCameraDragged = pointerState?.active && pointerState.mode === 'camera';
     if (!isCameraDragged) {
-      focusCameraOnSeat(focusIndex, true);
+      if (seat?.isHuman) {
+        headAnglesRef.current.yaw = 0;
+        headAnglesRef.current.pitch = 0;
+        cameraAutoTargetRef.current = { yaw: 0, activeIndex: seat.index ?? focusIndex };
+        applyHeadOrientation();
+        if (!overheadView) {
+          const mount = mountRef.current;
+          const width = mount?.clientWidth ?? window.innerWidth;
+          const height = mount?.clientHeight ?? window.innerHeight;
+          viewControlsRef.current.applySeatedCamera?.(width, height, { animate: false });
+        }
+      } else {
+        focusCameraOnSeat(focusIndex, false);
+      }
     }
     if (seat?.isHuman) {
       playSound('knock');
