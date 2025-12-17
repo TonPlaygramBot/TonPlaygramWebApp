@@ -9587,43 +9587,19 @@ function PoolRoyaleGame({
   }, [frameState.winner, opponentLabel]);
 
   const handleDownloadHighlight = useCallback(() => {
-    const blob = highlightBlobRef.current;
-    if (!blob) return;
+    if (!highlightBlobRef.current || !highlightVideoUrl) return;
+    const link = document.createElement('a');
+    link.href = highlightVideoUrl;
+    link.download = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
+    link.rel = 'noopener';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 
-    const fileName = `pool-royale-highlights-${highlightQualityRef.current}.webm`;
-    const downloadUrl = highlightVideoUrl || URL.createObjectURL(blob);
-
-    const triggerAnchorDownload = () => {
-      const anchor = document.createElement('a');
-      anchor.href = downloadUrl;
-      anchor.download = fileName;
-      anchor.rel = 'noopener';
-      anchor.target = '_self';
-      anchor.style.position = 'fixed';
-      anchor.style.left = '-9999px';
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    };
-
-    // Try the most compatible approach first.
-    if (window.navigator?.msSaveOrOpenBlob) {
-      window.navigator.msSaveOrOpenBlob(blob, fileName);
-    } else {
-      triggerAnchorDownload();
-    }
-
-    // Telegram's in-app browser sometimes blocks the download attribute; open the link as a fallback.
     const tg = window?.Telegram?.WebApp;
     if (tg?.openLink) {
-      tg.openLink(downloadUrl, { try_instant_view: false });
-    } else {
-      window.open(downloadUrl, '_blank', 'noopener');
-    }
-
-    if (!highlightVideoUrl) {
-      // If we created a temporary URL for this download, clean it up after the user gesture.
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 3000);
+      tg.openLink(highlightVideoUrl, { try_instant_view: false });
     }
   }, [highlightVideoUrl]);
 
