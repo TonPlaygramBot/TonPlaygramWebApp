@@ -2415,11 +2415,11 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     description:
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
-    orbitBias: 0.68,
-    railPush: BALL_R * 5.2,
+    orbitBias: 0.64,
+    railPush: BALL_R * 3.9,
     lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 5.4,
-    focusDepthBias: BALL_R * 1.4,
+    focusLift: BALL_R * 3.9,
+    focusDepthBias: BALL_R * 1.05,
     focusPan: 0,
     trackingBias: 0.52,
     smoothing: 0.14,
@@ -4321,7 +4321,7 @@ const CUE_VIEW_FORWARD_SLIDE_RESET_BLEND = 0.45;
 const CUE_VIEW_AIM_SLOW_FACTOR = 0.35; // slow pointer rotation while blended toward cue view for finer aiming
 const CUE_VIEW_AIM_LINE_LERP = 0.1; // aiming line interpolation factor while the camera is near cue view
 const STANDING_VIEW_AIM_LINE_LERP = 0.2; // aiming line interpolation factor while the camera is near standing view
-const RAIL_OVERHEAD_AIM_ZOOM = 0.94; // gently pull the rail overhead view closer for middle-pocket aims
+const RAIL_OVERHEAD_AIM_ZOOM = 0.88; // gently pull the rail overhead view closer for middle-pocket aims
 const RAIL_OVERHEAD_AIM_PHI_LIFT = 0.04; // add a touch more overhead bias while holding the rail angle
 const BACKSPIN_DIRECTION_PREVIEW = 0.68; // lerp strength that pulls the cue-ball follow line toward a draw path
 const AIM_SPIN_PREVIEW_SIDE = 0.22;
@@ -9158,6 +9158,7 @@ function PoolRoyaleGame({
     ],
     []
   );
+  const ENABLE_MATCH_HIGHLIGHTS = false;
   const highlightReplaysRef = useRef([]);
   const highlightGeneratorRef = useRef(null);
   const highlightBlobRef = useRef(null);
@@ -9549,6 +9550,7 @@ function PoolRoyaleGame({
   }, [frameState.winner]);
 
   const generateHighlightClip = useCallback(async () => {
+    if (!ENABLE_MATCH_HIGHLIGHTS) return;
     const generator = highlightGeneratorRef.current;
     setHighlightGenerating(true);
     setHighlightError('');
@@ -9994,9 +9996,20 @@ function PoolRoyaleGame({
       return undefined;
     }
     setHud((prev) => ({ ...prev, over: true }));
-    setHighlightModalOpen(true);
-    generateHighlightClip();
-  }, [frameState.frameOver, frameState.winner, generateHighlightClip, isTraining]);
+    if (ENABLE_MATCH_HIGHLIGHTS) {
+      setHighlightModalOpen(true);
+      generateHighlightClip();
+    } else {
+      goToLobby();
+    }
+  }, [
+    ENABLE_MATCH_HIGHLIGHTS,
+    frameState.frameOver,
+    frameState.winner,
+    generateHighlightClip,
+    goToLobby,
+    isTraining
+  ]);
 
   useEffect(() => {
     let wakeLock;
@@ -13165,7 +13178,7 @@ function PoolRoyaleGame({
           compositeCanvas.height = height;
           const ctx = compositeCanvas.getContext('2d');
           if (!ctx) throw new Error('Unable to prepare recording surface.');
-          const captureFps = Math.max(30, frameQualityRef.current?.fps ?? 60);
+          const captureFps = Math.max(1, frameQualityRef.current?.fps ?? 60);
           const stream = compositeCanvas.captureStream(captureFps);
           const audioTracks = highlightAudioStreamRef.current?.getAudioTracks?.() ?? [];
           audioTracks.forEach((track) => stream.addTrack(track));
@@ -16443,7 +16456,7 @@ function PoolRoyaleGame({
           updatePocketCameraState(false);
           if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
-            if (recordingForReplay) {
+            if (ENABLE_MATCH_HIGHLIGHTS && recordingForReplay) {
               const trimmedForHighlights = trimReplayRecording(recordingForReplay);
               const recordingTags = Array.isArray(recordingForReplay.replayTags)
                 ? recordingForReplay.replayTags
@@ -17951,7 +17964,7 @@ function PoolRoyaleGame({
         </div>
       )}
 
-      {highlightModalOpen && (
+      {ENABLE_MATCH_HIGHLIGHTS && highlightModalOpen && (
         <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 px-4 py-6">
           <div className="w-full max-w-2xl rounded-2xl border border-emerald-400/60 bg-slate-900/95 p-4 shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
             <div className="flex items-start justify-between gap-4">
