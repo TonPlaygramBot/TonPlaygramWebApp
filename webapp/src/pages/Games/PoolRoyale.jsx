@@ -2415,11 +2415,11 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     description:
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
-    orbitBias: 0.68,
-    railPush: BALL_R * 5.2,
+    orbitBias: 0.62,
+    railPush: BALL_R * 4.2,
     lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 5.4,
-    focusDepthBias: BALL_R * 1.4,
+    focusLift: BALL_R * 4.6,
+    focusDepthBias: BALL_R * 1.1,
     focusPan: 0,
     trackingBias: 0.52,
     smoothing: 0.14,
@@ -9994,9 +9994,13 @@ function PoolRoyaleGame({
       return undefined;
     }
     setHud((prev) => ({ ...prev, over: true }));
-    setHighlightModalOpen(true);
-    generateHighlightClip();
-  }, [frameState.frameOver, frameState.winner, generateHighlightClip, isTraining]);
+    highlightReplaysRef.current = [];
+    highlightBlobRef.current = null;
+    setHighlightModalOpen(false);
+    setHighlightVideoUrl('');
+    setHighlightError('');
+    setHighlightGenerating(false);
+  }, [frameState.frameOver, frameState.winner, isTraining]);
 
   useEffect(() => {
     let wakeLock;
@@ -10776,7 +10780,7 @@ function PoolRoyaleGame({
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 6.8,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 5.6,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
@@ -12938,40 +12942,16 @@ function PoolRoyaleGame({
           replayTrail.visible = true;
         };
 
-        const trimReplayRecording = (recording) => {
-          const frames = recording?.frames ?? [];
-          const cuePath = recording?.cuePath ?? [];
-          if (frames.length === 0) return { frames, cuePath, duration: 0 };
-          const fullDuration = frames[frames.length - 1]?.t ?? 0;
-          const trimStart =
-            recording?.zoomOnly && fullDuration > QUICK_REPLAY_WINDOW_MS
-              ? fullDuration - QUICK_REPLAY_WINDOW_MS
-              : 0;
-          const trimmedFrames =
-            trimStart > 0
-              ? frames
-                  .filter((frame) => frame?.t >= trimStart)
-                  .map((frame) => ({ ...frame, t: frame.t - trimStart }))
-              : frames;
-          const trimmedCuePath =
-            trimStart > 0
-              ? cuePath
-                  .filter((entry) => entry?.t >= trimStart)
-                  .map((entry) => ({ ...entry, t: entry.t - trimStart }))
-              : cuePath;
-          const duration = trimmedFrames[trimmedFrames.length - 1]?.t ?? 0;
-          return { frames: trimmedFrames, cuePath: trimmedCuePath, duration };
-        };
-
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
-          const trimmed = trimReplayRecording(shotRecording);
-          const duration = trimmed.duration;
+          const frames = shotRecording.frames;
+          const cuePath = shotRecording.cuePath ?? [];
+          const duration = frames[frames.length - 1]?.t ?? 0;
           if (!Number.isFinite(duration) || duration <= 0) return;
           replayPlayback = {
-            frames: trimmed.frames,
-            cuePath: trimmed.cuePath,
+            frames,
+            cuePath,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
@@ -16443,29 +16423,6 @@ function PoolRoyaleGame({
           updatePocketCameraState(false);
           if (shouldStartReplay && postShotSnapshot) {
             const recordingForReplay = shotRecording;
-            if (recordingForReplay) {
-              const trimmedForHighlights = trimReplayRecording(recordingForReplay);
-              const recordingTags = Array.isArray(recordingForReplay.replayTags)
-                ? recordingForReplay.replayTags
-                : [];
-              const highlightRecording = {
-                ...recordingForReplay,
-                frames: trimmedForHighlights.frames,
-                cuePath: trimmedForHighlights.cuePath,
-                duration: trimmedForHighlights.duration,
-              };
-              const highlightEntry = {
-                id: `highlight-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
-                recording: highlightRecording,
-                postState: postShotSnapshot,
-                banner: replayBannerText,
-                tags: [...recordingTags],
-              };
-              highlightReplaysRef.current = [
-                ...highlightReplaysRef.current,
-                highlightEntry,
-              ];
-            }
             const launchReplay = () => {
               replayBannerTimeoutRef.current = null;
               setReplayBanner(null);
