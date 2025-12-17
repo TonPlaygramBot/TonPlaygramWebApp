@@ -141,6 +141,10 @@ const HUMAN_CARD_FACE_TILT = Math.PI * 0.08;
 const CHIP_VALUES = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
 const WORLD_UP = new THREE.Vector3(0, 1, 0);
 const TURN_DURATION = 30;
+const TURN_INDICATOR_COLOR = '#f59e0b';
+const TURN_INDICATOR_INNER_RADIUS = CARD_W * 0.24;
+const TURN_INDICATOR_OUTER_RADIUS = CARD_W * 0.36;
+const TURN_INDICATOR_HEIGHT = 0.008 * MODEL_SCALE;
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -2768,16 +2772,33 @@ function TexasHoldemArena({ search }) {
       arenaGroup.add(potStack);
       const potLayout = { ...CHIP_SCATTER_LAYOUT, right: new THREE.Vector3(1, 0, 0), forward: new THREE.Vector3(0, 0, 1) };
       chipFactory.setAmount(potStack, 0, { mode: 'scatter', layout: potLayout });
-      const potLabel = createRailTextSprite(['Total pot', '0'], {
-        width: (2.4 * MODEL_SCALE) / 3,
-        height: (0.9 * MODEL_SCALE) / 3
-      });
-      potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, 0)));
-      potLabel.renderOrder = 12;
-      if (potLabel.material) {
-        potLabel.material.depthWrite = false;
-      }
-      arenaGroup.add(potLabel);
+        const potLabel = createRailTextSprite(['Total pot', '0'], {
+          width: (2.4 * MODEL_SCALE) / 3,
+          height: (0.9 * MODEL_SCALE) / 3
+        });
+        potLabel.position.copy(potAnchor.clone().add(new THREE.Vector3(0, CARD_SURFACE_OFFSET * 0.2, 0)));
+        potLabel.renderOrder = 12;
+        if (potLabel.material) {
+          potLabel.material.depthWrite = false;
+        }
+        arenaGroup.add(potLabel);
+
+        const turnIndicatorMaterial = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(TURN_INDICATOR_COLOR),
+          emissive: new THREE.Color(TURN_INDICATOR_COLOR).multiplyScalar(0.4),
+          emissiveIntensity: 1.25,
+          roughness: 0.4,
+          metalness: 0.25,
+          side: THREE.DoubleSide
+        });
+        const turnIndicator = new THREE.Mesh(
+          new THREE.RingGeometry(TURN_INDICATOR_INNER_RADIUS, TURN_INDICATOR_OUTER_RADIUS, 48),
+          turnIndicatorMaterial
+        );
+        turnIndicator.rotation.x = -Math.PI / 2;
+        turnIndicator.position.y = TURN_INDICATOR_HEIGHT;
+        turnIndicator.visible = false;
+        arenaGroup.add(turnIndicator);
 
       const orientHumanCards = () => {
         const humanSeatGroup = seatGroups.find((seat) => seat.isHuman);
@@ -2823,6 +2844,7 @@ function TexasHoldemArena({ search }) {
           chairTemplate,
           chairMaterials,
           arenaGroup,
+          turnIndicator,
           tableInfo,
           tableShapeId: initialShape.id,
           cardThemeId: cardTheme.id,
@@ -3109,6 +3131,9 @@ function TexasHoldemArena({ search }) {
         factory.dispose();
         arena?.parent?.remove(arena);
         controls?.dispose?.();
+        turnIndicator?.geometry?.dispose?.();
+        turnIndicator?.material?.dispose?.();
+        turnIndicator?.parent?.remove(turnIndicator);
         disposeChairMaterials(chairMaterials);
         tableInfo?.dispose?.();
         r.dispose();
@@ -3358,10 +3383,35 @@ function TexasHoldemArena({ search }) {
   const currentStage = gameState?.stage;
   useEffect(() => {
     if (typeof currentActionIndex !== 'number') return;
-    if (currentStage === 'showdown') return;
+    if (currentStage === 'showdown') {
+      const indicator = threeRef.current?.turnIndicator;
+      if (indicator) {
+        indicator.visible = false;
+      }
+      return;
+    }
     const three = threeRef.current;
     if (!three) return;
     const focusIndex = findSeatWithAvatar(currentActionIndex);
+    const seatForIndicator = typeof focusIndex === 'number' ? three.seatGroups?.[focusIndex] : null;
+    const turnIndicator = three.turnIndicator;
+    if (turnIndicator) {
+      if (!seatForIndicator) {
+        turnIndicator.visible = false;
+      } else {
+        const indicatorPosition = seatForIndicator.stoolAnchor.clone();
+        indicatorPosition.y = seatForIndicator.stoolHeight + TURN_INDICATOR_HEIGHT;
+        turnIndicator.position.copy(indicatorPosition);
+        const indicatorColor = seatForIndicator.player?.color || TURN_INDICATOR_COLOR;
+        turnIndicator.visible = true;
+        if (turnIndicator.material?.color) {
+          turnIndicator.material.color.set(indicatorColor);
+        }
+        if (turnIndicator.material?.emissive) {
+          turnIndicator.material.emissive.set(indicatorColor).multiplyScalar(0.4);
+        }
+      }
+    }
     if (typeof focusIndex !== 'number') return;
     const seat = three.seatGroups?.[focusIndex];
     const pointerState = pointerStateRef.current;
