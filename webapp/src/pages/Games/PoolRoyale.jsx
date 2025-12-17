@@ -9565,18 +9565,17 @@ function PoolRoyaleGame({
   const playRecordedHighlights = useCallback(async () => {
     if (highlightsPlayedRef.current) return;
     highlightsPlayedRef.current = true;
-    const playback = highlightPlaybackRef.current;
-    if (!playback) {
-      goToLobby();
-      return;
-    }
-    try {
-      await playback({ shots: highlightReplaysRef.current });
-    } catch (err) {
-      console.warn('Unable to play highlight reel on-table', err);
-    } finally {
-      goToLobby();
-    }
+    highlightPlaybackRef.current = null;
+    highlightReplaysRef.current = [];
+    setReplayBanner(null);
+    setHighlightOverlay((prev) => ({
+      ...prev,
+      active: false,
+      transitioning: false,
+      banner: null,
+      winner: null
+    }));
+    goToLobby();
   }, [goToLobby]);
 
   const stopActiveCrowdSound = useCallback(() => {
@@ -11061,6 +11060,36 @@ function PoolRoyaleGame({
       cameraBoundsRef.current = {
         cueShot: { phi: initialCuePhi, radius: initialCueBoundsRadius },
         standing: { phi: standingPhi, radius: standingRadius }
+      };
+
+      const captureCameraSnapshot = () => {
+        const activeCamera = activeRenderCameraRef.current ?? cameraRef.current ?? camera;
+        return {
+          position: activeCamera.position.clone(),
+          quaternion: activeCamera.quaternion.clone(),
+          target:
+            lastCameraTargetRef.current?.clone?.() ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0)
+        };
+      };
+
+      const applyCameraSnapshot = (snapshot) => {
+        if (!snapshot) return;
+        const destination = cameraRef.current ?? camera;
+        const resolvedTarget = snapshot.target ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
+        if (snapshot.position) {
+          destination.position.copy(snapshot.position);
+        }
+        if (snapshot.quaternion) {
+          destination.quaternion.copy(snapshot.quaternion);
+        }
+        destination.updateMatrixWorld();
+        lastCameraTargetRef.current.copy(resolvedTarget);
+        const orbitStore = ensureOrbitFocus();
+        orbitStore.target.copy(resolvedTarget);
+        topViewRef.current = false;
+        topViewLockedRef.current = false;
+        setIsTopDownView(false);
+        activeRenderCameraRef.current = destination;
       };
 
         const ensurePocketCamera = (id, center) => {
@@ -12880,7 +12909,12 @@ function PoolRoyaleGame({
                   .map((entry) => ({ ...entry, t: entry.t - trimStart }))
               : cuePath;
           const duration = trimmedFrames[trimmedFrames.length - 1]?.t ?? 0;
-          return { frames: trimmedFrames, cuePath: trimmedCuePath, duration };
+          return {
+            frames: trimmedFrames,
+            cuePath: trimmedCuePath,
+            duration,
+            cameraSnapshot: recording?.cameraSnapshot ?? null
+          };
         };
 
         const startShotReplay = (postShotSnapshot) => {
@@ -12896,12 +12930,14 @@ function PoolRoyaleGame({
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
-            pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+            pocketDrops: pausedPocketDrops ?? pocketDropRef.current,
+            cameraSnapshot: trimmed.cameraSnapshot ?? shotRecording.cameraSnapshot ?? null
           };
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
           shotReplayRef.current = shotRecording;
+          applyCameraSnapshot(replayPlayback.cameraSnapshot);
           applyBallSnapshot(shotRecording.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
         };
@@ -14784,7 +14820,8 @@ function PoolRoyaleGame({
               frames: [],
               cuePath: [],
               replayTags: Array.from(replayTags),
-              zoomOnly: preferZoomReplay
+              zoomOnly: preferZoomReplay,
+              cameraSnapshot: captureCameraSnapshot()
             };
             shotReplayRef.current = shotRecording;
             recordReplayFrame(shotRecording.startTime);
@@ -16218,7 +16255,8 @@ function PoolRoyaleGame({
                   ...recordingForReplay,
                   frames: trimmedForHighlights.frames,
                   cuePath: trimmedForHighlights.cuePath,
-                  duration: trimmedForHighlights.duration
+                  duration: trimmedForHighlights.duration,
+                  cameraSnapshot: recordingForReplay.cameraSnapshot ?? null
                 };
                 const highlightEntry = {
                   id: `highlight-${Date.now()}-${Math.floor(Math.random() * 1e4)}`,
@@ -16311,45 +16349,46 @@ function PoolRoyaleGame({
       // Loop
       let lastStepTime = performance.now();
       const step = (now) => {
-        const playback = replayPlaybackRef.current;
-        if (playback) {
-          const elapsed = now - playback.startedAt;
-          const targetTime = Math.min(elapsed, playback.duration);
-          const frames = playback.frames || [];
-          let frameIndex = playback.lastIndex ?? 0;
-          while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
-            frameIndex += 1;
-          }
-          playback.lastIndex = frameIndex;
-          const frameA = frames[frameIndex];
-          const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
-          const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
-          const alpha = frameB ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1) : 0;
-          applyReplayFrame(frameA, frameB, alpha);
-          updateReplayTrail(playback.cuePath, targetTime);
-          const frameCamera = updateCamera();
-          renderer.render(scene, frameCamera ?? camera);
-          if (elapsed >= playback.duration) {
-            if (playback.postState) {
-              applyBallSnapshot(playback.postState);
+        try {
+          const playback = replayPlaybackRef.current;
+          if (playback) {
+            const elapsed = now - playback.startedAt;
+            const targetTime = Math.min(elapsed, playback.duration);
+            const frames = playback.frames || [];
+            let frameIndex = playback.lastIndex ?? 0;
+            while (frameIndex < frames.length - 1 && frames[frameIndex + 1].t <= targetTime) {
+              frameIndex += 1;
             }
-            replayTrail.visible = false;
-            if (playback.pocketDrops) {
-              playback.pocketDrops.forEach((entry) => {
-                entry.start += playback.duration;
-              });
-              pocketDropRef.current = playback.pocketDrops;
+            playback.lastIndex = frameIndex;
+            const frameA = frames[frameIndex];
+            const frameB = frames[Math.min(frameIndex + 1, frames.length - 1)] ?? null;
+            const span = frameB ? Math.max(frameB.t - frameA.t, 1e-6) : 1;
+            const alpha = frameB ? THREE.MathUtils.clamp((targetTime - frameA.t) / span, 0, 1) : 0;
+            applyReplayFrame(frameA, frameB, alpha);
+            updateReplayTrail(playback.cuePath, targetTime);
+            const frameCamera = updateCamera();
+            renderer.render(scene, frameCamera ?? camera);
+            if (elapsed >= playback.duration) {
+              if (playback.postState) {
+                applyBallSnapshot(playback.postState);
+              }
+              replayTrail.visible = false;
+              if (playback.pocketDrops) {
+                playback.pocketDrops.forEach((entry) => {
+                  entry.start += playback.duration;
+                });
+                pocketDropRef.current = playback.pocketDrops;
+              }
+              pausedPocketDrops = null;
+              replayPlayback = null;
+              replayPlaybackRef.current = null;
+              shotReplayRef.current = null;
+              rafRef.current = requestAnimationFrame(step);
+            } else {
+              rafRef.current = requestAnimationFrame(step);
             }
-            pausedPocketDrops = null;
-            replayPlayback = null;
-            replayPlaybackRef.current = null;
-            shotReplayRef.current = null;
-            rafRef.current = requestAnimationFrame(step);
-          } else {
-            rafRef.current = requestAnimationFrame(step);
+            return;
           }
-          return;
-        }
         const frameTiming = frameTimingRef.current;
         const targetFrameTime =
           frameTiming && Number.isFinite(frameTiming.targetMs)
@@ -17408,8 +17447,12 @@ function PoolRoyaleGame({
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
           rafRef.current = requestAnimationFrame(step);
-        };
-        step(performance.now());
+        } catch (err) {
+          console.error('Pool Royale frame loop error', err);
+          rafRef.current = requestAnimationFrame(step);
+        }
+      };
+      step(performance.now());
 
       // Resize
         const onResize = () => {
