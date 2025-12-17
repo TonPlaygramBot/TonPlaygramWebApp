@@ -151,7 +151,10 @@ public class BilliardsSolver
         // Use a thinner cushion band on side pockets so balls aren't deflected before
         // they visually reach the jaw lips. The corner pockets keep the full
         // PhysicsConstants.JawCushionSegments setting.
-        int cushionBands = Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments - 1, Math.Max(1, pts.Count - 1)));
+        // Treat the entire side jaw as pocket-absorbing geometry so balls don't glance
+        // off an invisible cushion band before visually reaching the mouth. Corner
+        // pockets keep their own cushion treatment.
+        int cushionBands = 0;
         for (int i = 0; i < pts.Count - 1; i++)
         {
             Vec2 a = pts[i];
