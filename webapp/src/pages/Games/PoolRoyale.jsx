@@ -2418,7 +2418,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     orbitBias: 0.68,
     railPush: BALL_R * 5.2,
     lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 5.4,
+    focusLift: BALL_R * 4.2,
     focusDepthBias: BALL_R * 1.4,
     focusPan: 0,
     trackingBias: 0.52,
@@ -9994,9 +9994,9 @@ function PoolRoyaleGame({
       return undefined;
     }
     setHud((prev) => ({ ...prev, over: true }));
-    setHighlightModalOpen(true);
-    generateHighlightClip();
-  }, [frameState.frameOver, frameState.winner, generateHighlightClip, isTraining]);
+    setHighlightModalOpen(false);
+    goToLobby();
+  }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
   useEffect(() => {
     let wakeLock;
@@ -10776,7 +10776,7 @@ function PoolRoyaleGame({
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 6.8,
+        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 5.6,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
@@ -16434,6 +16434,9 @@ function PoolRoyaleGame({
           frameRef.current = safeState;
           setFrameState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
+          if (shotRecording) {
+            recordReplayFrame(getNow());
+          }
           setShootingState(false);
           shotPrediction = null;
           activeShotView = null;
