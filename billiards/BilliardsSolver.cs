@@ -148,10 +148,9 @@ public class BilliardsSolver
         }
 
         Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
-        // Use a thinner cushion band on side pockets so balls aren't deflected before
-        // they visually reach the jaw lips. The corner pockets keep the full
-        // PhysicsConstants.JawCushionSegments setting.
-        int cushionBands = Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments - 1, Math.Max(1, pts.Count - 1)));
+        // Match the cushion treatment of corner pockets so balls contact the jaws only
+        // once they visually reach the lip.
+        int cushionBands = Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments, Math.Max(1, pts.Count - 1)));
         for (int i = 0; i < pts.Count - 1; i++)
         {
             Vec2 a = pts[i];
