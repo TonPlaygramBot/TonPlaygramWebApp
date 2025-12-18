@@ -84,10 +84,19 @@ export default function PoolRoyaleLobby() {
     matchPlayersRef.current = matchPlayers;
   }, [matchPlayers]);
 
-  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId }) => {
+  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
     const selfId = accountId || accountIdRef.current;
     const selfEntry = roster.find((p) => String(p.id) === String(selfId));
     const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
+    const tableRoster = roster.length === 2 ? roster : [selfEntry, opponentEntry].filter(Boolean);
+    const seat =
+      tableRoster.length === 2 && String(tableRoster[1]?.id) === String(selfId) ? 'B' : 'A';
+    const starterSeat =
+      currentTurn && tableRoster.length === 2
+        ? String(currentTurn) === String(tableRoster[1]?.id)
+          ? 'B'
+          : 'A'
+        : 'A';
     const friendlyName =
       selfEntry?.name ||
       getTelegramFirstName() ||
@@ -100,12 +109,30 @@ export default function PoolRoyaleLobby() {
       opponentEntry?.telegramName ||
       (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
     const opponentAvatar = opponentEntry?.avatar || '';
+    const playerAName = tableRoster[0]?.name || friendlyName;
+    const playerBName = tableRoster[1]?.name || opponentName;
+    const playerAAvatar = tableRoster[0]?.avatar || friendlyAvatar;
+    const playerBAvatar = tableRoster[1]?.avatar || opponentAvatar;
+    try {
+      window.sessionStorage?.setItem('poolRoyaleTableId', startedId);
+      window.sessionStorage?.setItem('poolRoyaleSeat', seat);
+      window.sessionStorage?.setItem(
+        'poolRoyaleRoster',
+        JSON.stringify({ players: tableRoster, starterSeat })
+      );
+    } catch {}
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
     const params = new URLSearchParams();
     params.set('variant', variant);
     params.set('type', playType);
     params.set('mode', 'online');
     params.set('tableId', startedId);
+    params.set('seat', seat);
+    params.set('starter', starterSeat);
+    if (playerAName) params.set('playerA', playerAName);
+    if (playerBName) params.set('playerB', playerBName);
+    if (playerAAvatar) params.set('playerAAvatar', playerAAvatar);
+    if (playerBAvatar) params.set('playerBAvatar', playerBAvatar);
     if (stake.token) params.set('token', stake.token);
     if (stake.amount) params.set('amount', stake.amount);
     if (friendlyAvatar) params.set('avatar', friendlyAvatar);
