@@ -26,8 +26,19 @@ function normalizeBaseUrl(rawUrl) {
   }
 }
 
+function loadMetaEnv() {
+  try {
+    // eslint-disable-next-line no-new-func
+    const resolved = Function('try { return import.meta.env || {}; } catch (e) { return {}; }')();
+    if (resolved && typeof resolved === 'object') return resolved;
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
 function resolveSocketConfig() {
-  const metaEnv = (typeof import.meta !== 'undefined' && import.meta?.env) || {};
+  const metaEnv = loadMetaEnv();
   const explicitUrl = metaEnv.VITE_SOCKET_URL;
   const explicitPath = metaEnv.VITE_SOCKET_PATH;
 

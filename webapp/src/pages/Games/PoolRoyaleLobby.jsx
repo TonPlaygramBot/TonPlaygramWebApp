@@ -84,10 +84,14 @@ export default function PoolRoyaleLobby() {
     matchPlayersRef.current = matchPlayers;
   }, [matchPlayers]);
 
-  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId }) => {
+  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
     const selfId = accountId || accountIdRef.current;
     const selfEntry = roster.find((p) => String(p.id) === String(selfId));
     const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
+    const starterId = currentTurn || roster?.[0]?.id || null;
+    const selfIndex = roster.findIndex((p) => String(p.id) === String(selfId));
+    const seat = selfIndex === 1 ? 'B' : 'A';
+    const starterSeat = starterId && String(starterId) === String(selfId) ? seat : seat === 'A' ? 'B' : 'A';
     const friendlyName =
       selfEntry?.name ||
       getTelegramFirstName() ||
@@ -114,6 +118,8 @@ export default function PoolRoyaleLobby() {
     const resolvedAccountId = accountIdRef.current;
     if (resolvedAccountId) params.set('accountId', resolvedAccountId);
     if (tableSize) params.set('tableSize', tableSize);
+    params.set('seat', seat);
+    params.set('starter', starterSeat);
     const name = (friendlyName || '').trim();
     if (name) params.set('name', name);
     if (opponentName) params.set('opponent', opponentName);

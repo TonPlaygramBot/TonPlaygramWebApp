@@ -2,11 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'events';
 import { setTimeout as delay } from 'timers/promises';
-import { socket as liveSocket } from '../webapp/src/utils/socket.js';
 import { runPoolRoyaleOnlineFlow } from '../webapp/src/pages/Games/poolRoyaleOnlineFlow.js';
-
-liveSocket.disconnect?.();
-liveSocket.close?.();
 
 class MockSocket extends EventEmitter {
   constructor() {
