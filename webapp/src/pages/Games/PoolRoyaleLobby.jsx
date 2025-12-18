@@ -84,7 +84,7 @@ export default function PoolRoyaleLobby() {
     matchPlayersRef.current = matchPlayers;
   }, [matchPlayers]);
 
-  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
+  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId }) => {
     const selfId = accountId || accountIdRef.current;
     const selfEntry = roster.find((p) => String(p.id) === String(selfId));
     const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
@@ -100,8 +100,6 @@ export default function PoolRoyaleLobby() {
       opponentEntry?.telegramName ||
       (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
     const opponentAvatar = opponentEntry?.avatar || '';
-    const opponentId = opponentEntry?.id ? String(opponentEntry.id) : '';
-    const starterId = currentTurn ? String(currentTurn) : '';
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
     const params = new URLSearchParams();
     params.set('variant', variant);
@@ -120,8 +118,6 @@ export default function PoolRoyaleLobby() {
     if (name) params.set('name', name);
     if (opponentName) params.set('opponent', opponentName);
     if (opponentAvatar) params.set('opponentAvatar', opponentAvatar);
-    if (opponentId) params.set('opponentId', opponentId);
-    if (starterId) params.set('starter', starterId);
     navigate(`/games/poolroyale?${params.toString()}`);
   };
 
