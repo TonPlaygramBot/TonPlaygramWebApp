@@ -73,6 +73,194 @@ const SUIT_COLORS = {
   '🃏': '#111111'
 };
 
+function detectCoarsePointer() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    try {
+      const coarseQuery = window.matchMedia('(pointer: coarse)');
+      if (typeof coarseQuery?.matches === 'boolean') {
+        return coarseQuery.matches;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  try {
+    if ('ontouchstart' in window) {
+      return true;
+    }
+    const nav = window.navigator;
+    if (nav && typeof nav.maxTouchPoints === 'number') {
+      return nav.maxTouchPoints > 0;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
+
+function detectLowRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function detectHighRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+let cachedRendererString = null;
+let rendererLookupAttempted = false;
+
+function readGraphicsRendererString() {
+  if (rendererLookupAttempted) {
+    return cachedRendererString;
+  }
+  rendererLookupAttempted = true;
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl') ||
+      canvas.getContext('webgl2');
+    if (!gl) {
+      return null;
+    }
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) ?? '';
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    } else {
+      const vendor = gl.getParameter(gl.VENDOR) ?? '';
+      const renderer = gl.getParameter(gl.RENDERER) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    }
+    return cachedRendererString;
+  } catch (err) {
+    return null;
+  }
+}
+
+function classifyRendererTier(rendererString) {
+  if (typeof rendererString !== 'string' || rendererString.length === 0) {
+    return 'unknown';
+  }
+  const signature = rendererString.toLowerCase();
+  if (
+    signature.includes('mali') ||
+    signature.includes('adreno') ||
+    signature.includes('powervr') ||
+    signature.includes('apple a') ||
+    signature.includes('snapdragon') ||
+    signature.includes('tegra x1')
+  ) {
+    return 'mobile';
+  }
+  if (
+    signature.includes('geforce') ||
+    signature.includes('nvidia') ||
+    signature.includes('radeon') ||
+    signature.includes('rx ') ||
+    signature.includes('rtx') ||
+    signature.includes('apple m') ||
+    signature.includes('arc')
+  ) {
+    return 'desktopHigh';
+  }
+  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
+    return 'desktopMid';
+  }
+  return 'unknown';
+}
+
+function resolveDefaultPixelRatioCap() {
+  if (typeof window === 'undefined') {
+    return 2;
+  }
+  return window.innerWidth <= 1366 ? 1.5 : 2;
+}
+
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return 'balanced60';
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowRefresh = detectLowRefreshDisplay();
+  const highRefresh = detectHighRefreshDisplay();
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+
+  if (lowRefresh) {
+    return 'mobile50';
+  }
+
+  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'mobile50';
+    }
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'fast120';
+    }
+    if (
+      highRefresh ||
+      hardwareConcurrency >= 6 ||
+      (deviceMemory != null && deviceMemory >= 6)
+    ) {
+      return 'smooth90';
+    }
+    return 'balanced60';
+  }
+
+  if (rendererTier === 'desktopHigh' && highRefresh) {
+    return 'esports144';
+  }
+
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'fast120';
+  }
+
+  if (rendererTier === 'desktopMid') {
+    return 'smooth90';
+  }
+
+  return 'balanced60';
+}
+
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenChair/glTF-Binary/SheenChair.glb',
@@ -90,6 +278,7 @@ const DEFAULT_APPEARANCE = {
   ...DEFAULT_TABLE_CUSTOMIZATION
 };
 const APPEARANCE_STORAGE_KEY = 'murlanRoyaleAppearance';
+const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
 const CUSTOMIZATION_SECTIONS = [
   { key: 'tableWood', label: 'Table Wood', options: TABLE_WOOD_OPTIONS },
   { key: 'tableCloth', label: 'Table Cloth', options: TABLE_CLOTH_OPTIONS },
@@ -351,6 +540,7 @@ const ARENA_WALL_TOP_Y = ARENA_WALL_CENTER_Y + ARENA_WALL_HEIGHT / 2;
 const CAMERA_WALL_HEIGHT_MARGIN = 0.1 * MODEL_SCALE;
 const HUMAN_SELECTION_OFFSET = 0.14 * MODEL_SCALE;
 const CARD_ANIMATION_DURATION = 420;
+const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 const CAMERA_WALL_PADDING = 0.9 * MODEL_SCALE;
 const AI_TURN_DELAY = 2000;
 
@@ -363,6 +553,55 @@ const FALLBACK_SEAT_POSITIONS = [
 ];
 
 const clampValue = (value, min, max) => Math.min(Math.max(value, min), max);
+
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
+    fps: 144,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
 
 const GAME_CONFIG = { ...BASE_CONFIG };
 const START_CARD = { rank: '3', suit: '♠' };
@@ -412,6 +651,72 @@ export default function MurlanRoyaleArena({ search }) {
       })).filter((section) => section.options.length > 0),
     [murlanInventory]
   );
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+      const detected = detectPreferredFrameRateId();
+      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
+        return detected;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
+  const activeFrameRateOption = useMemo(
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
+  const frameQualityProfile = useMemo(() => {
+    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
+    const fallback = FRAME_RATE_OPTIONS[0];
+    const fps =
+      Number.isFinite(option?.fps) && option.fps > 0
+        ? option.fps
+        : Number.isFinite(fallback?.fps) && fallback.fps > 0
+          ? fallback.fps
+          : 60;
+    const renderScale =
+      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+        ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1)
+        : 1;
+    const pixelRatioCap =
+      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+        ? Math.max(1, option.pixelRatioCap)
+        : resolveDefaultPixelRatioCap();
+    return {
+      id: option?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      renderScale,
+      pixelRatioCap
+    };
+  }, [activeFrameRateOption]);
+  const frameQualityRef = useRef(frameQualityProfile);
+  useEffect(() => {
+    frameQualityRef.current = frameQualityProfile;
+  }, [frameQualityProfile]);
+  const resolvedFrameTiming = useMemo(() => {
+    const fallbackFps =
+      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
+        ? FRAME_RATE_OPTIONS[0].fps
+        : 60;
+    const fps =
+      Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
+        ? frameQualityProfile.fps
+        : fallbackFps;
+    const targetMs = 1000 / fps;
+    return {
+      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      targetMs,
+      maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
+    };
+  }, [frameQualityProfile]);
+  const frameTimingRef = useRef(resolvedFrameTiming);
+  useEffect(() => {
+    frameTimingRef.current = resolvedFrameTiming;
+  }, [resolvedFrameTiming]);
 
   const ensureAppearanceUnlocked = useCallback(
     (value = DEFAULT_APPEARANCE) => {
@@ -455,6 +760,15 @@ export default function MurlanRoyaleArena({ search }) {
   useEffect(() => {
     setAppearance((prev) => ensureAppearanceUnlocked(prev));
   }, [ensureAppearanceUnlocked]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    } catch (error) {
+      console.warn('Failed to persist frame rate option', error);
+    }
+  }, [frameRateId]);
 
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
@@ -522,6 +836,32 @@ export default function MurlanRoyaleArena({ search }) {
 
     setSeatAnchors(anchors);
   }, []);
+
+  const applyRendererQuality = useCallback(() => {
+    const renderer = threeStateRef.current.renderer;
+    const host = mountRef.current;
+    if (!renderer || !host) return;
+    const quality = frameQualityRef.current;
+    const dpr =
+      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+        ? window.devicePixelRatio
+        : 1;
+    const pixelRatioCap =
+      quality?.pixelRatioCap ??
+      (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
+    const renderScale =
+      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
+        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
+        : 1;
+    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+  }, []);
+
+  useEffect(() => {
+    applyRendererQuality();
+  }, [applyRendererQuality, frameQualityProfile]);
 
   const updateScoreboardDisplay = useCallback((entries = []) => {
     const store = threeStateRef.current;
@@ -999,13 +1339,13 @@ export default function MurlanRoyaleArena({ search }) {
     let arenaGroup = null;
     let handlePointerDown = null;
     let disposed = false;
+    let lastRenderTime = performance.now();
 
     const setup = async () => {
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.85;
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.style.width = '100%';
@@ -1013,6 +1353,8 @@ export default function MurlanRoyaleArena({ search }) {
       renderer.domElement.style.display = 'block';
       mount.appendChild(renderer.domElement);
       dom = renderer.domElement;
+      threeStateRef.current.renderer = renderer;
+      applyRendererQuality();
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#030712');
@@ -1365,9 +1707,10 @@ export default function MurlanRoyaleArena({ search }) {
       controls.addEventListener('change', updateSeatAnchors);
 
       const resize = () => {
+        applyRendererQuality();
         const { clientWidth, clientHeight } = mount;
-        renderer.setSize(clientWidth, clientHeight, false);
-        camera.aspect = clientWidth / clientHeight;
+        const aspect = clientHeight > 0 ? clientWidth / clientHeight : 1;
+        camera.aspect = aspect;
         camera.updateProjectionMatrix();
         updateSeatAnchors();
       };
@@ -1397,9 +1740,18 @@ export default function MurlanRoyaleArena({ search }) {
       };
 
       const animate = (time) => {
-        stepAnimations(time);
-        controls.update();
-        renderer.render(scene, camera);
+        const frameTiming = frameTimingRef.current;
+        const targetFrameTime = frameTiming?.targetMs ?? 1000 / 60;
+        const maxFrameTime =
+          frameTiming?.maxMs ?? targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+        const delta = time - lastRenderTime;
+        if (delta >= targetFrameTime - 0.5) {
+          const appliedDelta = Math.min(delta, maxFrameTime);
+          lastRenderTime = time - Math.max(0, delta - appliedDelta);
+          stepAnimations(time);
+          controls.update();
+          renderer.render(scene, camera);
+        }
         frameId = requestAnimationFrame(animate);
       };
 
@@ -1533,7 +1885,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [applyStateToScene, ensureCardMeshes, players, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -1737,6 +2089,39 @@ export default function MurlanRoyaleArena({ search }) {
                       </div>
                     </div>
                   ))}
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
+                    <div className="grid gap-2">
+                      {FRAME_RATE_OPTIONS.map((option) => {
+                        const active = option.id === frameRateId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setFrameRateId(option.id)}
+                            aria-pressed={active}
+                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                                : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                            }`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
+                              <span className="text-[11px] font-semibold tracking-wide text-sky-100">
+                                {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                              </span>
+                            </span>
+                            {option.description ? (
+                              <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                                {option.description}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
