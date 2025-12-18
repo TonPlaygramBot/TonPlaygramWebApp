@@ -38,17 +38,25 @@ export function hitCard(deck) {
 }
 
 function cardValue(rank) {
-  if (rank === 'A') return 11;
-  if (rank === 'K' || rank === 'Q' || rank === 'J' || rank === 'T') return 10;
-  return Number.parseInt(rank, 10);
+  if (!rank && rank !== 0) return 0;
+  const normalized = String(rank).toUpperCase();
+  if (normalized === 'A') return 11;
+  if (normalized === 'K' || normalized === 'Q' || normalized === 'J' || normalized === 'T') return 10;
+  const parsed = Number.parseInt(normalized, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export function handValue(hand) {
+  if (!Array.isArray(hand) || hand.length === 0) {
+    return 0;
+  }
   let total = 0;
   let aces = 0;
   hand.forEach((card) => {
-    total += cardValue(card.rank);
-    if (card.rank === 'A') aces += 1;
+    if (!card) return;
+    const value = cardValue(card.rank);
+    total += value;
+    if (String(card.rank).toUpperCase() === 'A') aces += 1;
   });
   while (total > 21 && aces > 0) {
     total -= 10;
