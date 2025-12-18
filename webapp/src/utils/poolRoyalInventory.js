@@ -127,8 +127,13 @@ const areInventoriesEqual = (a, b) => {
   );
 };
 
+const shouldUseLocalOnly = () =>
+  typeof navigator !== 'undefined' && navigator.onLine === false;
+
 const syncWithServer = async (accountId, localInventory) => {
-  if (!accountId || accountId === 'guest') return localInventory;
+  if (!accountId || accountId === 'guest') return normalizeInventory(localInventory);
+  if (shouldUseLocalOnly()) return normalizeInventory(localInventory);
+
   const migrationFlags = readMigrationFlags();
   const skipMigration = Boolean(migrationFlags[accountId]);
   if (inflightSync.has(accountId)) {
@@ -189,27 +194,34 @@ const readCachedInventory = (accountId) => {
   return normalized;
 };
 
-export const getPoolRoyalInventory = (accountId) => {
+export const getCachedPoolRoyalInventory = (accountId) =>
+  readCachedInventory(resolveAccountId(accountId));
+
+export const getPoolRoyalInventory = async (accountId, options = {}) => {
   const resolvedAccountId = resolveAccountId(accountId);
   const cached = readCachedInventory(resolvedAccountId);
-  if (typeof window !== 'undefined') {
-    syncWithServer(resolvedAccountId, cached);
+  if (typeof window === 'undefined') return cached;
+  if (options?.cacheOnly || shouldUseLocalOnly()) return cached;
+  try {
+    return await syncWithServer(resolvedAccountId, cached);
+  } catch (err) {
+    console.warn('Pool Royale inventory sync failed, using cache', err);
+    return cached;
   }
-  return cached;
 };
 
 export const isPoolOptionUnlocked = (type, optionId, inventoryOrAccountId) => {
   if (!type || !optionId) return false;
   const inventory =
     typeof inventoryOrAccountId === 'string' || !inventoryOrAccountId
-      ? getPoolRoyalInventory(inventoryOrAccountId)
+      ? getCachedPoolRoyalInventory(inventoryOrAccountId)
       : inventoryOrAccountId;
   return Array.isArray(inventory?.[type]) && inventory[type].includes(optionId);
 };
 
-export const addPoolRoyalUnlock = (type, optionId, accountId) => {
+export const addPoolRoyalUnlock = async (type, optionId, accountId) => {
   const resolvedAccountId = resolveAccountId(accountId);
-  const current = getPoolRoyalInventory(resolvedAccountId);
+  const current = readCachedInventory(resolvedAccountId);
   const existing = new Set(current[type] || []);
   existing.add(optionId);
   const nextInventory = {
@@ -217,16 +229,21 @@ export const addPoolRoyalUnlock = (type, optionId, accountId) => {
     [type]: sortUnique(existing)
   };
   persistCache(resolvedAccountId, nextInventory);
-  if (typeof window !== 'undefined') {
-    syncWithServer(resolvedAccountId, nextInventory);
+  if (typeof window === 'undefined' || shouldUseLocalOnly()) {
+    return nextInventory;
   }
-  return nextInventory;
+  try {
+    return await syncWithServer(resolvedAccountId, nextInventory);
+  } catch (err) {
+    console.warn('Pool Royale unlock sync failed, keeping cache', err);
+    return nextInventory;
+  }
 };
 
 export const listOwnedPoolRoyalOptions = (inventoryOrAccountId) => {
   const inventory =
     typeof inventoryOrAccountId === 'string' || !inventoryOrAccountId
-      ? getPoolRoyalInventory(inventoryOrAccountId)
+      ? getCachedPoolRoyalInventory(inventoryOrAccountId)
       : normalizeInventory(inventoryOrAccountId);
   return Object.entries(inventory).flatMap(([type, values]) => {
     if (!Array.isArray(values)) return [];

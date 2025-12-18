@@ -17,6 +17,7 @@ import {
 } from '../config/airHockeyInventoryConfig.js';
 import {
   addPoolRoyalUnlock,
+  getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
   listOwnedPoolRoyalOptions,
@@ -424,7 +425,7 @@ const storeMeta = {
 export default function Store() {
   useTelegramBackButton();
   const [accountId, setAccountId] = useState(() => poolRoyalAccountId());
-  const [poolOwned, setPoolOwned] = useState(() => getPoolRoyalInventory(accountId));
+  const [poolOwned, setPoolOwned] = useState(() => getCachedPoolRoyalInventory(accountId));
   const [snookerOwned, setSnookerOwned] = useState(() => getSnookerClubInventory(snookerClubAccountId(accountId)));
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
@@ -453,7 +454,7 @@ export default function Store() {
   }, []);
 
   useEffect(() => {
-    setPoolOwned(getPoolRoyalInventory(accountId));
+    setPoolOwned(getCachedPoolRoyalInventory(accountId));
     setSnookerOwned(getSnookerClubInventory(snookerClubAccountId(accountId)));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
@@ -462,6 +463,15 @@ export default function Store() {
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
     setSnakeOwned(getSnakeInventory(snakeAccountId(accountId)));
     setTexasOwned(getTexasHoldemInventory(texasHoldemAccountId(accountId)));
+    let cancelled = false;
+    getPoolRoyalInventory(accountId)
+      .then((inventory) => {
+        if (!cancelled && inventory) setPoolOwned(inventory);
+      })
+      .catch((err) => console.warn('Failed to sync Pool Royale inventory', err));
+    return () => {
+      cancelled = true;
+    };
   }, [accountId]);
 
   useEffect(() => {
@@ -470,7 +480,10 @@ export default function Store() {
       if (event?.detail?.inventory) {
         setPoolOwned(event.detail.inventory);
       } else {
-        setPoolOwned(getPoolRoyalInventory(accountId));
+        setPoolOwned(getCachedPoolRoyalInventory(accountId));
+        getPoolRoyalInventory(accountId)
+          .then((inventory) => setPoolOwned(inventory))
+          .catch((err) => console.warn('Failed to reload Pool Royale inventory', err));
       }
     };
     window.addEventListener('poolRoyalInventoryUpdate', handlePoolInventoryUpdate);
@@ -763,7 +776,8 @@ export default function Store() {
       }
 
       if (slug === 'poolroyale') {
-        setPoolOwned(addPoolRoyalUnlock(item.type, item.optionId, accountId));
+        const updated = await addPoolRoyalUnlock(item.type, item.optionId, accountId);
+        setPoolOwned(updated);
       } else if (slug === 'snookerclub') {
         setSnookerOwned(addSnookerClubUnlock(item.type, item.optionId, accountId));
       } else if (slug === 'airhockey') {

@@ -70,6 +70,44 @@ async function post(path, body, token) {
   return data;
 }
 
+async function put(path, body, token) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const initData = window?.Telegram?.WebApp?.initData;
+  if (initData) headers['X-Telegram-Init-Data'] = initData;
+
+  let res;
+  try {
+    res = await fetchWithRetry(API_BASE_URL + path, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(body)
+    });
+  } catch (err) {
+    return { error: 'Network request failed' };
+  }
+
+  let text;
+  try {
+    text = await res.text();
+  } catch {
+    return { error: 'Invalid server response' };
+  }
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    return { error: 'Invalid server response' };
+  }
+  if (!res.ok) {
+    if (res.status === 502) {
+      return { error: 'Server unavailable. Please try again later.' };
+    }
+    return { error: data.error || res.statusText || 'Request failed' };
+  }
+  return data;
+}
+
 async function get(path, token) {
   const headers = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -173,11 +211,13 @@ export function adminDeleteTask(id) {
 }
 
 export function getPoolRoyalInventoryRemote(accountId) {
-  return post('/api/pool-royale/inventory/get', { accountId });
+  if (!accountId) return Promise.resolve({ error: 'accountId required' });
+  return get(`/api/pool-royale/inventory/${encodeURIComponent(accountId)}`);
 }
 
 export function setPoolRoyalInventoryRemote(accountId, inventory) {
-  return post('/api/pool-royale/inventory/set', { accountId, inventory });
+  if (!accountId) return Promise.resolve({ error: 'accountId required' });
+  return put(`/api/pool-royale/inventory/${encodeURIComponent(accountId)}`, { inventory });
 }
 
 export function listVideos(telegramId) {

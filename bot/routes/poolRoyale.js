@@ -1,6 +1,11 @@
 import { Router } from 'express';
 import User from '../models/User.js';
 import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../webapp/src/config/poolRoyaleInventoryConfig.js';
+import {
+  findMemoryUser,
+  saveMemoryUser,
+  shouldUseMemoryUserStore
+} from '../utils/memoryUserStore.js';
 
 const router = Router();
 
@@ -46,41 +51,88 @@ const areInventoriesEqual = (a, b) => {
   );
 };
 
-router.post('/inventory/get', async (req, res) => {
-  const { accountId } = req.body || {};
+async function handleInventoryGet(accountId, res) {
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
-  const user = await User.findOne({ accountId });
+  let user;
+  try {
+    if (shouldUseMemoryUserStore()) {
+      user = findMemoryUser({ accountId });
+    } else {
+      user = await User.findOne({ accountId });
+    }
+  } catch (err) {
+    console.error('Pool Royale inventory lookup failed:', err.message);
+    return res.status(500).json({ error: 'failed to load inventory' });
+  }
   if (!user) return res.status(404).json({ error: 'account not found' });
 
   const normalized = normalizeInventory(user.poolRoyalInventory);
   if (!areInventoriesEqual(user.poolRoyalInventory, normalized)) {
     user.poolRoyalInventory = normalized;
     try {
-      await user.save();
+      if (shouldUseMemoryUserStore()) {
+        saveMemoryUser(user);
+      } else {
+        await user.save();
+      }
     } catch (err) {
       console.error('Failed to normalize Pool Royale inventory:', err.message);
     }
   }
   res.json({ accountId, inventory: normalized });
-});
+}
 
-router.post('/inventory/set', async (req, res) => {
-  const { accountId, inventory } = req.body || {};
+async function handleInventorySet(accountId, inventory, res) {
   if (!accountId) return res.status(400).json({ error: 'accountId required' });
 
-  const user = await User.findOne({ accountId });
+  let user;
+  try {
+    if (shouldUseMemoryUserStore()) {
+      user = findMemoryUser({ accountId });
+    } else {
+      user = await User.findOne({ accountId });
+    }
+  } catch (err) {
+    console.error('Pool Royale inventory lookup failed:', err.message);
+    return res.status(500).json({ error: 'failed to load inventory' });
+  }
   if (!user) return res.status(404).json({ error: 'account not found' });
 
   const merged = mergeInventories(user.poolRoyalInventory, inventory);
   user.poolRoyalInventory = merged;
   try {
-    await user.save();
+    if (shouldUseMemoryUserStore()) {
+      saveMemoryUser(user);
+    } else {
+      await user.save();
+    }
   } catch (err) {
     console.error('Failed to persist Pool Royale inventory:', err.message);
     return res.status(500).json({ error: 'failed to save inventory' });
   }
   res.json({ accountId, inventory: merged });
+}
+
+router.get('/inventory/:accountId', async (req, res) => {
+  const { accountId } = req.params || {};
+  return handleInventoryGet(accountId, res);
+});
+
+router.post('/inventory/get', async (req, res) => {
+  const { accountId } = req.body || {};
+  return handleInventoryGet(accountId, res);
+});
+
+router.put('/inventory/:accountId', async (req, res) => {
+  const { accountId } = req.params || {};
+  const { inventory } = req.body || {};
+  return handleInventorySet(accountId, inventory, res);
+});
+
+router.post('/inventory/set', async (req, res) => {
+  const { accountId, inventory } = req.body || {};
+  return handleInventorySet(accountId, inventory, res);
 });
 
 export default router;

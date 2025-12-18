@@ -3,6 +3,7 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/test'],
   extensionsToTreatAsEsm: ['.ts', '.tsx'],
+  testMatch: ['**/?(*.)+(spec|test).[jt]s?(x)', '**/?(*.)+(spec|test).mjs'],
   transform: {
     '^.+\\.(ts|tsx)$': [
       'ts-jest',
@@ -14,7 +15,8 @@ module.exports = {
     '^.+\\.(js|jsx)$': [
       'babel-jest',
       {
-        presets: [['@babel/preset-env', { targets: { node: 'current' }, modules: 'commonjs' }]]
+        presets: [['@babel/preset-env', { targets: { node: 'current' }, modules: 'commonjs' }]],
+        plugins: ['@babel/plugin-syntax-import-meta']
       }
     ]
   },

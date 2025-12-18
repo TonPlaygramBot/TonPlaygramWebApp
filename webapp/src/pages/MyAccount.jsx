@@ -29,6 +29,7 @@ import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import {
   getDefaultPoolRoyalLoadout,
+  getPoolRoyalInventory,
   listOwnedPoolRoyalOptions,
   poolRoyalAccountId
 } from '../utils/poolRoyalInventory.js';
@@ -113,14 +114,26 @@ export default function MyAccount() {
   const [dominoInventory, setDominoInventory] = useState(() =>
     listOwnedDominoOptions(dominoRoyalAccountId())
   );
-  const refreshPoolRoyale = useCallback(() => {
+  const refreshPoolRoyale = useCallback(async () => {
     const resolved = poolRoyalAccountId();
     setPoolAccountId(resolved);
-    const owned = listOwnedPoolRoyalOptions(resolved);
-    if (Array.isArray(owned) && owned.length > 0) {
-      setPoolRoyaleInventory(owned);
-    } else {
-      setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
+    const cachedOwned = listOwnedPoolRoyalOptions(resolved);
+    if (Array.isArray(cachedOwned) && cachedOwned.length > 0) {
+      setPoolRoyaleInventory(cachedOwned);
+    }
+    try {
+      const syncedInventory = await getPoolRoyalInventory(resolved);
+      const owned = listOwnedPoolRoyalOptions(syncedInventory);
+      if (Array.isArray(owned) && owned.length > 0) {
+        setPoolRoyaleInventory(owned);
+      } else {
+        setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
+      }
+    } catch (err) {
+      console.warn('Failed to refresh Pool Royale inventory', err);
+      if (!cachedOwned?.length) {
+        setPoolRoyaleInventory(getDefaultPoolRoyalLoadout());
+      }
     }
   }, []);
   const refreshDominoRoyal = useCallback(() => {

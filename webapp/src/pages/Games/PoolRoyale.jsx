@@ -37,6 +37,7 @@ import {
 } from '../../utils/woodMaterials.js';
 import { POOL_ROYALE_DEFAULT_UNLOCKS } from '../../config/poolRoyaleInventoryConfig.js';
 import {
+  getCachedPoolRoyalInventory,
   getPoolRoyalInventory,
   isPoolOptionUnlocked,
   poolRoyalAccountId
@@ -8290,11 +8291,25 @@ function PoolRoyaleGame({
     () => poolRoyalAccountId(accountId),
     [accountId]
   );
-  const [inventoryVersion, setInventoryVersion] = useState(0);
-  const poolInventory = useMemo(
-    () => getPoolRoyalInventory(resolvedAccountId),
-    [resolvedAccountId, inventoryVersion]
+  const [poolInventory, setPoolInventory] = useState(() =>
+    getCachedPoolRoyalInventory(resolvedAccountId)
   );
+  useEffect(() => {
+    let cancelled = false;
+    setPoolInventory(getCachedPoolRoyalInventory(resolvedAccountId));
+    getPoolRoyalInventory(resolvedAccountId)
+      .then((inventory) => {
+        if (!cancelled && inventory) {
+          setPoolInventory(inventory);
+        }
+      })
+      .catch((err) => {
+        console.warn('Pool Royale inventory load failed', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolvedAccountId]);
   const resolveStoredSelection = useCallback(
     (type, storageKey, isValid, fallbackId) => {
       const inventory = poolInventory;
@@ -8560,7 +8575,12 @@ function PoolRoyaleGame({
   useEffect(() => {
     const handleInventoryUpdate = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
-        setInventoryVersion((value) => value + 1);
+        const nextInventory = event?.detail?.inventory;
+        if (nextInventory) {
+          setPoolInventory(nextInventory);
+        } else {
+          setPoolInventory(getCachedPoolRoyalInventory(resolvedAccountId));
+        }
       }
     };
     window.addEventListener('poolRoyalInventoryUpdate', handleInventoryUpdate);
