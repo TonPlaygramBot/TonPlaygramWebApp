@@ -183,6 +183,10 @@ const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
     return acc;
   }, {})
 );
+const FRAME_DROP_THRESHOLD = 1.35;
+const FRAME_DROP_WINDOW_MS = 3200;
+const FRAME_FAILSAFE_COOLDOWN_MS = 9000;
+const FEEDBACK_STORAGE_KEY = 'dominoRoyalFeedback';
 
 function detectCoarsePointer() {
   if (typeof window === 'undefined') {
@@ -411,6 +415,10 @@ function buildFrameTiming(quality) {
 }
 
 function resolveInitialFrameRateId() {
+  const urlPreset = urlParams.get('frameRateId') || urlParams.get('graphics');
+  if (urlPreset && FRAME_RATE_OPTIONS_BY_ID[urlPreset]) {
+    return urlPreset;
+  }
   if (typeof window !== 'undefined') {
     try {
       const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
@@ -428,9 +436,19 @@ function resolveInitialFrameRateId() {
   return DEFAULT_FRAME_RATE_ID;
 }
 
+function findFallbackFrameRateId(currentId) {
+  const idx = FRAME_RATE_OPTIONS.findIndex((opt) => opt.id === currentId);
+  if (idx > 0) {
+    return FRAME_RATE_OPTIONS[idx - 1]?.id || null;
+  }
+  return null;
+}
+
 let frameRateId = resolveInitialFrameRateId();
 let frameQuality = buildFrameQuality(frameRateId);
 let frameTiming = buildFrameTiming(frameQuality);
+let slowFrameAccumulatorMs = 0;
+let lastFailsafeTimestamp = 0;
 
 function persistFrameRateSelection(id) {
   if (typeof window === 'undefined') return;
@@ -438,6 +456,104 @@ function persistFrameRateSelection(id) {
     window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, id);
   } catch (error) {
     console.warn('Failed to persist Domino graphics option', error);
+  }
+}
+
+function prefersReducedMotion() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)')?.matches ?? false;
+  } catch {
+    return false;
+  }
+}
+
+function prefersReducedAudio() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try {
+    const quietMediaQueries = ['(prefers-reduced-motion: reduce)', '(prefers-reduced-transparency: reduce)'];
+    return quietMediaQueries.some((query) => window.matchMedia(query)?.matches);
+  } catch {
+    return false;
+  }
+}
+
+function buildDefaultFeedbackSettings() {
+  return {
+    sound: !prefersReducedAudio(),
+    haptics: !prefersReducedMotion()
+  };
+}
+
+function normalizeFeedbackSettings(raw = {}) {
+  const defaults = buildDefaultFeedbackSettings();
+  return {
+    sound: typeof raw.sound === 'boolean' ? raw.sound : defaults.sound,
+    haptics: typeof raw.haptics === 'boolean' ? raw.haptics : defaults.haptics
+  };
+}
+
+function readFeedbackSettings() {
+  if (typeof window === 'undefined') return buildDefaultFeedbackSettings();
+  try {
+    const raw = window.localStorage?.getItem(FEEDBACK_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : {};
+    return normalizeFeedbackSettings(parsed);
+  } catch {
+    return buildDefaultFeedbackSettings();
+  }
+}
+
+function persistFeedbackSettings(settings) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(FEEDBACK_STORAGE_KEY, JSON.stringify(settings));
+  } catch {}
+}
+
+let feedbackSettings = readFeedbackSettings();
+
+function setFeedbackSettings(next, { refreshUi = true } = {}) {
+  feedbackSettings = normalizeFeedbackSettings({ ...feedbackSettings, ...next });
+  persistFeedbackSettings(feedbackSettings);
+  if (refreshUi) {
+    refreshConfigUI();
+  }
+}
+
+function isSoundEnabled() {
+  return !!feedbackSettings.sound;
+}
+
+function isHapticsEnabled() {
+  return !!feedbackSettings.haptics && !prefersReducedMotion();
+}
+
+function getSoundGainMultiplier() {
+  if (!isSoundEnabled()) return 0;
+  return prefersReducedAudio() ? 0.65 : 1;
+}
+
+function vibratePattern(pattern = []) {
+  if (!isHapticsEnabled()) return;
+  try {
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(pattern);
+    }
+  } catch {}
+}
+
+function triggerHaptics(kind) {
+  const patterns = {
+    place: [10],
+    draw: [8, 0, 6],
+    pass: [5],
+    win: [14, 0, 18],
+    block: [10, 10, 12]
+  };
+  const pattern = patterns[kind];
+  if (pattern && pattern.length) {
+    vibratePattern(pattern);
   }
 }
 
@@ -464,17 +580,21 @@ function createBuffer(durationSeconds, sampleFn) {
 }
 
 function playBuffer(buffer, { gain = 0.5, playbackRate = 1 } = {}) {
+  const gainMultiplier = getSoundGainMultiplier();
+  if (gainMultiplier <= 0) return;
   const ctx = ensureAudioContext();
   const src = ctx.createBufferSource();
   src.buffer = buffer;
   src.playbackRate.value = playbackRate;
   const g = ctx.createGain();
-  g.gain.value = gain;
+  g.gain.value = gain * gainMultiplier;
   src.connect(g).connect(ctx.destination);
   src.start();
 }
 
 function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.28 }) {
+  const gainMultiplier = getSoundGainMultiplier();
+  if (gainMultiplier <= 0) return;
   const ctx = ensureAudioContext();
   const now = ctx.currentTime;
   const osc = ctx.createOscillator();
@@ -483,7 +603,7 @@ function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.2
   osc.frequency.setValueAtTime(startFreq, now);
   osc.frequency.exponentialRampToValueAtTime(endFreq, now + duration);
   g.gain.setValueAtTime(0.001, now);
-  g.gain.exponentialRampToValueAtTime(gain, now + 0.04);
+  g.gain.exponentialRampToValueAtTime(gain * gainMultiplier, now + 0.04);
   g.gain.exponentialRampToValueAtTime(0.001, now + duration);
   osc.connect(g).connect(ctx.destination);
   osc.start(now);
@@ -491,6 +611,8 @@ function playGlide({ startFreq = 420, endFreq = 140, duration = 0.35, gain = 0.2
 }
 
 function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
+  const gainMultiplier = getSoundGainMultiplier();
+  if (gainMultiplier <= 0) return;
   const ctx = ensureAudioContext();
   const now = ctx.currentTime;
   notes.forEach(({ time, freq, length = 0.18 }) => {
@@ -499,7 +621,7 @@ function playChimeSequence(notes, { gain = 0.32, type = 'triangle' } = {}) {
     osc.type = type;
     osc.frequency.setValueAtTime(freq, now + time);
     g.gain.setValueAtTime(0.0001, now + time);
-    g.gain.linearRampToValueAtTime(gain, now + time + 0.02);
+    g.gain.linearRampToValueAtTime(gain * gainMultiplier, now + time + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, now + time + length);
     osc.connect(g).connect(ctx.destination);
     osc.start(now + time);
@@ -557,12 +679,15 @@ const SFX = {
     loadPlaceBuffer().then((buffer) =>
       playBuffer(buffer || sfxBuffers.placeFallback, { gain: 0.55, playbackRate: 1.02 })
     );
+    triggerHaptics('place');
   },
   drawTile() {
     playBuffer(sfxBuffers.draw, { gain: 0.5, playbackRate: 1.08 });
+    triggerHaptics('draw');
   },
   pass() {
     playGlide({ startFreq: 420, endFreq: 170, duration: 0.42, gain: 0.32 });
+    triggerHaptics('pass');
   },
   win() {
     playChimeSequence(
@@ -574,9 +699,11 @@ const SFX = {
       ],
       { gain: 0.3, type: 'sine' }
     );
+    triggerHaptics('win');
   },
   drawGame() {
     playBuffer(sfxBuffers.block, { gain: 0.36, playbackRate: 0.92 });
+    triggerHaptics('block');
   }
 };
 
@@ -4007,6 +4134,50 @@ function refreshConfigUI() {
     configSectionsEl.appendChild(wrapper);
   });
 
+  const feedbackWrapper = document.createElement('div');
+  feedbackWrapper.className = 'config-section';
+  const feedbackLabel = document.createElement('h4');
+  feedbackLabel.textContent = 'Audio & haptics';
+  feedbackWrapper.appendChild(feedbackLabel);
+  const feedbackGrid = document.createElement('div');
+  feedbackGrid.className = 'config-options';
+  feedbackGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(140px, 1fr))';
+  [
+    { key: 'sound', label: feedbackSettings.sound ? 'Sound on' : 'Sound muted', helper: 'Procedural knocks & win jingles' },
+    { key: 'haptics', label: feedbackSettings.haptics ? 'Haptics on' : 'Haptics off', helper: 'Short vibrations on plays' }
+  ].forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (feedbackSettings[option.key]) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(!!feedbackSettings[option.key]));
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+    const helper = document.createElement('div');
+    helper.textContent = option.helper;
+    helper.style.fontSize = '0.65rem';
+    helper.style.color = 'rgba(226,232,240,0.78)';
+    helper.style.fontWeight = '700';
+    helper.style.lineHeight = '1.35';
+    button.appendChild(helper);
+    button.addEventListener('click', () => {
+      setFeedbackSettings({ [option.key]: !feedbackSettings[option.key] });
+    });
+    feedbackGrid.appendChild(button);
+  });
+  const feedbackHint = document.createElement('p');
+  feedbackHint.textContent = 'Follows system “reduced motion” — haptics stay off if your OS prefers it.';
+  feedbackHint.style.margin = '0';
+  feedbackHint.style.fontSize = '0.65rem';
+  feedbackHint.style.color = 'rgba(226,232,240,0.7)';
+  feedbackHint.style.lineHeight = '1.4';
+  feedbackWrapper.appendChild(feedbackGrid);
+  feedbackWrapper.appendChild(feedbackHint);
+  configSectionsEl.appendChild(feedbackWrapper);
+
   const graphicsWrapper = document.createElement('div');
   graphicsWrapper.className = 'config-section';
   const graphicsLabel = document.createElement('h4');
@@ -5611,6 +5782,35 @@ function updateWinnerHighlight(now){
   winnerHighlight.scale.setScalar(scale);
 }
 
+function monitorFrameHealth(elapsedMs, timing) {
+  if (!timing || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) {
+    slowFrameAccumulatorMs = 0;
+    return;
+  }
+  const targetMs = Number.isFinite(timing.targetMs) ? timing.targetMs : 1000 / 60;
+  const slowThreshold = targetMs * FRAME_DROP_THRESHOLD;
+  const skipThreshold = targetMs * 6;
+  if (elapsedMs > skipThreshold) {
+    slowFrameAccumulatorMs = 0;
+    return;
+  }
+  if (elapsedMs > slowThreshold) {
+    slowFrameAccumulatorMs += elapsedMs;
+  } else {
+    slowFrameAccumulatorMs = Math.max(0, slowFrameAccumulatorMs - targetMs * 0.5);
+  }
+  const now = performance.now();
+  if (slowFrameAccumulatorMs >= FRAME_DROP_WINDOW_MS && now - lastFailsafeTimestamp > FRAME_FAILSAFE_COOLDOWN_MS) {
+    const fallbackId = findFallbackFrameRateId(frameRateId);
+    if (fallbackId && fallbackId !== frameRateId) {
+      applyFrameRateSelection(fallbackId);
+      setStatus('Lowered quality for smoother play');
+      slowFrameAccumulatorMs = 0;
+      lastFailsafeTimestamp = now;
+    }
+  }
+}
+
 /* ---------- Loop & Resize ---------- */
 function tick(now){
   const current = Number.isFinite(now) ? now : performance.now();
@@ -5623,6 +5823,7 @@ function tick(now){
   const step = Math.min(elapsed, maxMs);
   lastFrameTime = current;
   const deltaSeconds = Math.min(0.2, Math.max(0, step / 1000));
+  monitorFrameHealth(elapsed, timing);
 
   updateEntrySequence(current);
   updateDrawAnimations(current);
@@ -5660,6 +5861,9 @@ function onResize(){
   updateSeatBadgePositions();
 }
 addEventListener('resize', onResize); if(window.visualViewport){ visualViewport.addEventListener('resize', onResize); }
+document.addEventListener('visibilitychange', () => {
+  slowFrameAccumulatorMs = 0;
+});
 
 if (shouldRunHallwayEntry) {
   startHallwayEntry();
