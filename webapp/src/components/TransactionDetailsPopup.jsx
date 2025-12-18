@@ -14,11 +14,9 @@ import GiftIcon from './GiftIcon.jsx';
 const GAME_NAME_MAP = {
   snake: 'Snake & Ladder',
   goalrush: 'Goal Rush',
-  fallingball: 'Falling Ball',
   pool: 'Pool Royale',
   texas: "Texas Hold'em",
   domino: 'Domino Royal 3D',
-  blackjack: 'Black Jack Multiplayer',
   murlan: 'Murlan Royale',
 };
 

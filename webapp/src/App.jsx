@@ -22,8 +22,6 @@ import Games from './pages/Games.jsx';
 import GameTransactions from './pages/GameTransactions.jsx';
 import MiningTransactions from './pages/MiningTransactions.jsx';
 import SpinPage from './pages/spin.tsx';
-import FallingBall from './pages/Games/FallingBall.jsx';
-import FallingBallLobby from './pages/Games/FallingBallLobby.jsx';
 import GoalRush from './pages/Games/GoalRush.jsx';
 import GoalRushLobby from './pages/Games/GoalRushLobby.jsx';
 import AirHockey from './pages/Games/AirHockey.jsx';
@@ -39,8 +37,6 @@ import DominoRoyalLobby from './pages/Games/DominoRoyalLobby.jsx';
 
 const ChessBattleRoyal = React.lazy(() => import('./pages/Games/ChessBattleRoyal.jsx'));
 const ChessBattleRoyalLobby = React.lazy(() => import('./pages/Games/ChessBattleRoyalLobby.jsx'));
-import BlackJack from './pages/Games/BlackJack.jsx';
-import BlackJackLobby from './pages/Games/BlackJackLobby.jsx';
 import PoolRoyale from './pages/Games/PoolRoyale.jsx';
 import PoolRoyaleLobby from './pages/Games/PoolRoyaleLobby.jsx';
 import SnookerClub from './pages/Games/SnookerClub.jsx';
@@ -73,11 +69,6 @@ export default function App() {
             <Route path="/games/snake" element={<SnakeAndLadder />} />
             <Route path="/games/snake/mp" element={<SnakeMultiplayer />} />
             <Route path="/games/snake/results" element={<SnakeResults />} />
-            <Route
-              path="/games/fallingball/lobby"
-              element={<FallingBallLobby />}
-            />
-            <Route path="/games/fallingball" element={<FallingBall />} />
             <Route path="/games/goalrush/lobby" element={<GoalRushLobby />} />
             <Route path="/games/goalrush" element={<GoalRush />} />
             <Route path="/games/airhockey/lobby" element={<AirHockeyLobby />} />
@@ -116,8 +107,6 @@ export default function App() {
               element={<DominoRoyalLobby />}
             />
             <Route path="/games/domino-royal" element={<DominoRoyal />} />
-            <Route path="/games/blackjack/lobby" element={<BlackJackLobby />} />
-            <Route path="/games/blackjack" element={<BlackJack />} />
             <Route
               path="/games/murlanroyale/lobby"
               element={<MurlanRoyaleLobby />}
