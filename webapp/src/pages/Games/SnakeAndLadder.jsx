@@ -449,24 +449,56 @@ const SNAKE_CUSTOMIZATION_SECTIONS = [
 
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'performance90',
-    label: 'Performance',
-    description: 'Optimized rendering for all devices',
-    fps: 90
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
   },
   {
-    id: 'ultra120',
-    label: 'Ultra Smooth',
-    description: 'High-refresh animation at 120 FPS',
-    fps: 120
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
   },
   {
-    id: 'elite144',
-    label: 'Elite Fidelity',
-    description: '144 FPS for flagship displays',
-    fps: 144
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
+    fps: 144,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
   }
 ]);
+const FRAME_RATE_ALIASES = Object.freeze({
+  performance90: 'smooth90',
+  ultra120: 'fast120',
+  elite144: 'esports144'
+});
 
 const APPEARANCE_STORAGE_KEY = 'snakeAppearanceConfig';
 const FRAME_RATE_STORAGE_KEY = 'snakeFrameRateId';
@@ -480,7 +512,7 @@ const DEFAULT_APPEARANCE = Object.freeze({
   tokenFinish: 0
 });
 
-const DEFAULT_FRAME_RATE_ID = FRAME_RATE_OPTIONS[0]?.id ?? 'performance90';
+const DEFAULT_FRAME_RATE_ID = FRAME_RATE_OPTIONS[0]?.id ?? 'balanced60';
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -729,7 +761,10 @@ export default function SnakeAndLadder() {
       const stored = window.localStorage.getItem(FRAME_RATE_STORAGE_KEY);
       if (!stored) return DEFAULT_FRAME_RATE_ID;
       const option = FRAME_RATE_OPTIONS.find((opt) => opt.id === stored);
-      return option ? option.id : DEFAULT_FRAME_RATE_ID;
+      if (option) return option.id;
+      const alias = FRAME_RATE_ALIASES[stored];
+      if (alias && FRAME_RATE_OPTIONS.some((opt) => opt.id === alias)) return alias;
+      return DEFAULT_FRAME_RATE_ID;
     } catch {
       return DEFAULT_FRAME_RATE_ID;
     }
@@ -2662,7 +2697,11 @@ export default function SnakeAndLadder() {
                           <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
                             {option.label}
                           </span>
-                          <span className="text-xs font-semibold tracking-wide">{option.fps} FPS</span>
+                          <span className="text-xs font-semibold tracking-wide">
+                            {option.resolution
+                              ? `${option.resolution} • ${option.fps} FPS`
+                              : `${option.fps} FPS`}
+                          </span>
                         </span>
                         {option.description ? (
                           <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
