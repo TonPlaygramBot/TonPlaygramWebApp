@@ -8270,13 +8270,20 @@ function PoolRoyaleGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar
+  opponentAvatar,
+  tableId = '',
+  seat = 'A',
+  trainingLevelOverride = null
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const mountRef = useRef(null);
   const rafRef = useRef(null);
   const worldRef = useRef(null);
+  const tableIdRef = useRef(tableId);
+  useEffect(() => {
+    tableIdRef.current = tableId;
+  }, [tableId]);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
     () => resolvePoolVariant(variantKey),
@@ -8547,11 +8554,14 @@ function PoolRoyaleGame({
   }, [trainingLevel]);
   useEffect(() => {
     const stored = loadTrainingProgress();
-    const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
+    const desiredLevel = Number.isFinite(trainingLevelOverride)
+      ? trainingLevelOverride
+      : stored.lastLevel;
+    const playableLevel = resolvePlayableTrainingLevel(desiredLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
     setTrainingLevel(playableLevel);
-  }, []);
+  }, [trainingLevelOverride]);
   const currentTrainingInfo = useMemo(
     () => describeTrainingLevel(trainingLevel),
     [trainingLevel]
@@ -9183,14 +9193,17 @@ function PoolRoyaleGame({
     };
   }, [configOpen]);
   const applyFinishRef = useRef(() => {});
+  const playerSeat = seat === 'B' ? 'B' : 'A';
   const playerLabel = playerName || 'Player';
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
     effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
+  const playerAName = playerSeat === 'A' ? playerLabel : opponentLabel;
+  const playerBName = playerSeat === 'A' ? opponentLabel : playerLabel;
   const isOnlineMatch = mode === 'online';
   const initialFrame = useMemo(
-    () => rules.getInitialFrame(playerLabel, opponentLabel),
-    [rules, playerLabel, opponentLabel]
+    () => rules.getInitialFrame(playerAName, playerBName),
+    [rules, playerAName, playerBName]
   );
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
@@ -9239,11 +9252,12 @@ function PoolRoyaleGame({
     () => deriveInHandFromFrame(initialFrame),
     [initialFrame]
   );
+  const initialHudTurn = playerSeat === 'B' ? 1 : 0;
   const [hud, setHud] = useState({
     power: 0.65,
     A: 0,
     B: 0,
-    turn: 0,
+    turn: initialHudTurn,
     phase: 'reds',
     next: 'red',
     inHand: initialHudInHand,
@@ -9272,13 +9286,13 @@ function PoolRoyaleGame({
       ...prev,
       A: 0,
       B: 0,
-      turn: 0,
+      turn: playerSeat === 'B' ? 1 : 0,
       phase: 'reds',
       next: 'red',
       inHand: nextInHand,
       over: false
     }));
-  }, [initialFrame]);
+  }, [initialFrame, playerSeat]);
   useEffect(() => {
     if (!isTraining) return;
     gameOverHandledRef.current = false;
@@ -18268,6 +18282,11 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('tgId') || '';
   }, [location.search]);
+  const seat = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const incoming = (params.get('seat') || 'A').toUpperCase();
+    return incoming === 'B' ? 'B' : 'A';
+  }, [location.search]);
   const playerName = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return (
@@ -18280,6 +18299,21 @@ export default function PoolRoyale() {
   const playerAvatar = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('avatar') || '';
+  }, [location.search]);
+  const tableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const incoming = params.get('tableId');
+    if (incoming) {
+      try {
+        window.sessionStorage?.setItem('poolRoyaleTableId', incoming);
+      } catch {}
+      return incoming;
+    }
+    try {
+      return window.sessionStorage?.getItem('poolRoyaleTableId') || '';
+    } catch {
+      return '';
+    }
   }, [location.search]);
   const stakeAmount = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -18355,20 +18389,35 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('opponentAvatar') || '';
   }, [location.search]);
+  const trainingLevelOverride = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = Number(params.get('level'));
+    return Number.isFinite(requested) ? requested : null;
+  }, [location.search]);
   return (
-    <PoolRoyaleGame
-      variantKey={variantKey}
-      tableSizeKey={tableSizeKey}
-      playType={playType}
-      mode={mode}
-      trainingMode={trainingMode}
-      trainingRulesEnabled={trainingRulesEnabled}
-      accountId={accountId}
-      tgId={tgId}
-      playerName={playerName}
-      playerAvatar={playerAvatar}
-      opponentName={opponentName}
-      opponentAvatar={opponentAvatar}
-    />
+    <div className="relative">
+      {tableId && (
+        <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg bg-black/70 px-3 py-1 text-xs font-semibold text-background">
+          Table {tableId.slice(0, 8)}
+        </div>
+      )}
+      <PoolRoyaleGame
+        variantKey={variantKey}
+        tableSizeKey={tableSizeKey}
+        playType={playType}
+        mode={mode}
+        trainingMode={trainingMode}
+        trainingRulesEnabled={trainingRulesEnabled}
+        accountId={accountId}
+        tgId={tgId}
+        playerName={playerName}
+        playerAvatar={playerAvatar}
+        opponentName={opponentName}
+        opponentAvatar={opponentAvatar}
+        tableId={tableId}
+        seat={seat}
+        trainingLevelOverride={trainingLevelOverride}
+      />
+    </div>
   );
 }
