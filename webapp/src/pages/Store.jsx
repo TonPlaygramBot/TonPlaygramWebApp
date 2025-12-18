@@ -42,11 +42,6 @@ import {
   CHESS_BATTLE_STORE_ITEMS
 } from '../config/chessBattleInventoryConfig.js';
 import {
-  BLACKJACK_DEFAULT_LOADOUT,
-  BLACKJACK_OPTION_LABELS,
-  BLACKJACK_STORE_ITEMS
-} from '../config/blackjackInventoryConfig.js';
-import {
   addChessBattleUnlock,
   getChessBattleInventory,
   isChessOptionUnlocked,
@@ -106,13 +101,6 @@ import {
   listOwnedSnakeOptions,
   snakeAccountId
 } from '../utils/snakeInventory.js';
-import {
-  addBlackjackUnlock,
-  getBlackjackInventory,
-  isBlackjackOptionUnlocked,
-  blackjackAccountId,
-  listOwnedBlackjackOptions
-} from '../utils/blackjackInventory.js';
 import {
   addTexasHoldemUnlock,
   getTexasHoldemInventory,
@@ -340,7 +328,6 @@ const PREVIEW_BY_TYPE = {
 
 const PREVIEW_BY_SLUG = {
   chessbattleroyal: 'chess-royals',
-  blackjack: 'cards',
   'domino-royal': 'domino'
 };
 
@@ -392,14 +379,6 @@ const storeMeta = {
     typeLabels: CHESS_TYPE_LABELS,
     accountId: CHESS_STORE_ACCOUNT_ID
   },
-  blackjack: {
-    name: 'Black Jack',
-    items: BLACKJACK_STORE_ITEMS,
-    defaults: BLACKJACK_DEFAULT_LOADOUT,
-    labels: BLACKJACK_OPTION_LABELS,
-    typeLabels: BLACKJACK_TYPE_LABELS,
-    accountId: BLACKJACK_STORE_ACCOUNT_ID
-  },
   ludobattleroyal: {
     name: 'Ludo Battle Royal',
     items: LUDO_BATTLE_STORE_ITEMS,
@@ -449,7 +428,6 @@ export default function Store() {
   const [snookerOwned, setSnookerOwned] = useState(() => getSnookerClubInventory(snookerClubAccountId(accountId)));
   const [airOwned, setAirOwned] = useState(() => getAirHockeyInventory(airHockeyAccountId(accountId)));
   const [chessOwned, setChessOwned] = useState(() => getChessBattleInventory(chessBattleAccountId(accountId)));
-  const [blackjackOwned, setBlackjackOwned] = useState(() => getBlackjackInventory(blackjackAccountId(accountId)));
   const [ludoOwned, setLudoOwned] = useState(() => getLudoBattleInventory(ludoBattleAccountId(accountId)));
   const [murlanOwned, setMurlanOwned] = useState(() => getMurlanInventory(murlanAccountId(accountId)));
   const [dominoOwned, setDominoOwned] = useState(() => getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
@@ -479,7 +457,6 @@ export default function Store() {
     setSnookerOwned(getSnookerClubInventory(snookerClubAccountId(accountId)));
     setAirOwned(getAirHockeyInventory(airHockeyAccountId(accountId)));
     setChessOwned(getChessBattleInventory(chessBattleAccountId(accountId)));
-    setBlackjackOwned(getBlackjackInventory(blackjackAccountId(accountId)));
     setLudoOwned(getLudoBattleInventory(ludoBattleAccountId(accountId)));
     setMurlanOwned(getMurlanInventory(murlanAccountId(accountId)));
     setDominoOwned(getDominoRoyalInventory(dominoRoyalAccountId(accountId)));
@@ -508,7 +485,6 @@ export default function Store() {
       snookerclub: SNOOKER_CLUB_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'snookerclub' })),
       airhockey: AIR_HOCKEY_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'airhockey' })),
       chessbattleroyal: CHESS_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'chessbattleroyal' })),
-      blackjack: BLACKJACK_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'blackjack' })),
       ludobattleroyal: LUDO_BATTLE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'ludobattleroyal' })),
       murlanroyale: MURLAN_ROYALE_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'murlanroyale' })),
       'domino-royal': DOMINO_ROYAL_STORE_ITEMS.map((item) => ({ ...item, key: createItemKey(item.type, item.optionId), slug: 'domino-royal' })),
@@ -524,14 +500,13 @@ export default function Store() {
       snookerclub: (type, optionId) => isSnookerOptionUnlocked(type, optionId, snookerOwned),
       airhockey: (type, optionId) => isAirHockeyOptionUnlocked(type, optionId, airOwned),
       chessbattleroyal: (type, optionId) => isChessOptionUnlocked(type, optionId, chessOwned),
-      blackjack: (type, optionId) => isBlackjackOptionUnlocked(type, optionId, blackjackOwned),
       ludobattleroyal: (type, optionId) => isLudoOptionUnlocked(type, optionId, ludoOwned),
       murlanroyale: (type, optionId) => isMurlanOptionUnlocked(type, optionId, murlanOwned),
       'domino-royal': (type, optionId) => isDominoOptionUnlocked(type, optionId, dominoOwned),
       snake: (type, optionId) => isSnakeOptionUnlocked(type, optionId, snakeOwned),
       texasholdem: (type, optionId) => isTexasOptionUnlocked(type, optionId, texasOwned)
     }),
-    [airOwned, poolOwned, snookerOwned, blackjackOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
+    [airOwned, poolOwned, snookerOwned, chessOwned, ludoOwned, murlanOwned, dominoOwned, snakeOwned, texasOwned]
   );
 
   const labelResolvers = useMemo(
@@ -540,7 +515,6 @@ export default function Store() {
       snookerclub: (item) => SNOOKER_CLUB_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       airhockey: (item) => AIR_HOCKEY_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       chessbattleroyal: (item) => CHESS_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
-      blackjack: (item) => BLACKJACK_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       ludobattleroyal: (item) => LUDO_BATTLE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       murlanroyale: (item) => MURLAN_ROYALE_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
       'domino-royal': (item) => DOMINO_ROYAL_OPTION_LABELS[item.type]?.[item.optionId] || item.name,
@@ -556,7 +530,6 @@ export default function Store() {
       snookerclub: SNOOKER_TYPE_LABELS,
       airhockey: AIR_HOCKEY_TYPE_LABELS,
       chessbattleroyal: CHESS_TYPE_LABELS,
-      blackjack: BLACKJACK_TYPE_LABELS,
       ludobattleroyal: LUDO_TYPE_LABELS,
       murlanroyale: MURLAN_TYPE_LABELS,
       'domino-royal': DOMINO_TYPE_LABELS,
@@ -750,7 +723,6 @@ export default function Store() {
       snookerclub: SNOOKER_STORE_ACCOUNT_ID,
       airhockey: AIR_HOCKEY_STORE_ACCOUNT_ID,
       chessbattleroyal: CHESS_STORE_ACCOUNT_ID,
-      blackjack: BLACKJACK_STORE_ACCOUNT_ID,
       ludobattleroyal: LUDO_STORE_ACCOUNT_ID,
       murlanroyale: MURLAN_STORE_ACCOUNT_ID,
       'domino-royal': DOMINO_STORE_ACCOUNT_ID,
@@ -785,8 +757,6 @@ export default function Store() {
         setAirOwned(addAirHockeyUnlock(item.type, item.optionId, accountId));
       } else if (slug === 'chessbattleroyal') {
         setChessOwned(addChessBattleUnlock(item.type, item.optionId, accountId));
-      } else if (slug === 'blackjack') {
-        setBlackjackOwned(addBlackjackUnlock(item.type, item.optionId, accountId));
       } else if (slug === 'ludobattleroyal') {
         setLudoOwned(addLudoBattleUnlock(item.type, item.optionId, accountId));
       } else if (slug === 'murlanroyale') {

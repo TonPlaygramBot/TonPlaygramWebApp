@@ -22,7 +22,6 @@ function getGameFromTableId(id) {
   if (
     [
       'snake',
-      'fallingball',
       'goalrush',
       'poolroyale',
     ].includes(prefix)
