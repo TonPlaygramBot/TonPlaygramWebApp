@@ -1,8 +1,25 @@
 // Use the API base URL from the build environment or fallback to the same origin
 // so the webapp works when served by the Express server in production.
-const metaEnv = (typeof import.meta !== 'undefined' && import.meta?.env) || {};
-export const API_BASE_URL = metaEnv.VITE_API_BASE_URL || '';
-export const API_AUTH_TOKEN = metaEnv.VITE_API_AUTH_TOKEN || '';
+function loadMetaEnv() {
+  try {
+    // eslint-disable-next-line no-new-func
+    const resolved = Function('try { return import.meta.env || {}; } catch (e) { return {}; }')();
+    if (resolved && typeof resolved === 'object') return resolved;
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
+const resolvedEnv = (() => {
+  const meta = loadMetaEnv();
+  if (meta && Object.keys(meta).length > 0) return meta;
+  if (typeof process !== 'undefined' && process.env) return process.env;
+  return {};
+})();
+
+export const API_BASE_URL = resolvedEnv.VITE_API_BASE_URL || '';
+export const API_AUTH_TOKEN = resolvedEnv.VITE_API_AUTH_TOKEN || '';
 
 export async function ping() {
   const data = await get('/api/ping');

@@ -26,6 +26,7 @@ import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMate
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { CUE_RACK_PALETTE, CUE_STYLE_PRESETS } from '../../config/cueStyles.js';
+import { socket } from '../../utils/socket.js';
 import {
   WOOD_FINISH_PRESETS,
   WOOD_GRAIN_OPTIONS,
@@ -9187,11 +9188,28 @@ function PoolRoyaleGame({
   const effectiveMode = isTraining ? trainingModeState : mode;
   const opponentLabel =
     effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
+  const tableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tableId') || '';
+  }, [location.search]);
+  const localSeat = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('seat') === 'B' ? 'B' : 'A';
+  }, [location.search]);
+  const starterSeat = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('starter') === 'B' ? 'B' : 'A';
+  }, [location.search]);
+  const opponentSeat = localSeat === 'A' ? 'B' : 'A';
   const isOnlineMatch = mode === 'online';
-  const initialFrame = useMemo(
-    () => rules.getInitialFrame(playerLabel, opponentLabel),
-    [rules, playerLabel, opponentLabel]
-  );
+  const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
+  const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
+  const initialFrame = useMemo(() => {
+    const baseFrame = rules.getInitialFrame(framePlayerAName, framePlayerBName);
+    const desiredStarter = starterSeat === 'B' ? 'B' : 'A';
+    if (baseFrame.activePlayer === desiredStarter) return baseFrame;
+    return { ...baseFrame, activePlayer: desiredStarter };
+  }, [framePlayerAName, framePlayerBName, rules, starterSeat]);
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
@@ -9200,6 +9218,12 @@ function PoolRoyaleGame({
   useEffect(() => {
     frameRef.current = frameState;
   }, [frameState]);
+  const opponentProfile = useMemo(
+    () => (localSeat === 'A' ? frameState?.players?.B : frameState?.players?.A),
+    [frameState?.players, localSeat]
+  );
+  const opponentDisplayName = opponentProfile?.name || opponentLabel;
+  const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
@@ -9265,6 +9289,10 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const localSeatRef = useRef(localSeat);
+  useEffect(() => {
+    localSeatRef.current = localSeat;
+  }, [localSeat]);
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
@@ -9772,40 +9800,41 @@ function PoolRoyaleGame({
       };
     });
   }, [playerAvatar, playerName]);
+  const resolvedPlayerAvatar = player.avatar || getTelegramPhotoUrl();
+  const resolvedOpponentAvatar = isOnlineMatch ? opponentAvatar || '' : '';
+  const framePlayersProfile = useMemo(
+    () => ({
+      A:
+        localSeat === 'A'
+          ? { name: player.name || 'Player', avatar: resolvedPlayerAvatar }
+          : { name: opponentLabel, avatar: resolvedOpponentAvatar },
+      B:
+        localSeat === 'A'
+          ? { name: opponentLabel, avatar: resolvedOpponentAvatar }
+          : { name: player.name || 'Player', avatar: resolvedPlayerAvatar }
+    }),
+    [localSeat, opponentLabel, player.name, resolvedOpponentAvatar, resolvedPlayerAvatar]
+  );
   useEffect(() => {
     setFrameState((prev) => {
-      const nextName = player.name || 'Player';
-      if (prev.players.A.name === nextName) return prev;
+      const nextPlayers = {
+        A: { ...prev.players.A, name: framePlayersProfile.A.name, avatar: framePlayersProfile.A.avatar },
+        B: { ...prev.players.B, name: framePlayersProfile.B.name, avatar: framePlayersProfile.B.avatar }
+      };
+      if (
+        prev.players.A.name === nextPlayers.A.name &&
+        prev.players.B.name === nextPlayers.B.name &&
+        prev.players.A.avatar === nextPlayers.A.avatar &&
+        prev.players.B.avatar === nextPlayers.B.avatar
+      ) {
+        return prev;
+      }
       return {
         ...prev,
-        players: {
-          ...prev.players,
-          A: { ...prev.players.A, name: nextName }
-        }
+        players: nextPlayers
       };
     });
-  }, [player.name]);
-  useEffect(() => {
-    setFrameState((prev) => {
-      const desiredOpponentName = opponentLabel;
-      const desiredOpponentAvatar =
-        mode === 'online' ? opponentAvatar || prev.players.B?.avatar || '' : '';
-      const desiredPlayerAvatar = player.avatar || getTelegramPhotoUrl();
-      const needsPlayerAvatarUpdate = prev.players?.A?.avatar !== desiredPlayerAvatar;
-      const needsOpponentUpdate =
-        prev.players?.B?.name !== desiredOpponentName ||
-        prev.players?.B?.avatar !== desiredOpponentAvatar;
-      if (!needsPlayerAvatarUpdate && !needsOpponentUpdate) return prev;
-      return {
-        ...prev,
-        players: {
-          ...prev.players,
-          A: { ...prev.players.A, avatar: desiredPlayerAvatar },
-          B: { ...prev.players.B, name: desiredOpponentName, avatar: desiredOpponentAvatar }
-        }
-      };
-    });
-  }, [mode, opponentAvatar, opponentLabel, player.avatar]);
+  }, [framePlayersProfile.A.avatar, framePlayersProfile.A.name, framePlayersProfile.B.avatar, framePlayersProfile.B.name]);
   useEffect(() => {
     muteRef.current = isGameMuted();
     volumeRef.current = getGameVolume();
@@ -9900,19 +9929,8 @@ function PoolRoyaleGame({
           : 'colors';
       const scoreA = hudMeta?.scores?.A ?? frameState.players.A.score;
       const scoreB = hudMeta?.scores?.B ?? frameState.players.B.score;
-      const players = frameState.players ?? {};
-      const playerInfo = playerInfoRef.current ?? {};
-      const localName =
-        typeof playerInfo.name === 'string' && playerInfo.name.trim()
-          ? playerInfo.name
-          : players.A?.name;
-      let localId = 'A';
-      if (players.A?.name && players.A.name === localName) {
-        localId = 'A';
-      } else if (players.B?.name && players.B.name === localName) {
-        localId = 'B';
-      }
       const activeId = frameState.activePlayer === 'B' ? 'B' : 'A';
+      const localId = localSeatRef.current === 'B' ? 'B' : 'A';
       const isPlayerTurn = activeId === localId;
       return {
         ...prev,
@@ -9940,6 +9958,42 @@ function PoolRoyaleGame({
     setHud((prev) => ({ ...prev, over: true }));
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
+
+  const applyRemoteState = useCallback(
+    ({ state, hud: incomingHud }) => {
+      if (!state) return;
+      frameRef.current = state;
+      setFrameState(state);
+      if (incomingHud) {
+        setHud((prev) => ({ ...prev, ...incomingHud }));
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (!isOnlineMatch || !tableId) return undefined;
+    const handlePoolState = (payload = {}) => {
+      if (payload.tableId && payload.tableId !== tableId) return;
+      applyRemoteState({ state: payload.state, hud: payload.hud });
+    };
+
+    socket.emit('register', { playerId: accountId });
+    socket.emit('joinPoolTable', { tableId, accountId });
+    socket.emit('poolSyncRequest', { tableId });
+    socket.on('poolState', handlePoolState);
+
+    return () => {
+      socket.off('poolState', handlePoolState);
+    };
+  }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
+
+  useEffect(() => {
+    if (!isOnlineMatch || !tableId) return;
+    const state = frameRef.current;
+    if (!state) return;
+    socket.emit('poolShot', { tableId, state });
+  }, [isOnlineMatch, tableId]);
 
   useEffect(() => {
     let wakeLock;
@@ -16098,6 +16152,9 @@ function PoolRoyaleGame({
           frameRef.current = safeState;
           setFrameState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
+          if (isOnlineMatch && tableId) {
+            socket.emit('poolShot', { tableId, state: safeState });
+          }
           setShootingState(false);
           shotPrediction = null;
           activeShotView = null;
@@ -18094,11 +18151,7 @@ function PoolRoyaleGame({
               {isOnlineMatch ? (
                 <>
                   <img
-                    src={
-                      frameState?.players?.B?.avatar ||
-                      opponentAvatar ||
-                      '/assets/icons/profile.svg'
-                    }
+                    src={opponentDisplayAvatar}
                     alt="opponent avatar"
                     className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
                       isOpponentTurn
@@ -18107,7 +18160,7 @@ function PoolRoyaleGame({
                     }`}
                   />
                   <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                    {opponentLabel}
+                    {opponentDisplayName}
                   </span>
                 </>
               ) : (

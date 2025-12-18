@@ -288,6 +288,7 @@ const tableWatchers = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
+const poolStates = new Map();
 const BUNDLE_TON_MAP = Object.fromEntries(
   Object.values(BUNDLES).map((b) => [b.label, b.ton])
 );
@@ -527,6 +528,9 @@ function maybeStartGame(table) {
       lobbyTables[key] = (lobbyTables[key] || []).filter(
         (t) => t.id !== table.id
       );
+      if (table.gameType === 'poolroyale') {
+        poolStates.set(table.id, { state: null, hud: null, ts: Date.now() });
+      }
       table.startTimeout = null;
     }, 1000);
   }
@@ -1044,6 +1048,53 @@ io.on('connection', (socket) => {
     if (!tableId) return;
     const state = getChessState(tableId);
     socket.emit('chessState', { tableId, ...state });
+  });
+
+  socket.on('joinPoolTable', async ({ tableId, accountId }) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    if (accountId) {
+      await registerConnection({
+        userId: String(accountId),
+        roomId: tableId,
+        socketId: socket.id
+      });
+    }
+    const cached = poolStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('poolState', {
+        tableId,
+        state: cached.state,
+        hud: cached.hud,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('poolSyncRequest', ({ tableId }) => {
+    if (!tableId) return;
+    const cached = poolStates.get(tableId);
+    if (cached?.state) {
+      socket.emit('poolState', {
+        tableId,
+        state: cached.state,
+        hud: cached.hud,
+        updatedAt: cached.ts
+      });
+    }
+  });
+
+  socket.on('poolShot', ({ tableId, state, hud }) => {
+    if (!tableId || !state) return;
+    const payload = {
+      tableId,
+      state,
+      hud: hud || null,
+      updatedAt: Date.now()
+    };
+    poolStates.set(tableId, { state, hud: hud || null, ts: payload.updatedAt });
+    socket.to(tableId).emit('poolState', payload);
   });
 
   socket.on('chessMove', ({ tableId, move }) => {
