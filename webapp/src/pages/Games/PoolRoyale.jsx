@@ -15,6 +15,7 @@ import {
   getTelegramPhotoUrl,
   getTelegramId
 } from '../../utils/telegram.js';
+import { socket } from '../../utils/socket.js';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
 import { addTransaction, getAccountBalance } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
@@ -8270,7 +8271,10 @@ function PoolRoyaleGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar
+  opponentAvatar,
+  tableId = '',
+  starterAccountId = '',
+  opponentAccountId = ''
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8291,6 +8295,22 @@ function PoolRoyaleGame({
     () => poolRoyalAccountId(accountId),
     [accountId]
   );
+  const resolvedOpponentAccountId = useMemo(
+    () => (opponentAccountId ? String(opponentAccountId) : ''),
+    [opponentAccountId]
+  );
+  const resolvedStarterId = useMemo(
+    () => (starterAccountId ? String(starterAccountId) : ''),
+    [starterAccountId]
+  );
+  const startingTurn = useMemo(() => {
+    if (mode !== 'online') return 0;
+    if (resolvedStarterId) {
+      if (resolvedAccountId && String(resolvedAccountId) === resolvedStarterId) return 0;
+      if (resolvedOpponentAccountId && resolvedOpponentAccountId === resolvedStarterId) return 1;
+    }
+    return 0;
+  }, [mode, resolvedAccountId, resolvedOpponentAccountId, resolvedStarterId]);
   const [poolInventory, setPoolInventory] = useState(() =>
     getCachedPoolRoyalInventory(resolvedAccountId)
   );
@@ -9188,10 +9208,13 @@ function PoolRoyaleGame({
   const opponentLabel =
     effectiveMode === 'online' ? opponentName || 'Opponent' : opponentName || 'AI';
   const isOnlineMatch = mode === 'online';
-  const initialFrame = useMemo(
-    () => rules.getInitialFrame(playerLabel, opponentLabel),
-    [rules, playerLabel, opponentLabel]
-  );
+  const initialFrame = useMemo(() => {
+    const base = rules.getInitialFrame(playerLabel, opponentLabel);
+    if (startingTurn === 1) {
+      return { ...base, activePlayer: 'B' };
+    }
+    return base;
+  }, [rules, playerLabel, opponentLabel, startingTurn]);
   const [frameState, setFrameState] = useState(initialFrame);
   useEffect(() => {
     setFrameState(initialFrame);
@@ -9214,6 +9237,8 @@ function PoolRoyaleGame({
     });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
+  const captureSnapshotRef = useRef(null);
+  const applySnapshotRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
@@ -9243,7 +9268,7 @@ function PoolRoyaleGame({
     power: 0.65,
     A: 0,
     B: 0,
-    turn: 0,
+    turn: startingTurn,
     phase: 'reds',
     next: 'red',
     inHand: initialHudInHand,
@@ -9265,6 +9290,69 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  const broadcastPoolState = useCallback(
+    (frame, hudOverride = {}, snapshotOverride) => {
+    if (mode !== 'online' || !tableId || !frame) return;
+    const snapshot =
+      snapshotOverride ||
+      (typeof captureSnapshotRef.current === 'function'
+        ? captureSnapshotRef.current()
+        : undefined);
+    try {
+      socket.emit('poolFrameSync', {
+        tableId,
+        accountId: resolvedAccountId || accountId || '',
+        frame,
+        hud: { ...hudRef.current, ...hudOverride },
+        snapshot
+      });
+    } catch (err) {
+      console.warn('Pool Royale sync emit failed', err);
+    }
+    },
+    [accountId, mode, resolvedAccountId, tableId]
+  );
+  useEffect(() => {
+    if (mode !== 'online' || !tableId) return undefined;
+    if (socket && !socket.connected && typeof socket.connect === 'function') {
+      socket.connect();
+    }
+    const handleFrameSync = ({ tableId: incoming, frame, hud: incomingHud, snapshot }) => {
+      if (!incoming || incoming !== tableId) return;
+      if (snapshot && typeof applySnapshotRef.current === 'function') {
+        applySnapshotRef.current(snapshot);
+      }
+      if (frame) {
+        frameRef.current = frame;
+        setFrameState(frame);
+      }
+      if (incomingHud) {
+        setHud((prev) => ({ ...prev, ...incomingHud }));
+      }
+    };
+    try {
+      socket.emit('joinPoolRoom', {
+        tableId,
+        accountId: resolvedAccountId || accountId || '',
+        name: playerLabel,
+        avatar: playerAvatar
+      });
+    } catch (err) {
+      console.warn('Pool Royale socket join failed', err);
+    }
+    socket.on('poolFrameSync', handleFrameSync);
+    return () => {
+      socket.off('poolFrameSync', handleFrameSync);
+      socket.emit('leavePoolRoom', {
+        tableId,
+        accountId: resolvedAccountId || accountId || ''
+      });
+    };
+  }, [accountId, mode, playerAvatar, playerLabel, resolvedAccountId, tableId]);
+  useEffect(() => {
+    if (mode !== 'online' || !tableId) return;
+    broadcastPoolState(frameRef.current, { inHand: hudRef.current?.inHand });
+  }, [broadcastPoolState, mode, tableId]);
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
@@ -9272,13 +9360,13 @@ function PoolRoyaleGame({
       ...prev,
       A: 0,
       B: 0,
-      turn: 0,
+      turn: startingTurn,
       phase: 'reds',
       next: 'red',
       inHand: nextInHand,
       over: false
     }));
-  }, [initialFrame]);
+  }, [initialFrame, startingTurn]);
   useEffect(() => {
     if (!isTraining) return;
     gameOverHandledRef.current = false;
@@ -12775,6 +12863,9 @@ function PoolRoyaleGame({
           });
         };
 
+        captureSnapshotRef.current = captureBallSnapshot;
+        applySnapshotRef.current = applyBallSnapshot;
+
         const recordReplayFrame = (timestamp) => {
           if (!shotRecording) return;
           const start = shotRecording.startTime ?? timestamp;
@@ -16098,6 +16189,9 @@ function PoolRoyaleGame({
           frameRef.current = safeState;
           setFrameState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
+          if (safeState) {
+            broadcastPoolState(safeState, { inHand: nextInHand });
+          }
           setShootingState(false);
           shotPrediction = null;
           activeShotView = null;
@@ -17309,6 +17403,8 @@ function PoolRoyaleGame({
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
+          captureSnapshotRef.current = null;
+          applySnapshotRef.current = null;
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
@@ -18281,6 +18377,21 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('avatar') || '';
   }, [location.search]);
+  const tableId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const incoming = params.get('tableId');
+    if (incoming) {
+      try {
+        window.sessionStorage?.setItem('poolRoyaleTableId', incoming);
+      } catch {}
+      return incoming;
+    }
+    try {
+      return window.sessionStorage?.getItem('poolRoyaleTableId') || '';
+    } catch {
+      return '';
+    }
+  }, [location.search]);
   const stakeAmount = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return Number(params.get('amount')) || 0;
@@ -18288,6 +18399,14 @@ export default function PoolRoyale() {
   const stakeToken = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return params.get('token') || 'TPC';
+  }, [location.search]);
+  const starterAccountId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('starter') || '';
+  }, [location.search]);
+  const opponentAccountId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('opponentId') || '';
   }, [location.search]);
   const exitMessage = useMemo(
     () =>
@@ -18356,19 +18475,29 @@ export default function PoolRoyale() {
     return params.get('opponentAvatar') || '';
   }, [location.search]);
   return (
-    <PoolRoyaleGame
-      variantKey={variantKey}
-      tableSizeKey={tableSizeKey}
-      playType={playType}
-      mode={mode}
-      trainingMode={trainingMode}
-      trainingRulesEnabled={trainingRulesEnabled}
-      accountId={accountId}
-      tgId={tgId}
-      playerName={playerName}
-      playerAvatar={playerAvatar}
-      opponentName={opponentName}
-      opponentAvatar={opponentAvatar}
-    />
+    <div className="relative">
+      {tableId && (
+        <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg bg-black/70 px-3 py-1 text-xs font-semibold text-background">
+          Table {tableId.slice(0, 8)}
+        </div>
+      )}
+      <PoolRoyaleGame
+        variantKey={variantKey}
+        tableSizeKey={tableSizeKey}
+        playType={playType}
+        mode={mode}
+        trainingMode={trainingMode}
+        trainingRulesEnabled={trainingRulesEnabled}
+        accountId={accountId}
+        tgId={tgId}
+        playerName={playerName}
+        playerAvatar={playerAvatar}
+        opponentName={opponentName}
+        opponentAvatar={opponentAvatar}
+        tableId={tableId}
+        starterAccountId={starterAccountId}
+        opponentAccountId={opponentAccountId}
+      />
+    </div>
   );
 }
