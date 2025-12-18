@@ -285,6 +285,7 @@ const pendingInvites = new Map();
 app.set('userSockets', userSockets);
 
 const tableWatchers = new Map();
+const poolStates = new Map();
 // Dynamic lobby tables grouped by game type and capacity
 const lobbyTables = {};
 const tableMap = new Map();
@@ -565,6 +566,7 @@ function unseatTableSocket(accountId, tableId, socketId) {
         (t) => t.id !== tableId
       );
       table.currentTurn = null;
+      poolStates.delete(tableId);
     } else if (table.currentTurn === accountId) {
       const nextIndex = 0;
       table.currentTurn = table.players[nextIndex].id;
@@ -984,6 +986,18 @@ io.on('connection', (socket) => {
       ready: Array.from(table.ready)
     });
     maybeStartGame(table);
+  });
+  socket.on('poolSyncRequest', ({ tableId }) => {
+    if (!tableId) return;
+    const state = poolStates.get(tableId);
+    if (state) {
+      socket.emit('poolState', { tableId, state });
+    }
+  });
+  socket.on('poolStateUpdate', ({ tableId, state, reason }) => {
+    if (!tableId || !state) return;
+    poolStates.set(tableId, state);
+    socket.to(tableId).emit('poolState', { tableId, state, reason });
   });
 
   socket.on('joinRoom', async ({ roomId, playerId, accountId, name, avatar }) => {

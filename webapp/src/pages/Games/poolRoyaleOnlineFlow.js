@@ -198,13 +198,13 @@ export async function runPoolRoyaleOnlineFlow({
     logSupportError(message, null, { reason, ...extra });
   };
 
-  function handleGameStart({ tableId: startedId, players: joined = [] } = {}) {
+  function handleGameStart({ tableId: startedId, players: joined = [], currentTurn } = {}) {
     if (!startedId || startedId !== pendingTableRef.current) return;
     const roster = Array.isArray(joined) && joined.length > 0 ? joined : matchPlayersRef.current;
     stakeDebitRef.current = null;
     clearTimers();
     cleanupLobby({ account: accountId, skipRefReset: true, keepError: true });
-    onGameStart?.({ tableId: startedId, roster, accountId });
+    onGameStart?.({ tableId: startedId, roster, accountId, currentTurn });
   }
 
   cleanupRef.current = cleanupLobby;
