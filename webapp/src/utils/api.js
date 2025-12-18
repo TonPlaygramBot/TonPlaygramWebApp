@@ -542,3 +542,12 @@ export function getWatchCount(tableId) {
 export function getAppStats() {
   return get('/api/stats');
 }
+
+export function getDevAssistantStats(accountId) {
+  const query = accountId ? `?accountId=${encodeURIComponent(accountId)}` : '';
+  return get(`/api/dev-assistant/stats${query}`);
+}
+
+export function askDevAssistant(question, accountId) {
+  return post('/api/dev-assistant/ask', { question, accountId });
+}
