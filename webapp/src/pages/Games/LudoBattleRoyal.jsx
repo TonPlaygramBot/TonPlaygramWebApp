@@ -55,6 +55,205 @@ import {
 } from '../../utils/ludoBattleInventory.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
+
+function detectCoarsePointer() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    try {
+      const coarseQuery = window.matchMedia('(pointer: coarse)');
+      if (typeof coarseQuery?.matches === 'boolean') {
+        return coarseQuery.matches;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  try {
+    if ('ontouchstart' in window) {
+      return true;
+    }
+    const nav = window.navigator;
+    if (nav && typeof nav.maxTouchPoints === 'number') {
+      return nav.maxTouchPoints > 0;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
+
+function detectLowRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function detectHighRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function isWebGLAvailable() {
+  if (typeof document === 'undefined') return false;
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl2') ||
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl');
+    return Boolean(gl);
+  } catch (err) {
+    console.warn('WebGL availability check failed', err);
+    return false;
+  }
+}
+
+let cachedRendererString = null;
+let rendererLookupAttempted = false;
+
+function readGraphicsRendererString() {
+  if (rendererLookupAttempted) {
+    return cachedRendererString;
+  }
+  rendererLookupAttempted = true;
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl') ||
+      canvas.getContext('webgl2');
+    if (!gl) {
+      return null;
+    }
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) ?? '';
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    } else {
+      const vendor = gl.getParameter(gl.VENDOR) ?? '';
+      const renderer = gl.getParameter(gl.RENDERER) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    }
+    return cachedRendererString;
+  } catch (err) {
+    return null;
+  }
+}
+
+function classifyRendererTier(rendererString) {
+  if (typeof rendererString !== 'string' || rendererString.length === 0) {
+    return 'unknown';
+  }
+  const signature = rendererString.toLowerCase();
+  if (
+    signature.includes('mali') ||
+    signature.includes('adreno') ||
+    signature.includes('powervr') ||
+    signature.includes('apple a') ||
+    signature.includes('snapdragon') ||
+    signature.includes('tegra x1')
+  ) {
+    return 'mobile';
+  }
+  if (
+    signature.includes('geforce') ||
+    signature.includes('nvidia') ||
+    signature.includes('radeon') ||
+    signature.includes('rx ') ||
+    signature.includes('rtx') ||
+    signature.includes('apple m') ||
+    signature.includes('arc')
+  ) {
+    return 'desktopHigh';
+  }
+  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
+    return 'desktopMid';
+  }
+  return 'unknown';
+}
+
+function resolveDefaultPixelRatioCap() {
+  if (typeof window === 'undefined') {
+    return 2;
+  }
+  return window.innerWidth <= 1366 ? 1.5 : 2;
+}
+
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return 'balanced60';
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowRefresh = detectLowRefreshDisplay();
+  const highRefresh = detectHighRefreshDisplay();
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+
+  if (lowRefresh) {
+    return 'mobile50';
+  }
+
+  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'mobile50';
+    }
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'fast120';
+    }
+    if (
+      highRefresh ||
+      (!lowRefresh && hardwareConcurrency >= 6 && (deviceMemory == null || deviceMemory >= 4))
+    ) {
+      return 'smooth90';
+    }
+    return 'balanced60';
+  }
+
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'fast120';
+  }
+
+  if (rendererTier === 'desktopMid') {
+    return 'smooth90';
+  }
+
+  return 'balanced60';
+}
 
 const ABG_MODEL_URLS = Object.freeze([
   'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ABeautifulGame/glTF-Binary/ABeautifulGame.glb',
@@ -189,6 +388,56 @@ const NON_DIAMOND_SHAPE_INDEX = (() => {
   const index = TABLE_SHAPE_OPTIONS.findIndex((option) => option.id !== DIAMOND_SHAPE_ID);
   return index >= 0 ? index : 0;
 })();
+
+const FRAME_RATE_STORAGE_KEY = 'ludoFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Raised fps with modest render scale for powerful devices.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
+    fps: 144,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
 
 function normalizeAppearance(value = {}) {
   const normalized = { ...DEFAULT_APPEARANCE };
@@ -1830,6 +2079,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const rafRef = useRef(0);
   const zoomRef = useRef({});
   const controlsRef = useRef(null);
+  const rendererRef = useRef(null);
   const diceRef = useRef(null);
   const diceTransitionRef = useRef(null);
   const rollDiceRef = useRef(() => {});
@@ -1870,6 +2120,72 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const settingsRef = useRef({ soundEnabled: true });
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+      const detected = detectPreferredFrameRateId();
+      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
+        return detected;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
+  const activeFrameRateOption = useMemo(
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
+  const frameQualityProfile = useMemo(() => {
+    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
+    const fallback = FRAME_RATE_OPTIONS[0];
+    const fps =
+      Number.isFinite(option?.fps) && option.fps > 0
+        ? option.fps
+        : Number.isFinite(fallback?.fps) && fallback.fps > 0
+        ? fallback.fps
+        : 60;
+    const renderScale =
+      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+        ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1)
+        : 1;
+    const pixelRatioCap =
+      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+        ? Math.max(1, option.pixelRatioCap)
+        : resolveDefaultPixelRatioCap();
+    return {
+      id: option?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      renderScale,
+      pixelRatioCap
+    };
+  }, [activeFrameRateOption]);
+  const frameQualityRef = useRef(frameQualityProfile);
+  useEffect(() => {
+    frameQualityRef.current = frameQualityProfile;
+  }, [frameQualityProfile]);
+  const resolvedFrameTiming = useMemo(() => {
+    const fallbackFps =
+      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
+        ? FRAME_RATE_OPTIONS[0].fps
+        : 60;
+    const fps =
+      Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
+        ? frameQualityProfile.fps
+        : fallbackFps;
+    const targetMs = 1000 / fps;
+    return {
+      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      targetMs,
+      maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
+    };
+  }, [frameQualityProfile]);
+  const frameTimingRef = useRef(resolvedFrameTiming);
+  useEffect(() => {
+    frameTimingRef.current = resolvedFrameTiming;
+  }, [resolvedFrameTiming]);
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -1919,6 +2235,11 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   useEffect(() => {
     setAppearance((prev) => ensureAppearanceUnlocked(prev));
   }, [ensureAppearanceUnlocked]);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    }
+  }, [frameRateId]);
   const customizationSections = useMemo(
     () =>
       CUSTOMIZATION_SECTIONS.map((section) => ({
@@ -1992,6 +2313,31 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     });
     return map;
   }, [seatAnchors]);
+
+  const applyRendererQuality = useCallback(() => {
+    const renderer = rendererRef.current;
+    const host = wrapRef.current;
+    if (!renderer || !host) return;
+    const quality = frameQualityRef.current;
+    const dpr =
+      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+        ? window.devicePixelRatio
+        : 1;
+    const pixelRatioCap =
+      quality?.pixelRatioCap ??
+      (typeof window !== 'undefined' ? resolveDefaultPixelRatioCap() : 2);
+    const renderScale =
+      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
+        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
+        : 1;
+    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+  }, []);
+  useEffect(() => {
+    applyRendererQuality();
+  }, [applyRendererQuality, frameQualityProfile]);
 
   const clearHumanRollTimeout = useCallback(() => {
     if (humanRollTimeoutRef.current) {
@@ -2840,7 +3186,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       renderer.shadowMap.enabled = true;
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      rendererRef.current = renderer;
       renderer.domElement.style.position = 'absolute';
       renderer.domElement.style.top = '0';
       renderer.domElement.style.left = '0';
@@ -2850,6 +3196,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       renderer.domElement.style.touchAction = 'none';
       renderer.domElement.style.cursor = 'grab';
       host.appendChild(renderer.domElement);
+      applyRendererQuality();
 
       scene = new THREE.Scene();
       scene.background = new THREE.Color('#030712');
@@ -2972,7 +3319,6 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
     const fit = () => {
       const w = host.clientWidth;
       const h = host.clientHeight;
-      renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       const tableSpan = TABLE_RADIUS * 2.6;
@@ -2984,6 +3330,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
       const dir = camera.position.clone().sub(boardLookTarget).normalize();
       camera.position.copy(boardLookTarget).addScaledVector(dir, radius);
       controls.update();
+      applyRendererQuality();
     };
     fitRef.current = fit;
     fit();
@@ -3193,7 +3540,17 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
 
     const step = () => {
       const now = performance.now();
-      const delta = Math.min(0.12, (now - lastFrameTime) / 1000);
+      const frameTiming = frameTimingRef.current;
+      const targetFrameTime =
+        frameTiming && Number.isFinite(frameTiming.targetMs)
+          ? frameTiming.targetMs
+          : 1000 / 60;
+      const maxFrameTime =
+        frameTiming && Number.isFinite(frameTiming.maxMs)
+          ? frameTiming.maxMs
+          : targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+      const deltaMs = Math.min(Math.max(now - lastFrameTime, 0), maxFrameTime);
+      const delta = deltaMs / 1000;
       lastFrameTime = now;
 
       const state = stateRef.current;
@@ -3353,6 +3710,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
         arena.tableInfo?.dispose?.();
       }
       arenaRef.current = null;
+      rendererRef.current = null;
       renderer?.dispose?.();
       if (renderer?.domElement?.parentElement === host) {
         host.removeChild(renderer.domElement);
@@ -3970,33 +4328,74 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </div>
                 ))}
               </div>
-              <div className="mt-4 space-y-3">
-                <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                  <span>Sound effects</span>
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                    checked={soundEnabled}
-                    onChange={(event) => setSoundEnabled(event.target.checked)}
-                  />
-                </label>
-                <button
-                  type="button"
-                  onClick={() => {
-                    fitRef.current?.();
-                    setConfigOpen(false);
-                  }}
-                  className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
-                >
-                  Center camera
-                </button>
-                <button
-                  type="button"
-                  onClick={() => window.location.reload()}
-                  className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-                >
-                  Restart game
-                </button>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
+                    Graphics
+                  </h3>
+                  <div className="mt-2 grid gap-2">
+                    {FRAME_RATE_OPTIONS.map((option) => {
+                      const active = option.id === frameRateId;
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() => setFrameRateId(option.id)}
+                          aria-pressed={active}
+                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                            active
+                              ? 'border-sky-300 bg-sky-300/90 text-black shadow-[0_0_16px_rgba(125,211,252,0.45)]'
+                              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10'
+                          }`}
+                        >
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                              {option.label}
+                            </span>
+                            <span className="text-xs font-semibold tracking-wide">
+                              {option.resolution
+                                ? `${option.resolution} • ${option.fps} FPS`
+                                : `${option.fps} FPS`}
+                            </span>
+                          </span>
+                          {option.description ? (
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {option.description}
+                            </span>
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                    <span>Sound effects</span>
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                      checked={soundEnabled}
+                      onChange={(event) => setSoundEnabled(event.target.checked)}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      fitRef.current?.();
+                      setConfigOpen(false);
+                    }}
+                    className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
+                  >
+                    Center camera
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                  >
+                    Restart game
+                  </button>
+                </div>
               </div>
             </div>
           )}
