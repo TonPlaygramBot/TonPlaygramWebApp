@@ -127,6 +127,319 @@ import { DRACOLoader } from "https://esm.sh/three@0.160.0/examples/jsm/loaders/D
 import "./flag-emojis.js";
 
 const urlParams = new URLSearchParams(window.location.search);
+const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
+const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
+    fps: 144,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+  }
+]);
+const FRAME_RATE_OPTIONS_BY_ID = Object.freeze(
+  FRAME_RATE_OPTIONS.reduce((acc, option) => {
+    acc[option.id] = option;
+    return acc;
+  }, {})
+);
+
+function detectCoarsePointer() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    try {
+      const coarseQuery = window.matchMedia('(pointer: coarse)');
+      if (typeof coarseQuery?.matches === 'boolean') {
+        return coarseQuery.matches;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  try {
+    if ('ontouchstart' in window) {
+      return true;
+    }
+    const nav = window.navigator;
+    if (nav && typeof nav.maxTouchPoints === 'number') {
+      return nav.maxTouchPoints > 0;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
+
+function detectLowRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function detectHighRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+let cachedRendererString = null;
+let rendererLookupAttempted = false;
+
+function readGraphicsRendererString() {
+  if (rendererLookupAttempted) {
+    return cachedRendererString;
+  }
+  rendererLookupAttempted = true;
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl') ||
+      canvas.getContext('experimental-webgl') ||
+      canvas.getContext('webgl2');
+    if (!gl) {
+      return null;
+    }
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    if (debugInfo) {
+      const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) ?? '';
+      const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    } else {
+      const vendor = gl.getParameter(gl.VENDOR) ?? '';
+      const renderer = gl.getParameter(gl.RENDERER) ?? '';
+      cachedRendererString = `${vendor} ${renderer}`.trim();
+    }
+    return cachedRendererString;
+  } catch (err) {
+    return null;
+  }
+}
+
+function classifyRendererTier(rendererString) {
+  if (typeof rendererString !== 'string' || rendererString.length === 0) {
+    return 'unknown';
+  }
+  const signature = rendererString.toLowerCase();
+  if (
+    signature.includes('mali') ||
+    signature.includes('adreno') ||
+    signature.includes('powervr') ||
+    signature.includes('apple a') ||
+    signature.includes('snapdragon') ||
+    signature.includes('tegra x1')
+  ) {
+    return 'mobile';
+  }
+  if (
+    signature.includes('geforce') ||
+    signature.includes('nvidia') ||
+    signature.includes('radeon') ||
+    signature.includes('rx ') ||
+    signature.includes('rtx') ||
+    signature.includes('apple m') ||
+    signature.includes('arc')
+  ) {
+    return 'desktopHigh';
+  }
+  if (signature.includes('intel') || signature.includes('iris') || signature.includes('uhd')) {
+    return 'desktopMid';
+  }
+  return 'unknown';
+}
+
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return DEFAULT_FRAME_RATE_ID;
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowRefresh = detectLowRefreshDisplay();
+  const highRefresh = detectHighRefreshDisplay();
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+
+  if (lowRefresh) {
+    return 'mobile50';
+  }
+
+  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'mobile50';
+    }
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'fast120';
+    }
+    if (
+      highRefresh ||
+      hardwareConcurrency >= 6 ||
+      (deviceMemory != null && deviceMemory >= 6)
+    ) {
+      return 'smooth90';
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  }
+
+  if (rendererTier === 'desktopHigh' && highRefresh) {
+    return 'esports144';
+  }
+
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'fast120';
+  }
+
+  if (rendererTier === 'desktopMid') {
+    return 'smooth90';
+  }
+
+  return DEFAULT_FRAME_RATE_ID;
+}
+
+function resolveDefaultPixelRatioCap() {
+  if (typeof window === 'undefined') {
+    return 2;
+  }
+  return window.innerWidth <= 1366 ? 1.5 : 2;
+}
+
+function buildFrameQuality(optionId) {
+  const fallback = FRAME_RATE_OPTIONS_BY_ID[DEFAULT_FRAME_RATE_ID] ?? FRAME_RATE_OPTIONS[0];
+  const option = FRAME_RATE_OPTIONS_BY_ID[optionId] ?? fallback ?? FRAME_RATE_OPTIONS[0];
+  const fps = Number.isFinite(option?.fps) && option.fps > 0
+    ? option.fps
+    : Number.isFinite(fallback?.fps) && fallback.fps > 0
+      ? fallback.fps
+      : 60;
+  const renderScale =
+    typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+      ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1)
+      : 1;
+  const pixelRatioCap =
+    typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+      ? Math.max(1, option.pixelRatioCap)
+      : resolveDefaultPixelRatioCap();
+  return {
+    id: option?.id ?? DEFAULT_FRAME_RATE_ID,
+    fps,
+    renderScale,
+    pixelRatioCap,
+    label: option?.label ?? 'Graphics',
+    description: option?.description ?? '',
+    resolution: option?.resolution ?? ''
+  };
+}
+
+function buildFrameTiming(quality) {
+  const fps = Number.isFinite(quality?.fps) && quality.fps > 0 ? quality.fps : 60;
+  const targetMs = 1000 / fps;
+  return {
+    id: quality?.id ?? DEFAULT_FRAME_RATE_ID,
+    fps,
+    targetMs,
+    maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
+  };
+}
+
+function resolveInitialFrameRateId() {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS_BY_ID[stored]) {
+        return stored;
+      }
+    } catch (error) {
+      console.warn('Failed to read Domino graphics selection, falling back', error);
+    }
+  }
+  const detected = detectPreferredFrameRateId();
+  if (FRAME_RATE_OPTIONS_BY_ID[detected]) {
+    return detected;
+  }
+  return DEFAULT_FRAME_RATE_ID;
+}
+
+let frameRateId = resolveInitialFrameRateId();
+let frameQuality = buildFrameQuality(frameRateId);
+let frameTiming = buildFrameTiming(frameQuality);
+
+function persistFrameRateSelection(id) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, id);
+  } catch (error) {
+    console.warn('Failed to persist Domino graphics option', error);
+  }
+}
 
 /* ---------- Audio (SFX) ---------- */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -271,8 +584,6 @@ const SFX = {
 const app = document.getElementById("app");
 const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true, powerPreference:"high-performance" });
 const prefersUhd = urlParams.get('uhd') === '1';
-const devicePixelRatioTarget = Math.min(prefersUhd ? 3 : 2, window.devicePixelRatio || 1);
-renderer.setPixelRatio(devicePixelRatioTarget);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.autoUpdate = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -280,11 +591,26 @@ renderer.physicallyCorrectLights = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;              // ensure gold looks vibrant
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.85;
-function setRendererSize(){
+function setRendererSize(quality = frameQuality){
   const vv = window.visualViewport; const w = vv ? vv.width : window.innerWidth; const h = vv ? vv.height: window.innerHeight;
-  renderer.setSize(w, h, false);
+  const scale = typeof quality?.renderScale === 'number' ? quality.renderScale : 1;
+  renderer.setSize(w * scale, h * scale, false);
+  renderer.domElement.style.width = '100%';
+  renderer.domElement.style.height = '100%';
 }
-setRendererSize();
+function applyRendererQuality(quality = frameQuality) {
+  const dpr = typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+    ? window.devicePixelRatio
+    : 1;
+  const pixelRatioCap =
+    typeof quality?.pixelRatioCap === 'number' && Number.isFinite(quality.pixelRatioCap)
+      ? quality.pixelRatioCap
+      : resolveDefaultPixelRatioCap();
+  const cappedRatio = prefersUhd ? Math.max(pixelRatioCap, 3) : pixelRatioCap;
+  renderer.setPixelRatio(Math.min(cappedRatio, dpr));
+  setRendererSize(quality);
+}
+applyRendererQuality();
 app.appendChild(renderer.domElement);
 renderer.domElement.style.touchAction = 'none';
 
@@ -526,7 +852,7 @@ function seatBasisForIndex(index = 0) {
 const camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, CAMERA_NEAR, CAMERA_FAR);
 function fitCamera(){
   const vv = window.visualViewport; const w= vv?vv.width:innerWidth; const h= vv?vv.height:innerHeight;
-  camera.aspect = w/h; camera.updateProjectionMatrix(); setRendererSize();
+  camera.aspect = w/h; camera.updateProjectionMatrix(); applyRendererQuality();
 }
 fitCamera();
 
@@ -3511,6 +3837,18 @@ function applyAppearanceChange({ refresh = true } = {}) {
   }
 }
 
+function applyFrameRateSelection(optionId, { refreshUi = true } = {}) {
+  const resolvedId = FRAME_RATE_OPTIONS_BY_ID[optionId] ? optionId : DEFAULT_FRAME_RATE_ID;
+  frameRateId = resolvedId;
+  frameQuality = buildFrameQuality(resolvedId);
+  frameTiming = buildFrameTiming(frameQuality);
+  persistFrameRateSelection(resolvedId);
+  applyRendererQuality(frameQuality);
+  if (refreshUi) {
+    refreshConfigUI();
+  }
+}
+
 window.addEventListener('dominoRoyalInventoryUpdate', (event) => {
   const targetAccount = resolveDominoAccountId(event?.detail?.accountId);
   const currentAccount = resolveDominoAccountId();
@@ -3668,6 +4006,68 @@ function refreshConfigUI() {
     wrapper.appendChild(optionsGrid);
     configSectionsEl.appendChild(wrapper);
   });
+
+  const graphicsWrapper = document.createElement('div');
+  graphicsWrapper.className = 'config-section';
+  const graphicsLabel = document.createElement('h4');
+  graphicsLabel.textContent = 'Graphics';
+  graphicsWrapper.appendChild(graphicsLabel);
+  const graphicsGrid = document.createElement('div');
+  graphicsGrid.className = 'config-options';
+  graphicsGrid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(200px, 1fr))';
+  FRAME_RATE_OPTIONS.forEach((option) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'config-option';
+    if (frameRateId === option.id) {
+      button.classList.add('active');
+    }
+    button.setAttribute('aria-pressed', String(frameRateId === option.id));
+    const label = document.createElement('span');
+    label.textContent = option.label;
+    button.appendChild(label);
+    const line = document.createElement('div');
+    line.style.display = 'flex';
+    line.style.width = '100%';
+    line.style.justifyContent = 'space-between';
+    line.style.alignItems = 'center';
+    line.style.gap = '0.35rem';
+    line.style.fontSize = '0.72rem';
+    line.style.fontWeight = '700';
+    line.style.letterSpacing = '0.04em';
+    const fpsTag = document.createElement('strong');
+    fpsTag.textContent = `${option.fps} FPS`;
+    fpsTag.style.fontSize = '0.78rem';
+    fpsTag.style.color = 'var(--fg)';
+    line.appendChild(fpsTag);
+    const resolution = document.createElement('span');
+    resolution.textContent = option.resolution || '';
+    resolution.style.color = 'rgba(226,232,240,0.76)';
+    resolution.style.fontSize = '0.65rem';
+    resolution.style.textAlign = 'right';
+    resolution.style.flex = '1';
+    resolution.style.letterSpacing = '0.05em';
+    line.appendChild(resolution);
+    button.appendChild(line);
+    if (option.description) {
+      const desc = document.createElement('p');
+      desc.textContent = option.description;
+      desc.style.margin = '0';
+      desc.style.fontSize = '0.65rem';
+      desc.style.lineHeight = '1.35';
+      desc.style.color = 'rgba(226,232,240,0.74)';
+      desc.style.fontWeight = '600';
+      button.appendChild(desc);
+    }
+    button.addEventListener('click', () => {
+      if (frameRateId === option.id) return;
+      applyFrameRateSelection(option.id, { refreshUi: false });
+      refreshConfigUI();
+    });
+    graphicsGrid.appendChild(button);
+  });
+  graphicsWrapper.appendChild(graphicsGrid);
+  configSectionsEl.appendChild(graphicsWrapper);
 }
 
 function closeConfigPanel() {
@@ -5214,16 +5614,13 @@ function updateWinnerHighlight(now){
 /* ---------- Loop & Resize ---------- */
 function tick(now){
   const current = Number.isFinite(now) ? now : performance.now();
-  const targetMs = 1000 / 60;
-  const minMs = 1000 / 30;
-  const elapsed = lastFrameTime ? current - lastFrameTime : targetMs;
-  frameCarry += elapsed;
-  if (frameCarry < minMs) {
-    requestAnimationFrame(tick);
-    return;
-  }
-  const step = Math.min(frameCarry, targetMs * 2);
-  frameCarry = Math.max(0, frameCarry - targetMs);
+  const timing = frameTiming ?? buildFrameTiming(frameQuality);
+  const targetMs = Number.isFinite(timing?.targetMs) ? timing.targetMs : 1000 / 60;
+  const maxMs = Number.isFinite(timing?.maxMs)
+    ? timing.maxMs
+    : targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER;
+  const elapsed = Math.max(current - lastFrameTime, 0);
+  const step = Math.min(elapsed, maxMs);
   lastFrameTime = current;
   const deltaSeconds = Math.min(0.2, Math.max(0, step / 1000));
 
@@ -5236,10 +5633,10 @@ function tick(now){
   renderer.render(scene,camera);
   requestAnimationFrame(tick);
 }
-let lastFrameTime = 0;
-let frameCarry = 0;
+let lastFrameTime = performance.now();
 requestAnimationFrame(tick);
 function onResize(){
+  applyRendererQuality(frameQuality);
   if (entrySequenceActive) {
     fitCamera();
     const finalDesired = clampCameraPosition(getDesiredCameraPosition());
