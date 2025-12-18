@@ -1,9 +1,10 @@
-import test from 'node:test';
+import { test } from '@jest/globals';
 import assert from 'node:assert/strict';
 import fs from 'fs';
 import { spawn } from 'child_process';
+import path from 'node:path';
 
-const distDir = new URL('../webapp/dist/', import.meta.url);
+const distDir = path.resolve(process.cwd(), 'webapp', 'dist');
 
 async function startServer(env) {
   const server = spawn('node', ['bot/server.js'], { env, stdio: 'pipe' });
@@ -34,11 +35,7 @@ async function createAccount(port, telegramId) {
 }
 
 async function getInventory(port, accountId) {
-  const res = await fetch(`http://localhost:${port}/api/pool-royale/inventory/get`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accountId })
-  });
+  const res = await fetch(`http://localhost:${port}/api/pool-royale/inventory/${accountId}`);
   assert.equal(res.status, 200);
   const data = await res.json();
   assert.ok(data.inventory);
@@ -46,10 +43,10 @@ async function getInventory(port, accountId) {
 }
 
 async function saveInventory(port, accountId, inventory) {
-  const res = await fetch(`http://localhost:${port}/api/pool-royale/inventory/set`, {
-    method: 'POST',
+  const res = await fetch(`http://localhost:${port}/api/pool-royale/inventory/${accountId}`, {
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ accountId, inventory })
+    body: JSON.stringify({ inventory })
   });
   assert.equal(res.status, 200);
   const data = await res.json();
@@ -57,12 +54,9 @@ async function saveInventory(port, accountId, inventory) {
   return data.inventory;
 }
 
-test(
-  'Pool Royale inventory persists across reloads and devices',
-  { concurrency: false },
-  async () => {
-    fs.mkdirSync(new URL('assets', distDir), { recursive: true });
-    fs.writeFileSync(new URL('index.html', distDir), '');
+test('Pool Royale inventory persists across reloads and devices', async () => {
+    fs.mkdirSync(path.join(distDir, 'assets'), { recursive: true });
+    fs.writeFileSync(path.join(distDir, 'index.html'), '');
 
     const env = {
       ...process.env,
@@ -104,5 +98,4 @@ test(
     } finally {
       server.kill();
     }
-  }
-);
+  });

@@ -17,16 +17,28 @@ import NFT_GIFTS from '../utils/nftGifts.js';
 import { mintGiftNFT } from '../utils/nftService.js';
 import { generateWalletAddress } from '../utils/wallet.js';
 import { fetchTelegramInfo } from '../utils/telegram.js';
+import {
+  createMemoryUser,
+  findMemoryUser,
+  saveMemoryUser,
+  shouldUseMemoryUserStore
+} from '../utils/memoryUserStore.js';
 
 const router = Router();
 
 // Create or fetch account for a user
 router.post('/create', async (req, res) => {
   const { telegramId, googleId } = req.body;
+  const useMemoryStore = shouldUseMemoryUserStore();
 
   try {
     let user;
     let telegramProfile = null;
+
+    const findUser = async (query) =>
+      useMemoryStore ? findMemoryUser(query) : User.findOne(query);
+    const persistUser = async (payload) =>
+      useMemoryStore ? saveMemoryUser(payload) : payload.save();
 
     if (telegramId) {
       try {
@@ -35,7 +47,7 @@ router.post('/create', async (req, res) => {
         console.error('fetchTelegramInfo failed:', err);
       }
 
-      user = await User.findOne({ telegramId });
+      user = await findUser({ telegramId });
       if (!user) {
         const wallet = await generateWalletAddress();
         const baseData = {
@@ -52,8 +64,8 @@ router.post('/create', async (req, res) => {
           baseData.photo = telegramProfile.photoUrl || '';
         }
 
-        user = new User(baseData);
-        await user.save();
+        user = useMemoryStore ? createMemoryUser(baseData) : new User(baseData);
+        if (!useMemoryStore) await user.save();
       } else {
         let updated = false;
         if (!user.accountId) {
@@ -80,20 +92,26 @@ router.post('/create', async (req, res) => {
             updated = true;
           }
         }
-        if (updated) await user.save();
+        if (updated) await persistUser(user);
       }
     } else if (googleId) {
-      user = await User.findOne({ googleId });
+      user = await findUser({ googleId });
       if (!user) {
         const wallet = await generateWalletAddress();
-        user = new User({
+        user = useMemoryStore ? createMemoryUser({
+          googleId,
+          accountId: uuidv4(),
+          referralCode: googleId,
+          walletAddress: wallet.address,
+          walletPublicKey: wallet.publicKey
+        }) : new User({
           googleId,
           accountId: uuidv4(),
           referralCode: googleId,
           walletAddress: wallet.address,
           walletPublicKey: wallet.publicKey
         });
-        await user.save();
+        if (!useMemoryStore) await user.save();
       } else {
         let updated = false;
         if (!user.accountId) {
@@ -106,18 +124,23 @@ router.post('/create', async (req, res) => {
           user.walletPublicKey = wallet.publicKey;
           updated = true;
         }
-        if (updated) await user.save();
+        if (updated) await persistUser(user);
       }
     } else {
       const wallet = await generateWalletAddress();
       const id = uuidv4();
-      user = new User({
+      user = useMemoryStore ? createMemoryUser({
+        accountId: id,
+        referralCode: id,
+        walletAddress: wallet.address,
+        walletPublicKey: wallet.publicKey
+      }) : new User({
         accountId: id,
         referralCode: id,
         walletAddress: wallet.address,
         walletPublicKey: wallet.publicKey
       });
-      await user.save();
+      if (!useMemoryStore) await user.save();
     }
 
     res.json({
