@@ -1235,10 +1235,16 @@ function createHomeLabelMesh(size) {
   return mesh;
 }
 
-function addCenterHome(scene) {
+function addCenterHome(scene, playerColors = DEFAULT_PLAYER_COLORS) {
   const size = LUDO_TILE * 3;
   const half = size / 2;
   const baseHeight = PLAYFIELD_HEIGHT + CENTER_HOME_BASE_OFFSET;
+  const centerColors = [
+    playerColors[2] ?? DEFAULT_PLAYER_COLORS[2],
+    playerColors[1] ?? DEFAULT_PLAYER_COLORS[1],
+    playerColors[0] ?? DEFAULT_PLAYER_COLORS[0],
+    playerColors[3] ?? DEFAULT_PLAYER_COLORS[3]
+  ];
 
   const base = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
@@ -1251,7 +1257,7 @@ function addCenterHome(scene) {
 
   const triangleDefs = [
     {
-      color: BOARD_COLORS[0],
+      color: centerColors[0],
       vertices: new Float32Array([
         -half,
         0,
@@ -1265,7 +1271,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: BOARD_COLORS[1],
+      color: centerColors[1],
       vertices: new Float32Array([
         -half,
         0,
@@ -1279,7 +1285,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: BOARD_COLORS[2],
+      color: centerColors[2],
       vertices: new Float32Array([
         half,
         0,
@@ -1293,7 +1299,7 @@ function addCenterHome(scene) {
       ])
     },
     {
-      color: BOARD_COLORS[3],
+      color: centerColors[3],
       vertices: new Float32Array([
         -half,
         0,
@@ -4194,7 +4200,7 @@ async function buildLudoBoard(
     }
   }
 
-  addCenterHome(scene);
+  addCenterHome(scene, playerColors);
   addBoardMarkers(scene, cellToWorld, playerColors);
 
   const tokens = playerColors.slice(0, playerCount).map((color, playerIdx) => {
