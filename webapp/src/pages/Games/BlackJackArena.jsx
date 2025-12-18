@@ -1164,6 +1164,15 @@ function buildInitialState(players, token, stake) {
   };
 }
 
+function ensureDeckSize(deck, required = 1) {
+  const need = Number.isFinite(required) && required > 0 ? Math.ceil(required) : 1;
+  const safeDeck = Array.isArray(deck) ? [...deck] : [];
+  if (safeDeck.length >= need) {
+    return safeDeck;
+  }
+  return shuffle(createDeck());
+}
+
 function resetForNextRound(state) {
   const next = { ...state, round: state.round + 1 };
   next.deck = shuffle(createDeck());
@@ -1206,6 +1215,8 @@ function placeInitialBets(state, options = {}) {
 }
 
 function dealInitialCards(state) {
+  const requiredCards = state.players.length * 2;
+  state.deck = ensureDeckSize(state.deck, requiredCards);
   const { hands, deck } = dealInitial(state.deck, state.players.length);
   state.deck = deck;
   state.players.forEach((player, idx) => {
@@ -1264,12 +1275,24 @@ function resolveRound(state) {
   state.winners = winnerSeats;
 }
 
+function drawCard(state) {
+  state.deck = ensureDeckSize(state.deck, 1);
+  const { card, deck } = hitCard(state.deck);
+  state.deck = deck;
+  return card || null;
+}
+
 function applyPlayerAction(state, action) {
   const player = state.players[state.currentIndex];
   if (!player) return;
   if (action === 'hit') {
-    const { card, deck } = hitCard(state.deck);
-    state.deck = deck;
+    const card = drawCard(state);
+    if (!card) {
+      player.stood = true;
+      player.result = 'No cards left';
+      advancePlayer(state);
+      return;
+    }
     player.hand.push(card);
     player.revealed = true;
     player.viewed = true;
