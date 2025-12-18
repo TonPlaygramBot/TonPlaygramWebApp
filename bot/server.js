@@ -1040,6 +1040,36 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('joinPoolRoom', ({ tableId, accountId, name, avatar }) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.join(tableId);
+    io.to(tableId).emit('poolPresence', {
+      tableId,
+      accountId: accountId ? String(accountId) : '',
+      name,
+      avatar
+    });
+  });
+
+  socket.on('leavePoolRoom', ({ tableId, accountId }) => {
+    if (!tableId) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    socket.leave(tableId);
+  });
+
+  socket.on('poolFrameSync', ({ tableId, frame, hud, accountId }) => {
+    if (!tableId || !frame) return;
+    if (accountId && !ensureRegistered(socket, accountId)) return;
+    io.to(tableId).emit('poolFrameSync', {
+      tableId,
+      frame,
+      hud,
+      accountId: accountId ? String(accountId) : '',
+      ts: Date.now()
+    });
+  });
+
   socket.on('chessSyncRequest', ({ tableId }) => {
     if (!tableId) return;
     const state = getChessState(tableId);
