@@ -41,6 +41,13 @@ import {
   isPoolOptionUnlocked,
   poolRoyalAccountId
 } from '../../utils/poolRoyalInventory.js';
+import {
+  describeTrainingLevel,
+  getNextIncompleteLevel,
+  loadTrainingProgress,
+  persistTrainingProgress,
+  resolvePlayableTrainingLevel
+} from '../../utils/poolRoyaleTrainingProgress.js';
 import { applyRendererSRGB, applySRGBColorSpace } from '../../utils/colorSpace.js';
 
 function safePolygonUnion(...parts) {
@@ -8509,6 +8516,47 @@ function PoolRoyaleGame({
   useEffect(() => {
     trainingRulesRef.current = trainingRulesOn;
   }, [trainingRulesOn]);
+  const [trainingProgress, setTrainingProgress] = useState({
+    completed: [],
+    lastLevel: 1
+  });
+  const [trainingLevel, setTrainingLevel] = useState(1);
+  const trainingProgressRef = useRef(trainingProgress);
+  const trainingLevelRef = useRef(trainingLevel);
+  const trainingCompletionHandledRef = useRef(false);
+  useEffect(() => {
+    trainingProgressRef.current = trainingProgress;
+  }, [trainingProgress]);
+  useEffect(() => {
+    trainingLevelRef.current = trainingLevel;
+  }, [trainingLevel]);
+  useEffect(() => {
+    const stored = loadTrainingProgress();
+    const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
+    trainingProgressRef.current = stored;
+    setTrainingProgress(stored);
+    setTrainingLevel(playableLevel);
+  }, []);
+  const currentTrainingInfo = useMemo(
+    () => describeTrainingLevel(trainingLevel),
+    [trainingLevel]
+  );
+  const nextTrainingLevel = useMemo(() => {
+    const next = getNextIncompleteLevel(trainingProgress?.completed || []);
+    if (next != null) return next;
+    if (Number.isFinite(trainingProgress?.lastLevel)) {
+      return Math.min(50, Math.max(1, Number(trainingProgress.lastLevel) + 1));
+    }
+    return Math.min(50, trainingLevel + 1);
+  }, [trainingProgress?.completed, trainingProgress?.lastLevel, trainingLevel]);
+  const nextTrainingInfo = useMemo(
+    () => describeTrainingLevel(nextTrainingLevel ?? trainingLevel),
+    [nextTrainingLevel, trainingLevel]
+  );
+  const completedTrainingCount = useMemo(
+    () => (Array.isArray(trainingProgress?.completed) ? trainingProgress.completed.length : 0),
+    [trainingProgress]
+  );
   useEffect(() => {
     const handleInventoryUpdate = (event) => {
       if (!event?.detail?.accountId || event.detail.accountId === resolvedAccountId) {
@@ -9227,6 +9275,32 @@ function PoolRoyaleGame({
       over: trainingRulesOn ? prev.over : false
     }));
   }, [isTraining, trainingModeState, trainingRulesOn, setFrameState]);
+  useEffect(() => {
+    if (!isTraining) {
+      trainingCompletionHandledRef.current = false;
+      return;
+    }
+    if (!frameState.frameOver) {
+      trainingCompletionHandledRef.current = false;
+      return;
+    }
+    if (trainingCompletionHandledRef.current) return;
+    trainingCompletionHandledRef.current = true;
+    const completedLevel = trainingLevelRef.current || 1;
+    setTrainingProgress((prev) => {
+      const completedSet = new Set(
+        (prev?.completed || []).map((lvl) => Number(lvl)).filter((lvl) => Number.isFinite(lvl) && lvl > 0)
+      );
+      completedSet.add(completedLevel);
+      const completed = Array.from(completedSet).sort((a, b) => a - b);
+      const lastLevel = Math.max(prev?.lastLevel ?? 1, completedLevel);
+      const updated = { completed, lastLevel };
+      persistTrainingProgress(updated);
+      const nextPlayable = resolvePlayableTrainingLevel(completedLevel + 1, updated);
+      setTrainingLevel(nextPlayable);
+      return updated;
+    });
+  }, [frameState.frameOver, isTraining, setTrainingProgress, setTrainingLevel]);
   const cueBallPlacedFromHandRef = useRef(false);
   useEffect(() => {
     const playerTurn = (hud.turn ?? 0) === 0;
@@ -17810,6 +17884,24 @@ function PoolRoyaleGame({
 
       {isTraining && (
         <div className="absolute right-3 top-3 z-50 flex flex-col items-end gap-2">
+          <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/80 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training level</p>
+                <p className="text-lg font-semibold leading-tight">Level {currentTrainingInfo.level}</p>
+                <p className="text-xs text-white/70">{currentTrainingInfo.title}</p>
+              </div>
+              <div className="text-right text-[11px] uppercase tracking-[0.2em] text-white/70">
+                <div className="text-emerald-200">{completedTrainingCount} completed</div>
+                <div>Next L{nextTrainingInfo.level}</div>
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-white/80">Objective: {currentTrainingInfo.objective}</p>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.2em] text-emerald-200">
+              Reward: {currentTrainingInfo.reward}
+            </p>
+            <p className="mt-1 text-[11px] text-white/60">Next up: {nextTrainingInfo.objective}</p>
+          </div>
           <button
             type="button"
             onClick={() => setTrainingMenuOpen((open) => !open)}
@@ -17829,7 +17921,7 @@ function PoolRoyaleGame({
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
             </svg>
           </button>
-          {trainingMenuOpen && (
+            {trainingMenuOpen && (
             <div className="pointer-events-auto w-64 rounded-2xl border border-emerald-400/50 bg-black/85 p-4 text-sm text-white shadow-[0_24px_48px_rgba(0,0,0,0.6)] backdrop-blur">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-[11px] uppercase tracking-[0.3em] text-emerald-200">Training menu</span>
@@ -17843,6 +17935,16 @@ function PoolRoyaleGame({
                 </button>
               </div>
               <div className="mt-3 space-y-3">
+                <div className="rounded-xl border border-emerald-400/40 bg-white/5 p-3">
+                  <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-200">Progress</p>
+                  <p className="text-sm font-semibold text-white">Level {currentTrainingInfo.level}: {currentTrainingInfo.title}</p>
+                  <p className="mt-1 text-xs text-white/80">Objective: {currentTrainingInfo.objective}</p>
+                  <p className="mt-1 text-[11px] text-white/60">Completed: {completedTrainingCount || 'None yet'}</p>
+                  <p className="mt-1 text-[11px] text-emerald-200">
+                    Next: Level {nextTrainingInfo.level} — {nextTrainingInfo.objective}
+                  </p>
+                  <p className="mt-1 text-[11px] text-white/60">Reward: {currentTrainingInfo.reward}</p>
+                </div>
                 <div>
                   <p className="font-semibold">Opponent</p>
                   <div className="mt-2 flex flex-wrap gap-2">

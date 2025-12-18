@@ -38,6 +38,7 @@
     "ton-x": "^2.1.0-preview"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.26.0",
     "concurrently": "^8.2.2",
     "eslint": "^8.57.1",
     "eslint-config-standard": "^17.1.0",

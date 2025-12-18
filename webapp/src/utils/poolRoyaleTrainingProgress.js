@@ -1,5 +1,45 @@
 const TRAINING_PROGRESS_KEY = 'poolRoyaleTrainingProgress';
 
+export const TRAINING_LEVELS = [
+  {
+    level: 1,
+    title: 'Opening break',
+    objective: 'Place the cue ball, hit the rack cleanly, and pocket any object ball.',
+    reward: 'Unlocks aim assist calibration.'
+  },
+  {
+    level: 2,
+    title: 'Position & safety',
+    objective: 'Avoid fouls while leaving the cue ball safe for your next shot.',
+    reward: 'Ball-in-hand respot practice.'
+  },
+  {
+    level: 3,
+    title: 'Run the table',
+    objective: 'Sink three balls in one visit without scratching.',
+    reward: 'Pro tip overlays for long pots.'
+  },
+  {
+    level: 4,
+    title: 'Finishing shot',
+    objective: 'Clear the final ball under pressure to close the frame.',
+    reward: 'Celebration banners and XP boost.'
+  }
+];
+
+export function describeTrainingLevel(level) {
+  const numeric = Number(level);
+  const fallback = Number.isFinite(numeric) && numeric > 0 ? Math.floor(numeric) : 1;
+  const preset = TRAINING_LEVELS.find((entry) => entry.level === fallback);
+  if (preset) return preset;
+  return {
+    level: fallback,
+    title: `Level ${fallback}`,
+    objective: 'Complete drills to unlock new cues and tips.',
+    reward: 'Progress boost'
+  };
+}
+
 export function loadTrainingProgress() {
   if (typeof window === 'undefined') return { completed: [], lastLevel: 1 };
   try {
