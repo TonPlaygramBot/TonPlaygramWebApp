@@ -11,11 +11,6 @@ import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
-import {
-  TRAINING_LEVELS,
-  loadTrainingProgress,
-  resolvePlayableTrainingLevel
-} from '../../utils/poolRoyaleTrainingProgress.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -28,7 +23,6 @@ export default function PoolRoyaleLobby() {
   const searchParams = new URLSearchParams(search);
   const initialPlayType = (() => {
     const requestedType = searchParams.get('type');
-    if (requestedType === 'training') return 'training';
     return requestedType === 'tournament' ? 'tournament' : 'regular';
   })();
 
@@ -59,49 +53,15 @@ export default function PoolRoyaleLobby() {
   const stakeDebitRef = useRef(null);
   const matchTimeoutRef = useRef(null);
   const seatTimeoutRef = useRef(null);
-  const [trainingMode, setTrainingMode] = useState('solo');
-  const [trainingRulesOn, setTrainingRulesOn] = useState(true);
-  const [trainingProgress, setTrainingProgress] = useState({ completed: [], lastLevel: 1 });
-  const [trainingLevel, setTrainingLevel] = useState(1);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-  const completedTrainingSet = useMemo(
-    () => new Set((trainingProgress?.completed || []).map((lvl) => Number(lvl))),
-    [trainingProgress?.completed]
-  );
 
   useEffect(() => {
     try {
       const saved = loadAvatar();
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
-  }, []);
-
-  useEffect(() => {
-    try {
-      const progress = loadTrainingProgress();
-      setTrainingProgress(progress);
-      const requestedLevel = Number(searchParams.get('level'));
-      const desiredLevel = Number.isFinite(requestedLevel) ? requestedLevel : progress.lastLevel;
-      setTrainingLevel(resolvePlayableTrainingLevel(desiredLevel, progress));
-    } catch {}
-  }, [search]);
-
-  useEffect(() => {
-    const refreshProgress = () => {
-      try {
-        const progress = loadTrainingProgress();
-        setTrainingProgress(progress);
-        setTrainingLevel((prev) => resolvePlayableTrainingLevel(prev, progress));
-      } catch {}
-    };
-    window.addEventListener('focus', refreshProgress);
-    window.addEventListener('storage', refreshProgress);
-    return () => {
-      window.removeEventListener('focus', refreshProgress);
-      window.removeEventListener('storage', refreshProgress);
-    };
   }, []);
 
   useEffect(() => {
@@ -128,8 +88,6 @@ export default function PoolRoyaleLobby() {
     const selfId = accountId || accountIdRef.current;
     const selfEntry = roster.find((p) => String(p.id) === String(selfId));
     const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
-    const seatIndex = roster.findIndex((p) => String(p.id) === String(selfId));
-    const seat = seatIndex <= 0 ? 'A' : 'B';
     const friendlyName =
       selfEntry?.name ||
       getTelegramFirstName() ||
@@ -156,7 +114,6 @@ export default function PoolRoyaleLobby() {
     const resolvedAccountId = accountIdRef.current;
     if (resolvedAccountId) params.set('accountId', resolvedAccountId);
     if (tableSize) params.set('tableSize', tableSize);
-    params.set('seat', seat);
     const name = (friendlyName || '').trim();
     if (name) params.set('name', name);
     if (opponentName) params.set('opponent', opponentName);
@@ -166,7 +123,6 @@ export default function PoolRoyaleLobby() {
 
   const startGame = async () => {
     const isOnlineMatch = mode === 'online' && playType === 'regular';
-    const isTraining = playType === 'training';
     if (matching) return;
     await cleanupRef.current?.();
     setMatchStatus('');
@@ -211,37 +167,27 @@ export default function PoolRoyaleLobby() {
       tgId = getTelegramId();
       accountId = await ensureAccountId();
     } catch (error) {
-      if (!isTraining) {
-        const message = 'Unable to verify your TPC account. Please retry.';
-        setMatchingError(message);
-        try {
-          window?.Telegram?.WebApp?.showAlert?.(message);
-        } catch {}
-        console.error('[PoolRoyaleLobby] ensureAccountId failed (offline)', error);
-        return;
-      }
-      console.warn('[PoolRoyaleLobby] starting training without verified account', error);
+      const message = 'Unable to verify your TPC account. Please retry.';
+      setMatchingError(message);
+      try {
+        window?.Telegram?.WebApp?.showAlert?.(message);
+      } catch {}
+      console.error('[PoolRoyaleLobby] ensureAccountId failed (offline)', error);
+      return;
     }
 
-    if (accountId) accountIdRef.current = accountId;
+    accountIdRef.current = accountId;
 
     const params = new URLSearchParams();
     params.set('variant', variant);
     params.set('tableSize', tableSize);
-    if (isTraining) {
-      params.set('type', 'training');
-      params.set('mode', trainingMode);
-      params.set('rules', trainingRulesOn ? 'on' : 'off');
-      if (Number.isFinite(trainingLevel)) params.set('level', trainingLevel);
-    } else {
-      params.set('type', playType);
-      params.set('mode', mode);
-      if (isOnlineMatch) {
-        if (stake.token) params.set('token', stake.token);
-        if (stake.amount) params.set('amount', stake.amount);
-      }
-      if (playType === 'tournament') params.set('players', players);
+    params.set('type', playType);
+    params.set('mode', mode);
+    if (isOnlineMatch) {
+      if (stake.token) params.set('token', stake.token);
+      if (stake.amount) params.set('amount', stake.amount);
     }
+    if (playType === 'tournament') params.set('players', players);
     const initData = window.Telegram?.WebApp?.initData;
     if (avatar) params.set('avatar', avatar);
     if (tgId) params.set('tgId', tgId);
@@ -327,15 +273,6 @@ export default function PoolRoyaleLobby() {
     if (playType === 'tournament') {
       setMode('ai');
     }
-    if (playType === 'training') {
-      setMode('ai');
-      cleanupRef.current?.();
-      setMatching(false);
-      setMatchStatus('');
-      setMatchPlayers([]);
-      setReadyList([]);
-      setIsSearching(false);
-    }
   }, [playType]);
 
   useEffect(() => {
@@ -378,7 +315,6 @@ export default function PoolRoyaleLobby() {
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' },
             { id: 'tournament', label: 'Tournament' }
           ].map(({ id, label }) => (
             <button
@@ -396,11 +332,7 @@ export default function PoolRoyaleLobby() {
         <div className="flex gap-2">
           {[
             { id: 'ai', label: 'Vs AI' },
-            {
-              id: 'online',
-              label: '1v1 Online',
-              disabled: playType === 'tournament' || playType === 'training'
-            }
+            { id: 'online', label: '1v1 Online', disabled: playType === 'tournament' }
           ].map(({ id, label, disabled }) => (
             <div key={id} className="relative">
               <button
@@ -414,89 +346,13 @@ export default function PoolRoyaleLobby() {
               </button>
               {disabled && (
                 <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                  {playType === 'training' ? 'Training stays offline' : 'Tournament bracket only'}
+                  Tournament bracket only
                 </span>
               )}
             </div>
           ))}
         </div>
       </div>
-      {playType === 'training' && (
-        <div className="space-y-3 p-3 rounded-lg border border-border bg-surface/60">
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <h3 className="font-semibold">Training tasks</h3>
-              <p className="text-xs text-subtext">Pick a drill, then choose solo or AI sparring.</p>
-            </div>
-            <span className="text-xs text-subtext">
-              {completedTrainingSet.size}/{TRAINING_LEVELS.length} done
-            </span>
-          </div>
-          <div className="space-y-2">
-            {TRAINING_LEVELS.map((task) => {
-              const unlocked = resolvePlayableTrainingLevel(task.level, trainingProgress) === task.level;
-              const completed = completedTrainingSet.has(task.level);
-              const active = trainingLevel === task.level;
-              return (
-                <button
-                  key={task.level}
-                  type="button"
-                  onClick={() => unlocked && setTrainingLevel(task.level)}
-                  className={`w-full rounded-lg border px-3 py-2 text-left shadow-sm transition ${
-                    active ? 'border-primary bg-primary/10' : 'border-border bg-background/60'
-                  } ${unlocked ? 'hover:border-primary' : 'opacity-60 cursor-not-allowed'}`}
-                  disabled={!unlocked}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                      <div className="text-sm font-semibold">
-                        Level {task.level}: {task.title}
-                      </div>
-                      <div className="text-xs text-subtext leading-snug">{task.objective}</div>
-                      <div className="text-[11px] text-emerald-200">{task.reward}</div>
-                    </div>
-                    <span
-                      className={`text-[11px] font-semibold ${
-                        completed ? 'text-emerald-400' : unlocked ? 'text-primary' : 'text-subtext'
-                      }`}
-                    >
-                      {completed ? 'Completed' : unlocked ? (active ? 'Selected' : 'Ready') : 'Locked'}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { id: 'solo', label: 'Solo drills', desc: 'Place the cue ball and retry instantly.' },
-              { id: 'ai', label: 'AI sparring', desc: 'Trade turns with a CPU partner.' }
-            ].map(({ id, label, desc }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setTrainingMode(id)}
-                className={`h-full rounded-lg border px-3 py-2 text-left ${
-                  trainingMode === id ? 'border-primary bg-primary/10' : 'border-border bg-background/60'
-                }`}
-              >
-                <div className="text-sm font-semibold">{label}</div>
-                <div className="text-[11px] text-subtext leading-snug">{desc}</div>
-              </button>
-            ))}
-          </div>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-border"
-              checked={trainingRulesOn}
-              onChange={(event) => setTrainingRulesOn(event.target.checked)}
-            />
-            <span>Apply fouls and frame rules during training</span>
-          </label>
-          <p className="text-xs text-subtext">Training is free — no TPC stake required.</p>
-        </div>
-      )}
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
