@@ -1,64 +1,48 @@
 import { io } from 'socket.io-client';
 import { API_BASE_URL } from './api.js';
 
+function normalizePath(path) {
+  if (!path) return '/socket.io';
+  return path.startsWith('/') ? path : `/${path}`;
+}
+
+function normalizeBaseUrl(rawUrl) {
+  const fallback = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  if (!rawUrl) return fallback;
+
+  try {
+    const parsed = new URL(rawUrl, fallback);
+    parsed.pathname = '';
+    parsed.search = '';
+    parsed.hash = '';
+
+    if (typeof window !== 'undefined' && window.location.protocol === 'https:' && parsed.protocol === 'http:') {
+      parsed.protocol = 'https:';
+    }
+
+    return parsed.toString().replace(/\/+$/, '');
+  } catch {
+    return rawUrl.replace(/\/+$/, '') || fallback;
+  }
+}
+
 function resolveSocketConfig() {
   const explicitUrl = import.meta.env.VITE_SOCKET_URL;
   const explicitPath = import.meta.env.VITE_SOCKET_PATH;
 
-  let rawUrl =
-    explicitUrl ||
-    API_BASE_URL ||
-    (typeof window !== 'undefined' ? window.location.origin : '');
+  const url = normalizeBaseUrl(explicitUrl || API_BASE_URL);
+  const path = normalizePath(explicitPath);
 
-  const options = { transports: ['websocket'] };
-
-  const applyDefaultPath = () => {
-    if (!options.path) {
-      options.path = '/socket.io';
-    }
+  const options = {
+    path,
+    transports: ['websocket', 'polling'],
+    reconnectionAttempts: 8,
+    reconnectionDelay: 500,
+    reconnectionDelayMax: 5000,
+    timeout: 20000
   };
 
-  if (explicitPath) {
-    options.path = explicitPath;
-  }
-
-  if (!rawUrl) {
-    applyDefaultPath();
-    return { url: rawUrl, options };
-  }
-
-  try {
-    const base = typeof window !== 'undefined' ? window.location.href : 'http://localhost';
-    const parsed = new URL(rawUrl, base);
-    if (!explicitPath) {
-      const trimmedPath = parsed.pathname.replace(/\/+$/, '');
-      if (trimmedPath && trimmedPath !== '') {
-        options.path = `${trimmedPath}/socket.io`;
-      }
-    }
-    parsed.pathname = '';
-    parsed.search = '';
-    parsed.hash = '';
-    rawUrl = parsed.toString().replace(/\/+$/, '');
-  } catch {
-    if (!explicitPath) {
-      if (/\/socket\.io\/?$/.test(rawUrl)) {
-        options.path = '/socket.io';
-        rawUrl = rawUrl.replace(/\/socket\.io\/?$/, '');
-      } else if (/\/api\/?$/.test(rawUrl)) {
-        options.path = '/socket.io';
-        rawUrl = rawUrl.replace(/\/api\/?$/, '');
-      }
-    }
-    rawUrl = rawUrl.replace(/\/+$/, '');
-  }
-
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:' && rawUrl.startsWith('http:')) {
-    rawUrl = rawUrl.replace(/^http:/, 'https:');
-  }
-
-  applyDefaultPath();
-  return { url: rawUrl, options };
+  return { url, options };
 }
 
 const { url, options } = resolveSocketConfig();
