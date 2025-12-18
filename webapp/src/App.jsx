@@ -13,6 +13,7 @@ import Messages from './pages/Messages.jsx';
 import Trending from './pages/Trending.jsx';
 import Notifications from './pages/Notifications.jsx';
 import InfluencerAdmin from './pages/InfluencerAdmin.jsx';
+import DevAssistant from './pages/DevAssistant.jsx';
 
 import SnakeAndLadder from './pages/Games/SnakeAndLadder.jsx';
 import SnakeMultiplayer from './pages/Games/SnakeMultiplayer.jsx';
@@ -152,6 +153,7 @@ export default function App() {
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/trending" element={<Trending />} />
             <Route path="/account" element={<MyAccount />} />
+            <Route path="/dev/assistant" element={<DevAssistant />} />
           </Routes>
         </Layout>
       </TonConnectUIProvider>
