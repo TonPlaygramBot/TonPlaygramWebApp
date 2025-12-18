@@ -1753,26 +1753,26 @@ export default function MurlanRoyaleArena({ search }) {
               <button
                 type="button"
                 onClick={handlePass}
-                className="rounded-lg border border-white/25 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent"
+                className="rounded-lg bg-gradient-to-r from-red-600 to-red-500 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:from-red-900/70 disabled:to-red-800/70 disabled:opacity-60 disabled:shadow-none"
                 disabled={!uiState.humanTurn || !gameState.tableCombo}
               >
-                Paso
+                Pass
               </button>
               <button
                 type="button"
                 onClick={handleClear}
-                className="rounded-lg border border-white/20 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:text-gray-500 disabled:hover:bg-transparent"
+                className="rounded-lg bg-gradient-to-r from-amber-300 to-amber-400 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-black shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:from-amber-300/60 disabled:to-amber-400/60 disabled:text-black/60 disabled:shadow-none"
                 disabled={!selectedIds.length}
               >
-                Hiq zgjedhjet
+                Undo
               </button>
               <button
                 type="button"
                 onClick={handlePlay}
-                className="rounded-lg bg-gradient-to-r from-[#ff0050] to-[#f97316] px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg bg-gradient-to-r from-green-500 to-green-600 px-5 py-2 text-xs font-bold uppercase tracking-wide text-white shadow-lg transition hover:shadow-xl disabled:cursor-not-allowed disabled:from-green-800/60 disabled:to-green-700/60 disabled:opacity-60 disabled:shadow-none"
                 disabled={!uiState.humanTurn || !selectedIds.length}
               >
-                Luaj
+                Play
               </button>
             </div>
           </div>
