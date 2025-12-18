@@ -12935,13 +12935,45 @@ function PoolRoyaleGame({
           replayTrail.visible = true;
         };
 
-          const trimReplayRecording = (recording) => {
-            const frames = recording?.frames ?? [];
-            const cuePath = recording?.cuePath ?? [];
-            if (frames.length === 0) return { frames, cuePath, duration: 0 };
-            const duration = frames[frames.length - 1]?.t ?? 0;
-            return { frames, cuePath, duration };
+        const trimReplayRecording = (recording) => {
+          const frames = recording?.frames ?? [];
+          const cuePath = recording?.cuePath ?? [];
+          if (frames.length === 0) return { frames, cuePath, duration: 0 };
+          const hasMotionBetween = (later, earlier) => {
+            if (!later || !earlier) return false;
+            const earlierMap = new Map((earlier.balls ?? []).map((ball) => [ball.id, ball]));
+            const MOTION_EPSILON = 1e-4;
+            return (later.balls ?? []).some((ball) => {
+              const prev = earlierMap.get(ball.id);
+              if (!prev) return false;
+              const pos = ball.pos ?? { x: 0, y: 0 };
+              const prevPos = prev.pos ?? pos;
+              const dx = Math.abs((pos.x ?? 0) - (prevPos.x ?? 0));
+              const dy = Math.abs((pos.y ?? 0) - (prevPos.y ?? 0));
+              if (dx > MOTION_EPSILON || dy > MOTION_EPSILON) return true;
+              const meshPos = ball.mesh?.position;
+              const prevMeshPos = prev.mesh?.position ?? meshPos;
+              if (meshPos && prevMeshPos) {
+                const mx = Math.abs((meshPos.x ?? 0) - (prevMeshPos.x ?? 0));
+                const mz = Math.abs((meshPos.z ?? 0) - (prevMeshPos.z ?? 0));
+                if (mx > MOTION_EPSILON || mz > MOTION_EPSILON) return true;
+              }
+              return false;
+            });
           };
+          let lastMotionIndex = 0;
+          for (let i = frames.length - 1; i > 0; i -= 1) {
+            if (hasMotionBetween(frames[i], frames[i - 1])) {
+              lastMotionIndex = i;
+              break;
+            }
+          }
+          const endIndex = Math.min(frames.length - 1, lastMotionIndex + 1);
+          const trimmedFrames = frames.slice(0, endIndex + 1);
+          const duration = trimmedFrames[trimmedFrames.length - 1]?.t ?? 0;
+          const trimmedCuePath = cuePath.filter((entry) => (entry?.t ?? 0) <= duration);
+          return { frames: trimmedFrames, cuePath: trimmedCuePath, duration };
+        };
 
         const startShotReplay = (postShotSnapshot) => {
           if (replayPlaybackRef.current) return;
