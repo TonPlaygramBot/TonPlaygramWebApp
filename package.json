@@ -9,7 +9,7 @@
     "start": "node bot/server.js",
     "install-all": "npm install && npm install --prefix bot && npm install --prefix webapp",
     "build": "tsc -p tsconfig.build.json",
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "demo": "node dist/demo.js demo/demo.json",
     "lint": "eslint .",
     "format": "prettier --write .",
