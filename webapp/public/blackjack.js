@@ -530,12 +530,26 @@ function aiRespondToRaise() {
 }
 
 function nextTurn() {
+  const totalPlayers = state.players.length;
+  if (totalPlayers === 0) return;
+
   if (state.awaitingCall) {
+    let iterations = 0;
     do {
-      state.turn = (state.turn + 1) % state.players.length;
+      state.turn = (state.turn + 1) % totalPlayers;
       const p = state.players[state.turn];
-      if (!p.bust) break;
-    } while (state.turn !== state.raiseInitiator);
+      iterations += 1;
+      if (p && !p.bust) break;
+    } while (state.turn !== state.raiseInitiator && iterations <= totalPlayers);
+
+    const current = state.players[state.turn];
+    if (!current || iterations > totalPlayers) {
+      state.awaitingCall = false;
+      state.raiseInitiator = -1;
+      state.currentBet = 0;
+      finish();
+      return;
+    }
 
     if (state.turn === state.raiseInitiator) {
       state.awaitingCall = false;
@@ -559,18 +573,22 @@ function nextTurn() {
     return;
   }
 
-  state.turn++;
+  state.turn += 1;
   while (
-    state.turn < state.players.length &&
-    (state.players[state.turn].bust || state.players[state.turn].stood)
+    state.turn < totalPlayers &&
+    (state.players[state.turn]?.bust || state.players[state.turn]?.stood)
   ) {
-    state.turn++;
+    state.turn += 1;
   }
-  if (state.turn >= state.players.length) {
+  if (state.turn >= totalPlayers) {
     finish();
     return;
   }
   const p = state.players[state.turn];
+  if (!p) {
+    finish();
+    return;
+  }
   if (!p.isHuman) {
     delay(aiTurn, 500);
   }
@@ -579,6 +597,10 @@ function nextTurn() {
 
 function aiTurn() {
   const p = state.players[state.turn];
+  if (!p) {
+    finish();
+    return;
+  }
   if (p.stood || p.bust) {
     nextTurn();
     return;
