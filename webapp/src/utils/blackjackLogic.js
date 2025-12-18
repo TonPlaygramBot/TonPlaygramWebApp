@@ -38,15 +38,18 @@ export function hitCard(deck) {
 }
 
 function cardValue(rank) {
+  if (!rank) return 0;
   if (rank === 'A') return 11;
-  if (rank === 'K' || rank === 'Q' || rank === 'J' || rank === 'T') return 10;
-  return Number.parseInt(rank, 10);
+  if (rank === 'K' || rank === 'Q' || rank === 'J' || rank === 'T' || rank === '10') return 10;
+  const parsed = Number.parseInt(rank, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 export function handValue(hand) {
   let total = 0;
   let aces = 0;
   hand.forEach((card) => {
+    if (!card || !card.rank) return;
     total += cardValue(card.rank);
     if (card.rank === 'A') aces += 1;
   });
