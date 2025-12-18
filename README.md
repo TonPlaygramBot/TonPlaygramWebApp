@@ -49,6 +49,9 @@
    - `VITE_API_BASE_URL` – the base URL where the bot API is hosted (e.g.
      `https://tonplaygram-bot.onrender.com`). If omitted, the webapp will
      connect to the same origin it was served from.
+   - `VITE_SOCKET_URL` – (optional) explicit origin for socket.io connections.
+     Leave empty to reuse the API origin automatically.
+   - `VITE_SOCKET_PATH` – (optional) socket.io path (defaults to `/socket.io`).
    - `VITE_GOOGLE_CLIENT_ID` – OAuth client ID for Google sign-in.
   - `VITE_DEV_ACCOUNT_ID` – account ID that receives the developer share
     (10% by default).
@@ -407,4 +410,3 @@ Run `npm run reset-db` to drop the existing MongoDB database and start with a cl
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
-
