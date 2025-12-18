@@ -115,7 +115,10 @@ const userSchema = new mongoose.Schema({
   inboxReadAt: { type: Date, default: Date.now },
 
   // Track which game table the user is currently seated at
-  currentTableId: { type: String, default: null }
+  currentTableId: { type: String, default: null },
+
+  // Persist Pool Royale unlocks server-side for cross-device sync
+  poolRoyalInventory: { type: Object, default: undefined }
 
 });
 

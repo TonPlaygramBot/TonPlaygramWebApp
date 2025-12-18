@@ -172,6 +172,14 @@ export function adminDeleteTask(id) {
   return post('/api/tasks/admin/delete', { id }, API_AUTH_TOKEN || undefined);
 }
 
+export function getPoolRoyalInventoryRemote(accountId) {
+  return post('/api/pool-royale/inventory/get', { accountId });
+}
+
+export function setPoolRoyalInventoryRemote(accountId, inventory) {
+  return post('/api/pool-royale/inventory/set', { accountId, inventory });
+}
+
 export function listVideos(telegramId) {
   return post('/api/watch/list', { telegramId });
 }

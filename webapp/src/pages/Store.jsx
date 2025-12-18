@@ -465,6 +465,19 @@ export default function Store() {
   }, [accountId]);
 
   useEffect(() => {
+    const handlePoolInventoryUpdate = (event) => {
+      if (event?.detail?.accountId && event.detail.accountId !== accountId) return;
+      if (event?.detail?.inventory) {
+        setPoolOwned(event.detail.inventory);
+      } else {
+        setPoolOwned(getPoolRoyalInventory(accountId));
+      }
+    };
+    window.addEventListener('poolRoyalInventoryUpdate', handlePoolInventoryUpdate);
+    return () => window.removeEventListener('poolRoyalInventoryUpdate', handlePoolInventoryUpdate);
+  }, [accountId]);
+
+  useEffect(() => {
     const loadBalance = async () => {
       if (!accountId || accountId === 'guest') return;
       try {
