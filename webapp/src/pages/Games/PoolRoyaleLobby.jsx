@@ -3,18 +3,14 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import RoomSelector from '../../components/RoomSelector.jsx';
 import FlagPickerModal from '../../components/FlagPickerModal.jsx';
 import useTelegramBackButton from '../../hooks/useTelegramBackButton.js';
-import {
-  ensureAccountId,
-  getTelegramId,
-  getTelegramPhotoUrl,
-  getTelegramFirstName
-} from '../../utils/telegram.js';
+import { ensureAccountId, getTelegramFirstName, getTelegramId, getTelegramPhotoUrl } from '../../utils/telegram.js';
 import { getAccountBalance, addTransaction } from '../../utils/api.js';
 import { loadAvatar } from '../../utils/avatarUtils.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
+import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -54,6 +50,9 @@ export default function PoolRoyaleLobby() {
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
   const cleanupRef = useRef(() => {});
+  const stakeDebitRef = useRef(null);
+  const matchTimeoutRef = useRef(null);
+  const seatTimeoutRef = useRef(null);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
@@ -85,164 +84,99 @@ export default function PoolRoyaleLobby() {
     matchPlayersRef.current = matchPlayers;
   }, [matchPlayers]);
 
+  const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId }) => {
+    const selfId = accountId || accountIdRef.current;
+    const selfEntry = roster.find((p) => String(p.id) === String(selfId));
+    const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
+    const friendlyName =
+      selfEntry?.name ||
+      getTelegramFirstName() ||
+      getTelegramId() ||
+      (selfId ? `TPC ${selfId}` : 'Player');
+    const friendlyAvatar = selfEntry?.avatar || avatar;
+    const opponentName =
+      opponentEntry?.name ||
+      opponentEntry?.username ||
+      opponentEntry?.telegramName ||
+      (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
+    const opponentAvatar = opponentEntry?.avatar || '';
+    cleanupRef.current?.({ account: accountId, skipRefReset: true });
+    const params = new URLSearchParams();
+    params.set('variant', variant);
+    params.set('type', playType);
+    params.set('mode', 'online');
+    params.set('tableId', startedId);
+    if (stake.token) params.set('token', stake.token);
+    if (stake.amount) params.set('amount', stake.amount);
+    if (friendlyAvatar) params.set('avatar', friendlyAvatar);
+    const tgId = getTelegramId();
+    if (tgId) params.set('tgId', tgId);
+    const resolvedAccountId = accountIdRef.current;
+    if (resolvedAccountId) params.set('accountId', resolvedAccountId);
+    if (tableSize) params.set('tableSize', tableSize);
+    const name = (friendlyName || '').trim();
+    if (name) params.set('name', name);
+    if (opponentName) params.set('opponent', opponentName);
+    if (opponentAvatar) params.set('opponentAvatar', opponentAvatar);
+    navigate(`/games/poolroyale?${params.toString()}`);
+  };
+
   const startGame = async () => {
     const isOnlineMatch = mode === 'online' && playType === 'regular';
     if (matching) return;
-    cleanupRef.current?.();
+    await cleanupRef.current?.();
+    setMatchStatus('');
+    setMatchingError('');
+
+    if (isOnlineMatch) {
+      await runPoolRoyaleOnlineFlow({
+        stake,
+        variant,
+        playType,
+        mode,
+        tableSize,
+        avatar,
+        deps: { ensureAccountId, getAccountBalance, addTransaction, getTelegramId, getTelegramFirstName, socket },
+        state: {
+          setMatchingError,
+          setMatchStatus,
+          setMatching,
+          setIsSearching,
+          setMatchPlayers,
+          setReadyList,
+          setSpinningPlayer
+        },
+        refs: {
+          accountIdRef,
+          matchPlayersRef,
+          pendingTableRef,
+          cleanupRef,
+          spinIntervalRef,
+          stakeDebitRef,
+          matchTimeoutRef,
+          seatTimeoutRef
+        },
+        onGameStart: navigateToPoolRoyale
+      });
+      return;
+    }
 
     let tgId;
     let accountId;
-
-    if (isOnlineMatch) {
+    try {
+      tgId = getTelegramId();
+      accountId = await ensureAccountId();
+    } catch (error) {
+      const message = 'Unable to verify your TPC account. Please retry.';
+      setMatchingError(message);
       try {
-        accountId = await ensureAccountId();
-        const balRes = await getAccountBalance(accountId);
-        if ((balRes.balance || 0) < stake.amount) {
-          alert('Insufficient balance');
-          return;
-        }
-        tgId = getTelegramId();
-        await addTransaction(tgId, -stake.amount, 'stake', {
-          game: 'poolroyale-online',
-          players: 2,
-          accountId
-        });
+        window?.Telegram?.WebApp?.showAlert?.(message);
       } catch {}
-    } else {
-      try {
-        tgId = getTelegramId();
-        accountId = await ensureAccountId();
-      } catch {}
+      console.error('[PoolRoyaleLobby] ensureAccountId failed (offline)', error);
+      return;
     }
 
     accountIdRef.current = accountId;
-
-    if (isOnlineMatch) {
-      setMatchingError('');
-      setMatchStatus('Connecting to lobby…');
-      setMatching(true);
-      setIsSearching(true);
-      if (!accountId) {
-        setIsSearching(false);
-        setMatchingError('Unable to resolve your TPC account.');
-        setMatching(false);
-        return;
-      }
-
-      const handleLobbyUpdate = ({ tableId: tid, players: list = [], ready = [] } = {}) => {
-        if (!tid || tid !== pendingTableRef.current) return;
-        setMatchPlayers(list);
-        matchPlayersRef.current = list;
-        setReadyList(ready);
-        const others = list.filter((p) => String(p.id) !== String(accountId));
-        setMatchStatus(
-          others.length > 0 ? 'Opponent joined. Locking seats…' : 'Waiting for another player…'
-        );
-      };
-
-      const handleGameStart = ({ tableId: startedId, players: joined = [] } = {}) => {
-        if (!startedId || startedId !== pendingTableRef.current) return;
-        const selfId = accountIdRef.current || accountId;
-        const roster = Array.isArray(joined) && joined.length > 0 ? joined : matchPlayersRef.current;
-        const selfEntry = roster.find((p) => String(p.id) === String(selfId));
-        const opponentEntry = roster.find((p) => String(p.id) !== String(selfId));
-        const friendlyName =
-          selfEntry?.name || getTelegramFirstName() || getTelegramId() || (selfId ? `TPC ${selfId}` : 'Player');
-        const friendlyAvatar = selfEntry?.avatar || avatar;
-        const opponentName =
-          opponentEntry?.name ||
-          opponentEntry?.username ||
-          opponentEntry?.telegramName ||
-          (opponentEntry?.id ? `TPC ${opponentEntry.id}` : '');
-        const opponentAvatar = opponentEntry?.avatar || '';
-        cleanupRef.current?.({ account: accountId, skipRefReset: true });
-        const params = new URLSearchParams();
-        params.set('variant', variant);
-        params.set('type', playType);
-        params.set('mode', 'online');
-        params.set('tableId', startedId);
-        if (stake.token) params.set('token', stake.token);
-        if (stake.amount) params.set('amount', stake.amount);
-        if (friendlyAvatar) params.set('avatar', friendlyAvatar);
-        const tgId = getTelegramId();
-        if (tgId) params.set('tgId', tgId);
-        const resolvedAccountId = accountIdRef.current;
-        if (resolvedAccountId) params.set('accountId', resolvedAccountId);
-        if (tableSize) params.set('tableSize', tableSize);
-        const name = (friendlyName || '').trim();
-        if (name) params.set('name', name);
-        if (opponentName) params.set('opponent', opponentName);
-        if (opponentAvatar) params.set('opponentAvatar', opponentAvatar);
-        navigate(`/games/poolroyale?${params.toString()}`);
-      };
-
-      const cleanupLobby = ({ account, skipRefReset } = {}) => {
-        socket.off('lobbyUpdate', handleLobbyUpdate);
-        socket.off('gameStart', handleGameStart);
-        const leavingAccount = account || accountIdRef.current;
-        if (pendingTableRef.current && leavingAccount) {
-          socket.emit('leaveLobby', { accountId: leavingAccount, tableId: pendingTableRef.current });
-        }
-        pendingTableRef.current = '';
-        if (spinIntervalRef.current) {
-          clearInterval(spinIntervalRef.current);
-          spinIntervalRef.current = null;
-        }
-        setMatchPlayers([]);
-        matchPlayersRef.current = [];
-        setReadyList([]);
-        setMatchStatus('');
-        setMatching(false);
-        setSpinningPlayer('');
-        setIsSearching(false);
-        setMatchingError('');
-        if (!skipRefReset) cleanupRef.current = () => {};
-      };
-
-      cleanupRef.current = cleanupLobby;
-
-      socket.on('lobbyUpdate', handleLobbyUpdate);
-      socket.on('gameStart', handleGameStart);
-      socket.emit('register', { playerId: accountId });
-
-      socket.emit(
-        'seatTable',
-        {
-          accountId,
-          stake: stake.amount,
-          token: stake.token,
-          gameType: 'poolroyale',
-          maxPlayers: 2,
-          mode,
-          variant,
-          tableSize,
-          playType,
-          playerName: getTelegramFirstName() || `TPC ${accountId}`,
-          avatar
-        },
-        (res) => {
-          setIsSearching(false);
-          if (!res?.success || !res.tableId) {
-            setMatchingError(
-              res?.message || 'Failed to join the online arena. Please retry.'
-            );
-            cleanupLobby({ account: accountId });
-            return;
-          }
-          pendingTableRef.current = res.tableId;
-          setMatchStatus('Waiting for another player…');
-          const playersList = res.players || [];
-          setMatchPlayers(playersList);
-          matchPlayersRef.current = playersList;
-          setReadyList(res.ready || []);
-          socket.emit('confirmReady', {
-            accountId,
-            tableId: res.tableId
-          });
-        }
-      );
-      return;
-    }
 
     const params = new URLSearchParams();
     params.set('variant', variant);

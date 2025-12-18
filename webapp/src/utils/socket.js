@@ -27,8 +27,9 @@ function normalizeBaseUrl(rawUrl) {
 }
 
 function resolveSocketConfig() {
-  const explicitUrl = import.meta.env.VITE_SOCKET_URL;
-  const explicitPath = import.meta.env.VITE_SOCKET_PATH;
+  const metaEnv = (typeof import.meta !== 'undefined' && import.meta?.env) || {};
+  const explicitUrl = metaEnv.VITE_SOCKET_URL;
+  const explicitPath = metaEnv.VITE_SOCKET_PATH;
 
   const url = normalizeBaseUrl(explicitUrl || API_BASE_URL);
   const path = normalizePath(explicitPath);
