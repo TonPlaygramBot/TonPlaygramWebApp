@@ -12,6 +12,15 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
+const generateRandomFlags = (count, existing = []) => {
+  const safeExisting = existing.filter((idx) => FLAG_EMOJIS[idx] !== undefined);
+  const chosen = new Set(safeExisting);
+  while (chosen.size < count && chosen.size < FLAG_EMOJIS.length) {
+    chosen.add(Math.floor(Math.random() * FLAG_EMOJIS.length));
+  }
+  return Array.from(chosen).slice(0, count);
+};
+
 export default function TexasHoldemLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
@@ -37,6 +46,16 @@ export default function TexasHoldemLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    if (mode !== 'local') return;
+    setFlags((prev) => {
+      const trimmed = prev.filter((idx) => FLAG_EMOJIS[idx] !== undefined).slice(0, flagPickerCount);
+      if (trimmed.length === flagPickerCount) return trimmed;
+      const autoFlags = generateRandomFlags(flagPickerCount, trimmed);
+      return autoFlags;
+    });
+  }, [flagPickerCount, mode]);
 
   const startGame = async (flagOverride = flags) => {
     let tgId;
@@ -138,7 +157,7 @@ export default function TexasHoldemLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">AI Avatar Flags</h3>
         <p className="text-sm text-subtext text-center">
-          Match the Snake &amp; Ladder lobby by picking worldwide flags for AI opponents and your seat.
+          Auto-filled with random worldwide flags—tap to customize or reshuffle before you start.
         </p>
         <button
           type="button"
