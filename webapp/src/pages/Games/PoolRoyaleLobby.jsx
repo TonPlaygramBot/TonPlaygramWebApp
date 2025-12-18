@@ -11,11 +11,6 @@ import { socket } from '../../utils/socket.js';
 import { getOnlineUsers } from '../../utils/api.js';
 import { FLAG_EMOJIS } from '../../utils/flagEmojis.js';
 import { runPoolRoyaleOnlineFlow } from './poolRoyaleOnlineFlow.js';
-import {
-  TRAINING_LEVELS,
-  loadTrainingProgress,
-  resolvePlayableTrainingLevel
-} from '../../utils/poolRoyaleTrainingProgress.js';
 
 const PLAYER_FLAG_STORAGE_KEY = 'poolRoyalePlayerFlag';
 const AI_FLAG_STORAGE_KEY = 'poolRoyaleAiFlag';
@@ -51,8 +46,6 @@ export default function PoolRoyaleLobby() {
   const [isSearching, setIsSearching] = useState(false);
   const [matchingError, setMatchingError] = useState('');
   const [matchStatus, setMatchStatus] = useState('');
-  const [trainingProgress, setTrainingProgress] = useState({ completed: [], lastLevel: 1 });
-  const [trainingLevel, setTrainingLevel] = useState(1);
   const spinIntervalRef = useRef(null);
   const accountIdRef = useRef(null);
   const pendingTableRef = useRef('');
@@ -63,10 +56,6 @@ export default function PoolRoyaleLobby() {
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-  const maxUnlockedTrainingLevel = useMemo(
-    () => resolvePlayableTrainingLevel(50, trainingProgress),
-    [trainingProgress]
-  );
 
   useEffect(() => {
     try {
@@ -94,18 +83,6 @@ export default function PoolRoyaleLobby() {
   useEffect(() => {
     matchPlayersRef.current = matchPlayers;
   }, [matchPlayers]);
-
-  useEffect(() => {
-    const storedProgress = loadTrainingProgress();
-    setTrainingProgress(storedProgress);
-    setTrainingLevel(resolvePlayableTrainingLevel(storedProgress.lastLevel, storedProgress));
-  }, []);
-
-  useEffect(() => {
-    if (trainingLevel > maxUnlockedTrainingLevel) {
-      setTrainingLevel(maxUnlockedTrainingLevel);
-    }
-  }, [maxUnlockedTrainingLevel, trainingLevel]);
 
   const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId }) => {
     const selfId = accountId || accountIdRef.current;
@@ -145,28 +122,6 @@ export default function PoolRoyaleLobby() {
   };
 
   const startGame = async () => {
-    if (playType === 'training') {
-      const params = new URLSearchParams();
-      params.set('variant', variant);
-      params.set('tableSize', tableSize);
-      params.set('type', 'training');
-      params.set('mode', 'solo');
-      params.set('level', trainingLevel);
-      const tgId = getTelegramId();
-      if (tgId) params.set('tgId', tgId);
-      if (avatar) params.set('avatar', avatar);
-      const name = getTelegramFirstName();
-      if (name) params.set('name', name);
-      if (selectedFlag) params.set('flag', selectedFlag);
-      if (selectedAiFlag) params.set('aiFlag', selectedAiFlag);
-      try {
-        const accountId = await ensureAccountId();
-        if (accountId) params.set('accountId', accountId);
-      } catch {}
-      navigate(`/games/poolroyale?${params.toString()}`);
-      return;
-    }
-
     const isOnlineMatch = mode === 'online' && playType === 'regular';
     if (matching) return;
     await cleanupRef.current?.();
@@ -315,7 +270,7 @@ export default function PoolRoyaleLobby() {
   useEffect(() => () => cleanupRef.current?.(), []);
 
   useEffect(() => {
-    if (playType !== 'regular') {
+    if (playType === 'tournament') {
       setMode('ai');
     }
   }, [playType]);
@@ -360,7 +315,6 @@ export default function PoolRoyaleLobby() {
         <div className="flex gap-2">
           {[
             { id: 'regular', label: 'Regular' },
-            { id: 'training', label: 'Training' },
             { id: 'tournament', label: 'Tournament' }
           ].map(({ id, label }) => (
             <button
@@ -373,34 +327,32 @@ export default function PoolRoyaleLobby() {
           ))}
         </div>
       </div>
-      {playType !== 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Mode</h3>
-          <div className="flex gap-2">
-            {[
-              { id: 'ai', label: 'Vs AI' },
-              { id: 'online', label: '1v1 Online', disabled: playType === 'tournament' }
-            ].map(({ id, label, disabled }) => (
-              <div key={id} className="relative">
-                <button
-                  onClick={() => !disabled && setMode(id)}
-                  className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
-                    disabled ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                  disabled={disabled}
-                >
-                  {label}
-                </button>
-                {disabled && (
-                  <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
-                    Tournament bracket only
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Mode</h3>
+        <div className="flex gap-2">
+          {[
+            { id: 'ai', label: 'Vs AI' },
+            { id: 'online', label: '1v1 Online', disabled: playType === 'tournament' }
+          ].map(({ id, label, disabled }) => (
+            <div key={id} className="relative">
+              <button
+                onClick={() => !disabled && setMode(id)}
+                className={`lobby-tile ${mode === id ? 'lobby-selected' : ''} ${
+                  disabled ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
+                disabled={disabled}
+              >
+                {label}
+              </button>
+              {disabled && (
+                <span className="absolute inset-0 flex items-center justify-center text-xs bg-black bg-opacity-50 text-background">
+                  Tournament bracket only
+                </span>
+              )}
+            </div>
+          ))}
         </div>
-      )}
+      </div>
       <div className="space-y-2">
         <h3 className="font-semibold">Variant</h3>
         <div className="flex gap-2">
@@ -434,41 +386,6 @@ export default function PoolRoyaleLobby() {
             ))}
           </div>
           <p className="text-xs">Winner takes pot minus 10% developer fee.</p>
-        </div>
-      )}
-      {playType === 'training' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Training tasks</h3>
-          <p className="text-sm text-subtext">Pick a practice task to load the right drill and rewards.</p>
-          <div className="space-y-2">
-            {TRAINING_LEVELS.map(({ level, title, objective }) => {
-              const locked = level > maxUnlockedTrainingLevel;
-              return (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => !locked && setTrainingLevel(level)}
-                  className={`lobby-tile w-full text-left ${
-                    trainingLevel === level ? 'lobby-selected' : ''
-                  } ${locked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  disabled={locked}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-semibold">Level {level}: {title}</p>
-                      <p className="text-xs text-subtext">{objective}</p>
-                    </div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-emerald-400">
-                      {locked ? 'Locked' : trainingLevel === level ? 'Selected' : 'Play'}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-xs text-subtext">
-            Completing tasks unlocks the next level automatically. Your progress is saved locally.
-          </p>
         </div>
       )}
       {mode === 'online' && playType === 'regular' && (

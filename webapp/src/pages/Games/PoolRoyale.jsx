@@ -8270,8 +8270,7 @@ function PoolRoyaleGame({
   playerName,
   playerAvatar,
   opponentName,
-  opponentAvatar,
-  tableId
+  opponentAvatar
 }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -8540,12 +8539,6 @@ function PoolRoyaleGame({
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingCompletionHandledRef = useRef(false);
-  const requestedTrainingLevel = useMemo(() => {
-    if (!isTraining) return null;
-    const params = new URLSearchParams(location.search);
-    const raw = Number(params.get('level'));
-    return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : null;
-  }, [isTraining, location.search]);
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
   }, [trainingProgress]);
@@ -8554,13 +8547,11 @@ function PoolRoyaleGame({
   }, [trainingLevel]);
   useEffect(() => {
     const stored = loadTrainingProgress();
-    const desiredLevel = requestedTrainingLevel ?? stored.lastLevel;
-    const playableLevel = resolvePlayableTrainingLevel(desiredLevel, stored);
+    const playableLevel = resolvePlayableTrainingLevel(stored.lastLevel, stored);
     trainingProgressRef.current = stored;
     setTrainingProgress(stored);
     setTrainingLevel(playableLevel);
-    trainingCompletionHandledRef.current = false;
-  }, [requestedTrainingLevel]);
+  }, []);
   const currentTrainingInfo = useMemo(
     () => describeTrainingLevel(trainingLevel),
     [trainingLevel]
@@ -17579,10 +17570,7 @@ function PoolRoyaleGame({
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
 
   return (
-    <div
-      className="w-full h-[100vh] bg-black text-white overflow-hidden select-none"
-      data-table-id={tableId || undefined}
-    >
+    <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
 
@@ -18293,21 +18281,6 @@ export default function PoolRoyale() {
     const params = new URLSearchParams(location.search);
     return params.get('avatar') || '';
   }, [location.search]);
-  const tableId = useMemo(() => {
-    const params = new URLSearchParams(location.search);
-    const incoming = params.get('tableId');
-    if (incoming) {
-      try {
-        window.sessionStorage?.setItem('poolRoyaleTableId', incoming);
-      } catch {}
-      return incoming;
-    }
-    try {
-      return window.sessionStorage?.getItem('poolRoyaleTableId') || '';
-    } catch {
-      return '';
-    }
-  }, [location.search]);
   const stakeAmount = useMemo(() => {
     const params = new URLSearchParams(location.search);
     return Number(params.get('amount')) || 0;
@@ -18383,27 +18356,19 @@ export default function PoolRoyale() {
     return params.get('opponentAvatar') || '';
   }, [location.search]);
   return (
-    <div className="relative" data-table-id={tableId || undefined}>
-      {tableId && (
-        <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-lg bg-black/70 px-3 py-1 text-xs font-semibold text-background">
-          Table {tableId.slice(0, 8)}
-        </div>
-      )}
-      <PoolRoyaleGame
-        variantKey={variantKey}
-        tableSizeKey={tableSizeKey}
-        playType={playType}
-        mode={mode}
-        trainingMode={trainingMode}
-        trainingRulesEnabled={trainingRulesEnabled}
-        accountId={accountId}
-        tgId={tgId}
-        playerName={playerName}
-        playerAvatar={playerAvatar}
-        opponentName={opponentName}
-        opponentAvatar={opponentAvatar}
-        tableId={tableId}
-      />
-    </div>
+    <PoolRoyaleGame
+      variantKey={variantKey}
+      tableSizeKey={tableSizeKey}
+      playType={playType}
+      mode={mode}
+      trainingMode={trainingMode}
+      trainingRulesEnabled={trainingRulesEnabled}
+      accountId={accountId}
+      tgId={tgId}
+      playerName={playerName}
+      playerAvatar={playerAvatar}
+      opponentName={opponentName}
+      opponentAvatar={opponentAvatar}
+    />
   );
 }
