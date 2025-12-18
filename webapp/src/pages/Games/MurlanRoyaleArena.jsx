@@ -97,6 +97,56 @@ const CUSTOMIZATION_SECTIONS = [
   { key: 'cards', label: 'Cards', options: CARD_THEMES },
   { key: 'stools', label: 'Stools', options: STOOL_THEMES }
 ];
+const FRAME_RATE_STORAGE_KEY = 'murlanFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
+    fps: 50,
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+  },
+  {
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
+    fps: 60,
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
+    fps: 90,
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
+    fps: 120,
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
+    fps: 144,
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
+const DEFAULT_PIXEL_RATIO_CAP = 2;
 
 function createRegularPolygonShape(sides = 8, radius = 1) {
   const shape = new THREE.Shape();
@@ -387,6 +437,15 @@ export default function MurlanRoyaleArena({ search }) {
   });
   const appearanceRef = useRef(appearance);
   const [configOpen, setConfigOpen] = useState(false);
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
 
   const [gameState, setGameState] = useState(() => initializeGame(players));
   const [selectedIds, setSelectedIds] = useState([]);
@@ -401,6 +460,52 @@ export default function MurlanRoyaleArena({ search }) {
     });
     return map;
   }, [seatAnchors]);
+  const activeFrameRateOption = useMemo(
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
+  const frameQualityProfile = useMemo(() => {
+    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
+    const fallback = FRAME_RATE_OPTIONS[0];
+    const fps =
+      Number.isFinite(option?.fps) && option.fps > 0
+        ? option.fps
+        : Number.isFinite(fallback?.fps) && fallback.fps > 0
+          ? fallback.fps
+          : 60;
+    const renderScale =
+      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+        ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1)
+        : 1;
+    const pixelRatioCap =
+      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+        ? Math.max(1, option.pixelRatioCap)
+        : DEFAULT_PIXEL_RATIO_CAP;
+    return {
+      id: option?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      renderScale,
+      pixelRatioCap
+    };
+  }, [activeFrameRateOption]);
+  const frameQualityRef = useRef(frameQualityProfile);
+  useEffect(() => {
+    frameQualityRef.current = frameQualityProfile;
+  }, [frameQualityProfile]);
+  const resolvedFrameTiming = useMemo(() => {
+    const fps = Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
+      ? frameQualityProfile.fps
+      : 60;
+    const targetMs = 1000 / fps;
+    return { fps, targetMs };
+  }, [frameQualityProfile]);
+  const frameTimingRef = useRef(resolvedFrameTiming);
+  const lastFrameTimeRef = useRef(0);
+  useEffect(() => {
+    frameTimingRef.current = resolvedFrameTiming;
+    lastFrameTimeRef.current = 0;
+  }, [resolvedFrameTiming]);
+  const rendererRef = useRef(null);
 
   const customizationSections = useMemo(
     () =>
@@ -456,6 +561,15 @@ export default function MurlanRoyaleArena({ search }) {
     setAppearance((prev) => ensureAppearanceUnlocked(prev));
   }, [ensureAppearanceUnlocked]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    } catch (error) {
+      console.warn('Failed to persist frame rate', error);
+    }
+  }, [frameRateId]);
+
   const gameStateRef = useRef(gameState);
   const selectedRef = useRef(selectedIds);
   const humanTurnRef = useRef(false);
@@ -486,6 +600,28 @@ export default function MurlanRoyaleArena({ search }) {
   const soundsRef = useRef({ card: null, turn: null });
   const audioStateRef = useRef({ tableIds: [], activePlayer: null, status: null, initialized: false });
   const prevStateRef = useRef(null);
+  const applyRendererQuality = useCallback(() => {
+    const renderer = rendererRef.current || threeStateRef.current.renderer;
+    const host = mountRef.current;
+    const quality = frameQualityRef.current;
+    if (!renderer || !host) return;
+    const dpr =
+      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+        ? window.devicePixelRatio
+        : 1;
+    const pixelRatioCap =
+      typeof quality?.pixelRatioCap === 'number' && Number.isFinite(quality.pixelRatioCap)
+        ? Math.max(1, quality.pixelRatioCap)
+        : DEFAULT_PIXEL_RATIO_CAP;
+    const renderScale =
+      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
+        ? THREE.MathUtils.clamp(quality.renderScale, 0.75, 1)
+        : 1;
+    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+  }, []);
 
   const ensureCardMeshes = useCallback((state) => {
     const three = threeStateRef.current;
@@ -892,6 +1028,10 @@ export default function MurlanRoyaleArena({ search }) {
   }, [threeReady, updateSeatAnchors]);
 
   useEffect(() => {
+    applyRendererQuality();
+  }, [applyRendererQuality, frameQualityProfile]);
+
+  useEffect(() => {
     if (typeof window === 'undefined' || typeof Audio === 'undefined') return undefined;
     const card = new Audio('/assets/sounds/flipcard-91468.mp3');
     const turn = new Audio('/assets/sounds/wooden-door-knock-102902.mp3');
@@ -1005,13 +1145,15 @@ export default function MurlanRoyaleArena({ search }) {
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.85;
-      renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       renderer.domElement.style.width = '100%';
       renderer.domElement.style.height = '100%';
       renderer.domElement.style.display = 'block';
       mount.appendChild(renderer.domElement);
+      rendererRef.current = renderer;
+      applyRendererQuality();
+      lastFrameTimeRef.current = 0;
       dom = renderer.domElement;
 
       scene = new THREE.Scene();
@@ -1366,7 +1508,7 @@ export default function MurlanRoyaleArena({ search }) {
 
       const resize = () => {
         const { clientWidth, clientHeight } = mount;
-        renderer.setSize(clientWidth, clientHeight, false);
+        applyRendererQuality();
         camera.aspect = clientWidth / clientHeight;
         camera.updateProjectionMatrix();
         updateSeatAnchors();
@@ -1397,6 +1539,16 @@ export default function MurlanRoyaleArena({ search }) {
       };
 
       const animate = (time) => {
+        const frameTiming = frameTimingRef.current;
+        const minInterval = frameTiming?.targetMs && frameTiming.targetMs > 0 ? frameTiming.targetMs : 0;
+        if (minInterval > 0 && lastFrameTimeRef.current > 0) {
+          const delta = time - lastFrameTimeRef.current;
+          if (delta < minInterval - 1) {
+            frameId = requestAnimationFrame(animate);
+            return;
+          }
+        }
+        lastFrameTimeRef.current = time;
         stepAnimations(time);
         controls.update();
         renderer.render(scene, camera);
@@ -1453,6 +1605,8 @@ export default function MurlanRoyaleArena({ search }) {
         mount.removeChild(dom);
       }
       renderer?.dispose?.();
+      rendererRef.current = null;
+      lastFrameTimeRef.current = 0;
       cardGeometry?.dispose?.();
       store.cardMap.forEach(({ mesh }) => {
         const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
@@ -1533,7 +1687,7 @@ export default function MurlanRoyaleArena({ search }) {
       setThreeReady(false);
       setSeatAnchors([]);
     };
-  }, [applyStateToScene, ensureCardMeshes, players, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
+  }, [applyRendererQuality, applyStateToScene, ensureCardMeshes, players, toggleSelection, updateScoreboardDisplay, updateSeatAnchors]);
 
   useEffect(() => {
     if (!threeReady) return;
@@ -1737,6 +1891,37 @@ export default function MurlanRoyaleArena({ search }) {
                       </div>
                     </div>
                   ))}
+                  <div className="space-y-2">
+                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
+                    <div className="grid gap-2">
+                      {FRAME_RATE_OPTIONS.map((option) => {
+                        const active = option.id === frameRateId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setFrameRateId(option.id)}
+                            aria-pressed={active}
+                            className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                : 'border-white/10 bg-white/5 hover:border-white/20'
+                            }`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-[0.3em]">{option.label}</span>
+                              <span className="text-[11px] font-semibold tracking-wide">
+                                {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                              </span>
+                            </span>
+                            {option.description ? (
+                              <span className="mt-1 block text-[0.65rem] font-medium text-white/60">{option.description}</span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
