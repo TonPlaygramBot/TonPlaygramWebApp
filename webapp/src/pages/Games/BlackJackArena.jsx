@@ -1663,6 +1663,9 @@ function BlackJackArena({ search }) {
   );
 
   useEffect(() => {
+    const mount = mountRef.current;
+    if (!mount) return;
+    let renderer = null;
     let element = null;
     let handleResize = () => {};
     let handlePointerDown = () => {};
@@ -1672,14 +1675,12 @@ function BlackJackArena({ search }) {
     let handleContextRestored = () => {};
 
     (async () => {
-      const mount = mountRef.current;
-      if (!mount) return;
-      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    applyRendererSRGB(renderer);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.shadowMap.enabled = true;
-    mount.appendChild(renderer.domElement);
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      applyRendererSRGB(renderer);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.setSize(mount.clientWidth, mount.clientHeight);
+      renderer.shadowMap.enabled = true;
+      mount.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#030712');
@@ -2241,7 +2242,9 @@ function BlackJackArena({ search }) {
         r.dispose();
       }
       setSceneReady(false);
-      mount.removeChild(renderer.domElement);
+      if (renderer?.domElement?.parentElement === mount) {
+        mount.removeChild(renderer.domElement);
+      }
       threeRef.current = null;
     };
   }, [applyHeadOrientation, renderResetKey]);
