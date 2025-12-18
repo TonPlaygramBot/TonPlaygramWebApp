@@ -25,6 +25,7 @@ import InfoPopup from '../components/InfoPopup.jsx';
 import DevNotifyModal from '../components/DevNotifyModal.jsx';
 import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
+import DevAssistantModal from '../components/DevAssistantModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
 import {
@@ -101,6 +102,7 @@ export default function MyAccount() {
   const [notifyStatus, setNotifyStatus] = useState('');
   const [showNotifyModal, setShowNotifyModal] = useState(false);
   const [showTasksModal, setShowTasksModal] = useState(false);
+  const [showAssistantModal, setShowAssistantModal] = useState(false);
   const [twitterError, setTwitterError] = useState('');
   const [twitterLink, setTwitterLink] = useState('');
   const [unread, setUnread] = useState(0);
@@ -573,6 +575,18 @@ export default function MyAccount() {
             </button>
           </div>
 
+          <div className="prism-box p-4 mt-4 space-y-2 mx-auto wide-card">
+            <button
+              onClick={() => setShowAssistantModal(true)}
+              className="px-3 py-1 bg-primary hover:bg-primary-hover rounded text-background w-full"
+            >
+              Open Dev Assistant
+            </button>
+            <p className="text-xs text-subtext text-center">
+              Chat with a repo-aware helper that can outline tests, entry points, and flows for any game.
+            </p>
+          </div>
+
           <InfluencerClaimsCard />
         </>
       )}
@@ -592,6 +606,11 @@ export default function MyAccount() {
       <DevTasksModal
         open={showTasksModal}
         onClose={() => setShowTasksModal(false)}
+      />
+      <DevAssistantModal
+        open={showAssistantModal}
+        onClose={() => setShowAssistantModal(false)}
+        accountId={profile?.accountId}
       />
       <InfoPopup
         open={showSaved}
