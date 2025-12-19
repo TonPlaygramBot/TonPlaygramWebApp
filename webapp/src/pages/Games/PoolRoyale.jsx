@@ -11520,11 +11520,6 @@ function PoolRoyaleGame({
             if (safePosition.y < minCameraY) {
               safePosition.y = minCameraY;
             }
-            const storedFov = storedReplayCamera?.fov;
-            if (storedFov && camera.fov !== storedFov) {
-              camera.fov = storedFov;
-              camera.updateProjectionMatrix();
-            }
             camera.position.copy(safePosition);
             camera.lookAt(focusTarget);
             renderCamera = camera;
@@ -12986,11 +12981,9 @@ function PoolRoyaleGame({
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
-          const storedFov = activeCamera?.fov ?? camera.fov;
           replayCameraRef.current = {
             position: storedPosition,
-            target: storedTarget,
-            fov: storedFov
+            target: storedTarget
           };
         };
 
