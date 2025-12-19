@@ -606,11 +606,3 @@ export function getWatchCount(tableId) {
 export function getAppStats() {
   return get('/api/stats');
 }
-
-export function loginWithPassword(password) {
-  return post('/api/auth/login', { password });
-}
-
-export function fetchCurrentUser(token) {
-  return get('/api/auth/me', token);
-}
