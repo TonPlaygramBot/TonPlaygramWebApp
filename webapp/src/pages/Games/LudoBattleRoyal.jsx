@@ -4283,7 +4283,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <span className="sr-only">Open table customization</span>
           </button>
           {configOpen && (
-            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+            <div className="pointer-events-auto mt-2 flex max-h-[80vh] w-72 max-w-[80vw] flex-col rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
                 <button
@@ -4297,7 +4297,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </svg>
                 </button>
               </div>
-              <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+              <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
                 {customizationSections.map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
@@ -4332,74 +4332,74 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     </div>
                   </div>
                 ))}
-              </div>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                    Graphics
-                  </h3>
-                  <div className="mt-2 grid gap-2">
-                    {FRAME_RATE_OPTIONS.map((option) => {
-                      const active = option.id === frameRateId;
-                      return (
-                        <button
-                          key={option.id}
-                          type="button"
-                          onClick={() => setFrameRateId(option.id)}
-                          aria-pressed={active}
-                          className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                            active
-                              ? 'border-sky-300 bg-sky-300/90 text-black shadow-[0_0_16px_rgba(125,211,252,0.45)]'
-                              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10'
-                          }`}
-                        >
-                          <span className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
-                              {option.label}
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
+                      Graphics
+                    </h3>
+                    <div className="mt-2 grid gap-2">
+                      {FRAME_RATE_OPTIONS.map((option) => {
+                        const active = option.id === frameRateId;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => setFrameRateId(option.id)}
+                            aria-pressed={active}
+                            className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                              active
+                                ? 'border-sky-300 bg-sky-300/90 text-black shadow-[0_0_16px_rgba(125,211,252,0.45)]'
+                                : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                                {option.label}
+                              </span>
+                              <span className="text-xs font-semibold tracking-wide">
+                                {option.resolution
+                                  ? `${option.resolution} • ${option.fps} FPS`
+                                  : `${option.fps} FPS`}
+                              </span>
                             </span>
-                            <span className="text-xs font-semibold tracking-wide">
-                              {option.resolution
-                                ? `${option.resolution} • ${option.fps} FPS`
-                                : `${option.fps} FPS`}
-                            </span>
-                          </span>
-                          {option.description ? (
-                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
-                              {option.description}
-                            </span>
-                          ) : null}
-                        </button>
-                      );
-                    })}
+                            {option.description ? (
+                              <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                                {option.description}
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
-                    <span>Sound effects</span>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
-                      checked={soundEnabled}
-                      onChange={(event) => setSoundEnabled(event.target.checked)}
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      fitRef.current?.();
-                      setConfigOpen(false);
-                    }}
-                    className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
-                  >
-                    Center camera
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => window.location.reload()}
-                    className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
-                  >
-                    Restart game
-                  </button>
+                  <div className="space-y-3">
+                    <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
+                      <span>Sound effects</span>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border border-emerald-400/40 bg-transparent text-emerald-400 focus:ring-emerald-500"
+                        checked={soundEnabled}
+                        onChange={(event) => setSoundEnabled(event.target.checked)}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fitRef.current?.();
+                        setConfigOpen(false);
+                      }}
+                      className="w-full rounded-lg bg-white/10 py-2 text-center text-[0.7rem] font-semibold text-white transition hover:bg-white/20"
+                    >
+                      Center camera
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="w-full rounded-lg bg-emerald-500/20 py-2 text-center text-[0.7rem] font-semibold text-emerald-200 transition hover:bg-emerald-500/30"
+                    >
+                      Restart game
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
