@@ -1,6 +1,7 @@
 import './loadEnv.js';
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import bot from './bot.js';
 import { getInviteUrl } from './utils/notifications.js';
 import mongoose from 'mongoose';
@@ -25,6 +26,7 @@ import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
+import authRoutes from './routes/auth.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -39,6 +41,7 @@ import PostRecord from './models/PostRecord.js';
 import Task from './models/Task.js';
 import WatchRecord from './models/WatchRecord.js';
 import ActiveConnection from './models/ActiveConnection.js';
+import { authenticate } from './middleware/auth.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, writeFileSync } from 'fs';
@@ -90,11 +93,8 @@ if (!process.env.MONGO_URI) {
 
 const PORT = process.env.PORT || 3000;
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
-
   .split(',')
-
   .map((o) => o.trim())
-
   .filter(Boolean);
 
 const rateLimitWindowMs =
@@ -102,7 +102,13 @@ const rateLimitWindowMs =
 
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX) || 100;
 const app = express();
-app.use(cors({ origin: allowedOrigins.length ? allowedOrigins : '*' }));
+app.use(
+  cors({
+    origin: allowedOrigins.length ? allowedOrigins : true,
+    credentials: true
+  })
+);
+app.use(cookieParser());
 const httpServer = http.createServer(app);
 const io = initSocket(httpServer, {
   cors: { origin: allowedOrigins.length ? allowedOrigins : '*', methods: ['GET', 'POST'] },
@@ -135,6 +141,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false
 });
 app.use('/api', apiLimiter);
+app.use('/api/auth', authRoutes);
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
@@ -143,7 +150,7 @@ app.use('/api/influencer', influencerRoutes);
 app.use('/api/referral', referralRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/account', accountRoutes);
-app.use('/api/profile', profileRoutes);
+app.use('/api/profile', authenticate, profileRoutes);
 if (process.env.ENABLE_TWITTER_OAUTH === 'true') {
   app.use('/api/twitter', twitterAuthRoutes);
 }

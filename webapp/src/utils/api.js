@@ -21,6 +21,16 @@ const resolvedEnv = (() => {
 export const API_BASE_URL = resolvedEnv.VITE_API_BASE_URL || '';
 export const API_AUTH_TOKEN = resolvedEnv.VITE_API_AUTH_TOKEN || '';
 
+let authToken = null;
+
+export function setAuthToken(token) {
+  authToken = token || null;
+}
+
+export function getAuthToken() {
+  return authToken;
+}
+
 export async function ping() {
   const data = await get('/api/ping');
   return data.message;
@@ -31,8 +41,9 @@ function wait(ms) {
 }
 
 async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
+  const fetchOptions = { credentials: 'include', ...options };
   try {
-    const res = await fetch(url, options);
+    const res = await fetch(url, fetchOptions);
     if (res.status === 502 && retries > 0) {
       await wait(backoff);
       return fetchWithRetry(url, options, retries - 1, backoff * 2);
@@ -49,7 +60,8 @@ async function fetchWithRetry(url, options = {}, retries = 3, backoff = 500) {
 
 async function post(path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const bearer = token || authToken;
+  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
@@ -79,6 +91,9 @@ async function post(path, body, token) {
     return { error: 'Invalid server response' };
   }
   if (!res.ok) {
+    if (res.status === 401) {
+      return { error: 'unauthorized', status: 401 };
+    }
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
     }
@@ -89,7 +104,8 @@ async function post(path, body, token) {
 
 async function put(path, body, token) {
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const bearer = token || authToken;
+  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
@@ -117,6 +133,9 @@ async function put(path, body, token) {
     return { error: 'Invalid server response' };
   }
   if (!res.ok) {
+    if (res.status === 401) {
+      return { error: 'unauthorized', status: 401 };
+    }
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
     }
@@ -127,7 +146,8 @@ async function put(path, body, token) {
 
 async function get(path, token) {
   const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const bearer = token || authToken;
+  if (bearer) headers['Authorization'] = `Bearer ${bearer}`;
   const initData = window?.Telegram?.WebApp?.initData;
   if (initData) headers['X-Telegram-Init-Data'] = initData;
 
@@ -151,6 +171,9 @@ async function get(path, token) {
     return { error: 'Invalid server response' };
   }
   if (!res.ok) {
+    if (res.status === 401) {
+      return { error: 'unauthorized', status: 401 };
+    }
     if (res.status === 502) {
       return { error: 'Server unavailable. Please try again later.' };
     }
@@ -607,8 +630,8 @@ export function getAppStats() {
   return get('/api/stats');
 }
 
-export function loginWithPassword(password) {
-  return post('/api/auth/login', { password });
+export function loginWithCredentials(username, password) {
+  return post('/api/auth/login', { username, password });
 }
 
 export function fetchCurrentUser(token) {

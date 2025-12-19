@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema({
 
   googleEmail: { type: String, default: '' },
 
+  username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
+
+  passwordHash: { type: String },
+
   walletAddress: { type: String, unique: true, sparse: true },
   walletPublicKey: { type: String },
 

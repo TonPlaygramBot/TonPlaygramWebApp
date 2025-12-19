@@ -42,6 +42,7 @@ export async function incrementReferralBonus(code) {
 export function sanitizeUser(user) {
   if (!user) return null;
   return {
+    username: user.username,
     accountId: user.accountId,
     walletAddress: user.walletAddress,
     walletPublicKey: user.walletPublicKey,
