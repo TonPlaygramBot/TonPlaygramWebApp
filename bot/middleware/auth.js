@@ -1,47 +1,63 @@
-import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
+import { sanitizeUser } from '../utils/userUtils.js';
 
-function verifyTelegramInitData(initData) {
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const COOKIE_NAME = 'auth_token';
+const TOKEN_TTL = process.env.JWT_TTL || '7d';
+
+function getToken(req) {
+  const header = req.headers.authorization || '';
+  if (header.startsWith('Bearer ')) {
+    return header.slice(7);
+  }
+  if (req.cookies && req.cookies[COOKIE_NAME]) {
+    return req.cookies[COOKIE_NAME];
+  }
+  return null;
+}
+
+export function signToken(user) {
+  return jwt.sign({ sub: user.id, username: user.username }, JWT_SECRET, {
+    expiresIn: TOKEN_TTL
+  });
+}
+
+export function setAuthCookie(res, token) {
+  const secure = process.env.NODE_ENV === 'production';
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    secure,
+    sameSite: 'strict',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
+}
+
+export async function authenticate(req, res, next) {
+  const token = getToken(req);
+  if (!token) {
+    return res.status(401).json({ error: 'unauthorized' });
+  }
   try {
-    const params = new URLSearchParams(initData);
-    const hash = params.get('hash');
-    if (!hash) return null;
-    params.delete('hash');
-    const dataCheckString = [...params.entries()]
-      .map(([k, v]) => `${k}=${v}`)
-      .sort()
-      .join('\n');
-    const secret = crypto
-      .createHmac('sha256', 'WebAppData')
-      .update(process.env.BOT_TOKEN || '')
-      .digest();
-    const computed = crypto
-      .createHmac('sha256', secret)
-      .update(dataCheckString)
-      .digest('hex');
-    if (computed !== hash) return null;
-    return Object.fromEntries(params.entries());
-  } catch {
-    return null;
+    const payload = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(payload.sub);
+    if (!user) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+    req.authUser = user;
+    req.authPayload = payload;
+    req.sanitizedUser = sanitizeUser(user);
+    next();
+  } catch (err) {
+    console.error('Auth verification failed:', err.message);
+    res.status(401).json({ error: 'unauthorized' });
   }
 }
 
-export default function authenticate(req, res, next) {
-  const auth = req.get('authorization') || '';
-  const token = auth.replace(/^Bearer\s+/i, '');
-  const allowedToken = process.env.API_AUTH_TOKEN;
-  const initData = req.get('x-telegram-init-data');
-
-  if (initData) {
-    const data = verifyTelegramInitData(initData);
-    if (data) {
-      req.auth = { telegramId: data.user ? Number(JSON.parse(data.user).id) : undefined };
-      return next();
-    }
-  }
-
-  if (allowedToken && token === allowedToken) {
-    return next();
-  }
-
-  res.status(401).json({ error: 'unauthorized' });
+export function clearAuthCookie(res) {
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: process.env.NODE_ENV === 'production'
+  });
 }
