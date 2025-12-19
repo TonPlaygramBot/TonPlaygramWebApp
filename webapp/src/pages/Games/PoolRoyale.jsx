@@ -13536,20 +13536,43 @@ function PoolRoyaleGame({
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const ambient = new THREE.AmbientLight(
+        const mirroredSpot = new THREE.SpotLight(
           0xffffff,
+          12.289725,
+          0,
+          Math.PI * 0.36,
+          0.42,
+          1
+        );
+        mirroredSpot.position.set(
+          -triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight + lightRetreatOffset + lightReflectionGuard,
+          -triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
+        );
+        mirroredSpot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
+        mirroredSpot.decay = 1.0;
+        mirroredSpot.castShadow = true;
+        mirroredSpot.shadow.mapSize.set(2048, 2048);
+        mirroredSpot.shadow.bias = -0.00004;
+        mirroredSpot.shadow.normalBias = 0.006;
+        lightingRig.add(mirroredSpot);
+        lightingRig.add(mirroredSpot.target);
+
+        const ambientHemisphere = new THREE.HemisphereLight(
+          0xffffff,
+          0x0b1020,
           0.0223125
-        ); // match the snooker ambient fill for identical arena lighting
-        ambient.position.set(
+        ); // match the snooker ambient fill for identical arena lighting while keeping the fill centered
+        ambientHemisphere.position.set(
           0,
           tableSurfaceY +
             scaledHeight * 1.95 +
             lightHeightLift +
             lightRetreatOffset +
             lightReflectionGuard,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.12
+          0
         );
-        lightingRig.add(ambient);
+        lightingRig.add(ambientHemisphere);
 
         lightingRigRef.current = {
           group: lightingRig,
@@ -13557,7 +13580,8 @@ function PoolRoyaleGame({
           hemisphereRig,
           dirLight,
           spot,
-          ambient
+          mirroredSpot,
+          ambientHemisphere
         };
         applyLightingPreset();
       };
