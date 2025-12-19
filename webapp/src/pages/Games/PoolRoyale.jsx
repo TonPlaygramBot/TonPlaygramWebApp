@@ -9576,6 +9576,7 @@ function PoolRoyaleGame({
   const cuePullCurrentRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
   const replayCameraRef = useRef(null);
+  const replayFrameCameraRef = useRef(null);
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -11488,6 +11489,39 @@ function PoolRoyaleGame({
           rig.activeRail = useBack ? 'back' : 'front';
         };
 
+        const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const fallbackTarget = storedReplayCamera?.target?.clone() ??
+            new THREE.Vector3(playerOffsetRef.current * scale, minTargetY, 0);
+          const fallbackPosition = storedReplayCamera?.position?.clone() ?? camera.position.clone();
+          const fallbackFov = Number.isFinite(storedReplayCamera?.fov)
+            ? storedReplayCamera.fov
+            : camera.fov;
+          const lerpVector = (a, b, t) => {
+            if (!a && !b) return null;
+            const start = a ?? b;
+            const end = b ?? a;
+            const startVec = start?.clone?.() ?? start;
+            const endVec = end?.clone?.() ?? end;
+            if (!startVec || !endVec || typeof startVec.lerp !== 'function') {
+              return start ?? end ?? null;
+            }
+            return startVec.lerp(endVec, t);
+          };
+          const cameraA = replayFrameCamera?.frameA ?? replayFrameCamera?.frameB ?? null;
+          const cameraB = replayFrameCamera?.frameB ?? cameraA;
+          const alpha = THREE.MathUtils.clamp(replayFrameCamera?.alpha ?? 0, 0, 1);
+          const position = lerpVector(cameraA?.position, cameraB?.position, alpha) ?? fallbackPosition;
+          const target = lerpVector(cameraA?.target, cameraB?.target, alpha) ?? fallbackTarget;
+          const fovA = Number.isFinite(cameraA?.fov) ? cameraA.fov : null;
+          const fovB = Number.isFinite(cameraB?.fov) ? cameraB.fov : fovA;
+          const resolvedFov = Number.isFinite(fovA) || Number.isFinite(fovB)
+            ? THREE.MathUtils.lerp(fovA ?? fovB, fovB ?? fovA, alpha)
+            : fallbackFov;
+          return { position, target, fov: resolvedFov, minTargetY };
+        };
+
         const updateCamera = () => {
           const replayActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
@@ -11507,22 +11541,25 @@ function PoolRoyaleGame({
           if (replayActive) {
             const storedReplayCamera = replayCameraRef.current;
             const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-            const focusTarget = storedReplayCamera?.target?.clone() ??
+            const replayCamera = resolveReplayCameraView(
+              replayFrameCameraRef.current,
+              storedReplayCamera
+            );
+            const { position, target, fov: replayFov, minTargetY } = replayCamera;
+            const focusTarget = target ??
               new THREE.Vector3(
-                playerOffsetRef.current * scale,
+                playerOffsetRef.current * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE),
                 minTargetY,
                 0
               );
             focusTarget.y = Math.max(focusTarget.y, minTargetY);
-            const safePosition = storedReplayCamera?.position?.clone() ?? camera.position.clone();
+            const safePosition = position?.clone?.() ?? position ?? camera.position.clone();
             const minCameraY = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
             if (safePosition.y < minCameraY) {
               safePosition.y = minCameraY;
             }
-            const storedFov = storedReplayCamera?.fov;
-            if (Number.isFinite(storedFov) && camera.fov !== storedFov) {
-              camera.fov = storedFov;
+            if (Number.isFinite(replayFov) && camera.fov !== replayFov) {
+              camera.fov = replayFov;
               camera.updateProjectionMatrix();
             }
             camera.position.copy(safePosition);
@@ -12836,6 +12873,23 @@ function PoolRoyaleGame({
             }
           }));
 
+        const captureReplayCameraSnapshot = () => {
+          const currentCamera = activeRenderCameraRef.current ?? camera;
+          const position = currentCamera?.position?.clone?.() ?? null;
+          const fovSnapshot = Number.isFinite(currentCamera?.fov)
+            ? currentCamera.fov
+            : camera.fov;
+          const targetSnapshot = lastCameraTargetRef.current
+            ? lastCameraTargetRef.current.clone()
+            : null;
+          if (!position && !targetSnapshot) return null;
+          return {
+            position,
+            target: targetSnapshot,
+            fov: fovSnapshot
+          };
+        };
+
         const applyBallSnapshot = (snapshot) => {
           if (!Array.isArray(snapshot)) return;
           const map = new Map(snapshot.map((entry) => [entry.id, entry]));
@@ -12868,7 +12922,12 @@ function PoolRoyaleGame({
           }
           const relative = Math.max(0, timestamp - start);
           const snapshot = captureBallSnapshot();
-          shotRecording.frames.push({ t: relative, balls: snapshot });
+          const cameraSnapshot = captureReplayCameraSnapshot();
+          shotRecording.frames.push({
+            t: relative,
+            balls: snapshot,
+            camera: cameraSnapshot
+          });
           const cueBall = balls.find((b) => b.id === 'cue');
           if (cueBall?.mesh) {
             const cuePos = cueBall.mesh.position.clone();
@@ -13081,6 +13140,7 @@ function PoolRoyaleGame({
           replayPlaybackRef.current = null;
           shotReplayRef.current = null;
           replayCameraRef.current = null;
+          replayFrameCameraRef.current = null;
         };
 
         const enterTopView = (immediate = false) => {
@@ -16356,6 +16416,11 @@ function PoolRoyaleGame({
               : 0;
             applyReplayFrame(frameA, frameB, alpha);
             updateReplayTrail(playback.cuePath, targetTime);
+            replayFrameCameraRef.current = {
+              frameA: frameA?.camera ?? null,
+              frameB: frameB?.camera ?? frameA?.camera ?? null,
+              alpha
+            };
             const frameCamera = updateCamera();
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
