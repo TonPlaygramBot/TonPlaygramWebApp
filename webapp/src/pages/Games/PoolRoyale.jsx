@@ -3807,7 +3807,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.66;
+  const cameraProximityScale = 0.58;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
@@ -4298,8 +4298,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 0.32;
-const TOP_VIEW_RADIUS_SCALE = 0.28;
+const TOP_VIEW_MARGIN = 1.08;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.042;
@@ -4457,6 +4456,7 @@ const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
+const TMP_VEC3_TOP_VIEW = new THREE.Vector3();
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -12258,23 +12258,30 @@ function PoolRoyaleGame({
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
           if (topViewRef.current) {
+            const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
+              playerOffsetRef.current,
+              ORBIT_FOCUS_BASE_Y,
+              0
+            ).multiplyScalar(worldScaleFactor);
+            lookTarget = topFocusTarget;
+            lastCameraTargetRef.current.copy(topFocusTarget);
             const topRadius = clampOrbitRadius(
               Math.max(
-                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
+                fitRadius(camera, TOP_VIEW_MARGIN),
                 CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
               )
             );
-            const topTheta = sph.theta;
+            const topTheta = Math.PI;
             const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
             TMP_SPH.set(topRadius, topPhi, topTheta);
             camera.up.set(0, 1, 0);
             camera.position.setFromSpherical(TMP_SPH);
-            camera.position.add(focusTarget);
-            camera.lookAt(focusTarget);
+            camera.position.add(topFocusTarget);
+            camera.lookAt(topFocusTarget);
             renderCamera = camera;
             broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
-            broadcastArgs.targetWorld = focusTarget.clone();
+              broadcastCamerasRef.current?.defaultFocusWorld ?? topFocusTarget;
+            broadcastArgs.targetWorld = topFocusTarget.clone();
               broadcastArgs.lerp = 0.12;
             } else {
               camera.up.set(0, 1, 0);
@@ -13148,16 +13155,22 @@ function PoolRoyaleGame({
           topViewLockedRef.current = true;
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
-          const focusStore = ensureOrbitFocus();
-          const focusTarget = focusStore?.target ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
-          const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), CAMERA.minR);
-          const targetRadius = Math.max(
-            maxRadius * TOP_VIEW_RADIUS_SCALE,
-            CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+          const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
+            playerOffsetRef.current,
+            ORBIT_FOCUS_BASE_Y,
+            0
+          ).multiplyScalar(
+            Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
-          sph.radius = clampOrbitRadius(targetRadius);
+          const targetRadius = clampOrbitRadius(
+            Math.max(
+              fitRadius(camera, TOP_VIEW_MARGIN),
+              CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+            )
+          );
+          sph.radius = targetRadius;
           sph.phi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
-          lastCameraTargetRef.current.copy(focusTarget);
+          lastCameraTargetRef.current.copy(topFocusTarget);
           syncBlendToSpherical();
           if (immediate) {
             updateCamera();
