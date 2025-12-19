@@ -11520,6 +11520,11 @@ function PoolRoyaleGame({
             if (safePosition.y < minCameraY) {
               safePosition.y = minCameraY;
             }
+            const storedFov = storedReplayCamera?.fov;
+            if (Number.isFinite(storedFov) && camera.fov !== storedFov) {
+              camera.fov = storedFov;
+              camera.updateProjectionMatrix();
+            }
             camera.position.copy(safePosition);
             camera.lookAt(focusTarget);
             renderCamera = camera;
@@ -12969,7 +12974,7 @@ function PoolRoyaleGame({
           return { frames, cuePath, duration };
         };
 
-        const storeReplayCameraFrame = () => {
+        const captureReplayCameraFrame = () => {
           const activeCamera = activeRenderCameraRef.current ?? camera;
           const storedTarget =
             lastCameraTargetRef.current?.clone() ??
@@ -12981,10 +12986,18 @@ function PoolRoyaleGame({
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
-          replayCameraRef.current = {
+          const storedFov = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
+            : camera.fov;
+          return {
             position: storedPosition,
-            target: storedTarget
+            target: storedTarget,
+            fov: storedFov
           };
+        };
+
+        const storeReplayCameraFrame = () => {
+          replayCameraRef.current = captureReplayCameraFrame();
         };
 
         const resetCameraForReplay = () => {
@@ -13004,7 +13017,17 @@ function PoolRoyaleGame({
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
-          storeReplayCameraFrame();
+          const storedCameraFrame =
+            shotRecording.cameraFrame ?? captureReplayCameraFrame() ?? null;
+          if (storedCameraFrame) {
+            replayCameraRef.current = {
+              position: storedCameraFrame.position?.clone?.() ?? storedCameraFrame.position ?? null,
+              target: storedCameraFrame.target?.clone?.() ?? storedCameraFrame.target ?? null,
+              fov: storedCameraFrame.fov
+            };
+          } else {
+            replayCameraRef.current = null;
+          }
           resetCameraForReplay();
           replayPlayback = {
             frames: trimmed.frames,
@@ -14820,6 +14843,7 @@ function PoolRoyaleGame({
               longShot: replayTags.has('long'),
               startTime: performance.now(),
               startState: captureBallSnapshot(),
+              cameraFrame: captureReplayCameraFrame(),
               frames: [],
               cuePath: [],
               replayTags: Array.from(replayTags),
