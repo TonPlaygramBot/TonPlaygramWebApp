@@ -4298,8 +4298,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.12;
-const TOP_VIEW_MIN_RADIUS_SCALE = 0.94;
+const TOP_VIEW_MARGIN = 1.18;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.13;
@@ -10759,14 +10759,16 @@ function PoolRoyaleGame({
       }
 
       const resolveBroadcastDistance = () => {
-        const verticalFov = THREE.MathUtils.degToRad(STANDING_VIEW_FOV);
-        const aspect = 9 / 16; // worst-case portrait aspect to guarantee full coverage
-        const halfVertical = verticalFov / 2;
-        const halfHorizontal = Math.atan(Math.tan(halfVertical) * aspect);
-        const safety = BALL_R * 6;
-        const verticalNeed = (PLAY_H / 2 + safety) / Math.tan(halfVertical);
-        const horizontalNeed = (PLAY_W / 2 + safety) / Math.tan(halfHorizontal);
-        return Math.max(verticalNeed, horizontalNeed);
+        const worstCaseAspect = 9 / 16; // worst-case portrait aspect to guarantee full coverage
+        const tempCamera = new THREE.PerspectiveCamera(
+          STANDING_VIEW_FOV,
+          worstCaseAspect
+        );
+        const topDownRadius = Math.max(
+          fitRadius(tempCamera, TOP_VIEW_MARGIN),
+          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+        );
+        return topDownRadius;
       };
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
