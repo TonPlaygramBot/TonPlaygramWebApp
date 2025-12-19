@@ -11520,6 +11520,11 @@ function PoolRoyaleGame({
             if (safePosition.y < minCameraY) {
               safePosition.y = minCameraY;
             }
+            const storedFov = storedReplayCamera?.fov;
+            if (Number.isFinite(storedFov) && camera.fov !== storedFov) {
+              camera.fov = storedFov;
+              camera.updateProjectionMatrix();
+            }
             camera.position.copy(safePosition);
             camera.lookAt(focusTarget);
             renderCamera = camera;
@@ -12981,9 +12986,14 @@ function PoolRoyaleGame({
           if (storedPosition && storedPosition.y < minTargetY) {
             storedPosition.y = minTargetY;
           }
+          const storedFov = Number.isFinite(activeCamera?.fov)
+            ? activeCamera.fov
+            : camera.fov;
           replayCameraRef.current = {
             position: storedPosition,
-            target: storedTarget
+            target: storedTarget,
+            fov: storedFov,
+            restoreFov: camera?.fov
           };
         };
 
@@ -13049,6 +13059,14 @@ function PoolRoyaleGame({
             applyBallSnapshot(playback.postState);
           }
           replayTrail.visible = false;
+          const storedReplayCamera = replayCameraRef.current;
+          const targetFov = Number.isFinite(storedReplayCamera?.restoreFov)
+            ? storedReplayCamera.restoreFov
+            : CAMERA.fov;
+          if (Number.isFinite(targetFov) && camera.fov !== targetFov) {
+            camera.fov = targetFov;
+            camera.updateProjectionMatrix();
+          }
           if (playback.pocketDrops) {
             const pocketDuration = Number.isFinite(playback.duration)
               ? playback.duration
