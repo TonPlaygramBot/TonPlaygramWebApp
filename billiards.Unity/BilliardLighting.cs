@@ -1,6 +1,5 @@
 #if UNITY_5_3_OR_NEWER
 using UnityEngine;
-using UnityEngine.Rendering;
 
 public class BilliardLighting : MonoBehaviour
 {
@@ -16,18 +15,18 @@ public class BilliardLighting : MonoBehaviour
 
         for (int i = 0; i < lightPositions.Length; i++)
         {
-            CreateTableSpotLight("BilliardSpotLight_" + i, lightPositions[i], Quaternion.Euler(90f, 0f, 0f));
+            GameObject lightObj = new GameObject("BilliardSpotLight_" + i);
+            Light spotLight = lightObj.AddComponent<Light>();
+            spotLight.type = LightType.Spot;
+            spotLight.color = Color.white;
+            spotLight.intensity = 2.25f;       // brightness reduced by 10%
+            spotLight.range = 15f;             // distance
+            spotLight.spotAngle = 60f;         // cone size
+            spotLight.shadows = LightShadows.Soft;
+
+            lightObj.transform.position = lightPositions[i];
+            lightObj.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
         }
-
-        // Add a fourth spot light from the opposite side of the table to balance illumination
-        Vector3 oppositeSide = new Vector3(3.25f, 5f, 0f);
-        CreateTableSpotLight("BilliardSpotLight_Opposite", oppositeSide, Quaternion.Euler(90f, 180f, 0f));
-
-        // Soften the scene with a hemispheric ambient fill centred over the table
-        RenderSettings.ambientMode = AmbientMode.Trilight;
-        RenderSettings.ambientSkyColor = new Color(0.55f, 0.65f, 0.75f, 1f);   // subtle skylight
-        RenderSettings.ambientEquatorColor = new Color(0.35f, 0.45f, 0.45f, 1f); // mid-tint over the cloth
-        RenderSettings.ambientGroundColor = new Color(0.15f, 0.12f, 0.1f, 1f);  // gentle bounce from the wood rails
 
         // Apply a shiny plastic (PBR) material to each ball while keeping its colour
         Shader standard = Shader.Find("Standard");
@@ -67,21 +66,6 @@ public class BilliardLighting : MonoBehaviour
 
         // Enhance felt detail so the green cloth stands out
         EnhanceClothTexture();
-    }
-
-    void CreateTableSpotLight(string name, Vector3 position, Quaternion rotation)
-    {
-        GameObject lightObj = new GameObject(name);
-        Light spotLight = lightObj.AddComponent<Light>();
-        spotLight.type = LightType.Spot;
-        spotLight.color = Color.white;
-        spotLight.intensity = 2.1f;       // balanced so multiple spots do not overexpose
-        spotLight.range = 15f;            // distance
-        spotLight.spotAngle = 60f;        // cone size
-        spotLight.shadows = LightShadows.Soft;
-
-        lightObj.transform.position = position;
-        lightObj.transform.rotation = rotation;
     }
 
     void CreateHighlightLight(Transform parent, Vector3 localPosition)
