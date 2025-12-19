@@ -4298,8 +4298,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.18;
-const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
+const TOP_VIEW_MARGIN = 1.26;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.13;
@@ -10770,15 +10770,25 @@ function PoolRoyaleGame({
         );
         return topDownRadius;
       };
+      const resolveTopDownCoords = () => {
+        const radius = resolveBroadcastDistance();
+        const phi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+        const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
+        const height = focusY + Math.cos(phi) * radius;
+        const horizontal = Math.sin(phi) * radius;
+        return { radius, height, horizontal };
+      };
+      const { height: topDownHeight, horizontal: topDownHorizontal } =
+        resolveTopDownCoords();
       const broadcastClearance = wallThickness * 1.1 + BALL_R * 4;
       const shortRailTarget = Math.max(
-        resolveBroadcastDistance(),
+        topDownHorizontal,
         roomDepth / 2 - wallThickness - broadcastClearance
       );
       const shortRailSlideLimit = 0;
       const broadcastRig = createBroadcastCameras({
         floorY,
-        cameraHeight: TABLE_Y + TABLE.THICK + BALL_R * 5.4,
+        cameraHeight: topDownHeight,
         shortRailZ: shortRailTarget,
         slideLimit: shortRailSlideLimit,
         arenaHalfDepth: roomDepth / 2 - wallThickness - BALL_R * 4
