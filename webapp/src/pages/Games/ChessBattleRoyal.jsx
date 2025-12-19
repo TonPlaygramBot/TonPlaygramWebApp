@@ -224,7 +224,7 @@ const CAMERA_INITIAL_PHI_EXTRA = 0;
 const CAMERA_TOPDOWN_LOCK = THREE.MathUtils.degToRad(4);
 const DEFAULT_TARGET_FPS = 90;
 const MIN_TARGET_FPS = 50;
-const MAX_TARGET_FPS = 140;
+const MAX_TARGET_FPS = 144;
 const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
 const RENDER_PIXEL_RATIO_SCALE = 1.0;
 const MIN_RENDER_PIXEL_RATIO = 0.85;
@@ -313,59 +313,64 @@ function detectRefreshRateHint() {
 const GRAPHICS_STORAGE_KEY = 'chessBattleRoyalGraphics';
 const GRAPHICS_OPTIONS = Object.freeze([
   {
-    id: 'battery50',
-    label: 'Battery Saver (50 Hz)',
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 0.88,
-    pixelRatioCap: 1.1,
-    pixelRatioScale: 0.92,
-    description: 'For 50–60 Hz screens and thermal saving.'
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    pixelRatioScale: 1,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
-    id: 'balanced60',
-    label: 'Match (60 Hz)',
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 0.95,
-    pixelRatioCap: 1.22,
-    pixelRatioScale: 1.0,
-    description: 'Default pacing tuned for most devices.'
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    pixelRatioScale: 1,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
   },
   {
-    id: 'smooth90',
-    label: 'Smooth (90 Hz)',
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 0.92,
-    pixelRatioCap: 1.25,
-    pixelRatioScale: 1.02,
-    description: 'High-refresh option for 90 Hz displays.'
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    pixelRatioScale: 1,
+    resolution: 'QHD render • DPR 1.7 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
-    id: 'performance120',
-    label: 'Performance (120 Hz)',
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 0.9,
-    pixelRatioCap: 1.2,
-    pixelRatioScale: 1.05,
-    description: 'For 120 Hz capable hardware.'
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    pixelRatioScale: 1,
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
-    id: 'tournament140',
-    label: 'Tournament (140 Hz)',
-    fps: 140,
-    renderScale: 0.86,
-    pixelRatioCap: 1.15,
-    pixelRatioScale: 1.08,
-    description: 'Aggressive scaling targeting 140 Hz.'
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    pixelRatioScale: 1,
+    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_GRAPHICS_ID = 'balanced60';
+const DEFAULT_GRAPHICS_ID = 'fhd60';
 
 function resolveDefaultGraphicsId() {
   const hint = detectRefreshRateHint();
-  if (hint >= 140) return 'tournament140';
-  if (hint >= 120) return 'performance120';
-  if (hint >= 90) return 'smooth90';
-  if (hint && hint <= 50) return 'battery50';
+  if (hint >= 144) return 'ultra144';
+  if (hint >= 120) return 'uhd120';
+  if (hint >= 90) return 'qhd90';
+  if (hint && hint <= 50) return 'hd50';
   return DEFAULT_GRAPHICS_ID;
 }
 
@@ -8240,7 +8245,7 @@ function Chess3D({
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
-                    <p className="mt-1 text-[0.7rem] text-white/60">Select your refresh target.</p>
+                    <p className="mt-1 text-[0.7rem] text-white/60">Match the Murlan Royale quality presets.</p>
                   </div>
                   <div className="mt-2 grid gap-2">
                     {GRAPHICS_OPTIONS.map((option) => {
@@ -8253,16 +8258,22 @@ function Chess3D({
                           aria-pressed={active}
                           className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
                             active
-                              ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                              : 'border-white/10 bg-white/5 hover:border-white/20'
+                              ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                              : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
                           }`}
                         >
                           <span className="flex items-center justify-between gap-2">
-                            <span className="text-[0.7rem] font-semibold text-gray-100">{option.label}</span>
-                            <span className="text-[0.75rem] font-semibold text-white/80">{`${option.fps} Hz`}</span>
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
+                              {option.label}
+                            </span>
+                            <span className="text-[11px] font-semibold tracking-wide text-sky-100">
+                              {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                            </span>
                           </span>
                           {option.description ? (
-                            <span className="mt-1 block text-[0.65rem] text-white/60">{option.description}</span>
+                            <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                              {option.description}
+                            </span>
                           ) : null}
                         </button>
                       );
