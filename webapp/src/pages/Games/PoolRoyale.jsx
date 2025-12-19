@@ -802,11 +802,12 @@ const DEFAULT_CUE_STYLE_INDEX = Math.max(
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
-const OFFICIAL_SNOOKER_PLAYFIELD_SCALE = 3569 / 2540; // widen to an official snooker bed while keeping the ball/pocket scale anchored
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
-  W: 66 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
-  H: 132 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
+  // Match the Pool Royale footprint so the snooker build renders identically sized rails and fascia
+  // while restoring the wider silhouette from the earlier build without changing the table height.
+  W: 72 * TABLE_SCALE,
+  H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
@@ -864,15 +865,17 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPBSA full-size snooker specifications (playing surface ~3569 mm × 1778 mm)
-const WIDTH_REF = 3569;
-const HEIGHT_REF = 1778;
+// Reuse the Pool Royale playfield and pocket metrics so pockets + balls line up exactly with that table
+// (WPA 9ft reference: 100" × 50", 2.25" balls)
+const WIDTH_REF = 2540;
+const HEIGHT_REF = 1270;
 const BALL_D_REF = 57.15;
-const BAULK_FROM_BAULK_REF = 558.8; // legacy head string distance retained to keep the existing pocket layout intact
+const BAULK_FROM_BAULK_REF = 737; // Baulk line distance from the baulk cushion (29")
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 558.8; // legacy foot spot distance retained to preserve the original ball roadmap
-const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
-const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
+const PINK_FROM_TOP_REF = 737;
+const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
+const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (Pool Royale match)
+const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
