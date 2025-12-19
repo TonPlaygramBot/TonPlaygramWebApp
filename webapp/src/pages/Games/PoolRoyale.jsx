@@ -4298,8 +4298,8 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.08;
-const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
+const TOP_VIEW_MARGIN = 1.12;
+const TOP_VIEW_MIN_RADIUS_SCALE = 0.94;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.13;
@@ -12279,9 +12279,13 @@ function PoolRoyaleGame({
             camera.position.add(topFocusTarget);
             camera.lookAt(topFocusTarget);
             renderCamera = camera;
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? topFocusTarget;
+            const topCameraWorld = camera.position.clone();
+            broadcastArgs.focusWorld = topFocusTarget.clone();
             broadcastArgs.targetWorld = topFocusTarget.clone();
+            broadcastArgs.orbitWorld = topCameraWorld;
+            if (broadcastCamerasRef.current) {
+              broadcastCamerasRef.current.defaultFocusWorld = topFocusTarget.clone();
+            }
               broadcastArgs.lerp = 0.12;
             } else {
               camera.up.set(0, 1, 0);
