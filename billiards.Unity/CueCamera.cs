@@ -80,6 +80,11 @@ public class CueCamera : MonoBehaviour
     // high above the cue, 1 drops it to the closest permitted view.
     [Range(0f, 1f)]
     public float defaultCueAimLowering = 0.35f;
+    // Hard cap on how far the player can lower the camera toward the cue.
+    // Keeps the framing just above the cue stick instead of letting the
+    // view slide down into the shaft.
+    [Range(0f, 1f)]
+    public float maxCueAimLowering = 0.82f;
 
     [Header("Cue aim framing")]
     // Scale applied to the cue distance when the camera is raised. Values below
@@ -185,7 +190,13 @@ public class CueCamera : MonoBehaviour
     /// <summary>Adjust the cue aiming blend (0 = raised, 1 = closest view).</summary>
     public void SetCueAimLowering(float value)
     {
-        cueAimLowering = Mathf.Clamp01(value);
+        cueAimLowering = ClampCueAimLowering(value);
+    }
+
+    private float ClampCueAimLowering(float value)
+    {
+        float capped = Mathf.Clamp01(maxCueAimLowering);
+        return Mathf.Clamp(value, 0f, capped);
     }
 
     private Vector3 GetInitialCueForward()
@@ -241,7 +252,7 @@ public class CueCamera : MonoBehaviour
         yaw = GetShortRailYaw(cueAimSideSign);
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
         currentBall = CueBall;
-        cueAimLowering = Mathf.Clamp01(defaultCueAimLowering);
+        cueAimLowering = ClampCueAimLowering(defaultCueAimLowering);
         cueAimForward = GetInitialCueForward();
         targetViewFocus = GetBroadcastFocus(CueBall != null ? CueBall.position : tableBounds.center);
     }
