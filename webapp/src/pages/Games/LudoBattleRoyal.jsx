@@ -4297,7 +4297,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </svg>
                 </button>
               </div>
-              <div className="mt-4 max-h-72 space-y-4 overflow-y-auto pr-1">
+              <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
                 {customizationSections.map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
