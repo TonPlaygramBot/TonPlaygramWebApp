@@ -1106,7 +1106,7 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 10; // pull the broadcast cams tighter while keeping at least half the field visible
+const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 8; // pull the broadcast cams tighter while keeping at least half the field visible and making the rail overhead view feel closer
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
@@ -4305,11 +4305,11 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.26;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
-const CUE_VIEW_RADIUS_RATIO = 0.04;
+const CUE_VIEW_RADIUS_RATIO = 0.038;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
-  STANDING_VIEW_PHI + 0.26
+  STANDING_VIEW_PHI + 0.22
 );
 const CUE_VIEW_PHI_LIFT = 0.14;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
