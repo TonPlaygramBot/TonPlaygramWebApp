@@ -12992,17 +12992,7 @@ function PoolRoyaleGame({
           topViewRef.current = false;
           topViewLockedRef.current = false;
           setIsTopDownView(false);
-          const storedReplayCamera = replayCameraRef.current;
-          if (storedReplayCamera?.target) {
-            const orbitStore = ensureOrbitFocus();
-            orbitStore.target.copy(storedReplayCamera.target);
-            lastCameraTargetRef.current.copy(storedReplayCamera.target);
-          } else {
-            setOrbitFocusToDefault();
-          }
-          if (storedReplayCamera?.position) {
-            camera.position.copy(storedReplayCamera.position);
-          }
+          setOrbitFocusToDefault();
           applyCameraBlend(1);
           syncBlendToSpherical();
           updateCamera();
