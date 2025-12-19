@@ -2338,6 +2338,91 @@ const LIGHTING_OPTIONS = Object.freeze([
       spotAngle: Math.PI * 0.42,
       ambientIntensity: 0.18
     }
+  },
+  {
+    id: 'hdr-broadcast',
+    label: 'HDR Broadcast',
+    description: 'Even championship TV grid tuned for skin tones and cloth detail.',
+    settings: {
+      hemiSky: 0xeaf2ff,
+      hemiGround: 0x0a0f1c,
+      hemiIntensity: 1.14,
+      rimIntensity: 0.8,
+      dirColor: 0xffffff,
+      dirIntensity: 1.6,
+      spotColor: 0xffffff,
+      spotIntensity: 12.8,
+      spotAngle: Math.PI * 0.37,
+      ambientIntensity: 0.2
+    }
+  },
+  {
+    id: 'championship-warm',
+    label: 'Championship Warmth',
+    description: 'Warm arena LEDs with soft falloff for premium live finals.',
+    settings: {
+      hemiSky: 0xfff3e0,
+      hemiGround: 0x120b06,
+      hemiIntensity: 1.04,
+      rimIntensity: 0.7,
+      dirColor: 0xfff7eb,
+      dirIntensity: 1.32,
+      spotColor: 0xfff2df,
+      spotIntensity: 10.8,
+      spotAngle: Math.PI * 0.4,
+      ambientIntensity: 0.19
+    }
+  },
+  {
+    id: 'esports-hero',
+    label: 'Esports Hero',
+    description: 'High-contrast LED rig with heroic speculars and deep rims.',
+    settings: {
+      hemiSky: 0xe5edff,
+      hemiGround: 0x080c18,
+      hemiIntensity: 1.08,
+      rimIntensity: 0.94,
+      dirColor: 0xf7f9ff,
+      dirIntensity: 1.72,
+      spotColor: 0xffffff,
+      spotIntensity: 13.4,
+      spotAngle: Math.PI * 0.33,
+      ambientIntensity: 0.13
+    }
+  },
+  {
+    id: 'neon-showmatch',
+    label: 'Neon Showmatch',
+    description: 'Accent-heavy showmatch rig with cinematic edge lights.',
+    settings: {
+      hemiSky: 0xd8e6ff,
+      hemiGround: 0x0a1022,
+      hemiIntensity: 1.06,
+      rimIntensity: 1,
+      dirColor: 0xe6f0ff,
+      dirIntensity: 1.26,
+      spotColor: 0xaad6ff,
+      spotIntensity: 11,
+      spotAngle: Math.PI * 0.43,
+      ambientIntensity: 0.22
+    }
+  },
+  {
+    id: 'daylight-skylight',
+    label: 'Daylight Skylight',
+    description: 'Broad skylight wash for training clarity and natural colours.',
+    settings: {
+      hemiSky: 0xf4fbff,
+      hemiGround: 0x0a1018,
+      hemiIntensity: 1.2,
+      rimIntensity: 0.74,
+      dirColor: 0xfdfefe,
+      dirIntensity: 1.18,
+      spotColor: 0xf7fbff,
+      spotIntensity: 9.8,
+      spotAngle: Math.PI * 0.45,
+      ambientIntensity: 0.24
+    }
   }
 ]);
 const LIGHTING_PRESET_MAP = Object.freeze(
