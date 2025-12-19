@@ -1169,7 +1169,7 @@ const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
-const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
+const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.46; // keep orbit height aligned with the cue while staying safely above the stick
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
 const CUE_PULL_SMOOTHING = 0.2;
@@ -4232,7 +4232,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.22;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.24; // halt the downward sweep sooner so the lowest angle stays comfortably above the cue
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
