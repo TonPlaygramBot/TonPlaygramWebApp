@@ -759,13 +759,11 @@ const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
   const OFFICIAL_SNOOKER_PLAYFIELD_SCALE = 3569 / 2540; // widen to an official snooker bed while keeping the ball/pocket scale anchored
-  const TABLE_RAIL_THICKNESS = 1.8 * TABLE_SCALE; // match Pool Royale rail stack height
-  const TABLE_RAIL_WIDTH = 2.6 * TABLE_SCALE; // mirror Pool Royale rail width
   const TABLE = {
     W: 66 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
     H: 132 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
-    THICK: TABLE_RAIL_THICKNESS,
-    WALL: TABLE_RAIL_WIDTH
+    THICK: 1.8 * TABLE_SCALE,
+    WALL: 2.6 * TABLE_SCALE
   };
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // match Pool Royale rail height so wood meets the cushion seam cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
@@ -1103,8 +1101,8 @@ const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_HEIGHT_REDUCTION = 0.8; // align table height with the Pool Royale stance
-const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after 20% reduction
+const TABLE_HEIGHT_REDUCTION = 0.92; // lift the overall table stack so the playfield sits higher than the previous lowered stance
+const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after 8% reduction
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
