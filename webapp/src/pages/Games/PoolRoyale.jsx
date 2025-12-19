@@ -11353,7 +11353,21 @@ function PoolRoyaleGame({
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
-          const safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
+          const aimLineClearance = Math.max(0, AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN - orbitTargetY);
+          const aimLineLimit =
+            aimLineClearance > 1e-6
+              ? Math.acos(
+                  THREE.MathUtils.clamp(
+                    aimLineClearance / Math.max(radius, 1e-3),
+                    -1,
+                    1
+                  )
+                ) - CAMERA_RAIL_SAFETY
+              : null;
+          let safePhi = Math.min(rawPhi, phiRailLimit - CAMERA_RAIL_SAFETY);
+          if (aimLineLimit != null) {
+            safePhi = Math.min(safePhi, aimLineLimit);
+          }
           const clampedPhi = clamp(safePhi, CAMERA.minPhi, CAMERA.maxPhi);
           let finalRadius = radius;
           let minRadiusForRails = null;
@@ -12324,9 +12338,9 @@ function PoolRoyaleGame({
                   );
                 }
               }
+              const aimLineWorldY =
+                (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
               if (TMP_SPH.radius > 1e-6) {
-                const aimLineWorldY =
-                  (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
                 const aimOffset = aimLineWorldY - lookTarget.y;
                 if (aimOffset > 0) {
                   const normalized = aimOffset / TMP_SPH.radius;
@@ -12357,7 +12371,8 @@ function PoolRoyaleGame({
               const cueLevelWorldY = (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
               const surfaceClampY = Math.max(
                 baseSurfaceWorldY + surfaceMarginWorld,
-                cueLevelWorldY
+                cueLevelWorldY,
+                aimLineWorldY
               );
               if (camera.position.y < surfaceClampY) {
                 camera.position.y = surfaceClampY;
