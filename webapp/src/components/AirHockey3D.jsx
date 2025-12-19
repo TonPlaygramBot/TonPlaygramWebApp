@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { getGameVolume } from '../utils/sound.js';
 import { getAvatarUrl } from '../utils/avatarUtils.js';
@@ -10,6 +10,105 @@ import {
 } from '../utils/airHockeyInventory.js';
 
 const CUSTOMIZATION_KEYS = Object.freeze(['field', 'table', 'puck', 'mallet', 'rails', 'goals']);
+
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+
+const DEFAULT_RENDER_PIXEL_RATIO_CAP = 1.25;
+const RENDER_PIXEL_RATIO_SCALE = 1.0;
+const MIN_RENDER_PIXEL_RATIO = 0.85;
+const GRAPHICS_STORAGE_KEY = 'airHockeyGraphics';
+const GRAPHICS_OPTIONS = Object.freeze([
+  {
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    pixelRatioScale: 1,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+  },
+  {
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    pixelRatioScale: 1,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+  },
+  {
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
+    fps: 90,
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    pixelRatioScale: 1,
+    resolution: 'QHD render • DPR 1.7 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+  },
+  {
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    pixelRatioScale: 1,
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    pixelRatioScale: 1,
+    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+  }
+]);
+const DEFAULT_GRAPHICS_ID = 'fhd60';
+
+function detectRefreshRateHint() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return null;
+  const queries = [
+    { query: '(min-refresh-rate: 143hz)', fps: 144 },
+    { query: '(min-refresh-rate: 119hz)', fps: 120 },
+    { query: '(min-refresh-rate: 89hz)', fps: 90 },
+    { query: '(max-refresh-rate: 59hz)', fps: 60 },
+    { query: '(max-refresh-rate: 50hz)', fps: 50 },
+    { query: '(prefers-reduced-motion: reduce)', fps: 50 }
+  ];
+  for (const { query, fps } of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return fps;
+      }
+    } catch {}
+  }
+  return null;
+}
+
+function resolveDefaultGraphicsId() {
+  const hint = detectRefreshRateHint();
+  if (hint >= 144) return 'ultra144';
+  if (hint >= 120) return 'uhd120';
+  if (hint >= 90) return 'qhd90';
+  if (hint && hint <= 50) return 'hd50';
+  return DEFAULT_GRAPHICS_ID;
+}
+
+function selectPerformanceProfile(option = null) {
+  const targetFps = clamp(option?.fps ?? detectRefreshRateHint() ?? 60, 45, 144);
+  return {
+    targetFps,
+    renderScale: option?.renderScale ?? 1,
+    pixelRatioCap: option?.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
+    pixelRatioScale: option?.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
+  };
+}
 
 const POOL_ENVIRONMENT = (() => {
   const TABLE_SCALE = 1.17;
@@ -114,6 +213,23 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     ...defaultSelections
   });
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [graphicsId, setGraphicsId] = useState(() => {
+    const fallback = resolveDefaultGraphicsId();
+    if (typeof window === 'undefined') return fallback;
+    try {
+      const stored = window.localStorage?.getItem(GRAPHICS_STORAGE_KEY);
+      if (stored && GRAPHICS_OPTIONS.some((opt) => opt.id === stored)) return stored;
+    } catch {}
+    return fallback;
+  });
+  const activeGraphicsOption = useMemo(
+    () =>
+      GRAPHICS_OPTIONS.find((opt) => opt.id === graphicsId) ||
+      GRAPHICS_OPTIONS.find((opt) => opt.id === DEFAULT_GRAPHICS_ID) ||
+      GRAPHICS_OPTIONS[0],
+    [graphicsId]
+  );
+  const initialProfile = useMemo(() => selectPerformanceProfile(activeGraphicsOption), [activeGraphicsOption]);
   const targetRef = useRef(Number(target) || 3);
   const gameOverRef = useRef(false);
   const audioRef = useRef({
@@ -149,6 +265,35 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     height: 0,
     knobHeight: 0
   });
+  const rendererRef = useRef(null);
+  const renderSettingsRef = useRef({
+    targetFrameIntervalMs: 1000 / initialProfile.targetFps,
+    renderResolutionScale: initialProfile.renderScale ?? 1,
+    pixelRatioCap: initialProfile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
+    pixelRatioScale: initialProfile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
+  });
+  const lastFrameTimeRef = useRef(0);
+  const frameAccumulatorRef = useRef(0);
+  const updateRendererSettings = useCallback(() => {
+    const renderer = rendererRef.current;
+    const host = hostRef.current;
+    if (!renderer || !host || typeof window === 'undefined') return;
+
+    const { renderResolutionScale, pixelRatioCap, pixelRatioScale } = renderSettingsRef.current;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
+    const pixelRatio = Math.max(
+      MIN_RENDER_PIXEL_RATIO,
+      Math.min(pixelRatioCap, scaledPixelRatio)
+    );
+
+    renderer.setPixelRatio(pixelRatio);
+    const targetWidth = host.clientWidth * renderResolutionScale;
+    const targetHeight = host.clientHeight * renderResolutionScale;
+    renderer.setSize(targetWidth, targetHeight, false);
+    renderer.domElement.style.width = `${host.clientWidth}px`;
+    renderer.domElement.style.height = `${host.clientHeight}px`;
+  }, []);
   const tableGroupRef = useRef(null);
   const avatarSpritesRef = useRef({ player: null, ai: null });
   const getOption = (key, optionId) => {
@@ -213,6 +358,25 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
   useEffect(() => {
     targetRef.current = Number(target) || 3;
   }, [target]);
+
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(GRAPHICS_STORAGE_KEY, graphicsId);
+    } catch {}
+  }, [graphicsId]);
+
+  useEffect(() => {
+    const profile = selectPerformanceProfile(activeGraphicsOption);
+    renderSettingsRef.current = {
+      targetFrameIntervalMs: 1000 / profile.targetFps,
+      renderResolutionScale: profile.renderScale ?? 1,
+      pixelRatioCap: profile.pixelRatioCap ?? DEFAULT_RENDER_PIXEL_RATIO_CAP,
+      pixelRatioScale: profile.pixelRatioScale ?? RENDER_PIXEL_RATIO_SCALE
+    };
+    lastFrameTimeRef.current = 0;
+    frameAccumulatorRef.current = 0;
+    updateRendererSettings();
+  }, [activeGraphicsOption, updateRendererSettings]);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -341,12 +505,12 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       antialias: true,
       powerPreference: 'high-performance'
     });
-    renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
-    renderer.setSize(host.clientWidth, host.clientHeight);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.85;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     host.appendChild(renderer.domElement);
+    rendererRef.current = renderer;
+    updateRendererSettings();
 
     const createPuckTexture = () => {
       const size = 512;
@@ -944,7 +1108,7 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       camera.position.copy(cameraAnchor);
       camera.lookAt(cameraFocus);
       camera.updateProjectionMatrix();
-      renderer.setSize(host.clientWidth, host.clientHeight);
+      updateRendererSettings();
       for (let i = 0; i < 20; i++) {
         const needsRetreat = tableCorners.some((corner) => {
           const sample = corner.clone();
@@ -962,8 +1126,6 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       vel: new THREE.Vector3(0, 0, 0),
       friction: 0.996
     };
-
-    const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
     const ray = new THREE.Raycaster();
     const ndc = new THREE.Vector2();
@@ -1081,12 +1243,26 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
     };
 
     // loop
-    const clock = new THREE.Clock();
     reset();
     fitCameraToTable();
 
-    const tick = () => {
-      const dt = Math.min(0.033, clock.getDelta());
+    const tick = (timestamp = performance.now()) => {
+      if (lastFrameTimeRef.current === 0) {
+        lastFrameTimeRef.current = timestamp;
+        frameAccumulatorRef.current = 0;
+      }
+
+      const elapsedMs = Math.min(1000, timestamp - lastFrameTimeRef.current);
+      frameAccumulatorRef.current += elapsedMs;
+      const targetInterval = renderSettingsRef.current.targetFrameIntervalMs || 16.67;
+      if (frameAccumulatorRef.current < targetInterval * 0.92) {
+        raf.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const dt = Math.min(0.033, frameAccumulatorRef.current / 1000);
+      frameAccumulatorRef.current = Math.max(0, frameAccumulatorRef.current - targetInterval);
+      lastFrameTimeRef.current = timestamp;
 
       puck.position.x += S.vel.x;
       puck.position.z += S.vel.z;
@@ -1154,6 +1330,9 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
       renderer.domElement.removeEventListener('touchmove', onMove);
       renderer.domElement.removeEventListener('mousemove', onMove);
       renderer.domElement.removeEventListener('pointerdown', primeAudio);
+      rendererRef.current = null;
+      lastFrameTimeRef.current = 0;
+      frameAccumulatorRef.current = 0;
       Object.keys(audioRef.current).forEach((key) => {
         const audio = audioRef.current[key];
         if (audio) {
@@ -1412,6 +1591,44 @@ export default function AirHockey3D({ player, ai, target = 11, playType = 'regul
         </button>
         {showCustomizer && (
           <div className="w-72 max-h-[70vh] overflow-y-auto bg-black/70 border border-white/15 rounded-lg p-3 space-y-3 backdrop-blur">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/70">Graphics</p>
+                <p className="mt-1 text-[0.7rem] text-white/60">Match the Murlan Royale quality presets.</p>
+              </div>
+              <div className="mt-2 grid gap-2">
+                {GRAPHICS_OPTIONS.map((option) => {
+                  const active = option.id === graphicsId;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => setGraphicsId(option.id)}
+                      aria-pressed={active}
+                      className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                        active
+                          ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">
+                          {option.label}
+                        </span>
+                        <span className="text-[11px] font-semibold tracking-wide text-sky-100">
+                          {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                        </span>
+                      </span>
+                      {option.description ? (
+                        <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                          {option.description}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             {renderOptionRow('Field', 'field')}
             {renderOptionRow('Table', 'table')}
             {renderOptionRow('Puck', 'puck')}
