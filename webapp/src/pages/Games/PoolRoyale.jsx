@@ -9575,6 +9575,7 @@ function PoolRoyaleGame({
   const cuePullTargetRef = useRef(0);
   const cuePullCurrentRef = useRef(0);
   const lastCameraTargetRef = useRef(new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0));
+  const replayCameraRef = useRef(null);
   const updateSpinDotPosition = useCallback((value, blocked) => {
     if (!value) value = { x: 0, y: 0 };
     const dot = spinDotElRef.current;
@@ -11503,7 +11504,30 @@ function PoolRoyaleGame({
             broadcastArgs.lerp = broadcastSystem.smoothing;
           }
           const galleryState = cueGalleryStateRef.current;
-          if (galleryState?.active) {
+          if (replayActive) {
+            const storedReplayCamera = replayCameraRef.current;
+            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+            const focusTarget = storedReplayCamera?.target?.clone() ??
+              new THREE.Vector3(
+                playerOffsetRef.current * scale,
+                minTargetY,
+                0
+              );
+            focusTarget.y = Math.max(focusTarget.y, minTargetY);
+            const safePosition = storedReplayCamera?.position?.clone() ?? camera.position.clone();
+            const minCameraY = minTargetY + CAMERA_CUE_SURFACE_MARGIN * scale;
+            if (safePosition.y < minCameraY) {
+              safePosition.y = minCameraY;
+            }
+            camera.position.copy(safePosition);
+            camera.lookAt(focusTarget);
+            renderCamera = camera;
+            lookTarget = focusTarget;
+            broadcastArgs.focusWorld = focusTarget.clone();
+            broadcastArgs.targetWorld = focusTarget.clone();
+            broadcastArgs.lerp = 0.04;
+          } else if (galleryState?.active) {
             const basePosition =
               galleryState.basePosition ?? galleryState.position ?? null;
             const baseTarget =
@@ -12945,6 +12969,24 @@ function PoolRoyaleGame({
           return { frames, cuePath, duration };
         };
 
+        const storeReplayCameraFrame = () => {
+          const activeCamera = activeRenderCameraRef.current ?? camera;
+          const storedTarget =
+            lastCameraTargetRef.current?.clone() ??
+            new THREE.Vector3(playerOffsetRef.current, ORBIT_FOCUS_BASE_Y, 0);
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          storedTarget.y = Math.max(storedTarget.y ?? 0, minTargetY);
+          const storedPosition = activeCamera?.position?.clone?.() ?? null;
+          if (storedPosition && storedPosition.y < minTargetY) {
+            storedPosition.y = minTargetY;
+          }
+          replayCameraRef.current = {
+            position: storedPosition,
+            target: storedTarget
+          };
+        };
+
         const resetCameraForReplay = () => {
           lookModeRef.current = false;
           topViewRef.current = false;
@@ -12962,6 +13004,7 @@ function PoolRoyaleGame({
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
+          storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
             frames: trimmed.frames,
@@ -13019,6 +13062,7 @@ function PoolRoyaleGame({
           replayPlayback = null;
           replayPlaybackRef.current = null;
           shotReplayRef.current = null;
+          replayCameraRef.current = null;
         };
 
         const enterTopView = (immediate = false) => {
