@@ -3807,7 +3807,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.66;
+  const cameraProximityScale = 0.56;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
@@ -4302,6 +4302,7 @@ const TOP_VIEW_MARGIN = 0.32;
 const TOP_VIEW_RADIUS_SCALE = 0.28;
 const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_THETA = Math.PI; // lock the overhead orientation so the table stays framed
 const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.13;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -12258,23 +12259,25 @@ function PoolRoyaleGame({
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
           if (topViewRef.current) {
+            const focus = new THREE.Vector3(
+              playerOffsetRef.current,
+              ORBIT_FOCUS_BASE_Y,
+              0
+            ).multiplyScalar(worldScaleFactor);
             const topRadius = clampOrbitRadius(
-              Math.max(
-                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
-                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-              )
+              Math.max(fitRadius(camera, TOP_VIEW_MARGIN), CAMERA.minR)
             );
-            const topTheta = sph.theta;
+            const topTheta = TOP_VIEW_THETA;
             const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
             TMP_SPH.set(topRadius, topPhi, topTheta);
             camera.up.set(0, 1, 0);
             camera.position.setFromSpherical(TMP_SPH);
-            camera.position.add(focusTarget);
-            camera.lookAt(focusTarget);
+            camera.position.add(focus);
+            camera.lookAt(focus);
             renderCamera = camera;
             broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
-            broadcastArgs.targetWorld = focusTarget.clone();
+              broadcastCamerasRef.current?.defaultFocusWorld ?? focus;
+            broadcastArgs.targetWorld = focus.clone();
               broadcastArgs.lerp = 0.12;
             } else {
               camera.up.set(0, 1, 0);
@@ -13148,15 +13151,12 @@ function PoolRoyaleGame({
           topViewLockedRef.current = true;
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
-          const focusStore = ensureOrbitFocus();
-          const focusTarget = focusStore?.target ?? new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
-          const maxRadius = clampOrbitRadius(getMaxOrbitRadius(), CAMERA.minR);
-          const targetRadius = Math.max(
-            maxRadius * TOP_VIEW_RADIUS_SCALE,
-            CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-          );
+          setOrbitFocusToDefault();
+          const focusTarget = new THREE.Vector3(0, ORBIT_FOCUS_BASE_Y, 0);
+          const targetRadius = fitRadius(camera, TOP_VIEW_MARGIN);
           sph.radius = clampOrbitRadius(targetRadius);
           sph.phi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+          sph.theta = TOP_VIEW_THETA;
           lastCameraTargetRef.current.copy(focusTarget);
           syncBlendToSpherical();
           if (immediate) {
