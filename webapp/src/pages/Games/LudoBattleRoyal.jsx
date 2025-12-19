@@ -4283,7 +4283,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
             <span className="sr-only">Open table customization</span>
           </button>
           {configOpen && (
-            <div className="pointer-events-auto mt-2 w-72 max-w-[80vw] rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur">
+            <div className="pointer-events-auto mt-2 flex w-72 max-w-[80vw] flex-col rounded-2xl border border-white/15 bg-black/80 p-4 text-xs text-white shadow-2xl backdrop-blur max-h-[85vh]">
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[10px] uppercase tracking-[0.4em] text-sky-200/80">Table Setup</span>
                 <button
@@ -4297,46 +4297,47 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </svg>
                 </button>
               </div>
-              <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
-                {customizationSections.map(({ key, label, options }) => (
-                  <div key={key} className="space-y-2">
-                    <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {options.map((option) => {
-                        const selected = appearance[key] === option.idx;
-                        const disabled =
-                          key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && DEFAULT_PLAYER_COUNT > 4;
-                        return (
-                          <button
-                            key={option.id ?? option.idx}
-                            type="button"
-                            onClick={() => {
-                              if (disabled) return;
-                              setAppearance((prev) => ({ ...prev, [key]: option.idx }));
-                            }}
-                            aria-pressed={selected}
-                            disabled={disabled}
-                            className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
-                              selected
-                                ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
-                                : 'border-white/10 bg-white/5 hover:border-white/20'
-                            } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
-                          >
-                            {renderPreview(key, option)}
-                            <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
-                              {option.label}
-                            </span>
-                          </button>
-                        );
-                      })}
+              <div className="mt-4 flex-1 space-y-6 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+                <div className="space-y-4">
+                  {customizationSections.map(({ key, label, options }) => (
+                    <div key={key} className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {options.map((option) => {
+                          const selected = appearance[key] === option.idx;
+                          const disabled =
+                            key === 'tableShape' && option.id === DIAMOND_SHAPE_ID && DEFAULT_PLAYER_COUNT > 4;
+                          return (
+                            <button
+                              key={option.id ?? option.idx}
+                              type="button"
+                              onClick={() => {
+                                if (disabled) return;
+                                setAppearance((prev) => ({ ...prev, [key]: option.idx }));
+                              }}
+                              aria-pressed={selected}
+                              disabled={disabled}
+                              className={`flex flex-col items-center rounded-2xl border p-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                                selected
+                                  ? 'border-sky-400/80 bg-sky-400/10 shadow-[0_0_12px_rgba(56,189,248,0.35)]'
+                                  : 'border-white/10 bg-white/5 hover:border-white/20'
+                              } ${disabled ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''}`}
+                            >
+                              {renderPreview(key, option)}
+                              <span className="mt-2 text-center text-[0.65rem] font-semibold text-gray-200">
+                                {option.label}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                    Graphics
+                  ))}
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
+                      Graphics
                   </h3>
                   <div className="mt-2 grid gap-2">
                     {FRAME_RATE_OPTIONS.map((option) => {
@@ -4371,9 +4372,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                         </button>
                       );
                     })}
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-3">
+                  <div className="space-y-3">
                   <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
                     <span>Sound effects</span>
                     <input
