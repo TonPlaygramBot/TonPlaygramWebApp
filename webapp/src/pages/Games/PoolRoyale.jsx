@@ -10766,7 +10766,13 @@ function PoolRoyaleGame({
       }
 
       const resolveBroadcastDistance = () => {
-        const worstCaseAspect = 9 / 16; // worst-case portrait aspect to guarantee full coverage
+        const hostRect = host?.getBoundingClientRect?.();
+        const liveAspect =
+          hostRect && hostRect.width > 0 && hostRect.height > 0
+            ? hostRect.width / hostRect.height
+            : null;
+        const worstCaseAspect =
+          liveAspect != null ? Math.min(liveAspect, 9 / 16) : 9 / 16; // clamp to the actual portrait aspect to keep all pockets in frame
         const tempCamera = new THREE.PerspectiveCamera(
           STANDING_VIEW_FOV,
           worstCaseAspect
