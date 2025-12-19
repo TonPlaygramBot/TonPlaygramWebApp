@@ -11488,6 +11488,7 @@ function PoolRoyaleGame({
         };
 
         const updateCamera = () => {
+          const replayActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -12212,7 +12213,7 @@ function PoolRoyaleGame({
             } else {
               camera.up.set(0, 1, 0);
               TMP_SPH.copy(sph);
-              if (sidePocketAimRef.current && !shooting) {
+              if (sidePocketAimRef.current && !shooting && !replayActive) {
                 TMP_SPH.radius = clampOrbitRadius(
                   TMP_SPH.radius * RAIL_OVERHEAD_AIM_ZOOM
                 );
@@ -12222,7 +12223,7 @@ function PoolRoyaleGame({
                   CAMERA.maxPhi - CAMERA_RAIL_SAFETY
                 );
               }
-              if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1) {
+              if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1 && !replayActive) {
                 const hudState = hudRef.current ?? null;
                 if (hudState?.inHand && !shooting) {
                   TMP_SPH.radius = clampOrbitRadius(
