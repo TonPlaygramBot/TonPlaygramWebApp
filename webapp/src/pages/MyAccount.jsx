@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import {
   getAccountInfo,
   createAccount,
@@ -15,7 +16,6 @@ import {
   getTelegramLastName,
   getTelegramPhotoUrl
 } from '../utils/telegram.js';
-import LoginOptions from '../components/LoginOptions.jsx';
 import { DEV_INFO } from '../utils/constants.js';
 import BalanceSummary from '../components/BalanceSummary.jsx';
 import AvatarPickerModal from '../components/AvatarPickerModal.jsx';
@@ -38,6 +38,7 @@ import {
   getDefaultDominoRoyalLoadout,
   listOwnedDominoOptions
 } from '../utils/dominoRoyalInventory.js';
+import { useAuth } from '../contexts/AuthContext.jsx';
 
 import { FiCopy } from 'react-icons/fi';
 
@@ -74,8 +75,13 @@ function formatValue(value, decimals = 2) {
 }
 
 export default function MyAccount() {
+  const { isAuthenticated } = useAuth();
   let telegramId = null;
   let googleId = null;
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   try {
     telegramId = getTelegramId();
@@ -83,7 +89,7 @@ export default function MyAccount() {
 
   if (!telegramId) {
     googleId = localStorage.getItem('googleId');
-    if (!googleId) return <LoginOptions />;
+    if (!googleId) return <Navigate to="/login" replace />;
   }
 
   const [profile, setProfile] = useState(null);
