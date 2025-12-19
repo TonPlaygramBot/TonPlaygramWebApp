@@ -4297,7 +4297,10 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                   </svg>
                 </button>
               </div>
-              <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1 touch-pan-y overscroll-contain">
+              <div
+                className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1 touch-pan-y overscroll-contain"
+                style={{ WebkitOverflowScrolling: 'touch' }}
+              >
                 {customizationSections.map(({ key, label, options }) => (
                   <div key={key} className="space-y-2">
                     <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">{label}</p>
@@ -4332,12 +4335,9 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     </div>
                   </div>
                 ))}
-              </div>
-              <div className="mt-4 space-y-4">
-                <div>
-                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">
-                    Graphics
-                  </h3>
+
+                <div className="border-t border-white/10 pt-4">
+                  <h3 className="text-[10px] uppercase tracking-[0.35em] text-sky-100/80">Graphics</h3>
                   <div className="mt-2 grid gap-2">
                     {FRAME_RATE_OPTIONS.map((option) => {
                       const active = option.id === frameRateId;
@@ -4373,6 +4373,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
                     })}
                   </div>
                 </div>
+              </div>
                 <div className="space-y-3">
                   <label className="flex items-center justify-between text-[0.7rem] text-gray-200">
                     <span>Sound effects</span>
