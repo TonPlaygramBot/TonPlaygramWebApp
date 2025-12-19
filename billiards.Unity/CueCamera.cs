@@ -37,7 +37,7 @@ public class CueCamera : MonoBehaviour
     // camera from intersecting the cue or cloth when the player drops in tight.
     public float cueMinimumDistance = 0.02f;
     // Height the cue view should reach when the player lifts the camera.
-    public float cueRaisedHeight = 0.86f;
+    public float cueRaisedHeight = 0.9f;
     // Extra padding applied when the player lifts the camera so the frame has
     // a little more breathing room above the shaft while keeping the cue in
     // view.
@@ -85,7 +85,7 @@ public class CueCamera : MonoBehaviour
     // Scale applied to the cue distance when the camera is raised. Values below
     // 1 slide the camera closer to the cloth even before the player lowers it.
     [Range(0.1f, 1f)]
-    public float cueRaisedDistanceScale = 0.82f;
+    public float cueRaisedDistanceScale = 0.78f;
     // Scale applied once the camera is fully lowered toward the cue. Lower
     // values bring the framing tighter to the cue ball and aiming line.
     [Range(0.1f, 1f)]
@@ -120,7 +120,7 @@ public class CueCamera : MonoBehaviour
     [Header("Broadcast view")]
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 0.9f;
-    public float broadcastHeight = 0.44f;
+    public float broadcastHeight = 0.42f;
     // Bounds that encompass the full playing surface including rails and pockets.
     public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.64465f, 0.72f, 3.301325f));
     // Keep a small margin inside the camera frame so the rails never touch the
@@ -130,7 +130,7 @@ public class CueCamera : MonoBehaviour
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
-    public float broadcastMinDistance = 0.95f;
+    public float broadcastMinDistance = 0.9f;
     public float broadcastMaxDistance = 5.0875f;
     // Blend between the table centre and the active focus (cue ball or target)
     // when aiming the broadcast view. Keeps the play interesting while still
