@@ -241,7 +241,7 @@ function classifyRendererTier(rendererString) {
 
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return 'fhd60';
+    return 'balanced60';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -255,39 +255,39 @@ function detectPreferredFrameRateId() {
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
-    return 'hd50';
+    return 'mobile50';
   }
 
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
-      return 'hd50';
+      return 'mobile50';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
-      return 'uhd120';
+      return 'fast120';
     }
     if (
       highRefresh ||
       hardwareConcurrency >= 6 ||
       (deviceMemory != null && deviceMemory >= 6)
     ) {
-      return 'qhd90';
+      return 'smooth90';
     }
-    return 'fhd60';
+    return 'balanced60';
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
+    return 'esports144';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
-    return 'uhd120';
+    return 'fast120';
   }
 
   if (rendererTier === 'desktopMid') {
-    return 'qhd90';
+    return 'smooth90';
   }
 
-  return 'fhd60';
+  return 'balanced60';
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -2366,55 +2366,55 @@ const LIGHTING_PRESET_MAP = Object.freeze(
   }, {})
 );
 
-const FRAME_RATE_STORAGE_KEY = 'poolFrameRate';
+const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'hd50',
-    label: 'HD Performance (50 Hz)',
+    id: 'mobile50',
+    label: 'Battery Saver (50 Hz)',
     fps: 50,
-    renderScale: 1,
-    pixelRatioCap: 1.4,
-    resolution: 'HD render • DPR 1.4 cap',
-    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+    renderScale: 0.88,
+    pixelRatioCap: 1.15,
+    resolution: '0.88x render • DPR 1.15 cap',
+    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
   },
   {
-    id: 'fhd60',
-    label: 'Full HD (60 Hz)',
+    id: 'balanced60',
+    label: 'Snooker Match (60 Hz)',
     fps: 60,
-    renderScale: 1.1,
-    pixelRatioCap: 1.5,
-    resolution: 'Full HD render • DPR 1.5 cap',
-    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+    renderScale: 0.95,
+    pixelRatioCap: 1.3,
+    resolution: '0.95x render • DPR 1.3 cap',
+    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
   },
   {
-    id: 'qhd90',
-    label: 'Quad HD (90 Hz)',
+    id: 'smooth90',
+    label: 'Smooth Motion (90 Hz)',
     fps: 90,
-    renderScale: 1.25,
-    pixelRatioCap: 1.7,
-    resolution: 'QHD render • DPR 1.7 cap',
-    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+    renderScale: 0.92,
+    pixelRatioCap: 1.35,
+    resolution: '0.92x render • DPR 1.35 cap',
+    description: 'High-refresh option for capable 90 Hz mobile panels.'
   },
   {
-    id: 'uhd120',
-    label: 'Ultra HD (120 Hz)',
+    id: 'fast120',
+    label: 'Performance (120 Hz)',
     fps: 120,
-    renderScale: 1.35,
-    pixelRatioCap: 2,
-    resolution: 'Ultra HD render • DPR 2.0 cap',
-    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+    renderScale: 0.9,
+    pixelRatioCap: 1.25,
+    resolution: '0.90x render • DPR 1.25 cap',
+    description: 'Adaptive quality for 120 Hz flagships and desktops.'
   },
   {
-    id: 'ultra144',
-    label: 'Ultra HD+ (144 Hz)',
+    id: 'esports144',
+    label: 'Tournament (144 Hz)',
     fps: 144,
-    renderScale: 1.5,
-    pixelRatioCap: 2.2,
-    resolution: 'Ultra HD+ render • DPR 2.2 cap',
-    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+    renderScale: 0.86,
+    pixelRatioCap: 1.2,
+    resolution: '0.86x render • DPR 1.2 cap',
+    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'fhd60';
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -8411,7 +8411,7 @@ function PoolRoyaleGame({
         : 60;
     const renderScale =
       typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
-        ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
+        ? THREE.MathUtils.clamp(option.renderScale, 0.75, 1)
         : 1;
     const pixelRatioCap =
       typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
