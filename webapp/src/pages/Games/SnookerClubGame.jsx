@@ -4285,9 +4285,9 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 0.32;
-const TOP_VIEW_RADIUS_SCALE = 0.28;
-const TOP_VIEW_MIN_RADIUS_SCALE = 0.88;
+const TOP_VIEW_MARGIN = 1.08;
+const TOP_VIEW_RADIUS_SCALE = 1.02;
+const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.13;
@@ -11979,11 +11979,9 @@ export function PoolRoyaleGame({
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
           if (topViewRef.current) {
+            const topRadiusBase = fitRadius(camera, TOP_VIEW_MARGIN) * TOP_VIEW_RADIUS_SCALE;
             const topRadius = clampOrbitRadius(
-              Math.max(
-                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
-                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-              )
+              Math.max(topRadiusBase, CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE)
             );
             const topTheta = sph.theta;
             const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
