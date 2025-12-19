@@ -2429,7 +2429,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
-    railPush: BALL_R * 5.2,
+    railPush: BALL_R * 4.6,
     lateralDolly: BALL_R * 0.6,
     focusLift: BALL_R * 5.4,
     focusDepthBias: BALL_R * 1.4,
@@ -4306,12 +4306,12 @@ const TOP_VIEW_MARGIN = 1.26;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.04;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.108;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
 );
-const CUE_VIEW_PHI_LIFT = 0.14;
+const CUE_VIEW_PHI_LIFT = 0.12;
 const CUE_VIEW_TARGET_PHI = CUE_VIEW_MIN_PHI + CUE_VIEW_PHI_LIFT * 0.5;
 const CAMERA_RAIL_APPROACH_PHI = Math.min(
   STANDING_VIEW_PHI + 0.32,
