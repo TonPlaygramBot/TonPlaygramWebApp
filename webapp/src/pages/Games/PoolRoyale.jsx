@@ -9460,7 +9460,6 @@ function PoolRoyaleGame({
         hemisphereRig,
         dirLight,
         spot,
-        spotFill,
         ambient
       } = rig;
 
@@ -9473,22 +9472,11 @@ function PoolRoyaleGame({
         hemisphereRig.intensity = settings.rimIntensity;
       if (settings.dirColor && dirLight) dirLight.color.set(settings.dirColor);
       if (settings.dirIntensity && dirLight) dirLight.intensity = settings.dirIntensity;
-      if (settings.spotColor) {
-        if (spot) spot.color.set(settings.spotColor);
-        if (spotFill) spotFill.color.set(settings.spotColor);
-      }
-      if (settings.spotIntensity) {
-        const primaryIntensity = settings.spotIntensity * 0.68;
-        const fillIntensity = settings.spotIntensity * 0.6;
-        if (spot) spot.intensity = primaryIntensity;
-        if (spotFill) spotFill.intensity = fillIntensity;
-      }
-      if (settings.spotAngle) {
-        if (spot) spot.angle = settings.spotAngle;
-        if (spotFill) spotFill.angle = settings.spotAngle;
-      }
+      if (settings.spotColor && spot) spot.color.set(settings.spotColor);
+      if (settings.spotIntensity && spot) spot.intensity = settings.spotIntensity;
+      if (settings.spotAngle && spot) spot.angle = settings.spotAngle;
       if (settings.ambientIntensity && ambient)
-        ambient.intensity = settings.ambientIntensity * 1.08;
+        ambient.intensity = settings.ambientIntensity;
     },
     [lightingId]
   );
@@ -13509,7 +13497,7 @@ function PoolRoyaleGame({
         const triangleRadius = fixtureScale * 0.98;
         const lightRetreatOffset = scaledHeight * 0.24;
         const lightReflectionGuard = scaledHeight * 0.32;
-        hemisphere.position.set(0, triangleHeight, 0);
+        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
         lightingRig.add(hemisphere);
 
         const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
@@ -13548,28 +13536,6 @@ function PoolRoyaleGame({
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
-        const spotFill = new THREE.SpotLight(
-          0xffffff,
-          12.289725,
-          0,
-          Math.PI * 0.36,
-          0.42,
-          1
-        );
-        spotFill.position.set(
-          -triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight + lightRetreatOffset + lightReflectionGuard,
-          -triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
-        );
-        spotFill.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
-        spotFill.decay = 1.0;
-        spotFill.castShadow = true;
-        spotFill.shadow.mapSize.set(2048, 2048);
-        spotFill.shadow.bias = -0.00004;
-        spotFill.shadow.normalBias = 0.006;
-        lightingRig.add(spotFill);
-        lightingRig.add(spotFill.target);
-
         const ambient = new THREE.AmbientLight(
           0xffffff,
           0.0223125
@@ -13591,7 +13557,6 @@ function PoolRoyaleGame({
           hemisphereRig,
           dirLight,
           spot,
-          spotFill,
           ambient
         };
         applyLightingPreset();
