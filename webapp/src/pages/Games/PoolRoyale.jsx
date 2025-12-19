@@ -2325,6 +2325,23 @@ const LIGHTING_OPTIONS = Object.freeze([
     }
   },
   {
+    id: 'hdr-championship',
+    label: 'HDR Championship',
+    description: 'Flagship arena HDR rig with bright key and crisp bounce.',
+    settings: {
+      hemiSky: 0xe8f1ff,
+      hemiGround: 0x0c101b,
+      hemiIntensity: 1.12,
+      rimIntensity: 0.82,
+      dirColor: 0xfafcff,
+      dirIntensity: 1.62,
+      spotColor: 0xffffff,
+      spotIntensity: 12.8,
+      spotAngle: Math.PI * 0.35,
+      ambientIntensity: 0.18
+    }
+  },
+  {
     id: 'proscenium-contrast',
     label: 'Proscenium Contrast',
     description: 'High-contrast stage look with tight rim control.',
@@ -2356,6 +2373,74 @@ const LIGHTING_OPTIONS = Object.freeze([
       spotIntensity: 10.2,
       spotAngle: Math.PI * 0.42,
       ambientIntensity: 0.18
+    }
+  },
+  {
+    id: 'neon-finals',
+    label: 'Neon Finals',
+    description: 'Vivid LED finals rig with saturated rim and tight beam.',
+    settings: {
+      hemiSky: 0xe0ecff,
+      hemiGround: 0x0a0e1c,
+      hemiIntensity: 0.94,
+      rimIntensity: 1.04,
+      dirColor: 0xf7f1ff,
+      dirIntensity: 1.5,
+      spotColor: 0xfff7ed,
+      spotIntensity: 13.2,
+      spotAngle: Math.PI * 0.3,
+      ambientIntensity: 0.1
+    }
+  },
+  {
+    id: 'broadcast-hdr10',
+    label: 'Broadcast HDR10',
+    description: 'Balanced HDR10 studio spec for televised clarity.',
+    settings: {
+      hemiSky: 0xdde8ff,
+      hemiGround: 0x0d111d,
+      hemiIntensity: 1.06,
+      rimIntensity: 0.86,
+      dirColor: 0xf3f7ff,
+      dirIntensity: 1.48,
+      spotColor: 0xfefefe,
+      spotIntensity: 11.8,
+      spotAngle: Math.PI * 0.38,
+      ambientIntensity: 0.17
+    }
+  },
+  {
+    id: 'daylight-training',
+    label: 'Daylight Training',
+    description: 'Neutral daylight simulator for consistent practice reads.',
+    settings: {
+      hemiSky: 0xeff6ff,
+      hemiGround: 0x0e121c,
+      hemiIntensity: 1.18,
+      rimIntensity: 0.74,
+      dirColor: 0xfafcff,
+      dirIntensity: 1.3,
+      spotColor: 0xfdfdfb,
+      spotIntensity: 9.8,
+      spotAngle: Math.PI * 0.44,
+      ambientIntensity: 0.2
+    }
+  },
+  {
+    id: 'midnight-showtime',
+    label: 'Midnight Showtime',
+    description: 'Dark crowd wrap with cinematic rim and deep shadows.',
+    settings: {
+      hemiSky: 0xd3deef,
+      hemiGround: 0x090d18,
+      hemiIntensity: 0.9,
+      rimIntensity: 1.12,
+      dirColor: 0xe9f0ff,
+      dirIntensity: 1.36,
+      spotColor: 0xf5f9ff,
+      spotIntensity: 12,
+      spotAngle: Math.PI * 0.32,
+      ambientIntensity: 0.11
     }
   }
 ]);
@@ -8372,7 +8457,15 @@ function PoolRoyaleGame({
       DEFAULT_RAIL_MARKER_COLOR_ID
     );
   });
-  const [lightingId, setLightingId] = useState(() => DEFAULT_LIGHTING_ID);
+  const [lightingId, setLightingId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage.getItem(LIGHTING_STORAGE_KEY);
+      if (stored && LIGHTING_PRESET_MAP[stored]) {
+        return stored;
+      }
+    }
+    return DEFAULT_LIGHTING_ID;
+  });
   const [chromeColorId, setChromeColorId] = useState(() => {
     return resolveStoredSelection(
       'chromeColor',
@@ -17990,6 +18083,46 @@ function PoolRoyaleGame({
                 </div>
               </div>
             ) : null}
+              <div>
+                <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
+                  Arena Lighting
+                </h3>
+                <p className="mt-1 text-[0.7rem] text-white/70">
+                  Pick from broadcast-ready rigs used across pro tours and feature finals.
+                </p>
+                <div className="mt-2 grid gap-2">
+                  {LIGHTING_OPTIONS.map((option) => {
+                    const active = option.id === lightingId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setLightingId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-4 py-2 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 ${
+                          active
+                            ? 'border-emerald-300 bg-emerald-300/90 text-black shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/20 bg-white/10 text-white/80 hover:bg-white/20'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.28em]">
+                            {option.label}
+                          </span>
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                            {option.settings?.spotIntensity ? `${option.settings.spotIntensity.toFixed(1)} kLux` : ''}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div>
                 <h3 className="text-[10px] uppercase tracking-[0.35em] text-emerald-100/70">
                   Rail Markers
