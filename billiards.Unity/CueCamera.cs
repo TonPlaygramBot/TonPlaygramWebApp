@@ -25,7 +25,7 @@ public class CueCamera : MonoBehaviour
 
     [Header("Cue aim view")]
     // Distance from the cue ball when the camera is fully raised above the cue.
-    public float cueRaisedDistanceFromBall = 0.62f;
+    public float cueRaisedDistanceFromBall = 0.68f;
     // Distance from the cue ball used for the lowest aiming view.  This keeps the
     // camera hovering over the mid–upper portion of the cue rather than slipping
     // all the way back to the plastic end.
@@ -37,7 +37,7 @@ public class CueCamera : MonoBehaviour
     // camera from intersecting the cue or cloth when the player drops in tight.
     public float cueMinimumDistance = 0.02f;
     // Height the cue view should reach when the player lifts the camera.
-    public float cueRaisedHeight = 0.92f;
+    public float cueRaisedHeight = 0.86f;
     // Extra padding applied when the player lifts the camera so the frame has
     // a little more breathing room above the shaft while keeping the cue in
     // view.
@@ -120,7 +120,7 @@ public class CueCamera : MonoBehaviour
     [Header("Broadcast view")]
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 0.9f;
-    public float broadcastHeight = 0.4f;
+    public float broadcastHeight = 0.44f;
     // Bounds that encompass the full playing surface including rails and pockets.
     public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.64465f, 0.72f, 3.301325f));
     // Keep a small margin inside the camera frame so the rails never touch the
@@ -130,7 +130,7 @@ public class CueCamera : MonoBehaviour
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
-    public float broadcastMinDistance = 0.82f;
+    public float broadcastMinDistance = 0.95f;
     public float broadcastMaxDistance = 5.0875f;
     // Blend between the table centre and the active focus (cue ball or target)
     // when aiming the broadcast view. Keeps the play interesting while still
