@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { fetchCurrentUser, setAuthToken } from '../utils/api.js';
 
 const AuthContext = createContext(null);
 
@@ -19,15 +18,12 @@ export function AuthProvider({ children }) {
     }
   });
 
-  const [isLoading, setIsLoading] = useState(true);
-
   useEffect(() => {
     if (token) {
       localStorage.setItem(AUTH_TOKEN_KEY, token);
     } else {
       localStorage.removeItem(AUTH_TOKEN_KEY);
     }
-    setAuthToken(token);
   }, [token]);
 
   useEffect(() => {
@@ -38,32 +34,6 @@ export function AuthProvider({ children }) {
     }
   }, [user]);
 
-  useEffect(() => {
-    let active = true;
-
-    async function hydrate() {
-      try {
-        const response = await fetchCurrentUser(token || undefined);
-        if (!active) return;
-        if (response?.user) {
-          setUser(response.user);
-        } else if (response?.status === 401) {
-          setToken(null);
-          setUser(null);
-          setAuthToken(null);
-        }
-      } finally {
-        if (active) setIsLoading(false);
-      }
-    }
-
-    hydrate();
-
-    return () => {
-      active = false;
-    };
-  }, [token]);
-
   const login = (nextToken, nextUser = null) => {
     setToken(nextToken);
     setUser(nextUser);
@@ -72,7 +42,6 @@ export function AuthProvider({ children }) {
   const logout = () => {
     setToken(null);
     setUser(null);
-    setAuthToken(null);
     localStorage.removeItem(AUTH_TOKEN_KEY);
     localStorage.removeItem(AUTH_USER_KEY);
   };
@@ -81,13 +50,11 @@ export function AuthProvider({ children }) {
     () => ({
       token,
       user,
-      isAuthenticated: Boolean(user),
-      isLoading,
+      isAuthenticated: Boolean(token),
       login,
-      logout,
-      setUser
+      logout
     }),
-    [token, user, isLoading]
+    [token, user]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
