@@ -957,8 +957,8 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.06; // match Pool Royale base lift so cushions sit flush against the rails
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.18; // trim to the same top profile as Pool Royale so wood and cushions meet level
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.065; // drop the cushion base slightly so the tops settle level with the rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.2; // trim a touch more to mirror the Pool Royale cushion/rail alignment fix
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -2356,52 +2356,52 @@ const LIGHTING_PRESET_MAP = Object.freeze(
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
   {
-    id: 'mobile50',
-    label: 'Battery Saver (50 Hz)',
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
     fps: 50,
-    renderScale: 0.88,
-    pixelRatioCap: 1.15,
-    resolution: '0.88x render • DPR 1.15 cap',
-    description: 'For 50–60 Hz displays or thermally constrained mobile GPUs.'
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
   },
   {
-    id: 'balanced60',
-    label: 'Snooker Match (60 Hz)',
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
     fps: 60,
-    renderScale: 0.95,
-    pixelRatioCap: 1.3,
-    resolution: '0.95x render • DPR 1.3 cap',
-    description: 'Mirror the 3D Snooker frame pacing and resolution profile.'
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
   },
   {
-    id: 'smooth90',
-    label: 'Smooth Motion (90 Hz)',
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
     fps: 90,
-    renderScale: 0.92,
-    pixelRatioCap: 1.35,
-    resolution: '0.92x render • DPR 1.35 cap',
-    description: 'High-refresh option for capable 90 Hz mobile panels.'
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    resolution: 'QHD render • DPR 1.7 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
   },
   {
-    id: 'fast120',
-    label: 'Performance (120 Hz)',
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
     fps: 120,
-    renderScale: 0.9,
-    pixelRatioCap: 1.25,
-    resolution: '0.90x render • DPR 1.25 cap',
-    description: 'Adaptive quality for 120 Hz flagships and desktops.'
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
   },
   {
-    id: 'esports144',
-    label: 'Tournament (144 Hz)',
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
     fps: 144,
-    renderScale: 0.86,
-    pixelRatioCap: 1.2,
-    resolution: '0.86x render • DPR 1.2 cap',
-    description: 'Aggressive scaling to keep 144 Hz stable on mobile chips.'
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'balanced60';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 function resolveDefaultPixelRatioCap() {
   if (typeof window === 'undefined') {
