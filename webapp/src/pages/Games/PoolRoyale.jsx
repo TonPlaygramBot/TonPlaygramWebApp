@@ -12324,8 +12324,9 @@ function PoolRoyaleGame({
                   );
                 }
               }
+              let aimLineWorldY = null;
               if (TMP_SPH.radius > 1e-6) {
-                const aimLineWorldY =
+                aimLineWorldY =
                   (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
                 const aimOffset = aimLineWorldY - lookTarget.y;
                 if (aimOffset > 0) {
@@ -12355,12 +12356,16 @@ function PoolRoyaleGame({
                 : WORLD_SCALE;
               const surfaceMarginWorld = Math.max(0, CAMERA_SURFACE_STOP_MARGIN) * scaleFactor;
               const cueLevelWorldY = (CUE_Y + CAMERA_CUE_SURFACE_MARGIN) * scaleFactor;
+              const aimLineClampWorldY =
+                aimLineWorldY ??
+                (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * scaleFactor;
               const surfaceClampY = Math.max(
                 baseSurfaceWorldY + surfaceMarginWorld,
                 cueLevelWorldY
               );
-              if (camera.position.y < surfaceClampY) {
-                camera.position.y = surfaceClampY;
+              const minCameraY = Math.max(surfaceClampY, aimLineClampWorldY);
+              if (camera.position.y < minCameraY) {
+                camera.position.y = minCameraY;
                 TMP_VEC3_A.copy(camera.position).sub(lookTarget);
                 const limitedRadius = TMP_VEC3_A.length();
                 if (limitedRadius > 1e-6) {
