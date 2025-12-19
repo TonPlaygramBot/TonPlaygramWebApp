@@ -4246,7 +4246,7 @@ function Ludo3D({ avatar, username, aiFlagOverrides, playerCount, aiCount }) {
   return (
     <div
       ref={wrapRef}
-      className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none"
+      className="fixed inset-0 bg-[#0c1020] text-white touch-pan-y select-none"
     >
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
