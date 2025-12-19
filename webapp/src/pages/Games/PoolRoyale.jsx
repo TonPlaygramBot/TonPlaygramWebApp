@@ -802,10 +802,11 @@ const DEFAULT_CUE_STYLE_INDEX = Math.max(
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
+const OFFICIAL_SNOOKER_PLAYFIELD_SCALE = 3569 / 2540; // widen to an official snooker bed while keeping the ball/pocket scale anchored
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
-  W: 66 * TABLE_SCALE,
-  H: 132 * TABLE_SCALE,
+  W: 66 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
+  H: 132 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
 };
@@ -863,13 +864,13 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-// Dimensions reflect WPA specifications (playing surface 100" × 50")
-const WIDTH_REF = 2540;
-const HEIGHT_REF = 1270;
+// Dimensions reflect WPBSA full-size snooker specifications (playing surface ~3569 mm × 1778 mm)
+const WIDTH_REF = 3569;
+const HEIGHT_REF = 1778;
 const BALL_D_REF = 57.15;
-const BAULK_FROM_BAULK_REF = 558.8; // WPA head string distance from the head cushion (22")
+const BAULK_FROM_BAULK_REF = 558.8; // legacy head string distance retained to keep the existing pocket layout intact
 const D_RADIUS_REF = 292;
-const BLACK_FROM_TOP_REF = 558.8; // WPA foot spot distance from the foot cushion (22")
+const BLACK_FROM_TOP_REF = 558.8; // legacy foot spot distance retained to preserve the original ball roadmap
 const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
 const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
@@ -1189,10 +1190,10 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
-const DEFAULT_CUSHION_CUT_ANGLE = 35;
-// middle pocket cushion cuts must be shallower at 32°
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 32;
+// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 29°)
+const DEFAULT_CUSHION_CUT_ANGLE = 29;
+// middle pocket cushion cuts must be shallower at 29°
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
