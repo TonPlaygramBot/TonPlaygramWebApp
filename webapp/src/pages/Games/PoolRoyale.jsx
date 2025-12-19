@@ -3812,7 +3812,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = BROADCAST_PROXIMITY_SCALE;
+  const cameraProximityScale = 0.54;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
@@ -4241,9 +4241,6 @@ const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to 
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
-const BROADCAST_OVERHEAD_RADIUS_SCALE = 0.9;
-const BROADCAST_OVERHEAD_HEIGHT_SCALE = 0.94;
-const BROADCAST_PROXIMITY_SCALE = 0.48;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
@@ -4286,7 +4283,6 @@ const CAMERA = {
 const CAMERA_CUSHION_CLEARANCE = TABLE.THICK * 0.6; // keep orbit height safely above cushion lip while hugging the rail
 const AIM_LINE_MIN_Y = CUE_Y; // ensure the orbit never dips below the aiming line height
 const CAMERA_AIM_LINE_MARGIN = BALL_R * 0.075; // keep extra clearance above the aim line for the tighter orbit distance
-const CAMERA_AIM_LINE_HARD_MARGIN = BALL_R * 0.12; // absolute buffer above the cue/aiming line so the orbit never dips below it
 const AIM_LINE_WIDTH = Math.max(1, BALL_R * 0.12); // compensate for the 20% smaller cue ball when rendering the guide
 const AIM_TICK_HALF_LENGTH = Math.max(0.6, BALL_R * 0.975); // keep the impact tick proportional to the cue ball
 const AIM_DASH_SIZE = Math.max(0.45, BALL_R * 0.75);
@@ -10775,19 +10771,17 @@ function PoolRoyaleGame({
           STANDING_VIEW_FOV,
           worstCaseAspect
         );
-        const topDownRadius =
-          Math.max(
-            fitRadius(tempCamera, TOP_VIEW_MARGIN),
-            CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-          ) * BROADCAST_OVERHEAD_RADIUS_SCALE;
+        const topDownRadius = Math.max(
+          fitRadius(tempCamera, TOP_VIEW_MARGIN),
+          CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+        );
         return topDownRadius;
       };
       const resolveTopDownCoords = () => {
-        const radius = Math.max(resolveBroadcastDistance(), CAMERA.minR);
+        const radius = resolveBroadcastDistance();
         const phi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
         const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
-        const height =
-          focusY + Math.cos(phi) * radius * BROADCAST_OVERHEAD_HEIGHT_SCALE;
+        const height = focusY + Math.cos(phi) * radius;
         const horizontal = Math.sin(phi) * radius;
         return { radius, height, horizontal };
       };
@@ -11362,9 +11356,7 @@ function PoolRoyaleGame({
           const phiRailLimit = Math.acos(
             THREE.MathUtils.clamp(minHeightFromTarget / Math.max(radius, 1e-3), -1, 1)
           );
-          const aimLineTargetY =
-            AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN + CAMERA_AIM_LINE_HARD_MARGIN;
-          const aimLineClearance = Math.max(0, aimLineTargetY - orbitTargetY);
+          const aimLineClearance = Math.max(0, AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN - orbitTargetY);
           const aimLineLimit =
             aimLineClearance > 1e-6
               ? Math.acos(
@@ -12350,7 +12342,7 @@ function PoolRoyaleGame({
                 }
               }
               const aimLineWorldY =
-                aimLineTargetY * worldScaleFactor;
+                (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
               const scaleFactor = Number.isFinite(worldScaleFactor)
                 ? worldScaleFactor
                 : WORLD_SCALE;
