@@ -756,14 +756,17 @@ const CLOTH_COLOR_STORAGE_KEY = 'poolRoyaleClothColor';
 const POCKET_LINER_STORAGE_KEY = 'poolPocketLiner';
 const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
-const SHOW_SHORT_RAIL_TRIPODS = false;
 const TABLE_BASE_SCALE = 1.17;
   const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
+  const OFFICIAL_SNOOKER_PLAYFIELD_SCALE = 3569 / 2540; // widen to an official snooker bed while keeping the ball/pocket scale anchored
   const TABLE = {
-    W: 72 * TABLE_SCALE,
-    H: 132 * TABLE_SCALE,
+    W: 66 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
+    H: 132 * TABLE_SCALE * OFFICIAL_SNOOKER_PLAYFIELD_SCALE,
     THICK: 1.8 * TABLE_SCALE,
-    WALL: 2.6 * TABLE_SCALE
+    WALL:
+      2.6 *
+      TABLE_SCALE *
+      (OFFICIAL_SNOOKER_PLAYFIELD_SCALE * (66 / 72)) // widen rails to maintain Pool Royale proportions on the larger snooker bed
   };
 const RAIL_HEIGHT = TABLE.THICK * 1.96; // match Pool Royale rail height so wood meets the cushion seam cleanly
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
@@ -819,21 +822,20 @@ const SIDE_POCKET_RIM_SURFACE_OFFSET_SCALE = POCKET_RIM_SURFACE_OFFSET_SCALE; //
 const SIDE_POCKET_RIM_SURFACE_ABSOLUTE_LIFT = POCKET_RIM_SURFACE_ABSOLUTE_LIFT; // keep the middle pocket rims aligned to the same vertical gap
 const FRAME_TOP_Y = -TABLE.THICK + 0.01; // mirror the snooker rail stackup so chrome + cushions line up identically
 const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
-  // Reuse the Pool Royale playfield and pocket metrics so the snooker table layout matches it 1:1
-  // (WPA 9ft reference: 100" × 50", 2.25" balls)
-  const WIDTH_REF = 2540;
-  const HEIGHT_REF = 1270;
+  // Dimensions reflect WPBSA full-size snooker specifications (playing surface ~3569 mm × 1778 mm)
+  const WIDTH_REF = 3569;
+  const HEIGHT_REF = 1778;
   const BALL_D_REF = 57.15;
   const BAULK_FROM_BAULK_REF = 558.8; // legacy head string distance retained to keep the existing pocket layout intact
   const D_RADIUS_REF = 292;
   const PINK_FROM_TOP_REF = 737;
   const BLACK_FROM_TOP_REF = 558.8; // legacy foot spot distance retained to preserve the original ball roadmap
-  const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (Pool Royale match)
-  const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
+  const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses
+  const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-  const TARGET_RATIO = 1.83; // match the Pool Royale inner playfield aspect ratio exactly
+  const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
   const END_RAIL_INNER_SCALE =
     (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
     (2 * TABLE.WALL);
@@ -846,7 +848,7 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
   console.assert(
     Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-    'Snooker table inner ratio must match the Pool Royale 1.83:1 target after scaling.'
+    'Snooker table inner ratio must match the 2:1 target after scaling.'
   );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
@@ -3793,7 +3795,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.54;
+  const cameraProximityScale = 0.9;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
@@ -3812,6 +3814,48 @@ function createBroadcastCameras({
     base.add(slider);
     slider.scale.setScalar(cameraScale);
 
+    const tripod = new THREE.Group();
+    slider.add(tripod);
+
+    const top = new THREE.Vector3(0, hubHeight, 0);
+    [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3].forEach((angle) => {
+      const foot = new THREE.Vector3(
+        Math.cos(angle) * footRadius,
+        0,
+        Math.sin(angle) * footRadius
+      );
+      const mid = top.clone().add(foot).multiplyScalar(0.5);
+      const up = top.clone().sub(foot).normalize();
+      const leg = new THREE.Mesh(legGeo, darkMetal);
+      leg.position.copy(mid);
+      leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+      leg.castShadow = true;
+      leg.receiveShadow = true;
+      tripod.add(leg);
+
+      const footPad = new THREE.Mesh(footGeo, rubber);
+      footPad.position.set(foot.x, footHeight / 2, foot.z);
+      footPad.receiveShadow = true;
+      tripod.add(footPad);
+    });
+
+    const column = new THREE.Mesh(columnGeo, lightMetal);
+    column.position.y = hubHeight + columnHeight / 2;
+    column.castShadow = true;
+    column.receiveShadow = true;
+    slider.add(column);
+
+    const hub = new THREE.Mesh(hubGeo, lightMetal);
+    hub.position.y = hubHeight;
+    hub.castShadow = true;
+    hub.receiveShadow = true;
+    slider.add(hub);
+
+    const headBase = new THREE.Mesh(headBaseGeo, darkMetal);
+    headBase.position.y = headHeight;
+    headBase.castShadow = true;
+    slider.add(headBase);
+
     const headPivot = new THREE.Group();
     headPivot.position.y = headHeight + 0.02;
     slider.add(headPivot);
@@ -3819,102 +3863,58 @@ function createBroadcastCameras({
     const cameraAssembly = new THREE.Group();
     headPivot.add(cameraAssembly);
 
-    if (SHOW_SHORT_RAIL_TRIPODS) {
-      const tripod = new THREE.Group();
-      slider.add(tripod);
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.22), plastic);
+    body.castShadow = true;
+    body.receiveShadow = true;
+    cameraAssembly.add(body);
 
-      const top = new THREE.Vector3(0, hubHeight, 0);
-      [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3].forEach((angle) => {
-        const foot = new THREE.Vector3(
-          Math.cos(angle) * footRadius,
-          0,
-          Math.sin(angle) * footRadius
-        );
-        const mid = top.clone().add(foot).multiplyScalar(0.5);
-        const up = top.clone().sub(foot).normalize();
-        const leg = new THREE.Mesh(legGeo, darkMetal);
-        leg.position.copy(mid);
-        leg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
-        leg.castShadow = true;
-        leg.receiveShadow = true;
-        tripod.add(leg);
+    const lensHousing = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.07, 0.18, 24),
+      darkMetal
+    );
+    lensHousing.rotation.x = Math.PI / 2;
+    lensHousing.position.set(0, 0, -0.2);
+    lensHousing.castShadow = true;
+    cameraAssembly.add(lensHousing);
 
-        const footPad = new THREE.Mesh(footGeo, rubber);
-        footPad.position.set(foot.x, footHeight / 2, foot.z);
-        footPad.receiveShadow = true;
-        tripod.add(footPad);
-      });
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.16), rubber);
+    hood.position.set(0, 0, -0.32);
+    hood.castShadow = true;
+    cameraAssembly.add(hood);
 
-      const column = new THREE.Mesh(columnGeo, lightMetal);
-      column.position.y = hubHeight + columnHeight / 2;
-      column.castShadow = true;
-      column.receiveShadow = true;
-      slider.add(column);
+    const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glass);
+    lensGlass.rotation.x = Math.PI / 2;
+    lensGlass.position.set(0, 0, -0.29);
+    cameraAssembly.add(lensGlass);
 
-      const hub = new THREE.Mesh(hubGeo, lightMetal);
-      hub.position.y = hubHeight;
-      hub.castShadow = true;
-      hub.receiveShadow = true;
-      slider.add(hub);
+    const topHandle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.016, 0.016, 0.26, 12),
+      rubber
+    );
+    topHandle.rotation.z = Math.PI / 2;
+    topHandle.position.set(0, 0.16, 0);
+    topHandle.castShadow = true;
+    cameraAssembly.add(topHandle);
 
-      const headBase = new THREE.Mesh(headBaseGeo, darkMetal);
-      headBase.position.y = headHeight;
-      headBase.castShadow = true;
-      slider.add(headBase);
+    const viewfinder = new THREE.Mesh(
+      new THREE.BoxGeometry(0.16, 0.1, 0.08),
+      lightMetal
+    );
+    viewfinder.position.set(-0.22, 0.06, 0.05);
+    viewfinder.castShadow = true;
+    cameraAssembly.add(viewfinder);
 
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.24, 0.22), plastic);
-      body.castShadow = true;
-      body.receiveShadow = true;
-      cameraAssembly.add(body);
+    const panBar = new THREE.Mesh(panBarGeo, lightMetal);
+    panBar.rotation.z = Math.PI / 2.3;
+    panBar.position.set(0.26, -0.08, 0);
+    panBar.castShadow = true;
+    headPivot.add(panBar);
 
-      const lensHousing = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.065, 0.07, 0.18, 24),
-        darkMetal
-      );
-      lensHousing.rotation.x = Math.PI / 2;
-      lensHousing.position.set(0, 0, -0.2);
-      lensHousing.castShadow = true;
-      cameraAssembly.add(lensHousing);
-
-      const hood = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.1, 0.16), rubber);
-      hood.position.set(0, 0, -0.32);
-      hood.castShadow = true;
-      cameraAssembly.add(hood);
-
-      const lensGlass = new THREE.Mesh(new THREE.CircleGeometry(0.06, 24), glass);
-      lensGlass.rotation.x = Math.PI / 2;
-      lensGlass.position.set(0, 0, -0.29);
-      cameraAssembly.add(lensGlass);
-
-      const topHandle = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.016, 0.016, 0.26, 12),
-        rubber
-      );
-      topHandle.rotation.z = Math.PI / 2;
-      topHandle.position.set(0, 0.16, 0);
-      topHandle.castShadow = true;
-      cameraAssembly.add(topHandle);
-
-      const viewfinder = new THREE.Mesh(
-        new THREE.BoxGeometry(0.16, 0.1, 0.08),
-        lightMetal
-      );
-      viewfinder.position.set(-0.22, 0.06, 0.05);
-      viewfinder.castShadow = true;
-      cameraAssembly.add(viewfinder);
-
-      const panBar = new THREE.Mesh(panBarGeo, lightMetal);
-      panBar.rotation.z = Math.PI / 2.3;
-      panBar.position.set(0.26, -0.08, 0);
-      panBar.castShadow = true;
-      headPivot.add(panBar);
-
-      const grip = new THREE.Mesh(gripGeo, rubber);
-      grip.rotation.z = Math.PI / 2.3;
-      grip.position.set(0.37, -0.12, 0);
-      grip.castShadow = true;
-      headPivot.add(grip);
-    }
+    const grip = new THREE.Mesh(gripGeo, rubber);
+    grip.rotation.z = Math.PI / 2.3;
+    grip.position.set(0.37, -0.12, 0);
+    grip.castShadow = true;
+    headPivot.add(grip);
 
     headPivot.lookAt(defaultFocus);
     headPivot.rotateY(Math.PI);
