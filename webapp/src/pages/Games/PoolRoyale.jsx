@@ -9239,6 +9239,8 @@ function PoolRoyaleGame({
     });
   const shotReplayRef = useRef(null);
   const replayPlaybackRef = useRef(null);
+  const replayOrbitSnapshotRef = useRef(null);
+  const replayFocusTargetRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
@@ -12156,7 +12158,12 @@ function PoolRoyaleGame({
             const aimFocus =
               !shooting && cue?.active ? aimFocusRef.current : null;
             let focusTarget;
-            if (
+            const replayFocusTarget = replayActive
+              ? replayFocusTargetRef.current
+              : null;
+            if (replayFocusTarget) {
+              focusTarget = replayFocusTarget.clone();
+            } else if (
               aimFocus &&
               Number.isFinite(aimFocus.x) &&
               Number.isFinite(aimFocus.y) &&
@@ -12187,72 +12194,88 @@ function PoolRoyaleGame({
                   setOrbitFocusToDefault();
                 }
               }
-            focusTarget = store.target.clone();
-          }
-          focusTarget.multiplyScalar(worldScaleFactor);
-          lookTarget = focusTarget;
-          if (topViewRef.current) {
-            const topRadius = clampOrbitRadius(
-              Math.max(
-                getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
-                CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
-              )
-            );
-            const topTheta = sph.theta;
-            const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
-            TMP_SPH.set(topRadius, topPhi, topTheta);
-            camera.up.set(0, 1, 0);
-            camera.position.setFromSpherical(TMP_SPH);
-            camera.position.add(focusTarget);
-            camera.lookAt(focusTarget);
-            renderCamera = camera;
-            broadcastArgs.focusWorld =
-              broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
-            broadcastArgs.targetWorld = focusTarget.clone();
+              focusTarget = store.target.clone();
+            }
+            focusTarget.multiplyScalar(worldScaleFactor);
+            if (replayFocusTargetRef.current && replayActive) {
+              const scaledSurfaceY = tableSurfaceY * worldScaleFactor;
+              const minFocusY = scaledSurfaceY + BALL_R * worldScaleFactor * 0.5;
+              if (focusTarget.y < minFocusY) {
+                focusTarget.y = minFocusY;
+              }
+            }
+            lookTarget = focusTarget;
+            if (topViewRef.current) {
+              const topRadius = clampOrbitRadius(
+                Math.max(
+                  getMaxOrbitRadius() * TOP_VIEW_RADIUS_SCALE,
+                  CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+                )
+              );
+              const topTheta = sph.theta;
+              const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+              TMP_SPH.set(topRadius, topPhi, topTheta);
+              camera.up.set(0, 1, 0);
+              camera.position.setFromSpherical(TMP_SPH);
+              camera.position.add(focusTarget);
+              camera.lookAt(focusTarget);
+              renderCamera = camera;
+              broadcastArgs.focusWorld =
+                broadcastCamerasRef.current?.defaultFocusWorld ?? focusTarget;
+              broadcastArgs.targetWorld = focusTarget.clone();
               broadcastArgs.lerp = 0.12;
             } else {
               camera.up.set(0, 1, 0);
-              TMP_SPH.copy(sph);
-              if (sidePocketAimRef.current && !shooting && !replayActive) {
-                TMP_SPH.radius = clampOrbitRadius(
-                  TMP_SPH.radius * RAIL_OVERHEAD_AIM_ZOOM
+              const replayOrbit = replayActive ? replayOrbitSnapshotRef.current : null;
+              if (replayOrbit) {
+                TMP_SPH.set(
+                  clampOrbitRadius(replayOrbit.radius ?? sph.radius),
+                  replayOrbit.phi ?? sph.phi,
+                  replayOrbit.theta ?? sph.theta
                 );
-                TMP_SPH.phi = THREE.MathUtils.clamp(
-                  TMP_SPH.phi + RAIL_OVERHEAD_AIM_PHI_LIFT,
-                  CAMERA.minPhi,
-                  CAMERA.maxPhi - CAMERA_RAIL_SAFETY
-                );
-              }
-              if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1 && !replayActive) {
-                const hudState = hudRef.current ?? null;
-                if (hudState?.inHand && !shooting) {
+              } else {
+                TMP_SPH.copy(sph);
+                if (sidePocketAimRef.current && !shooting && !replayActive) {
                   TMP_SPH.radius = clampOrbitRadius(
-                    TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
+                    TMP_SPH.radius * RAIL_OVERHEAD_AIM_ZOOM
+                  );
+                  TMP_SPH.phi = THREE.MathUtils.clamp(
+                    TMP_SPH.phi + RAIL_OVERHEAD_AIM_PHI_LIFT,
+                    CAMERA.minPhi,
+                    CAMERA.maxPhi - CAMERA_RAIL_SAFETY
                   );
                 }
-              }
-              if (TMP_SPH.radius > 1e-6) {
-                const aimLineWorldY =
-                  (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
-                const aimOffset = aimLineWorldY - lookTarget.y;
-                if (aimOffset > 0) {
-                  const normalized = aimOffset / TMP_SPH.radius;
-                  let clampedPhi = TMP_SPH.phi;
-                  if (normalized >= 1) {
-                    clampedPhi = CAMERA.minPhi;
-                  } else {
-                    const limitPhi = Math.acos(
-                      THREE.MathUtils.clamp(normalized, -1, 1)
+                if (IN_HAND_CAMERA_RADIUS_MULTIPLIER > 1 && !replayActive) {
+                  const hudState = hudRef.current ?? null;
+                  if (hudState?.inHand && !shooting) {
+                    TMP_SPH.radius = clampOrbitRadius(
+                      TMP_SPH.radius * IN_HAND_CAMERA_RADIUS_MULTIPLIER
                     );
-                    const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
-                    if (clampedPhi > safePhi) {
-                      clampedPhi = Math.max(safePhi, CAMERA.minPhi);
-                    }
                   }
-                  if (clampedPhi !== TMP_SPH.phi) {
-                    TMP_SPH.phi = clampedPhi;
-                    sph.phi = clampedPhi;
-                    syncBlendToSpherical();
+                }
+                if (TMP_SPH.radius > 1e-6) {
+                  const aimLineWorldY =
+                    (AIM_LINE_MIN_Y + CAMERA_AIM_LINE_MARGIN) * worldScaleFactor;
+                  const aimOffset = aimLineWorldY - lookTarget.y;
+                  if (aimOffset > 0) {
+                    const normalized = aimOffset / TMP_SPH.radius;
+                    let clampedPhi = TMP_SPH.phi;
+                    if (normalized >= 1) {
+                      clampedPhi = CAMERA.minPhi;
+                    } else {
+                      const limitPhi = Math.acos(
+                        THREE.MathUtils.clamp(normalized, -1, 1)
+                      );
+                      const safePhi = Math.min(CAMERA.maxPhi, limitPhi);
+                      if (clampedPhi > safePhi) {
+                        clampedPhi = Math.max(safePhi, CAMERA.minPhi);
+                      }
+                    }
+                    if (clampedPhi !== TMP_SPH.phi) {
+                      TMP_SPH.phi = clampedPhi;
+                      sph.phi = clampedPhi;
+                      syncBlendToSpherical();
+                    }
                   }
                 }
               }
@@ -12963,6 +12986,18 @@ function PoolRoyaleGame({
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           resetCameraForReplay();
+          const replayOrbit = sphRef.current
+            ? {
+                radius: sphRef.current.radius,
+                phi: sphRef.current.phi,
+                theta: sphRef.current.theta
+              }
+            : null;
+          replayOrbitSnapshotRef.current = replayOrbit;
+          const focusStore = ensureOrbitFocus();
+          const replayTarget = (focusStore?.target ?? getDefaultOrbitTarget()).clone();
+          replayTarget.y = Math.max(replayTarget.y, tableSurfaceY + BALL_R * 0.5);
+          replayFocusTargetRef.current = replayTarget;
           replayPlayback = {
             frames: trimmed.frames,
             cuePath: trimmed.cuePath,
@@ -13019,6 +13054,8 @@ function PoolRoyaleGame({
           replayPlayback = null;
           replayPlaybackRef.current = null;
           shotReplayRef.current = null;
+          replayOrbitSnapshotRef.current = null;
+          replayFocusTargetRef.current = null;
         };
 
         const enterTopView = (immediate = false) => {
