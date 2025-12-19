@@ -1,28 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { loginWithCredentials } from '../utils/api.js';
+import { loginWithPassword } from '../utils/api.js';
 import { useAuth } from '../contexts/AuthContext.jsx';
 
 export default function Login() {
   const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { isAuthenticated, isLoading, login, setUser } = useAuth();
+  const { isAuthenticated, login } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (isAuthenticated) {
       navigate('/account', { replace: true });
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setLoading(true);
 
-    const response = await loginWithCredentials(username, password);
+    const response = await loginWithPassword(password);
     setLoading(false);
 
     if (response?.error) {
@@ -32,7 +31,6 @@ export default function Login() {
 
     if (response?.token) {
       login(response.token, response.user || null);
-      if (response.user) setUser(response.user);
       navigate('/account', { replace: true });
       return;
     }
@@ -48,22 +46,8 @@ export default function Login() {
       >
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">Login</h1>
-          <p className="text-subtext text-sm">
-            Enter your username and password to continue.
-          </p>
+          <p className="text-subtext text-sm">Enter your password to continue.</p>
         </div>
-
-        <label className="block space-y-1">
-          <span className="text-sm font-medium">Username</span>
-          <input
-            type="text"
-            className="w-full px-3 py-2 rounded-lg bg-background border border-border focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="yourname"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-          />
-        </label>
 
         <label className="block space-y-1">
           <span className="text-sm font-medium">Password</span>
@@ -81,7 +65,7 @@ export default function Login() {
 
         <button
           type="submit"
-          disabled={loading || !password || !username}
+          disabled={loading || !password}
           className="w-full px-4 py-2 rounded-lg bg-primary text-background font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary-hover transition"
         >
           {loading ? 'Signing in…' : 'Sign In'}
