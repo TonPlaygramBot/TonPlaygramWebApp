@@ -758,9 +758,10 @@ const ENABLE_CUE_GALLERY = false;
 const ENABLE_TRIPOD_CAMERAS = false;
 const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
+const TABLE_WIDTH_RESTORE = 1 / TABLE_SIZE_SHRINK; // widen the cloth back to the pre-shrink width while keeping the current height
 const TABLE = {
   // Match the Pool Royale footprint so the snooker build renders identically sized rails and fascia
-  W: 66 * TABLE_SCALE,
+  W: 66 * TABLE_SCALE * TABLE_WIDTH_RESTORE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
