@@ -12,6 +12,36 @@ import { loadAvatar } from '../../utils/avatarUtils.js';
 const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
+const FRAME_RATE_STORAGE_KEY = 'dominoRoyalFrameRate';
+const DEFAULT_FRAME_RATE_ID = 'balanced60';
+const FRAME_RATE_PRESETS = [
+  {
+    id: 'mobile50',
+    label: 'Battery Saver',
+    helper: '50 FPS, lower resolution for thermal budget'
+  },
+  {
+    id: 'balanced60',
+    label: 'Balanced',
+    helper: '60 FPS, default Snooker profile'
+  },
+  {
+    id: 'smooth90',
+    label: 'Smooth',
+    helper: '90 FPS for high-refresh devices'
+  },
+  {
+    id: 'fast120',
+    label: 'Performance',
+    helper: '120 FPS with adaptive scaling'
+  },
+  {
+    id: 'esports144',
+    label: 'Tournament',
+    helper: '144 FPS with aggressive scaling'
+  }
+];
+
 const CHESS_PLAYER_FLAG_KEY = 'chessBattleRoyalPlayerFlag';
 const CHESS_AI_FLAG_KEY = 'chessBattleRoyalAiFlag';
 
@@ -25,6 +55,7 @@ export default function DominoRoyalLobby() {
   const [mode, setMode] = useState('local');
   const [avatar, setAvatar] = useState('');
   const [playerCount, setPlayerCount] = useState(4);
+  const [frameRateId, setFrameRateId] = useState(DEFAULT_FRAME_RATE_ID);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
   const [flags, setFlags] = useState([]);
   const [chessPlayerFlag, setChessPlayerFlag] = useState(null);
@@ -45,6 +76,21 @@ export default function DominoRoyalLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      const storedFrameRate = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (storedFrameRate) {
+        setFrameRateId(storedFrameRate);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    } catch {}
+  }, [frameRateId]);
 
   useEffect(() => {
     try {
@@ -108,6 +154,7 @@ export default function DominoRoyalLobby() {
     if (DEV_ACCOUNT) params.set('dev', DEV_ACCOUNT);
     if (DEV_ACCOUNT_1) params.set('dev1', DEV_ACCOUNT_1);
     if (DEV_ACCOUNT_2) params.set('dev2', DEV_ACCOUNT_2);
+    if (frameRateId) params.set('frameRateId', frameRateId);
     navigate(`/games/domino-royal?${params.toString()}`);
   };
 
@@ -181,6 +228,25 @@ export default function DominoRoyalLobby() {
             <span>{flags.length ? 'Custom AI avatars' : 'Auto-pick from global flags'}</span>
           </div>
         </button>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-semibold">Graphics preset</h3>
+        <p className="text-sm text-subtext text-center">
+          Pick a frame-rate profile before entering the arena. Lower presets trim resolution if your device runs warm.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {FRAME_RATE_PRESETS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setFrameRateId(option.id)}
+              className={`lobby-tile flex flex-col gap-1 items-start ${frameRateId === option.id ? 'lobby-selected' : ''}`}
+            >
+              <span className="text-sm font-semibold">{option.label}</span>
+              <span className="text-xs text-subtext leading-tight">{option.helper}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <button
