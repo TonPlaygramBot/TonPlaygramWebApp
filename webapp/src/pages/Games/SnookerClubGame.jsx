@@ -760,7 +760,8 @@ const TABLE_BASE_SCALE = 1.17;
 const TABLE_SCALE = TABLE_BASE_SCALE * TABLE_REDUCTION; // shrink snooker build to Pool Royale footprint without altering proportions
 const TABLE = {
   // Match the Pool Royale footprint so the snooker build renders identically sized rails and fascia
-  W: 66 * TABLE_SCALE,
+  // while restoring the wider silhouette from the earlier build without changing the table height.
+  W: 72 * TABLE_SCALE,
   H: 132 * TABLE_SCALE,
   THICK: 1.8 * TABLE_SCALE,
   WALL: 2.6 * TABLE_SCALE
@@ -833,7 +834,9 @@ const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool 
 const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
 const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
 const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
-const TARGET_RATIO = WIDTH_REF / HEIGHT_REF;
+// Relax the aspect ratio so the table reads wider on screen while keeping the playfield height untouched
+// and preserving pocket proportions from the previous build.
+const TARGET_RATIO = 1.83;
 const END_RAIL_INNER_SCALE =
   (TABLE.H - TARGET_RATIO * (TABLE.W - 2 * SIDE_RAIL_INNER_THICKNESS)) /
   (2 * TABLE.WALL);
@@ -846,7 +849,7 @@ const innerShort = Math.min(PLAY_W, PLAY_H);
 const CURRENT_RATIO = innerLong / Math.max(1e-6, innerShort);
 console.assert(
   Math.abs(CURRENT_RATIO - TARGET_RATIO) < 1e-4,
-  'Pool table inner ratio must match 2:1 after scaling.'
+  'Pool table inner ratio must match the widened 1.83:1 target after scaling.'
 );
 const MM_TO_UNITS = innerLong / WIDTH_REF;
 const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (15.8% over the original baseline)
