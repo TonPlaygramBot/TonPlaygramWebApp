@@ -44,6 +44,165 @@ import {
   determineWinnersFromHands
 } from '../../../../lib/texasHoldemGame.js';
 
+function detectCoarsePointer() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  if (typeof window.matchMedia === 'function') {
+    try {
+      const coarseQuery = window.matchMedia('(pointer: coarse)');
+      if (typeof coarseQuery?.matches === 'boolean') {
+        return coarseQuery.matches;
+      }
+    } catch (err) {
+      // ignore
+    }
+  }
+  try {
+    if ('ontouchstart' in window) {
+      return true;
+    }
+    const nav = window.navigator;
+    if (nav && typeof nav.maxTouchPoints === 'number') {
+      return nav.maxTouchPoints > 0;
+    }
+  } catch (err) {
+    // ignore
+  }
+  return false;
+}
+
+function detectLowRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(max-refresh-rate: 59hz)', '(max-refresh-rate: 50hz)', '(prefers-reduced-motion: reduce)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function detectHighRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function readGraphicsRendererString() {
+  if (typeof window === 'undefined') return 'unknown';
+  try {
+    const canvas = document.createElement('canvas');
+    const gl =
+      canvas.getContext('webgl2', { powerPreference: 'high-performance' }) ||
+      canvas.getContext('webgl', { powerPreference: 'high-performance' });
+    if (!gl) return 'unknown';
+    const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+    const renderer =
+      (debugInfo && gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL)) || gl.getParameter(gl.RENDERER) || 'unknown';
+    return String(renderer).toLowerCase();
+  } catch (err) {
+    return 'unknown';
+  }
+}
+
+function classifyRendererTier(signature = '') {
+  const sig = String(signature || '').toLowerCase();
+  if (
+    sig.includes('geforce') ||
+    sig.includes('nvidia') ||
+    sig.includes('radeon') ||
+    sig.includes('rx ') ||
+    sig.includes('rtx') ||
+    sig.includes('apple m') ||
+    sig.includes('arc')
+  ) {
+    return 'desktopHigh';
+  }
+  if (sig.includes('intel') || sig.includes('iris') || sig.includes('uhd')) {
+    return 'desktopMid';
+  }
+  if (sig.includes('mali') || sig.includes('adreno') || sig.includes('powervr')) {
+    return 'mobile';
+  }
+  return 'unknown';
+}
+
+function resolveDefaultPixelRatioCap() {
+  if (typeof window === 'undefined') {
+    return 2;
+  }
+  return window.innerWidth <= 1366 ? 1.5 : 2;
+}
+
+function detectPreferredFrameRateId() {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return 'fhd60';
+  }
+  const coarsePointer = detectCoarsePointer();
+  const ua = navigator.userAgent ?? '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  const maxTouchPoints = navigator.maxTouchPoints ?? 0;
+  const isTouch = maxTouchPoints > 1;
+  const deviceMemory = typeof navigator.deviceMemory === 'number' ? navigator.deviceMemory : null;
+  const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
+  const lowRefresh = detectLowRefreshDisplay();
+  const highRefresh = detectHighRefreshDisplay();
+  const rendererTier = classifyRendererTier(readGraphicsRendererString());
+
+  if (lowRefresh) {
+    return 'hd50';
+  }
+
+  if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
+    if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
+      return 'hd50';
+    }
+    if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
+      return 'uhd120';
+    }
+    if (
+      highRefresh ||
+      hardwareConcurrency >= 6 ||
+      (deviceMemory != null && deviceMemory >= 6)
+    ) {
+      return 'qhd90';
+    }
+    return 'fhd60';
+  }
+
+  if (rendererTier === 'desktopHigh' && highRefresh) {
+    return 'ultra144';
+  }
+
+  if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
+    return 'uhd120';
+  }
+
+  if (rendererTier === 'desktopMid') {
+    return 'qhd90';
+  }
+
+  return 'fhd60';
+}
+
 const MODEL_SCALE = 0.75;
 const ARENA_GROWTH = 1.45;
 const TABLE_RADIUS = 3.4 * MODEL_SCALE;
@@ -145,6 +304,7 @@ const TURN_INDICATOR_COLOR = '#f59e0b';
 const TURN_INDICATOR_INNER_RADIUS = CARD_W * 0.24;
 const TURN_INDICATOR_OUTER_RADIUS = CARD_W * 0.36;
 const TURN_INDICATOR_HEIGHT = 0.008 * MODEL_SCALE;
+const FRAME_TIME_CATCH_UP_MULTIPLIER = 3;
 
 const CHAIR_MODEL_URLS = [
   'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/AntiqueChair/glTF-Binary/AntiqueChair.glb',
@@ -198,6 +358,55 @@ const SHOWDOWN_RESET_DELAY = 6500;
 const CARD_HIGHLIGHT_COLOR = '#facc15';
 const CARD_HIGHLIGHT = new THREE.Color(CARD_HIGHLIGHT_COLOR);
 const CARD_EMISSIVE_OFF = new THREE.Color(0x000000);
+const FRAME_RATE_STORAGE_KEY = 'texasHoldemFrameRate';
+const FRAME_RATE_OPTIONS = Object.freeze([
+  {
+    id: 'hd50',
+    label: 'HD Performance (50 Hz)',
+    fps: 50,
+    renderScale: 1,
+    pixelRatioCap: 1.4,
+    resolution: 'HD render • DPR 1.4 cap',
+    description: 'Minimum HD output for battery saver and 50–60 Hz displays.'
+  },
+  {
+    id: 'fhd60',
+    label: 'Full HD (60 Hz)',
+    fps: 60,
+    renderScale: 1.1,
+    pixelRatioCap: 1.5,
+    resolution: 'Full HD render • DPR 1.5 cap',
+    description: '1080p-focused profile that mirrors the Snooker frame pacing.'
+  },
+  {
+    id: 'qhd90',
+    label: 'Quad HD (90 Hz)',
+    fps: 90,
+    renderScale: 1.25,
+    pixelRatioCap: 1.7,
+    resolution: 'QHD render • DPR 1.7 cap',
+    description: 'Sharper 1440p render for capable 90 Hz mobile and desktop GPUs.'
+  },
+  {
+    id: 'uhd120',
+    label: 'Ultra HD (120 Hz)',
+    fps: 120,
+    renderScale: 1.35,
+    pixelRatioCap: 2,
+    resolution: 'Ultra HD render • DPR 2.0 cap',
+    description: '4K-oriented profile for 120 Hz flagships and desktops.'
+  },
+  {
+    id: 'ultra144',
+    label: 'Ultra HD+ (144 Hz)',
+    fps: 144,
+    renderScale: 1.5,
+    pixelRatioCap: 2.2,
+    resolution: 'Ultra HD+ render • DPR 2.2 cap',
+    description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+  }
+]);
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const POT_SCATTER_LAYOUT = Object.freeze({
   perRow: 6,
@@ -1870,6 +2079,79 @@ function TexasHoldemArena({ search }) {
       })).filter((section) => section.options.length > 0),
     [texasInventory]
   );
+  const [frameRateId, setFrameRateId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const stored = window.localStorage?.getItem(FRAME_RATE_STORAGE_KEY);
+      if (stored && FRAME_RATE_OPTIONS.some((opt) => opt.id === stored)) {
+        return stored;
+      }
+      const detected = detectPreferredFrameRateId();
+      if (detected && FRAME_RATE_OPTIONS.some((opt) => opt.id === detected)) {
+        return detected;
+      }
+    }
+    return DEFAULT_FRAME_RATE_ID;
+  });
+  const activeFrameRateOption = useMemo(
+    () => FRAME_RATE_OPTIONS.find((opt) => opt.id === frameRateId) ?? FRAME_RATE_OPTIONS[0],
+    [frameRateId]
+  );
+  const frameQualityProfile = useMemo(() => {
+    const option = activeFrameRateOption ?? FRAME_RATE_OPTIONS[0];
+    const fallback = FRAME_RATE_OPTIONS[0];
+    const fps =
+      Number.isFinite(option?.fps) && option.fps > 0
+        ? option.fps
+        : Number.isFinite(fallback?.fps) && fallback.fps > 0
+          ? fallback.fps
+          : 60;
+    const renderScale =
+      typeof option?.renderScale === 'number' && Number.isFinite(option.renderScale)
+        ? THREE.MathUtils.clamp(option.renderScale, 1, 1.6)
+        : 1;
+    const pixelRatioCap =
+      typeof option?.pixelRatioCap === 'number' && Number.isFinite(option.pixelRatioCap)
+        ? Math.max(1, option.pixelRatioCap)
+        : resolveDefaultPixelRatioCap();
+    return {
+      id: option?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      renderScale,
+      pixelRatioCap
+    };
+  }, [activeFrameRateOption]);
+  const frameQualityRef = useRef(frameQualityProfile);
+  useEffect(() => {
+    frameQualityRef.current = frameQualityProfile;
+  }, [frameQualityProfile]);
+  const resolvedFrameTiming = useMemo(() => {
+    const fallbackFps =
+      Number.isFinite(FRAME_RATE_OPTIONS[0]?.fps) && FRAME_RATE_OPTIONS[0].fps > 0
+        ? FRAME_RATE_OPTIONS[0].fps
+        : 60;
+    const fps =
+      Number.isFinite(frameQualityProfile?.fps) && frameQualityProfile.fps > 0
+        ? frameQualityProfile.fps
+        : fallbackFps;
+    const targetMs = 1000 / fps;
+    return {
+      id: frameQualityProfile?.id ?? FRAME_RATE_OPTIONS[0]?.id ?? DEFAULT_FRAME_RATE_ID,
+      fps,
+      targetMs,
+      maxMs: targetMs * FRAME_TIME_CATCH_UP_MULTIPLIER
+    };
+  }, [frameQualityProfile]);
+  const frameTimingRef = useRef(resolvedFrameTiming);
+  useEffect(() => {
+    frameTimingRef.current = resolvedFrameTiming;
+  }, [resolvedFrameTiming]);
+  useEffect(() => {
+    try {
+      window.localStorage?.setItem(FRAME_RATE_STORAGE_KEY, frameRateId);
+    } catch (error) {
+      console.warn("Failed to persist Texas Hold'em graphics", error);
+    }
+  }, [frameRateId]);
   const [configOpen, setConfigOpen] = useState(false);
   const timerRef = useRef(null);
   const turnIntervalRef = useRef(null);
@@ -2234,13 +2516,35 @@ function TexasHoldemArena({ search }) {
     }
   }, []);
 
+  const applyRendererQuality = useCallback(() => {
+    const renderer = threeRef.current?.renderer;
+    const host = mountRef.current;
+    if (!renderer || !host) return;
+    const quality = frameQualityRef.current;
+    const dpr =
+      typeof window !== 'undefined' && typeof window.devicePixelRatio === 'number'
+        ? window.devicePixelRatio
+        : 1;
+    const pixelRatioCap = quality?.pixelRatioCap ?? resolveDefaultPixelRatioCap();
+    const renderScale =
+      typeof quality?.renderScale === 'number' && Number.isFinite(quality.renderScale)
+        ? THREE.MathUtils.clamp(quality.renderScale, 1, 1.6)
+        : 1;
+    renderer.setPixelRatio(Math.min(pixelRatioCap, dpr));
+    renderer.setSize(host.clientWidth * renderScale, host.clientHeight * renderScale, false);
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+  }, []);
+
+  useEffect(() => {
+    applyRendererQuality();
+  }, [applyRendererQuality, frameQualityProfile]);
+
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount) return;
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     applyRendererSRGB(renderer);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
     renderer.shadowMap.enabled = true;
     mount.appendChild(renderer.domElement);
 
@@ -2793,12 +3097,14 @@ function TexasHoldemArena({ search }) {
           chairTemplate,
           chairMaterials,
           arenaGroup,
-          turnIndicator,
-          tableInfo,
-          tableShapeId: initialShape.id,
-          cardThemeId: cardTheme.id,
-          communityRowRotation: resolvedCommunityRowRotation
-        };
+        turnIndicator,
+        tableInfo,
+        tableShapeId: initialShape.id,
+        cardThemeId: cardTheme.id,
+        communityRowRotation: resolvedCommunityRowRotation
+      };
+
+      applyRendererQuality();
 
       potDisplayRef.current = Math.max(0, Math.round(gameState?.pot ?? 0));
       potTargetRef.current = potDisplayRef.current;
@@ -2966,14 +3272,15 @@ function TexasHoldemArena({ search }) {
 
     const handleResize = () => {
       if (!mount || !threeRef.current) return;
-      const { renderer: r, camera: cam } = threeRef.current;
+      const { camera: cam } = threeRef.current;
+      applyRendererQuality();
       const { clientWidth, clientHeight } = mount;
-      r.setSize(clientWidth, clientHeight);
-      cam.aspect = clientWidth / clientHeight;
+      cam.aspect = clientHeight > 0 ? clientWidth / clientHeight : 1;
       cam.updateProjectionMatrix();
     };
 
     window.addEventListener('resize', handleResize);
+    handleResize();
 
     const animate = (time) => {
       const three = threeRef.current;
@@ -2984,12 +3291,19 @@ function TexasHoldemArena({ search }) {
       if (lastFrameRef.current == null) {
         lastFrameRef.current = time;
       }
-      const deltaSeconds = Math.max(0, Math.min(0.1, (time - lastFrameRef.current) / 1000));
-      lastFrameRef.current = time;
-      three.chipFactory.update(deltaSeconds);
-      headAnglesRef.current.pitch = 0;
-      applyHeadOrientation();
-      three.renderer.render(three.scene, three.camera);
+      const frameTiming = frameTimingRef.current;
+      const targetFrameTime = frameTiming?.targetMs ?? 1000 / 60;
+      const maxFrameTime = frameTiming?.maxMs ?? targetFrameTime * FRAME_TIME_CATCH_UP_MULTIPLIER;
+      const deltaMs = time - lastFrameRef.current;
+      if (deltaMs >= targetFrameTime - 0.5) {
+        const appliedMs = Math.min(deltaMs, maxFrameTime);
+        lastFrameRef.current = time - Math.max(0, deltaMs - appliedMs);
+        const deltaSeconds = Math.max(0, Math.min(0.1, appliedMs / 1000));
+        three.chipFactory.update(deltaSeconds);
+        headAnglesRef.current.pitch = 0;
+        applyHeadOrientation();
+        three.renderer.render(three.scene, three.camera);
+      }
       animationRef.current = requestAnimationFrame(animate);
     };
     animationRef.current = requestAnimationFrame(animate);
@@ -3824,6 +4138,42 @@ function TexasHoldemArena({ search }) {
                   </div>
                 </div>
               ))}
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-[0.35em] text-white/60">Graphics</p>
+                <p className="mt-1 text-[0.7rem] text-white/60">
+                  Match the Murlan Royale presets for identical FPS and clarity options.
+                </p>
+                <div className="grid gap-2">
+                  {FRAME_RATE_OPTIONS.map((option) => {
+                    const active = option.id === frameRateId;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setFrameRateId(option.id)}
+                        aria-pressed={active}
+                        className={`w-full rounded-2xl border px-3 py-2 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300 ${
+                          active
+                            ? 'border-sky-300 bg-sky-300/15 shadow-[0_0_12px_rgba(125,211,252,0.35)]'
+                            : 'border-white/10 bg-white/5 hover:border-white/20 text-white/80'
+                        }`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-white">{option.label}</span>
+                          <span className="text-[11px] font-semibold tracking-wide text-sky-100">
+                            {option.resolution ? `${option.resolution} • ${option.fps} FPS` : `${option.fps} FPS`}
+                          </span>
+                        </span>
+                        {option.description ? (
+                          <span className="mt-1 block text-[10px] uppercase tracking-[0.2em] text-white/60">
+                            {option.description}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
           </div>
         )}
