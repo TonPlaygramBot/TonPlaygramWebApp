@@ -673,7 +673,9 @@ export function buildDominoArena({ scene, renderer }) {
     scene.environment = envTexture;
   }
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.35);
+  const ambient = new THREE.AmbientLight(0xffffff, 0.3);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0x4d4d4d, 0.45);
+  hemi.position.set(0, ROOM_DIMENSIONS.wallHeight / 2, 0);
   const key = new THREE.DirectionalLight(0xffffff, 1.2);
   key.position.set(6, 8, 5);
   key.castShadow = true;
@@ -682,14 +684,21 @@ export function buildDominoArena({ scene, renderer }) {
   fill.position.set(-5, 5.5, 3);
   const rim = new THREE.DirectionalLight(0xffffff, 0.9);
   rim.position.set(0, 6, -6);
-  const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
+  const spot = new THREE.SpotLight(0xffffff, 0.7, 0, Math.PI / 4, 0.35, 1.1);
   spot.position.set(0, 4.2, 4.6);
   scene.add(spot);
   const spotTarget = new THREE.Object3D();
   scene.add(spotTarget);
   spot.target = spotTarget;
 
-  scene.add(ambient, key, fill, rim);
+  const oppositeSpot = new THREE.SpotLight(0xffffff, 0.65, 0, Math.PI / 4, 0.35, 1.1);
+  oppositeSpot.position.set(0, 4.2, -4.6);
+  scene.add(oppositeSpot);
+  const oppositeSpotTarget = new THREE.Object3D();
+  scene.add(oppositeSpotTarget);
+  oppositeSpot.target = oppositeSpotTarget;
+
+  scene.add(ambient, hemi, key, fill, rim);
 
   const arena = new THREE.Group();
   scene.add(arena);
