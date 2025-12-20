@@ -1115,9 +1115,9 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295;
+const SPIN_STRENGTH = BALL_R * 0.022125; // 25% softer spin for gentler swerve and draw
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.013125; // match the reduced spin carry when the cue ball is rolling
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
@@ -4321,7 +4321,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.08; // pull the rail overhead broadcast heads slightly away from the cloth
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.0; // match the replay framing exactly so overhead broadcast cuts mirror the replay view
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -12066,6 +12066,12 @@ function PoolRoyaleGame({
                 broadcastArgs.focusWorld = defaultFocus;
                 broadcastArgs.orbitWorld = defaultFocus;
               }
+              if (activeShotView.preferRailOverhead && focusTargetVec3) {
+                const overheadFocus = focusTargetVec3.clone();
+                broadcastArgs.focusWorld = overheadFocus;
+                broadcastArgs.targetWorld = overheadFocus;
+                broadcastArgs.orbitWorld = overheadFocus;
+              }
               if (focusTargetVec3 && desiredPosition) {
                 if (!activeShotView.smoothedPos) {
                   activeShotView.smoothedPos = desiredPosition.clone();
@@ -12313,6 +12319,12 @@ function PoolRoyaleGame({
               (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
             desiredPosition.y =
               loweredY < minHeightWorld ? minHeightWorld : loweredY;
+            if (!activeShotView.lockedPos || !activeShotView.lockedTarget) {
+              activeShotView.lockedPos = desiredPosition.clone();
+              activeShotView.lockedTarget = focusTarget.clone();
+            }
+            desiredPosition.copy(activeShotView.lockedPos);
+            focusTarget.copy(activeShotView.lockedTarget);
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
