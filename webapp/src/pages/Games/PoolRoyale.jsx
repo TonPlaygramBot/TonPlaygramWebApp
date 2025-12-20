@@ -2437,7 +2437,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     focusPan: 0,
     trackingBias: 0,
     smoothing: 0.12,
-    avoidPocketCameras: true,
+    avoidPocketCameras: false,
     forceActionActivation: true
   }
 ]);
@@ -4314,10 +4314,6 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.84;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
-const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
-  x: BALL_R * 1.35,
-  z: -BALL_R * 1.8
-});
 const CUE_VIEW_RADIUS_RATIO = 0.04;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -12318,9 +12314,9 @@ function PoolRoyaleGame({
           lookTarget = focusTarget;
           if (topViewRef.current) {
             const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-              playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
+              playerOffsetRef.current,
               ORBIT_FOCUS_BASE_Y,
-              TOP_VIEW_SCREEN_OFFSET.z
+              0
             ).multiplyScalar(worldScaleFactor);
             lookTarget = topFocusTarget;
             lastCameraTargetRef.current.copy(topFocusTarget);
@@ -12668,7 +12664,7 @@ function PoolRoyaleGame({
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = true;
+          const preferRailOverhead = Boolean(railNormal);
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
