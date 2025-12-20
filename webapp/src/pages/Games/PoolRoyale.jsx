@@ -4321,7 +4321,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.06; // pull the rail overhead broadcast heads slightly away from the cloth
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.0; // match the 2D top view framing without pulling the broadcast heads back
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -9515,6 +9515,7 @@ function PoolRoyaleGame({
   const pocketCameraStateRef = useRef(false);
   const pocketCamerasRef = useRef(new Map());
   const broadcastCamerasRef = useRef(null);
+  const lastBroadcastRailDirRef = useRef(1);
   const lightingRigRef = useRef(null);
   const activeRenderCameraRef = useRef(null);
   const pocketSwitchIntentRef = useRef(null);
@@ -11627,9 +11628,21 @@ function PoolRoyaleGame({
             camera.lookAt(focusTarget);
             renderCamera = camera;
             lookTarget = focusTarget;
-            broadcastArgs.focusWorld = focusTarget.clone();
-            broadcastArgs.targetWorld = focusTarget.clone();
-            broadcastArgs.lerp = 0.04;
+            const broadcastFocus =
+              broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ??
+              focusTarget.clone();
+            const resolvedBroadcastRailDir = Number.isFinite(
+              lastBroadcastRailDirRef.current
+            )
+              ? Math.sign(lastBroadcastRailDirRef.current || 1)
+              : 1;
+            broadcastArgs = {
+              railDir: resolvedBroadcastRailDir,
+              focusWorld: broadcastFocus.clone(),
+              targetWorld: broadcastFocus.clone(),
+              orbitWorld: broadcastFocus.clone(),
+              lerp: 0.04
+            };
           } else if (galleryState?.active) {
             const basePosition =
               galleryState.basePosition ?? galleryState.position ?? null;
@@ -12016,6 +12029,9 @@ function PoolRoyaleGame({
                     })
                   : activeShotView.broadcastRailDir ?? railDir;
               activeShotView.broadcastRailDir = broadcastRailDir;
+              if (Number.isFinite(broadcastRailDir)) {
+                lastBroadcastRailDirRef.current = broadcastRailDir;
+              }
               broadcastArgs = {
                 railDir: broadcastRailDir,
                 targetWorld: null,
@@ -12095,6 +12111,9 @@ function PoolRoyaleGame({
               broadcastRailDir = railDir;
             }
             activeShotView.broadcastRailDir = broadcastRailDir;
+            if (Number.isFinite(broadcastRailDir)) {
+              lastBroadcastRailDirRef.current = broadcastRailDir;
+            }
             broadcastArgs = {
               railDir: broadcastRailDir ?? railDir,
               targetWorld: null,
