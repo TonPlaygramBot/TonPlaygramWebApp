@@ -4305,7 +4305,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.26;
+const TOP_VIEW_MARGIN = 1.34;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.04;
@@ -13403,9 +13403,9 @@ function PoolRoyaleGame({
               const touch = findTouch(e.changedTouches);
               if (touch) pointerX = touch.clientX;
             }
-            if (pointerX == null) pointerX = galleryDrag.lastX;
-            const dx = (pointerX ?? galleryDrag.lastX) - galleryDrag.lastX;
-            galleryDrag.lastX = pointerX ?? galleryDrag.lastX;
+          if (pointerX == null) pointerX = galleryDrag.lastX;
+          const dx = (pointerX ?? galleryDrag.lastX) - galleryDrag.lastX;
+          galleryDrag.lastX = pointerX ?? galleryDrag.lastX;
             if (
               !galleryDrag.moved &&
               Math.abs((pointerX ?? 0) - galleryDrag.startX) > 4
@@ -13428,6 +13428,17 @@ function PoolRoyaleGame({
               }
             }
             registerInteraction();
+            return;
+          }
+          if (topViewRef.current && topViewLockedRef.current) {
+            if (!drag.on) return;
+            const updated = updateTopViewAimFromPointer(e);
+            if (updated) {
+              drag.moved = true;
+              autoAimRequestRef.current = false;
+              suggestionAimKeyRef.current = null;
+              registerInteraction();
+            }
             return;
           }
           if (topViewRef.current && !topViewLockedRef.current) {
@@ -14388,6 +14399,21 @@ function PoolRoyaleGame({
           pt.x / worldScaleFactor,
           pt.z / worldScaleFactor
         );
+      };
+
+      const updateTopViewAimFromPointer = (ev) => {
+        const cueBall = cueRef.current || cue;
+        if (!cueBall?.active) return false;
+        const tablePoint = project(ev);
+        if (!tablePoint) return false;
+        const dir = tablePoint
+          .clone()
+          .sub(new THREE.Vector2(cueBall.pos.x, cueBall.pos.y));
+        if (dir.lengthSq() < 1e-6) return false;
+        dir.normalize();
+        aimDirRef.current.copy(dir);
+        cameraUpdateRef.current?.();
+        return true;
       };
 
       const pickOrbitFocus = (ev) => {
@@ -17573,10 +17599,10 @@ function PoolRoyaleGame({
             const margin = Math.max(
               STANDING_VIEW.margin,
               topViewRef.current
-                ? 1.05
+                ? TOP_VIEW_MARGIN
                 : window.innerHeight > window.innerWidth
-                  ? 1.6
-                  : 1.4
+                  ? STANDING_VIEW_MARGIN_PORTRAIT
+                  : STANDING_VIEW_MARGIN_LANDSCAPE
             );
             fit(margin);
           }
