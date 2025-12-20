@@ -4233,7 +4233,7 @@ const STANDING_VIEW_PHI = 0.86; // raise the standing orbit a touch for a cleare
 const CUE_SHOT_PHI = Math.PI / 2 - 0.26;
 const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
-const CAMERA_ABS_MIN_PHI = 0.22;
+const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
 const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
@@ -4307,7 +4307,9 @@ const BREAK_VIEW = Object.freeze({
 const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.38;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
-const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
+const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
+const TOP_VIEW_RADIUS_SCALE = 0.9;
+const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const CUE_VIEW_RADIUS_RATIO = 0.04;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -4476,7 +4478,7 @@ const SIDE_POCKET_SIGNS = [
   { sx: 1, sy: -1 },
   { sx: 1, sy: 1 }
 ];
-const fitRadius = (camera, margin = 1.1) => {
+const fitRadius = (camera, margin = 1.1, distanceScale = 0.65) => {
   const a = camera.aspect,
     f = THREE.MathUtils.degToRad(camera.fov);
   const halfW = (TABLE.W / 2) * margin,
@@ -4485,7 +4487,7 @@ const fitRadius = (camera, margin = 1.1) => {
   const dzW = halfW / (Math.tan(f / 2) * a);
   // Lean the standing radius closer to the cloth while preserving enough headroom to keep
   // the cushion tops in frame across aspect ratios.
-  const r = Math.max(dzH, dzW) * 0.65 * GLOBAL_SIZE_FACTOR;
+  const r = Math.max(dzH, dzW) * distanceScale * GLOBAL_SIZE_FACTOR;
   return clamp(r, CAMERA.minR, CAMERA.maxR);
 };
 const lerpAngle = (start = 0, end = 0, t = 0.5) => {
@@ -10772,14 +10774,14 @@ function PoolRoyaleGame({
           worstCaseAspect
         );
         const topDownRadius = Math.max(
-          fitRadius(tempCamera, TOP_VIEW_MARGIN),
+          fitRadius(tempCamera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
           CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
         return topDownRadius;
       };
       const resolveTopDownCoords = () => {
         const radius = resolveBroadcastDistance();
-        const phi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+        const phi = TOP_VIEW_RESOLVED_PHI;
         const focusY = ORBIT_FOCUS_BASE_Y * worldScaleFactor;
         const height = focusY + Math.cos(phi) * radius;
         const horizontal = Math.sin(phi) * radius;
@@ -12300,12 +12302,12 @@ function PoolRoyaleGame({
             lastCameraTargetRef.current.copy(topFocusTarget);
             const topRadius = clampOrbitRadius(
               Math.max(
-                fitRadius(camera, TOP_VIEW_MARGIN),
+                fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
                 CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
               )
             );
             const topTheta = Math.PI;
-            const topPhi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+            const topPhi = TOP_VIEW_RESOLVED_PHI;
             TMP_SPH.set(topRadius, topPhi, topTheta);
             camera.up.set(0, 1, 0);
             camera.position.setFromSpherical(TMP_SPH);
@@ -13219,12 +13221,12 @@ function PoolRoyaleGame({
           );
           const targetRadius = clampOrbitRadius(
             Math.max(
-              fitRadius(camera, TOP_VIEW_MARGIN),
+              fitRadius(camera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
               CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
             )
           );
           sph.radius = targetRadius;
-          sph.phi = Math.max(TOP_VIEW_PHI, CAMERA.minPhi);
+          sph.phi = TOP_VIEW_RESOLVED_PHI;
           lastCameraTargetRef.current.copy(topFocusTarget);
           syncBlendToSpherical();
           if (immediate) {
