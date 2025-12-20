@@ -1115,9 +1115,9 @@ const POCKET_VIEW_MIN_DURATION_MS = 560;
 const POCKET_VIEW_ACTIVE_EXTENSION_MS = 300;
 const POCKET_VIEW_POST_POT_HOLD_MS = 160;
 const POCKET_VIEW_MAX_HOLD_MS = 3200;
-const SPIN_STRENGTH = BALL_R * 0.0295 * 0.75;
+const SPIN_STRENGTH = BALL_R * 0.0295;
 const SPIN_DECAY = 0.9;
-const SPIN_ROLL_STRENGTH = BALL_R * 0.0175 * 0.75;
+const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
@@ -4321,7 +4321,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.12; // pull the rail overhead broadcast heads slightly away from the cloth
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.08; // pull the rail overhead broadcast heads slightly away from the cloth
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -12322,28 +12322,31 @@ function PoolRoyaleGame({
                   ? Math.max(activeShotView.holdUntil, extendTo)
                   : extendTo;
             }
+            const lastUpdate = activeShotView.lastUpdate ?? now;
+            const dt = Math.min(0.2, Math.max(0, (now - lastUpdate) / 1000));
             activeShotView.lastUpdate = now;
-            const resolvedPosition = activeShotView.staticCamera?.position
-              ? activeShotView.staticCamera.position
-              : desiredPosition.clone();
-            const resolvedTarget = activeShotView.staticCamera?.target
-              ? activeShotView.staticCamera.target
-              : focusTarget.clone();
-            if (!activeShotView.staticCamera) {
-              activeShotView.staticCamera = {
-                position: resolvedPosition.clone(),
-                target: resolvedTarget.clone()
-              };
+            const smooth =
+              POCKET_VIEW_SMOOTH_TIME > 0
+                ? 1 - Math.exp(-dt / POCKET_VIEW_SMOOTH_TIME)
+                : 1;
+            const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
+            if (!activeShotView.smoothedPos) {
+              activeShotView.smoothedPos = desiredPosition.clone();
+            } else {
+              activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
             }
-            activeShotView.smoothedPos = resolvedPosition.clone();
-            activeShotView.smoothedTarget = resolvedTarget.clone();
+            if (!activeShotView.smoothedTarget) {
+              activeShotView.smoothedTarget = focusTarget.clone();
+            } else {
+              activeShotView.smoothedTarget.lerp(focusTarget, lerpT);
+            }
             if (pocketCamera) {
-              pocketCamera.position.copy(resolvedPosition);
-              pocketCamera.lookAt(resolvedTarget);
+              pocketCamera.position.copy(activeShotView.smoothedPos);
+              pocketCamera.lookAt(activeShotView.smoothedTarget);
               pocketCamera.updateMatrixWorld();
               renderCamera = pocketCamera;
             }
-            lookTarget = resolvedTarget;
+            lookTarget = activeShotView.smoothedTarget;
           } else {
             const aimFocus =
               !shooting && cue?.active ? aimFocusRef.current : null;
@@ -15043,12 +15046,7 @@ function PoolRoyaleGame({
               ? prediction.targetBall.pos.clone()
               : null
           };
-          if (shotPrediction.railNormal) {
-            replayTags.add('bank');
-            if (topViewRef.current) {
-              exitTopView(true);
-            }
-          }
+          if (shotPrediction.railNormal) replayTags.add('bank');
           const intentTimestamp = performance.now();
           if (shotPrediction.ballId && !isShortShot) {
             const isDirectHit =
