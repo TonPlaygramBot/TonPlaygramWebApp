@@ -4306,6 +4306,9 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.84;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+// Keep the rail overhead broadcast framing nearly identical to the 2D top view while
+// leaving a small tilt for depth cues.
+const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
@@ -4430,19 +4433,26 @@ const resolveOppositeShortRailCamera = ({ cueBall = null, fallback = 1 } = {}) =
 const computeStandingViewHeight = (
   targetHeight,
   horizontalDistance,
-  minHeight = TABLE_Y + TABLE.THICK
+  minHeight = TABLE_Y + TABLE.THICK,
+  targetPhi = STANDING_VIEW_PHI
 ) => {
   if (!Number.isFinite(horizontalDistance) || horizontalDistance <= 0) {
     return Math.max(minHeight, targetHeight);
   }
-  const lift = horizontalDistance * STANDING_VIEW_COT;
+  const liftCot = (() => {
+    if (Math.abs(targetPhi - STANDING_VIEW_PHI) < 1e-6) return STANDING_VIEW_COT;
+    const sinPhi = Math.sin(targetPhi);
+    return sinPhi > 1e-6 ? Math.cos(targetPhi) / sinPhi : 0;
+  })();
+  const lift = horizontalDistance * liftCot;
   const desiredHeight = targetHeight + lift;
   return Math.max(minHeight, desiredHeight);
 };
 const applyStandingViewElevation = (
   desired,
   focus,
-  minHeight = TABLE_Y + TABLE.THICK
+  minHeight = TABLE_Y + TABLE.THICK,
+  targetPhi = STANDING_VIEW_PHI
 ) => {
   if (!desired || !focus) return;
   const horizontalDistance = Math.hypot(
@@ -4453,7 +4463,8 @@ const applyStandingViewElevation = (
   const minStandingHeight = computeStandingViewHeight(
     targetHeight,
     horizontalDistance,
-    minHeight
+    minHeight,
+    targetPhi
   );
   if (desired.y < minStandingHeight) {
     desired.y = minStandingHeight;
@@ -11724,6 +11735,9 @@ function PoolRoyaleGame({
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
+              const standingPhi = activeShotView.preferRailOverhead
+                ? RAIL_OVERHEAD_PHI
+                : STANDING_VIEW_PHI;
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -11833,7 +11847,12 @@ function PoolRoyaleGame({
                     clampedZTarget,
                     0.65
                   );
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  applyStandingViewElevation(
+                    desired,
+                    lookAnchor,
+                    heightBase,
+                    standingPhi
+                  );
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -11852,7 +11871,12 @@ function PoolRoyaleGame({
                   lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.65);
                   lookAnchor.x += -railDir * BALL_R * 4;
                   lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  applyStandingViewElevation(
+                    desired,
+                    lookAnchor,
+                    heightBase,
+                    standingPhi
+                  );
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
@@ -11948,7 +11972,12 @@ function PoolRoyaleGame({
                     clampedZTarget,
                     0.65
                   );
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  applyStandingViewElevation(
+                    desired,
+                    lookAnchor,
+                    heightBase,
+                    standingPhi
+                  );
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 } else {
@@ -11967,7 +11996,12 @@ function PoolRoyaleGame({
                   lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.65);
                   lookAnchor.x += -railDir * BALL_R * 4;
                   lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
+                  applyStandingViewElevation(
+                    desired,
+                    lookAnchor,
+                    heightBase,
+                    standingPhi
+                  );
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
