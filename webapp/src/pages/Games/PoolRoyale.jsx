@@ -4306,6 +4306,7 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.88;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const BROADCAST_TOP_VIEW_DISTANCE_SCALE = 0.92;
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
@@ -4319,7 +4320,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const halfLength = PLAY_H / 2 + BROADCAST_MARGIN_LENGTH;
   const widthDistance = (halfWidth / Math.tan(halfHorizontal)) * TOP_VIEW_RADIUS_SCALE;
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
-  return Math.max(widthDistance, lengthDistance);
+  return Math.max(widthDistance, lengthDistance) * BROADCAST_TOP_VIEW_DISTANCE_SCALE;
 };
 const RAIL_OVERHEAD_DISTANCE_BIAS = 1.06; // pull the rail overhead broadcast heads slightly away from the cloth
 const SHORT_RAIL_CAMERA_DISTANCE =
@@ -10794,16 +10795,21 @@ function PoolRoyaleGame({
       }
 
       const resolveBroadcastDistance = () => {
-        const worstCaseAspect = 9 / 16; // worst-case portrait aspect to guarantee full coverage
+        const { innerWidth: width, innerHeight: height } =
+          typeof window !== 'undefined'
+            ? window
+            : { innerWidth: 1080, innerHeight: 1920 };
+        const aspect = height > 0 ? width / height : 1;
+        const safeAspect = THREE.MathUtils.clamp(aspect, 9 / 20, 2);
         const tempCamera = new THREE.PerspectiveCamera(
           STANDING_VIEW_FOV,
-          worstCaseAspect
+          safeAspect
         );
         const topDownRadius = Math.max(
           fitRadius(tempCamera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
           CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
         );
-        return topDownRadius;
+        return topDownRadius * BROADCAST_TOP_VIEW_DISTANCE_SCALE;
       };
       const resolveTopDownCoords = () => {
         const radius = resolveBroadcastDistance();
@@ -12986,7 +12992,34 @@ function PoolRoyaleGame({
             }
           }));
 
+        const captureBroadcastReplayCamera = () => {
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const focus = new THREE.Vector3(
+            playerOffsetRef.current * scale,
+            ORBIT_FOCUS_BASE_Y * scale,
+            0
+          );
+          const aspect = camera?.aspect ?? 1;
+          const fovSnapshot = Number.isFinite(camera?.fov)
+            ? camera.fov
+            : STANDING_VIEW_FOV;
+          const radius = Math.max(
+            computeTopViewBroadcastDistance(aspect, fovSnapshot),
+            CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
+          ) * scale;
+          TMP_SPH.set(radius, RAIL_OVERHEAD_PHI, Math.PI);
+          const position = new THREE.Vector3().setFromSpherical(TMP_SPH).add(focus);
+          return {
+            position,
+            target: focus,
+            fov: fovSnapshot,
+            railDir: 1
+          };
+        };
+
         const captureReplayCameraSnapshot = () => {
+          const overheadSnapshot = captureBroadcastReplayCamera();
+          if (overheadSnapshot) return overheadSnapshot;
           const currentCamera = activeRenderCameraRef.current ?? camera;
           const position = currentCamera?.position?.clone?.() ?? null;
           const fovSnapshot = Number.isFinite(currentCamera?.fov)
