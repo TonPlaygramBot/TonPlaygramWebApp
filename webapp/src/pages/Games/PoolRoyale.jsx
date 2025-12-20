@@ -1107,8 +1107,6 @@ const ACTION_CAM = Object.freeze({
  * • When a ball drops into a pocket → Potting Shot.
  * • After each round → Reset.
  */
-const SHORT_RAIL_CAMERA_DISTANCE = PLAY_H / 2 + BALL_R * 10; // pull the broadcast cams tighter while keeping at least half the field visible
-const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // match short-rail framing so broadcast shots feel consistent
 const CAMERA_LATERAL_CLAMP = Object.freeze({
   short: PLAY_W * 0.4,
   side: PLAY_H * 0.45
@@ -4245,8 +4243,6 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
-const BROADCAST_MARGIN_WIDTH = BALL_R * 10;
-const BROADCAST_MARGIN_LENGTH = BALL_R * 10;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
@@ -4310,6 +4306,20 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.84;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
+const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
+const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
+  const verticalFov = THREE.MathUtils.degToRad(fov || STANDING_VIEW_FOV);
+  const halfVertical = Math.max(verticalFov / 2, 1e-3);
+  const halfHorizontal = Math.max(Math.atan(Math.tan(halfVertical) * aspect), 1e-3);
+  const halfWidth = PLAY_W / 2 + BROADCAST_MARGIN_WIDTH;
+  const halfLength = PLAY_H / 2 + BROADCAST_MARGIN_LENGTH;
+  const widthDistance = (halfWidth / Math.tan(halfHorizontal)) * TOP_VIEW_RADIUS_SCALE;
+  const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
+  return Math.max(widthDistance, lengthDistance);
+};
+const SHORT_RAIL_CAMERA_DISTANCE = computeTopViewBroadcastDistance(); // match the 2D top view framing distance for overhead rail cuts
+const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
 const CUE_VIEW_RADIUS_RATIO = 0.04;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -4545,18 +4555,7 @@ const computeCueViewVector = (cueBall, camera) => {
 
 const computeShortRailBroadcastDistance = (camera) => {
   if (!camera) return SHORT_RAIL_CAMERA_DISTANCE;
-  const verticalFov = THREE.MathUtils.degToRad(camera.fov || STANDING_VIEW_FOV);
-  const aspect = camera.aspect || 1;
-  const halfVertical = Math.max(verticalFov / 2, 1e-3);
-  const halfHorizontal = Math.max(
-    Math.atan(Math.tan(halfVertical) * aspect),
-    1e-3
-  );
-  const halfWidth = PLAY_W / 2 + BROADCAST_MARGIN_WIDTH;
-  const halfLength = PLAY_H / 2 + BROADCAST_MARGIN_LENGTH;
-  const widthDistance = halfWidth / Math.tan(halfHorizontal);
-  const lengthDistance = halfLength / Math.tan(halfVertical);
-  const required = Math.max(widthDistance, lengthDistance);
+  const required = computeTopViewBroadcastDistance(camera.aspect, camera.fov);
   return Math.max(SHORT_RAIL_CAMERA_DISTANCE, required);
 };
 
