@@ -1105,7 +1105,6 @@ const LEG_SCALE = 6.2;
 const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
-const TABLE_MICRO_LIFT = 0.05; // nudge the entire table up slightly without altering cushion height
 const TABLE_DROP = 0.4;
 const TABLE_HEIGHT_REDUCTION = 0.8; // align snooker table stance to Pool Royale height
 const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after the matched reduction
@@ -1129,7 +1128,7 @@ const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footpr
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
 const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
-const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA + TABLE_MICRO_LIFT;
+const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
@@ -7565,7 +7564,7 @@ function Table3D(
   const CUSHION_RAIL_BASE_LIFT = 0; // keep the cushion base flush with the cloth plane along the wooden rails
   const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
   const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
-  const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT - TABLE_MICRO_LIFT;
+  const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
