@@ -2428,7 +2428,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
-    railPush: BALL_R * 4.9,
+    railPush: BALL_R * 6,
     lateralDolly: BALL_R * 0.6,
     focusLift: BALL_R * 5.4,
     focusDepthBias: -BALL_R * 0.6,
