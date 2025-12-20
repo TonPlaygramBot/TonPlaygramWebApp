@@ -9525,6 +9525,8 @@ function PoolRoyaleGame({
   const fitRef = useRef(() => {});
   const topViewRef = useRef(false);
   const topViewLockedRef = useRef(false);
+  const preShotTopViewRef = useRef(false);
+  const preShotTopViewLockRef = useRef(false);
   const sidePocketAimRef = useRef(false);
   const aimDirRef = useRef(new THREE.Vector2(0, 1));
   const playerOffsetRef = useRef(0);
@@ -10249,6 +10251,17 @@ function PoolRoyaleGame({
         if (shooting === value) return;
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
+        if (shooting) {
+          preShotTopViewRef.current = topViewRef.current;
+          preShotTopViewLockRef.current = topViewLockedRef.current;
+          topViewRef.current = true;
+          topViewLockedRef.current = true;
+          enterTopView(true);
+        } else if (!preShotTopViewRef.current) {
+          exitTopView(true);
+        } else {
+          topViewLockedRef.current = preShotTopViewLockRef.current;
+        }
         setShotActive(value);
       };
       let activeShotView = null;
@@ -15037,20 +15050,25 @@ function PoolRoyaleGame({
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const actionView = allowLongShotCameraSwitch
-            ? makeActionCameraView(
-                cue,
-                shotPrediction.ballId,
-                followView,
-                shotPrediction.railNormal,
-                {
-                  longShot: isLongShot,
-                  travelDistance: predictedTravel
-                }
-              )
-            : null;
+          const enableActionCamera = false;
+          const actionView =
+            enableActionCamera && allowLongShotCameraSwitch
+              ? makeActionCameraView(
+                  cue,
+                  shotPrediction.ballId,
+                  followView,
+                  shotPrediction.railNormal,
+                  {
+                    longShot: isLongShot,
+                    travelDistance: predictedTravel
+                  }
+                )
+              : null;
           const earlyPocketView =
-            !suppressPocketCameras && shotPrediction.ballId && followView
+            enableActionCamera &&
+            !suppressPocketCameras &&
+            shotPrediction.ballId &&
+            followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
@@ -16565,8 +16583,14 @@ function PoolRoyaleGame({
         );
         const subStepScale = frameScale / physicsSubsteps;
         lastStepTime = now;
-        camera.getWorldDirection(camFwd);
-        tmpAim.set(camFwd.x, camFwd.z).normalize();
+        if (topViewRef.current && topViewLockedRef.current) {
+          const fallbackAim = aimDirRef.current.clone();
+          if (fallbackAim.lengthSq() < 1e-6) fallbackAim.set(0, 1);
+          tmpAim.copy(fallbackAim.normalize());
+        } else {
+          camera.getWorldDirection(camFwd);
+          tmpAim.set(camFwd.x, camFwd.z).normalize();
+        }
         const cameraBlend = THREE.MathUtils.clamp(
           cameraBlendRef.current ?? 1,
           0,
