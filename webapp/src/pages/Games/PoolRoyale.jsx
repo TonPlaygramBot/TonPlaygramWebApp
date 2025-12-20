@@ -4305,7 +4305,7 @@ const BREAK_VIEW = Object.freeze({
   phi: CAMERA.maxPhi - 0.01
 });
 const CAMERA_RAIL_SAFETY = 0.006;
-const TOP_VIEW_MARGIN = 1.34;
+const TOP_VIEW_MARGIN = 1.38;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.08;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
 const CUE_VIEW_RADIUS_RATIO = 0.04;
