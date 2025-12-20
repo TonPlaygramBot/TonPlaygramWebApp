@@ -1123,9 +1123,6 @@ const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels str
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
-const SPIN_CURVE_SCALE = 0.35; // how aggressively side spin bends the travel path
-const SPIN_BOUNCE_STRENGTH = 0.55; // bonus cushion response when hitting hard with spin
-const SPIN_BOUNCE_SPEED_THRESHOLD = SHOT_BASE_SPEED * 0.35;
 // Align shot strength to the legacy 2D tuning (3.3 * 0.3 * 1.65) while keeping overall power 25% softer than before.
 // Apply an additional 20% reduction to soften every strike and keep mobile play comfortable.
 // Pool Royale feedback: increase standard shots by 30% and amplify the break by 50% to open racks faster.
@@ -4487,7 +4484,6 @@ const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
-const TMP_VEC2_ROTATED = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
@@ -5122,8 +5118,6 @@ function makeWoodTexture({
   return texture;
 }
 function reflectRails(ball) {
-  ball.lastRailNormal = null;
-  ball.lastRailImpactSpeed = 0;
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
@@ -5157,12 +5151,8 @@ function reflectRails(ball) {
         .sub(vt)
         .add(vt.multiplyScalar(tangentDamping));
     }
-    const railNormal = ball.lastRailNormal || new THREE.Vector2();
-    railNormal.copy(TMP_VEC2_B);
-    ball.lastRailNormal = railNormal;
-    ball.lastRailImpactSpeed = Math.abs(vn);
     if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6, railNormal, ball.lastRailImpactSpeed);
+      applySpinImpulse(ball, 0.6);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -5204,12 +5194,8 @@ function reflectRails(ball) {
         .sub(vt)
         .add(vt.multiplyScalar(tangentDamping));
     }
-    const railNormal = ball.lastRailNormal || new THREE.Vector2();
-    railNormal.copy(TMP_VEC2_B);
-    ball.lastRailNormal = railNormal;
-    ball.lastRailImpactSpeed = Math.abs(vn);
     if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6, railNormal, ball.lastRailImpactSpeed);
+      applySpinImpulse(ball, 0.6);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -5230,45 +5216,25 @@ function reflectRails(ball) {
   if (ball.pos.x < -limX && ball.vel.x < 0) {
     const overshoot = -limX - ball.pos.x;
     ball.pos.x = -limX + overshoot;
-    const impactSpeed = Math.abs(ball.vel.x);
-    ball.vel.x = impactSpeed * CUSHION_RESTITUTION;
-    const normal = ball.lastRailNormal || new THREE.Vector2();
-    normal.set(1, 0);
-    ball.lastRailNormal = normal;
-    ball.lastRailImpactSpeed = impactSpeed;
+    ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
-    const impactSpeed = Math.abs(ball.vel.x);
-    ball.vel.x = -impactSpeed * CUSHION_RESTITUTION;
-    const normal = ball.lastRailNormal || new THREE.Vector2();
-    normal.set(-1, 0);
-    ball.lastRailNormal = normal;
-    ball.lastRailImpactSpeed = impactSpeed;
+    ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
-    const impactSpeed = Math.abs(ball.vel.y);
-    ball.vel.y = impactSpeed * CUSHION_RESTITUTION;
-    const normal = ball.lastRailNormal || new THREE.Vector2();
-    normal.set(0, 1);
-    ball.lastRailNormal = normal;
-    ball.lastRailImpactSpeed = impactSpeed;
+    ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
-    const impactSpeed = Math.abs(ball.vel.y);
-    ball.vel.y = -impactSpeed * CUSHION_RESTITUTION;
-    const normal = ball.lastRailNormal || new THREE.Vector2();
-    normal.set(0, -1);
-    ball.lastRailNormal = normal;
-    ball.lastRailImpactSpeed = impactSpeed;
+    ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
   }
   if (collided) {
@@ -5282,56 +5248,27 @@ function reflectRails(ball) {
   return collided;
 }
 
-function applySpinImpulse(ball, scale = 1, collisionNormal = null, impactSpeed = null) {
+function applySpinImpulse(ball, scale = 1) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
   const speed = Math.max(ball.vel.length(), 0.25);
   const forward =
     speed > 1e-6
       ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
-      : ball.launchDir?.lengthSq() > 1e-8
-        ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
-        : TMP_VEC2_FORWARD.set(0, 1);
+      : TMP_VEC2_FORWARD.set(0, 1);
   const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
   const sideSpin = ball.spin.x || 0;
   const verticalSpin = ball.spin.y || 0;
-  const spinEnergy = Math.sqrt(sideSpin * sideSpin + verticalSpin * verticalSpin);
   const swerveScale = 0.65 + Math.min(speed, 8) * 0.12;
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
   const forwardKick = verticalSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
-  const curveBend = lateralKick * SPIN_CURVE_SCALE;
-
   if (Math.abs(lateralKick) > 1e-8) {
     ball.vel.addScaledVector(lateral, lateralKick);
   }
   if (Math.abs(forwardKick) > 1e-8) {
     ball.vel.addScaledVector(forward, forwardKick);
   }
-  if (Math.abs(curveBend) > 1e-8 && ball.vel.lengthSq() > 1e-6) {
-    const currentSpeed = ball.vel.length();
-    TMP_VEC2_ROTATED.copy(ball.vel).normalize();
-    const cos = Math.cos(curveBend);
-    const sin = Math.sin(curveBend);
-    const rx = TMP_VEC2_ROTATED.x * cos - TMP_VEC2_ROTATED.y * sin;
-    const ry = TMP_VEC2_ROTATED.x * sin + TMP_VEC2_ROTATED.y * cos;
-    TMP_VEC2_ROTATED.set(rx, ry).multiplyScalar(currentSpeed);
-    ball.vel.copy(TMP_VEC2_ROTATED);
-  }
-
-  const allowBounce =
-    collisionNormal &&
-    impactSpeed &&
-    impactSpeed > SPIN_BOUNCE_SPEED_THRESHOLD &&
-    spinEnergy > 0.05;
-  if (allowBounce) {
-    const bounceNormal = TMP_VEC2_AXIS.copy(collisionNormal).normalize();
-    const bounceScale =
-      Math.min(spinEnergy, 1.4) * SPIN_BOUNCE_STRENGTH * scale;
-    const spinSign = Math.sign(verticalSpin || sideSpin || 1);
-    ball.vel.addScaledVector(bounceNormal, bounceScale * spinSign);
-  }
-
   if (ball.id === 'cue' && ball.spinMode === 'swerve') {
     ball.spinMode = 'standard';
   }
@@ -17206,71 +17143,38 @@ function PoolRoyaleGame({
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
               const allowRoll = !isCue || b.impacted || swerveTravel;
               const preImpact = isCue && !b.impacted;
-              const forwardDir =
-                b.vel.lengthSq() > 1e-8
-                  ? TMP_VEC2_FORWARD.copy(b.vel).normalize()
-                  : b.launchDir?.lengthSq() > 1e-8
-                    ? TMP_VEC2_FORWARD.copy(b.launchDir).normalize()
-                    : TMP_VEC2_FORWARD.set(0, 1);
-              const lateralDir = TMP_VEC2_LATERAL.set(-forwardDir.y, forwardDir.x);
-              const sideSpin = b.spin.x || 0;
-              const verticalSpin = b.spin.y || 0;
-              const spinEnergy = Math.min(
-                Math.sqrt(sideSpin * sideSpin + verticalSpin * verticalSpin),
-                1.6
-              );
               if (allowRoll) {
                 const rollMultiplier = swerveTravel ? SWERVE_TRAVEL_MULTIPLIER : 1;
-                const rollKick = SPIN_ROLL_STRENGTH * rollMultiplier * stepScale;
-                const lateralKick = sideSpin * rollKick;
-                const forwardKick = verticalSpin * rollKick * 0.65;
-                const curveAngle = lateralKick * (SPIN_CURVE_SCALE + spinEnergy * 0.08);
-                b.vel.addScaledVector(lateralDir, lateralKick);
-                b.vel.addScaledVector(forwardDir, forwardKick);
-
-                if (Math.abs(curveAngle) > 1e-8 && b.vel.lengthSq() > 1e-8) {
-                  const vSpeed = b.vel.length();
-                  TMP_VEC2_ROTATED.copy(b.vel).normalize();
-                  const cos = Math.cos(curveAngle);
-                  const sin = Math.sin(curveAngle);
-                  const rx = TMP_VEC2_ROTATED.x * cos - TMP_VEC2_ROTATED.y * sin;
-                  const ry = TMP_VEC2_ROTATED.x * sin + TMP_VEC2_ROTATED.y * cos;
-                  TMP_VEC2_ROTATED.set(rx, ry).multiplyScalar(vSpeed);
-                  b.vel.copy(TMP_VEC2_ROTATED);
-                }
-
-                if (preImpact && b.spinMode === 'swerve' && b.pendingSpin) {
-                  const swerveCharge = lateralKick * (1 + spinEnergy * 0.2);
-                  b.pendingSpin.addScaledVector(lateralDir, swerveCharge);
-                }
-                if (
-                  preImpact &&
-                  b.pendingSpin &&
-                  !swerveTravel &&
-                  Math.abs(verticalSpin) > 0.05
-                ) {
-                  b.pendingSpin.addScaledVector(forwardDir, forwardKick * 0.35);
-                }
-                if (
-                  isCue &&
-                  b.spinMode === 'swerve' &&
-                  b.pendingSpin &&
-                  b.pendingSpin.lengthSq() > 0
-                ) {
-                  b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
-                  b.pendingSpin.multiplyScalar(0);
-                }
-
-                const rollDecay = Math.pow(
-                  SPIN_ROLL_DECAY,
-                  stepScale * (1 + spinEnergy * 0.08)
+                TMP_VEC2_SPIN.copy(b.spin).multiplyScalar(
+                  SPIN_ROLL_STRENGTH * rollMultiplier * stepScale
                 );
+                if (preImpact && b.launchDir && b.launchDir.lengthSq() > 1e-8) {
+                  const launchDir = TMP_VEC2_FORWARD.copy(b.launchDir).normalize();
+                  const forwardMag = TMP_VEC2_SPIN.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(forwardMag);
+                  b.vel.add(TMP_VEC2_AXIS);
+                  TMP_VEC2_LATERAL.copy(TMP_VEC2_SPIN).sub(TMP_VEC2_AXIS);
+                  if (b.spinMode === 'swerve' && b.pendingSpin) {
+                    b.pendingSpin.add(TMP_VEC2_LATERAL);
+                  }
+                  const alignedSpeed = b.vel.dot(launchDir);
+                  TMP_VEC2_AXIS.copy(launchDir).multiplyScalar(alignedSpeed);
+                  b.vel.copy(TMP_VEC2_AXIS);
+                } else {
+                  b.vel.add(TMP_VEC2_SPIN);
+                  if (
+                    isCue &&
+                    b.spinMode === 'swerve' &&
+                    b.pendingSpin &&
+                    b.pendingSpin.lengthSq() > 0
+                  ) {
+                    b.vel.addScaledVector(b.pendingSpin, PRE_IMPACT_SPIN_DRIFT);
+                    b.pendingSpin.multiplyScalar(0);
+                  }
+                }
+                const rollDecay = Math.pow(SPIN_ROLL_DECAY, stepScale);
                 b.spin.multiplyScalar(rollDecay);
               } else {
-                const airSlide = sideSpin * SPIN_STRENGTH * stepScale * 0.2;
-                if (Math.abs(airSlide) > 1e-8) {
-                  b.vel.addScaledVector(lateralDir, airSlide);
-                }
                 const airDecay = Math.pow(SPIN_AIR_DECAY, stepScale);
                 b.spin.multiplyScalar(airDecay);
               }
@@ -17301,7 +17205,7 @@ function PoolRoyaleGame({
               shotContextRef.current.cushionAfterContact = true;
             }
             if (hitRail === 'rail' && b.spin?.lengthSq() > 0) {
-              applySpinImpulse(b, 1, b.lastRailNormal, b.lastRailImpactSpeed);
+              applySpinImpulse(b, 1);
             }
             if (hitRail) {
               const nowRail = performance.now();
@@ -17397,8 +17301,7 @@ function PoolRoyaleGame({
                 }
                 if (cueBall && cueBall.spin?.lengthSq() > 0) {
                   cueBall.impacted = true;
-                  TMP_VEC2_AXIS.set(nx, ny);
-                  applySpinImpulse(cueBall, 1.1, TMP_VEC2_AXIS, impulse);
+                  applySpinImpulse(cueBall, 1.1);
                 }
               }
             }
