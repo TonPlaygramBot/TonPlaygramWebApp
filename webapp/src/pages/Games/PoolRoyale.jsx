@@ -1120,6 +1120,11 @@ const SPIN_DECAY = 0.9;
 const SPIN_ROLL_STRENGTH = BALL_R * 0.0175;
 const SPIN_ROLL_DECAY = 0.978;
 const SPIN_AIR_DECAY = 0.997; // hold spin energy while the cue ball travels straight pre-impact
+const SPIN_CURVE_STRENGTH = BALL_R * 0.0125; // magnus-like sideways/forward drift
+const SPIN_CURVE_LIFT = BALL_R * 0.0075; // vertical spin converts to follow/draw curve
+const SPIN_HARD_IMPACT_THRESHOLD = 0.22;
+const SPIN_BOUNCE_BOOST = BALL_R * 0.065;
+const SPIN_HARD_IMPACT_SPEED = 2.35;
 const SWERVE_THRESHOLD = 0.82; // outer 18% of the spin control activates swerve behaviour
 const SWERVE_TRAVEL_MULTIPLIER = 0.55; // dampen sideways drift while swerve is active so it stays believable
 const PRE_IMPACT_SPIN_DRIFT = 0.06; // reapply stored sideways swerve once the cue ball is rolling after impact
@@ -4483,12 +4488,39 @@ const TMP_VEC2_FORWARD = new THREE.Vector2();
 const TMP_VEC2_LATERAL = new THREE.Vector2();
 const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
+const TMP_VEC2_NORMAL = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
 const TMP_VEC3_TOP_VIEW = new THREE.Vector3();
+
+function applySpinDrift(ball, stepScale) {
+  if (!ball?.spin || ball.spin.lengthSq() < 1e-6) return;
+  const speed = Math.max(ball.vel.length(), 0.05);
+  const forward =
+    speed > 1e-6
+      ? TMP_VEC2_FORWARD.copy(ball.vel).normalize()
+      : ball.launchDir && ball.launchDir.lengthSq() > 1e-6
+        ? TMP_VEC2_FORWARD.copy(ball.launchDir).normalize()
+        : TMP_VEC2_FORWARD.set(0, 1);
+  const lateral = TMP_VEC2_LATERAL.set(-forward.y, forward.x);
+  const spinSide = ball.spin.x || 0;
+  const spinVertical = ball.spin.y || 0;
+  const curveStrength =
+    SPIN_CURVE_STRENGTH * stepScale * (1 + Math.min(speed, 8) * 0.22);
+  TMP_VEC2_A.copy(lateral).multiplyScalar(spinSide * curveStrength);
+  TMP_VEC2_B.copy(forward).multiplyScalar(spinVertical * (curveStrength + SPIN_CURVE_LIFT));
+  ball.vel.add(TMP_VEC2_A).add(TMP_VEC2_B);
+
+  const curveEnergy = Math.max(Math.abs(spinSide), Math.abs(spinVertical));
+  if (curveEnergy > SPIN_HARD_IMPACT_THRESHOLD * 0.5 && speed > 0.25) {
+    const stored = curveEnergy * Math.max(speed - 0.35, 0) * 0.65;
+    ball.spinBounce = Math.max(ball.spinBounce ?? 0, stored);
+  }
+}
+
 const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
@@ -5152,7 +5184,7 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
+      applySpinImpulse(ball, 0.6, TMP_VEC2_B);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -5195,7 +5227,7 @@ function reflectRails(ball) {
         .add(vt.multiplyScalar(tangentDamping));
     }
     if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
+      applySpinImpulse(ball, 0.6, TMP_VEC2_B);
     }
     const stamp =
       typeof performance !== 'undefined' && performance.now
@@ -5218,24 +5250,40 @@ function reflectRails(ball) {
     ball.pos.x = -limX + overshoot;
     ball.vel.x = Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
+    if (ball.spin?.lengthSq() > 0) {
+      TMP_VEC2_NORMAL.set(1, 0);
+      applySpinImpulse(ball, 0.6, TMP_VEC2_NORMAL);
+    }
   }
   if (ball.pos.x > limX && ball.vel.x > 0) {
     const overshoot = ball.pos.x - limX;
     ball.pos.x = limX - overshoot;
     ball.vel.x = -Math.abs(ball.vel.x) * CUSHION_RESTITUTION;
     collided = 'rail';
+    if (ball.spin?.lengthSq() > 0) {
+      TMP_VEC2_NORMAL.set(-1, 0);
+      applySpinImpulse(ball, 0.6, TMP_VEC2_NORMAL);
+    }
   }
   if (ball.pos.y < -limY && ball.vel.y < 0) {
     const overshoot = -limY - ball.pos.y;
     ball.pos.y = -limY + overshoot;
     ball.vel.y = Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
+    if (ball.spin?.lengthSq() > 0) {
+      TMP_VEC2_NORMAL.set(0, 1);
+      applySpinImpulse(ball, 0.6, TMP_VEC2_NORMAL);
+    }
   }
   if (ball.pos.y > limY && ball.vel.y > 0) {
     const overshoot = ball.pos.y - limY;
     ball.pos.y = limY - overshoot;
     ball.vel.y = -Math.abs(ball.vel.y) * CUSHION_RESTITUTION;
     collided = 'rail';
+    if (ball.spin?.lengthSq() > 0) {
+      TMP_VEC2_NORMAL.set(0, -1);
+      applySpinImpulse(ball, 0.6, TMP_VEC2_NORMAL);
+    }
   }
   if (collided) {
     const stamp =
@@ -5248,7 +5296,7 @@ function reflectRails(ball) {
   return collided;
 }
 
-function applySpinImpulse(ball, scale = 1) {
+function applySpinImpulse(ball, scale = 1, normal = null) {
   if (!ball?.spin) return false;
   if (ball.spin.lengthSq() < 1e-6) return false;
   const speed = Math.max(ball.vel.length(), 0.25);
@@ -5263,6 +5311,26 @@ function applySpinImpulse(ball, scale = 1) {
   const liftScale = 0.35 + Math.min(speed, 6) * 0.08;
   const lateralKick = sideSpin * SPIN_STRENGTH * swerveScale * scale;
   const forwardKick = verticalSpin * SPIN_STRENGTH * liftScale * scale * 0.5;
+  const normalDir = normal
+    ? TMP_VEC2_NORMAL.copy(normal).normalize()
+    : null;
+  if (normalDir) {
+    const tangent = TMP_VEC2_AXIS.set(-normalDir.y, normalDir.x);
+    const shear = tangent.dot(forward) >= 0 ? 1 : -1;
+    const bankCurve = sideSpin * SPIN_CURVE_STRENGTH * scale;
+    const storedHop = Math.max(0, ball.spinBounce ?? 0);
+    const hop = Math.max(
+      storedHop,
+      Math.max(Math.abs(sideSpin), Math.abs(verticalSpin)) - SPIN_HARD_IMPACT_THRESHOLD
+    );
+    const bounceBoost =
+      hop * SPIN_BOUNCE_BOOST * (speed > SPIN_HARD_IMPACT_SPEED ? 1 + speed * 0.08 : 0);
+    if (bounceBoost > 0) {
+      ball.vel.addScaledVector(normalDir, bounceBoost);
+      ball.vel.addScaledVector(tangent, bankCurve * shear * 0.5);
+      ball.spinBounce = 0;
+    }
+  }
   if (Math.abs(lateralKick) > 1e-8) {
     ball.vel.addScaledVector(lateral, lateralKick);
   }
@@ -5402,6 +5470,7 @@ function Guret(parent, id, color, x, y, options = {}) {
     impacted: false,
     launchDir: null,
     pendingSpin: new THREE.Vector2(),
+    spinBounce: 0,
     active: true
   };
 }
@@ -17140,6 +17209,7 @@ function PoolRoyaleGame({
             const isCue = b.id === 'cue';
             const hasSpin = b.spin?.lengthSq() > 1e-6;
             if (hasSpin) {
+              applySpinDrift(b, stepScale);
               const swerveTravel = isCue && b.spinMode === 'swerve' && !b.impacted;
               const allowRoll = !isCue || b.impacted || swerveTravel;
               const preImpact = isCue && !b.impacted;
@@ -17181,6 +17251,7 @@ function PoolRoyaleGame({
               if (b.spin.lengthSq() < 1e-6) {
                 b.spin.set(0, 0);
                 if (b.pendingSpin) b.pendingSpin.set(0, 0);
+                b.spinBounce = 0;
                 if (isCue) b.spinMode = 'standard';
               }
             }
@@ -17193,6 +17264,7 @@ function PoolRoyaleGame({
               b.vel.set(0, 0);
               if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
               if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
+              if (!hasSpinAfter) b.spinBounce = 0;
               if (isCue && !hasSpinAfter) {
                 b.impacted = false;
                 b.spinMode = 'standard';
