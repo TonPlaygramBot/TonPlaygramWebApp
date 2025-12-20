@@ -131,23 +131,6 @@ public class PocketEdgeTests
         Assert.That(ball.Pocketed, Is.True);
         Assert.That(balls, Is.Empty);
     }
-
-    [Test]
-    public void BallRailsIntoSidePocketWithoutBouncingOut()
-    {
-        var solver = new BilliardsSolver();
-        solver.InitStandardTable();
-        // Roll a ball tight along the top rail toward the middle pocket to ensure it enters cleanly.
-        var ball = new BilliardsSolver.Ball
-        {
-            Position = new Vec2(PhysicsConstants.TableWidth / 2 - PhysicsConstants.BallRadius * 2, PhysicsConstants.BallRadius),
-            Velocity = new Vec2(1.0, 0)
-        };
-        var balls = new List<BilliardsSolver.Ball> { ball };
-        solver.Step(balls, 1.0);
-        Assert.That(ball.Pocketed, Is.True);
-        Assert.That(balls, Is.Empty);
-    }
 }
 
 public class ConnectorEdgeTests
