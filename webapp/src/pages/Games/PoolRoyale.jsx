@@ -10794,11 +10794,11 @@ function PoolRoyaleGame({
       }
 
       const resolveBroadcastDistance = () => {
-        const worstCaseAspect = 9 / 16; // worst-case portrait aspect to guarantee full coverage
-        const tempCamera = new THREE.PerspectiveCamera(
-          STANDING_VIEW_FOV,
-          worstCaseAspect
-        );
+        const hostAspect = host?.clientWidth && host?.clientHeight
+          ? host.clientWidth / host.clientHeight
+          : null;
+        const aspect = Number.isFinite(hostAspect) ? hostAspect : 9 / 16; // fall back to worst-case portrait when unknown
+        const tempCamera = new THREE.PerspectiveCamera(STANDING_VIEW_FOV, aspect);
         const topDownRadius = Math.max(
           fitRadius(tempCamera, TOP_VIEW_MARGIN, TOP_VIEW_RADIUS_SCALE),
           CAMERA.minR * TOP_VIEW_MIN_RADIUS_SCALE
@@ -11550,6 +11550,33 @@ function PoolRoyaleGame({
           rig.activeRail = useBack ? 'back' : 'front';
         };
 
+        const resolveRailOverheadReplayCamera = ({
+          focusOverride = null,
+          minTargetY = null
+        } = {}) => {
+          const rig = broadcastCamerasRef.current;
+          if (!rig?.cameras) return null;
+          const activeRail =
+            rig.activeRail === 'front'
+              ? rig.cameras.front
+              : rig.activeRail === 'back'
+                ? rig.cameras.back
+                : rig.cameras.back ?? rig.cameras.front;
+          const head = activeRail?.head ?? null;
+          if (!head) return null;
+          const position = head.getWorldPosition(new THREE.Vector3());
+          const target =
+            focusOverride?.clone?.() ??
+            rig.userData?.focus?.clone?.() ??
+            rig.defaultFocusWorld?.clone?.() ??
+            rig.defaultFocus?.clone?.() ??
+            null;
+          if (target && Number.isFinite(minTargetY)) {
+            target.y = Math.max(target.y ?? minTargetY, minTargetY);
+          }
+          return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
+        };
+
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
@@ -11606,7 +11633,15 @@ function PoolRoyaleGame({
               replayFrameCameraRef.current,
               storedReplayCamera
             );
-            const { position, target, fov: replayFov, minTargetY } = replayCamera;
+            const railBroadcastReplay = resolveRailOverheadReplayCamera({
+              focusOverride:
+                broadcastArgs.focusWorld ??
+                replayFrameCameraRef.current?.frameA?.target ??
+                replayFrameCameraRef.current?.frameB?.target ?? null,
+              minTargetY: replayCamera?.minTargetY
+            });
+            const appliedReplayCamera = railBroadcastReplay ?? replayCamera;
+            const { position, target, fov: replayFov, minTargetY } = appliedReplayCamera;
             const focusTarget = target ??
               new THREE.Vector3(
                 playerOffsetRef.current * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE),
