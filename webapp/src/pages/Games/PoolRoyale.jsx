@@ -4321,7 +4321,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.12; // pull the rail overhead broadcast heads slightly away from the cloth
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.08; // pull the rail overhead broadcast heads slightly away from the cloth
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -4540,11 +4540,6 @@ const clampToUnitCircle = (x, y) => {
   const scale = L > 1e-6 ? 1 / L : 0;
   return { x: x * scale, y: y * scale };
 };
-
-const flipSpinY = (spin = { x: 0, y: 0 }) => ({
-  x: spin?.x ?? 0,
-  y: -(spin?.y ?? 0)
-});
 
 const prepareSpinAxes = (aimDir) => {
   if (!aimDir) {
@@ -13400,7 +13395,7 @@ function PoolRoyaleGame({
           }
           const applied = clampSpinToLimits();
           if (updateUi) {
-            updateSpinDotPosition(flipSpinY(applied), legality.blocked);
+            updateSpinDotPosition(applied, legality.blocked);
           }
           const result = legality.blocked ? { x: 0, y: 0 } : applied;
           const magnitude = Math.hypot(result.x ?? 0, result.y ?? 0);
@@ -17889,10 +17884,9 @@ function PoolRoyaleGame({
     };
 
     const setSpin = (nx, ny) => {
-      const visualSpin = clampToUnitCircle(nx, ny);
-      const logicalSpin = flipSpinY(visualSpin); // screen up → topspin, screen down → backspin
-      spinRequestRef.current = logicalSpin;
-      const limited = clampToLimits(logicalSpin.x, logicalSpin.y);
+      const normalized = clampToUnitCircle(nx, ny);
+      spinRequestRef.current = normalized;
+      const limited = clampToLimits(normalized.x, normalized.y);
       spinRef.current = limited;
       const cueBall = cueRef.current;
       const ballsList = ballsRef.current?.length
@@ -17906,7 +17900,7 @@ function PoolRoyaleGame({
         : null;
       const legality = checkSpinLegality2D(
         cueBall,
-        logicalSpin,
+        normalized,
         ballsList || [],
         {
           axes,
@@ -17914,7 +17908,7 @@ function PoolRoyaleGame({
         }
       );
       spinLegalityRef.current = legality;
-      updateSpinDotPosition(flipSpinY(limited), legality.blocked);
+      updateSpinDotPosition(limited, legality.blocked);
     };
     const resetSpin = () => setSpin(0, 0);
     resetSpin();
