@@ -4304,7 +4304,7 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.2;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
-const TOP_VIEW_RADIUS_SCALE = 0.84;
+const TOP_VIEW_RADIUS_SCALE = 0.88;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
