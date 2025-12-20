@@ -987,7 +987,8 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
+const CORNER_CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
+const SIDE_CAPTURE_R = SIDE_POCKET_RADIUS * 0.94; // match the interior side-pocket throat so captures feel consistent
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = 0; // remove the plywood board beneath the cloth
 const CLOTH_UNDERLAY_GAP = 0; // eliminate the air gap between the cloth and the removed board
@@ -1034,7 +1035,7 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   POCKET_VIS_R * 2.28 +
   BALL_R * 1.54;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 12,
+  triggerDist: Math.max(CORNER_CAPTURE_R, SIDE_CAPTURE_R) * 12,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
@@ -4815,6 +4816,8 @@ const pocketEntranceCenters = () =>
     const entranceOffset = mouthRadius * 0.6;
     return center.clone().add(towardField.multiplyScalar(entranceOffset));
   });
+const pocketCaptureRadius = (index) =>
+  index >= 4 ? SIDE_CAPTURE_R : CORNER_CAPTURE_R;
 const POCKET_IDS = ['TL', 'TR', 'BL', 'BR', 'TM', 'BM'];
 const POCKET_LABELS = Object.freeze({
   TL: 'Top Left',
@@ -7961,10 +7964,10 @@ function Table3D(
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  pocketCenters().forEach((p) => {
+  pocketCenters().forEach((p, pocketIndex) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
-    marker.userData.captureRadius = CAPTURE_R;
+    marker.userData.captureRadius = pocketCaptureRadius(pocketIndex);
     table.add(marker);
     table.userData.pockets.push(marker);
   });
@@ -17505,7 +17508,8 @@ function PoolRoyaleGame({
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
-            if (b.pos.distanceTo(c) < CAPTURE_R) {
+            const captureRadius = pocketCaptureRadius(pocketIndex);
+            if (b.pos.distanceTo(c) < captureRadius) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
