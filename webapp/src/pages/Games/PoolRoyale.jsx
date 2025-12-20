@@ -2429,14 +2429,14 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     description:
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
-    orbitBias: 0.58,
+    orbitBias: 0.68,
     railPush: BALL_R * 5.2,
     lateralDolly: BALL_R * 0.6,
     focusLift: BALL_R * 5.4,
     focusDepthBias: BALL_R * 1.4,
     focusPan: 0,
-    trackingBias: 0,
-    smoothing: 0.12,
+    trackingBias: 0.52,
+    smoothing: 0.14,
     avoidPocketCameras: false,
     forceActionActivation: true
   }
@@ -4291,10 +4291,6 @@ const STANDING_VIEW = Object.freeze({
   phi: STANDING_VIEW_PHI,
   margin: STANDING_VIEW_MARGIN
 });
-const ORBIT_FRAMING_OFFSET = Object.freeze({
-  right: BALL_R * 2.1,
-  down: BALL_R * 1.2
-});
 const STANDING_VIEW_COT = (() => {
   const sinPhi = Math.sin(STANDING_VIEW_PHI);
   return sinPhi > 1e-6 ? Math.cos(STANDING_VIEW_PHI) / sinPhi : 0;
@@ -4466,8 +4462,6 @@ const TMP_VEC2_LIMIT = new THREE.Vector2();
 const TMP_VEC2_AXIS = new THREE.Vector2();
 const TMP_VEC2_VIEW = new THREE.Vector2();
 const TMP_VEC3_A = new THREE.Vector3();
-const TMP_VEC3_B = new THREE.Vector3();
-const TMP_VEC3_C = new THREE.Vector3();
 const TMP_VEC3_BUTT = new THREE.Vector3();
 const TMP_VEC3_CHALK = new THREE.Vector3();
 const TMP_VEC3_CHALK_DELTA = new THREE.Vector3();
@@ -12438,38 +12432,12 @@ function PoolRoyaleGame({
                   syncBlendToSpherical();
                 }
               }
-              if ((camera.aspect || 1) < 1) {
-                const scaleFactor = Number.isFinite(worldScaleFactor)
-                  ? worldScaleFactor
-                  : WORLD_SCALE;
-                const forward = TMP_VEC3_A.copy(lookTarget).sub(camera.position);
-                if (forward.lengthSq() > 1e-6) {
-                  forward.normalize();
-                  const right = TMP_VEC3_B.crossVectors(forward, camera.up);
-                  if (right.lengthSq() > 1e-6) {
-                    right.normalize();
-                    camera.position.addScaledVector(
-                      right,
-                      ORBIT_FRAMING_OFFSET.right * scaleFactor
-                    );
-                  }
-                  const upDir = TMP_VEC3_C.copy(camera.up).normalize();
-                  camera.position.addScaledVector(
-                    upDir,
-                    -ORBIT_FRAMING_OFFSET.down * scaleFactor
-                  );
-                }
-              }
               camera.lookAt(lookTarget);
               renderCamera = camera;
-              const broadcastFocus =
-                broadcastCamerasRef.current?.defaultFocusWorld ||
-                lastCameraTargetRef.current ||
-                lookTarget;
-              broadcastArgs.focusWorld = broadcastFocus;
-              broadcastArgs.targetWorld = broadcastFocus;
-              broadcastArgs.orbitWorld = null;
-              broadcastArgs.lerp = 0.18;
+              broadcastArgs.focusWorld =
+                broadcastCamerasRef.current?.defaultFocusWorld ?? lookTarget;
+              broadcastArgs.targetWorld = null;
+              broadcastArgs.lerp = 0.22;
             }
           }
           if (lookTarget) {
@@ -15083,25 +15051,20 @@ function PoolRoyaleGame({
             : orbitSnapshot
               ? { orbitSnapshot }
               : null;
-          const enableActionCamera = false;
-          const actionView =
-            enableActionCamera && allowLongShotCameraSwitch
-              ? makeActionCameraView(
-                  cue,
-                  shotPrediction.ballId,
-                  followView,
-                  shotPrediction.railNormal,
-                  {
-                    longShot: isLongShot,
-                    travelDistance: predictedTravel
-                  }
-                )
-              : null;
+          const actionView = allowLongShotCameraSwitch
+            ? makeActionCameraView(
+                cue,
+                shotPrediction.ballId,
+                followView,
+                shotPrediction.railNormal,
+                {
+                  longShot: isLongShot,
+                  travelDistance: predictedTravel
+                }
+              )
+            : null;
           const earlyPocketView =
-            enableActionCamera &&
-            !suppressPocketCameras &&
-            shotPrediction.ballId &&
-            followView
+            !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
                   forceEarly: true
                 })
