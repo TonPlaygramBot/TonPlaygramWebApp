@@ -768,8 +768,8 @@ const TABLE_BASE_SCALE = 1.17;
       TABLE_SCALE *
       (OFFICIAL_SNOOKER_PLAYFIELD_SCALE * (66 / 72)) // widen rails to maintain Pool Royale proportions on the larger snooker bed
   };
-// Pool Royale uses a smaller table thickness; reduce the multiplier so the snooker rails sit at the same visual height.
-const RAIL_HEIGHT = TABLE.THICK * 1.4;
+// Match Pool Royale's visible rail + cushion height even with the wider snooker thickness.
+const RAIL_HEIGHT = TABLE.THICK * (1.96 / OFFICIAL_SNOOKER_PLAYFIELD_SCALE);
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -1154,10 +1154,10 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
-const DEFAULT_CUSHION_CUT_ANGLE = 35;
-// middle pocket cushion cuts must be shallower at 32°
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 32;
+// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 29°)
+const DEFAULT_CUSHION_CUT_ANGLE = 29;
+// middle pocket cushion cuts must be shallower at 29° to mirror Pool Royale bank lines
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -7569,7 +7569,7 @@ function Table3D(
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
 
-  function cushionProfileAdvanced(len, horizontal) {
+  function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
     const baseRailWidth = horizontal ? longRailW : endRailW;
@@ -7577,14 +7577,36 @@ function Table3D(
     const backY = baseRailWidth / 2;
     const noseThickness = baseThickness * NOSE_REDUCTION;
     const frontY = backY - noseThickness;
-    const rad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
-    const straightCut = Math.max(baseThickness * 0.25, noseThickness / Math.tan(rad));
+    const defaultCutAngle =
+      typeof cutAngles?.cutAngle === 'number' ? cutAngles.cutAngle : CUSHION_CUT_ANGLE;
+    const leftCutAngle =
+      typeof cutAngles?.leftCutAngle === 'number' ? cutAngles.leftCutAngle : defaultCutAngle;
+    const rightCutAngle =
+      typeof cutAngles?.rightCutAngle === 'number' ? cutAngles.rightCutAngle : defaultCutAngle;
+    const minCutLength = baseThickness * 0.25;
+
+    const computeCut = (angleDeg) => {
+      const rad = THREE.MathUtils.degToRad(angleDeg);
+      const tan = Math.tan(rad);
+      const rawCut = tan > MICRO_EPS ? noseThickness / tan : minCutLength;
+      return Math.max(minCutLength, rawCut);
+    };
+
+    let leftCut = computeCut(leftCutAngle);
+    let rightCut = computeCut(rightCutAngle);
+    const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
+    const totalCut = leftCut + rightCut;
+    if (totalCut > maxTotalCut) {
+      const scale = maxTotalCut / totalCut;
+      leftCut *= scale;
+      rightCut *= scale;
+    }
 
     const shape = new THREE.Shape();
     shape.moveTo(-halfLen, backY);
     shape.lineTo(halfLen, backY);
-    shape.lineTo(halfLen - straightCut, frontY);
-    shape.lineTo(-halfLen + straightCut, frontY);
+    shape.lineTo(halfLen - rightCut, frontY);
+    shape.lineTo(-halfLen + leftCut, frontY);
     shape.lineTo(-halfLen, backY);
 
     const cushionBevel = Math.min(railH, baseThickness) * 0.12;
@@ -7644,7 +7666,18 @@ function Table3D(
   }
 
   function addCushion(x, z, len, horizontal, flip = false) {
-    const geo = cushionProfileAdvanced(len, horizontal);
+    const halfLen = len / 2;
+    const orientationSign = flip ? -1 : 1;
+    const worldZLeft = z + -halfLen * orientationSign;
+    const worldZRight = z + halfLen * orientationSign;
+    const leftCloserToCenter = Math.abs(worldZLeft) <= Math.abs(worldZRight);
+    const sidePocketCuts = !horizontal
+      ? {
+          leftCutAngle: leftCloserToCenter ? SIDE_CUSHION_CUT_ANGLE : CUSHION_CUT_ANGLE,
+          rightCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : SIDE_CUSHION_CUT_ANGLE
+        }
+      : undefined;
+    const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
     const mesh = new THREE.Mesh(geo, cushionMat);
     mesh.rotation.x = -Math.PI / 2;
     const orientationScale = horizontal ? SHORT_CUSHION_HEIGHT_SCALE : 1;
