@@ -1170,6 +1170,11 @@ const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
+const CAMERA_FRAMING_OFFSET = Object.freeze({
+  x: -BALL_R * 2.25,
+  y: BALL_R * 0.4,
+  z: BALL_R * 2.6
+});
 const CAMERA_CUE_SURFACE_MARGIN = BALL_R * 0.32; // keep orbit height aligned with the cue while leaving a safe buffer above
 const CUE_TIP_GAP = BALL_R * 1.45; // pull cue stick slightly farther back for a more natural stance
 const CUE_PULL_BASE = BALL_R * 10 * 0.65 * 1.2;
@@ -11215,7 +11220,11 @@ function PoolRoyaleGame({
         };
 
         const getDefaultOrbitTarget = () =>
-          new THREE.Vector3(playerOffsetRef.current, ORBIT_FOCUS_BASE_Y, 0);
+          new THREE.Vector3(
+            playerOffsetRef.current + CAMERA_FRAMING_OFFSET.x,
+            ORBIT_FOCUS_BASE_Y + CAMERA_FRAMING_OFFSET.y,
+            CAMERA_FRAMING_OFFSET.z
+          );
 
         activeRenderCameraRef.current = camera;
 
@@ -11724,6 +11733,14 @@ function PoolRoyaleGame({
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
+              const broadcastRailDir =
+                axis === 'short'
+                  ? resolveOppositeShortRailCamera({
+                      cueBall,
+                      fallback: Number.isFinite(railDir) && railDir !== 0 ? railDir : 1
+                    })
+                  : activeShotView.broadcastRailDir ?? railDir ?? 1;
+              activeShotView.broadcastRailDir = broadcastRailDir;
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -11857,7 +11874,7 @@ function PoolRoyaleGame({
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
               } else {
-                const cueVel = cueBall.vel.clone();
+                const cueVel = cueBall.vel ? cueBall.vel.clone() : new THREE.Vector2();
                 let dir = cueVel.clone();
                 if (dir.lengthSq() > 1e-6) {
                   dir.normalize();
@@ -11870,116 +11887,30 @@ function PoolRoyaleGame({
                 } else {
                   dir.set(0, 1);
                 }
-                const lookAhead = activeShotView.cueLookAhead ?? BALL_R * 6;
-                const anchor = new THREE.Vector3(
-                  cueBall.pos.x + dir.x * lookAhead,
+                const heightLift = activeShotView.longShot ? BALL_R * 2.2 : 0;
+                const overheadDistance = computeShortRailBroadcastDistance(camera);
+                const desired =
+                  axis === 'short'
+                    ? new THREE.Vector3(
+                        0,
+                        heightBase + ACTION_CAM.followHeightOffset + heightLift,
+                        broadcastRailDir * overheadDistance
+                      )
+                    : new THREE.Vector3(
+                        broadcastRailDir * SIDE_RAIL_CAMERA_DISTANCE,
+                        heightBase + ACTION_CAM.followHeightOffset + heightLift,
+                        0
+                      );
+                const lookAnchor = new THREE.Vector3(
+                  0,
                   BALL_CENTER_Y + BALL_R * 0.3,
-                  cueBall.pos.y + dir.y * lookAhead
+                  0
                 );
-                const perp = new THREE.Vector2(-dir.y, dir.x);
-                const distance = THREE.MathUtils.clamp(
-                  ACTION_CAM.followDistance,
-                  ACTION_CAM.pairMinDistance,
-                  ACTION_CAM.pairMaxDistance
-                );
-                const lateral = perp.multiplyScalar(BALL_R * 6);
-                if (axis === 'short') {
-                  const lateralClamp = CAMERA_LATERAL_CLAMP.short;
-                  const cueOffsetX = THREE.MathUtils.clamp(
-                    anchor.x - dir.x * BALL_R * 6 + lateral.x,
-                    -lateralClamp,
-                    lateralClamp
-                  );
-                  const longShotPullback =
-                    activeShotView.longShot ? LONG_SHOT_SHORT_RAIL_OFFSET : 0;
-                  const heightLift =
-                    activeShotView.longShot ? BALL_R * 2.2 : 0;
-                  const baseDistance = computeShortRailBroadcastDistance(camera);
-                  const cueFraming = computeShortRailPairFraming(camera, cuePos2);
-                  const desiredDistance = Math.max(
-                    baseDistance + longShotPullback,
-                    cueFraming ? cueFraming.requiredDistance : 0
-                  );
-                  const desired = new THREE.Vector3(
-                    0,
-                    heightBase + ACTION_CAM.followHeightOffset + heightLift,
-                    railDir * desiredDistance
-                  );
-                  const lookAnchor = anchor.clone();
-                  if (activeShotView.longShot) {
-                    lookAnchor.x = THREE.MathUtils.lerp(
-                      lookAnchor.x,
-                      0,
-                      0.35
-                    );
-                  }
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.7);
-                  const focusShiftSign = signed(
-                    cueOffsetX,
-                    signed(anchor.x, 1)
-                  );
-                  lookAnchor.x +=
-                    focusShiftSign * BALL_R * (activeShotView.longShot ? 1.8 : 2.5);
-                  let clampedZTarget = -railDir * BALL_R * (activeShotView.longShot ? 7.5 : 5);
-                  if (cueFraming) {
-                    const horizontalAllowance = Math.max(
-                      0,
-                      Math.tan(cueFraming.halfHorizontal) * desiredDistance -
-                        cueFraming.halfWidth
-                    );
-                    const depthAllowance = Math.max(
-                      0,
-                      Math.tan(cueFraming.halfVertical) * desiredDistance -
-                        cueFraming.halfLength
-                    );
-                    const minX = cueFraming.centerX - horizontalAllowance;
-                    const maxX = cueFraming.centerX + horizontalAllowance;
-                    lookAnchor.x = THREE.MathUtils.clamp(lookAnchor.x, minX, maxX);
-                    const minZ = cueFraming.centerZ - depthAllowance;
-                    const maxZ = cueFraming.centerZ + depthAllowance;
-                    clampedZTarget = THREE.MathUtils.clamp(
-                      clampedZTarget,
-                      minZ,
-                      maxZ
-                    );
-                  }
-                  lookAnchor.z = THREE.MathUtils.lerp(
-                    lookAnchor.z,
-                    clampedZTarget,
-                    0.65
-                  );
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
-                } else {
-                  const lateralClamp = CAMERA_LATERAL_CLAMP.side;
-                  const baseZ = THREE.MathUtils.clamp(
-                    anchor.z - dir.y * distance + lateral.y,
-                    -lateralClamp,
-                    lateralClamp
-                  );
-                  const desired = new THREE.Vector3(
-                    railDir * SIDE_RAIL_CAMERA_DISTANCE,
-                    heightBase + ACTION_CAM.followHeightOffset,
-                    baseZ
-                  );
-                  const lookAnchor = anchor.clone();
-                  lookAnchor.x = THREE.MathUtils.lerp(lookAnchor.x, 0, 0.65);
-                  lookAnchor.x += -railDir * BALL_R * 4;
-                  lookAnchor.z = THREE.MathUtils.lerp(lookAnchor.z, baseZ, 0.4);
-                  applyStandingViewElevation(desired, lookAnchor, heightBase);
-                  focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
-                  desiredPosition = desired.multiplyScalar(worldScaleFactor);
-                }
+                applyStandingViewElevation(desired, lookAnchor, heightBase);
+                activeShotView.preferRailOverhead = true;
+                focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
+                desiredPosition = desired.multiplyScalar(worldScaleFactor);
               }
-              const broadcastRailDir =
-                activeShotView.axis === 'short'
-                  ? resolveOppositeShortRailCamera({
-                      cueBall,
-                      fallback: Number.isFinite(railDir) && railDir !== 0 ? railDir : 1
-                    })
-                  : activeShotView.broadcastRailDir ?? railDir;
-              activeShotView.broadcastRailDir = broadcastRailDir;
               broadcastArgs = {
                 railDir: broadcastRailDir,
                 targetWorld: null,
@@ -12631,7 +12562,7 @@ function PoolRoyaleGame({
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = Boolean(railNormal);
+          const preferRailOverhead = true;
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
