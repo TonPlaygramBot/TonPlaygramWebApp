@@ -1052,7 +1052,7 @@ const POCKET_CAM = Object.freeze({
   railFocusShort: BALL_R * 5.4
 });
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
-const POCKET_GUARANTEED_ALIGNMENT = 0.8;
+const POCKET_GUARANTEED_ALIGNMENT = 0.95;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
@@ -4321,7 +4321,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.06; // pull the rail overhead broadcast heads slightly away from the cloth
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.08; // pull the rail overhead broadcast heads slightly away from the cloth
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
@@ -12259,6 +12259,11 @@ function PoolRoyaleGame({
               pocketDirection2D.copy(outward.lengthSq() > 1e-6 ? outward : new THREE.Vector2(0, -1));
             }
             const azimuth = Math.atan2(pocketDirection2D.x, pocketDirection2D.y);
+            const preferredRadius =
+              Number.isFinite(activeShotView.cameraDistance) &&
+              activeShotView.cameraDistance > 0
+                ? activeShotView.cameraDistance
+                : null;
             const baseRadius = (() => {
               const fallback = clamp(
                 fitRadius(camera, STANDING_VIEW.margin),
@@ -12271,7 +12276,12 @@ function PoolRoyaleGame({
                 anchorType === 'short'
                   ? POCKET_CAM.minOutsideShort ?? POCKET_CAM.minOutside
                   : POCKET_CAM.minOutside;
-              return Math.max(standingRadius, pocketRadius + minOutside);
+              const defaultRadius = Math.max(
+                standingRadius,
+                pocketRadius + minOutside
+              );
+              if (preferredRadius == null) return defaultRadius;
+              return Math.max(preferredRadius, pocketRadius + minOutside);
             })();
             const cuePhi = cueBounds?.phi ?? CUE_VIEW_TARGET_PHI;
             const spherical = new THREE.Spherical(
