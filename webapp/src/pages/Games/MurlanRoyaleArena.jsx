@@ -2006,7 +2006,7 @@ export default function MurlanRoyaleArena({ search }) {
                   size={avatarSize}
                 />
                 <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-white/80 drop-shadow">
-                  {handCount} karta
+                  {handCount} cards
                 </span>
               </div>
             );
@@ -2048,7 +2048,7 @@ export default function MurlanRoyaleArena({ search }) {
                     type="button"
                     onClick={() => setConfigOpen(false)}
                     className="rounded-full p-1 text-white/70 transition hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                    aria-label="Mbyll personalizimin"
+                    aria-label="Close customization"
                   >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -2377,7 +2377,7 @@ function computeUiState(state) {
     const description = describeCombo(state.tableCombo, state.tableCards);
     if (description) {
       const owner = state.lastWinner != null ? state.players[state.lastWinner]?.name : null;
-      tableSummary = owner ? `${owner} hodhi ${description}` : description;
+      tableSummary = owner ? `${owner} played ${description}` : description;
     }
   }
 
@@ -2413,14 +2413,14 @@ function describeCombo(combo, cards) {
 
 function cardLabel(card) {
   if (!card) return '';
-  if (card.rank === 'JR') return 'Joker i kuq';
-  if (card.rank === 'JB') return 'Joker i zi';
+  if (card.rank === 'JR') return 'Red Joker';
+  if (card.rank === 'JB') return 'Black Joker';
   return `${card.rank}${card.suit}`;
 }
 
 function buildPlayers(search) {
   const params = new URLSearchParams(search);
-  const username = params.get('username') || 'Ti';
+  const username = params.get('username') || 'You';
   const avatar = params.get('avatar') || '';
   const providedFlags = (params.get('flags') || '')
     .split(',')
