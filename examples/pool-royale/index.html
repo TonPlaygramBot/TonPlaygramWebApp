@@ -321,8 +321,12 @@
         const nx = Math.max(Math.min(dx / cx, 1), -1);
         const ny = Math.max(Math.min(dy / cy, 1), -1);
         // invert the vertical component so positive y is top spin
-        spin = { x: nx, y: -ny };
-        updateSpinDots(nx, ny);
+        const rawSpin = { x: nx, y: -ny };
+        // ease the response so tiny adjustments near centre produce gentle spin
+        const strength = Math.min(1, Math.hypot(rawSpin.x, rawSpin.y));
+        const eased = strength * strength;
+        spin = { x: rawSpin.x * eased, y: rawSpin.y * eased };
+        updateSpinDots(rawSpin.x, rawSpin.y);
       }
       spinController.addEventListener('pointerdown', (e) => {
         spinning = true;
