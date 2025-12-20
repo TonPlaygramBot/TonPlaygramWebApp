@@ -24,8 +24,9 @@ public static class PhysicsConstants
     public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
     public const double SidePocketMouth = 0.117475;    // scaled with table reduction
     public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
-    // Keep side pockets aligned with the rail line so they behave identically to corner pockets.
-    public const double SidePocketOutset = 0.0;
+    // Offset side pockets outward so rails near the middle play like the straight cushions
+    // instead of prematurely triggering pocket captures when a ball hugs the rail.
+    public const double SidePocketOutset = PocketCaptureRadius - BallRadius;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
