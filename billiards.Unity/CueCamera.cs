@@ -132,9 +132,6 @@ public class CueCamera : MonoBehaviour
     // edge of the screen during broadcast shots.
     [Range(0f, 0.25f)]
     public float broadcastSafeMargin = 0.02f;
-    // Screen-space framing offset applied during broadcast shots so the table
-    // sits slightly toward the upper-left of the portrait view.
-    public Vector2 broadcastScreenOffset = new Vector2(0.05f, -0.06f);
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
@@ -227,7 +224,7 @@ public class CueCamera : MonoBehaviour
         TargetBall = target;
         currentBall = CueBall;
         shotInProgress = true;
-        usingTargetCamera = false;
+        usingTargetCamera = target != null;
 
         int aimSide = nextShotIsAi ? -defaultShortRailSign : defaultShortRailSign;
         cueAimSideSign = aimSide;
@@ -235,6 +232,11 @@ public class CueCamera : MonoBehaviour
 
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
         targetViewFocus = GetBroadcastFocus(focus);
+        if (target != null && target.gameObject.activeInHierarchy)
+        {
+            currentBall = target;
+            targetViewFocus = GetBroadcastFocus(target.position);
+        }
         targetViewYaw = GetShortRailYaw(broadcastSideSign);
         yaw = targetViewYaw;
 
@@ -580,7 +582,8 @@ public class CueCamera : MonoBehaviour
     {
         currentBall = CueBall;
         yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
-        ApplyBroadcastCamera(targetViewFocus);
+        Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
+        ApplyBroadcastCamera(GetBroadcastFocus(focus));
 
         bool cueMoving = IsMoving(CueBall);
         bool targetMoving = TargetBall != null && IsMoving(TargetBall);
@@ -672,21 +675,16 @@ public class CueCamera : MonoBehaviour
 
         Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
         Vector3 forward = rotation * Vector3.forward;
-        Vector3 horizontalOffset = rotation * Vector3.right * broadcastScreenOffset.x;
-        Vector3 verticalOffset = Vector3.up * broadcastScreenOffset.y;
-        Vector3 framingOffset = horizontalOffset + verticalOffset;
 
         Bounds broadcastBounds = GetBroadcastBounds(focus);
         focus.x = 0f;
         focus.z = broadcastBounds.center.z;
 
-        Vector3 offsetFocus = focus + framingOffset;
+        float distance = ComputeBroadcastDistance(focus, height, forward, cam, broadcastBounds);
+        float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - focus.y);
+        Vector3 lookTarget = focus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
 
-        float distance = ComputeBroadcastDistance(offsetFocus, height, forward, cam, broadcastBounds);
-        float minimumHeightOffset = Mathf.Max(minimumHeightAboveFocus, height - offsetFocus.y);
-        Vector3 lookTarget = offsetFocus + Vector3.up * Mathf.Max(0f, broadcastHeightPadding);
-
-        ApplyShortRailCamera(offsetFocus, forward, distance, height, minimumHeightOffset, lookTarget);
+        ApplyShortRailCamera(focus, forward, distance, height, minimumHeightOffset, lookTarget);
     }
 
     private Bounds GetBroadcastBounds(Vector3 focus)
