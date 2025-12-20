@@ -1012,8 +1012,6 @@ const POCKET_CAM = Object.freeze({
 const POCKET_CHAOS_MOVING_THRESHOLD = 3;
 const POCKET_GUARANTEED_ALIGNMENT = 0.82;
 const POCKET_INTENT_TIMEOUT_MS = 4200;
-const ACTION_CAM_RAIL_DISTANCE_SCALE = 0.94;
-const ACTION_CAM_PREFER_RAIL_OVERHEAD = true;
 const ACTION_CAM = Object.freeze({
   pairMinDistance: BALL_R * 28,
   pairMaxDistance: BALL_R * 72,
@@ -4293,7 +4291,6 @@ const TOP_VIEW_MARGIN = 1.08;
 const TOP_VIEW_RADIUS_SCALE = 1.02;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.02;
 const TOP_VIEW_PHI = Math.max(CAMERA_ABS_MIN_PHI + 0.06, CAMERA.minPhi * 0.66);
-const TOP_VIEW_FOCUS_OFFSET = new THREE.Vector3(BALL_R * 6, 0, BALL_R * 10);
 const CUE_VIEW_RADIUS_RATIO = 0.042;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.13;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -11405,31 +11402,10 @@ export function PoolRoyaleGame({
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
-              let skipActionChoreography = false;
-              if (ACTION_CAM_PREFER_RAIL_OVERHEAD) {
-                const resolvedRailDir =
-                  Number.isFinite(railDir) && railDir !== 0 ? railDir : 1;
-                const broadcastDistance =
-                  computeShortRailBroadcastDistance(camera) * ACTION_CAM_RAIL_DISTANCE_SCALE;
-                const broadcastHeight = heightBase + ACTION_CAM.heightOffset + BALL_R * 8;
-                const broadcastFocus =
-                  broadcastCamerasRef.current?.defaultFocusWorld ??
-                  new THREE.Vector3(0, BALL_CENTER_Y + BALL_R * 0.35, 0);
-                focusTargetVec3 = broadcastFocus.clone().multiplyScalar(worldScaleFactor);
-                desiredPosition = new THREE.Vector3(
-                  0,
-                  broadcastHeight,
-                  resolvedRailDir * broadcastDistance
-                ).multiplyScalar(worldScaleFactor);
-                activeShotView.hasSwitchedRail = true;
-                activeShotView.stage = 'followCue';
-                skipActionChoreography = true;
-              }
-              if (!skipActionChoreography) {
-                const railShot =
-                  activeShotView.railNormal &&
-                  activeShotView.railNormal.lengthSq() > 1e-6;
-                if (activeShotView.stage === 'pair') {
+              const railShot =
+                activeShotView.railNormal &&
+                activeShotView.railNormal.lengthSq() > 1e-6;
+              if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
                     ? ballsList.find((b) => b.id === activeShotView.targetId)
@@ -11708,7 +11684,6 @@ export function PoolRoyaleGame({
                   focusTargetVec3 = lookAnchor.multiplyScalar(worldScaleFactor);
                   desiredPosition = desired.multiplyScalar(worldScaleFactor);
                 }
-              }
               }
               const broadcastRailDir =
                 activeShotView.axis === 'short'
@@ -12035,9 +12010,6 @@ export function PoolRoyaleGame({
                 }
               }
             focusTarget = store.target.clone();
-          }
-          if (topViewRef.current) {
-            focusTarget.add(TOP_VIEW_FOCUS_OFFSET);
           }
           focusTarget.multiplyScalar(worldScaleFactor);
           lookTarget = focusTarget;
