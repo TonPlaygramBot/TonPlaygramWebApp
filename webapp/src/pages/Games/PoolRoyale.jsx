@@ -933,8 +933,6 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts slightly farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
-const SIDE_POCKET_INNER_RADIUS =
-  SIDE_POCKET_RADIUS * (POCKET_R / POCKET_VIS_R); // align middle pocket physics to the interior throat radius
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
@@ -5165,18 +5163,14 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan =
-    SIDE_POCKET_INNER_RADIUS + BALL_R * 0.65; // match middle pocket guards to the interior throat radius
-  const sideDepthLimit = SIDE_POCKET_INNER_RADIUS * 1.45;
+  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
+  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
-    TMP_VEC2_C.set(
-      sx * limX,
-      sy * (SIDE_POCKET_INNER_RADIUS + BALL_R * 0.25)
-    );
+    TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
     TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
