@@ -4321,7 +4321,9 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const SHORT_RAIL_CAMERA_DISTANCE = computeTopViewBroadcastDistance(); // match the 2D top view framing distance for overhead rail cuts
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.04; // pull the rail overhead broadcast heads slightly away from the cloth
+const SHORT_RAIL_CAMERA_DISTANCE =
+  computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
 const CUE_VIEW_RADIUS_RATIO = 0.04;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
