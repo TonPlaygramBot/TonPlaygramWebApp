@@ -1106,7 +1106,6 @@ const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_EXTRA_LIFT = 0.06; // raise the full assembly slightly while leaving cushions untouched
 const TABLE_HEIGHT_REDUCTION = 0.8; // align snooker table stance to Pool Royale height
 const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after the matched reduction
 const TABLE_LIFT =
@@ -1128,7 +1127,7 @@ const SKIRT_DROP_MULTIPLIER = 3.2; // double the apron drop so the base reads mu
 const SKIRT_SIDE_OVERHANG = 0; // keep the lower base flush with the rail footprint (no horizontal flare)
 const SKIRT_RAIL_GAP_FILL = TABLE.THICK * 0.072; // raise the apron further so it fully meets the lowered rails
 // adjust overall table position so the shorter legs bring the playfield closer to floor level
-const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP + TABLE_EXTRA_LIFT;
+const BASE_TABLE_Y = -2 + (TABLE_H - 0.75) + TABLE_H + TABLE_LIFT - TABLE_DROP;
 const TABLE_Y = BASE_TABLE_Y + LEG_ELEVATION_DELTA;
 const FLOOR_Y = TABLE_Y - TABLE.THICK - LEG_ROOM_HEIGHT + 0.3;
 const ORBIT_FOCUS_BASE_Y = TABLE_Y + 0.05;
