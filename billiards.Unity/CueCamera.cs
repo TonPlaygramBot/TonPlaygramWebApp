@@ -131,7 +131,7 @@ public class CueCamera : MonoBehaviour
     // Keep a small margin inside the camera frame so the rails never touch the
     // edge of the screen during broadcast shots.
     [Range(0f, 0.25f)]
-    public float broadcastSafeMargin = 0.02f;
+    public float broadcastSafeMargin = 0.06f;
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
