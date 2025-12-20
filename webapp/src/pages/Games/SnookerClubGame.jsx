@@ -768,7 +768,8 @@ const TABLE_BASE_SCALE = 1.17;
       TABLE_SCALE *
       (OFFICIAL_SNOOKER_PLAYFIELD_SCALE * (66 / 72)) // widen rails to maintain Pool Royale proportions on the larger snooker bed
   };
-const RAIL_HEIGHT = TABLE.THICK * 1.96; // match Pool Royale rail height so wood meets the cushion seam cleanly
+// Pool Royale uses a smaller table thickness; reduce the multiplier so the snooker rails sit at the same visual height.
+const RAIL_HEIGHT = TABLE.THICK * 1.4;
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
