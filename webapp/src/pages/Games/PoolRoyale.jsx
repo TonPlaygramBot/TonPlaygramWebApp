@@ -4310,8 +4310,6 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.84;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
-const TOP_VIEW_FOCUS_SHIFT_X = PLAY_W * 0.02;
-const TOP_VIEW_FOCUS_SHIFT_Z = PLAY_H * 0.04;
 const CUE_VIEW_RADIUS_RATIO = 0.04;
 const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
 const CUE_VIEW_MIN_PHI = Math.min(
@@ -12296,9 +12294,9 @@ function PoolRoyaleGame({
           lookTarget = focusTarget;
           if (topViewRef.current) {
             const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-              playerOffsetRef.current + TOP_VIEW_FOCUS_SHIFT_X,
+              playerOffsetRef.current,
               ORBIT_FOCUS_BASE_Y,
-              TOP_VIEW_FOCUS_SHIFT_Z
+              0
             ).multiplyScalar(worldScaleFactor);
             lookTarget = topFocusTarget;
             lastCameraTargetRef.current.copy(topFocusTarget);
@@ -13215,9 +13213,9 @@ function PoolRoyaleGame({
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current + TOP_VIEW_FOCUS_SHIFT_X,
+            playerOffsetRef.current,
             ORBIT_FOCUS_BASE_Y,
-            TOP_VIEW_FOCUS_SHIFT_Z
+            0
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
