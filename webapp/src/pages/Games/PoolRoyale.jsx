@@ -2428,10 +2428,10 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
       'Short-rail broadcast heads mounted above the table for the true TV feed.',
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
-    railPush: BALL_R * 5.8,
+    railPush: BALL_R * 4.8,
     lateralDolly: BALL_R * 0.6,
-    focusLift: BALL_R * 5.4,
-    focusDepthBias: BALL_R * 1.4,
+    focusLift: BALL_R * 4.9,
+    focusDepthBias: BALL_R * 0.9,
     focusPan: 0,
     trackingBias: 0.52,
     smoothing: 0.14,
@@ -3810,7 +3810,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.54;
+  const cameraProximityScale = 0.5;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
