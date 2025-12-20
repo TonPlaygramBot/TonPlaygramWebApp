@@ -12,6 +12,16 @@ const DEV_ACCOUNT = import.meta.env.VITE_DEV_ACCOUNT_ID;
 const DEV_ACCOUNT_1 = import.meta.env.VITE_DEV_ACCOUNT_ID_1;
 const DEV_ACCOUNT_2 = import.meta.env.VITE_DEV_ACCOUNT_ID_2;
 
+function pickRandomFlags(count) {
+  if (!count) return [];
+  const available = FLAG_EMOJIS.map((_, idx) => idx);
+  for (let i = available.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [available[i], available[j]] = [available[j], available[i]];
+  }
+  return available.slice(0, count);
+}
+
 export default function MurlanRoyaleLobby() {
   const navigate = useNavigate();
   useTelegramBackButton();
@@ -22,7 +32,7 @@ export default function MurlanRoyaleLobby() {
   const [gameType, setGameType] = useState('single');
   const [targetPoints, setTargetPoints] = useState(11);
   const [showFlagPicker, setShowFlagPicker] = useState(false);
-  const [flags, setFlags] = useState([]);
+  const [flags, setFlags] = useState(() => pickRandomFlags(4));
 
   const flagPickerCount = mode === 'local' ? 4 : 1;
 
@@ -36,6 +46,13 @@ export default function MurlanRoyaleLobby() {
       setAvatar(saved || getTelegramPhotoUrl());
     } catch {}
   }, []);
+
+  useEffect(() => {
+    setFlags((prev) => {
+      if (prev.length === flagPickerCount) return prev;
+      return pickRandomFlags(flagPickerCount);
+    });
+  }, [flagPickerCount]);
 
   const startGame = async (flagOverride = flags) => {
     let tgId;
