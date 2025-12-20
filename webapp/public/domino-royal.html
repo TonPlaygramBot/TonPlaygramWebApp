@@ -816,6 +816,10 @@ const CAMERA_TOPDOWN_MIN_RADIUS = TABLE_RADIUS * 1.2;
 const CAMERA_TOPDOWN_MAX_RADIUS = TABLE_RADIUS * 3.6;
 const CAMERA_TOPDOWN_MIN_POLAR = THREE.MathUtils.degToRad(2);
 const CAMERA_TOPDOWN_MAX_POLAR = THREE.MathUtils.degToRad(18);
+const CAMERA_TOPDOWN_FRAMING = Object.freeze({
+  portrait: { right: TABLE_RADIUS * 0.12, forward: TABLE_RADIUS * 0.08 },
+  landscape: { right: TABLE_RADIUS * 0.07, forward: TABLE_RADIUS * 0.05 }
+});
 const UP = new THREE.Vector3(0, 1, 0);
 
 const VIEW_MODES = Object.freeze({ threeD: '3d', twoD: '2d' });
@@ -1013,11 +1017,16 @@ renderer.domElement.addEventListener(
   { passive: true }
 );
 
-function computeDesiredCameraPosition() {
+function getViewportMetrics() {
   const dom = renderer.domElement;
   const width = dom?.clientWidth || window.innerWidth || 1;
   const height = dom?.clientHeight || window.innerHeight || 1;
   const isPortrait = height >= width;
+  return { width, height, isPortrait };
+}
+
+function computeDesiredCameraPosition() {
+  const { isPortrait } = getViewportMetrics();
 
   const seat = seatBasisForIndex(HUMAN_SEAT_INDEX);
   const seatHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS;
@@ -1036,9 +1045,23 @@ function computeDesiredCameraPosition() {
   return desiredPosition;
 }
 
-function computeTopDownCameraPosition() {
+function getTopDownFramingOffset() {
+  const { isPortrait } = getViewportMetrics();
+  const framing = isPortrait ? CAMERA_TOPDOWN_FRAMING.portrait : CAMERA_TOPDOWN_FRAMING.landscape;
+  const { right = 0, forward = 0 } = framing || {};
+  return new THREE.Vector3(right, 0, forward);
+}
+
+function getActiveCameraTarget() {
+  if (cameraViewMode === VIEW_MODES.twoD) {
+    return CAMERA_TARGET.clone().add(getTopDownFramingOffset());
+  }
+  return CAMERA_TARGET.clone();
+}
+
+function computeTopDownCameraPosition(target = CAMERA_TARGET) {
   const lift = Math.max(TABLE_HEIGHT + CAMERA_TARGET_EXTRA, CAMERA_TOPDOWN_RADIUS);
-  return CAMERA_TARGET.clone().add(new THREE.Vector3(0, lift, 0.0001));
+  return target.clone().add(new THREE.Vector3(0, lift, 0.0001));
 }
 
 function getActiveCameraConstraints() {
@@ -1059,9 +1082,9 @@ function getActiveCameraConstraints() {
   };
 }
 
-function getDesiredCameraPosition() {
+function getDesiredCameraPosition(target = getActiveCameraTarget()) {
   if (cameraViewMode === VIEW_MODES.twoD) {
-    return computeTopDownCameraPosition();
+    return computeTopDownCameraPosition(target);
   }
   return computeDesiredCameraPosition();
 }
@@ -1075,9 +1098,9 @@ function applyCameraConstraints() {
   controls.enableRotate = cameraViewMode !== VIEW_MODES.twoD;
 }
 
-function clampCameraPosition(position) {
+function clampCameraPosition(position, target = getActiveCameraTarget()) {
   const { minPolar, maxPolar, minRadius, maxRadius } = getActiveCameraConstraints();
-  const offset = position.clone().sub(CAMERA_TARGET);
+  const offset = position.clone().sub(target);
   const spherical = new THREE.Spherical().setFromVector3(offset);
   if (!Number.isFinite(spherical.radius) || spherical.radius <= 0) {
     spherical.radius = minRadius;
@@ -1087,24 +1110,25 @@ function clampCameraPosition(position) {
   spherical.radius = THREE.MathUtils.clamp(spherical.radius, minRadius, maxRadius);
   spherical.phi = THREE.MathUtils.clamp(spherical.phi, minPolar, maxPolar);
   const clampedOffset = new THREE.Vector3().setFromSpherical(spherical);
-  return CAMERA_TARGET.clone().add(clampedOffset);
+  return target.clone().add(clampedOffset);
 }
 
 function positionCameraForViewport({ force = false } = {}) {
   fitCamera();
   applyCameraConstraints();
-  const desiredPosition = getDesiredCameraPosition();
-  const clampedDesired = clampCameraPosition(desiredPosition);
+  const target = getActiveCameraTarget();
+  const desiredPosition = getDesiredCameraPosition(target);
+  const clampedDesired = clampCameraPosition(desiredPosition, target);
   if (!cameraHasUserControl || force) {
     camera.position.copy(clampedDesired);
     if (force) {
       cameraHasUserControl = false;
     }
   } else {
-    camera.position.copy(clampCameraPosition(camera.position));
+    camera.position.copy(clampCameraPosition(camera.position, target));
   }
 
-  controls.target.copy(CAMERA_TARGET);
+  controls.target.copy(target);
   controls.update();
 }
 
@@ -2989,7 +3013,7 @@ let entryTargetCurve = null;
 const ENTRY_TOTAL_DURATION = 6500;
 const ENTRY_SEAT_REMOVAL_PROGRESS = 0.78;
 
-function configureEntryCurves(finalPosition) {
+function configureEntryCurves(finalPosition, target = CAMERA_TARGET) {
   const approachHeight = 1.55;
   const interiorHeight = CHAIR_BASE_HEIGHT + SEAT_THICKNESS + 0.35;
   entryCameraCurve = new THREE.CatmullRomCurve3(
@@ -3007,7 +3031,7 @@ function configureEntryCurves(finalPosition) {
     [
       new THREE.Vector3(0, 1.35, hallwayDoorZ - 1.4),
       new THREE.Vector3(0, interiorHeight, hallwayDoorZ - 2.8),
-      CAMERA_TARGET.clone()
+      target.clone()
     ],
     false,
     'catmullrom',
@@ -3017,8 +3041,9 @@ function configureEntryCurves(finalPosition) {
 
 function startHallwayEntry() {
   fitCamera();
-  const finalDesired = clampCameraPosition(getDesiredCameraPosition());
-  configureEntryCurves(finalDesired);
+  const target = getActiveCameraTarget();
+  const finalDesired = clampCameraPosition(getDesiredCameraPosition(target), target);
+  configureEntryCurves(finalDesired, target);
   entrySequenceActive = true;
   entryStartTime = performance.now();
   controls.enabled = false;
@@ -5840,8 +5865,9 @@ function onResize(){
   applyRendererQuality(frameQuality);
   if (entrySequenceActive) {
     fitCamera();
-    const finalDesired = clampCameraPosition(getDesiredCameraPosition());
-    configureEntryCurves(finalDesired);
+    const target = getActiveCameraTarget();
+    const finalDesired = clampCameraPosition(getDesiredCameraPosition(target), target);
+    configureEntryCurves(finalDesired, target);
     const now = performance.now();
     const elapsed = Math.max(0, now - entryStartTime);
     const progress = Math.min(elapsed / ENTRY_TOTAL_DURATION, 1);
