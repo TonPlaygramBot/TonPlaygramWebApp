@@ -11,8 +11,8 @@ public static class PhysicsConstants
     // pocket edges fully absorb balls (no bounce)
     public const double PocketRestitution = 0.0;
     public const double Mu = 0.2;                      // linear damping (m/s^2)
-    public const double TableWidth = 2.627;            // 9ft table reduced by ~7.5%
-    public const double TableHeight = 1.3135;
+    public const double TableWidth = 2.84;             // WPA 9ft playing surface (100 in)
+    public const double TableHeight = 1.42;            // WPA 9ft playing surface (50 in)
     public const double FixedDt = 1.0 / 120.0;         // simulation step
     public const double Epsilon = 1e-9;                // numerical epsilon
     public const double MaxPreviewTime = 30.0;         // safeguard for CCD
@@ -21,9 +21,9 @@ public static class PhysicsConstants
     public const int MaxSubSteps = 64;                 // hard cap per integration step
 
     // Pocket geometry derived from WPA spec (metres)
-    public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
-    public const double SidePocketMouth = 0.117475;    // scaled with table reduction
-    public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
+    public const double CornerPocketMouth = 0.1143;    // 4.50 in between cushion noses
+    public const double SidePocketMouth = 0.127;       // 5.00 in between cushion noses
+    public const double PocketCaptureRadius = 0.09525; // 3.75 in throat radius
     // Keep side pockets aligned with the rail line so they behave identically to corner pockets.
     public const double SidePocketOutset = 0.0;
 
