@@ -72,20 +72,15 @@ public class BilliardsSolver
         AddSidePocketJaw(new Vec2(0 - sideOutset, height / 2), sideCut, sideDepth, true, sideSegments, vertical: true);
         AddSidePocketJaw(new Vec2(width + sideOutset, height / 2), sideCut, sideDepth, false, sideSegments, vertical: true);
 
-        // Capture radius follows the true pocket interior so balls behave identically
-        // near side and corner pockets instead of sharing an oversized fallback radius.
-        double baseCapture = Math.Max(PhysicsConstants.BallRadius * 1.05, PhysicsConstants.PocketCaptureRadius);
-        double cornerCapture = Math.Min(baseCapture, cornerCut); // follow the rounded corner cut
-        double sideCapture = Math.Min(baseCapture, Math.Min(sideCut, sideDepth)); // follow the tighter side throat
-
-        Pockets.Add(new Pocket { Center = new Vec2(0, 0), Radius = cornerCapture });
-        Pockets.Add(new Pocket { Center = new Vec2(width / 2, 0 - sideOutset), Radius = sideCapture });
-        Pockets.Add(new Pocket { Center = new Vec2(width, 0), Radius = cornerCapture });
-        Pockets.Add(new Pocket { Center = new Vec2(0 - sideOutset, height / 2), Radius = sideCapture });
-        Pockets.Add(new Pocket { Center = new Vec2(width + sideOutset, height / 2), Radius = sideCapture });
-        Pockets.Add(new Pocket { Center = new Vec2(0, height), Radius = cornerCapture });
-        Pockets.Add(new Pocket { Center = new Vec2(width / 2, height + sideOutset), Radius = sideCapture });
-        Pockets.Add(new Pocket { Center = new Vec2(width, height), Radius = cornerCapture });
+        double capture = Math.Max(PhysicsConstants.BallRadius * 1.05, PhysicsConstants.PocketCaptureRadius);
+        Pockets.Add(new Pocket { Center = new Vec2(0, 0), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width / 2, 0 - sideOutset), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width, 0), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(0 - sideOutset, height / 2), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width + sideOutset, height / 2), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(0, height), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width / 2, height + sideOutset), Radius = capture });
+        Pockets.Add(new Pocket { Center = new Vec2(width, height), Radius = capture });
     }
 
     private void AddCushionSegment(Vec2 a, Vec2 b, Vec2 interiorHint)
