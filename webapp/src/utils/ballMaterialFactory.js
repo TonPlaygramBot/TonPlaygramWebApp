@@ -76,102 +76,61 @@ function drawNumberBadge(ctx, size, number) {
   ctx.restore();
 }
 
-const OFFICIAL_POOL_COLORS = Object.freeze({
-  cue: '#f7f7f7',
-  solids: {
-    1: '#f7c948',
-    2: '#1e5eff',
-    3: '#cf202a',
-    4: '#7d3cff',
-    5: '#ff7a00',
-    6: '#00c2a8',
-    7: '#7a1630',
-    8: '#111111'
-  },
-  stripes: {
-    9: '#f7c948',
-    10: '#1e5eff',
-    11: '#cf202a',
-    12: '#7d3cff',
-    13: '#ff7a00',
-    14: '#00c2a8',
-    15: '#7a1630'
-  }
-});
-
-function drawPoolNumberBadge(ctx, width, height, number) {
-  const radius = Math.floor(height * 0.13);
-  const centers = [width * 0.25, width * 0.75];
+function drawPoolNumberBadge(ctx, size, number) {
+  const radius = size * 0.1;
+  const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
+  const cx = size * 0.5;
+  const cy = size * 0.5;
 
   ctx.save();
-  centers.forEach((cx) => {
-    const cy = height * 0.5;
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(250,250,250,0.98)';
-    ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, radius, radius * badgeStretch, 0, 0, Math.PI * 2);
+  ctx.closePath();
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = Math.max(8, Math.floor(height * 0.012));
-    ctx.stroke();
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
+  ctx.strokeStyle = '#000000';
+  ctx.stroke();
 
-    ctx.fillStyle = '#111';
-    const fs = String(number).length >= 2 ? Math.floor(height * 0.16) : Math.floor(height * 0.19);
-    ctx.font = `900 ${fs}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(String(number), cx, cy + (String(number).length >= 2 ? height * 0.01 : height * 0.012));
-  });
+  ctx.fillStyle = '#000000';
+  ctx.font = `bold ${size * 0.18}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  const numStr = String(number);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.scale(1, badgeStretch);
+  if (numStr.length === 2) {
+    ctx.save();
+    ctx.scale(0.9, 1);
+    ctx.fillText(numStr, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.fillText(numStr, 0, 0);
+  }
+  ctx.restore();
+
   ctx.restore();
 }
 
-function addOfficialPoolSpeckle(ctx, width, height) {
-  ctx.save();
-  ctx.globalAlpha = 0.05;
-  for (let i = 0; i < 1800; i++) {
-    const x = Math.random() * width;
-    const y = Math.random() * height;
-    const r = 1 + Math.random() * 2;
-    ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
+function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
+  const baseHex = toHexString(baseColor);
 
-function drawOfficialPoolTexture(ctx, width, height, baseColor, pattern, number) {
-  if (pattern === 'cue') ctx.fillStyle = OFFICIAL_POOL_COLORS.cue;
-  else if (pattern === 'solid') ctx.fillStyle = baseColor;
-  else ctx.fillStyle = OFFICIAL_POOL_COLORS.cue;
-
-  ctx.fillRect(0, 0, width, height);
-
-  addOfficialPoolSpeckle(ctx, width, height);
+  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
+  ctx.fillRect(0, 0, size, size);
 
   if (pattern === 'stripe') {
-    const bandH = Math.floor(height * 0.26);
-    const bandY0 = Math.floor(height / 2 - bandH / 2);
-    const bandY1 = bandY0 + bandH;
-
-    ctx.fillStyle = baseColor;
-    ctx.globalAlpha = 1;
-    ctx.fillRect(0, 0, width, bandY0);
-    ctx.fillRect(0, bandY1, width, height - bandY1);
-
-    const edge = Math.max(6, Math.floor(height * 0.008));
-    ctx.fillStyle = '#ffffff';
-    ctx.globalAlpha = 0.95;
-    ctx.fillRect(0, bandY0, width, edge);
-    ctx.fillRect(0, bandY1 - edge, width, edge);
-    ctx.globalAlpha = 1;
+    ctx.fillStyle = baseHex;
+    const stripeHeight = size * 0.45;
+    const stripeY = (size - stripeHeight) / 2;
+    ctx.fillRect(0, stripeY, size, stripeHeight);
   }
 
   if (Number.isFinite(number)) {
-    drawPoolNumberBadge(ctx, width, height, number);
+    drawPoolNumberBadge(ctx, size, number);
   }
 }
 
@@ -274,36 +233,20 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
     return BALL_TEXTURE_CACHE.get(key);
   }
 
-  let texture = null;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = BALL_TEXTURE_SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
 
+  const size = BALL_TEXTURE_SIZE;
   if (variantKey === 'pool') {
-    const width = 2048;
-    const height = 1024;
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    drawOfficialPoolTexture(ctx, width, height, toHexString(baseColor), pattern, number);
-
-    texture = new THREE.CanvasTexture(canvas);
-    texture.colorSpace = THREE.SRGBColorSpace;
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.anisotropy = 8;
+    drawPoolBallTexture(ctx, size, baseColor, pattern, number);
   } else {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = BALL_TEXTURE_SIZE;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-
-    drawDefaultBallTexture(ctx, BALL_TEXTURE_SIZE, baseColor, pattern, number);
-
-    texture = new THREE.CanvasTexture(canvas);
-    texture.anisotropy = 32;
+    drawDefaultBallTexture(ctx, size, baseColor, pattern, number);
   }
 
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.anisotropy = 32;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -333,31 +276,18 @@ export function getBallMaterial({
     variantKey
   });
 
-  const material =
-    variantKey === 'pool'
-      ? new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
-          map,
-          roughness: 0.14,
-          metalness: 0.0,
-          clearcoat: 1.0,
-          clearcoatRoughness: 0.06,
-          ior: 1.5,
-          reflectivity: 0.6,
-          envMapIntensity: 1
-        })
-      : new THREE.MeshPhysicalMaterial({
-          color: 0xffffff,
-          map,
-          clearcoat: 1,
-          clearcoatRoughness: 0.015,
-          metalness: 0.24,
-          roughness: 0.06,
-          reflectivity: 1,
-          sheen: 0.18,
-          sheenColor: new THREE.Color(0xf8f9ff),
-          envMapIntensity: 1.18
-        });
+  const material = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    map,
+    clearcoat: 1,
+    clearcoatRoughness: 0.015,
+    metalness: 0.24,
+    roughness: 0.06,
+    reflectivity: 1,
+    sheen: 0.18,
+    sheenColor: new THREE.Color(0xf8f9ff),
+    envMapIntensity: 1.18
+  });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
   return material;
