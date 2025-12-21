@@ -943,7 +943,15 @@ public class CueCamera : MonoBehaviour
         desiredPosition.y = Mathf.Max(desiredPosition.y, minimumHeight);
         desiredPosition.y = Mathf.Max(desiredPosition.y, minRailHeight);
         transform.position = desiredPosition;
-        transform.LookAt(lookTarget);
+
+        Vector3 lookDirection = lookTarget - desiredPosition;
+        if (lookDirection.sqrMagnitude < 0.0001f)
+        {
+            lookDirection = forward;
+        }
+
+        lookDirection = lookDirection.normalized;
+        transform.rotation = Quaternion.LookRotation(lookDirection, Vector3.up);
     }
 
     private void EndShot()
