@@ -933,6 +933,8 @@ const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
+const SIDE_RAIL_CUT_RADIUS_SCALE = 0.965; // tighten middle rail + jaw cutouts slightly while leaving chrome arcs untouched
+const SIDE_COLLISION_RADIUS_SCALE = 0.95; // narrow the middle pocket guard so cushion behaviour mirrors the corners
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
@@ -988,6 +990,7 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
+const SIDE_CAPTURE_R = SIDE_POCKET_RADIUS * 0.94; // align middle-pocket capture with the tighter rail cut radius
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = 0; // remove the plywood board beneath the cloth
 const CLOTH_UNDERLAY_GAP = 0; // eliminate the air gap between the cloth and the removed board
@@ -4808,6 +4811,14 @@ const pocketCenters = () => {
     new THREE.Vector2(sidePocketCenterX, 0)
   ];
 };
+const pocketCaptureRadii = () => [
+  CAPTURE_R,
+  CAPTURE_R,
+  CAPTURE_R,
+  CAPTURE_R,
+  SIDE_CAPTURE_R,
+  SIDE_CAPTURE_R
+];
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => {
     const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
@@ -5167,14 +5178,15 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
-  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const sideGuardRadius = SIDE_POCKET_RADIUS * SIDE_COLLISION_RADIUS_SCALE;
+  const sideSpan = sideGuardRadius + BALL_R * 0.45; // extend the middle pocket guard for more precise collisions
+  const sideDepthLimit = sideGuardRadius * POCKET_VISUAL_EXPANSION * 1.35;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
     if (sy * ball.pos.y <= 0) continue;
-    TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
+    TMP_VEC2_C.set(sx * limX, sy * (sideGuardRadius + BALL_R * 0.2));
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
     TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
@@ -6243,6 +6255,7 @@ function Table3D(
   const cornerChamfer = POCKET_VIS_R * 0.34 * POCKET_VISUAL_EXPANSION;
   const cornerInset = innerHalfW - (halfW - CORNER_POCKET_CENTER_INSET);
   const sidePocketRadius = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
+  const sideRailCutRadius = sidePocketRadius * SIDE_RAIL_CUT_RADIUS_SCALE;
 
   // Derive exact cushion extents from the chrome pocket arcs so the rails stop
   // precisely where each pocket begins.
@@ -6278,7 +6291,7 @@ function Table3D(
     halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
   const sideDeltaX = sidePocketCenterX - sideLineX;
   const sidePocketReach = Math.sqrt(
-    Math.max(sidePocketRadius * sidePocketRadius - sideDeltaX * sideDeltaX, 0)
+    Math.max(sideRailCutRadius * sideRailCutRadius - sideDeltaX * sideDeltaX, 0)
   );
   const adjustedSidePocketReach = Math.max(
     0,
@@ -6648,7 +6661,9 @@ function Table3D(
   const scaleWoodRailSidePocketCut = (mp, sx = 1) => {
     const scaled = scalePocketCutMP(
       scaleChromeSidePocketCut(mp),
-      WOOD_RAIL_POCKET_RELIEF_SCALE * WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE
+      WOOD_RAIL_POCKET_RELIEF_SCALE *
+        WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE *
+        SIDE_RAIL_CUT_RADIUS_SCALE
     );
     const sideSign = Math.sign(sx) || 1;
     return translatePocketCutMP(
@@ -7965,10 +7980,10 @@ function Table3D(
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  pocketCenters().forEach((p) => {
+  pocketCenters().forEach((p, index) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
-    marker.userData.captureRadius = CAPTURE_R;
+    marker.userData.captureRadius = pocketCaptureRadii()[index] ?? CAPTURE_R;
     table.add(marker);
     table.userData.pockets.push(marker);
   });
@@ -17522,9 +17537,11 @@ function PoolRoyaleGame({
         // Pocket capture
         balls.forEach((b) => {
           if (!b.active) return;
+          const captureRadii = pocketCaptureRadii();
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
-            if (b.pos.distanceTo(c) < CAPTURE_R) {
+            const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
+            if (b.pos.distanceTo(c) < captureRadius) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
