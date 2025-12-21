@@ -3810,7 +3810,7 @@ function createBroadcastCameras({
   const requestedZ = Math.abs(shortRailZ) || fallbackDepth;
   const cameraCenterZOffset = Math.min(Math.max(requestedZ, fallbackDepth), maxDepth);
   const cameraScale = 1.2;
-  const cameraProximityScale = 0.54;
+  const cameraProximityScale = 0.6;
 
   const createShortRailUnit = (zSign) => {
     const direction = Math.sign(zSign) || 1;
@@ -4306,6 +4306,10 @@ const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
 const TOP_VIEW_RADIUS_SCALE = 0.82;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
+const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
+  x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
+  z: BALL_R * 1.65 // lift the table toward the top edge for 2D mode
+});
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
@@ -12388,9 +12392,9 @@ function PoolRoyaleGame({
           lookTarget = focusTarget;
           if (topViewRef.current) {
             const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-              playerOffsetRef.current,
+              playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
               ORBIT_FOCUS_BASE_Y,
-              0
+              TOP_VIEW_SCREEN_OFFSET.z
             ).multiplyScalar(worldScaleFactor);
             lookTarget = topFocusTarget;
             lastCameraTargetRef.current.copy(topFocusTarget);
@@ -13307,9 +13311,9 @@ function PoolRoyaleGame({
           const margin = TOP_VIEW_MARGIN;
           fit(margin);
           const topFocusTarget = TMP_VEC3_TOP_VIEW.set(
-            playerOffsetRef.current,
+            playerOffsetRef.current + TOP_VIEW_SCREEN_OFFSET.x,
             ORBIT_FOCUS_BASE_Y,
-            0
+            TOP_VIEW_SCREEN_OFFSET.z
           ).multiplyScalar(
             Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE
           );
