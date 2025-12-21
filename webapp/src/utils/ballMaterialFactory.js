@@ -4,6 +4,7 @@ import { applySRGBColorSpace } from './colorSpace.js';
 const BALL_TEXTURE_SIZE = 4096; // ultra high resolution for sharper billiard ball textures
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
+const POOL_NUMBER_SCALE = 0.8; // render Pool Royal numbers about 20% smaller on the badge
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -77,7 +78,7 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.1;
+  const radius = size * 0.1 * POOL_NUMBER_SCALE;
   const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
   const cy = size * 0.5;
@@ -90,14 +91,14 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02 * POOL_NUMBER_SCALE));
   ctx.strokeStyle = '#000000';
   ctx.stroke();
 
   const numStr = String(number);
 
   ctx.fillStyle = '#000000';
-  const fontSize = numStr.length === 2 ? size * 0.162 : size * 0.18;
+  const fontSize = (numStr.length === 2 ? size * 0.162 : size * 0.18) * POOL_NUMBER_SCALE;
   ctx.font = `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
