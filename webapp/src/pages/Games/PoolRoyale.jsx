@@ -13036,14 +13036,35 @@ function PoolRoyaleGame({
           }));
 
         const captureReplayCameraSnapshot = () => {
+          const usingTopView = Boolean(topViewRef.current);
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+
+          const targetSnapshot = lastCameraTargetRef.current
+            ? lastCameraTargetRef.current.clone()
+            : null;
+
+          if (usingTopView) {
+            const railBroadcastSnapshot = resolveRailOverheadReplayCamera({
+              focusOverride: targetSnapshot,
+              minTargetY
+            });
+            if (railBroadcastSnapshot?.position && railBroadcastSnapshot?.target) {
+              return {
+                position: railBroadcastSnapshot.position.clone?.() ?? railBroadcastSnapshot.position,
+                target: railBroadcastSnapshot.target.clone?.() ?? railBroadcastSnapshot.target,
+                fov: Number.isFinite(railBroadcastSnapshot.fov)
+                  ? railBroadcastSnapshot.fov
+                  : camera.fov
+              };
+            }
+          }
+
           const currentCamera = activeRenderCameraRef.current ?? camera;
           const position = currentCamera?.position?.clone?.() ?? null;
           const fovSnapshot = Number.isFinite(currentCamera?.fov)
             ? currentCamera.fov
             : camera.fov;
-          const targetSnapshot = lastCameraTargetRef.current
-            ? lastCameraTargetRef.current.clone()
-            : null;
           if (!position && !targetSnapshot) return null;
           return {
             position,
