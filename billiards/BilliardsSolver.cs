@@ -43,13 +43,9 @@ public class BilliardsSolver
         double height = PhysicsConstants.TableHeight;
         double cornerMouth = PhysicsConstants.CornerPocketMouth;
         double sideMouth = PhysicsConstants.SidePocketMouth;
-        double cornerCut = Math.Max(
-            PhysicsConstants.Epsilon,
-            cornerMouth / Math.Sqrt(2.0) - PhysicsConstants.CornerPocketRailInset);
+        double cornerCut = cornerMouth / Math.Sqrt(2.0);
         double sideCut = sideMouth / 2.0;
-        double sideDepth = Math.Max(
-            sideCut * PhysicsConstants.SidePocketDepthScale,
-            PhysicsConstants.BallRadius * 1.8);
+        double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8);
         double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
 
         // Straight cushion spans (long rails)
