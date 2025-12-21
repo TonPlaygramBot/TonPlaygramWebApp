@@ -781,8 +781,8 @@ function addPocketCuts(
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_SIZE_SHRINK = 0.92; // relax the shrink so the full table silhouette grows ~18% while keeping the cloth footprint undistorted
-const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy 16% trim plus the new shrink so the arena stays compact without distorting proportions
+const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
+const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
 const TABLE_DISPLAY_SCALE = 0.88; // pull the entire table set ~12% closer so the arena feels more intimate without distorting proportions
@@ -1143,8 +1143,8 @@ const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_HEIGHT_REDUCTION = 0.8;
-const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after 20% reduction
+const TABLE_HEIGHT_REDUCTION = 0.9;
+const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after a lighter 10% reduction to lift the stance
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
 const BASE_LEG_HEIGHT = TABLE.THICK * 2 * 3 * 1.15 * LEG_HEIGHT_MULTIPLIER;
