@@ -788,7 +788,7 @@ export function buildDominoArena({ scene, renderer }) {
 
   const studioCamA = buildStudioCamera();
   const studioCamB = buildStudioCamera();
-  const cameraOffset = TABLE_DIMENSIONS.outerHalfWidth + 1.1;
+  const cameraOffset = TABLE_DIMENSIONS.outerHalfWidth + 1.3;
   studioCamA.position.set(-cameraOffset, 0, -cameraOffset);
   studioCamB.position.set(cameraOffset, 0, cameraOffset);
   arena.add(studioCamA, studioCamB);
