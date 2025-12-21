@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { applySRGBColorSpace } from './colorSpace.js';
 
 const BALL_TEXTURE_SIZE = 4096; // ultra high resolution for sharper billiard ball textures
+const BALL_DETAIL_TEXTURE_SIZE = 512;
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
+const BALL_DETAIL_MAP_CACHE = new Map();
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -119,15 +121,97 @@ function drawPoolNumberBadge(ctx, size, number) {
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
+  ctx.save();
   ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
   ctx.fillRect(0, 0, size, size);
 
   if (pattern === 'stripe') {
-    ctx.fillStyle = baseHex;
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
+    const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
+    stripeGrad.addColorStop(0, lighten(baseHex, 0.18));
+    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.06));
+    stripeGrad.addColorStop(1, darken(baseHex, 0.08));
+    ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
+
+    ctx.lineWidth = size * 0.012;
+    ctx.strokeStyle = 'rgba(0,0,0,0.14)';
+    ctx.beginPath();
+    ctx.moveTo(0, stripeY);
+    ctx.lineTo(size, stripeY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, stripeY + stripeHeight);
+    ctx.lineTo(size, stripeY + stripeHeight);
+    ctx.stroke();
+  } else {
+    const radial = ctx.createRadialGradient(
+      size * 0.32,
+      size * 0.26,
+      size * 0.14,
+      size * 0.55,
+      size * 0.58,
+      size * 0.48
+    );
+    radial.addColorStop(0, lighten(baseHex, 0.22));
+    radial.addColorStop(0.45, lighten(baseHex, 0.08));
+    radial.addColorStop(1, darken(baseHex, 0.1));
+    ctx.fillStyle = radial;
+    ctx.fillRect(0, 0, size, size);
   }
+
+  const vignette = ctx.createRadialGradient(
+    size * 0.5,
+    size * 0.55,
+    size * 0.2,
+    size * 0.5,
+    size * 0.55,
+    size * 0.58
+  );
+  vignette.addColorStop(0, 'rgba(0,0,0,0)');
+  vignette.addColorStop(1, 'rgba(0,0,0,0.18)');
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = vignette;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const highlight = ctx.createRadialGradient(
+    size * 0.28,
+    size * 0.22,
+    size * 0.04,
+    size * 0.28,
+    size * 0.22,
+    size * 0.32
+  );
+  highlight.addColorStop(0, 'rgba(255,255,255,1)');
+  highlight.addColorStop(0.55, 'rgba(255,255,255,0.24)');
+  highlight.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = highlight;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'multiply';
+  const underShadow = ctx.createRadialGradient(
+    size * 0.54,
+    size * 0.7,
+    size * 0.12,
+    size * 0.54,
+    size * 0.7,
+    size * 0.42
+  );
+  underShadow.addColorStop(0, 'rgba(0,0,0,0)');
+  underShadow.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.fillStyle = underShadow;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  addNoise(ctx, size, 0.018, 4200);
+  ctx.restore();
 
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
@@ -257,6 +341,39 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   return texture;
 }
 
+function createBallRoughnessMap() {
+  const key = 'poolBallRoughness';
+  if (BALL_DETAIL_MAP_CACHE.has(key)) {
+    return BALL_DETAIL_MAP_CACHE.get(key);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = BALL_DETAIL_TEXTURE_SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const base = Math.floor(255 * 0.12);
+  ctx.fillStyle = `rgb(${base},${base},${base})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.globalAlpha = 0.4;
+  addNoise(ctx, canvas.width, 0.08, 2800);
+  ctx.restore();
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(6, 6);
+  texture.minFilter = THREE.LinearMipMapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 8;
+  texture.generateMipmaps = true;
+  texture.needsUpdate = true;
+
+  BALL_DETAIL_MAP_CACHE.set(key, texture);
+  return texture;
+}
+
 export function getBallMaterial({
   color,
   pattern = 'solid',
@@ -275,18 +392,24 @@ export function getBallMaterial({
     number,
     variantKey
   });
+  const roughnessMap = createBallRoughnessMap();
 
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     map,
+    roughnessMap: roughnessMap ?? undefined,
     clearcoat: 1,
-    clearcoatRoughness: 0.015,
-    metalness: 0.24,
-    roughness: 0.06,
+    clearcoatRoughness: 0.012,
+    metalness: 0.2,
+    roughness: 0.065,
     reflectivity: 1,
-    sheen: 0.18,
+    sheen: 0.2,
+    sheenRoughness: 0.56,
     sheenColor: new THREE.Color(0xf8f9ff),
-    envMapIntensity: 1.18
+    envMapIntensity: 1.32,
+    specularIntensity: 1,
+    specularColor: new THREE.Color(0xffffff),
+    ior: 1.46
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
@@ -296,4 +419,5 @@ export function getBallMaterial({
 export function clearBallMaterialCache() {
   BALL_MATERIAL_CACHE.clear();
   BALL_TEXTURE_CACHE.clear();
+  BALL_DETAIL_MAP_CACHE.clear();
 }
