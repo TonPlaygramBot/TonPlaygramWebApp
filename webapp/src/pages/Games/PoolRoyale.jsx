@@ -276,11 +276,11 @@ function detectPreferredFrameRateId() {
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
-    return 'ultra144';
+    return 'elite165';
   }
 
   if (rendererTier === 'desktopHigh' || hardwareConcurrency >= 8) {
-    return 'uhd120';
+    return highRefresh ? 'ultra144' : 'uhd120';
   }
 
   if (rendererTier === 'desktopMid') {
@@ -810,7 +810,7 @@ const SHOW_SHORT_RAIL_TRIPODS = false;
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE
   };
-const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
+const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -2415,6 +2415,15 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2.2,
     resolution: 'Ultra HD+ render • DPR 2.2 cap',
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+  },
+  {
+    id: 'elite165',
+    label: 'Pro Broadcast (165 Hz)',
+    fps: 165,
+    renderScale: 1.55,
+    pixelRatioCap: 2.3,
+    resolution: 'UHD+ render • DPR 2.3 cap',
+    description: 'Esports-grade preset tuned for 165 Hz rails-first broadcast replays.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -12716,7 +12725,7 @@ function PoolRoyaleGame({
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = Boolean(railNormal);
+          const preferRailOverhead = true; // always stick to the rail overhead broadcast look
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
