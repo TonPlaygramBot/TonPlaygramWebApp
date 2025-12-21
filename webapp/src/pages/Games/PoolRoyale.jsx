@@ -847,7 +847,7 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
   CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9; // widen the middle jaw span slightly so the wooden rail cut breathes more like the corners
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.92; // relax the side jaw radius a touch so the middle pocket arc reads larger while still moving outward
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.86; // tighten the middle jaw arc so the rounded cut radius reads smaller without shifting the chrome fascia
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.15; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.036; // lower the middle jaws slightly less so the fascia trims down from the top
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.004; // pull the middle pocket jaws inward so the lips sit closer to centre
@@ -918,12 +918,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.014; // open the middle pocket mouth a little further so the jaws read rounder without losing shape
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.996; // pinch the middle pocket mouth slightly so the jaw radius and cloth cut read tighter
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 1.01; // enlarge the middle cloth/rail cutouts slightly so the wider mouth gains matching clearance
+const SIDE_POCKET_CUT_SCALE = 0.986; // shrink the middle cloth/rail cutouts so the rounded relief by the side pockets carries a smaller radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -987,7 +987,10 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
+const CAPTURE_CORNER_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
+const CAPTURE_SIDE_R = SIDE_POCKET_RADIUS * 0.94; // mirror the capture window to the middle pocket radius so balls fall naturally at the side cuts
+const captureRadiusForPocket = (pocketIndex) =>
+  pocketIndex >= 4 ? CAPTURE_SIDE_R : CAPTURE_CORNER_R;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const CLOTH_UNDERLAY_THICKNESS = 0; // remove the plywood board beneath the cloth
 const CLOTH_UNDERLAY_GAP = 0; // eliminate the air gap between the cloth and the removed board
@@ -1034,7 +1037,7 @@ const POCKET_CAM_BASE_OUTWARD_OFFSET =
   POCKET_VIS_R * 2.28 +
   BALL_R * 1.54;
 const POCKET_CAM = Object.freeze({
-  triggerDist: CAPTURE_R * 12,
+  triggerDist: Math.max(CAPTURE_CORNER_R, CAPTURE_SIDE_R) * 12,
   dotThreshold: 0.22,
   minOutside: POCKET_CAM_BASE_MIN_OUTSIDE,
   minOutsideShort: POCKET_CAM_BASE_MIN_OUTSIDE * 1.06,
@@ -5167,8 +5170,8 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS + BALL_R * 0.65; // extend the middle pocket guard for more precise collisions
-  const sideDepthLimit = POCKET_VIS_R * 1.45 * POCKET_VISUAL_EXPANSION;
+  const sideSpan = SIDE_POCKET_RADIUS * 0.92 + BALL_R * 0.55; // tighten the middle pocket guard so cushion rebounds start closer to the lips
+  const sideDepthLimit = SIDE_POCKET_RADIUS * 1.5 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
@@ -5211,10 +5214,10 @@ function reflectRails(ball) {
   }
 
   // If the ball is entering a pocket capture zone, skip straight rail reflections
-  const nearPocketRadius = POCKET_VIS_R + BALL_R * 0.25;
-  const nearPocket = pocketCenters().some(
-    (c) => ball.pos.distanceTo(c) < nearPocketRadius
-  );
+  const nearPocket = pocketCenters().some((c, pocketIndex) => {
+    const guardRadius = captureRadiusForPocket(pocketIndex) + BALL_R * 0.25;
+    return ball.pos.distanceTo(c) < guardRadius;
+  });
   if (nearPocket) return null;
   let collided = null;
   if (ball.pos.x < -limX && ball.vel.x < 0) {
@@ -7968,7 +7971,9 @@ function Table3D(
   pocketCenters().forEach((p) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
-    marker.userData.captureRadius = CAPTURE_R;
+    marker.userData.captureRadius = captureRadiusForPocket(
+      table.userData.pockets.length
+    );
     table.add(marker);
     table.userData.pockets.push(marker);
   });
@@ -17524,7 +17529,8 @@ function PoolRoyaleGame({
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
-            if (b.pos.distanceTo(c) < CAPTURE_R) {
+            const captureRadius = captureRadiusForPocket(pocketIndex);
+            if (b.pos.distanceTo(c) < captureRadius) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
