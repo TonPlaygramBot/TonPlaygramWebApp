@@ -781,7 +781,7 @@ function addPocketCuts(
 // separate scales for table and balls
 // Dimensions tuned for an official 9ft pool table footprint while globally reduced
 // to fit comfortably inside the existing mobile arena presentation.
-const TABLE_SIZE_SHRINK = 0.85; // tighten the table footprint by ~8% to add breathing room without altering proportions
+const TABLE_SIZE_SHRINK = 0.782; // trim the table footprint a further 8% while preserving proportions
 const TABLE_REDUCTION = 0.84 * TABLE_SIZE_SHRINK; // apply the legacy trim plus the tighter shrink so the arena stays compact without distorting proportions
 const SIZE_REDUCTION = 0.7;
 const GLOBAL_SIZE_FACTOR = 0.85 * SIZE_REDUCTION;
@@ -1143,7 +1143,7 @@ const LEG_HEIGHT_FACTOR = 4;
 const LEG_HEIGHT_MULTIPLIER = 2.25;
 const BASE_TABLE_LIFT = 3.6;
 const TABLE_DROP = 0.4;
-const TABLE_HEIGHT_REDUCTION = 0.9;
+const TABLE_HEIGHT_REDUCTION = 0.96;
 const TABLE_H = 0.75 * LEG_SCALE * TABLE_HEIGHT_REDUCTION; // physical height of table used for legs/skirt after a lighter 10% reduction to lift the stance
 const TABLE_LIFT =
   BASE_TABLE_LIFT + TABLE_H * (LEG_HEIGHT_FACTOR - 1);
@@ -4304,7 +4304,7 @@ const CAMERA_RAIL_SAFETY = 0.006;
 const TOP_VIEW_MARGIN = 1.2;
 const TOP_VIEW_MIN_RADIUS_SCALE = 1.0;
 const TOP_VIEW_PHI = CAMERA_ABS_MIN_PHI + 0.02;
-const TOP_VIEW_RADIUS_SCALE = 0.88;
+const TOP_VIEW_RADIUS_SCALE = 0.82;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4321,12 +4321,12 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.08; // pull the rail overhead broadcast heads slightly away from the cloth
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.02; // pull the rail overhead broadcast heads slightly away from the cloth
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
-const CUE_VIEW_RADIUS_RATIO = 0.04;
-const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.12;
+const CUE_VIEW_RADIUS_RATIO = 0.035;
+const CUE_VIEW_MIN_RADIUS = CAMERA.minR * 0.1;
 const CUE_VIEW_MIN_PHI = Math.min(
   CAMERA.maxPhi - CAMERA_RAIL_SAFETY,
   STANDING_VIEW_PHI + 0.26
