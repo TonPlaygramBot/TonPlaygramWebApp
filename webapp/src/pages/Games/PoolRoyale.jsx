@@ -275,10 +275,6 @@ function detectPreferredFrameRateId() {
     return 'fhd60';
   }
 
-  if (rendererTier === 'desktopHigh' && highRefresh && hardwareConcurrency >= 12) {
-    return 'esports165';
-  }
-
   if (rendererTier === 'desktopHigh' && highRefresh) {
     return 'ultra144';
   }
@@ -814,7 +810,7 @@ const SHOW_SHORT_RAIL_TRIPODS = false;
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE
   };
-const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stance used previously so cushions no longer sit too tall
+const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -2419,15 +2415,6 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2.2,
     resolution: 'Ultra HD+ render • DPR 2.2 cap',
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
-  },
-  {
-    id: 'esports165',
-    label: 'Esports (165 Hz)',
-    fps: 165,
-    renderScale: 1.4,
-    pixelRatioCap: 2.3,
-    resolution: 'High-FPS render • DPR 2.3 cap',
-    description: 'Highest frame pacing for ultra-fast 165 Hz broadcasts and replays.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -12729,7 +12716,7 @@ function PoolRoyaleGame({
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = true; // force every shot to use the rail-mounted overhead broadcast angle
+          const preferRailOverhead = Boolean(railNormal);
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -13051,23 +13038,23 @@ function PoolRoyaleGame({
         const captureReplayCameraSnapshot = () => {
           const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
           const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const liveCamera = activeRenderCameraRef.current ?? camera;
-          const fovSnapshot = Number.isFinite(liveCamera?.fov)
-            ? liveCamera.fov
+          const fallbackCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
+            ? fallbackCamera.fov
             : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
-          const positionSnapshot = liveCamera?.position?.clone?.() ?? null;
           const overheadCamera = resolveRailOverheadReplayCamera({
             focusOverride: targetSnapshot,
             minTargetY
           });
-          const resolvedPosition = positionSnapshot ?? overheadCamera?.position?.clone?.() ?? null;
-          const resolvedTarget = targetSnapshot ?? overheadCamera?.target?.clone?.() ?? null;
-          const resolvedFov = Number.isFinite(fovSnapshot)
-            ? fovSnapshot
-            : overheadCamera?.fov ?? camera.fov;
+          const resolvedPosition = overheadCamera?.position?.clone?.() ??
+            fallbackCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(overheadCamera?.fov)
+            ? overheadCamera.fov
+            : fovSnapshot;
           if (!resolvedPosition && !resolvedTarget) return null;
           const snapshot = {
             position: resolvedPosition,
