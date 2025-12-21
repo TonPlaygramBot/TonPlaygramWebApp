@@ -2429,7 +2429,7 @@ const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
     method: 'Overhead rail mounts with fast post-shot cuts.',
     orbitBias: 0.68,
     railPush: BALL_R * 6,
-    lateralDolly: BALL_R * 0.6,
+    lateralDolly: 0,
     focusLift: BALL_R * 5.4,
     focusDepthBias: -BALL_R * 0.6,
     focusPan: 0,
