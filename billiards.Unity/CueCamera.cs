@@ -125,17 +125,17 @@ public class CueCamera : MonoBehaviour
     [Header("Broadcast view")]
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 0.9f;
-    public float broadcastHeight = 0.42f;
+    public float broadcastHeight = 0.48f;
     // Bounds that encompass the full playing surface including rails and pockets.
     public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.64465f, 0.72f, 3.301325f));
     // Keep a small margin inside the camera frame so the rails never touch the
     // edge of the screen during broadcast shots.
     [Range(0f, 0.25f)]
-    public float broadcastSafeMargin = 0.06f;
+    public float broadcastSafeMargin = 0.08f;
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
-    public float broadcastMinDistance = 0.9f;
+    public float broadcastMinDistance = 1.05f;
     public float broadcastMaxDistance = 5.0875f;
     // Blend between the table centre and the active focus (cue ball or target)
     // when aiming the broadcast view. Keeps the play interesting while still
@@ -689,12 +689,9 @@ public class CueCamera : MonoBehaviour
 
     private Bounds GetBroadcastBounds(Vector3 focus)
     {
-        float minHalfLength = tableBounds.extents.z * 0.5f;
-        float zRange = Mathf.Max(0f, tableBounds.extents.z - minHalfLength);
-        float clampedZ = Mathf.Clamp(focus.z, tableBounds.center.z - zRange, tableBounds.center.z + zRange);
         Bounds baseBounds = new Bounds(
-            new Vector3(0f, tableBounds.center.y, clampedZ),
-            new Vector3(tableBounds.size.x, tableBounds.size.y, minHalfLength * 2f)
+            new Vector3(0f, tableBounds.center.y, tableBounds.center.z),
+            new Vector3(tableBounds.size.x, tableBounds.size.y, tableBounds.size.z)
         );
 
         Bounds movingBounds;
@@ -703,6 +700,7 @@ public class CueCamera : MonoBehaviour
             return baseBounds;
         }
 
+        float minHalfLength = tableBounds.extents.z;
         float radius = Mathf.Max(0f, cueBallRadius);
         Vector3 extents = movingBounds.extents;
         extents.x = Mathf.Max(extents.x + radius, tableBounds.extents.x);
