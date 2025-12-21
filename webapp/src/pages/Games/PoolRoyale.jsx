@@ -143,7 +143,24 @@ function detectHighRefreshDisplay() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return false;
   }
-  const queries = ['(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  const queries = ['(min-refresh-rate: 144hz)', '(min-refresh-rate: 120hz)', '(min-refresh-rate: 90hz)'];
+  for (const query of queries) {
+    try {
+      if (window.matchMedia(query).matches) {
+        return true;
+      }
+    } catch (err) {
+      // ignore unsupported query
+    }
+  }
+  return false;
+}
+
+function detectUltraHighRefreshDisplay() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return false;
+  }
+  const queries = ['(min-refresh-rate: 240hz)', '(min-refresh-rate: 200hz)', '(min-refresh-rate: 165hz)'];
   for (const query of queries) {
     try {
       if (window.matchMedia(query).matches) {
@@ -252,6 +269,7 @@ function detectPreferredFrameRateId() {
   const hardwareConcurrency = navigator.hardwareConcurrency ?? 4;
   const lowRefresh = detectLowRefreshDisplay();
   const highRefresh = detectHighRefreshDisplay();
+  const ultraRefresh = detectUltraHighRefreshDisplay();
   const rendererTier = classifyRendererTier(readGraphicsRendererString());
 
   if (lowRefresh) {
@@ -261,6 +279,13 @@ function detectPreferredFrameRateId() {
   if (isMobileUA || coarsePointer || isTouch || rendererTier === 'mobile') {
     if ((deviceMemory !== null && deviceMemory <= 4) || hardwareConcurrency <= 4) {
       return 'hd50';
+    }
+    if (
+      ultraRefresh &&
+      hardwareConcurrency >= 10 &&
+      (deviceMemory == null || deviceMemory >= 8)
+    ) {
+      return 'pro165';
     }
     if (highRefresh && hardwareConcurrency >= 8 && (deviceMemory == null || deviceMemory >= 6)) {
       return 'uhd120';
@@ -273,6 +298,10 @@ function detectPreferredFrameRateId() {
       return 'qhd90';
     }
     return 'fhd60';
+  }
+
+  if (rendererTier === 'desktopHigh' && ultraRefresh) {
+    return hardwareConcurrency >= 12 ? 'arena240' : 'pro165';
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
@@ -810,7 +839,7 @@ const SHOW_SHORT_RAIL_TRIPODS = false;
     THICK: 1.8 * TABLE_SCALE,
     WALL: 2.6 * TABLE_SCALE
   };
-const RAIL_HEIGHT = TABLE.THICK * 1.96; // raise the wooden rails slightly so their top edge now meets the cushion surface
+const RAIL_HEIGHT = TABLE.THICK * 1.9; // restore the lower rail height so cushions sit just proud of the wood
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
@@ -2415,6 +2444,24 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     pixelRatioCap: 2.2,
     resolution: 'Ultra HD+ render • DPR 2.2 cap',
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
+  },
+  {
+    id: 'pro165',
+    label: 'Pro Tour (165 Hz)',
+    fps: 165,
+    renderScale: 1.52,
+    pixelRatioCap: 2.3,
+    resolution: 'Ultra HD+ render • DPR 2.3 cap',
+    description: 'High-refresh broadcast preset that keeps rail cams butter-smooth at 165 Hz.'
+  },
+  {
+    id: 'arena240',
+    label: 'Arena+ (240 Hz)',
+    fps: 240,
+    renderScale: 1.28,
+    pixelRatioCap: 2.05,
+    resolution: 'Esports render • DPR 2.05 cap',
+    description: 'Latency-first esports profile that maximizes realism with 240 Hz pacing.'
   }
 ]);
 const DEFAULT_FRAME_RATE_ID = 'fhd60';
@@ -8457,6 +8504,11 @@ function PoolRoyaleGame({
     () => resolveBroadcastSystem(broadcastSystemId),
     [broadcastSystemId]
   );
+  useEffect(() => {
+    if (broadcastSystemId !== DEFAULT_BROADCAST_SYSTEM_ID) {
+      setBroadcastSystemId(DEFAULT_BROADCAST_SYSTEM_ID);
+    }
+  }, [broadcastSystemId]);
   const availableTableFinishes = useMemo(
     () =>
       TABLE_FINISH_OPTIONS.filter((option) =>
@@ -12716,7 +12768,7 @@ function PoolRoyaleGame({
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = Boolean(railNormal);
+          const preferRailOverhead = true;
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
