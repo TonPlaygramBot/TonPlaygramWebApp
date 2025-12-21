@@ -77,55 +77,32 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.088;
-  const badgeStretch = 1.9; // compensate equirectangular vertical compression on spheres
+  const radius = size * 0.1;
+  const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
   const cy = size * 0.5;
 
   ctx.save();
 
-  const rimGradient = ctx.createLinearGradient(cx, cy - radius, cx, cy + radius);
-  rimGradient.addColorStop(0, 'rgba(255,255,255,1)');
-  rimGradient.addColorStop(1, 'rgba(235,235,235,1)');
-
   ctx.beginPath();
   ctx.ellipse(cx, cy, radius, radius * badgeStretch, 0, 0, Math.PI * 2);
   ctx.closePath();
-  ctx.fillStyle = rimGradient;
+  ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  ctx.lineWidth = Math.max(1, Math.floor(size * 0.014));
-  ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
+  ctx.strokeStyle = '#000000';
   ctx.stroke();
 
-  ctx.save();
-  ctx.globalCompositeOperation = 'overlay';
-  const gloss = ctx.createRadialGradient(
-    cx,
-    cy - radius * 0.3,
-    radius * 0.1,
-    cx,
-    cy,
-    radius
-  );
-  gloss.addColorStop(0, 'rgba(255,255,255,0.9)');
-  gloss.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gloss;
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, radius, radius * badgeStretch, 0, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.fill();
-  ctx.restore();
-
-  ctx.fillStyle = '#0d0d0d';
-  ctx.font = `800 ${size * 0.155}px "DIN Condensed", "Arial Narrow", "Arial"`;
+  ctx.fillStyle = '#000000';
+  ctx.font = `bold ${size * 0.18}px Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
   const numStr = String(number);
   ctx.save();
-  ctx.translate(cx, cy + size * 0.0025);
-  ctx.scale(1, badgeStretch * 0.98);
+  ctx.translate(cx, cy);
+  ctx.scale(1, badgeStretch);
   if (numStr.length === 2) {
     ctx.save();
     ctx.scale(0.9, 1);
@@ -142,77 +119,19 @@ function drawPoolNumberBadge(ctx, size, number) {
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
-  ctx.save();
-  ctx.fillStyle = pattern === 'stripe' ? lighten(baseHex, 0.08) : baseHex;
+  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
   ctx.fillRect(0, 0, size, size);
-
-  const cx = size * 0.5;
-  const cy = size * 0.5;
-  const radius = size * 0.5;
 
   if (pattern === 'stripe') {
+    ctx.fillStyle = baseHex;
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
-    const stripeGrad = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeGrad.addColorStop(0, lighten(baseHex, 0.2));
-    stripeGrad.addColorStop(0.5, lighten(baseHex, 0.08));
-    stripeGrad.addColorStop(1, darken(baseHex, 0.12));
-    ctx.fillStyle = stripeGrad;
     ctx.fillRect(0, stripeY, size, stripeHeight);
-
-    ctx.save();
-    ctx.globalCompositeOperation = 'multiply';
-    const stripeShadow = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
-    stripeShadow.addColorStop(0, 'rgba(0,0,0,0.08)');
-    stripeShadow.addColorStop(1, 'rgba(0,0,0,0.18)');
-    ctx.fillStyle = stripeShadow;
-    ctx.fillRect(0, stripeY, size, stripeHeight);
-    ctx.restore();
-  } else {
-    const radial = ctx.createRadialGradient(
-      cx - radius * 0.16,
-      cy - radius * 0.14,
-      radius * 0.12,
-      cx,
-      cy + radius * 0.08,
-      radius
-    );
-    radial.addColorStop(0, lighten(baseHex, 0.26));
-    radial.addColorStop(0.48, lighten(baseHex, 0.08));
-    radial.addColorStop(1, darken(baseHex, 0.12));
-    ctx.fillStyle = radial;
-    ctx.fillRect(0, 0, size, size);
   }
-
-  const vignette = ctx.createRadialGradient(cx, cy, radius * 0.32, cx, cy, radius);
-  vignette.addColorStop(0, 'rgba(0,0,0,0)');
-  vignette.addColorStop(1, 'rgba(0,0,0,0.18)');
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.fillStyle = vignette;
-  ctx.fillRect(0, 0, size, size);
-
-  ctx.globalCompositeOperation = 'screen';
-  const highlight = ctx.createRadialGradient(
-    cx - radius * 0.16,
-    cy - radius * 0.18,
-    radius * 0.02,
-    cx - radius * 0.16,
-    cy - radius * 0.18,
-    radius * 0.35
-  );
-  highlight.addColorStop(0, 'rgba(255,255,255,0.9)');
-  highlight.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = highlight;
-  ctx.fillRect(0, 0, size, size);
-
-  ctx.globalCompositeOperation = 'source-over';
-  addNoise(ctx, size, 0.012, 4200);
 
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
   }
-
-  ctx.restore();
 }
 
 function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
