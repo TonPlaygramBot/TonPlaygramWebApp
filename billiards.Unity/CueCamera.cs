@@ -581,7 +581,12 @@ public class CueCamera : MonoBehaviour
     private void UpdateBroadcastCamera()
     {
         currentBall = CueBall;
-        yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
+        // Keep the broadcast framing perfectly square to the short rail so pockets
+        // stay visible on both sides. In practice the smooth blend could leave the
+        // camera a few degrees off-axis for several frames, which skews the near
+        // rail and hides a pocket. Locking the yaw to the rail-facing angle keeps
+        // the view level while preserving the same distance and height.
+        yaw = targetViewYaw;
         Vector3 focus = CueBall != null ? CueBall.position : tableBounds.center;
         ApplyBroadcastCamera(GetBroadcastFocus(focus));
 
@@ -613,7 +618,9 @@ public class CueCamera : MonoBehaviour
             currentBall = TargetBall;
         }
 
-        yaw = Mathf.LerpAngle(yaw, targetViewYaw, Time.deltaTime * shotSnapSpeed);
+        // Ensure the target-following broadcast angle remains square to the short
+        // rail so the near pockets don't skew out of view when the shot begins.
+        yaw = targetViewYaw;
 
         ApplyBroadcastCamera(targetViewFocus);
 
