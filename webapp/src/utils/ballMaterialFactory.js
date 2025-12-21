@@ -94,12 +94,13 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.strokeStyle = '#000000';
   ctx.stroke();
 
+  const numStr = String(number);
+
   ctx.fillStyle = '#000000';
-  ctx.font = `bold ${size * 0.18}px Arial`;
+  const fontSize = numStr.length === 2 ? size * 0.162 : size * 0.18;
+  ctx.font = `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-
-  const numStr = String(number);
   ctx.save();
   ctx.translate(cx, cy);
   ctx.scale(1, badgeStretch);
