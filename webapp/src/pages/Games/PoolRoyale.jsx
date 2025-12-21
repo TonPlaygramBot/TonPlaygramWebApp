@@ -11569,16 +11569,18 @@ function PoolRoyaleGame({
           const head = activeRail?.head ?? null;
           if (!head) return null;
           const position = head.getWorldPosition(new THREE.Vector3());
+          const quaternion = head.getWorldQuaternion(new THREE.Quaternion());
+          const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(quaternion);
           const target =
             focusOverride?.clone?.() ??
             rig.userData?.focus?.clone?.() ??
             rig.defaultFocusWorld?.clone?.() ??
             rig.defaultFocus?.clone?.() ??
-            null;
+            position.clone().add(forward.multiplyScalar(PLAY_H * 0.5));
           if (target && Number.isFinite(minTargetY)) {
             target.y = Math.max(target.y ?? minTargetY, minTargetY);
           }
-          return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
+          return { position, target, quaternion, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
         const resolveReplayCameraView = (replayFrameCamera, storedReplayCamera) => {
@@ -11645,7 +11647,13 @@ function PoolRoyaleGame({
               minTargetY: replayCamera?.minTargetY
             });
             const appliedReplayCamera = railBroadcastReplay ?? replayCamera;
-            const { position, target, fov: replayFov, minTargetY } = appliedReplayCamera;
+            const {
+              position,
+              target,
+              quaternion: replayQuaternion,
+              fov: replayFov,
+              minTargetY
+            } = appliedReplayCamera;
             const focusTarget = target ??
               new THREE.Vector3(
                 playerOffsetRef.current * (Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE),
@@ -11663,7 +11671,11 @@ function PoolRoyaleGame({
               camera.updateProjectionMatrix();
             }
             camera.position.copy(safePosition);
-            camera.lookAt(focusTarget);
+            if (replayQuaternion) {
+              camera.quaternion.copy(replayQuaternion);
+            } else {
+              camera.lookAt(focusTarget);
+            }
             renderCamera = camera;
             lookTarget = focusTarget;
             broadcastArgs.focusWorld = focusTarget.clone();
