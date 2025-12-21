@@ -4241,8 +4241,8 @@ const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
 // Bring the standing/broadcast framing closer to the cloth so the table feels less distant while matching the rail proximity of the pocket cams
 const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
-const STANDING_VIEW_MARGIN_LANDSCAPE = 0.994;
-const STANDING_VIEW_MARGIN_PORTRAIT = 0.992;
+const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
+const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4309,7 +4309,7 @@ const TOP_VIEW_RADIUS_SCALE = 0.84;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
-const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.06;
+const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
 const BROADCAST_MARGIN_WIDTH = (PLAY_W / 2) * (TOP_VIEW_MARGIN - 1);
 const BROADCAST_MARGIN_LENGTH = (PLAY_H / 2) * (TOP_VIEW_MARGIN - 1);
 const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) => {
