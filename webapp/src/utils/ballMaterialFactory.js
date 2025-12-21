@@ -4,7 +4,6 @@ import { applySRGBColorSpace } from './colorSpace.js';
 const BALL_TEXTURE_SIZE = 4096; // ultra high resolution for sharper billiard ball textures
 const BALL_TEXTURE_CACHE = new Map();
 const BALL_MATERIAL_CACHE = new Map();
-const BALL_NORMAL_MAP_KEY = 'pool-ball-micro-normal';
 
 function clamp01(value) {
   return Math.min(1, Math.max(0, value));
@@ -40,29 +39,6 @@ function addNoise(ctx, size, strength = 0.02, samples = 3600) {
     ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
   }
   ctx.restore();
-}
-
-function createBallNormalMap() {
-  if (BALL_TEXTURE_CACHE.has(BALL_NORMAL_MAP_KEY)) {
-    return BALL_TEXTURE_CACHE.get(BALL_NORMAL_MAP_KEY);
-  }
-  const size = 256;
-  const data = new Uint8Array(size * size * 4);
-  const clampByte = (v) => Math.max(0, Math.min(255, Math.round(v)));
-  for (let i = 0; i < size * size; i++) {
-    const stride = i * 4;
-    const grain = (Math.random() - 0.5) * 12;
-    const swirl = (Math.random() - 0.5) * 10;
-    data[stride] = clampByte(128 + grain);
-    data[stride + 1] = clampByte(128 + swirl);
-    data[stride + 2] = clampByte(255 - Math.abs(grain) * 0.6);
-    data[stride + 3] = 255;
-  }
-  const texture = new THREE.DataTexture(data, size, size);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.needsUpdate = true;
-  BALL_TEXTURE_CACHE.set(BALL_NORMAL_MAP_KEY, texture);
-  return texture;
 }
 
 function drawNumberBadge(ctx, size, number) {
@@ -101,7 +77,7 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.088;
+  const radius = size * 0.1;
   const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
   const cy = size * 0.5;
@@ -114,12 +90,12 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.018));
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
   ctx.strokeStyle = '#000000';
   ctx.stroke();
 
   ctx.fillStyle = '#000000';
-  ctx.font = `700 ${size * 0.15}px "Helvetica Neue", "Futura", "Arial Black", Arial`;
+  ctx.font = `bold ${size * 0.18}px Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -270,7 +246,7 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   }
 
   const texture = new THREE.CanvasTexture(canvas);
-  texture.anisotropy = 64;
+  texture.anisotropy = 32;
   texture.minFilter = THREE.LinearMipMapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = true;
@@ -299,26 +275,18 @@ export function getBallMaterial({
     number,
     variantKey
   });
-  const normalMap = createBallNormalMap();
 
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     map,
-    normalMap,
-    clearcoatNormalMap: normalMap,
-    normalScale: new THREE.Vector2(0.32, 0.32),
-    clearcoatNormalScale: new THREE.Vector2(0.12, 0.12),
     clearcoat: 1,
-    clearcoatRoughness: 0.01,
-    metalness: 0.22,
-    roughness: 0.045,
+    clearcoatRoughness: 0.015,
+    metalness: 0.24,
+    roughness: 0.06,
     reflectivity: 1,
     sheen: 0.18,
     sheenColor: new THREE.Color(0xf8f9ff),
-    sheenRoughness: 0.35,
-    envMapIntensity: 1.28,
-    ior: 1.52,
-    specularIntensity: 1.08
+    envMapIntensity: 1.18
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
