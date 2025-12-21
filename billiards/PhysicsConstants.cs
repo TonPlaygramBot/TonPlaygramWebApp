@@ -21,14 +21,16 @@ public static class PhysicsConstants
     public const int MaxSubSteps = 64;                 // hard cap per integration step
 
     // Pocket geometry derived from WPA spec (metres)
-    public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
-    public const double SidePocketMouth = 0.117475;    // scaled with table reduction
-    public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
+    public const double CornerPocketMouth = 0.108;      // scaled with table reduction
+    public const double CornerPocketRailInset = 0.003;  // pulls corner cutouts outward (away from centre)
+    public const double SidePocketMouth = 0.122;        // scaled with table reduction
+    public const double SidePocketDepthScale = 1.08;    // rounds side jaws slightly deeper
+    public const double PocketCaptureRadius = 0.09;     // scaled with table reduction
     // Keep side pockets aligned with the rail line so they behave identically to corner pockets.
     public const double SidePocketOutset = 0.0;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
-    public const int CornerJawSegments = 32;
-    public const int SideJawSegments = 24;
-    public const int JawCushionSegments = 2;           // how many segments nearest the rails behave as cushions
+    public const int CornerJawSegments = 36;
+    public const int SideJawSegments = 28;
+    public const int JawCushionSegments = 1;           // how many segments nearest the rails behave as cushions
 }
