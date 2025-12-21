@@ -4308,7 +4308,7 @@ const TOP_VIEW_RADIUS_SCALE = 0.82;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
-  z: BALL_R * 2.0 // lift the table slightly higher toward the top edge for 2D mode
+  z: BALL_R * 2.6 // lift the table higher toward the top edge for 2D mode
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
@@ -4325,7 +4325,7 @@ const computeTopViewBroadcastDistance = (aspect = 1, fov = STANDING_VIEW_FOV) =>
   const lengthDistance = (halfLength / Math.tan(halfVertical)) * TOP_VIEW_RADIUS_SCALE;
   return Math.max(widthDistance, lengthDistance);
 };
-const RAIL_OVERHEAD_DISTANCE_BIAS = 1.12; // pull the rail overhead broadcast heads slightly farther to frame both end pockets
+const RAIL_OVERHEAD_DISTANCE_BIAS = 1.18; // pull the rail overhead broadcast heads farther to frame both end pockets
 const SHORT_RAIL_CAMERA_DISTANCE =
   computeTopViewBroadcastDistance() * RAIL_OVERHEAD_DISTANCE_BIAS; // match the 2D top view framing distance for overhead rail cuts while keeping a touch of breathing room
 const SIDE_RAIL_CAMERA_DISTANCE = SHORT_RAIL_CAMERA_DISTANCE; // keep side-rail framing aligned with the top view scale
