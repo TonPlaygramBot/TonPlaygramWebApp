@@ -11569,16 +11569,12 @@ function PoolRoyaleGame({
           const head = activeRail?.head ?? null;
           if (!head) return null;
           const position = head.getWorldPosition(new THREE.Vector3());
-          let target =
+          const target =
             focusOverride?.clone?.() ??
             rig.userData?.focus?.clone?.() ??
             rig.defaultFocusWorld?.clone?.() ??
             rig.defaultFocus?.clone?.() ??
             null;
-          if (!target) {
-            const forward = head.getWorldDirection(new THREE.Vector3());
-            target = position.clone().add(forward.multiplyScalar(SHORT_RAIL_CAMERA_DISTANCE));
-          }
           if (target && Number.isFinite(minTargetY)) {
             target.y = Math.max(target.y ?? minTargetY, minTargetY);
           }
@@ -13040,36 +13036,6 @@ function PoolRoyaleGame({
           }));
 
         const captureReplayCameraSnapshot = () => {
-          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
-          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
-          const broadcastRig = broadcastCamerasRef.current;
-          const activeRail = broadcastRig?.activeRail === 'front'
-            ? broadcastRig.cameras?.front
-            : broadcastRig?.activeRail === 'back'
-              ? broadcastRig.cameras?.back
-              : broadcastRig?.cameras?.back ?? broadcastRig?.cameras?.front;
-          const head = activeRail?.head ?? null;
-          if (head) {
-            const position = head.getWorldPosition(new THREE.Vector3());
-            let targetSnapshot =
-              broadcastRig?.userData?.focus?.clone?.() ??
-              broadcastRig?.defaultFocusWorld?.clone?.() ??
-              broadcastRig?.defaultFocus?.clone?.() ??
-              null;
-            if (!targetSnapshot) {
-              const forward = head.getWorldDirection(new THREE.Vector3());
-              targetSnapshot = position.clone().add(forward.multiplyScalar(SHORT_RAIL_CAMERA_DISTANCE));
-            }
-            if (targetSnapshot) {
-              targetSnapshot.y = Math.max(targetSnapshot.y ?? minTargetY, minTargetY);
-            }
-            return {
-              position,
-              target: targetSnapshot,
-              fov: STANDING_VIEW_FOV
-            };
-          }
-
           const currentCamera = activeRenderCameraRef.current ?? camera;
           const position = currentCamera?.position?.clone?.() ?? null;
           const fovSnapshot = Number.isFinite(currentCamera?.fov)
@@ -13078,9 +13044,6 @@ function PoolRoyaleGame({
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
             : null;
-          if (targetSnapshot) {
-            targetSnapshot.y = Math.max(targetSnapshot.y ?? minTargetY, minTargetY);
-          }
           if (!position && !targetSnapshot) return null;
           return {
             position,
