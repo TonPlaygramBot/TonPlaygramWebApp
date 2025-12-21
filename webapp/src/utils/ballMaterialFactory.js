@@ -119,18 +119,72 @@ function drawPoolNumberBadge(ctx, size, number) {
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
   const baseHex = toHexString(baseColor);
 
-  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
+  // Base color coat (keeps top/bottom of stripes colored)
+  ctx.fillStyle = baseHex;
   ctx.fillRect(0, 0, size, size);
 
+  // Subtle speckle so balls don't look perfectly flat
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  const speckleSamples = Math.floor(1800 * (size / 2048) ** 2);
+  for (let i = 0; i < speckleSamples; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 1 + Math.random() * 2;
+    ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Official stripe band: white base with colored overlay and thin white edges
   if (pattern === 'stripe') {
+    const bandHeight = Math.floor(size * 0.26);
+    const bandY = Math.floor(size / 2 - bandHeight / 2);
+
+    ctx.fillStyle = '#f7f7f7';
+    ctx.globalAlpha = 1;
+    ctx.fillRect(0, bandY, size, bandHeight);
+
     ctx.fillStyle = baseHex;
-    const stripeHeight = size * 0.45;
-    const stripeY = (size - stripeHeight) / 2;
-    ctx.fillRect(0, stripeY, size, stripeHeight);
+    ctx.globalAlpha = 0.96;
+    ctx.fillRect(0, bandY, size, bandHeight);
+
+    const edgeHeight = Math.max(6, Math.floor(size * 0.008));
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, bandY, size, edgeHeight);
+    ctx.fillRect(0, bandY + bandHeight - edgeHeight, size, edgeHeight);
+    ctx.globalAlpha = 1;
   }
 
+  // Number patches on both sides of the ball
   if (Number.isFinite(number)) {
-    drawPoolNumberBadge(ctx, size, number);
+    const patchRadius = Math.floor(size * 0.13);
+    const centers = [size * 0.25, size * 0.75];
+
+    for (const cx of centers) {
+      const cy = size * 0.5;
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, patchRadius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(250,250,250,0.98)';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, patchRadius, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+      ctx.lineWidth = Math.max(6, Math.floor(size * 0.01));
+      ctx.stroke();
+
+      ctx.fillStyle = '#111';
+      const fontSize = number >= 10 ? Math.floor(size * 0.16) : Math.floor(size * 0.19);
+      ctx.font = `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(number), cx, cy + (number >= 10 ? size * 0.01 : size * 0.012));
+    }
   }
 }
 
