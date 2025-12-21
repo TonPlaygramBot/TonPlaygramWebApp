@@ -13036,6 +13036,34 @@ function PoolRoyaleGame({
           }));
 
         const captureReplayCameraSnapshot = () => {
+          const broadcastRig = broadcastCamerasRef.current;
+          const railCamera = (() => {
+            if (!broadcastRig?.cameras) return null;
+            const activeRail =
+              broadcastRig.activeRail === 'front'
+                ? broadcastRig.cameras.front
+                : broadcastRig.activeRail === 'back'
+                  ? broadcastRig.cameras.back
+                  : broadcastRig.cameras.back ?? broadcastRig.cameras.front;
+            const head = activeRail?.head ?? null;
+            if (!head) return null;
+            const position = head.getWorldPosition(new THREE.Vector3());
+            const target =
+              broadcastRig.userData?.focus?.clone?.() ??
+              broadcastRig.defaultFocusWorld?.clone?.() ??
+              broadcastRig.defaultFocus?.clone?.() ??
+              lastCameraTargetRef.current?.clone?.() ??
+              null;
+            const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+            const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+            if (target) {
+              target.y = Math.max(target.y ?? minTargetY, minTargetY);
+            }
+            return { position, target, fov: STANDING_VIEW_FOV };
+          })();
+
+          if (railCamera) return railCamera;
+
           const currentCamera = activeRenderCameraRef.current ?? camera;
           const position = currentCamera?.position?.clone?.() ?? null;
           const fovSnapshot = Number.isFinite(currentCamera?.fov)
