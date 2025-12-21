@@ -13036,20 +13036,35 @@ function PoolRoyaleGame({
           }));
 
         const captureReplayCameraSnapshot = () => {
-          const currentCamera = activeRenderCameraRef.current ?? camera;
-          const position = currentCamera?.position?.clone?.() ?? null;
-          const fovSnapshot = Number.isFinite(currentCamera?.fov)
-            ? currentCamera.fov
+          const scale = Number.isFinite(worldScaleFactor) ? worldScaleFactor : WORLD_SCALE;
+          const minTargetY = Math.max(baseSurfaceWorldY, BALL_CENTER_Y * scale);
+          const fallbackCamera = activeRenderCameraRef.current ?? camera;
+          const fovSnapshot = Number.isFinite(fallbackCamera?.fov)
+            ? fallbackCamera.fov
             : camera.fov;
           const targetSnapshot = lastCameraTargetRef.current
             ? lastCameraTargetRef.current.clone()
-            : null;
-          if (!position && !targetSnapshot) return null;
-          return {
-            position,
-            target: targetSnapshot,
-            fov: fovSnapshot
+            : broadcastCamerasRef.current?.defaultFocusWorld?.clone?.() ?? null;
+          const overheadCamera = resolveRailOverheadReplayCamera({
+            focusOverride: targetSnapshot,
+            minTargetY
+          });
+          const resolvedPosition = overheadCamera?.position?.clone?.() ??
+            fallbackCamera?.position?.clone?.() ?? null;
+          const resolvedTarget = overheadCamera?.target?.clone?.() ?? targetSnapshot;
+          const resolvedFov = Number.isFinite(overheadCamera?.fov)
+            ? overheadCamera.fov
+            : fovSnapshot;
+          if (!resolvedPosition && !resolvedTarget) return null;
+          const snapshot = {
+            position: resolvedPosition,
+            target: resolvedTarget,
+            fov: resolvedFov
           };
+          if (Number.isFinite(overheadCamera?.minTargetY)) {
+            snapshot.minTargetY = overheadCamera.minTargetY;
+          }
+          return snapshot;
         };
 
         const applyBallSnapshot = (snapshot) => {
