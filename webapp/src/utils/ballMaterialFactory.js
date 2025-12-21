@@ -77,7 +77,7 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.1;
+  const radius = size * 0.086;
   const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
   const cy = size * 0.5;
@@ -90,12 +90,12 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
-  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.016));
+  ctx.strokeStyle = 'rgba(0,0,0,0.82)';
   ctx.stroke();
 
-  ctx.fillStyle = '#000000';
-  ctx.font = `bold ${size * 0.18}px Arial`;
+  ctx.fillStyle = '#0b0b0b';
+  ctx.font = `700 ${size * 0.145}px "DIN Alternate", "Arial Black", "Arial", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -127,7 +127,68 @@ function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
     const stripeHeight = size * 0.45;
     const stripeY = (size - stripeHeight) / 2;
     ctx.fillRect(0, stripeY, size, stripeHeight);
+
+    const stripeShade = ctx.createLinearGradient(0, stripeY, 0, stripeY + stripeHeight);
+    stripeShade.addColorStop(0, lighten(baseHex, 0.2));
+    stripeShade.addColorStop(0.5, baseHex);
+    stripeShade.addColorStop(1, darken(baseHex, 0.14));
+    ctx.fillStyle = stripeShade;
+    ctx.globalAlpha = 0.9;
+    ctx.fillRect(0, stripeY, size, stripeHeight);
+    ctx.globalAlpha = 1;
   }
+
+  ctx.save();
+  const bodyShade = ctx.createRadialGradient(
+    size * 0.3,
+    size * 0.3,
+    size * 0.08,
+    size * 0.55,
+    size * 0.62,
+    size * 0.52
+  );
+  bodyShade.addColorStop(0, lighten(baseHex, 0.32));
+  bodyShade.addColorStop(0.45, lighten(baseHex, 0.12));
+  bodyShade.addColorStop(1, darken(baseHex, 0.1));
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = bodyShade;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  const gloss = ctx.createRadialGradient(
+    size * 0.32,
+    size * 0.28,
+    size * 0.04,
+    size * 0.32,
+    size * 0.28,
+    size * 0.22
+  );
+  gloss.addColorStop(0, 'rgba(255,255,255,0.82)');
+  gloss.addColorStop(0.5, 'rgba(255,255,255,0.28)');
+  gloss.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gloss;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  ctx.save();
+  const falloff = ctx.createRadialGradient(
+    size * 0.52,
+    size * 0.74,
+    size * 0.12,
+    size * 0.52,
+    size * 0.74,
+    size * 0.45
+  );
+  falloff.addColorStop(0, 'rgba(0,0,0,0)');
+  falloff.addColorStop(1, 'rgba(0,0,0,0.22)');
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = falloff;
+  ctx.fillRect(0, 0, size, size);
+  ctx.restore();
+
+  addNoise(ctx, size, 0.016, 2800);
 
   if (Number.isFinite(number)) {
     drawPoolNumberBadge(ctx, size, number);
