@@ -6214,8 +6214,8 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.006; // nudge the cushions outward so they kiss the wooden rails without a gap
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // nudge the cushions outward so they kiss the wooden rails without a gap
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.006; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to mirror Pool Royale's flush rail alignment
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions to match Pool Royale pocket spacing
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.032; // trim the side cushions to the same pocket clearance as Pool Royale
