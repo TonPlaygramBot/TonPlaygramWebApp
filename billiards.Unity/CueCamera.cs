@@ -125,13 +125,13 @@ public class CueCamera : MonoBehaviour
     [Header("Broadcast view")]
     // Distance and height for the short-rail broadcast view used once a shot begins.
     public float broadcastDistance = 0.9f;
-    public float broadcastHeight = 0.6f;
+    public float broadcastHeight = 0.48f;
     // Bounds that encompass the full playing surface including rails and pockets.
     public Bounds tableBounds = new Bounds(new Vector3(0f, 0.36f, 0f), new Vector3(1.64465f, 0.72f, 3.301325f));
     // Keep a small margin inside the camera frame so the rails never touch the
     // edge of the screen during broadcast shots.
     [Range(0f, 0.25f)]
-    public float broadcastSafeMargin = 0.05f;
+    public float broadcastSafeMargin = 0.08f;
     // Minimum and maximum camera offsets used while fitting the table inside the
     // broadcast frame. The solver expands toward the max until every corner is
     // visible.
@@ -141,10 +141,10 @@ public class CueCamera : MonoBehaviour
     // when aiming the broadcast view. Keeps the play interesting while still
     // framing the entire table.
     [Range(0f, 1f)]
-    public float broadcastFocusBias = 0.22f;
+    public float broadcastFocusBias = 0.35f;
     // Additional height applied when the broadcast camera needs to rise to keep
     // the far short rail within frame.
-    public float broadcastHeightPadding = 0.12f;
+    public float broadcastHeightPadding = 0.08f;
     // Minimum squared velocity to consider a ball as moving.
     public float velocityThreshold = 0.01f;
     // How quickly the camera aligns to the stored shot angle.
