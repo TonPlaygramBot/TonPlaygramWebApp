@@ -11568,7 +11568,6 @@ function PoolRoyaleGame({
                 : rig.cameras.back ?? rig.cameras.front;
           const head = activeRail?.head ?? null;
           if (!head) return null;
-          const position = head.getWorldPosition(new THREE.Vector3());
           const target =
             focusOverride?.clone?.() ??
             rig.userData?.focus?.clone?.() ??
@@ -11578,6 +11577,20 @@ function PoolRoyaleGame({
           if (target && Number.isFinite(minTargetY)) {
             target.y = Math.max(target.y ?? minTargetY, minTargetY);
           }
+          const direction = Math.sign(activeRail?.direction ?? 1) || 1;
+          const phi = RAIL_OVERHEAD_PHI;
+          const radius = SHORT_RAIL_CAMERA_DISTANCE;
+          const theta = direction >= 0 ? 0 : Math.PI;
+          const sinPhi = Math.sin(phi);
+          const cosPhi = Math.cos(phi);
+          const offset = new THREE.Vector3(
+            radius * sinPhi * Math.sin(theta),
+            radius * cosPhi,
+            radius * sinPhi * Math.cos(theta)
+          );
+          const position = target
+            ? target.clone().add(offset)
+            : head.getWorldPosition(new THREE.Vector3());
           return { position, target, fov: STANDING_VIEW_FOV, minTargetY };
         };
 
