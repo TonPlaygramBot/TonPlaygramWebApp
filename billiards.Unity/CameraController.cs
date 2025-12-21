@@ -27,7 +27,7 @@ public class CameraController : MonoBehaviour
     // Minimum distance the camera should maintain when hugging the table so the
     // framing ends up closer to the cue ball without drifting toward the butt of
     // the cue stick.
-    public float minimumCueViewDistance = 1.25f;
+    public float minimumCueViewDistance = 1.05f;
     // How far above the rails the camera is allowed to travel.
     public float maxHeightAboveTable = 2.05f;
     // Default distance of the camera from the table centre when fully raised to
@@ -74,7 +74,7 @@ public class CameraController : MonoBehaviour
     // view settles closer to the middle of the cue instead of drifting all the
     // way to the plastic cap at the end of the stick.
     [Range(0f, 1f)]
-    public float cueViewMaxCueDistanceRatio = 0.65f;
+    public float cueViewMaxCueDistanceRatio = 0.5f;
 
     private void LateUpdate()
     {
