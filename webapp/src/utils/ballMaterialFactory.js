@@ -41,6 +41,21 @@ function addNoise(ctx, size, strength = 0.02, samples = 3600) {
   ctx.restore();
 }
 
+function addSpeckleNoise(ctx, width, height, samples = 1800) {
+  ctx.save();
+  ctx.globalAlpha = 0.05;
+  for (let i = 0; i < samples; i++) {
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    const r = 1 + Math.random() * 2;
+    ctx.fillStyle = Math.random() > 0.5 ? '#ffffff' : '#000000';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
 function drawNumberBadge(ctx, size, number) {
   const radius = size * 0.132;
   const cx = size * 0.5;
@@ -74,64 +89,6 @@ function drawNumberBadge(ctx, size, number) {
   ctx.textBaseline = 'middle';
   ctx.fillText(String(number), cx, cy + size * 0.005);
   ctx.restore();
-}
-
-function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.1;
-  const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
-  const cx = size * 0.5;
-  const cy = size * 0.5;
-
-  ctx.save();
-
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, radius, radius * badgeStretch, 0, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
-
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
-  ctx.strokeStyle = '#000000';
-  ctx.stroke();
-
-  ctx.fillStyle = '#000000';
-  ctx.font = `bold ${size * 0.18}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  const numStr = String(number);
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(1, badgeStretch);
-  if (numStr.length === 2) {
-    ctx.save();
-    ctx.scale(0.9, 1);
-    ctx.fillText(numStr, 0, 0);
-    ctx.restore();
-  } else {
-    ctx.fillText(numStr, 0, 0);
-  }
-  ctx.restore();
-
-  ctx.restore();
-}
-
-function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
-  const baseHex = toHexString(baseColor);
-
-  ctx.fillStyle = pattern === 'stripe' ? '#ffffff' : baseHex;
-  ctx.fillRect(0, 0, size, size);
-
-  if (pattern === 'stripe') {
-    ctx.fillStyle = baseHex;
-    const stripeHeight = size * 0.45;
-    const stripeY = (size - stripeHeight) / 2;
-    ctx.fillRect(0, stripeY, size, stripeHeight);
-  }
-
-  if (Number.isFinite(number)) {
-    drawPoolNumberBadge(ctx, size, number);
-  }
 }
 
 function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
@@ -177,6 +134,16 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
   }
   ctx.restore();
 
+  applyBallLighting(ctx, size);
+
+  addNoise(ctx, size, 0.02, 3600);
+
+  if (Number.isFinite(number)) {
+    drawNumberBadge(ctx, size, number);
+  }
+}
+
+function applyBallLighting(ctx, size) {
   ctx.save();
   const diagonalShade = ctx.createLinearGradient(0, 0, size, size);
   diagonalShade.addColorStop(0, 'rgba(255,255,255,0.86)');
@@ -219,12 +186,68 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
   ctx.fillStyle = lowerShadow;
   ctx.fillRect(0, 0, size, size);
   ctx.restore();
+}
 
-    addNoise(ctx, size, 0.02, 3600);
+function drawPoolNumberPatches(ctx, size, number) {
+  if (!Number.isFinite(number)) return;
 
-  if (Number.isFinite(number)) {
-    drawNumberBadge(ctx, size, number);
+  const patchR = Math.floor(size * 0.13);
+  const centers = [size * 0.25, size * 0.75];
+  const cy = size * 0.5;
+  const fontSize = number >= 10 ? Math.floor(size * 0.16) : Math.floor(size * 0.19);
+
+  for (const cx of centers) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, patchR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(250,250,250,0.98)';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, patchR, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+    ctx.lineWidth = Math.max(6, Math.floor(size * 0.01));
+    ctx.stroke();
+
+    ctx.fillStyle = '#111';
+    ctx.font = `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const offset = number >= 10 ? size * 0.01 : size * 0.012;
+    ctx.fillText(String(number), cx, cy + offset);
   }
+}
+
+function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
+  const baseHex = toHexString(baseColor);
+
+  ctx.fillStyle = baseHex;
+  ctx.fillRect(0, 0, size, size);
+
+  addSpeckleNoise(ctx, size, size);
+
+  if (pattern === 'stripe') {
+    const bandH = Math.floor(size * 0.26);
+    const y = Math.floor(size / 2 - bandH / 2);
+    const edgeH = Math.max(6, Math.floor(size * 0.008));
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#f7f7f7';
+    ctx.fillRect(0, y, size, bandH);
+
+    ctx.fillStyle = baseHex;
+    ctx.globalAlpha = 0.96;
+    ctx.fillRect(0, y, size, bandH);
+
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, y, size, edgeH);
+    ctx.fillRect(0, y + bandH - edgeH, size, edgeH);
+    ctx.globalAlpha = 1;
+  }
+
+  applyBallLighting(ctx, size);
+
+  drawPoolNumberPatches(ctx, size, number);
 }
 
 function createBallTexture({ baseColor, pattern, number, variantKey }) {
