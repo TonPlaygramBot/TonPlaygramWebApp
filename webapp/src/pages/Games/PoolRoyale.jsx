@@ -241,7 +241,7 @@ function classifyRendererTier(rendererString) {
 
 function detectPreferredFrameRateId() {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
-    return DEFAULT_FRAME_RATE_ID;
+    return 'fhd60';
   }
   const coarsePointer = detectCoarsePointer();
   const ua = navigator.userAgent ?? '';
@@ -272,7 +272,7 @@ function detectPreferredFrameRateId() {
     ) {
       return 'qhd90';
     }
-    return DEFAULT_FRAME_RATE_ID;
+    return 'fhd60';
   }
 
   if (rendererTier === 'desktopHigh' && highRefresh) {
@@ -287,7 +287,7 @@ function detectPreferredFrameRateId() {
     return 'qhd90';
   }
 
-  return DEFAULT_FRAME_RATE_ID;
+  return 'fhd60';
 }
 
 function resolveDefaultPixelRatioCap() {
@@ -1002,7 +1002,7 @@ const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.06; // keep the cushion base closer to the rail line so the tops can sit level with the wood
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.26; // restore the lower cushion profile so the noses sit back below the rail line
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.18; // trim the cushion tops further so they no longer rise above the wooden rails
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
@@ -2417,7 +2417,7 @@ const FRAME_RATE_OPTIONS = Object.freeze([
     description: 'Maximum clarity preset that prioritizes UHD detail at 144 Hz.'
   }
 ]);
-const DEFAULT_FRAME_RATE_ID = 'qhd90';
+const DEFAULT_FRAME_RATE_ID = 'fhd60';
 
 const BROADCAST_SYSTEM_STORAGE_KEY = 'poolBroadcastSystem';
 const BROADCAST_SYSTEM_OPTIONS = Object.freeze([
@@ -10269,13 +10269,15 @@ function PoolRoyaleGame({
         shooting = value;
         shotStartedAt = shooting ? getNow() : 0;
         if (shooting) {
-          preShotTopViewRef.current = false;
-          preShotTopViewLockRef.current = false;
-          topViewRef.current = false;
-          topViewLockedRef.current = false;
-          setIsTopDownView(false);
-        } else {
+          preShotTopViewRef.current = topViewRef.current;
+          preShotTopViewLockRef.current = topViewLockedRef.current;
+          topViewRef.current = true;
+          topViewLockedRef.current = true;
+          enterTopView(true);
+        } else if (!preShotTopViewRef.current) {
           exitTopView(true);
+        } else {
+          topViewLockedRef.current = preShotTopViewLockRef.current;
         }
         setShotActive(value);
       };
@@ -11637,7 +11639,6 @@ function PoolRoyaleGame({
             );
             const railBroadcastReplay = resolveRailOverheadReplayCamera({
               focusOverride:
-                replayCamera?.target ??
                 broadcastArgs.focusWorld ??
                 replayFrameCameraRef.current?.frameA?.target ??
                 replayFrameCameraRef.current?.frameB?.target ?? null,
@@ -12715,7 +12716,7 @@ function PoolRoyaleGame({
             cueBall,
             fallback: shortRailDir
           });
-          const preferRailOverhead = true;
+          const preferRailOverhead = Boolean(railNormal);
           const now = performance.now();
           const activationDelay = longShot
             ? now + LONG_SHOT_ACTIVATION_DELAY_MS
@@ -18485,11 +18486,15 @@ function PoolRoyaleGame({
         <button
           type="button"
           aria-pressed={isTopDownView}
-          disabled
-          className="pointer-events-auto flex items-center gap-2 rounded-full border border-white/20 bg-black/70 px-4 py-2 text-sm font-semibold text-white opacity-70 shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+          onClick={() => setIsTopDownView((prev) => !prev)}
+          className={`pointer-events-auto flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur transition ${
+            isTopDownView
+              ? 'border-emerald-300 bg-emerald-300/20 text-emerald-100'
+              : 'border-white/30 bg-black/70 text-white hover:bg-black/60'
+          }`}
         >
           <span className="text-base">🧭</span>
-          <span>Rail Cam</span>
+          <span>{isTopDownView ? '3D' : '2D'}</span>
         </button>
       </div>
 
