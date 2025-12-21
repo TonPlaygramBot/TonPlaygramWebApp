@@ -815,7 +815,7 @@ const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outwa
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE; // match middle pocket jaw thickness to corner geometry
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.033; // round the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.92; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -918,12 +918,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.002; // relax the middle pocket mouth so the jaws sit a touch wider while staying balanced
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.014; // open the middle pocket mouth a little further so the jaws read rounder without losing shape
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.972; // make the middle cloth/rail cutouts a touch smaller without altering fascia or jaw geometry
+const SIDE_POCKET_CUT_SCALE = 1.01; // enlarge the middle cloth/rail cutouts slightly so the wider mouth gains matching clearance
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -931,13 +931,13 @@ const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
 const POCKET_INTERIOR_TOP_SCALE = 1.01; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.3 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts slightly farther outward toward the rails
+  POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
 const SIDE_CHROME_NOTCH_RADIUS = SIDE_POCKET_RADIUS * POCKET_VISUAL_EXPANSION;
 const CORNER_RAIL_NOTCH_INSET =
-  POCKET_VIS_R * 0.066 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
+  POCKET_VIS_R * 0.078 * POCKET_VISUAL_EXPANSION; // let the rail and chrome cutouts follow the outward corner pocket shift
 const POCKET_MOUTH_TOLERANCE = 0.5 * MM_TO_UNITS;
 console.assert(
   Math.abs(POCKET_CORNER_MOUTH - POCKET_VIS_R * 2) <= POCKET_MOUTH_TOLERANCE,
@@ -1002,8 +1002,8 @@ const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.06; // keep the cushion base closer to the rail line so the tops can sit level with the wood
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.18; // trim the cushion tops further so they no longer rise above the wooden rails
-const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.205; // trim the cushion tops further so they no longer rise above the wooden rails
+const CUSHION_FIELD_CLIP_RATIO = 0.158; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // round only the exterior rail corners while leaving the playfield edge crisp
