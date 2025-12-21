@@ -4308,7 +4308,7 @@ const TOP_VIEW_RADIUS_SCALE = 0.82;
 const TOP_VIEW_RESOLVED_PHI = Math.max(TOP_VIEW_PHI, CAMERA_ABS_MIN_PHI);
 const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
-  z: BALL_R * 2.6 // lift the table higher toward the top edge for 2D mode
+  z: BALL_R * 3.4 // lift the table higher toward the top edge for 2D mode and clear bottom UI
 });
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
