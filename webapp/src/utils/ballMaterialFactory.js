@@ -77,43 +77,32 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.1;
-  const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
-  const cx = size * 0.5;
+  const patchR = Math.floor(size * 0.13);
+  const centers = [size * 0.25, size * 0.75];
   const cy = size * 0.5;
+  const label = String(number);
 
-  ctx.save();
+  centers.forEach((cx) => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, patchR, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(250,250,250,0.98)';
+    ctx.fill();
 
-  ctx.beginPath();
-  ctx.ellipse(cx, cy, radius, radius * badgeStretch, 0, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.fillStyle = '#ffffff';
-  ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx, cy, patchR, 0, Math.PI * 2);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = Math.max(8, Math.floor(size * 0.012));
+    ctx.globalAlpha = 1;
+    ctx.stroke();
 
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
-  ctx.strokeStyle = '#000000';
-  ctx.stroke();
-
-  ctx.fillStyle = '#000000';
-  ctx.font = `bold ${size * 0.18}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-
-  const numStr = String(number);
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.scale(1, badgeStretch);
-  if (numStr.length === 2) {
-    ctx.save();
-    ctx.scale(0.9, 1);
-    ctx.fillText(numStr, 0, 0);
-    ctx.restore();
-  } else {
-    ctx.fillText(numStr, 0, 0);
-  }
-  ctx.restore();
-
-  ctx.restore();
+    ctx.fillStyle = '#111';
+    const fs = label.length >= 2 ? Math.floor(size * 0.16) : Math.floor(size * 0.19);
+    ctx.font = `900 ${fs}px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const offset = label.length >= 2 ? size * 0.01 : size * 0.012;
+    ctx.fillText(label, cx, cy + offset);
+  });
 }
 
 function drawPoolBallTexture(ctx, size, baseColor, pattern, number) {
