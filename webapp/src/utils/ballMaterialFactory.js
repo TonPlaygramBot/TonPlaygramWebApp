@@ -77,7 +77,7 @@ function drawNumberBadge(ctx, size, number) {
 }
 
 function drawPoolNumberBadge(ctx, size, number) {
-  const radius = size * 0.1;
+  const radius = size * 0.08; // shrink the badge so numbers sit farther inside the stripes
   const badgeStretch = 2; // compensate equirectangular vertical compression on spheres
   const cx = size * 0.5;
   const cy = size * 0.5;
@@ -90,14 +90,14 @@ function drawPoolNumberBadge(ctx, size, number) {
   ctx.fillStyle = '#ffffff';
   ctx.fill();
 
-  ctx.lineWidth = Math.max(2, Math.floor(size * 0.02));
+  ctx.lineWidth = Math.max(2, Math.floor(size * 0.016));
   ctx.strokeStyle = '#000000';
   ctx.stroke();
 
   const numStr = String(number);
 
   ctx.fillStyle = '#000000';
-  const fontSize = numStr.length === 2 ? size * 0.162 : size * 0.18;
+  const fontSize = numStr.length === 2 ? size * 0.1296 : size * 0.144; // ~20% smaller label text
   ctx.font = `900 ${fontSize}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
