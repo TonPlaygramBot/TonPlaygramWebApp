@@ -470,7 +470,7 @@ const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker
 const CHROME_SIDE_POCKET_RADIUS_SCALE =
   CORNER_POCKET_INWARD_SCALE *
   CHROME_CORNER_POCKET_RADIUS_SCALE; // match the middle chrome arches to the corner pocket radius
-const WOOD_RAIL_CORNER_RADIUS_SCALE = 1; // match snooker rail rounding so the chrome sits flush
+const WOOD_RAIL_CORNER_RADIUS_SCALE = 0; // keep the wooden rail corners crisp with no rounding on the frame
 const CHROME_SIDE_NOTCH_THROAT_SCALE = 0; // disable secondary throat so the side chrome uses a single arch
 const CHROME_SIDE_NOTCH_HEIGHT_SCALE = 0.85; // reuse snooker notch height profile
 const CHROME_SIDE_NOTCH_RADIUS_SCALE = 1;
@@ -12476,16 +12476,30 @@ function PoolRoyaleGame({
             camera.lookAt(topFocusTarget);
             renderCamera = camera;
             const topCameraWorld = camera.position.clone();
-            broadcastArgs.focusWorld = topFocusTarget.clone();
-            broadcastArgs.targetWorld = topFocusTarget.clone();
-            broadcastArgs.orbitWorld = topCameraWorld;
-            if (broadcastCamerasRef.current) {
-              broadcastCamerasRef.current.defaultFocusWorld = topFocusTarget.clone();
-            }
-              broadcastArgs.lerp = 0.12;
+            const overheadRailCamera = resolveRailOverheadReplayCamera({
+              focusOverride: topFocusTarget,
+              minTargetY: topFocusTarget.y
+            });
+            if (overheadRailCamera) {
+              broadcastArgs.focusWorld =
+                overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
+              broadcastArgs.targetWorld =
+                overheadRailCamera.target?.clone?.() ?? topFocusTarget.clone();
+              broadcastArgs.orbitWorld =
+                overheadRailCamera.position?.clone?.() ?? topCameraWorld;
+              broadcastArgs.lerp = 0.08;
             } else {
-              camera.up.set(0, 1, 0);
-              TMP_SPH.copy(sph);
+              broadcastArgs.focusWorld = topFocusTarget.clone();
+              broadcastArgs.targetWorld = topFocusTarget.clone();
+              broadcastArgs.orbitWorld = topCameraWorld;
+              if (broadcastCamerasRef.current) {
+                broadcastCamerasRef.current.defaultFocusWorld = topFocusTarget.clone();
+              }
+              broadcastArgs.lerp = 0.12;
+            }
+          } else {
+            camera.up.set(0, 1, 0);
+            TMP_SPH.copy(sph);
               if (sidePocketAimRef.current && !shooting && !replayActive) {
                 TMP_SPH.radius = clampOrbitRadius(
                   TMP_SPH.radius * RAIL_OVERHEAD_AIM_ZOOM
@@ -15270,9 +15284,10 @@ function PoolRoyaleGame({
           }
           const appliedSpin = applySpinConstraints(aimDir, true);
           const ranges = spinRangeRef.current || {};
+          const powerSpinScale = powerScale;
           const baseSide = appliedSpin.x * (ranges.side ?? 0);
-          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER;
-          let spinTop = -appliedSpin.y * (ranges.forward ?? 0);
+          let spinSide = baseSide * SIDE_SPIN_MULTIPLIER * powerSpinScale;
+          let spinTop = -appliedSpin.y * (ranges.forward ?? 0) * powerSpinScale;
           if (appliedSpin.y > 0) {
             spinTop *= BACKSPIN_MULTIPLIER;
           } else if (appliedSpin.y < 0) {
