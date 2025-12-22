@@ -844,7 +844,7 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.38; // trim middle jaw reach so fascia stops at the wood rail edge while keeping the jaw radius
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.32; // trim the middle jaw reach a touch more so it finishes right at the wood/cloth gap while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
@@ -7386,7 +7386,7 @@ function Table3D(
           colorId: railMarkerStyle.colorId ?? DEFAULT_RAIL_MARKER_COLOR_ID
         }
       : { shape: DEFAULT_RAIL_MARKER_SHAPE, colorId: DEFAULT_RAIL_MARKER_COLOR_ID };
-  const railMarkerOutset = longRailW * 0.7;
+  const railMarkerOutset = longRailW * 0.86;
   const railMarkerGroup = new THREE.Group();
   const railMarkerThickness = RAIL_MARKER_THICKNESS;
   const railMarkerWidth = ORIGINAL_RAIL_WIDTH * 0.64;
