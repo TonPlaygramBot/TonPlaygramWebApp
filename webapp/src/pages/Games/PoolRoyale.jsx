@@ -989,10 +989,10 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const STONE_PLATE_THICKNESS = TABLE.THICK * 0.32; // matte stone slab replacing the old cloth underlay beneath the felt
-const STONE_PLATE_GAP = TABLE.THICK * 0.008; // tiny separation so the stone never z-fights the felt wrap
-const STONE_PLATE_EXTRA_DROP = TABLE.THICK * 0.022; // recess the stone plate slightly so its edges stay hidden under the cloth
-const CLOTH_EXTENDED_DEPTH = STONE_PLATE_THICKNESS + CLOTH_THICKNESS * 0.35; // wrap the felt down over the stone plate edges
+const STONE_PLATE_THICKNESS = 0; // remove the stone underlay so only cloth fills the pocket sleeves
+const STONE_PLATE_GAP = 0; // no gap required without a stone underlay
+const STONE_PLATE_EXTRA_DROP = 0; // keep the cloth sitting directly atop the playfield base
+const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
@@ -1192,10 +1192,10 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (tighten the trim slightly)
-const DEFAULT_CUSHION_CUT_ANGLE = 31;
-// middle pocket cushion cuts stay at the current 33°
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 33;
+// angle for cushion cuts guiding balls into corner pockets (tighten the trim to match the reference cut)
+const DEFAULT_CUSHION_CUT_ANGLE = 29;
+// middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -6086,7 +6086,7 @@ function Table3D(
     clothEdgeMat.needsUpdate = true;
   }
 
-  const stoneDepth = Math.max(MICRO_EPS, STONE_PLATE_THICKNESS);
+  const stoneDepth = STONE_PLATE_THICKNESS;
   if (stoneDepth > MICRO_EPS) {
     const stoneShape = buildSurfaceShape(POCKET_HOLE_R);
     const stoneGeo = new THREE.ExtrudeGeometry(stoneShape, {
@@ -13830,8 +13830,8 @@ function PoolRoyaleGame({
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00004;
-        spot.shadow.normalBias = 0.006;
+        spot.shadow.bias = -0.00002;
+        spot.shadow.normalBias = 0.0015; // keep contact shadows locked to the cloth instead of slipping onto the carpet
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
