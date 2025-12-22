@@ -811,9 +811,9 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.98; // relax the side jaw radius a to
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.22; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.042; // lower the middle jaws slightly less so the fascia trims down from the top
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.006; // pull the middle pocket jaws inward so the lips sit closer to centre
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.58; // start trimming sooner so the middle jaw shoulders finish flush with the wooden rails
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1.08; // carve the outer jaw radius back further without changing the mouth radius
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.48; // soften into the deeper trim so the taper stays smooth
+const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.68; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.8; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.32; // ease the taper into the trimmed ends for a smooth falloff
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -6222,8 +6222,6 @@ function Table3D(
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
-  const CUSHION_GOLD_STRIPE_RADIUS = TABLE.THICK * 0.02; // thin infill that matches the photographed gold inlays between cushion and wood
-  const CUSHION_GOLD_STRIPE_VERTICAL_OFFSET = TABLE.THICK * 0.01; // lift slightly above the rail surface to round the top edge
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
   const outerCornerRadius =
@@ -7709,40 +7707,6 @@ function Table3D(
     return geo;
   }
 
-  const cushionStripeMat = new THREE.MeshPhysicalMaterial({
-    color: 0xd4af37,
-    metalness: 0.86,
-    roughness: 0.34,
-    clearcoat: 0.22,
-    clearcoatRoughness: 0.24,
-    envMapIntensity: 0.62
-  });
-
-  function addCushionStripe(x, z, len, horizontal) {
-    const capsuleLength = Math.max(MICRO_EPS, len - CUSHION_GOLD_STRIPE_RADIUS * 2);
-    const geo = new THREE.CapsuleGeometry(
-      CUSHION_GOLD_STRIPE_RADIUS,
-      capsuleLength,
-      6,
-      20
-    );
-    const stripe = new THREE.Mesh(geo, cushionStripeMat);
-    if (horizontal) {
-      stripe.rotation.z = Math.PI / 2;
-    } else {
-      stripe.rotation.x = Math.PI / 2;
-    }
-    stripe.position.set(
-      x,
-      railsTopY - CUSHION_GOLD_STRIPE_RADIUS + CUSHION_GOLD_STRIPE_VERTICAL_OFFSET,
-      z
-    );
-    stripe.castShadow = false;
-    stripe.receiveShadow = false;
-    railsGroup.add(stripe);
-    finishParts.trimMeshes.push(stripe);
-  }
-
   function addCushion(x, z, len, horizontal, flip = false) {
     const halfLen = len / 2;
     const orientationSign = flip ? -1 : 1;
@@ -7794,18 +7758,10 @@ function Table3D(
   addCushion(0, bottomZ, horizontalCushionLength, true, false);
   addCushion(0, topZ, horizontalCushionLength, true, true);
 
-  addCushionStripe(0, bottomZ, horizontalCushionLength, true);
-  addCushionStripe(0, topZ, horizontalCushionLength, true);
-
   addCushion(leftX, -verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-
-  addCushionStripe(leftX, -verticalCushionCenter, verticalCushionLength, false);
-  addCushionStripe(leftX, verticalCushionCenter, verticalCushionLength, false);
-  addCushionStripe(rightX, -verticalCushionCenter, verticalCushionLength, false);
-  addCushionStripe(rightX, verticalCushionCenter, verticalCushionLength, false);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
