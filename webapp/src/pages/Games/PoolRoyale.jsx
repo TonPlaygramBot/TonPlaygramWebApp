@@ -989,10 +989,10 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.32; // restore a solid backer beneath the cloth so shadows stop before the carpet
-const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.014; // leave a tiny ventilation gap while preventing light leaks
-const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.04; // tuck the underlay slightly deeper so it stays hidden below the felt edge
-const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS; // wrap only the cloth depth; the underlay is built separately below
+const STONE_PLATE_THICKNESS = TABLE.THICK * 0.32; // matte stone slab replacing the old cloth underlay beneath the felt
+const STONE_PLATE_GAP = TABLE.THICK * 0.008; // tiny separation so the stone never z-fights the felt wrap
+const STONE_PLATE_EXTRA_DROP = TABLE.THICK * 0.022; // recess the stone plate slightly so its edges stay hidden under the cloth
+const CLOTH_EXTENDED_DEPTH = STONE_PLATE_THICKNESS + CLOTH_THICKNESS * 0.35; // wrap the felt down over the stone plate edges
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
@@ -6037,7 +6037,8 @@ function Table3D(
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-  const pocketEdgeStopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
+  const stoneTopY = clothBottomY - STONE_PLATE_GAP - STONE_PLATE_EXTRA_DROP;
+  const pocketEdgeStopY = stoneTopY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketCutStripes = addPocketCuts(
     table,
     cloth.position.y,
@@ -6085,42 +6086,31 @@ function Table3D(
     clothEdgeMat.needsUpdate = true;
   }
 
-  const underlayDepth = Math.max(MICRO_EPS, CLOTH_UNDERLAY_THICKNESS);
-  if (underlayDepth > MICRO_EPS) {
-    const underlayShape = buildSurfaceShape(POCKET_HOLE_R * 0.995);
-    const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
-      depth: underlayDepth,
+  const stoneDepth = Math.max(MICRO_EPS, STONE_PLATE_THICKNESS);
+  if (stoneDepth > MICRO_EPS) {
+    const stoneShape = buildSurfaceShape(POCKET_HOLE_R);
+    const stoneGeo = new THREE.ExtrudeGeometry(stoneShape, {
+      depth: stoneDepth,
       bevelEnabled: false,
       curveSegments: 96,
       steps: 1
     });
-    underlayGeo.translate(0, 0, -underlayDepth);
-    const underlayMat = clothMat.clone();
-    underlayMat.color.copy(clothColor);
-    underlayMat.map = null;
-    underlayMat.bumpMap = null;
-    underlayMat.bumpScale = 0;
-    underlayMat.sheen = 0;
-    underlayMat.clearcoat = 0;
-    underlayMat.clearcoatRoughness = 1;
-    underlayMat.envMapIntensity = 0;
-    underlayMat.metalness = 0;
-    underlayMat.reflectivity = 0;
-    underlayMat.emissive.copy(clothColor.clone().multiplyScalar(0.02));
-    underlayMat.emissiveIntensity = 0.16;
-    underlayMat.side = THREE.DoubleSide;
-
-    const underlay = new THREE.Mesh(underlayGeo, underlayMat);
-    underlay.rotation.x = -Math.PI / 2;
-    underlay.position.y =
-      clothBottomY -
-      CLOTH_UNDERLAY_GAP -
-      CLOTH_UNDERLAY_EXTRA_DROP;
-    underlay.receiveShadow = true;
-    underlay.castShadow = false;
-    underlay.renderOrder = cloth.renderOrder - 0.25;
-    table.add(underlay);
-    finishParts.underlayMeshes.push(underlay);
+    stoneGeo.translate(0, 0, -stoneDepth);
+    const stoneMat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color(0x4a4d52),
+      roughness: 0.9,
+      metalness: 0.05,
+      emissive: new THREE.Color(0x000000),
+      envMapIntensity: 0.08
+    });
+    const stonePlate = new THREE.Mesh(stoneGeo, stoneMat);
+    stonePlate.rotation.x = -Math.PI / 2;
+    stonePlate.position.y = stoneTopY;
+    stonePlate.receiveShadow = true;
+    stonePlate.castShadow = false;
+    stonePlate.renderOrder = cloth.renderOrder - 0.25;
+    table.add(stonePlate);
+    finishParts.underlayMeshes.push(stonePlate);
   }
 
   const markingsGroup = new THREE.Group();
