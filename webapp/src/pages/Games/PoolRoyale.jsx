@@ -495,13 +495,13 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.128; // push the side fascias fa
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE; // mirror the rounded chrome cut used on the corner pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.12; // nudge the rounded chrome cutouts outward so they follow the shifted middle pocket throats
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.08; // nudge the rounded chrome cutouts outward so they follow the shifted middle pocket throats
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.018; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.1; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.06; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -899,7 +899,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.12; // nudge the middle pocket centres a bit farther outward from the table midpoint
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.08; // nudge the middle pocket centres a bit farther outward from the table midpoint
 const SIDE_POCKET_FIELD_PULL = 0; // remove extra inward pull so middle pocket centres match the corners
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
