@@ -1192,8 +1192,8 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
-const DEFAULT_CUSHION_CUT_ANGLE = 35;
+// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 31°)
+const DEFAULT_CUSHION_CUT_ANGLE = 31;
 // middle pocket cushion cuts now match the corner spec at 33°
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 33;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
