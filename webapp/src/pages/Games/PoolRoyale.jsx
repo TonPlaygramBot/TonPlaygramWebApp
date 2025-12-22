@@ -844,14 +844,13 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION; // keep middle jaw span identical to the corner profile
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.42; // trim middle jaw reach so fascia stops at the wood rail edge while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // align middle pocket jaws directly with the corner lips
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // keep the outer jaw radius identical to the corner jaws
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -5555,6 +5554,7 @@ function Table3D(
     legMeshes: [],
     railMeshes: [],
     trimMeshes: [],
+    gapFillMeshes: [],
     pocketJawMeshes: [],
     pocketRimMeshes: [],
     pocketBaseMeshes: [],
@@ -5615,6 +5615,17 @@ function Table3D(
   const trimMat = rawMaterials.trim ?? getFallbackMaterial('trim');
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
+  const gapStripeMat =
+    rawMaterials.gapStripe ||
+    new THREE.MeshPhysicalMaterial({
+      color: 0xd1b45c,
+      emissive: new THREE.Color(0x0),
+      metalness: 0.86,
+      roughness: 0.32,
+      clearcoat: 0.38,
+      clearcoatRoughness: 0.48,
+      reflectivity: 0.74
+    });
   const accentConfig = rawMaterials.accent ?? null;
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
@@ -5622,6 +5633,7 @@ function Table3D(
   trimMat.needsUpdate = true;
   pocketJawMat.needsUpdate = true;
   pocketRimMat.needsUpdate = true;
+  gapStripeMat.needsUpdate = true;
   enhanceChromeMaterial(trimMat);
   if (accentConfig?.material) {
     accentConfig.material.needsUpdate = true;
@@ -7624,6 +7636,10 @@ function Table3D(
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
+  const gapStripeThickness = Math.max(MICRO_EPS, TABLE.THICK * 0.02);
+  const gapStripeHeight = Math.max(MICRO_EPS, cushionHeightTarget + TABLE.THICK * 0.06);
+  const gapStripeLift = TABLE.THICK * 0.012;
+  const gapStripePad = TABLE.THICK * 0.0025;
 
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
@@ -7726,6 +7742,7 @@ function Table3D(
     const worldZLeft = z + -halfLen * orientationSign;
     const worldZRight = z + halfLen * orientationSign;
     const leftCloserToCenter = Math.abs(worldZLeft) <= Math.abs(worldZRight);
+    const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const sidePocketCuts = !horizontal
       ? {
           leftCutAngle: leftCloserToCenter ? SIDE_CUSHION_CUT_ANGLE : CUSHION_CUT_ANGLE,
@@ -7746,19 +7763,53 @@ function Table3D(
     if (flip) group.rotation.y += Math.PI;
 
     if (horizontal) {
-      const side = z >= 0 ? 1 : -1;
       group.position.z =
         side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE);
     } else {
-      const side = x >= 0 ? 1 : -1;
       const reach =
         halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
       group.position.x = side * reach;
     }
 
+    const stripeShape = new THREE.Shape();
+    stripeShape.moveTo(-halfLen, 0);
+    stripeShape.lineTo(halfLen, 0);
+    stripeShape.lineTo(halfLen, gapStripeHeight);
+    stripeShape.lineTo(-halfLen, gapStripeHeight);
+    stripeShape.lineTo(-halfLen, 0);
+    const stripeGeom = new THREE.ExtrudeGeometry(stripeShape, {
+      depth: gapStripeThickness,
+      bevelEnabled: true,
+      bevelThickness: gapStripeThickness * 0.45,
+      bevelSize: gapStripeThickness * 0.45,
+      bevelSegments: 3,
+      curveSegments: 10,
+      steps: 1
+    });
+    stripeGeom.translate(0, -gapStripeHeight / 2, -gapStripeThickness / 2);
+    stripeGeom.computeVertexNormals();
+    const stripe = new THREE.Mesh(stripeGeom, gapStripeMat);
+    stripe.castShadow = false;
+    stripe.receiveShadow = false;
+    stripe.position.set(
+      group.position.x,
+      cushionBaseY + gapStripeHeight / 2 + gapStripeLift,
+      group.position.z
+    );
+    if (!horizontal) {
+      stripe.rotation.y = Math.PI / 2;
+    }
+    if (horizontal) {
+      stripe.position.z += side * (gapStripeThickness / 2 + gapStripePad);
+    } else {
+      stripe.position.x += side * (gapStripeThickness / 2 + gapStripePad);
+    }
+    table.add(stripe);
+    finishParts.gapFillMeshes.push(stripe);
+
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
-    group.userData.side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
+    group.userData.side = side;
     table.add(group);
     table.userData.cushions.push(group);
   }
