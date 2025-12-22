@@ -850,8 +850,8 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius t
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // align middle pocket jaws directly with the corner lips
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.64; // begin trimming earlier so middle jaws finish flush with the wood line
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.76; // taper the middle jaw edge down before the rails while keeping the main radius
+const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // keep the outer jaw radius identical to the corner jaws
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -7366,65 +7366,6 @@ function Table3D(
   railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
-
-  // Fill the slim rail-to-cushion seam with gold caps that span each cushion run.
-  const goldStripeMaterial = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color('#d7b14a'),
-    metalness: 0.65,
-    roughness: 0.28,
-    clearcoat: 0.28,
-    clearcoatRoughness: 0.22,
-    sheen: 0.16,
-    sheenRoughness: 0.42,
-    envMapIntensity: railMat.envMapIntensity ?? 1
-  });
-  const stripeRadius = TABLE.THICK * 0.012;
-  const stripePocketInset = TABLE.THICK * 0.08;
-  const stripeGapOffset = TABLE.THICK * 0.01;
-  const stripeY = railsTopY - stripeRadius * 0.35;
-  const createGoldStripe = ({ length, axis, position }) => {
-    if (!Number.isFinite(length) || length <= MICRO_EPS || !position) return;
-    const usableLength = Math.max(MICRO_EPS, length - stripePocketInset * 2);
-    const capsuleLength = Math.max(MICRO_EPS, usableLength - stripeRadius * 2);
-    const geo = new THREE.CapsuleGeometry(stripeRadius, capsuleLength, 6, 12);
-    const mesh = new THREE.Mesh(geo, goldStripeMaterial);
-    mesh.castShadow = false;
-    mesh.receiveShadow = true;
-    mesh.renderOrder = 3.2;
-    mesh.name = 'railGoldStripe';
-    if (axis === 'x') {
-      mesh.rotation.z = Math.PI / 2;
-    } else if (axis === 'z') {
-      mesh.rotation.x = Math.PI / 2;
-    }
-    mesh.position.copy(position);
-    railsGroup.add(mesh);
-  };
-
-  const horizontalStripeZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE;
-  const horizontalStripeLength = horizontalCushionLength;
-  [-1, 1].forEach((side) => {
-    const position = new THREE.Vector3(
-      0,
-      stripeY,
-      side * (horizontalStripeZ + stripeGapOffset)
-    );
-    createGoldStripe({ length: horizontalStripeLength, axis: 'x', position });
-  });
-
-  const verticalStripeX =
-    halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
-  const verticalStripeLength = verticalCushionLength;
-  [-1, 1].forEach((xSide) => {
-    [-verticalCushionCenter, verticalCushionCenter].forEach((z) => {
-      const position = new THREE.Vector3(
-        xSide * (verticalStripeX + stripeGapOffset),
-        stripeY,
-        z
-      );
-      createGoldStripe({ length: verticalStripeLength, axis: 'z', position });
-    });
-  });
 
   let activeRailMarkerStyle =
     railMarkerStyle && typeof railMarkerStyle === 'object'
