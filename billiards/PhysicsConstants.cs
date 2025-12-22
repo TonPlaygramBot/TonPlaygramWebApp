@@ -27,10 +27,6 @@ public static class PhysicsConstants
     // Keep side pockets aligned with the rail line so they behave identically to corner pockets.
     public const double SidePocketOutset = 0.0;
 
-    // Cushion cut angles (degrees) based on WPA/BCA specs
-    public const double CornerCutAngleDeg = 19.0;
-    public const double SideCutAngleDeg = 38.0;
-
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
     public const int SideJawSegments = 24;
