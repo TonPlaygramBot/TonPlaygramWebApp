@@ -845,14 +845,14 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION; // keep middle jaw span identical to the corner profile
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.9; // trim the middle jaw span so it stops flush with the wooden rails
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // align middle pocket jaws directly with the corner lips
-const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // keep the outer jaw radius identical to the corner jaws
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
+const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.64; // start tapering the middle jaw shoulders sooner to end at the rail line
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // pull the outer jaw edge inward near the ends while preserving the central radius
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.32; // ease the taper into the trimmed ends with a gentle rounded falloff
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -5616,6 +5616,17 @@ function Table3D(
   const pocketJawMat = rawMaterials.pocketJaw ?? getFallbackMaterial('pocketJaw');
   const pocketRimMat = rawMaterials.pocketRim ?? getFallbackMaterial('pocketRim');
   const accentConfig = rawMaterials.accent ?? null;
+  const gapStripeMat = new THREE.MeshPhysicalMaterial({
+    color: 0xd8b04c,
+    metalness: 0.76,
+    roughness: 0.32,
+    clearcoat: 0.54,
+    clearcoatRoughness: 0.24,
+    sheen: 0.12,
+    sheenRoughness: 0.65,
+    envMapIntensity: 0.74,
+    emissiveIntensity: 0.1
+  });
   frameMat.needsUpdate = true;
   railMat.needsUpdate = true;
   legMat.needsUpdate = true;
@@ -7624,6 +7635,47 @@ function Table3D(
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
+  const GAP_STRIPE_THICKNESS = Math.max(
+    MICRO_EPS,
+    Math.abs(CUSHION_RAIL_FLUSH) + TABLE.THICK * 0.006
+  );
+  const GAP_STRIPE_HEIGHT = TABLE.THICK * 0.06;
+  const GAP_STRIPE_RADIUS = GAP_STRIPE_THICKNESS * 0.6;
+  const GAP_STRIPE_LENGTH_INSET = TABLE.THICK * 0.02;
+  const gapStripeVerticalY = railsTopY - GAP_STRIPE_HEIGHT / 2 + MICRO_EPS * 2;
+  const gapStripeOutset = GAP_STRIPE_THICKNESS / 2 + TABLE.THICK * 0.002;
+  const gapStripeGeomCache = new Map();
+  const getGapStripeGeometry = (length) => {
+    const safeLength = Math.max(MICRO_EPS, length);
+    const cacheKey = safeLength.toFixed(3);
+    if (gapStripeGeomCache.has(cacheKey)) {
+      return gapStripeGeomCache.get(cacheKey);
+    }
+    const halfLen = safeLength / 2;
+    const halfThickness = GAP_STRIPE_THICKNESS / 2;
+    const r = Math.min(GAP_STRIPE_RADIUS, halfThickness, halfLen * 0.35);
+    const shape = new THREE.Shape();
+    shape.moveTo(-halfLen + r, -halfThickness);
+    shape.lineTo(halfLen - r, -halfThickness);
+    shape.quadraticCurveTo(halfLen, -halfThickness, halfLen, -halfThickness + r);
+    shape.lineTo(halfLen, halfThickness - r);
+    shape.quadraticCurveTo(halfLen, halfThickness, halfLen - r, halfThickness);
+    shape.lineTo(-halfLen + r, halfThickness);
+    shape.quadraticCurveTo(-halfLen, halfThickness, -halfLen, halfThickness - r);
+    shape.lineTo(-halfLen, -halfThickness + r);
+    shape.quadraticCurveTo(-halfLen, -halfThickness, -halfLen + r, -halfThickness);
+    const geom = new THREE.ExtrudeGeometry(shape, {
+      depth: GAP_STRIPE_HEIGHT,
+      bevelEnabled: false,
+      curveSegments: 28,
+      steps: 1
+    });
+    geom.rotateX(-Math.PI / 2);
+    geom.translate(0, GAP_STRIPE_HEIGHT / 2, 0);
+    geom.computeVertexNormals();
+    gapStripeGeomCache.set(cacheKey, geom);
+    return geom;
+  };
 
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
@@ -7759,6 +7811,23 @@ function Table3D(
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
     group.userData.side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
+    const stripeLength = Math.max(
+      MICRO_EPS,
+      len - GAP_STRIPE_LENGTH_INSET * 2
+    );
+    const stripeGeom = getGapStripeGeometry(stripeLength);
+    const stripe = new THREE.Mesh(stripeGeom, gapStripeMat);
+    stripe.castShadow = false;
+    stripe.receiveShadow = true;
+    stripe.rotation.y = horizontal ? 0 : Math.PI / 2;
+    stripe.position.set(group.position.x, gapStripeVerticalY, group.position.z);
+    if (horizontal) {
+      stripe.position.z += group.userData.side * gapStripeOutset;
+    } else {
+      stripe.position.x += group.userData.side * gapStripeOutset;
+    }
+    railsGroup.add(stripe);
+    finishParts.trimMeshes.push(stripe);
     table.add(group);
     table.userData.cushions.push(group);
   }
