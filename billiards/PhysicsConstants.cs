@@ -22,11 +22,10 @@ public static class PhysicsConstants
 
     // Pocket geometry derived from WPA spec (metres)
     public const double CornerPocketMouth = 0.1057275; // scaled with table reduction
-    // Match side pocket mouth to the corner pocket so the cutouts are identical.
-    public const double SidePocketMouth = CornerPocketMouth;
+    public const double SidePocketMouth = 0.117475;    // scaled with table reduction
     public const double PocketCaptureRadius = 0.087875; // scaled with table reduction
-    // Pull side pockets slightly inward so the jaws sit closer to the table center.
-    public const double SidePocketOutset = -BallRadius * 0.1;
+    // Keep side pockets aligned with the rail line so they behave identically to corner pockets.
+    public const double SidePocketOutset = 0.0;
 
     // Tesselation density for proxy mesh generation (higher => smoother normals)
     public const int CornerJawSegments = 32;
