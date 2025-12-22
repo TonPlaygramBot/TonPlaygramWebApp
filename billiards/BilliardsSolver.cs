@@ -47,6 +47,8 @@ public class BilliardsSolver
         double sideCut = sideMouth / 2.0;
         double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8);
         double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
+        double cornerCutAngle = DegreesToRadians(PhysicsConstants.CornerCutAngleDeg);
+        double sideCutAngle = DegreesToRadians(PhysicsConstants.SideCutAngleDeg);
 
         // Straight cushion spans (long rails)
         AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut, 0), new Vec2(0, 1));
@@ -60,17 +62,45 @@ public class BilliardsSolver
         AddCushionSegment(new Vec2(width, cornerCut), new Vec2(width, height / 2 - sideCut), new Vec2(-1, 0));
         AddCushionSegment(new Vec2(width, height / 2 + sideCut), new Vec2(width, height - cornerCut), new Vec2(-1, 0));
 
-        int cornerSegments = Math.Max(8, PhysicsConstants.CornerJawSegments);
-        AddCornerJaw(new Vec2(cornerCut, cornerCut), cornerCut, Math.PI, 1.5 * Math.PI, cornerSegments);
-        AddCornerJaw(new Vec2(width - cornerCut, cornerCut), cornerCut, 1.5 * Math.PI, 2.0 * Math.PI, cornerSegments);
-        AddCornerJaw(new Vec2(width - cornerCut, height - cornerCut), cornerCut, 0, 0.5 * Math.PI, cornerSegments);
-        AddCornerJaw(new Vec2(cornerCut, height - cornerCut), cornerCut, 0.5 * Math.PI, Math.PI, cornerSegments);
+        int cornerSegments = Math.Max(2, PhysicsConstants.CornerJawSegments);
+        AddCornerJaw(
+            new Vec2(cornerCut, 0),
+            new Vec2(0, cornerCut),
+            new Vec2(1, 0),
+            new Vec2(0, 1),
+            new Vec2(-1, -1),
+            cornerCutAngle,
+            cornerSegments);
+        AddCornerJaw(
+            new Vec2(width, cornerCut),
+            new Vec2(width - cornerCut, 0),
+            new Vec2(0, 1),
+            new Vec2(-1, 0),
+            new Vec2(1, -1),
+            cornerCutAngle,
+            cornerSegments);
+        AddCornerJaw(
+            new Vec2(width - cornerCut, height),
+            new Vec2(width, height - cornerCut),
+            new Vec2(-1, 0),
+            new Vec2(0, -1),
+            new Vec2(1, 1),
+            cornerCutAngle,
+            cornerSegments);
+        AddCornerJaw(
+            new Vec2(0, height - cornerCut),
+            new Vec2(cornerCut, height),
+            new Vec2(0, -1),
+            new Vec2(1, 0),
+            new Vec2(-1, 1),
+            cornerCutAngle,
+            cornerSegments);
 
         int sideSegments = Math.Max(6, PhysicsConstants.SideJawSegments);
-        AddSidePocketJaw(new Vec2(width / 2, 0 - sideOutset), sideCut, sideDepth, true, sideSegments);
-        AddSidePocketJaw(new Vec2(width / 2, height + sideOutset), sideCut, sideDepth, false, sideSegments);
-        AddSidePocketJaw(new Vec2(0 - sideOutset, height / 2), sideCut, sideDepth, true, sideSegments, vertical: true);
-        AddSidePocketJaw(new Vec2(width + sideOutset, height / 2), sideCut, sideDepth, false, sideSegments, vertical: true);
+        AddSidePocketJaw(new Vec2(width / 2, 0 - sideOutset), sideCut, sideDepth, true, sideSegments, sideCutAngle);
+        AddSidePocketJaw(new Vec2(width / 2, height + sideOutset), sideCut, sideDepth, false, sideSegments, sideCutAngle);
+        AddSidePocketJaw(new Vec2(0 - sideOutset, height / 2), sideCut, sideDepth, true, sideSegments, sideCutAngle, true);
+        AddSidePocketJaw(new Vec2(width + sideOutset, height / 2), sideCut, sideDepth, false, sideSegments, sideCutAngle, true);
 
         double capture = Math.Max(PhysicsConstants.BallRadius * 1.05, PhysicsConstants.PocketCaptureRadius);
         Pockets.Add(new Pocket { Center = new Vec2(0, 0), Radius = capture });
@@ -94,63 +124,121 @@ public class BilliardsSolver
         CushionEdges.Add(new Edge { A = a, B = b, Normal = normal.Normalized() });
     }
 
-    private void AddCornerJaw(Vec2 center, double radius, double startAngle, double endAngle, int segments)
+    private void AddCornerJaw(
+        Vec2 mouthA,
+        Vec2 mouthB,
+        Vec2 railDirA,
+        Vec2 railDirB,
+        Vec2 outwardHint,
+        double cutAngle,
+        int segments)
     {
-        if (radius <= PhysicsConstants.Epsilon || segments <= 0)
+        if (segments <= 0)
             return;
-        double step = (endAngle - startAngle) / segments;
-        Vec2 prev = PointOnCircle(center, radius, startAngle);
-        Vec2 prevNormal = (prev - center).Normalized();
-        int cushionBands = Math.Clamp(PhysicsConstants.JawCushionSegments, 1, segments);
-        for (int i = 1; i <= segments; i++)
+        Vec2 towardPocket = outwardHint.Normalized();
+        Vec2 dirA = RotateToward(railDirA, towardPocket, cutAngle);
+        Vec2 dirB = RotateToward(railDirB, towardPocket, cutAngle);
+        if (!RayIntersection(mouthA, dirA, mouthB, dirB, out Vec2 throat))
+            throat = (mouthA + mouthB) * 0.5 + towardPocket * mouthA.Length;
+
+        List<Vec2> pts = new List<Vec2> { mouthA };
+        for (int i = 1; i < segments; i++)
         {
-            double angle = startAngle + step * i;
-            Vec2 next = PointOnCircle(center, radius, angle);
-            Vec2 normal = (next - center).Normalized();
-            Vec2 blended = (prevNormal + normal).Normalized();
-            if (blended.Length < PhysicsConstants.Epsilon)
-                blended = normal;
-            var edge = new Edge { A = prev, B = next, Normal = blended };
-            if (i <= cushionBands || i > segments - cushionBands)
-                CushionEdges.Add(edge);
-            else
-                PocketEdges.Add(edge);
-            prev = next;
-            prevNormal = normal;
+            double t = (double)i / segments;
+            Vec2 alongA = mouthA + dirA * (throat - mouthA).Length * t;
+            Vec2 alongB = mouthB + dirB * (throat - mouthB).Length * t;
+            pts.Add(Lerp(alongA, alongB, t));
         }
+        pts.Add(mouthB);
+
+        Vec2 interiorHint = -towardPocket;
+        int cushionBands = Math.Clamp(PhysicsConstants.JawCushionSegments, 1, Math.Max(1, pts.Count - 1));
+        AddSegmentStrip(pts, interiorHint, cushionBands);
     }
 
-    private void AddSidePocketJaw(Vec2 center, double halfMouth, double depth, bool positive, int segments, bool vertical = false)
+    private void AddSidePocketJaw(Vec2 center, double halfMouth, double depth, bool positive, int segments, double cutAngle, bool vertical = false)
     {
         if (halfMouth <= PhysicsConstants.Epsilon || depth <= PhysicsConstants.Epsilon || segments <= 0)
             return;
 
-        List<Vec2> pts = new List<Vec2>();
-        for (int i = 0; i <= segments; i++)
+        Vec2 outward = vertical
+            ? new Vec2(positive ? -1 : 1, 0)
+            : new Vec2(0, positive ? -1 : 1);
+        Vec2 railDirLeft = vertical ? new Vec2(0, 1) : new Vec2(1, 0);
+        Vec2 railDirRight = -railDirLeft;
+
+        Vec2 mouthA = vertical
+            ? new Vec2(center.X, center.Y - halfMouth)
+            : new Vec2(center.X - halfMouth, center.Y);
+        Vec2 mouthB = vertical
+            ? new Vec2(center.X, center.Y + halfMouth)
+            : new Vec2(center.X + halfMouth, center.Y);
+
+        Vec2 dirA = RotateToward(railDirLeft, outward, cutAngle);
+        Vec2 dirB = RotateToward(railDirRight, outward, cutAngle);
+
+        if (!RayIntersection(mouthA, dirA, mouthB, dirB, out Vec2 throat))
+            throat = center + outward * depth;
+
+        List<Vec2> pts = new List<Vec2> { mouthA };
+        for (int i = 1; i < segments; i++)
         {
             double t = (double)i / segments;
-            double angle = Math.PI * (1.0 - t);
-            double mouthOffset = halfMouth * Math.Cos(angle);
-            double depthOffset = depth * Math.Sin(angle);
-
-            if (vertical)
-            {
-                double y = center.Y + mouthOffset;
-                double x = center.X + (positive ? depthOffset : -depthOffset);
-                pts.Add(new Vec2(x, y));
-            }
-            else
-            {
-                double x = center.X + mouthOffset;
-                double y = center.Y + (positive ? depthOffset : -depthOffset);
-                pts.Add(new Vec2(x, y));
-            }
+            Vec2 alongA = mouthA + dirA * depth * t;
+            Vec2 alongB = mouthB + dirB * depth * t;
+            pts.Add(Lerp(alongA, alongB, t));
         }
+        pts.Add(mouthB);
 
-        Vec2 hint = vertical ? new Vec2(positive ? 1 : -1, 0) : new Vec2(0, positive ? 1 : -1);
-        // Match the cushion treatment of corner pockets so balls contact the jaws only
-        // once they visually reach the lip.
+        Vec2 interiorHint = -outward;
         int cushionBands = Math.Max(1, Math.Min(PhysicsConstants.JawCushionSegments, Math.Max(1, pts.Count - 1)));
+        AddSegmentStrip(pts, interiorHint, cushionBands);
+    }
+
+    private static Vec2 PointOnCircle(Vec2 center, double radius, double angle)
+    {
+        return new Vec2(
+            center.X + Math.Cos(angle) * radius,
+            center.Y + Math.Sin(angle) * radius);
+    }
+
+    private static Vec2 RotateToward(Vec2 from, Vec2 toward, double radians)
+    {
+        Vec2 f = from.Normalized();
+        Vec2 t = toward.Normalized();
+        double angleBetween = Math.Acos(Math.Clamp(Vec2.Dot(f, t), -1.0, 1.0));
+        if (angleBetween < PhysicsConstants.Epsilon)
+            return f;
+        double clamped = Math.Min(radians, angleBetween);
+        double sign = Math.Sign(f.X * t.Y - f.Y * t.X);
+        return Rotate(f, clamped * (sign == 0 ? 1 : sign));
+    }
+
+    private static Vec2 Rotate(Vec2 v, double radians)
+    {
+        double c = Math.Cos(radians);
+        double s = Math.Sin(radians);
+        return new Vec2(v.X * c - v.Y * s, v.X * s + v.Y * c);
+    }
+
+    private static bool RayIntersection(Vec2 p1, Vec2 d1, Vec2 p2, Vec2 d2, out Vec2 intersection)
+    {
+        double det = d1.X * d2.Y - d1.Y * d2.X;
+        if (Math.Abs(det) < PhysicsConstants.Epsilon)
+        {
+            intersection = new Vec2();
+            return false;
+        }
+        Vec2 diff = p2 - p1;
+        double t = (diff.X * d2.Y - diff.Y * d2.X) / det;
+        intersection = p1 + d1 * t;
+        return true;
+    }
+
+    private static Vec2 Lerp(Vec2 a, Vec2 b, double t) => a + (b - a) * t;
+
+    private void AddSegmentStrip(List<Vec2> pts, Vec2 interiorHint, int cushionBands)
+    {
         for (int i = 0; i < pts.Count - 1; i++)
         {
             Vec2 a = pts[i];
@@ -159,9 +247,8 @@ public class BilliardsSolver
                 continue;
             Vec2 dir = (b - a).Normalized();
             Vec2 normal = new Vec2(-dir.Y, dir.X);
-            if (Vec2.Dot(normal, hint) < 0)
+            if (Vec2.Dot(normal, interiorHint) < 0)
                 normal = -normal;
-            // Normalise to keep contact offsets consistent with other pocket/cushion edges.
             if (normal.Length > PhysicsConstants.Epsilon)
                 normal = normal.Normalized();
             var edge = new Edge { A = a, B = b, Normal = normal };
@@ -173,12 +260,7 @@ public class BilliardsSolver
         }
     }
 
-    private static Vec2 PointOnCircle(Vec2 center, double radius, double angle)
-    {
-        return new Vec2(
-            center.X + Math.Cos(angle) * radius,
-            center.Y + Math.Sin(angle) * radius);
-    }
+    private static double DegreesToRadians(double degrees) => degrees * Math.PI / 180.0;
 
     public struct Preview
     {
