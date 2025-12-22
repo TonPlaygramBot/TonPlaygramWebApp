@@ -495,13 +495,13 @@ const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.128; // push the side fascias fa
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE; // mirror the rounded chrome cut used on the corner pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.08; // nudge the rounded chrome cutouts outward so they follow the shifted middle pocket throats
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.1; // nudge the rounded chrome cutouts outward so they follow the shifted middle pocket throats
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
 const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.018; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.06; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.08; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -848,7 +848,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach fur
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.02; // drop the middle jaws a hair lower so they sit deeper against the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.08; // pull the middle pocket jaws closer toward the table centre so the midpoint jaws read tighter
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -899,7 +899,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = -TABLE.THICK * 0.08; // pull the middle pocket centres and cloth cutouts slightly inward toward the table midpoint
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.04; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.04; // gently bias the middle pocket centres and cuts back toward the playfield
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -1192,14 +1192,14 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 33°)
-const DEFAULT_CUSHION_CUT_ANGLE = 33;
+// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 35°)
+const DEFAULT_CUSHION_CUT_ANGLE = 35;
 // middle pocket cushion cuts now match the corner spec at 33°
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 33;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
-const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.16; // push the playable face and cushion nose further inward to match the expanded top surface
+const CUSHION_FACE_INSET = SIDE_RAIL_INNER_THICKNESS * 0.12; // push the playable face and cushion nose further inward to match the expanded top surface
 
 // shared UI reduction factor so overlays and controls shrink alongside the table
 
