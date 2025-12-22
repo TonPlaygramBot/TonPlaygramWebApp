@@ -848,7 +848,7 @@ const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach fur
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.93; // tighten the middle jaw arc radius further so side-pocket jaws sit slimmer
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.06; // push the middle pocket jaws slightly outward from the table centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.09; // push the middle pocket jaws further outward from the table centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -7636,6 +7636,7 @@ function Table3D(
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
+  const GAP_STRIPES_ENABLED = false;
   const gapStripeThickness = Math.max(MICRO_EPS, TABLE.THICK * 0.02);
   const gapStripeHeight = Math.max(MICRO_EPS, cushionHeightTarget + TABLE.THICK * 0.06);
   const gapStripeLift = TABLE.THICK * 0.012;
@@ -7772,41 +7773,43 @@ function Table3D(
       group.position.x = side * reach;
     }
 
-    const stripeShape = new THREE.Shape();
-    stripeShape.moveTo(-halfLen, 0);
-    stripeShape.lineTo(halfLen, 0);
-    stripeShape.lineTo(halfLen, gapStripeHeight);
-    stripeShape.lineTo(-halfLen, gapStripeHeight);
-    stripeShape.lineTo(-halfLen, 0);
-    const stripeGeom = new THREE.ExtrudeGeometry(stripeShape, {
-      depth: gapStripeThickness,
-      bevelEnabled: true,
-      bevelThickness: gapStripeThickness * 0.45,
-      bevelSize: gapStripeThickness * 0.45,
-      bevelSegments: 3,
-      curveSegments: 10,
-      steps: 1
-    });
-    stripeGeom.translate(0, -gapStripeHeight / 2, -gapStripeThickness / 2);
-    stripeGeom.computeVertexNormals();
-    const stripe = new THREE.Mesh(stripeGeom, gapStripeMat);
-    stripe.castShadow = false;
-    stripe.receiveShadow = false;
-    stripe.position.set(
-      group.position.x,
-      cushionBaseY + gapStripeHeight / 2 + gapStripeLift,
-      group.position.z
-    );
-    if (!horizontal) {
-      stripe.rotation.y = Math.PI / 2;
+    if (GAP_STRIPES_ENABLED) {
+      const stripeShape = new THREE.Shape();
+      stripeShape.moveTo(-halfLen, 0);
+      stripeShape.lineTo(halfLen, 0);
+      stripeShape.lineTo(halfLen, gapStripeHeight);
+      stripeShape.lineTo(-halfLen, gapStripeHeight);
+      stripeShape.lineTo(-halfLen, 0);
+      const stripeGeom = new THREE.ExtrudeGeometry(stripeShape, {
+        depth: gapStripeThickness,
+        bevelEnabled: true,
+        bevelThickness: gapStripeThickness * 0.45,
+        bevelSize: gapStripeThickness * 0.45,
+        bevelSegments: 3,
+        curveSegments: 10,
+        steps: 1
+      });
+      stripeGeom.translate(0, -gapStripeHeight / 2, -gapStripeThickness / 2);
+      stripeGeom.computeVertexNormals();
+      const stripe = new THREE.Mesh(stripeGeom, gapStripeMat);
+      stripe.castShadow = false;
+      stripe.receiveShadow = false;
+      stripe.position.set(
+        group.position.x,
+        cushionBaseY + gapStripeHeight / 2 + gapStripeLift,
+        group.position.z
+      );
+      if (!horizontal) {
+        stripe.rotation.y = Math.PI / 2;
+      }
+      if (horizontal) {
+        stripe.position.z += side * (gapStripeThickness / 2 + gapStripePad + gapStripeOutwardShift);
+      } else {
+        stripe.position.x += side * (gapStripeThickness / 2 + gapStripePad + gapStripeOutwardShift);
+      }
+      table.add(stripe);
+      finishParts.gapFillMeshes.push(stripe);
     }
-    if (horizontal) {
-      stripe.position.z += side * (gapStripeThickness / 2 + gapStripePad + gapStripeOutwardShift);
-    } else {
-      stripe.position.x += side * (gapStripeThickness / 2 + gapStripePad + gapStripeOutwardShift);
-    }
-    table.add(stripe);
-    finishParts.gapFillMeshes.push(stripe);
 
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
