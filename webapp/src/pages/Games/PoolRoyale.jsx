@@ -903,6 +903,7 @@ const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = BALL_R * 1.72; // ease the middle pockets slightly while keeping them snug against the chrome hook
 const SIDE_POCKET_OUTWARD_BIAS = BALL_R * 0.14; // push middle pocket centres farther outward so they sit noticeably away from the field centre
 const SIDE_POCKET_FIELD_PULL = BALL_R * 0.08; // ease the inward pull so the outward bias can push the centres farther toward the rails
+const SIDE_POCKET_RELIEF_SHIFT = BALL_R * 0.28; // carve extra space into the middle cushion cuts so the mouths can open into the rails
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -918,12 +919,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.978; // tighten the middle pocket mouth further so the radius and cloth cutouts shrink a little more
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1.014; // relax the middle pocket mouth so the cushion trims open closer to the marked red guides
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
-  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.982; // shrink the middle cloth/rail cutouts slightly so the softened mouth keeps a smaller radius and tighter fit
+  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the relaxed middle pocket mouth while preserving the corner-to-side ratio
+const SIDE_POCKET_CUT_SCALE = 1.06; // open the middle cloth/rail cutouts so the cushions can be trimmed back around the side pockets
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
@@ -5889,7 +5890,7 @@ function Table3D(
   );
   sidePocketShift = Math.min(
     maxSidePocketShift,
-    rawSidePocketShift + SIDE_POCKET_OUTWARD_BIAS
+    rawSidePocketShift + SIDE_POCKET_OUTWARD_BIAS + SIDE_POCKET_RELIEF_SHIFT
   );
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
