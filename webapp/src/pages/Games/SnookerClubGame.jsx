@@ -811,9 +811,9 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.98; // relax the side jaw radius a to
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1.22; // deepen the side jaw a bit more so it carries extra mass at the middle pockets
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.042; // lower the middle jaws slightly less so the fascia trims down from the top
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.006; // pull the middle pocket jaws inward so the lips sit closer to centre
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.52; // start trimming sooner so middle jaws finish flush with the wooden rails
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.62; // taper the outer jaw radius harder near the ends to stop overrunning the rail cuts
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.5; // smooth the heavier trim into the rounded jaw radius without visible kinks
+const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.68; // begin trimming the middle jaw shoulders before the cushion noses so they finish at the wooden rails
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.8; // taper the outer jaw radius near the ends to keep a slightly wider gap before the cushions
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.32; // ease the taper into the trimmed ends for a smooth falloff
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -963,10 +963,6 @@ const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cus
 const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.06; // match Pool Royale cushion base height so tops sit level with the rails
 const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.18; // align cushion trim with Pool Royale so tops no longer sit higher
 const CUSHION_FIELD_CLIP_RATIO = 0.14; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
-const GAP_STRIPE_RADIUS = TABLE.THICK * 0.012; // thin insert that fits the cushion/rail gap without widening the wooden rails
-const GAP_STRIPE_THICKNESS = TABLE.THICK * 0.018; // width of the gold insert to fill the cushion/rail gap
-const GAP_STRIPE_EXTRA_HEIGHT = TABLE.THICK * 0.04; // lift the stripe so its rounded top sits slightly above the rail and cushion
-const GAP_STRIPE_INSET = TABLE.THICK * 0.012; // push the stripe outward toward the wooden rails so it occupies the visible gap
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // round only the exterior rail corners while leaving the playfield edge crisp
@@ -5550,7 +5546,6 @@ function Table3D(
     pocketBaseMeshes: [],
     underlayMeshes: [],
     clothEdgeMeshes: [],
-    gapStripeMeshes: [],
     accentParent: null,
     accentMesh: null,
     dimensions: null,
@@ -7767,57 +7762,6 @@ function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-
-  const gapStripeHeight = Math.max(MICRO_EPS, rawCushionHeight + GAP_STRIPE_EXTRA_HEIGHT);
-  const gapStripeVerticalScale = gapStripeHeight / (GAP_STRIPE_RADIUS * 2);
-  const gapStripeThicknessScale = GAP_STRIPE_THICKNESS / (GAP_STRIPE_RADIUS * 2);
-  const gapStripeY = cushionBaseY + gapStripeHeight / 2 + TABLE.THICK * 0.01;
-  const gapStripeMat = new THREE.MeshPhysicalMaterial({
-    color: 0xd4af37,
-    metalness: 0.88,
-    roughness: 0.32,
-    clearcoat: 0.36,
-    clearcoatRoughness: 0.22,
-    envMapIntensity: 0.7,
-    sheen: 0.18,
-    sheenRoughness: 0.5
-  });
-  const gapStripes = new THREE.Group();
-  const addGapStripe = (length, axis, x, z) => {
-    if (!Number.isFinite(length) || length <= MICRO_EPS) return;
-    const bodyLength = Math.max(MICRO_EPS, length - GAP_STRIPE_RADIUS * 2);
-    const geom = new THREE.CapsuleGeometry(GAP_STRIPE_RADIUS, bodyLength, 12, 18);
-    if (axis === 'x') {
-      geom.rotateZ(Math.PI / 2);
-    } else {
-      geom.rotateX(Math.PI / 2);
-    }
-    geom.scale(1, gapStripeVerticalScale, gapStripeThicknessScale);
-    const mesh = new THREE.Mesh(geom, gapStripeMat);
-    mesh.position.set(x, gapStripeY, z);
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-    gapStripes.add(mesh);
-  };
-
-  const trimmedHorizontalLength = Math.max(MICRO_EPS, horizontalCushionLength - TABLE.THICK * 0.08);
-  const trimmedVerticalLength = Math.max(MICRO_EPS, verticalCushionLength - TABLE.THICK * 0.08);
-  const horizontalStripeZ =
-    halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE + GAP_STRIPE_INSET;
-  addGapStripe(trimmedHorizontalLength, 'x', 0, -horizontalStripeZ);
-  addGapStripe(trimmedHorizontalLength, 'x', 0, horizontalStripeZ);
-
-  const verticalStripeReach =
-    halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH + GAP_STRIPE_INSET;
-  addGapStripe(trimmedVerticalLength, 'z', -verticalStripeReach, -verticalCushionCenter);
-  addGapStripe(trimmedVerticalLength, 'z', -verticalStripeReach, verticalCushionCenter);
-  addGapStripe(trimmedVerticalLength, 'z', verticalStripeReach, -verticalCushionCenter);
-  addGapStripe(trimmedVerticalLength, 'z', verticalStripeReach, verticalCushionCenter);
-
-  if (gapStripes.children.length) {
-    railsGroup.add(gapStripes);
-    finishParts.gapStripeMeshes.push(...gapStripes.children);
-  }
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
