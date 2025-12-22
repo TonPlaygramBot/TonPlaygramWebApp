@@ -45,8 +45,9 @@ public class BilliardsSolver
         double sideMouth = PhysicsConstants.SidePocketMouth;
         double cornerCut = cornerMouth / Math.Sqrt(2.0);
         double sideCut = sideMouth / 2.0;
-        double sideDepth = Math.Max(sideCut * 1.05, PhysicsConstants.BallRadius * 1.8);
-        double sideOutset = Math.Max(0.0, PhysicsConstants.SidePocketOutset);
+        // Make the side jaws slightly deeper to present a fuller capture profile after the mouth reduction.
+        double sideDepth = Math.Max(sideCut * 1.1, PhysicsConstants.BallRadius * 1.8);
+        double sideOutset = PhysicsConstants.SidePocketOutset;
 
         // Straight cushion spans (long rails)
         AddCushionSegment(new Vec2(cornerCut, 0), new Vec2(width / 2 - sideCut, 0), new Vec2(0, 1));
