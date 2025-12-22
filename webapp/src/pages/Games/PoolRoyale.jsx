@@ -844,8 +844,7 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION; // keep middle jaw span identical to the corner profile
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.32; // trim the middle jaws so they end at the wooden rail stop without overrunning the cushions
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
@@ -7775,6 +7774,97 @@ function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
+
+  const stripeThickness = Math.max(
+    TABLE.THICK * 0.018,
+    Math.abs(CUSHION_RAIL_FLUSH) + TABLE.THICK * 0.002
+  );
+  const stripeHeight = cushionHeightTarget + TABLE.THICK * 0.026;
+  const stripeBevel = Math.min(stripeThickness * 0.45, TABLE.THICK * 0.06);
+  const stripeMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xd6b24a,
+    metalness: 0.78,
+    roughness: 0.32,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.24,
+    sheen: 0.28,
+    sheenRoughness: 0.55
+  });
+  const stripeGeometryCache = new Map();
+  const getStripeGeometry = (length, horizontal) => {
+    const key = `${horizontal ? 'h' : 'v'}-${length.toFixed(4)}`;
+    if (stripeGeometryCache.has(key)) {
+      return stripeGeometryCache.get(key);
+    }
+    const halfLength = length / 2;
+    const shape = new THREE.Shape();
+    shape.moveTo(-halfLength, 0);
+    shape.lineTo(halfLength, 0);
+    shape.lineTo(halfLength, stripeHeight);
+    shape.lineTo(-halfLength, stripeHeight);
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: stripeThickness,
+      bevelEnabled: true,
+      bevelThickness: stripeBevel,
+      bevelSize: stripeBevel,
+      bevelSegments: 2,
+      curveSegments: 24,
+      steps: 1
+    });
+    geo.translate(0, -stripeHeight / 2, -stripeThickness / 2);
+    if (!horizontal) {
+      geo.rotateY(Math.PI / 2);
+    }
+    stripeGeometryCache.set(key, geo);
+    return geo;
+  };
+  const stripeGroup = new THREE.Group();
+  const stripeOutset = stripeThickness / 2 + TABLE.THICK * 0.002;
+  const stripeCenterY = cushionBaseY + stripeHeight / 2;
+  const placeStripe = (length, { x = 0, z = 0, horizontal = true, side = 1 }) => {
+    const geometry = getStripeGeometry(length, horizontal);
+    const mesh = new THREE.Mesh(geometry, stripeMaterial);
+    mesh.position.set(
+      x + (horizontal ? 0 : side * stripeOutset),
+      stripeCenterY,
+      z + (horizontal ? side * stripeOutset : 0)
+    );
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    stripeGroup.add(mesh);
+  };
+  const horizontalStripeZ = halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE;
+  placeStripe(horizontalCushionLength, { z: horizontalStripeZ, side: 1 });
+  placeStripe(horizontalCushionLength, { z: -horizontalStripeZ, side: -1 });
+  const verticalStripeX =
+    halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
+  placeStripe(verticalCushionLength, {
+    x: -verticalStripeX,
+    z: -verticalCushionCenter,
+    horizontal: false,
+    side: -1
+  });
+  placeStripe(verticalCushionLength, {
+    x: -verticalStripeX,
+    z: verticalCushionCenter,
+    horizontal: false,
+    side: -1
+  });
+  placeStripe(verticalCushionLength, {
+    x: verticalStripeX,
+    z: -verticalCushionCenter,
+    horizontal: false,
+    side: 1
+  });
+  placeStripe(verticalCushionLength, {
+    x: verticalStripeX,
+    z: verticalCushionCenter,
+    horizontal: false,
+    side: 1
+  });
+  railsGroup.add(stripeGroup);
+  finishParts.trimMeshes.push(...stripeGroup.children);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
