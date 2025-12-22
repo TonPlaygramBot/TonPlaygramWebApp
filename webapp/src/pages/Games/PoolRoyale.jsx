@@ -461,8 +461,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.974; // shave the chrome plate a touch more so both fascia sides stop before the jaw line
-const CHROME_CORNER_HEIGHT_SCALE = 0.954; // mirror the extra trim on the short rail so the fascia clears both jaw corners
+const CHROME_CORNER_WIDTH_SCALE = 0.982; // shave the chrome plate slightly so it ends at the jaw line on the long rail
+const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
 const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align corner fascia offset with the snooker chrome plates
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -488,7 +488,7 @@ const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.64; // extend fascia reach so the middl
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
 const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 1.94; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
 const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.28; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
-const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.982; // trim middle fascias slightly on both sides so they stop shy of the jaws
+const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 1; // restore full middle fascia width while keeping the rounded cut and outer edge unchanged
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.128; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
@@ -989,12 +989,10 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const CLOTH_UNDERLAY_THICKNESS = TABLE.THICK * 0.16; // add a thin plywood board beneath the cloth
-const CLOTH_UNDERLAY_GAP = TABLE.THICK * 0.012; // leave a narrow void so the cloth floats above the board without z-fighting
-const CLOTH_UNDERLAY_EXTRA_DROP = TABLE.THICK * 0.02; // lower the board slightly to keep the pocket throats clear
-const CLOTH_UNDERLAY_POCKET_SCALE = 1.1; // cut the board holes 10% larger than the pockets to avoid interference
-const CLOTH_UNDERLAY_COLOR = 0x1f6b3a; // matte painted green to boost visible ball shadows
-const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS; // wrap only the cloth depth; the underlay sits on its own board
+const CLOTH_UNDERLAY_THICKNESS = 0; // remove the plywood board beneath the cloth
+const CLOTH_UNDERLAY_GAP = 0; // eliminate the air gap between the cloth and the removed board
+const CLOTH_UNDERLAY_EXTRA_DROP = 0; // keep the cloth wrap tight without extra drop
+const CLOTH_EXTENDED_DEPTH = CLOTH_THICKNESS; // wrap only the cloth depth now that the underlay is gone
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
@@ -1194,8 +1192,8 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-  // angle for cushion cuts guiding balls into corner pockets (slightly steeper for even mouth entry)
-const DEFAULT_CUSHION_CUT_ANGLE = 35;
+// angle for cushion cuts guiding balls into corner pockets (revert to previous 33° spec)
+const DEFAULT_CUSHION_CUT_ANGLE = 33;
 // middle pocket cushion cuts stay at the current 33°
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 33;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -6039,34 +6037,6 @@ function Table3D(
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-  if (CLOTH_UNDERLAY_THICKNESS > MICRO_EPS) {
-    const underlayShape = buildSurfaceShape(
-      POCKET_HOLE_R * CLOTH_UNDERLAY_POCKET_SCALE
-    );
-    const underlayGeo = new THREE.ExtrudeGeometry(underlayShape, {
-      depth: CLOTH_UNDERLAY_THICKNESS,
-      bevelEnabled: false,
-      curveSegments: 96,
-      steps: 1
-    });
-    underlayGeo.translate(0, 0, -CLOTH_UNDERLAY_THICKNESS);
-    const underlayMat = new THREE.MeshStandardMaterial({
-      color: CLOTH_UNDERLAY_COLOR,
-      metalness: 0,
-      roughness: 1,
-      envMapIntensity: 0,
-      emissive: new THREE.Color(CLOTH_UNDERLAY_COLOR).multiplyScalar(0.05)
-    });
-    underlayMat.needsUpdate = true;
-    const underlay = new THREE.Mesh(underlayGeo, underlayMat);
-    underlay.rotation.x = -Math.PI / 2;
-    underlay.position.y =
-      clothBottomY - CLOTH_UNDERLAY_GAP - CLOTH_UNDERLAY_EXTRA_DROP;
-    underlay.castShadow = false;
-    underlay.receiveShadow = true;
-    table.add(underlay);
-    finishParts.underlayMeshes.push(underlay);
-  }
   const pocketEdgeStopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketCutStripes = addPocketCuts(
     table,
@@ -6273,7 +6243,7 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.22; // shorten the corner cushions slightly more so the noses stay clear of the pocket openings
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
