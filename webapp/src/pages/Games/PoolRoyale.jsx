@@ -873,7 +873,7 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
   const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (Pool Royale match)
   const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
-  const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
+const SIDE_RAIL_INNER_REDUCTION = 0.64; // pull the rails closer together so the cloth footprint tightens a touch more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
   // Relax the aspect ratio so the table reads wider on screen while keeping the playfield height untouched
@@ -1024,7 +1024,7 @@ const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
-const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
+const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.11; // lift the middle pocket bowls further so they sit visibly closer to the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
   POCKET_VIS_R * 2.25 +
@@ -2299,12 +2299,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
       keyColor: 0xf5f7fb,
-      keyIntensity: 1.36,
+      keyIntensity: 2.16,
       fillColor: 0xf5f7fb,
-      fillIntensity: 0.82,
+      fillIntensity: 1.02,
       rimColor: 0xfafcff,
-      rimIntensity: 0.58,
-      ambientIntensity: 0.2
+      rimIntensity: 0.62,
+      ambientIntensity: 0.14
     }
   },
   {
@@ -2313,12 +2313,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
       keyColor: 0xf6f8ff,
-      keyIntensity: 1.72,
+      keyIntensity: 2.56,
       fillColor: 0xf6f8ff,
-      fillIntensity: 0.9,
+      fillIntensity: 1.08,
       rimColor: 0xffffff,
-      rimIntensity: 0.64,
-      ambientIntensity: 0.22
+      rimIntensity: 0.76,
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2327,12 +2327,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'High-contrast stage look with tight rim control.',
     settings: {
       keyColor: 0xf2f5ff,
-      keyIntensity: 1.82,
+      keyIntensity: 2.8,
       fillColor: 0xf2f5ff,
-      fillIntensity: 0.66,
+      fillIntensity: 0.96,
       rimColor: 0xf7fbff,
-      rimIntensity: 0.82,
-      ambientIntensity: 0.18
+      rimIntensity: 0.9,
+      ambientIntensity: 0.12
     }
   },
   {
@@ -2341,12 +2341,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
       keyColor: 0xeaf1ff,
-      keyIntensity: 1.48,
+      keyIntensity: 2.3,
       fillColor: 0xeaf1ff,
-      fillIntensity: 0.88,
+      fillIntensity: 1,
       rimColor: 0xf5f8ff,
-      rimIntensity: 0.54,
-      ambientIntensity: 0.2
+      rimIntensity: 0.82,
+      ambientIntensity: 0.18
     }
   }
 ]);
