@@ -844,13 +844,13 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.42; // trim middle jaw reach so fascia stops at the wood rail edge while keeping the jaw radius
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.38; // trim middle jaw reach slightly further so fascia stops cleanly at the wood rail edge
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // align middle pocket jaws directly with the corner lips
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.82; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -7639,7 +7639,7 @@ function Table3D(
   const gapStripeThickness = Math.max(MICRO_EPS, TABLE.THICK * 0.02);
   const gapStripeHeight = Math.max(MICRO_EPS, cushionHeightTarget + TABLE.THICK * 0.06);
   const gapStripeLift = TABLE.THICK * 0.012;
-  const gapStripePad = TABLE.THICK * 0.0025;
+  const gapStripePad = TABLE.THICK * 0.006;
 
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
