@@ -25,6 +25,7 @@ import adsRoutes from './routes/ads.js';
 import influencerRoutes from './routes/influencer.js';
 import onlineRoutes from './routes/online.js';
 import poolRoyaleRoutes from './routes/poolRoyale.js';
+import authRoutes from './routes/auth.js';
 import User from './models/User.js';
 import GameResult from './models/GameResult.js';
 import AdView from './models/AdView.js';
@@ -135,6 +136,7 @@ const apiLimiter = rateLimit({
   legacyHeaders: false
 });
 app.use('/api', apiLimiter);
+app.use('/api/auth', authRoutes);
 app.use('/api/mining', miningRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/watch', watchRoutes);
