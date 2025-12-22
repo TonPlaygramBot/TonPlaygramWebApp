@@ -899,7 +899,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.12; // push the middle pocket centres and cloth cutouts a touch farther from the table midpoint
+const SIDE_POCKET_OUTWARD_BIAS = -TABLE.THICK * 0.06; // pull the middle pocket centres and cloth cutouts slightly toward the table midpoint
 const SIDE_POCKET_FIELD_PULL = 0; // remove extra inward pull so middle pocket centres match the corners
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
@@ -1001,9 +1001,10 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.06; // keep the cushion base closer to the rail line so the tops can sit level with the wood
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.205; // trim the cushion tops further so they no longer rise above the wooden rails
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.085; // lower the cushion base slightly so the tops sit deeper against the rails
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.24; // trim the cushion tops further so they sit visibly lower than the wooden rails
 const CUSHION_FIELD_CLIP_RATIO = 0.158; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
+const CUSHION_FIELD_EXPANSION = BALL_R * 0.5; // expand the exposed cushion faces toward the playfield by roughly half a ball
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // round only the exterior rail corners while leaving the playfield edge crisp
@@ -1192,10 +1193,10 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 29°)
-const DEFAULT_CUSHION_CUT_ANGLE = 29;
-// middle pocket cushion cuts must be shallower at 29°
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 31;
+// angle for cushion cuts guiding balls into corner pockets (Pool Royale spec now requires 33°)
+const DEFAULT_CUSHION_CUT_ANGLE = 33;
+// middle pocket cushion cuts must match the universal 33° spec
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 33;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -6240,7 +6241,7 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.012; // push the cushions further outward so they meet the wooden rails without a gap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.026; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
@@ -7720,7 +7721,7 @@ function Table3D(
 
       // Pull only the exposed nose toward the playfield so the top cushion profile
       // extends further inwards while the base that touches the rails/cloth stays put.
-      const noseOffset = nosePull * frontFactor;
+      const noseOffset = nosePull * frontFactor + CUSHION_FIELD_EXPANSION * frontFactor;
       if (noseOffset > 0) {
         arr[i + 1] = Math.min(arr[i + 1] - noseOffset, backY);
       }
