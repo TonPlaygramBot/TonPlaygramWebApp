@@ -845,10 +845,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.985; // let the middle jaw arc read a hair fuller while keeping the mouth alignment
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = -TABLE.THICK * 0.02; // drop the middle jaws a hair lower so they sit deeper against the cloth
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.14; // pull the middle pocket jaws slightly inward toward centre while leaving a subtle outward bias
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.18; // push the middle pocket jaws further outward from the table centre so the jaws sit visibly outside the midpoint
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -916,12 +916,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.952; // shrink the middle pocket mouth width further so the middle pockets visually match the corner size
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.968; // shrink the middle pocket mouth width a bit more so the radius tightens up further
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.95; // trim the middle cloth/rail cutouts more so their openings line up with the tightened pocket radius
+const SIDE_POCKET_CUT_SCALE = 0.962; // trim the middle cloth/rail cutouts slightly more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
