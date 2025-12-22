@@ -844,7 +844,7 @@ const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the m
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
-const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.32; // trim the middle jaw reach a touch more so it finishes right at the wood/cloth gap while keeping the jaw radius
+const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
@@ -7640,6 +7640,7 @@ function Table3D(
   const gapStripeHeight = Math.max(MICRO_EPS, cushionHeightTarget + TABLE.THICK * 0.06);
   const gapStripeLift = TABLE.THICK * 0.012;
   const gapStripePad = TABLE.THICK * 0.005;
+  const gapStripeOutwardShift = TABLE.THICK * 0.012;
 
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
@@ -7800,9 +7801,9 @@ function Table3D(
       stripe.rotation.y = Math.PI / 2;
     }
     if (horizontal) {
-      stripe.position.z += side * (gapStripeThickness / 2 + gapStripePad);
+      stripe.position.z += side * (gapStripeThickness / 2 + gapStripePad + gapStripeOutwardShift);
     } else {
-      stripe.position.x += side * (gapStripeThickness / 2 + gapStripePad);
+      stripe.position.x += side * (gapStripeThickness / 2 + gapStripePad + gapStripeOutwardShift);
     }
     table.add(stripe);
     finishParts.gapFillMeshes.push(stripe);
