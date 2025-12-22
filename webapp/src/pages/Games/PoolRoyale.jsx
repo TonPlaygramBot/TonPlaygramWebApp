@@ -850,9 +850,9 @@ const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius t
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // align middle pocket jaws directly with the corner lips
-const SIDE_POCKET_JAW_EDGE_TRIM_START = 0.58; // begin the middle jaw trim nearer to the pocket so the fascia stops at the wood
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.76; // carve back the middle jaw ends so they finish at the rail line without shrinking the playable radius
-const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = 1.72; // keep a soft falloff while holding the rounded jaw radius seen at full scale
+const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // keep the outer jaw radius identical to the corner jaws
+const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
@@ -7625,69 +7625,6 @@ function Table3D(
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
 
-  const gapStripeMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0xd5b15c,
-    metalness: 0.72,
-    roughness: 0.28,
-    clearcoat: 0.36,
-    clearcoatRoughness: 0.18
-  });
-  const gapStripeThickness = Math.max(MICRO_EPS, TABLE.THICK * 0.022);
-  const gapStripeRadius = gapStripeThickness * 0.5;
-  const gapStripeHeight = Math.min(
-    railH + TABLE.THICK * 0.06,
-    cushionHeightTarget + TABLE.THICK * 0.12
-  );
-  const gapStripeOffset = gapStripeThickness * 0.55 + TABLE.THICK * 0.002;
-
-  function buildGapStripeGeometry(length) {
-    const halfLen = length / 2;
-    const halfWidth = gapStripeThickness / 2;
-    const r = Math.min(gapStripeRadius, halfLen, halfWidth);
-    const shape = new THREE.Shape();
-    shape.moveTo(-halfLen + r, -halfWidth);
-    shape.lineTo(halfLen - r, -halfWidth);
-    shape.absarc(halfLen - r, -halfWidth + r, r, -Math.PI / 2, 0, false);
-    shape.lineTo(halfLen, halfWidth - r);
-    shape.absarc(halfLen - r, halfWidth - r, r, 0, Math.PI / 2, false);
-    shape.lineTo(-halfLen + r, halfWidth);
-    shape.absarc(-halfLen + r, halfWidth - r, r, Math.PI / 2, Math.PI, false);
-    shape.lineTo(-halfLen, -halfWidth + r);
-    shape.absarc(-halfLen + r, -halfWidth + r, r, Math.PI, 1.5 * Math.PI, false);
-
-    const geo = new THREE.ExtrudeGeometry(shape, {
-      depth: gapStripeHeight,
-      bevelEnabled: true,
-      bevelThickness: r * 0.6,
-      bevelSize: r * 0.6,
-      bevelSegments: 2,
-      curveSegments: 48
-    });
-    geo.rotateX(Math.PI / 2);
-    geo.translate(0, -gapStripeHeight, 0);
-    geo.computeVertexNormals();
-    return geo;
-  }
-
-  function addGapStripe(x, z, len, horizontal, sideSign = 1) {
-    const stripeGeo = buildGapStripeGeometry(len);
-    const stripe = new THREE.Mesh(stripeGeo, gapStripeMaterial);
-    stripe.position.set(x, cushionBaseY, z);
-    if (!horizontal) {
-      stripe.rotation.y = Math.PI / 2;
-    }
-    const dir = sideSign >= 0 ? 1 : -1;
-    if (horizontal) {
-      stripe.position.z += dir * gapStripeOffset;
-    } else {
-      stripe.position.x += dir * gapStripeOffset;
-    }
-    stripe.castShadow = false;
-    stripe.receiveShadow = true;
-    stripe.renderOrder = 3.6;
-    railsGroup.add(stripe);
-  }
-
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
@@ -7838,13 +7775,6 @@ function Table3D(
   addCushion(leftX, verticalCushionCenter, verticalCushionLength, false, false);
   addCushion(rightX, -verticalCushionCenter, verticalCushionLength, false, true);
   addCushion(rightX, verticalCushionCenter, verticalCushionLength, false, true);
-
-  addGapStripe(0, bottomZ, horizontalCushionLength, true, -1);
-  addGapStripe(0, topZ, horizontalCushionLength, true, 1);
-  addGapStripe(leftX, -verticalCushionCenter, verticalCushionLength, false, -1);
-  addGapStripe(leftX, verticalCushionCenter, verticalCushionLength, false, -1);
-  addGapStripe(rightX, -verticalCushionCenter, verticalCushionLength, false, 1);
-  addGapStripe(rightX, verticalCushionCenter, verticalCushionLength, false, 1);
 
   const frameOuterX = outerHalfW;
   const frameOuterZ = outerHalfH;
