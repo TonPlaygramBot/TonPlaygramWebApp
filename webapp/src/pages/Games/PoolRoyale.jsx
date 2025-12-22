@@ -484,18 +484,18 @@ const CHROME_PLATE_VERTICAL_LIFT_SCALE = 0; // keep fascia placement identical t
 const CHROME_PLATE_DOWNWARD_EXPANSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_PLATE_RENDER_ORDER = 3.5; // ensure chrome fascias stay visually above the wood rails without z-fighting
 const CHROME_SIDE_PLATE_POCKET_SPAN_SCALE = 2.2; // push the side fascia farther along the arch so it blankets the larger chrome reveal
-const CHROME_SIDE_PLATE_HEIGHT_SCALE = 2.9; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
+const CHROME_SIDE_PLATE_HEIGHT_SCALE = 3.1; // extend fascia reach so the middle pocket cut gains a broader surround on the remaining three sides
 const CHROME_SIDE_PLATE_CENTER_TRIM_SCALE = 0; // keep the middle fascia centred on the pocket without carving extra relief
-const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.35; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
-const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.46; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
+const CHROME_SIDE_PLATE_WIDTH_EXPANSION_SCALE = 2.62; // trim fascia span further so the middle plates finish before intruding into the pocket zone while keeping the rounded edge intact
+const CHROME_SIDE_PLATE_OUTER_EXTENSION_SCALE = 1.68; // widen the middle fascia outward so it blankets the exposed wood like the corner plates without altering the rounded cut
 const CHROME_SIDE_PLATE_WIDTH_REDUCTION_SCALE = 0.986; // trim the middle fascia width a touch so both flanks stay inside the pocket reveal
 const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width further toward the corner pockets while keeping the curved pocket cut unchanged
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE; // mirror the rounded chrome cut used on the corner pockets
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = -0.1; // nudge the rounded chrome cutouts outward so they follow the shifted middle pocket throats
+const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
 const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
 const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
@@ -847,7 +847,7 @@ const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw sprea
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
-const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.01; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
+const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
@@ -1024,7 +1024,7 @@ const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
-const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.06; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
+const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
   POCKET_VIS_R * 2.25 +
@@ -2298,16 +2298,13 @@ const LIGHTING_OPTIONS = Object.freeze([
     label: 'Studio Soft',
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
-      hemiSky: 0xe3ecff,
-      hemiGround: 0x0c101c,
-      hemiIntensity: 1.02,
-      rimIntensity: 0.62,
-      dirColor: 0xf5f7fb,
-      dirIntensity: 1.2,
-      spotColor: 0xfafcff,
-      spotIntensity: 9.6,
-      spotAngle: Math.PI * 0.4,
-      ambientIntensity: 0.14
+      keyColor: 0xf5f7fb,
+      keyIntensity: 1.36,
+      fillColor: 0xf5f7fb,
+      fillIntensity: 0.82,
+      rimColor: 0xfafcff,
+      rimIntensity: 0.58,
+      ambientIntensity: 0.2
     }
   },
   {
@@ -2315,16 +2312,13 @@ const LIGHTING_OPTIONS = Object.freeze([
     label: 'Arena Prime',
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
-      hemiSky: 0xdfe8ff,
-      hemiGround: 0x0a0f1a,
-      hemiIntensity: 1.08,
-      rimIntensity: 0.76,
-      dirColor: 0xf6f8ff,
-      dirIntensity: 1.42,
-      spotColor: 0xffffff,
-      spotIntensity: 11.4,
-      spotAngle: Math.PI * 0.36,
-      ambientIntensity: 0.16
+      keyColor: 0xf6f8ff,
+      keyIntensity: 1.72,
+      fillColor: 0xf6f8ff,
+      fillIntensity: 0.9,
+      rimColor: 0xffffff,
+      rimIntensity: 0.64,
+      ambientIntensity: 0.22
     }
   },
   {
@@ -2332,16 +2326,13 @@ const LIGHTING_OPTIONS = Object.freeze([
     label: 'Proscenium Contrast',
     description: 'High-contrast stage look with tight rim control.',
     settings: {
-      hemiSky: 0xd8e3ff,
-      hemiGround: 0x0b0f1c,
-      hemiIntensity: 0.96,
-      rimIntensity: 0.9,
-      dirColor: 0xf2f5ff,
-      dirIntensity: 1.58,
-      spotColor: 0xf7fbff,
-      spotIntensity: 12.2,
-      spotAngle: Math.PI * 0.34,
-      ambientIntensity: 0.12
+      keyColor: 0xf2f5ff,
+      keyIntensity: 1.82,
+      fillColor: 0xf2f5ff,
+      fillIntensity: 0.66,
+      rimColor: 0xf7fbff,
+      rimIntensity: 0.82,
+      ambientIntensity: 0.18
     }
   },
   {
@@ -2349,16 +2340,13 @@ const LIGHTING_OPTIONS = Object.freeze([
     label: 'Noir Telecast',
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
-      hemiSky: 0xcfd9ec,
-      hemiGround: 0x0c111c,
-      hemiIntensity: 1,
-      rimIntensity: 0.82,
-      dirColor: 0xeaf1ff,
-      dirIntensity: 1.28,
-      spotColor: 0xf5f8ff,
-      spotIntensity: 10.2,
-      spotAngle: Math.PI * 0.42,
-      ambientIntensity: 0.18
+      keyColor: 0xeaf1ff,
+      keyIntensity: 1.48,
+      fillColor: 0xeaf1ff,
+      fillIntensity: 0.88,
+      rimColor: 0xf5f8ff,
+      rimIntensity: 0.54,
+      ambientIntensity: 0.2
     }
   }
 ]);
@@ -9572,25 +9560,18 @@ function PoolRoyaleGame({
         LIGHTING_PRESET_MAP[presetId] ?? LIGHTING_PRESET_MAP[DEFAULT_LIGHTING_ID];
       const settings = preset?.settings ?? {};
       const {
-        hemisphere,
-        hemisphereRig,
-        dirLight,
-        spot,
+        key,
+        fill,
+        rim,
         ambient
       } = rig;
 
-      if (settings.hemiSky && hemisphere) hemisphere.color.set(settings.hemiSky);
-      if (settings.hemiGround && hemisphereRig)
-        hemisphereRig.groundColor.set(settings.hemiGround);
-      if (settings.hemiIntensity && hemisphere)
-        hemisphere.intensity = settings.hemiIntensity;
-      if (settings.rimIntensity && hemisphereRig)
-        hemisphereRig.intensity = settings.rimIntensity;
-      if (settings.dirColor && dirLight) dirLight.color.set(settings.dirColor);
-      if (settings.dirIntensity && dirLight) dirLight.intensity = settings.dirIntensity;
-      if (settings.spotColor && spot) spot.color.set(settings.spotColor);
-      if (settings.spotIntensity && spot) spot.intensity = settings.spotIntensity;
-      if (settings.spotAngle && spot) spot.angle = settings.spotAngle;
+      if (settings.keyColor && key) key.color.set(settings.keyColor);
+      if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
+      if (settings.fillColor && fill) fill.color.set(settings.fillColor);
+      if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
+      if (settings.rimColor && rim) rim.color.set(settings.rimColor);
+      if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
     },
@@ -13769,93 +13750,52 @@ function PoolRoyaleGame({
         window.addEventListener('keydown', keyRot);
 
       // Lights
-      // Adopt the lighting rig from the standalone snooker demo and scale all
-      // authored coordinates so they sit correctly over the larger table.
       const addMobileLighting = () => {
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const SAMPLE_PLAY_W = 1.216;
-        const SAMPLE_PLAY_H = 2.536;
-        const SAMPLE_TABLE_HEIGHT = 0.75;
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 4.6;
+        const lightOffsetX = Math.max(PLAY_W * 0.18, TABLE.THICK * 2.8);
+        const lightOffsetZ = Math.max(PLAY_H * 0.12, TABLE.THICK * 2.2);
+        const shadowHalfSpan = Math.max(PLAY_W, PLAY_H) * 0.65;
+        const targetY = tableSurfaceY + TABLE.THICK * 0.24;
 
-        const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
-        const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
-        const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8; // bring fixtures closer so the spot highlight reads on the balls
-        const LIGHT_LATERAL_SCALE = 0.45; // pull shadow-casting lights nearer the table centre
-
-        const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
-        const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
-        const fixtureScale = Math.max(baseWidthScale, baseLengthScale);
-        const heightScale = Math.max(0.001, TABLE_H / SAMPLE_TABLE_HEIGHT);
-        const scaledHeight = heightScale * LIGHT_HEIGHT_SCALE;
-
-        const hemisphere = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.758625);
-        const lightHeightLift = scaledHeight * LIGHT_HEIGHT_LIFT_MULTIPLIER; // lift the lighting rig higher above the table
-        const triangleHeight = tableSurfaceY + 6.6 * scaledHeight + lightHeightLift;
-        const triangleRadius = fixtureScale * 0.98;
-        const lightRetreatOffset = scaledHeight * 0.24;
-        const lightReflectionGuard = scaledHeight * 0.32;
-        hemisphere.position.set(0, triangleHeight, -triangleRadius * 0.6);
-        lightingRig.add(hemisphere);
-
-        const hemisphereRig = new THREE.HemisphereLight(0xdde7ff, 0x0b1020, 0.4284);
-        hemisphereRig.position.set(0, triangleHeight, 0);
-        lightingRig.add(hemisphereRig);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
-        dirLight.position.set(
-          -triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.4
-        );
-        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
-        lightingRig.add(dirLight);
-        lightingRig.add(dirLight.target);
-
-        const spot = new THREE.SpotLight(
-          0xffffff,
-          12.289725,
-          0,
-          Math.PI * 0.36,
-          0.42,
-          1
-        );
-        spot.position.set(
-          triangleRadius * LIGHT_LATERAL_SCALE,
-          triangleHeight + lightRetreatOffset + lightReflectionGuard,
-          triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
-        );
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
-        spot.decay = 1.0;
-        spot.castShadow = true;
-        spot.shadow.mapSize.set(2048, 2048);
-        spot.shadow.bias = -0.00002;
-        spot.shadow.normalBias = 0.0015; // keep contact shadows locked to the cloth instead of slipping onto the carpet
-        lightingRig.add(spot);
-        lightingRig.add(spot.target);
-
-        const ambient = new THREE.AmbientLight(
-          0xffffff,
-          0.0223125
-        ); // match the snooker ambient fill for identical arena lighting
-        ambient.position.set(
-          0,
-          tableSurfaceY +
-            scaledHeight * 1.95 +
-            lightHeightLift +
-            lightRetreatOffset +
-            lightReflectionGuard,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.12
-        );
+        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
         lightingRig.add(ambient);
+
+        const key = new THREE.DirectionalLight(0xffffff, 1.6);
+        key.position.set(lightOffsetX * 0.9, lightRigHeight, lightOffsetZ * 0.9);
+        key.target.position.set(0, targetY, 0);
+        key.castShadow = true;
+        key.shadow.mapSize.set(2048, 2048);
+        key.shadow.camera.near = 0.1;
+        key.shadow.camera.far = shadowHalfSpan * 2.4;
+        key.shadow.camera.left = -shadowHalfSpan;
+        key.shadow.camera.right = shadowHalfSpan;
+        key.shadow.camera.top = shadowHalfSpan;
+        key.shadow.camera.bottom = -shadowHalfSpan;
+        key.shadow.bias = -0.00005;
+        key.shadow.normalBias = 0.0012;
+        lightingRig.add(key);
+        lightingRig.add(key.target);
+
+        const fill = new THREE.DirectionalLight(0xffffff, 0.75);
+        fill.position.set(-lightOffsetX * 0.86, lightRigHeight * 0.86, lightOffsetZ * 0.6);
+        fill.target.position.set(0, targetY, 0);
+        lightingRig.add(fill);
+        lightingRig.add(fill.target);
+
+        const rim = new THREE.DirectionalLight(0xffffff, 0.55);
+        rim.position.set(0, lightRigHeight * 0.92, -lightOffsetZ * 1.35);
+        rim.target.position.set(0, targetY, 0);
+        lightingRig.add(rim);
+        lightingRig.add(rim.target);
 
         lightingRigRef.current = {
           group: lightingRig,
-          hemisphere,
-          hemisphereRig,
-          dirLight,
-          spot,
+          key,
+          fill,
+          rim,
           ambient
         };
         applyLightingPreset();
