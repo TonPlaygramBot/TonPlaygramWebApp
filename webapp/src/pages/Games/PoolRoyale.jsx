@@ -817,9 +817,9 @@ const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly fart
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.033; // round the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.92; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
-  POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
+  POCKET_JAW_CORNER_OUTER_SCALE * 0.94; // trim middle jaws so their fascia stops level with the wooden rail edge
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
-const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION; // keep the outer fascia consistent with the corner jaws
+const SIDE_POCKET_JAW_OUTER_EXPANSION = POCKET_JAW_CORNER_OUTER_EXPANSION * 0.35; // shave the middle jaw overhang so it no longer pushes past the wooden rail
 const POCKET_JAW_DEPTH_SCALE = 1.02; // push the jaw bodies further down so the underside reaches the pocket floor
 const POCKET_JAW_VERTICAL_LIFT = TABLE.THICK * 0.114; // lower the visible rim slightly more so the pocket lips sit nearer the cloth plane
 const POCKET_JAW_BOTTOM_CLEARANCE = 0; // allow the jaw extrusion to run right down to the pocket base without a visible gap
@@ -845,7 +845,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION; // keep middle jaw span identical to the corner profile
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.92; // shorten the middle jaws so they end flush with the wooden rails
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
@@ -854,7 +854,7 @@ const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse th
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 1; // keep the outer jaw radius identical to the corner jaws
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
-const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
+const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG * 0.92; // reduce middle jaw coverage while keeping the same pocket radius
 const POCKET_RIM_DEPTH_RATIO = 0; // remove the separate pocket rims so the chrome fascias meet the jaws directly
 const SIDE_POCKET_RIM_DEPTH_RATIO = POCKET_RIM_DEPTH_RATIO; // keep the middle pocket rims identical to the jaw fascia depth
 const POCKET_RIM_SURFACE_OFFSET_SCALE = 0.02; // lift the rim slightly so the taller parts avoid z-fighting while staying aligned
@@ -5746,6 +5746,17 @@ function Table3D(
   clothEdgeMat.sheen = 0;
   clothEdgeMat.reflectivity = 0;
   clothEdgeMat.needsUpdate = true;
+  const gapStripeMat = new THREE.MeshPhysicalMaterial({
+    color: 0xd8b354,
+    metalness: 0.78,
+    roughness: 0.22,
+    clearcoat: 0.36,
+    clearcoatRoughness: 0.28,
+    sheen: 0.24,
+    sheenColor: new THREE.Color(0xfff7d6),
+    envMapIntensity: 0.42,
+    emissive: new THREE.Color(0x000000)
+  });
   const clothBaseSettings = {
     roughness: clothMat.roughness,
     sheen: clothMat.sheen,
@@ -6236,6 +6247,10 @@ function Table3D(
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
+  const GAP_STRIPE_HEIGHT = railH * 0.24; // thin band to fill the cushion-to-rail gap without covering the cushion face
+  const GAP_STRIPE_DEPTH = TABLE.THICK * 0.02; // match the tiny gap width between wood and cushion
+  const GAP_STRIPE_BEVEL = Math.min(GAP_STRIPE_HEIGHT, GAP_STRIPE_DEPTH) * 0.42;
+  const GAP_STRIPE_INSET = TABLE.THICK * 0.006; // sink the stripe slightly so it sits inside the joint
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
   const outerCornerRadius =
@@ -7739,18 +7754,44 @@ function Table3D(
     const heightScale = Math.max(0.001, cushionScaleBase / orientationScale);
     mesh.scale.y = heightScale * orientationScale;
     mesh.renderOrder = 2;
+    const side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
     const group = new THREE.Group();
     group.add(mesh);
+
+    const stripeShape = new THREE.Shape();
+    stripeShape.moveTo(-halfLen, -GAP_STRIPE_HEIGHT / 2);
+    stripeShape.lineTo(halfLen, -GAP_STRIPE_HEIGHT / 2);
+    stripeShape.lineTo(halfLen, GAP_STRIPE_HEIGHT / 2);
+    stripeShape.lineTo(-halfLen, GAP_STRIPE_HEIGHT / 2);
+    stripeShape.lineTo(-halfLen, -GAP_STRIPE_HEIGHT / 2);
+    const stripeGeom = new THREE.ExtrudeGeometry(stripeShape, {
+      depth: GAP_STRIPE_DEPTH,
+      bevelEnabled: true,
+      bevelThickness: GAP_STRIPE_BEVEL,
+      bevelSize: GAP_STRIPE_BEVEL,
+      bevelSegments: 2,
+      curveSegments: 8
+    });
+    stripeGeom.translate(0, 0, -GAP_STRIPE_DEPTH / 2);
+    const stripe = new THREE.Mesh(stripeGeom, gapStripeMat);
+    stripe.castShadow = false;
+    stripe.receiveShadow = true;
+    stripe.renderOrder = mesh.renderOrder + 0.1;
+    stripe.position.y = railsTopY - cushionBaseY - GAP_STRIPE_INSET - GAP_STRIPE_HEIGHT / 2;
+    stripe.position.z = side * (GAP_STRIPE_DEPTH / 2 + TABLE.THICK * 0.003);
+    stripe.userData = stripe.userData || {};
+    stripe.userData.preserveMaterial = true;
+    group.add(stripe);
+    finishParts.trimMeshes.push(stripe);
+
     group.position.set(x, cushionBaseY, z);
     if (!horizontal) group.rotation.y = Math.PI / 2;
     if (flip) group.rotation.y += Math.PI;
 
     if (horizontal) {
-      const side = z >= 0 ? 1 : -1;
       group.position.z =
         side * (halfH - CUSHION_RAIL_FLUSH - CUSHION_SHORT_RAIL_CENTER_NUDGE);
     } else {
-      const side = x >= 0 ? 1 : -1;
       const reach =
         halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
       group.position.x = side * reach;
@@ -7758,7 +7799,7 @@ function Table3D(
 
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
-    group.userData.side = horizontal ? (z >= 0 ? 1 : -1) : x >= 0 ? 1 : -1;
+    group.userData.side = side;
     table.add(group);
     table.userData.cushions.push(group);
   }
@@ -8083,6 +8124,7 @@ function applyTableFinishToTable(table, finish) {
   };
   const swapMaterial = (mesh, material) => {
     if (!mesh || !material) return;
+    if (mesh.userData?.preserveMaterial) return;
     const nextMaterial = mesh.userData?.isChromePlate
       ? applyChromePlateDamping(material)
       : material;
