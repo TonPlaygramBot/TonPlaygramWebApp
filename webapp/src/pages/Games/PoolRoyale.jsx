@@ -461,8 +461,8 @@ const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly w
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.982; // shave the chrome plate slightly so it ends at the jaw line on the long rail
-const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
+const CHROME_CORNER_WIDTH_SCALE = 0.974; // shave the chrome plate slightly more so it ends at the jaw line on the long rail
+const CHROME_CORNER_HEIGHT_SCALE = 0.952; // trim a hair extra on the short rail so the fascia meets the jaw corner without overlap
 const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align corner fascia offset with the snooker chrome plates
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
@@ -1192,8 +1192,8 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (revert to previous 33° spec)
-const DEFAULT_CUSHION_CUT_ANGLE = 33;
+// angle for cushion cuts guiding balls into corner pockets (tighten slightly so the corner mouths stay consistent)
+const DEFAULT_CUSHION_CUT_ANGLE = 31.5;
 // middle pocket cushion cuts stay at the current 33°
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 33;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -5696,7 +5696,8 @@ function Table3D(
     sheenRoughness: clothSheenRoughness,
     clearcoat: 0,
     clearcoatRoughness: 0.86,
-    envMapIntensity: 0.02,
+    envMapIntensity: 0,
+    reflectivity: 0,
     emissive: clothColor.clone().multiplyScalar(0.045),
     emissiveIntensity: 0.38
   });
@@ -6036,6 +6037,23 @@ function Table3D(
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
   table.add(cloth);
+  const underlayThickness = TABLE.THICK * 0.04;
+  const clothUnderlay = new THREE.Mesh(
+    new THREE.BoxGeometry(halfWext * 2, underlayThickness, halfHext * 2),
+    new THREE.MeshStandardMaterial({
+      color: clothColor.clone().multiplyScalar(0.78),
+      roughness: 1,
+      metalness: 0,
+      envMapIntensity: 0,
+      reflectivity: 0,
+      side: THREE.DoubleSide
+    })
+  );
+  clothUnderlay.position.set(0, cloth.position.y - CLOTH_EXTENDED_DEPTH - underlayThickness / 2 - TABLE.THICK * 0.01, 0);
+  clothUnderlay.renderOrder = 2.9;
+  clothUnderlay.receiveShadow = true;
+  clothUnderlay.castShadow = false;
+  table.add(clothUnderlay);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   const pocketEdgeStopY = clothBottomY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketCutStripes = addPocketCuts(
