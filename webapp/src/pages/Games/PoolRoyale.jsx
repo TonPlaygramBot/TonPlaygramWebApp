@@ -7613,14 +7613,13 @@ function Table3D(
     nudgeDistance: chalkSize * 0.25
   };
 
-const FACE_SHRINK_LONG = 1;
-const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
-const NOSE_REDUCTION = 0.75;
-const CUSHION_UNDERCUT_BASE_LIFT = 0.44;
-const CUSHION_RAIL_BASE_LIFT = 0; // keep the cushion base flush with the cloth plane along the wooden rails
-const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
-const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
-const SIDE_CUSHION_POCKET_RELIEF = TABLE.THICK * 0.11; // carve a small notch into each middle-pocket cushion face so the pocket cut is visible
+  const FACE_SHRINK_LONG = 1;
+  const FACE_SHRINK_SHORT = FACE_SHRINK_LONG;
+  const NOSE_REDUCTION = 0.75;
+  const CUSHION_UNDERCUT_BASE_LIFT = 0.44;
+  const CUSHION_RAIL_BASE_LIFT = 0; // keep the cushion base flush with the cloth plane along the wooden rails
+  const CUSHION_UNDERCUT_FRONT_REMOVAL = 0.42;
+  const CUSHION_NOSE_FRONT_PULL_SCALE = 0.085; // extend only the exposed nose + undercut toward the playfield without moving the cushion base
   const cushionBaseY = CLOTH_TOP_LOCAL - MICRO_EPS + CUSHION_EXTRA_LIFT;
   const rawCushionHeight = Math.max(0, railsTopY - cushionBaseY);
   const cushionDrop = Math.min(CUSHION_HEIGHT_DROP, rawCushionHeight);
@@ -7649,11 +7648,8 @@ const SIDE_CUSHION_POCKET_RELIEF = TABLE.THICK * 0.11; // carve a small notch in
       return Math.max(minCutLength, rawCut);
     };
 
-    const reliefLeft = Math.max(0, cutAngles?.reliefLeft ?? 0);
-    const reliefRight = Math.max(0, cutAngles?.reliefRight ?? 0);
-
-    let leftCut = computeCut(leftCutAngle) + reliefLeft;
-    let rightCut = computeCut(rightCutAngle) + reliefRight;
+    let leftCut = computeCut(leftCutAngle);
+    let rightCut = computeCut(rightCutAngle);
     const maxTotalCut = Math.max(MICRO_EPS, len - MICRO_EPS);
     const totalCut = leftCut + rightCut;
     if (totalCut > maxTotalCut) {
@@ -7734,9 +7730,7 @@ const SIDE_CUSHION_POCKET_RELIEF = TABLE.THICK * 0.11; // carve a small notch in
     const sidePocketCuts = !horizontal
       ? {
           leftCutAngle: leftCloserToCenter ? SIDE_CUSHION_CUT_ANGLE : CUSHION_CUT_ANGLE,
-          rightCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : SIDE_CUSHION_CUT_ANGLE,
-          reliefLeft: leftCloserToCenter ? SIDE_CUSHION_POCKET_RELIEF : 0,
-          reliefRight: leftCloserToCenter ? 0 : SIDE_CUSHION_POCKET_RELIEF
+          rightCutAngle: leftCloserToCenter ? CUSHION_CUT_ANGLE : SIDE_CUSHION_CUT_ANGLE
         }
       : undefined;
     const geo = cushionProfileAdvanced(len, horizontal, sidePocketCuts);
