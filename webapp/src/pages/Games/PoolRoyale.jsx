@@ -918,12 +918,12 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.978; // tighten the middle pocket mouth further so the radius and cloth cutouts shrink a little more
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.968; // tighten the middle pocket mouth further so the radius and cloth cutouts shrink a little more
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // carry the new narrower middle pocket mouth while preserving the corner-to-side ratio
-const SIDE_POCKET_CUT_SCALE = 0.982; // shrink the middle cloth/rail cutouts slightly so the softened mouth keeps a smaller radius and tighter fit
+const SIDE_POCKET_CUT_SCALE = 0.972; // shrink the middle cloth/rail cutouts slightly so the softened mouth keeps a smaller radius and tighter fit
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
