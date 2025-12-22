@@ -845,7 +845,7 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
 const SIDE_POCKET_JAW_LATERAL_EXPANSION =
-  CORNER_POCKET_JAW_LATERAL_EXPANSION; // keep middle jaw span identical to the corner profile
+  CORNER_POCKET_JAW_LATERAL_EXPANSION * 0.94; // trim the middle pocket jaw span so it ends flush with the rail stops
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // match the middle jaw arc radius to the corner pockets
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = 0; // align middle jaw height with the corner jaws by trimming the extra top lift
@@ -5562,6 +5562,7 @@ function Table3D(
     clothEdgeMeshes: [],
     accentParent: null,
     accentMesh: null,
+    gapStripeMeshes: [],
     dimensions: null,
     woodSurfaces: { frame: null, rail: null },
     woodTextureId: null
@@ -6233,7 +6234,7 @@ function Table3D(
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.034; // press the side cushions firmly into the rails without creating overlap
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.018; // ease the side cushions back so the wood stops align cleanly without overlapping the jaws
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -7625,6 +7626,51 @@ function Table3D(
   const cushionHeightTarget = rawCushionHeight - cushionDrop;
   const cushionScaleBase = Math.max(0.001, cushionHeightTarget / railH);
 
+  const gapStripeThickness = TABLE.THICK * 0.016;
+  const gapStripeHeight = railH * 1.06;
+  const gapStripeRadius = Math.min(gapStripeThickness * 0.5, gapStripeHeight * 0.12);
+  const gapStripeProfile = new THREE.Shape();
+  gapStripeProfile.moveTo(-gapStripeThickness / 2, -gapStripeHeight / 2);
+  gapStripeProfile.lineTo(-gapStripeThickness / 2, gapStripeHeight / 2 - gapStripeRadius);
+  gapStripeProfile.quadraticCurveTo(
+    -gapStripeThickness / 2,
+    gapStripeHeight / 2,
+    -gapStripeThickness / 2 + gapStripeRadius,
+    gapStripeHeight / 2
+  );
+  gapStripeProfile.lineTo(gapStripeThickness / 2 - gapStripeRadius, gapStripeHeight / 2);
+  gapStripeProfile.quadraticCurveTo(
+    gapStripeThickness / 2,
+    gapStripeHeight / 2,
+    gapStripeThickness / 2,
+    gapStripeHeight / 2 - gapStripeRadius
+  );
+  gapStripeProfile.lineTo(gapStripeThickness / 2, -gapStripeHeight / 2);
+  gapStripeProfile.lineTo(-gapStripeThickness / 2, -gapStripeHeight / 2);
+
+  const gapStripeMaterial = new THREE.MeshPhysicalMaterial({
+    color: 0xd6b25c,
+    metalness: 0.72,
+    roughness: 0.28,
+    clearcoat: 0.32,
+    clearcoatRoughness: 0.34
+  });
+
+  const gapStripeBaseY = frameTopY + gapStripeHeight / 2 + railH * 0.02;
+
+  const buildGapStripeGeometry = (length) => {
+    const geom = new THREE.ExtrudeGeometry(gapStripeProfile, {
+      depth: length,
+      bevelEnabled: false,
+      curveSegments: 64
+    });
+    geom.translate(0, 0, -length / 2);
+    return geom;
+  };
+
+  const gapStripeGroup = new THREE.Group();
+  table.add(gapStripeGroup);
+
   function cushionProfileAdvanced(len, horizontal, cutAngles = {}) {
     const halfLen = len / 2;
     const thicknessScale = horizontal ? FACE_SHRINK_LONG : FACE_SHRINK_SHORT;
@@ -7755,6 +7801,23 @@ function Table3D(
         halfW - CUSHION_RAIL_FLUSH - CUSHION_LONG_RAIL_CENTER_NUDGE + SIDE_CUSHION_RAIL_REACH;
       group.position.x = side * reach;
     }
+
+    const stripeGeom = buildGapStripeGeometry(len);
+    const stripeMesh = new THREE.Mesh(stripeGeom, gapStripeMaterial);
+    stripeMesh.castShadow = false;
+    stripeMesh.receiveShadow = true;
+    stripeMesh.renderOrder = 3;
+    stripeMesh.position.set(group.position.x, gapStripeBaseY, group.position.z);
+    if (horizontal) {
+      stripeMesh.rotation.y = Math.PI / 2;
+      const side = Math.sign(group.position.z) || 1;
+      stripeMesh.position.z += side * gapStripeThickness * 0.5;
+    } else {
+      const side = Math.sign(group.position.x) || 1;
+      stripeMesh.position.x += side * gapStripeThickness * 0.5;
+    }
+    gapStripeGroup.add(stripeMesh);
+    finishParts.gapStripeMeshes.push(stripeMesh);
 
     group.userData = group.userData || {};
     group.userData.horizontal = horizontal;
