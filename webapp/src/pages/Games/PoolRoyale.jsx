@@ -1279,7 +1279,8 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
       null,
       null
     ],
-    objectPatterns: new Array(15).fill('solid')
+    objectPatterns: new Array(15).fill('solid'),
+    ballSet: 'classic'
   },
   american: {
     id: 'american',
@@ -1379,7 +1380,7 @@ function normalizeVariantKey(value) {
     .trim();
 }
 
-function resolvePoolVariant(variantId) {
+function resolvePoolVariant(variantId, ballSetId = null) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
   if (normalized === '9' || normalized === 'nineball') {
@@ -1392,7 +1393,23 @@ function resolvePoolVariant(variantId) {
   ) {
     key = 'uk';
   }
-  return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
+  const base = POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
+  if (!base) return POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
+  if (base.id !== 'uk') return base;
+
+  const ballSetNormalized = normalizeVariantKey(ballSetId || base.ballSet || 'classic');
+  const useAmerican = ballSetNormalized === 'american' || ballSetNormalized === 'us';
+  if (!useAmerican) {
+    return { ...base, ballSet: 'classic' };
+  }
+  const americanSet = POOL_VARIANT_COLOR_SETS.american;
+  return {
+    ...base,
+    ballSet: 'american',
+    objectColors: americanSet.objectColors,
+    objectNumbers: americanSet.objectNumbers,
+    objectPatterns: americanSet.objectPatterns
+  };
 }
 
 function deriveInHandFromFrame(frame) {
@@ -1567,7 +1584,7 @@ function getPoolBallPattern(variant, index) {
 
 function getPoolBallId(variant, index) {
   if (!variant) return `ball_${index + 1}`;
-  if (variant.id === 'uk') {
+  if (variant.id === 'uk' && variant.ballSet !== 'american') {
     const color = getPoolBallColor(variant, index);
     if (color === UK_POOL_BLACK) return 'black_8';
     if (color === UK_POOL_YELLOW) return `yellow_${index + 1}`;
@@ -8427,6 +8444,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 function PoolRoyaleGame({
   variantKey,
+  ballSetKey = 'classic',
   tableSizeKey,
   playType = 'regular',
   mode = 'ai',
@@ -8446,8 +8464,8 @@ function PoolRoyaleGame({
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
-    () => resolvePoolVariant(variantKey),
-    [variantKey]
+    () => resolvePoolVariant(variantKey, ballSetKey),
+    [variantKey, ballSetKey]
   );
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
@@ -13421,18 +13439,35 @@ function PoolRoyaleGame({
           if (replayPlaybackRef.current) return;
           if (!shotRecording || !shotRecording.frames?.length) return;
           const trimmed = trimReplayRecording(shotRecording);
-          const duration = trimmed.duration;
+          const pendingPocketDrops = pausedPocketDrops ?? pocketDropRef.current;
+          const pocketPrefaceMs = pendingPocketDrops?.size ? 1000 / 60 : 0;
+          let replayFrames = trimmed.frames;
+          let duration = trimmed.duration;
+          if (pocketPrefaceMs > 0 && replayFrames.length > 0) {
+            const lastFrame = replayFrames[replayFrames.length - 1];
+            const padded = replayFrames.map((frame, index) =>
+              index === replayFrames.length - 1
+                ? { ...frame, t: frame.t + pocketPrefaceMs }
+                : frame
+            );
+            padded.push({ ...lastFrame, t: duration + pocketPrefaceMs });
+            replayFrames = padded;
+            duration += pocketPrefaceMs;
+          }
           if (!Number.isFinite(duration) || duration <= 0) return;
           storeReplayCameraFrame();
           resetCameraForReplay();
+          const pocketDropsSnapshot = pendingPocketDrops
+            ? new Map(pendingPocketDrops.entries())
+            : new Map();
           replayPlayback = {
-            frames: trimmed.frames,
+            frames: replayFrames,
             cuePath: trimmed.cuePath,
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
             postState: postShotSnapshot,
-            pocketDrops: pausedPocketDrops ?? pocketDropRef.current
+            pocketDrops: pocketDropsSnapshot
           };
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
@@ -15038,7 +15073,6 @@ function PoolRoyaleGame({
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
-          setInHandPlacementMode(false);
           autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
@@ -15726,7 +15760,10 @@ function PoolRoyaleGame({
                   cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
                   cueDist = cueVec.length();
                 } else {
-                  continue;
+                  cushionAid = tryCushionRoute(cuePos, ghost, ignore);
+                  if (!cushionAid) continue;
+                  cueVec = cushionAid.cushionPoint.clone().sub(cuePos);
+                  cueDist = cueVec.length();
                 }
               }
               if (cueDist < 1e-6) continue;
@@ -15756,6 +15793,28 @@ function PoolRoyaleGame({
                 railNormal: cushionAid?.railNormal ?? null,
                 viaCushion: Boolean(cushionAid)
               };
+              const estimateCueShape = () => {
+                const followDir = toPocketDir.clone().normalize();
+                const travel = THREE.MathUtils.clamp(plan.power * 1.4, BALL_R * 4, BALL_R * 28);
+                return targetBall.pos.clone().add(followDir.multiplyScalar(travel));
+              };
+              const predictedRest = estimateCueShape();
+              if (predictedRest) {
+                const remainingTargets = activeBalls.filter(
+                  (ball) =>
+                    ball !== targetBall &&
+                    ball.active &&
+                    legalTargets.has(toBallColorId(ball.id))
+                );
+                const nearestNext = remainingTargets.reduce((best, ball) => {
+                  const dist = predictedRest.distanceTo(ball.pos);
+                  if (!best || dist < best.dist) return { ball, dist };
+                  return best;
+                }, null);
+                const shapeBonus = nearestNext ? Math.max(0.1, 1 / (1 + nearestNext.dist)) : 0.08;
+                plan.difficulty /= 1 + shapeBonus;
+                plan.positionScore = shapeBonus;
+              }
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -18839,7 +18898,12 @@ export default function PoolRoyale() {
   const variantKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('variant');
-    return resolvePoolVariant(requested).id;
+    const ballSet = params.get('ballSet');
+    return resolvePoolVariant(requested, ballSet).id;
+  }, [location.search]);
+  const ballSetKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('ballSet') || 'classic';
   }, [location.search]);
   const tableSizeKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
@@ -18967,6 +19031,7 @@ export default function PoolRoyale() {
   return (
     <PoolRoyaleGame
       variantKey={variantKey}
+      ballSetKey={ballSetKey}
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}
