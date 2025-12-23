@@ -5896,7 +5896,7 @@ function Table3D(
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
-  const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
+  const buildSurfaceShape = (holeRadius, edgeInset = 0, forceSimple = false) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
 
@@ -5973,28 +5973,6 @@ function Table3D(
       return [[closeRing(ring)]];
     };
 
-    const pocketSectors = pocketPositions
-      .map((center, index) => {
-        const isSidePocket = index >= 4;
-        const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
-        const sweep = Math.PI * 2;
-        const baseSegments = isSidePocket ? 96 : 64;
-        return createPocketSector(center, sweep, radius, baseSegments, false);
-      })
-      .filter(Boolean);
-
-    let shapeMP = baseMP;
-    if (pocketSectors.length) {
-    shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
-    }
-    const shapes = multiPolygonToShapes(shapeMP);
-    if (shapes.length === 1) {
-      return shapes[0];
-    }
-    if (shapes.length > 1) {
-      return shapes;
-    }
-
     const fallback = new THREE.Shape();
     fallback.moveTo(-insetHalfW, -insetHalfH);
     fallback.lineTo(insetHalfW, -insetHalfH);
@@ -6009,6 +5987,33 @@ function Table3D(
       hole.autoClose = true;
       fallback.holes.push(hole);
     });
+
+    if (forceSimple) {
+      return fallback;
+    }
+
+    const pocketSectors = pocketPositions
+      .map((center, index) => {
+        const isSidePocket = index >= 4;
+        const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
+        const sweep = Math.PI * 2;
+        const baseSegments = isSidePocket ? 96 : 64;
+        return createPocketSector(center, sweep, radius, baseSegments, false);
+      })
+      .filter(Boolean);
+
+    let shapeMP = baseMP;
+    if (pocketSectors.length) {
+      shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
+    }
+    const shapes = multiPolygonToShapes(shapeMP);
+    if (shapes.length === 1) {
+      return shapes[0];
+    }
+    if (shapes.length > 1) {
+      return shapes;
+    }
+
     return fallback;
   };
 
@@ -6079,7 +6084,7 @@ function Table3D(
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
-    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
+    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET, true);
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
