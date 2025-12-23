@@ -20,7 +20,6 @@ function clearTimeoutSafely(ref) {
 export async function runPoolRoyaleOnlineFlow({
   stake,
   variant,
-  ballSet,
   playType,
   mode,
   tableSize,
@@ -242,7 +241,6 @@ export async function runPoolRoyaleOnlineFlow({
       maxPlayers: 2,
       mode,
       variant,
-      ballSet,
       tableSize,
       playType,
       playerName: getTelegramFirstNameFn?.() || `TPC ${accountId}` || 'Player',
