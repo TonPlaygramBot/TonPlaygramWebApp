@@ -993,6 +993,7 @@ const PLYWOOD_THICKNESS = TABLE.THICK * 0.18; // add a full plywood bed under th
 const PLYWOOD_GAP = TABLE.THICK * 0.04; // leave a subtle clearance between the cloth wrap and the plywood surface
 const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.32; // sink the plywood bed far enough to meet the pocket bowls and read in shadow
 const PLYWOOD_OUTSET = TABLE.THICK * 0.12; // widen the plywood slab so every edge reads as a single, unbroken piece
+const PLYWOOD_HOLE_SCALE = 1.05; // oversize plywood cut-outs so the pockets clear without trimming the pocket geometry
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -6077,7 +6078,7 @@ function Table3D(
 
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
-    const buildSolidSurfaceShape = (edgeInset = 0) => {
+    const buildSolidSurfaceShape = (edgeInset = 0, holeScale = 1) => {
       const insetHalfW = Math.max(MICRO_EPS, halfWext + PLYWOOD_OUTSET - edgeInset);
       const insetHalfH = Math.max(MICRO_EPS, halfHext + PLYWOOD_OUTSET - edgeInset);
       const shape = new THREE.Shape();
@@ -6086,10 +6087,24 @@ function Table3D(
       shape.lineTo(insetHalfW, insetHalfH);
       shape.lineTo(-insetHalfW, insetHalfH);
       shape.lineTo(-insetHalfW, -insetHalfH);
+
+      const baseHoleRadius = POCKET_HOLE_R * holeScale;
+      pocketPositions.forEach((p, index) => {
+        if (!p) return;
+        const isSidePocket = index >= 4;
+        const radius = isSidePocket
+          ? baseHoleRadius * sideRadiusScale
+          : baseHoleRadius;
+        const hole = new THREE.Path();
+        hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
+        hole.autoClose = true;
+        shape.holes.push(hole);
+      });
+
       return shape;
     };
 
-    const plywoodShape = buildSolidSurfaceShape();
+    const plywoodShape = buildSolidSurfaceShape(0, PLYWOOD_HOLE_SCALE);
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
