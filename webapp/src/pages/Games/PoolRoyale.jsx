@@ -993,7 +993,6 @@ const PLYWOOD_THICKNESS = TABLE.THICK * 0.18; // add a full plywood bed under th
 const PLYWOOD_GAP = TABLE.THICK * 0.04; // leave a subtle clearance between the cloth wrap and the plywood surface
 const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.32; // sink the plywood bed far enough to meet the pocket bowls and read in shadow
 const PLYWOOD_OUTSET = TABLE.THICK * 0.12; // widen the plywood slab so every edge reads as a single, unbroken piece
-const PLYWOOD_POCKET_OVERSIZE_SCALE = 1.05; // enlarge plywood cut-outs relative to the visible pocket rims
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -6081,53 +6080,13 @@ function Table3D(
     const buildSolidSurfaceShape = (edgeInset = 0) => {
       const insetHalfW = Math.max(MICRO_EPS, halfWext + PLYWOOD_OUTSET - edgeInset);
       const insetHalfH = Math.max(MICRO_EPS, halfHext + PLYWOOD_OUTSET - edgeInset);
-      const oversizeHoleRadius = POCKET_HOLE_R * PLYWOOD_POCKET_OVERSIZE_SCALE;
-      const oversizeSideRadius = oversizeHoleRadius * sideRadiusScale;
-      const baseRing = [
-        [-insetHalfW, -insetHalfH],
-        [insetHalfW, -insetHalfH],
-        [insetHalfW, insetHalfH],
-        [-insetHalfW, insetHalfH],
-        [-insetHalfW, -insetHalfH]
-      ];
-      const baseMP = [[baseRing]];
-      const pocketSectors = pocketPositions
-        .map((center, index) => {
-          const isSidePocket = index >= 4;
-          const radius = isSidePocket ? oversizeSideRadius : oversizeHoleRadius;
-          const sweep = Math.PI * 2;
-          const baseSegments = isSidePocket ? 96 : 64;
-          return createPocketSector(center, sweep, radius, baseSegments, false);
-        })
-        .filter(Boolean);
-
-      let shapeMP = baseMP;
-      if (pocketSectors.length) {
-        shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
-      }
-      const shapes = multiPolygonToShapes(shapeMP);
-      if (shapes.length === 1) {
-        return shapes[0];
-      }
-      if (shapes.length > 1) {
-        return shapes;
-      }
-
-      const fallback = new THREE.Shape();
-      fallback.moveTo(-insetHalfW, -insetHalfH);
-      fallback.lineTo(insetHalfW, -insetHalfH);
-      fallback.lineTo(insetHalfW, insetHalfH);
-      fallback.lineTo(-insetHalfW, insetHalfH);
-      fallback.lineTo(-insetHalfW, -insetHalfH);
-      pocketPositions.forEach((p, index) => {
-        const hole = new THREE.Path();
-        const isSidePocket = index >= 4;
-        const radius = isSidePocket ? oversizeSideRadius : oversizeHoleRadius;
-        hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
-        hole.autoClose = true;
-        fallback.holes.push(hole);
-      });
-      return fallback;
+      const shape = new THREE.Shape();
+      shape.moveTo(-insetHalfW, -insetHalfH);
+      shape.lineTo(insetHalfW, -insetHalfH);
+      shape.lineTo(insetHalfW, insetHalfH);
+      shape.lineTo(-insetHalfW, insetHalfH);
+      shape.lineTo(-insetHalfW, -insetHalfH);
+      return shape;
     };
 
     const plywoodShape = buildSolidSurfaceShape();
@@ -6149,7 +6108,6 @@ function Table3D(
     plywoodPlate.receiveShadow = true;
     plywoodPlate.castShadow = true;
     plywoodPlate.renderOrder = cloth.renderOrder - 0.25;
-    plywoodPlate.frustumCulled = false;
     table.add(plywoodPlate);
     finishParts.underlayMeshes.push(plywoodPlate);
   }
