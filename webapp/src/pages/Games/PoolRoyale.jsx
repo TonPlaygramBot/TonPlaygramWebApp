@@ -989,9 +989,9 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const STONE_PLATE_THICKNESS = 0; // remove the stone underlay so only cloth fills the pocket sleeves
-const STONE_PLATE_GAP = 0; // no gap required without a stone underlay
-const STONE_PLATE_EXTRA_DROP = 0; // keep the cloth sitting directly atop the playfield base
+const PLYWOOD_THICKNESS = TABLE.THICK * 0.18; // add a full plywood bed under the cloth with the same footprint as the table
+const PLYWOOD_GAP = TABLE.THICK * 0.04; // leave a subtle clearance between the cloth wrap and the plywood surface
+const PLYWOOD_EXTRA_DROP = 0; // keep the plywood tight to the cloth underside with no extra offset
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -6025,8 +6025,8 @@ function Table3D(
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-  const stoneTopY = clothBottomY - STONE_PLATE_GAP - STONE_PLATE_EXTRA_DROP;
-  const pocketEdgeStopY = stoneTopY - POCKET_BOARD_TOUCH_OFFSET;
+  const plywoodTopY = clothBottomY - PLYWOOD_GAP - PLYWOOD_EXTRA_DROP;
+  const pocketEdgeStopY = plywoodTopY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketCutStripes = addPocketCuts(
     table,
     cloth.position.y,
@@ -6074,31 +6074,40 @@ function Table3D(
     clothEdgeMat.needsUpdate = true;
   }
 
-  const stoneDepth = STONE_PLATE_THICKNESS;
-  if (stoneDepth > MICRO_EPS) {
-    const stoneShape = buildSurfaceShape(POCKET_HOLE_R);
-    const stoneGeo = new THREE.ExtrudeGeometry(stoneShape, {
-      depth: stoneDepth,
+  const plywoodDepth = PLYWOOD_THICKNESS;
+  if (plywoodDepth > MICRO_EPS) {
+    const buildSolidSurfaceShape = (edgeInset = 0) => {
+      const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
+      const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
+      const shape = new THREE.Shape();
+      shape.moveTo(-insetHalfW, -insetHalfH);
+      shape.lineTo(insetHalfW, -insetHalfH);
+      shape.lineTo(insetHalfW, insetHalfH);
+      shape.lineTo(-insetHalfW, insetHalfH);
+      shape.lineTo(-insetHalfW, -insetHalfH);
+      return shape;
+    };
+
+    const plywoodShape = buildSolidSurfaceShape();
+    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
+      depth: plywoodDepth,
       bevelEnabled: false,
       curveSegments: 96,
       steps: 1
     });
-    stoneGeo.translate(0, 0, -stoneDepth);
-    const stoneMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(0x4a4d52),
-      roughness: 0.9,
-      metalness: 0.05,
-      emissive: new THREE.Color(0x000000),
-      envMapIntensity: 0.08
-    });
-    const stonePlate = new THREE.Mesh(stoneGeo, stoneMat);
-    stonePlate.rotation.x = -Math.PI / 2;
-    stonePlate.position.y = stoneTopY;
-    stonePlate.receiveShadow = true;
-    stonePlate.castShadow = false;
-    stonePlate.renderOrder = cloth.renderOrder - 0.25;
-    table.add(stonePlate);
-    finishParts.underlayMeshes.push(stonePlate);
+    plywoodGeo.translate(0, 0, -plywoodDepth);
+    const plywoodMat = frameMat.clone();
+    plywoodMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
+    plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
+    plywoodMat.metalness = Math.min(plywoodMat.metalness ?? 0.12, 0.18);
+    const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
+    plywoodPlate.rotation.x = -Math.PI / 2;
+    plywoodPlate.position.y = plywoodTopY;
+    plywoodPlate.receiveShadow = true;
+    plywoodPlate.castShadow = false;
+    plywoodPlate.renderOrder = cloth.renderOrder - 0.25;
+    table.add(plywoodPlate);
+    finishParts.underlayMeshes.push(plywoodPlate);
   }
 
   const markingsGroup = new THREE.Group();
