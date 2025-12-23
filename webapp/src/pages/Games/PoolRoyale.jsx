@@ -905,6 +905,7 @@ const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_CLOTH_INSET = TABLE.THICK * 0.06; // pull only the cloth cutouts for middle pockets slightly toward the table centre
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -1011,10 +1012,10 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
-const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
-const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
-const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
+const PLYWOOD_THICKNESS = 0; // remove the plywood slab entirely so only the cloth, slate, and bowls remain
+const PLYWOOD_GAP = 0; // no gap needed once the plywood layer is gone
+const PLYWOOD_EXTRA_DROP = 0; // keep cloth and pocket bowls aligned without an underlay
+const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable (unused while plywood is removed)
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
@@ -1049,7 +1050,7 @@ const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
-const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
+const SIDE_POCKET_PLYWOOD_LIFT = 0; // keep middle pocket bowls level with the cloth without plywood-driven offsets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
   POCKET_VIS_R * 2.25 +
@@ -1217,9 +1218,9 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (tighten the trim to match the reference cut)
-const DEFAULT_CUSHION_CUT_ANGLE = 29;
-// middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
+// angle for cushion cuts guiding balls into corner pockets (steepen the trim to open the mouth wider)
+const DEFAULT_CUSHION_CUT_ANGLE = 33;
+// middle pocket cushion cuts stay as-is to preserve the existing side pocket acceptance
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
@@ -5159,97 +5160,113 @@ function makeWoodTexture({
 function reflectRails(ball) {
   const limX = RAIL_LIMIT_X;
   const limY = RAIL_LIMIT_Y;
+  const pocketEntries = pocketEntranceCenters();
+  const captureRadiusForPocket = (index) => {
+    const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
+    return mouthRadius * POCKET_VISUAL_EXPANSION * 0.92 + BALL_R * 0.35;
+  };
+  const tangentDamping = 0.96;
+  const stampNow =
+    typeof performance !== 'undefined' && performance.now
+      ? performance.now()
+      : Date.now();
+
+  const applyCushionReflection = (
+    planePoint,
+    normal,
+    {
+      guard = 0,
+      lateralGate = null,
+      depthLimit = null,
+      label = 'rail',
+      pocketIndex = null
+    } = {}
+  ) => {
+    TMP_VEC2_A.copy(ball.pos).sub(planePoint);
+    const distNormal = TMP_VEC2_A.dot(normal);
+    if (distNormal >= BALL_R) return false;
+    if (Number.isFinite(depthLimit) && distNormal < -depthLimit) return false;
+
+    const entryCenter =
+      Number.isInteger(pocketIndex) && pocketEntries[pocketIndex]
+        ? pocketEntries[pocketIndex]
+        : null;
+    if (entryCenter) {
+      const entryRadius = captureRadiusForPocket(pocketIndex);
+      if (ball.pos.distanceTo(entryCenter) <= entryRadius) return false;
+    }
+
+    TMP_VEC2_D.set(-normal.y, normal.x);
+    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    if (Number.isFinite(guard) && lateral < guard) return false;
+    if (Number.isFinite(lateralGate) && lateral <= lateralGate) return false;
+
+    const push = BALL_R - distNormal;
+    ball.pos.addScaledVector(normal, push);
+    const vn = ball.vel.dot(normal);
+    if (vn < 0) {
+      const restitution = CUSHION_RESTITUTION;
+      ball.vel.addScaledVector(normal, -(1 + restitution) * vn);
+      const vtX = ball.vel.x - normal.x * vn;
+      const vtY = ball.vel.y - normal.y * vn;
+      ball.vel.set(
+        ball.vel.x - vtX + vtX * tangentDamping,
+        ball.vel.y - vtY + vtY * tangentDamping
+      );
+    }
+    if (ball.spin?.lengthSq() > 0) {
+      applySpinImpulse(ball, 0.6);
+    }
+    ball.lastRailHitAt = stampNow;
+    ball.lastRailHitType = label;
+    return true;
+  };
+
   const cornerRad = THREE.MathUtils.degToRad(CUSHION_CUT_ANGLE);
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
-  const pocketGuard =
-    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // widen the safe zone so balls don't bounce before reaching the jaw
-  const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
+  const cornerGuard =
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08;
   const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
-  for (const { sx, sy } of CORNER_SIGNS) {
+  for (const [index, { sx, sy }] of CORNER_SIGNS.entries()) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
-    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
-    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-    if (distNormal >= BALL_R) continue;
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral < guardClearance) continue;
-    if (distNormal < -cornerDepthLimit) continue;
-    const push = BALL_R - distNormal;
-    ball.pos.addScaledVector(TMP_VEC2_B, push);
-    const vn = ball.vel.dot(TMP_VEC2_B);
-    if (vn < 0) {
-      const restitution = CUSHION_RESTITUTION;
-      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
-      const vt = TMP_VEC2_D.copy(ball.vel).sub(
-        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
-      );
-      const tangentDamping = 0.96;
-      ball.vel
-        .sub(vt)
-        .add(vt.multiplyScalar(tangentDamping));
+    if (
+      applyCushionReflection(TMP_VEC2_C, TMP_VEC2_B, {
+        guard: Math.max(0, cornerGuard - BALL_R * 0.1),
+        depthLimit: cornerDepthLimit,
+        label: 'corner',
+        pocketIndex: index
+      })
+    ) {
+      return 'corner';
     }
-    if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
-    }
-    const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
-    ball.lastRailHitAt = stamp;
-    ball.lastRailHitType = 'corner';
-    return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS * 0.92 + BALL_R * 0.55; // tighten the middle pocket guard so bounces mirror the corner flow
-  const sidePocketGuard =
-    SIDE_POCKET_RADIUS * 0.86 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06; // soften the capture window around middle jaws
-  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.12);
-  const sideDepthLimit = POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
-  for (const { sx, sy } of SIDE_POCKET_SIGNS) {
+  const sideGuard =
+    SIDE_POCKET_RADIUS * 0.86 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06;
+  const sideDepthLimit = POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION;
+  const sideSpan = SIDE_POCKET_RADIUS * 0.92 + BALL_R * 0.55;
+  for (const [localIndex, { sx, sy }] of SIDE_POCKET_SIGNS.entries()) {
     if (sy * ball.pos.y <= 0) continue;
     TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
-    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
-    if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
     TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
-    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
-    if (distNormal >= BALL_R) continue;
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
-    if (lateral < sideGuardClearance) continue;
-    if (lateral <= sideSpan) continue;
-    if (distNormal < -sideDepthLimit) continue;
-    const push = BALL_R - distNormal;
-    ball.pos.addScaledVector(TMP_VEC2_B, push);
-    const vn = ball.vel.dot(TMP_VEC2_B);
-    if (vn < 0) {
-      const restitution = CUSHION_RESTITUTION;
-      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
-      const vt = TMP_VEC2_D.copy(ball.vel).sub(
-        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
-      );
-      const tangentDamping = 0.96;
-      ball.vel
-        .sub(vt)
-        .add(vt.multiplyScalar(tangentDamping));
+    if (
+      applyCushionReflection(TMP_VEC2_C, TMP_VEC2_B, {
+        guard: Math.max(0, sideGuard - BALL_R * 0.12),
+        lateralGate: sideSpan,
+        depthLimit: sideDepthLimit,
+        label: 'rail',
+        pocketIndex: localIndex + 4
+      })
+    ) {
+      return 'rail';
     }
-    if (ball.spin?.lengthSq() > 0) {
-      applySpinImpulse(ball, 0.6);
-    }
-    const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
-    ball.lastRailHitAt = stamp;
-    ball.lastRailHitType = 'rail';
-    return 'rail';
   }
 
-  // If the ball is entering a pocket capture zone, skip straight rail reflections
   const nearPocketRadius = POCKET_VIS_R + BALL_R * 0.25;
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < nearPocketRadius
@@ -5281,11 +5298,7 @@ function reflectRails(ball) {
     collided = 'rail';
   }
   if (collided) {
-    const stamp =
-      typeof performance !== 'undefined' && performance.now
-        ? performance.now()
-        : Date.now();
-    ball.lastRailHitAt = stamp;
+    ball.lastRailHitAt = stampNow;
     ball.lastRailHitType = collided;
   }
   return collided;
@@ -5950,6 +5963,11 @@ function Table3D(
   );
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
+  const clothPocketPositions = pocketPositions.map((center, index) => {
+    if (index < 4) return center;
+    const direction = center.x >= 0 ? 1 : -1;
+    return center.clone().add(new THREE.Vector2(-direction * SIDE_POCKET_CLOTH_INSET, 0));
+  });
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
@@ -6029,7 +6047,7 @@ function Table3D(
       return [[closeRing(ring)]];
     };
 
-    const pocketSectors = pocketPositions
+    const pocketSectors = clothPocketPositions
       .map((center, index) => {
         const isSidePocket = index >= 4;
         const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6057,7 +6075,7 @@ function Table3D(
     fallback.lineTo(insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, -insetHalfH);
-    pocketPositions.forEach((p, index) => {
+    clothPocketPositions.forEach((p, index) => {
       const hole = new THREE.Path();
       const isSidePocket = index >= 4;
       const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6089,7 +6107,7 @@ function Table3D(
   const pocketCutStripes = addPocketCuts(
     table,
     cloth.position.y,
-    pocketPositions,
+    clothPocketPositions,
     clothEdgeMat,
     sideRadiusScale,
     pocketEdgeStopY
