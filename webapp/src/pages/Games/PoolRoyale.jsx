@@ -900,7 +900,7 @@ const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
 const BALL_SHADOW_RADIUS_MULTIPLIER = 1.4;
-const BALL_SHADOW_OPACITY = 0.45;
+const BALL_SHADOW_OPACITY = 0.32;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
@@ -986,7 +986,7 @@ const BALL_SHADOW_GEOMETRY = new THREE.CircleGeometry(
 );
 BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
 const BALL_SHADOW_MATERIAL = new THREE.MeshBasicMaterial({
-  color: 0x000000,
+  color: 0x111111,
   transparent: true,
   opacity: BALL_SHADOW_OPACITY,
   depthWrite: false,
@@ -17364,7 +17364,7 @@ function PoolRoyaleGame({
                 const spread = 1 + THREE.MathUtils.clamp(speed * 0.08, 0, 0.35);
                 b.shadow.scale.setScalar(spread);
                 b.shadow.material.opacity = THREE.MathUtils.clamp(
-                  BALL_SHADOW_OPACITY + 0.12,
+                  BALL_SHADOW_OPACITY + 0.08,
                   0,
                   1
                 );
