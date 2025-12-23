@@ -93,24 +93,22 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
     socket: mockSocket
   };
 
-    await runPoolRoyaleOnlineFlow({
-      stake: { token: 'TPC', amount: 100 },
-      variant: 'uk',
-      ballSet: 'uk',
-      playType: 'regular',
-      mode: 'online',
-      tableSize: 'medium',
-      avatar: 'me.png',
-      deps,
-      state,
-      refs,
-      timeouts: { seat: 50, matchmaking: 200 },
-      onGameStart: (payload) => started.push(payload)
-    });
+  await runPoolRoyaleOnlineFlow({
+    stake: { token: 'TPC', amount: 100 },
+    variant: 'uk',
+    playType: 'regular',
+    mode: 'online',
+    tableSize: 'medium',
+    avatar: 'me.png',
+    deps,
+    state,
+    refs,
+    timeouts: { seat: 50, matchmaking: 200 },
+    onGameStart: (payload) => started.push(payload)
+  });
 
-    assert.equal(mockSocket.seatRequests.length, 1);
-    assert.equal(mockSocket.seatRequests[0].payload.ballSet, 'uk');
-    const seatCb = mockSocket.seatRequests[0].cb;
+  assert.equal(mockSocket.seatRequests.length, 1);
+  const seatCb = mockSocket.seatRequests[0].cb;
   seatCb({
     success: true,
     tableId: 'tbl-1',
@@ -160,7 +158,6 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
   await runPoolRoyaleOnlineFlow({
     stake: { token: 'TPC', amount: 75 },
     variant: 'uk',
-    ballSet: 'uk',
     playType: 'regular',
     mode: 'online',
     tableSize: 'medium',
