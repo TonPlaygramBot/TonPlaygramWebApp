@@ -93,17 +93,9 @@ export default function TasksCard() {
 
   const load = async () => {
     const data = await listTasks(telegramId);
-    if (data?.error) {
-      console.error('Failed to load tasks:', data.error);
-    }
-    const taskList = Array.isArray(data?.tasks)
-      ? data.tasks
-      : Array.isArray(data)
-        ? data
-        : [];
-    const tasksList = taskList.filter((t) => !t.hideOnHome);
+    const tasksList = (data.tasks || data).filter((t) => !t.hideOnHome);
     setTasks(tasksList);
-    if (data?.version) {
+    if (data.version) {
       const seen = localStorage.getItem('tasksVersion');
       if (seen !== String(data.version)) {
         setShowNew(true);
