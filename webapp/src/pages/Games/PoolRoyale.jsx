@@ -1395,6 +1395,21 @@ function resolvePoolVariant(variantId) {
   return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
 }
 
+function resolvePoolBallSet(variantId, ballSetId) {
+  const base = resolvePoolVariant(variantId);
+  const ballSetKey = normalizeVariantKey(ballSetId);
+  if (base.id === 'uk' && ballSetKey === 'american') {
+    const american = POOL_VARIANT_COLOR_SETS.american;
+    return {
+      ...base,
+      objectColors: american.objectColors,
+      objectNumbers: american.objectNumbers,
+      objectPatterns: american.objectPatterns
+    };
+  }
+  return base;
+}
+
 function deriveInHandFromFrame(frame) {
   const meta = frame && typeof frame === 'object' ? frame.meta : null;
   if (!meta || typeof meta !== 'object') return false;
@@ -8427,6 +8442,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 function PoolRoyaleGame({
   variantKey,
+  ballSetKey,
   tableSizeKey,
   playType = 'regular',
   mode = 'ai',
@@ -8446,8 +8462,8 @@ function PoolRoyaleGame({
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
-    () => resolvePoolVariant(variantKey),
-    [variantKey]
+    () => resolvePoolBallSet(variantKey, ballSetKey),
+    [ballSetKey, variantKey]
   );
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
@@ -18841,6 +18857,14 @@ export default function PoolRoyale() {
     const requested = params.get('variant');
     return resolvePoolVariant(requested).id;
   }, [location.search]);
+  const ballSetKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('ballSet');
+    const normalized = normalizeVariantKey(requested);
+    if (variantKey !== 'uk') return variantKey;
+    if (normalized === 'american') return 'american';
+    return 'uk';
+  }, [location.search, variantKey]);
   const tableSizeKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableSize');
@@ -18967,6 +18991,7 @@ export default function PoolRoyale() {
   return (
     <PoolRoyaleGame
       variantKey={variantKey}
+      ballSetKey={ballSetKey}
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}
