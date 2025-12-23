@@ -6023,6 +6023,7 @@ function Table3D(
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
+  cloth.castShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   const stoneTopY = clothBottomY - STONE_PLATE_GAP - STONE_PLATE_EXTRA_DROP;
@@ -13757,36 +13758,37 @@ function PoolRoyaleGame({
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 4.6;
         const lightOffsetX = Math.max(PLAY_W * 0.18, TABLE.THICK * 2.8);
         const lightOffsetZ = Math.max(PLAY_H * 0.12, TABLE.THICK * 2.2);
-        const shadowHalfSpan = Math.max(PLAY_W, PLAY_H) * 0.65;
-        const targetY = tableSurfaceY + TABLE.THICK * 0.24;
+        const shadowHalfSpan = Math.max(PLAY_W, PLAY_H) * 0.72;
+        const targetY = BALL_CENTER_Y;
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.22);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.6);
-        key.position.set(lightOffsetX * 0.9, lightRigHeight, lightOffsetZ * 0.9);
+        key.position.set(lightOffsetX * 0.42, lightRigHeight * 1.05, lightOffsetZ * 0.38);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
         key.shadow.camera.near = 0.1;
-        key.shadow.camera.far = shadowHalfSpan * 2.4;
+        key.shadow.camera.far = shadowHalfSpan * 2.6;
         key.shadow.camera.left = -shadowHalfSpan;
         key.shadow.camera.right = shadowHalfSpan;
         key.shadow.camera.top = shadowHalfSpan;
         key.shadow.camera.bottom = -shadowHalfSpan;
-        key.shadow.bias = -0.00005;
-        key.shadow.normalBias = 0.0012;
+        key.shadow.bias = -0.00008;
+        key.shadow.normalBias = 0.0008;
+        key.shadow.radius = 3.2;
         lightingRig.add(key);
         lightingRig.add(key.target);
 
         const fill = new THREE.DirectionalLight(0xffffff, 0.75);
-        fill.position.set(-lightOffsetX * 0.86, lightRigHeight * 0.86, lightOffsetZ * 0.6);
+        fill.position.set(-lightOffsetX * 0.48, lightRigHeight * 0.96, lightOffsetZ * 0.4);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.55);
-        rim.position.set(0, lightRigHeight * 0.92, -lightOffsetZ * 1.35);
+        rim.position.set(0, lightRigHeight * 1.02, -lightOffsetZ * 0.85);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
