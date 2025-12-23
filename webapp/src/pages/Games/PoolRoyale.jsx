@@ -6079,7 +6079,25 @@ function Table3D(
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
-    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
+    const plywoodHalfW = Math.max(MICRO_EPS, halfWext + PLYWOOD_OUTSET);
+    const plywoodHalfH = Math.max(MICRO_EPS, halfHext + PLYWOOD_OUTSET);
+
+    const plywoodShape = new THREE.Shape();
+    plywoodShape.moveTo(-plywoodHalfW, -plywoodHalfH);
+    plywoodShape.lineTo(plywoodHalfW, -plywoodHalfH);
+    plywoodShape.lineTo(plywoodHalfW, plywoodHalfH);
+    plywoodShape.lineTo(-plywoodHalfW, plywoodHalfH);
+    plywoodShape.lineTo(-plywoodHalfW, -plywoodHalfH);
+
+    pocketPositions.forEach((p, index) => {
+      const isSidePocket = index >= 4;
+      const radius = plywoodHoleRadius * (isSidePocket ? sideRadiusScale : 1);
+      const hole = new THREE.Path();
+      hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
+      hole.autoClose = true;
+      plywoodShape.holes.push(hole);
+    });
+
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
@@ -6087,6 +6105,7 @@ function Table3D(
       steps: 1
     });
     plywoodGeo.translate(0, 0, -plywoodDepth);
+    plywoodGeo.computeVertexNormals();
     const plywoodMat = frameMat.clone();
     plywoodMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
     plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
@@ -13768,11 +13787,11 @@ function PoolRoyaleGame({
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.26);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.6);
-        key.position.set(lightOffsetX * 0.2, lightRigHeight, lightOffsetZ * 0.16);
+        const key = new THREE.DirectionalLight(0xffffff, 1.8);
+        key.position.set(lightOffsetX * 0.26, lightRigHeight, lightOffsetZ * 0.22);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
@@ -13788,14 +13807,14 @@ function PoolRoyaleGame({
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.75);
-        fill.position.set(-lightOffsetX * 0.18, lightRigHeight * 0.96, lightOffsetZ * 0.18);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.86);
+        fill.position.set(-lightOffsetX * 0.24, lightRigHeight * 0.98, lightOffsetZ * 0.24);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.55);
-        rim.position.set(0, lightRigHeight * 1.02, -lightOffsetZ * 0.3);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.65);
+        rim.position.set(0, lightRigHeight * 1.08, -lightOffsetZ * 0.36);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
