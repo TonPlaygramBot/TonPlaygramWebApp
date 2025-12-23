@@ -990,10 +990,15 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
+const PLYWOOD_DIMENSIONS_MM = Object.freeze({
+  width: 2438.4,
+  height: 1219.2,
+  thickness: 18,
+  holeRadius: 76.2
+});
+const PLYWOOD_THICKNESS = PLYWOOD_DIMENSIONS_MM.thickness * MM_TO_UNITS; // use the real-world 18mm ply board thickness
 const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
 const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
-const PLYWOOD_OUTSET = TABLE.THICK * 0.16; // widen the plywood slab so every edge reads as a single, unbroken piece
 const PLYWOOD_HOLE_SCALE = 1.05; // cut plywood apertures 5% larger than the pocket holes to keep the pockets untouched
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
@@ -6079,21 +6084,39 @@ function Table3D(
 
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
-    const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
-    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
-    const plywoodShapes = Array.isArray(plywoodShape) ? plywoodShape : [plywoodShape];
-    const plywoodExtrusions = plywoodShapes.map((shape) => {
-      const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: plywoodDepth,
-        bevelEnabled: false,
-        curveSegments: 96,
-        steps: 1
-      });
-      geometry.translate(0, 0, -plywoodDepth);
-      return geometry;
+    const plywoodHoleRadius =
+      PLYWOOD_DIMENSIONS_MM.holeRadius * MM_TO_UNITS * PLYWOOD_HOLE_SCALE;
+    const plywoodWidth = PLYWOOD_DIMENSIONS_MM.width * MM_TO_UNITS;
+    const plywoodHeight = PLYWOOD_DIMENSIONS_MM.height * MM_TO_UNITS;
+
+    const plywoodShape = new THREE.Shape();
+    const halfPlyW = plywoodWidth / 2;
+    const halfPlyH = plywoodHeight / 2;
+    plywoodShape.moveTo(-halfPlyW, -halfPlyH);
+    plywoodShape.lineTo(halfPlyW, -halfPlyH);
+    plywoodShape.lineTo(halfPlyW, halfPlyH);
+    plywoodShape.lineTo(-halfPlyW, halfPlyH);
+    plywoodShape.closePath();
+
+    const plywoodCols = 3;
+    const plywoodRows = 2;
+    for (let row = 0; row < plywoodRows; row++) {
+      for (let col = 0; col < plywoodCols; col++) {
+        const cx = (col - (plywoodCols - 1) / 2) * (plywoodWidth / plywoodCols);
+        const cy = (row === 0 ? 1 : -1) * (plywoodHeight / 4);
+        const hole = new THREE.Path();
+        hole.absarc(cx, cy, plywoodHoleRadius, 0, Math.PI * 2, false);
+        plywoodShape.holes.push(hole);
+      }
+    }
+
+    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
+      depth: plywoodDepth,
+      bevelEnabled: false,
+      curveSegments: 96,
+      steps: 1
     });
-    const plywoodGeo = BufferGeometryUtils.mergeGeometries(plywoodExtrusions, true) ??
-      plywoodExtrusions[0];
+    plywoodGeo.translate(0, 0, -plywoodDepth);
     const plywoodMat = frameMat.clone();
     plywoodMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
     plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
