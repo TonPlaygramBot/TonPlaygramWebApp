@@ -975,7 +975,6 @@ const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
-const LAYERS = Object.freeze({ default: 0, ballShadow: 1 });
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
@@ -5384,7 +5383,6 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
-  mesh.layers.set(LAYERS.ballShadow);
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
@@ -6025,7 +6023,6 @@ function Table3D(
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
   cloth.receiveShadow = true;
-  cloth.layers.enable(LAYERS.ballShadow);
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
   const stoneTopY = clothBottomY - STONE_PLATE_GAP - STONE_PLATE_EXTRA_DROP;
@@ -6039,7 +6036,6 @@ function Table3D(
     pocketEdgeStopY
   );
   finishParts.clothEdgeMeshes.push(...pocketCutStripes);
-  pocketCutStripes.forEach((stripe) => stripe.layers.enable(LAYERS.ballShadow));
   // Leave the pocket apertures completely open so the pocket geometry remains visible.
   const clothEdgeTopY = cloth.position.y - MICRO_EPS;
   const clothEdgeBottomY = clothBottomY - MICRO_EPS;
@@ -9567,16 +9563,11 @@ function PoolRoyaleGame({
         key,
         fill,
         rim,
-        ambient,
-        ballShadowKey
+        ambient
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
-      if (settings.keyColor && ballShadowKey)
-        ballShadowKey.color.set(settings.keyColor);
       if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
-      if (settings.keyIntensity && ballShadowKey)
-        ballShadowKey.intensity = settings.keyIntensity;
       if (settings.fillColor && fill) fill.color.set(settings.fillColor);
       if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
@@ -11250,7 +11241,6 @@ function PoolRoyaleGame({
         CAMERA.near,
         CAMERA.far
       );
-      camera.layers.enable(LAYERS.ballShadow);
       const zoomProfile = resolveCameraZoomProfile(aspect);
       const standingPhi = THREE.MathUtils.clamp(
         STANDING_VIEW.phi,
@@ -11287,7 +11277,6 @@ function PoolRoyaleGame({
               CAMERA.far
             );
             pocketCamera.up.set(0, 1, 0);
-            pocketCamera.layers.enable(LAYERS.ballShadow);
             entry = { camera: pocketCamera, center: center?.clone() ?? null };
             pocketCamerasRef.current.set(id, entry);
           } else if (entry.camera.aspect !== aspect) {
@@ -13774,7 +13763,6 @@ function PoolRoyaleGame({
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.22);
-        ambient.layers.enable(LAYERS.ballShadow);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.6);
@@ -13793,34 +13781,15 @@ function PoolRoyaleGame({
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const ballShadowKey = new THREE.DirectionalLight(0xffffff, key.intensity);
-        ballShadowKey.position.copy(key.position);
-        ballShadowKey.target.position.copy(key.target.position);
-        ballShadowKey.castShadow = true;
-        ballShadowKey.shadow.mapSize.set(2048, 2048);
-        ballShadowKey.shadow.camera.near = 0.1;
-        ballShadowKey.shadow.camera.far = shadowDepth;
-        ballShadowKey.shadow.camera.left = -shadowHalfSpan;
-        ballShadowKey.shadow.camera.right = shadowHalfSpan;
-        ballShadowKey.shadow.camera.top = shadowHalfSpan;
-        ballShadowKey.shadow.camera.bottom = -shadowHalfSpan;
-        ballShadowKey.shadow.bias = key.shadow.bias;
-        ballShadowKey.shadow.normalBias = key.shadow.normalBias;
-        ballShadowKey.layers.set(LAYERS.ballShadow);
-        lightingRig.add(ballShadowKey);
-        lightingRig.add(ballShadowKey.target);
-
         const fill = new THREE.DirectionalLight(0xffffff, 0.75);
         fill.position.set(-lightOffsetX * 0.22, lightRigHeight * 0.94, lightOffsetZ * 0.2);
         fill.target.position.set(0, targetY, 0);
-        fill.layers.enable(LAYERS.ballShadow);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.55);
         rim.position.set(0, lightRigHeight * 0.98, -lightOffsetZ * 0.32);
         rim.target.position.set(0, targetY, 0);
-        rim.layers.enable(LAYERS.ballShadow);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
@@ -13829,8 +13798,7 @@ function PoolRoyaleGame({
           key,
           fill,
           rim,
-          ambient,
-          ballShadowKey
+          ambient
         };
         applyLightingPreset();
       };
