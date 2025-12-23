@@ -13785,7 +13785,7 @@ function PoolRoyaleGame({
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
         const lightOffsetX = Math.max(PLAY_W * 0.2, TABLE.THICK * 3.8);
         const lightOffsetZ = Math.max(PLAY_H * 0.18, TABLE.THICK * 3.6);
-        const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 1.8;
+        const shadowHalfSpan = Math.max(roomWidth, roomDepth) * 0.65 + TABLE.THICK * 3.2;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
