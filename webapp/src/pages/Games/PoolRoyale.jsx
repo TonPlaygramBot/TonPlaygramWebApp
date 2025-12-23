@@ -993,7 +993,9 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cu
 const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
 const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
 const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
-const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // natural plywood tone kept unpainted for the replacement slab
+const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
+const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
+const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -6220,13 +6222,15 @@ function Table3D(
   });
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
+    const underlaySurface =
+      mesh.userData?.baseMaterialKey === 'frame' ? initialFrameSurface : orientedRailSurface;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(
-        orientedRailSurface.repeat.x,
-        orientedRailSurface.repeat.y
+        underlaySurface.repeat.x,
+        underlaySurface.repeat.y
       ),
-      rotation: orientedRailSurface.rotation,
-      textureSize: orientedRailSurface.textureSize,
+      rotation: underlaySurface.rotation,
+      textureSize: underlaySurface.textureSize,
       woodRepeatScale
     });
     mesh.material.needsUpdate = true;
@@ -7942,38 +7946,28 @@ function Table3D(
   finishParts.frameMeshes.push(skirt);
 
   if (plywoodDepth > MICRO_EPS) {
-    const plywoodWidth = Math.max(MICRO_EPS, (frameOuterX + baseOverhang) * 2);
-    const plywoodLength = Math.max(MICRO_EPS, (frameOuterZ + baseOverhang) * 2);
-    const plywoodGeo = new THREE.BoxGeometry(plywoodWidth, plywoodDepth, plywoodLength);
-    const naturalPlywoodMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(PLYWOOD_SURFACE_COLOR),
-      roughness: 0.9,
-      metalness: 0.04,
-      side: THREE.DoubleSide,
-      shadowSide: THREE.DoubleSide
+    const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, -baseOverhang);
+    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
+      depth: plywoodDepth,
+      bevelEnabled: false,
+      curveSegments: 96,
+      steps: 1
     });
-    const plywoodEdgeMat = frameMat.clone();
-    plywoodEdgeMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
-    plywoodEdgeMat.side = THREE.DoubleSide;
-    plywoodEdgeMat.shadowSide = THREE.DoubleSide;
-    const plywoodPlate = new THREE.Mesh(
-      plywoodGeo,
-      [
-        plywoodEdgeMat,
-        plywoodEdgeMat,
-        naturalPlywoodMat,
-        naturalPlywoodMat,
-        plywoodEdgeMat,
-        plywoodEdgeMat
-      ]
-    );
-    plywoodPlate.position.y = plywoodTopY - plywoodDepth / 2;
+    plywoodGeo.translate(0, 0, -plywoodDepth);
+    const plywoodMat = railMat.clone();
+    plywoodMat.color = railMat.color?.clone() ?? new THREE.Color(PLYWOOD_SURFACE_COLOR);
+    plywoodMat.side = THREE.DoubleSide;
+    plywoodMat.shadowSide = THREE.DoubleSide;
+    plywoodMat.needsUpdate = true;
+    const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
+    plywoodPlate.rotation.x = -Math.PI / 2;
+    plywoodPlate.position.y = plywoodTopY;
     plywoodPlate.receiveShadow = true;
     plywoodPlate.castShadow = true;
     plywoodPlate.renderOrder = cloth.renderOrder - 0.25;
     plywoodPlate.userData = {
       ...(plywoodPlate.userData || {}),
-      skipWoodTexture: true
+      baseMaterialKey: 'rail'
     };
     table.add(plywoodPlate);
     finishParts.underlayMeshes.push(plywoodPlate);
@@ -8032,7 +8026,11 @@ function Table3D(
 
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-    applyWoodTextureToMaterial(mesh.material, alignedRailSurface);
+    const underlaySurface =
+      mesh.userData?.baseMaterialKey === 'frame'
+        ? synchronizedWoodSurface
+        : alignedRailSurface;
+    applyWoodTextureToMaterial(mesh.material, underlaySurface);
     mesh.material.needsUpdate = true;
   });
 
@@ -8235,16 +8233,6 @@ function applyTableFinishToTable(table, finish) {
       textureSize: orientedNextRailSurface.textureSize,
       woodRepeatScale
     };
-
-    applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
-    finishInfo.parts.underlayMeshes.forEach((mesh) => {
-      if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-      applyWoodTextureToMaterial(mesh.material, synchronizedRailSurface);
-      if (mesh.material.color && railMat.color) {
-        mesh.material.color.copy(railMat.color);
-      }
-      mesh.material.needsUpdate = true;
-    });
     const synchronizedFrameSurface = {
       repeat: new THREE.Vector2(nextFrameSurface.repeat.x, nextFrameSurface.repeat.y),
       rotation: nextFrameSurface.rotation,
@@ -8252,7 +8240,28 @@ function applyTableFinishToTable(table, finish) {
       woodRepeatScale
     };
 
+    applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
     applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
+    finishInfo.parts.underlayMeshes.forEach((mesh) => {
+      if (!mesh) return;
+      const baseMaterialKey = mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
+      const sourceMaterial = baseMaterialKey === 'frame' ? frameMat : railMat;
+      if (sourceMaterial) {
+        const nextMaterial = sourceMaterial.clone();
+        nextMaterial.side = mesh.material?.side ?? THREE.DoubleSide;
+        nextMaterial.shadowSide = mesh.material?.shadowSide ?? THREE.DoubleSide;
+        disposeMaterial(mesh.material);
+        mesh.material = nextMaterial;
+      }
+      if (!mesh.material || mesh.userData?.skipWoodTexture) return;
+      const underlaySurface =
+        baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
+      applyWoodTextureToMaterial(mesh.material, underlaySurface);
+      if (mesh.material.color && sourceMaterial?.color) {
+        mesh.material.color.copy(sourceMaterial.color);
+      }
+      mesh.material.needsUpdate = true;
+    });
     if (legMat !== frameMat) {
       applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
     }
@@ -13774,9 +13783,9 @@ function PoolRoyaleGame({
         world.add(lightingRig);
 
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
-        const lightOffsetX = Math.max(PLAY_W * 0.18, TABLE.THICK * 3.6);
-        const lightOffsetZ = Math.max(PLAY_H * 0.16, TABLE.THICK * 3.4);
-        const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 0.5;
+        const lightOffsetX = Math.max(PLAY_W * 0.2, TABLE.THICK * 3.8);
+        const lightOffsetZ = Math.max(PLAY_H * 0.18, TABLE.THICK * 3.6);
+        const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 1.8;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
@@ -13788,7 +13797,7 @@ function PoolRoyaleGame({
         key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
-        key.shadow.mapSize.set(2048, 2048);
+        key.shadow.mapSize.set(4096, 4096);
         key.shadow.camera.near = 0.1;
         key.shadow.camera.far = shadowDepth;
         key.shadow.camera.left = -shadowHalfSpan;
