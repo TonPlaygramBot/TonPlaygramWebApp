@@ -989,10 +989,10 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const PLYWOOD_THICKNESS = TABLE.THICK * 0.18; // add a full plywood bed under the cloth with the same footprint as the table
-const PLYWOOD_GAP = TABLE.THICK * 0.04; // leave a subtle clearance between the cloth wrap and the plywood surface
-const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.32; // sink the plywood bed far enough to meet the pocket bowls and read in shadow
-const PLYWOOD_OUTSET = TABLE.THICK * 0.12; // widen the plywood slab so every edge reads as a single, unbroken piece
+const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
+const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
+const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
+const PLYWOOD_OUTSET = TABLE.THICK * 0.16; // widen the plywood slab so every edge reads as a single, unbroken piece
 const PLYWOOD_HOLE_SCALE = 1.05; // cut plywood apertures 5% larger than the pocket holes to keep the pockets untouched
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
@@ -6092,6 +6092,7 @@ function Table3D(
     plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
     plywoodMat.metalness = Math.min(plywoodMat.metalness ?? 0.12, 0.18);
     plywoodMat.side = THREE.DoubleSide;
+    plywoodMat.shadowSide = THREE.DoubleSide;
     const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
     plywoodPlate.rotation.x = -Math.PI / 2;
     plywoodPlate.position.y = plywoodTopY;
@@ -13760,19 +13761,19 @@ function PoolRoyaleGame({
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.6;
-        const lightOffsetX = Math.max(PLAY_W * 0.16, TABLE.THICK * 3.2);
-        const lightOffsetZ = Math.max(PLAY_H * 0.14, TABLE.THICK * 3.0);
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
+        const lightOffsetX = Math.max(PLAY_W * 0.18, TABLE.THICK * 3.6);
+        const lightOffsetZ = Math.max(PLAY_H * 0.16, TABLE.THICK * 3.4);
         const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 0.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.27);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.6);
-        key.position.set(lightOffsetX * 0.2, lightRigHeight, lightOffsetZ * 0.16);
+        const key = new THREE.DirectionalLight(0xffffff, 1.7);
+        key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
@@ -13782,20 +13783,20 @@ function PoolRoyaleGame({
         key.shadow.camera.right = shadowHalfSpan;
         key.shadow.camera.top = shadowHalfSpan;
         key.shadow.camera.bottom = -shadowHalfSpan;
-        key.shadow.bias = -0.00008;
-        key.shadow.normalBias = 0.0008;
+        key.shadow.bias = -0.00006;
+        key.shadow.normalBias = 0.0006;
         key.shadow.camera.updateProjectionMatrix();
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.75);
-        fill.position.set(-lightOffsetX * 0.18, lightRigHeight * 0.96, lightOffsetZ * 0.18);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.82);
+        fill.position.set(-lightOffsetX * 0.32, lightRigHeight * 0.98, lightOffsetZ * 0.24);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.55);
-        rim.position.set(0, lightRigHeight * 1.02, -lightOffsetZ * 0.3);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.62);
+        rim.position.set(0, lightRigHeight * 1.04, -lightOffsetZ * 0.34);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
