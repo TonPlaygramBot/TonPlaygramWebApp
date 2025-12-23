@@ -6080,27 +6080,32 @@ function Table3D(
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
     const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
-    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
-      depth: plywoodDepth,
-      bevelEnabled: false,
-      curveSegments: 96,
-      steps: 1
-    });
-    plywoodGeo.translate(0, 0, -plywoodDepth);
+    const plywoodShapes = Array.isArray(plywoodShape) ? plywoodShape : [plywoodShape];
     const plywoodMat = frameMat.clone();
     plywoodMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
     plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
     plywoodMat.metalness = Math.min(plywoodMat.metalness ?? 0.12, 0.18);
     plywoodMat.side = THREE.DoubleSide;
     plywoodMat.shadowSide = THREE.DoubleSide;
-    const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
-    plywoodPlate.rotation.x = -Math.PI / 2;
-    plywoodPlate.position.y = plywoodTopY;
-    plywoodPlate.receiveShadow = true;
-    plywoodPlate.castShadow = true;
-    plywoodPlate.renderOrder = cloth.renderOrder - 0.25;
-    table.add(plywoodPlate);
-    finishParts.underlayMeshes.push(plywoodPlate);
+    plywoodShapes
+      .filter(Boolean)
+      .forEach((shape) => {
+        const plywoodGeo = new THREE.ExtrudeGeometry(shape, {
+          depth: plywoodDepth,
+          bevelEnabled: false,
+          curveSegments: 96,
+          steps: 1
+        });
+        plywoodGeo.translate(0, 0, -plywoodDepth);
+        const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
+        plywoodPlate.rotation.x = -Math.PI / 2;
+        plywoodPlate.position.y = plywoodTopY;
+        plywoodPlate.receiveShadow = true;
+        plywoodPlate.castShadow = true;
+        plywoodPlate.renderOrder = cloth.renderOrder - 0.25;
+        table.add(plywoodPlate);
+        finishParts.underlayMeshes.push(plywoodPlate);
+      });
   }
 
   const markingsGroup = new THREE.Group();
