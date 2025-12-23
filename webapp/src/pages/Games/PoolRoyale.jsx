@@ -6080,42 +6080,12 @@ function Table3D(
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
     const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
-    const plywoodShapes = (() => {
-      const shapes = Array.isArray(plywoodShape)
-        ? plywoodShape.filter(Boolean)
-        : plywoodShape
-          ? [plywoodShape]
-          : [];
-      if (shapes.length) {
-        return shapes;
-      }
-
-      const insetHalfW = Math.max(MICRO_EPS, halfWext + PLYWOOD_OUTSET);
-      const insetHalfH = Math.max(MICRO_EPS, halfHext + PLYWOOD_OUTSET);
-      const fallback = new THREE.Shape();
-      fallback.moveTo(-insetHalfW, -insetHalfH);
-      fallback.lineTo(insetHalfW, -insetHalfH);
-      fallback.lineTo(insetHalfW, insetHalfH);
-      fallback.lineTo(-insetHalfW, insetHalfH);
-      fallback.lineTo(-insetHalfW, -insetHalfH);
-      pocketPositions.forEach((center, index) => {
-        const isSidePocket = index >= 4;
-        const radius = isSidePocket ? plywoodHoleRadius * sideRadiusScale : plywoodHoleRadius;
-        const hole = new THREE.Path();
-        hole.absarc(center.x, center.y, radius, 0, Math.PI * 2, true);
-        fallback.holes.push(hole);
-      });
-
-      return [fallback];
-    })();
-
-    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShapes, {
+    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
       curveSegments: 96,
       steps: 1
     });
-    plywoodGeo.computeVertexNormals();
     plywoodGeo.translate(0, 0, -plywoodDepth);
     const plywoodMat = frameMat.clone();
     plywoodMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
