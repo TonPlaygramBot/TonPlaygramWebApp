@@ -1055,6 +1055,94 @@ const CHESS_ARENA = Object.freeze({
   depth: (SNOOKER_ROOM_DEPTH * SNOOKER_WORLD_SCALE) / 2
 });
 
+const POOL_ROYALE_LIGHTING = Object.freeze({
+  keyColor: 0xf6f8ff,
+  keyIntensity: 1.72,
+  fillColor: 0xf6f8ff,
+  fillIntensity: 0.9,
+  rimColor: 0xffffff,
+  rimIntensity: 0.64,
+  ambientIntensity: 0.22
+});
+
+function createPoolRoyaleLightingRig({
+  scene,
+  tableSurfaceY,
+  roomWidth,
+  roomDepth,
+  target
+}) {
+  const lightingRig = new THREE.Group();
+  scene.add(lightingRig);
+
+  const lightRigHeight = tableSurfaceY + TABLE_HEIGHT * 5.8;
+  const lightOffsetX = Math.max(roomWidth * 0.18, TABLE_RADIUS * 1.6);
+  const lightOffsetZ = Math.max(roomDepth * 0.16, TABLE_RADIUS * 1.4);
+  const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE_RADIUS * 0.5;
+  const targetY = target?.y ?? tableSurfaceY + TABLE_HEIGHT * 0.25;
+  const shadowDepth = lightRigHeight + Math.abs(targetY) + TABLE_HEIGHT * 12;
+
+  const ambient = new THREE.AmbientLight(0xffffff, POOL_ROYALE_LIGHTING.ambientIntensity);
+  lightingRig.add(ambient);
+
+  const key = new THREE.DirectionalLight(
+    POOL_ROYALE_LIGHTING.keyColor,
+    POOL_ROYALE_LIGHTING.keyIntensity
+  );
+  key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
+  key.target.position.set(0, targetY, 0);
+  key.castShadow = true;
+  key.shadow.mapSize.set(2048, 2048);
+  key.shadow.camera.near = 0.1;
+  key.shadow.camera.far = shadowDepth;
+  key.shadow.camera.left = -shadowHalfSpan;
+  key.shadow.camera.right = shadowHalfSpan;
+  key.shadow.camera.top = shadowHalfSpan;
+  key.shadow.camera.bottom = -shadowHalfSpan;
+  key.shadow.bias = -0.00006;
+  key.shadow.normalBias = 0.0006;
+  key.shadow.camera.updateProjectionMatrix();
+  lightingRig.add(key);
+  lightingRig.add(key.target);
+
+  const fill = new THREE.DirectionalLight(
+    POOL_ROYALE_LIGHTING.fillColor,
+    POOL_ROYALE_LIGHTING.fillIntensity
+  );
+  fill.position.set(-lightOffsetX * 0.32, lightRigHeight * 0.98, lightOffsetZ * 0.24);
+  fill.target.position.set(0, targetY, 0);
+  lightingRig.add(fill);
+  lightingRig.add(fill.target);
+
+  const rim = new THREE.DirectionalLight(
+    POOL_ROYALE_LIGHTING.rimColor,
+    POOL_ROYALE_LIGHTING.rimIntensity
+  );
+  rim.position.set(0, lightRigHeight * 1.04, -lightOffsetZ * 0.34);
+  rim.target.position.set(0, targetY, 0);
+  lightingRig.add(rim);
+  lightingRig.add(rim.target);
+
+  const updateTarget = (nextTarget = target) => {
+    if (!nextTarget) return;
+    const { x, y, z } = nextTarget;
+    if (key?.target) {
+      key.target.position.set(x, y, z);
+      key.target.updateMatrixWorld();
+    }
+    if (fill?.target) {
+      fill.target.position.set(x, y, z);
+      fill.target.updateMatrixWorld();
+    }
+    if (rim?.target) {
+      rim.target.position.set(x, y, z);
+      rim.target.updateMatrixWorld();
+    }
+  };
+
+  return { group: lightingRig, ambient, key, fill, rim, updateTarget };
+}
+
 const CAMERA_BASE_RADIUS = Math.max(TABLE_RADIUS, BOARD_DISPLAY_SIZE / 2);
 const cameraPhiMin = clamp(
   ARENA_CAMERA_DEFAULTS.phiMin + CAMERA_PHI_OFFSET - CAMERA_TOPDOWN_EXTRA,
@@ -5964,8 +6052,7 @@ function Chess3D({
             : nextTable.surfaceY + (BOARD.baseH + 0.12) * BOARD_SCALE;
           arena.boardLookTarget.set(0, targetY, 0);
         }
-        arena.spotTarget?.position.copy(arena.boardLookTarget ?? new THREE.Vector3());
-        arena.spotLight?.target?.updateMatrixWorld?.();
+        arena.lightingRig?.updateTarget?.(arena.boardLookTarget ?? new THREE.Vector3());
         arena.studioCameras?.forEach((cam) => cam?.lookAt?.(arena.boardLookTarget ?? new THREE.Vector3()));
         arena.controls?.target.copy(arena.boardLookTarget ?? new THREE.Vector3());
         arena.controls?.update();
@@ -6127,6 +6214,7 @@ function Chess3D({
     let stopCameraTween = () => {};
     let onResize = null;
     let onClick = null;
+    let lightingRig = null;
 
     const clearLaughTimeout = () => {
       if (laughTimeoutRef.current) {
@@ -6243,29 +6331,6 @@ function Chess3D({
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0b0f16);
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.35);
-    scene.add(ambient);
-
-    const key = new THREE.DirectionalLight(0xffffff, 1.2);
-    key.position.set(6, 8, 5);
-    key.castShadow = true;
-    scene.add(key);
-
-    const fill = new THREE.DirectionalLight(0xffffff, 0.65);
-    fill.position.set(-5, 5.5, 3);
-    scene.add(fill);
-
-    const rim = new THREE.DirectionalLight(0xffffff, 0.9);
-    rim.position.set(0, 6, -6);
-    scene.add(rim);
-
-    const spot = new THREE.SpotLight(0xffffff, 0.8, 0, Math.PI / 4, 0.35, 1.1);
-    spot.position.set(0, 4.2, 4.6);
-    scene.add(spot);
-    const spotTarget = new THREE.Object3D();
-    scene.add(spotTarget);
-    spot.target = spotTarget;
-
     const arena = new THREE.Group();
     scene.add(arena);
 
@@ -6276,6 +6341,8 @@ function Chess3D({
     const halfRoomZ = (arenaHalfDepth - wallInset) * WALL_PROXIMITY_FACTOR;
     const roomHalfWidth = halfRoomX + wallInset;
     const roomHalfDepth = halfRoomZ + wallInset;
+    const roomWidth = roomHalfWidth * 2;
+    const roomDepth = roomHalfDepth * 2;
 
     const floor = new THREE.Mesh(
       new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
@@ -6505,8 +6572,18 @@ function Chess3D({
       boardGroup.position.y + (BOARD.baseH + 0.12) * BOARD_SCALE,
       0
     );
-    spotTarget.position.copy(boardLookTarget);
-    spot.target.updateMatrixWorld();
+    lightingRig = createPoolRoyaleLightingRig({
+      scene,
+      tableSurfaceY,
+      roomWidth,
+      roomDepth,
+      target: boardLookTarget
+    });
+    if (lightingRig?.group) {
+      disposers.push(() => {
+        lightingRig.group.removeFromParent();
+      });
+    }
     studioCamA.lookAt(boardLookTarget);
     studioCamB.lookAt(boardLookTarget);
 
@@ -7291,8 +7368,7 @@ function Chess3D({
         chairs,
         seatAnchors: chairs.map((chair) => chair.anchor),
         sandTimer,
-        spotLight: spot,
-        spotTarget,
+        lightingRig,
         studioCameras: [studioCamA, studioCamB],
         boardMaterials: arena.boardMaterials,
         pieceMaterials,
@@ -7316,6 +7392,7 @@ function Chess3D({
       arena.palette = palette;
       arena.playerFlag = initialPlayerFlag;
       arena.aiFlag = initialAiFlagValue;
+      arena.lightingRig = lightingRig;
 
     // Raycaster for picking
     ray = new THREE.Raycaster();
