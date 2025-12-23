@@ -18,7 +18,17 @@ export default function DevTasksModal({ open, onClose }) {
 
   const load = async () => {
     const data = await adminListTasks();
-    if (!data.error) setTasks(data.tasks || data);
+    if (data?.error) {
+      console.error('Failed to load tasks:', data.error);
+      setTasks([]);
+      return;
+    }
+    const taskList = Array.isArray(data?.tasks)
+      ? data.tasks
+      : Array.isArray(data)
+        ? data
+        : [];
+    setTasks(taskList);
   };
 
   useEffect(() => {

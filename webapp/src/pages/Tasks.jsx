@@ -74,9 +74,16 @@ export default function Tasks() {
 
   const load = async () => {
     const data = await listTasks(telegramId);
-    const tasksList = data.tasks || data;
+    if (data?.error) {
+      console.error('Failed to load tasks:', data.error);
+    }
+    const tasksList = Array.isArray(data?.tasks)
+      ? data.tasks
+      : Array.isArray(data)
+        ? data
+        : [];
     setTasks(tasksList);
-    if (data.version) {
+    if (data?.version) {
       const seen = localStorage.getItem('tasksVersion');
       if (seen !== String(data.version)) {
         setShowNew(true);
