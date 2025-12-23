@@ -899,6 +899,9 @@ const BALL_SIZE_SCALE = 0.94248; // 5% larger than the last Pool Royale build (1
 const BALL_DIAMETER = BALL_D_REF * MM_TO_UNITS * BALL_SIZE_SCALE;
 const BALL_SCALE = BALL_DIAMETER / 4;
 const BALL_R = BALL_DIAMETER / 2;
+const BALL_SHADOW_RADIUS_MULTIPLIER = 1.4;
+const BALL_SHADOW_OPACITY = 0.45;
+const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
@@ -970,12 +973,28 @@ const POCKET_HOLE_R =
   POCKET_VIS_R * POCKET_CUT_EXPANSION * POCKET_VISUAL_EXPANSION; // cloth cutout radius now matches the interior pocket rim
 const BALL_CENTER_Y =
   CLOTH_TOP_LOCAL + CLOTH_LIFT + BALL_R - CLOTH_DROP; // rest balls directly on the lowered cloth plane
+const BALL_SHADOW_Y = BALL_CENTER_Y - BALL_R + BALL_SHADOW_LIFT + MICRO_EPS;
 const BALL_SEGMENTS = Object.freeze({ width: 80, height: 60 });
 const BALL_GEOMETRY = new THREE.SphereGeometry(
   BALL_R,
   BALL_SEGMENTS.width,
   BALL_SEGMENTS.height
 );
+const BALL_SHADOW_GEOMETRY = new THREE.CircleGeometry(
+  BALL_R * BALL_SHADOW_RADIUS_MULTIPLIER,
+  32
+);
+BALL_SHADOW_GEOMETRY.rotateX(-Math.PI / 2);
+const BALL_SHADOW_MATERIAL = new THREE.MeshBasicMaterial({
+  color: 0x000000,
+  transparent: true,
+  opacity: BALL_SHADOW_OPACITY,
+  depthWrite: false,
+  side: THREE.DoubleSide
+});
+BALL_SHADOW_MATERIAL.polygonOffset = true;
+BALL_SHADOW_MATERIAL.polygonOffsetFactor = -0.5;
+BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
@@ -5387,15 +5406,27 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  const shadow = new THREE.Mesh(
+    BALL_SHADOW_GEOMETRY,
+    BALL_SHADOW_MATERIAL.clone()
+  );
+  shadow.position.set(x, BALL_SHADOW_Y, y);
+  shadow.renderOrder = (mesh.renderOrder ?? 0) - 0.5;
+  shadow.matrixAutoUpdate = true;
+  shadow.visible = true;
+  shadow.userData = shadow.userData || {};
+  shadow.userData.ballId = id;
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
   });
   parent.add(mesh);
+  parent.add(shadow);
   return {
     id,
     color,
     mesh,
+    shadow,
     pos: new THREE.Vector2(x, y),
     vel: new THREE.Vector2(),
     spin: new THREE.Vector2(),
@@ -17227,6 +17258,7 @@ function PoolRoyaleGame({
           const dropping = pocketDropRef.current.has(ball.id);
           if (!ball.active && !dropping) {
             ball.mesh.visible = false;
+            if (ball.shadow) ball.shadow.visible = false;
           }
         });
         for (let stepIndex = 0; stepIndex < physicsSubsteps; stepIndex++) {
@@ -17322,6 +17354,21 @@ function PoolRoyaleGame({
               const axis = new THREE.Vector3(b.vel.y, 0, -b.vel.x).normalize();
               const angle = scaledSpeed / BALL_R;
               b.mesh.rotateOnWorldAxis(axis, angle);
+            }
+            if (b.shadow) {
+              const droppingShadow = pocketDropRef.current.has(b.id);
+              const shadowVisible = b.mesh.visible && !droppingShadow;
+              b.shadow.visible = shadowVisible;
+              if (shadowVisible) {
+                b.shadow.position.set(b.pos.x, BALL_SHADOW_Y, b.pos.y);
+                const spread = 1 + THREE.MathUtils.clamp(speed * 0.08, 0, 0.35);
+                b.shadow.scale.setScalar(spread);
+                b.shadow.material.opacity = THREE.MathUtils.clamp(
+                  BALL_SHADOW_OPACITY + 0.12,
+                  0,
+                  1
+                );
+              }
             }
           });
           // Kolizione + regjistro firstHit
