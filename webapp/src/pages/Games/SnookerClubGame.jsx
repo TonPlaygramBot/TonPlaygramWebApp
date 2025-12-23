@@ -13193,6 +13193,19 @@ export function PoolRoyaleGame({
           triangleRadius * LIGHT_LATERAL_SCALE * 0.4
         );
         dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.set(2048, 2048);
+        const shadowHalfExtent = Math.max(roomWidth, roomDepth) * 0.7;
+        const shadowCam = dirLight.shadow.camera;
+        shadowCam.left = -shadowHalfExtent;
+        shadowCam.right = shadowHalfExtent;
+        shadowCam.top = shadowHalfExtent;
+        shadowCam.bottom = -shadowHalfExtent;
+        shadowCam.near = Math.max(0.5, triangleHeight * 0.25);
+        shadowCam.far = triangleHeight * 2.4;
+        shadowCam.updateProjectionMatrix();
+        dirLight.shadow.bias = -0.00008;
+        dirLight.shadow.normalBias = 0.0025;
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
