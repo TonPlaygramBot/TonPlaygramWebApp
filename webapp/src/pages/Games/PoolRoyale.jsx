@@ -1379,7 +1379,7 @@ function normalizeVariantKey(value) {
     .trim();
 }
 
-function resolvePoolVariant(variantId) {
+function resolvePoolVariant(variantId, ballSet = null) {
   const normalized = normalizeVariantKey(variantId);
   let key = normalized;
   if (normalized === '9' || normalized === 'nineball') {
@@ -1392,7 +1392,20 @@ function resolvePoolVariant(variantId) {
   ) {
     key = 'uk';
   }
-  return POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
+  const base =
+    POOL_VARIANT_COLOR_SETS[key] || POOL_VARIANT_COLOR_SETS[DEFAULT_POOL_VARIANT];
+  const ballSetKey = typeof ballSet === 'string' ? ballSet.toLowerCase() : '';
+  if (base.id === 'uk' && ballSetKey === 'american') {
+    const american = POOL_VARIANT_COLOR_SETS.american;
+    return {
+      ...base,
+      ballSet: 'american',
+      objectColors: american.objectColors,
+      objectNumbers: american.objectNumbers,
+      objectPatterns: american.objectPatterns
+    };
+  }
+  return base;
 }
 
 function deriveInHandFromFrame(frame) {
@@ -1568,6 +1581,11 @@ function getPoolBallPattern(variant, index) {
 function getPoolBallId(variant, index) {
   if (!variant) return `ball_${index + 1}`;
   if (variant.id === 'uk') {
+    if (variant.ballSet === 'american') {
+      const pattern = getPoolBallPattern(variant, index);
+      if (getPoolBallNumber(variant, index) === 8) return 'black_8';
+      return pattern === 'stripe' ? `red_${index + 1}` : `yellow_${index + 1}`;
+    }
     const color = getPoolBallColor(variant, index);
     if (color === UK_POOL_BLACK) return 'black_8';
     if (color === UK_POOL_YELLOW) return `yellow_${index + 1}`;
@@ -8427,6 +8445,7 @@ function applyTableFinishToTable(table, finish) {
 // --------------------------------------------------
 function PoolRoyaleGame({
   variantKey,
+  ballSetKey,
   tableSizeKey,
   playType = 'regular',
   mode = 'ai',
@@ -8446,8 +8465,8 @@ function PoolRoyaleGame({
   const worldRef = useRef(null);
   const rules = useMemo(() => new PoolRoyaleRules(variantKey), [variantKey]);
   const activeVariant = useMemo(
-    () => resolvePoolVariant(variantKey),
-    [variantKey]
+    () => resolvePoolVariant(variantKey, ballSetKey),
+    [variantKey, ballSetKey]
   );
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
@@ -15756,6 +15775,18 @@ function PoolRoyaleGame({
                 railNormal: cushionAid?.railNormal ?? null,
                 viaCushion: Boolean(cushionAid)
               };
+              const leaveProbe = targetBall.pos
+                .clone()
+                .add(aimDir.clone().multiplyScalar(ballDiameter * 2.5));
+              const nearestAfter = activeBalls
+                .filter((other) => other.active && other !== targetBall && other !== cue)
+                .reduce((min, other) => Math.min(min, leaveProbe.distanceTo(other.pos)), Infinity);
+              const openLaneScore = THREE.MathUtils.clamp(
+                nearestAfter / (BALL_R * 4),
+                0,
+                3
+              );
+              plan.difficulty = plan.difficulty / (1 + openLaneScore * 0.2);
               plan.spin = computePlanSpin(plan, state);
               potShots.push(plan);
             }
@@ -17688,6 +17719,9 @@ function PoolRoyaleGame({
                 0,
                 1
               );
+              if (shotRecording) {
+                recordReplayFrame(performance.now());
+              }
               playPocket(pocketVolume);
               b.active = false;
               b.vel.set(0, 0);
@@ -18841,6 +18875,11 @@ export default function PoolRoyale() {
     const requested = params.get('variant');
     return resolvePoolVariant(requested).id;
   }, [location.search]);
+  const ballSetKey = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const requested = params.get('ballSet');
+    return requested ? requested.toLowerCase() : null;
+  }, [location.search]);
   const tableSizeKey = useMemo(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('tableSize');
@@ -18967,6 +19006,7 @@ export default function PoolRoyale() {
   return (
     <PoolRoyaleGame
       variantKey={variantKey}
+      ballSetKey={ballSetKey}
       tableSizeKey={tableSizeKey}
       playType={playType}
       mode={mode}

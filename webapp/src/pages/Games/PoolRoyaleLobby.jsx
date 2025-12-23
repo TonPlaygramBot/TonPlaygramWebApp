@@ -34,6 +34,7 @@ export default function PoolRoyaleLobby() {
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [variant, setVariant] = useState('uk');
+  const [ukBallSet, setUkBallSet] = useState('uk');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
@@ -84,6 +85,12 @@ export default function PoolRoyaleLobby() {
     matchPlayersRef.current = matchPlayers;
   }, [matchPlayers]);
 
+  useEffect(() => {
+    if (variant !== 'uk') {
+      setUkBallSet('uk');
+    }
+  }, [variant]);
+
   const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
     const selfId = accountId || accountIdRef.current;
     const selfEntry = roster.find((p) => String(p.id) === String(selfId));
@@ -107,6 +114,9 @@ export default function PoolRoyaleLobby() {
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
     const params = new URLSearchParams();
     params.set('variant', variant);
+    if (variant === 'uk' && ukBallSet === 'american') {
+      params.set('ballSet', 'american');
+    }
     params.set('type', playType);
     params.set('mode', 'online');
     params.set('tableId', startedId);
@@ -138,6 +148,7 @@ export default function PoolRoyaleLobby() {
       await runPoolRoyaleOnlineFlow({
         stake,
         variant,
+        ballSet: ukBallSet,
         playType,
         mode,
         tableSize,
@@ -186,6 +197,9 @@ export default function PoolRoyaleLobby() {
 
     const params = new URLSearchParams();
     params.set('variant', variant);
+    if (variant === 'uk' && ukBallSet === 'american') {
+      params.set('ballSet', 'american');
+    }
     params.set('tableSize', tableSize);
     params.set('type', playType);
     params.set('mode', mode);
@@ -377,6 +391,27 @@ export default function PoolRoyaleLobby() {
           ))}
         </div>
       </div>
+      {variant === 'uk' && (
+        <div className="space-y-2">
+          <h3 className="font-semibold">Ball Colors</h3>
+          <p className="text-xs text-subtext">
+            Keep UK yellow/red sets or switch to American billiards visuals with the same UK rules.
+          </p>
+          <div className="flex gap-2">
+            {[{ id: 'uk', label: 'Yellow & Red' }, { id: 'american', label: 'American Set' }].map(
+              ({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setUkBallSet(id)}
+                  className={`lobby-tile ${ukBallSet === id ? 'lobby-selected' : ''}`}
+                >
+                  {label}
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
       {playType === 'tournament' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Players</h3>
