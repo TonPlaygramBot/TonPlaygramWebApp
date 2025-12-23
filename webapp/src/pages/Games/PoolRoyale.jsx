@@ -7,6 +7,7 @@ import React, {
 } from 'react';
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -6080,13 +6081,19 @@ function Table3D(
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
     const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
-    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
-      depth: plywoodDepth,
-      bevelEnabled: false,
-      curveSegments: 96,
-      steps: 1
+    const plywoodShapes = Array.isArray(plywoodShape) ? plywoodShape : [plywoodShape];
+    const plywoodExtrusions = plywoodShapes.map((shape) => {
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: plywoodDepth,
+        bevelEnabled: false,
+        curveSegments: 96,
+        steps: 1
+      });
+      geometry.translate(0, 0, -plywoodDepth);
+      return geometry;
     });
-    plywoodGeo.translate(0, 0, -plywoodDepth);
+    const plywoodGeo = BufferGeometryUtils.mergeGeometries(plywoodExtrusions, true) ??
+      plywoodExtrusions[0];
     const plywoodMat = frameMat.clone();
     plywoodMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
     plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
