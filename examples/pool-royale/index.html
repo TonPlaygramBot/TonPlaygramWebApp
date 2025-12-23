@@ -23,6 +23,13 @@
         border-radius: 12px;
         overflow: hidden;
       }
+      :root {
+        --cloth-top: 17.78%;
+        --cloth-bottom: 17.78%;
+        --cloth-left: 12.5%;
+        --cloth-right: 12.5%;
+        --cloth-radius: 6%;
+      }
       .bg {
         display: block;
         width: 100%;
@@ -34,6 +41,24 @@
         inset: 0;
         width: 100%;
         height: 100%;
+        pointer-events: none;
+      }
+      .cloth-shadow {
+        position: absolute;
+        top: var(--cloth-top);
+        left: var(--cloth-left);
+        right: var(--cloth-right);
+        bottom: var(--cloth-bottom);
+        border-radius: var(--cloth-radius);
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.32);
+        background: radial-gradient(circle at 50% 30%, rgba(0,0,0,0.08), rgba(0,0,0,0.18));
+        mix-blend-mode: multiply;
+        pointer-events: none;
+      }
+      .ball-layer {
+        position: absolute;
+        inset: 0;
+        clip-path: inset(var(--cloth-top) var(--cloth-right) var(--cloth-bottom) var(--cloth-left) round var(--cloth-radius));
         pointer-events: none;
       }
       .aim-line {
@@ -162,12 +187,15 @@
         src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNjAwIDkwMCI+CiAgPGRlZnM+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9Indvb2QiIHgxPSIwIiB5MT0iMCIgeDI9IjAiIHkyPSIxIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjNWMzYjFkIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMC41IiBzdG9wLWNvbG9yPSIjN2E0ZDI2Ii8+CiAgICAgIDxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iIzRhMmIxNSIvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iY2xvdGgiIGN4PSI1MCUiIGN5PSI0NSUiIHI9IjY1JSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzJjYTE2NCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjAuNDUiIHN0b3AtY29sb3I9IiMxODg2NGUiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMGQ1YzMyIi8+CiAgICA8L3JhZGlhbEdyYWRpZW50PgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJjdXNoaW9uIiB4MT0iMCIgeTE9IjAiIHgyPSIwIiB5Mj0iMSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzFmNmYzZCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjAuNSIgc3RvcC1jb2xvcj0iIzE1NTkzMCIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMxMDQzMjYiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9InBvY2tldCIgY3g9IjUwJSIgY3k9IjUwJSIgcj0iNTAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmQyZDJkIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMC41NSIgc3RvcC1jb2xvcj0iIzBlMGUwZSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEiIHN0b3AtY29sb3I9IiMwMDAiLz4KICAgIDwvcmFkaWFsR3JhZGllbnQ+CiAgICA8ZmlsdGVyIGlkPSJjbG90aFRleHR1cmUiIHg9Ii0xMCUiIHk9Ii0xMCUiIHdpZHRoPSIxMjAlIiBoZWlnaHQ9IjEyMCUiPgogICAgICA8ZmVUdXJidWxlbmNlIHR5cGU9ImZyYWN0YWxOb2lzZSIgYmFzZUZyZXF1ZW5jeT0iMC45IiBudW1PY3RhdmVzPSIyIiBzZWVkPSIxMiIgcmVzdWx0PSJub2lzZSIvPgogICAgICA8ZmVDb2xvck1hdHJpeCBpbj0ibm9pc2UiIHR5cGU9Im1hdHJpeCIgdmFsdWVzPSIwIDAgMCAwIDAgIDAgMCAwIDAgMCAgMCAwIDAgMCAwICAwIDAgMCAwLjMgMCIgcmVzdWx0PSJncmFpbiIvPgogICAgICA8ZmVCbGVuZCBpbj0iU291cmNlR3JhcGhpYyIgaW4yPSJncmFpbiIgbW9kZT0ibXVsdGlwbHkiLz4KICAgIDwvZmlsdGVyPgogIDwvZGVmcz4KICA8cmVjdCB3aWR0aD0iMTYwMCIgaGVpZ2h0PSI5MDAiIGZpbGw9InVybCgjd29vZCkiLz4KICA8cmVjdCB4PSIxMjAiIHk9IjkwIiB3aWR0aD0iMTM2MCIgaGVpZ2h0PSI3MjAiIHJ4PSI5MCIgcnk9IjkwIiBmaWxsPSJ1cmwoI2N1c2hpb24pIi8+CiAgPHJlY3QgeD0iMjAwIiB5PSIxNjAiIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjU4MCIgcng9IjYwIiByeT0iNjAiIGZpbGw9InVybCgjY2xvdGgpIiBmaWx0ZXI9InVybCgjY2xvdGhUZXh0dXJlKSIvPgogIDxnIGZpbGw9InVybCgjcG9ja2V0KSI+CiAgICA8Y2lyY2xlIGN4PSIyMDAiIGN5PSIxNjAiIHI9IjYwIi8+CiAgICA8Y2lyY2xlIGN4PSI4MDAiIGN5PSIxNjAiIHI9IjY0Ii8+CiAgICA8Y2lyY2xlIGN4PSIxNDAwIiBjeT0iMTYwIiByPSI2MCIvPgogICAgPGNpcmNsZSBjeD0iMjAwIiBjeT0iNzQwIiByPSI2MCIvPgogICAgPGNpcmNsZSBjeD0iODAwIiBjeT0iNzQwIiByPSI2NCIvPgogICAgPGNpcmNsZSBjeD0iMTQwMCIgY3k9Ijc0MCIgcj0iNjAiLz4KICA8L2c+CiAgPHJlY3QgeD0iMjAwIiB5PSIxNjAiIHdpZHRoPSIxMjAwIiBoZWlnaHQ9IjU4MCIgcng9IjYwIiByeT0iNjAiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2ZmZmZmZjEyIiBzdHJva2Utd2lkdGg9IjYiLz4KPC9zdmc+"
         alt="Pool table"
       />
+      <div id="cloth-shadow" class="cloth-shadow" aria-hidden="true"></div>
       <svg id="frame" class="overlay debug-marker" viewBox="0 0 1000 1500"></svg>
-      <div id="aim-line" class="aim-line debug-marker"></div>
-      <div id="cue-ball" class="ball">
-        <div id="cue-spin-dot" class="spin-dot debug-marker"></div>
+      <div class="ball-layer">
+        <div id="aim-line" class="aim-line debug-marker"></div>
+        <div id="cue-ball" class="ball">
+          <div id="cue-spin-dot" class="spin-dot debug-marker"></div>
+        </div>
+        <div id="target-ball" class="ball target-ball debug-marker"></div>
       </div>
-      <div id="target-ball" class="ball target-ball debug-marker"></div>
       <div id="controls">
         <input id="power" type="range" min="0" max="100" value="40" />
         <button id="shoot">Shoot</button>
