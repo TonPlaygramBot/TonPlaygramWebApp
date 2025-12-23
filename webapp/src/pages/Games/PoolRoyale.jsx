@@ -13755,22 +13755,23 @@ function PoolRoyaleGame({
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.2;
-        const lightOffsetX = Math.max(PLAY_W * 0.16, TABLE.THICK * 2.4);
-        const lightOffsetZ = Math.max(PLAY_H * 0.14, TABLE.THICK * 2.4);
-        const shadowHalfSpan = Math.max(PLAY_W, PLAY_H) * 0.9;
-        const targetY = tableSurfaceY + TABLE.THICK * 0.2;
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.4;
+        const lightOffsetX = Math.max(PLAY_W * 0.12, TABLE.THICK * 2.1);
+        const lightOffsetZ = Math.max(PLAY_H * 0.12, TABLE.THICK * 2.1);
+        const shadowHalfSpan = Math.max(PLAY_W, PLAY_H) * 1.05;
+        const targetY = tableSurfaceY + TABLE.THICK * 0.12;
+        const shadowDepth = Math.max(lightRigHeight - FLOOR_Y, TABLE.THICK * 2.4);
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.22);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.6);
-        key.position.set(lightOffsetX * 0.32, lightRigHeight, lightOffsetZ * 0.28);
+        key.position.set(lightOffsetX * 0.14, lightRigHeight, lightOffsetZ * 0.14);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
         key.shadow.camera.near = 0.1;
-        key.shadow.camera.far = shadowHalfSpan * 3.2;
+        key.shadow.camera.far = shadowDepth * 1.35;
         key.shadow.camera.left = -shadowHalfSpan;
         key.shadow.camera.right = shadowHalfSpan;
         key.shadow.camera.top = shadowHalfSpan;
@@ -13781,12 +13782,12 @@ function PoolRoyaleGame({
         lightingRig.add(key.target);
 
         const fill = new THREE.DirectionalLight(0xffffff, 0.75);
-        fill.position.set(-lightOffsetX * 0.52, lightRigHeight * 0.94, lightOffsetZ * 0.45);
+        fill.position.set(-lightOffsetX * 0.22, lightRigHeight * 0.96, lightOffsetZ * 0.2);
         fill.target.position.set(0, targetY, 0);
         fill.castShadow = true;
         fill.shadow.mapSize.set(1024, 1024);
         fill.shadow.camera.near = 0.25;
-        fill.shadow.camera.far = shadowHalfSpan * 2.6;
+        fill.shadow.camera.far = shadowDepth * 1.22;
         fill.shadow.camera.left = -shadowHalfSpan * 0.9;
         fill.shadow.camera.right = shadowHalfSpan * 0.9;
         fill.shadow.camera.top = shadowHalfSpan * 0.9;
@@ -13797,8 +13798,18 @@ function PoolRoyaleGame({
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.55);
-        rim.position.set(0, lightRigHeight * 0.98, -lightOffsetZ * 1.18);
+        rim.position.set(0, lightRigHeight * 1.02, -lightOffsetZ * 0.42);
         rim.target.position.set(0, targetY, 0);
+        rim.castShadow = true;
+        rim.shadow.mapSize.set(1024, 1024);
+        rim.shadow.camera.near = 0.35;
+        rim.shadow.camera.far = shadowDepth * 1.15;
+        rim.shadow.camera.left = -shadowHalfSpan * 0.85;
+        rim.shadow.camera.right = shadowHalfSpan * 0.85;
+        rim.shadow.camera.top = shadowHalfSpan * 0.85;
+        rim.shadow.camera.bottom = -shadowHalfSpan * 0.85;
+        rim.shadow.bias = -0.00006;
+        rim.shadow.normalBias = 0.0014;
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
