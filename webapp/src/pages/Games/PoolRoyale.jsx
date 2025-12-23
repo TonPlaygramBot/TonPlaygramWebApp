@@ -993,6 +993,7 @@ const PLYWOOD_THICKNESS = TABLE.THICK * 0.18; // add a full plywood bed under th
 const PLYWOOD_GAP = TABLE.THICK * 0.04; // leave a subtle clearance between the cloth wrap and the plywood surface
 const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.32; // sink the plywood bed far enough to meet the pocket bowls and read in shadow
 const PLYWOOD_OUTSET = TABLE.THICK * 0.12; // widen the plywood slab so every edge reads as a single, unbroken piece
+const PLYWOOD_HOLE_SCALE = 1.05; // cut plywood apertures 5% larger than the pocket holes to keep the pockets untouched
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -6077,19 +6078,8 @@ function Table3D(
 
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
-    const buildSolidSurfaceShape = (edgeInset = 0) => {
-      const insetHalfW = Math.max(MICRO_EPS, halfWext + PLYWOOD_OUTSET - edgeInset);
-      const insetHalfH = Math.max(MICRO_EPS, halfHext + PLYWOOD_OUTSET - edgeInset);
-      const shape = new THREE.Shape();
-      shape.moveTo(-insetHalfW, -insetHalfH);
-      shape.lineTo(insetHalfW, -insetHalfH);
-      shape.lineTo(insetHalfW, insetHalfH);
-      shape.lineTo(-insetHalfW, insetHalfH);
-      shape.lineTo(-insetHalfW, -insetHalfH);
-      return shape;
-    };
-
-    const plywoodShape = buildSolidSurfaceShape();
+    const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
+    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
