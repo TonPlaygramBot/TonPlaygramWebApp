@@ -6008,7 +6008,6 @@ function Table3D(
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
-  cloth.castShadow = true;
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
@@ -13166,7 +13165,7 @@ export function PoolRoyaleGame({
         const LIGHT_DIMENSION_SCALE = 0.8; // reduce fixture footprint by 20%
         const LIGHT_HEIGHT_SCALE = 1.4; // lift the rig further above the table
         const LIGHT_HEIGHT_LIFT_MULTIPLIER = 5.8; // bring fixtures closer so the spot highlight reads on the balls
-        const LIGHT_LATERAL_SCALE = 0.22; // pull shadow-casting lights nearer the table centre for vertical shadows
+        const LIGHT_LATERAL_SCALE = 0.45; // pull shadow-casting lights nearer the table centre
 
         const baseWidthScale = (PLAY_W / SAMPLE_PLAY_W) * LIGHT_DIMENSION_SCALE;
         const baseLengthScale = (PLAY_H / SAMPLE_PLAY_H) * LIGHT_DIMENSION_SCALE;
@@ -13188,18 +13187,12 @@ export function PoolRoyaleGame({
         lightingRig.add(hemisphereRig);
 
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.176);
-        dirLight.position.set(0, triangleHeight + lightRetreatOffset * 0.35, triangleRadius * 0.06);
-        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.12, 0);
-        dirLight.castShadow = true;
-        dirLight.shadow.mapSize.set(2048, 2048);
-        dirLight.shadow.camera.near = 0.6;
-        dirLight.shadow.camera.far = 14;
-        dirLight.shadow.camera.left = -triangleRadius * 1.2;
-        dirLight.shadow.camera.right = triangleRadius * 1.2;
-        dirLight.shadow.camera.top = triangleRadius * 1.4;
-        dirLight.shadow.camera.bottom = -triangleRadius * 1.4;
-        dirLight.shadow.bias = -0.00018;
-        dirLight.shadow.normalBias = 0.0085;
+        dirLight.position.set(
+          -triangleRadius * LIGHT_LATERAL_SCALE,
+          triangleHeight,
+          triangleRadius * LIGHT_LATERAL_SCALE * 0.4
+        );
+        dirLight.target.position.set(0, tableSurfaceY + BALL_R * 0.05, 0);
         lightingRig.add(dirLight);
         lightingRig.add(dirLight.target);
 
@@ -13212,18 +13205,16 @@ export function PoolRoyaleGame({
           1
         );
         spot.position.set(
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.35,
+          triangleRadius * LIGHT_LATERAL_SCALE,
           triangleHeight + lightRetreatOffset + lightReflectionGuard,
-          triangleRadius * LIGHT_LATERAL_SCALE * 0.24
+          triangleRadius * LIGHT_LATERAL_SCALE * (0.35 + LIGHT_LATERAL_SCALE * 0.12)
         );
-        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.22, 0);
+        spot.target.position.set(0, tableSurfaceY + TABLE_H * 0.18, 0);
         spot.decay = 1.0;
         spot.castShadow = true;
         spot.shadow.mapSize.set(2048, 2048);
         spot.shadow.bias = -0.00004;
         spot.shadow.normalBias = 0.006;
-        spot.shadow.camera.near = 0.5;
-        spot.shadow.camera.far = 16;
         lightingRig.add(spot);
         lightingRig.add(spot.target);
 
