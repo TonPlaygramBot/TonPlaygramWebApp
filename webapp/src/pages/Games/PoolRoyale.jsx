@@ -1024,7 +1024,7 @@ const POCKET_TOP_R =
   POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const POCKET_BOTTOM_R = POCKET_TOP_R * 0.7;
 const POCKET_BOARD_TOUCH_OFFSET = 0; // lock the pocket rim directly against the cloth wrap with no gap
-  const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.11; // raise the middle pocket bowls higher so they sit just beneath the cloth like the corner pockets
+const SIDE_POCKET_PLYWOOD_LIFT = TABLE.THICK * 0.085; // raise the middle pocket bowls so they tuck directly beneath the cloth like the corner pockets
 const POCKET_CAM_BASE_MIN_OUTSIDE =
   Math.max(SIDE_RAIL_INNER_THICKNESS, END_RAIL_INNER_THICKNESS) * 1.18 +
   POCKET_VIS_R * 2.25 +
@@ -1560,8 +1560,8 @@ function generateRackPositions(ballCount, layout, ballRadius, startZ) {
   if (ballCount <= 0 || !Number.isFinite(ballRadius) || !Number.isFinite(startZ)) {
     return positions;
   }
-    const columnSpacing = ballRadius * 1.96 + 0.002 * (ballRadius / 0.0525); // pull columns closer so the rack packs tighter
-    const rowSpacing = ballRadius * 1.82; // tighten the longitudinal spacing so balls sit nearer to each other
+  const columnSpacing = ballRadius * 2 + 0.002 * (ballRadius / 0.0525);
+  const rowSpacing = ballRadius * 1.9;
   if (layout === 'diamond') {
     const rows = [1, 2, 3, 2, 1];
     let index = 0;
@@ -2290,9 +2290,8 @@ const resolveRailMarkerColorOption = (id) =>
   RAIL_MARKER_COLOR_OPTIONS.find((opt) => opt.id === DEFAULT_RAIL_MARKER_COLOR_ID) ??
   RAIL_MARKER_COLOR_OPTIONS[0];
 
-  const DEFAULT_LIGHTING_ID = 'arena-prime';
-  const LIGHTING_STORAGE_KEY = 'poolLightingPreset';
-  const LIGHTING_BASELINE_TOTAL_INTENSITY = 1.6 + 0.75 + 0.55 + 0.22; // match the overall brightness of the earlier lighting pass while keeping the new rig colours
+const DEFAULT_LIGHTING_ID = 'arena-prime';
+const LIGHTING_STORAGE_KEY = 'poolLightingPreset';
 const LIGHTING_OPTIONS = Object.freeze([
   {
     id: 'studio-soft',
@@ -9568,27 +9567,14 @@ function PoolRoyaleGame({
         ambient
       } = rig;
 
-      const totalIntensity =
-        (settings.keyIntensity ?? 0) +
-        (settings.fillIntensity ?? 0) +
-        (settings.rimIntensity ?? 0) +
-        (settings.ambientIntensity ?? 0);
-      const intensityScale =
-        totalIntensity > 0
-          ? LIGHTING_BASELINE_TOTAL_INTENSITY / totalIntensity
-          : 1;
-
       if (settings.keyColor && key) key.color.set(settings.keyColor);
-      if (settings.keyIntensity && key)
-        key.intensity = settings.keyIntensity * intensityScale;
+      if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
       if (settings.fillColor && fill) fill.color.set(settings.fillColor);
-      if (settings.fillIntensity && fill)
-        fill.intensity = settings.fillIntensity * intensityScale;
+      if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
-      if (settings.rimIntensity && rim)
-        rim.intensity = settings.rimIntensity * intensityScale;
+      if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
-        ambient.intensity = settings.ambientIntensity * intensityScale;
+        ambient.intensity = settings.ambientIntensity;
     },
     [lightingId]
   );
