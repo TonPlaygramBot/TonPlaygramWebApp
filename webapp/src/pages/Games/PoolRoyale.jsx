@@ -1000,6 +1000,8 @@ const FRICTION = 0.993;
 const DEFAULT_CUSHION_RESTITUTION = 0.99;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
+const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
+const STOP_FINAL_EPS = STOP_EPS * 0.45;
 const FRAME_TIME_CATCH_UP_MULTIPLIER = 3; // allow up to 3 frames of catch-up when recovering from slow frames
 const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing physics updates
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
@@ -8011,7 +8013,7 @@ function Table3D(
   const legReach = Math.max(legTopWorld - legBottomWorld, TABLE_H);
   const legH = legReach + LEG_TOP_OVERLAP;
   const legGeo = new THREE.CylinderGeometry(legR, legR, legH, 64);
-  const legInset = baseRailWidth * 2.6;
+  const legInset = baseRailWidth * 2.85;
   const legPositions = [
     [-frameOuterX + legInset, -frameOuterZ + legInset],
     [frameOuterX - legInset, -frameOuterZ + legInset],
@@ -11907,9 +11909,7 @@ function PoolRoyaleGame({
                 }
               }
               const heightBase = TABLE_Y + TABLE.THICK;
-              const standingPhi = activeShotView.preferRailOverhead
-                ? RAIL_OVERHEAD_PHI
-                : STANDING_VIEW_PHI;
+              const standingPhi = STANDING_VIEW_PHI;
               if (activeShotView.stage === 'pair') {
                 const targetBall =
                   activeShotView.targetId != null
@@ -12194,12 +12194,31 @@ function PoolRoyaleGame({
                 lerp: lerpT
               };
               if (activeShotView.preferRailOverhead) {
-                const defaultFocus =
-                  broadcastCamerasRef.current?.defaultFocusWorld ??
-                  broadcastArgs.focusWorld ??
-                  null;
-                broadcastArgs.focusWorld = defaultFocus;
-                broadcastArgs.orbitWorld = defaultFocus;
+                const railReplayCamera = resolveRailOverheadReplayCamera({
+                  focusOverride: focusTargetVec3 ?? lookTarget ?? broadcastArgs.focusWorld,
+                  minTargetY: focusTargetVec3?.y ?? baseSurfaceWorldY
+                });
+                if (railReplayCamera) {
+                  broadcastArgs.focusWorld =
+                    railReplayCamera.target?.clone?.() ??
+                    broadcastArgs.focusWorld ??
+                    null;
+                  broadcastArgs.targetWorld =
+                    railReplayCamera.target?.clone?.() ??
+                    broadcastArgs.targetWorld ??
+                    null;
+                  broadcastArgs.orbitWorld =
+                    railReplayCamera.position?.clone?.() ??
+                    broadcastArgs.orbitWorld ??
+                    null;
+                } else {
+                  const defaultFocus =
+                    broadcastCamerasRef.current?.defaultFocusWorld ??
+                    broadcastArgs.focusWorld ??
+                    null;
+                  broadcastArgs.focusWorld = defaultFocus;
+                  broadcastArgs.orbitWorld = defaultFocus;
+                }
               }
               if (focusTargetVec3 && desiredPosition) {
                 if (!activeShotView.smoothedPos) {
@@ -13310,6 +13329,15 @@ function PoolRoyaleGame({
               }
               if (meshB.visible != null) {
                 ball.mesh.visible = meshB.visible;
+              }
+            }
+            if (ball.shadow) {
+              ball.shadow.visible = ball.mesh?.visible ?? ball.shadow.visible;
+              ball.shadow.position.set(posX, BALL_SHADOW_Y, posY);
+              const shadowScale = ball.mesh?.scale?.x ?? 1;
+              ball.shadow.scale.setScalar(shadowScale);
+              if (ball.shadow.material) {
+                ball.shadow.material.opacity = BALL_SHADOW_OPACITY;
               }
             }
           });
@@ -17314,10 +17342,15 @@ function PoolRoyaleGame({
             }
             b.pos.addScaledVector(b.vel, stepScale);
             b.vel.multiplyScalar(Math.pow(FRICTION, stepScale));
-            const speed = b.vel.length();
-            const scaledSpeed = speed * stepScale;
-            const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
+            let speed = b.vel.length();
+            let scaledSpeed = speed * stepScale;
             if (scaledSpeed < STOP_EPS) {
+              b.vel.multiplyScalar(Math.pow(STOP_SOFTENING, stepScale));
+              speed = b.vel.length();
+              scaledSpeed = speed * stepScale;
+            }
+            const hasSpinAfter = b.spin?.lengthSq() > 1e-6;
+            if (scaledSpeed < STOP_FINAL_EPS) {
               b.vel.set(0, 0);
               if (!hasSpinAfter && b.spin) b.spin.set(0, 0);
               if (!hasSpinAfter && b.pendingSpin) b.pendingSpin.set(0, 0);
