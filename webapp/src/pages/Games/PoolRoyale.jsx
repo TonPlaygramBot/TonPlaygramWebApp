@@ -6079,26 +6079,7 @@ function Table3D(
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
-    const plywoodHalfW = Math.max(MICRO_EPS, halfWext + PLYWOOD_OUTSET);
-    const plywoodHalfH = Math.max(MICRO_EPS, halfHext + PLYWOOD_OUTSET);
-    const plywoodShape = new THREE.Shape();
-    plywoodShape.moveTo(-plywoodHalfW, -plywoodHalfH);
-    plywoodShape.lineTo(plywoodHalfW, -plywoodHalfH);
-    plywoodShape.lineTo(plywoodHalfW, plywoodHalfH);
-    plywoodShape.lineTo(-plywoodHalfW, plywoodHalfH);
-    plywoodShape.lineTo(-plywoodHalfW, -plywoodHalfH);
-
-    pocketPositions.forEach((p, index) => {
-      const hole = new THREE.Path();
-      const isSidePocket = index >= 4;
-      const radius = isSidePocket
-        ? plywoodHoleRadius * sideRadiusScale
-        : plywoodHoleRadius;
-      hole.absellipse(p.x, p.y, radius, radius, 0, Math.PI * 2, true);
-      hole.autoClose = true;
-      plywoodShape.holes.push(hole);
-    });
-
+    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
