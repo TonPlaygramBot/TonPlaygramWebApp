@@ -6353,6 +6353,8 @@ function Chess3D({
       })
     );
     floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    floor.castShadow = false;
     arena.add(floor);
 
     const carpetMat = createArenaCarpetMaterial();
@@ -6362,6 +6364,8 @@ function Chess3D({
     );
     carpet.rotation.x = -Math.PI / 2;
     carpet.position.y = 0.002;
+    carpet.receiveShadow = true;
+    carpet.castShadow = false;
     arena.add(carpet);
 
     const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
