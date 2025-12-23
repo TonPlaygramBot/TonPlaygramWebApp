@@ -991,7 +991,7 @@ const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_THICKNESS = TABLE.THICK * 0.18; // add a full plywood bed under the cloth with the same footprint as the table
 const PLYWOOD_GAP = TABLE.THICK * 0.04; // leave a subtle clearance between the cloth wrap and the plywood surface
-const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.14; // drop the plywood deeper so it never crowds the pocket bowls
+const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.32; // sink the plywood bed far enough to meet the pocket bowls and read in shadow
 const PLYWOOD_OUTSET = TABLE.THICK * 0.12; // widen the plywood slab so every edge reads as a single, unbroken piece
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
@@ -6101,6 +6101,7 @@ function Table3D(
     plywoodMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
     plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
     plywoodMat.metalness = Math.min(plywoodMat.metalness ?? 0.12, 0.18);
+    plywoodMat.side = THREE.DoubleSide;
     const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
     plywoodPlate.rotation.x = -Math.PI / 2;
     plywoodPlate.position.y = plywoodTopY;
