@@ -5896,7 +5896,7 @@ function Table3D(
   const pocketPositions = pocketCenters();
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
-  const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
+  const buildSurfaceShape = (holeRadius, edgeInset = 0, preferFallback = false) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
 
@@ -5983,18 +5983,6 @@ function Table3D(
       })
       .filter(Boolean);
 
-    let shapeMP = baseMP;
-    if (pocketSectors.length) {
-    shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
-    }
-    const shapes = multiPolygonToShapes(shapeMP);
-    if (shapes.length === 1) {
-      return shapes[0];
-    }
-    if (shapes.length > 1) {
-      return shapes;
-    }
-
     const fallback = new THREE.Shape();
     fallback.moveTo(-insetHalfW, -insetHalfH);
     fallback.lineTo(insetHalfW, -insetHalfH);
@@ -6009,6 +5997,23 @@ function Table3D(
       hole.autoClose = true;
       fallback.holes.push(hole);
     });
+
+    if (preferFallback) {
+      return fallback;
+    }
+
+    let shapeMP = baseMP;
+    if (pocketSectors.length) {
+      shapeMP = safePolygonDifference(baseMP, ...pocketSectors);
+    }
+    const shapes = multiPolygonToShapes(shapeMP);
+    if (shapes.length === 1) {
+      return shapes[0];
+    }
+    if (shapes.length > 1) {
+      return shapes;
+    }
+
     return fallback;
   };
 
@@ -6079,7 +6084,11 @@ function Table3D(
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
-    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
+    const plywoodShape = buildSurfaceShape(
+      plywoodHoleRadius,
+      -PLYWOOD_OUTSET,
+      true
+    );
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
       bevelEnabled: false,
@@ -6092,6 +6101,7 @@ function Table3D(
     plywoodMat.roughness = Math.min(plywoodMat.roughness ?? 0.78, 0.82);
     plywoodMat.metalness = Math.min(plywoodMat.metalness ?? 0.12, 0.18);
     plywoodMat.side = THREE.DoubleSide;
+    plywoodMat.shadowSide = THREE.DoubleSide;
     const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
     plywoodPlate.rotation.x = -Math.PI / 2;
     plywoodPlate.position.y = plywoodTopY;
@@ -13760,19 +13770,19 @@ function PoolRoyaleGame({
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.6;
-        const lightOffsetX = Math.max(PLAY_W * 0.16, TABLE.THICK * 3.2);
-        const lightOffsetZ = Math.max(PLAY_H * 0.14, TABLE.THICK * 3.0);
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.85;
+        const lightOffsetX = Math.max(PLAY_W * 0.18, TABLE.THICK * 3.5);
+        const lightOffsetZ = Math.max(PLAY_H * 0.16, TABLE.THICK * 3.3);
         const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 0.5;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.22);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.26);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.6);
-        key.position.set(lightOffsetX * 0.2, lightRigHeight, lightOffsetZ * 0.16);
+        const key = new THREE.DirectionalLight(0xffffff, 1.72);
+        key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.22);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
@@ -13788,14 +13798,14 @@ function PoolRoyaleGame({
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.75);
-        fill.position.set(-lightOffsetX * 0.18, lightRigHeight * 0.96, lightOffsetZ * 0.18);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.85);
+        fill.position.set(-lightOffsetX * 0.26, lightRigHeight * 0.98, lightOffsetZ * 0.24);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.55);
-        rim.position.set(0, lightRigHeight * 1.02, -lightOffsetZ * 0.3);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.62);
+        rim.position.set(0, lightRigHeight * 1.05, -lightOffsetZ * 0.36);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
