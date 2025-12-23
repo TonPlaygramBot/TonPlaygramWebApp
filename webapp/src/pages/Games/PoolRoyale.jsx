@@ -990,9 +990,9 @@ const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behav
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_THICKNESS = TABLE.THICK * 0.18; // add a full plywood bed under the cloth with the same footprint as the table
-const PLYWOOD_GAP = TABLE.THICK * 0.04; // leave a subtle clearance between the cloth wrap and the plywood surface
-const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.08; // let the plywood sit slightly lower so it peeks beneath the pockets
-const PLYWOOD_OUTSET = TABLE.THICK * 0.08; // widen the plywood slab so it extends past the cloth sleeve on every side
+const PLYWOOD_GAP = TABLE.THICK * 0.02; // tighten the clearance so the plywood reads as one continuous slab
+const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.14; // sink the plywood further so it never bumps the pocket hardware
+const PLYWOOD_OUTSET = TABLE.THICK * 0.12; // widen the plywood slab so it extends past the cloth sleeve on every side
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -7401,7 +7401,7 @@ function Table3D(
   railsMesh.rotation.x = -Math.PI / 2;
   railsMesh.position.y = frameTopY;
   railsMesh.castShadow = true;
-  railsMesh.receiveShadow = false;
+  railsMesh.receiveShadow = true;
   railsGroup.add(railsMesh);
   finishParts.railMeshes.push(railsMesh);
 
