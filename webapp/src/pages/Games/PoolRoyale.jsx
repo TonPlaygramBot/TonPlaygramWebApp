@@ -13785,12 +13785,10 @@ function PoolRoyaleGame({
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
         const lightOffsetX = Math.max(PLAY_W * 0.2, TABLE.THICK * 3.8);
         const lightOffsetZ = Math.max(PLAY_H * 0.18, TABLE.THICK * 3.6);
-        const tableShadowSpan = Math.max(PLAY_W, PLAY_H) * 1.4;
-        const shadowHalfSpan =
-          Math.max(roomWidth, roomDepth, tableShadowSpan) / 2 + TABLE.THICK * 2.4;
+        const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 1.8;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
-          lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 16;
+          lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.27);
         lightingRig.add(ambient);
