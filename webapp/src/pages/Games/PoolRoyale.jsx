@@ -993,7 +993,7 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cu
 const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
 const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
 const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
-const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // natural plywood tone kept unpainted for the replacement slab
+const PLYWOOD_POCKET_EXPANSION = 1.05; // cut plywood apertures 5% wider than the pockets for reliable clearance
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -6024,6 +6024,7 @@ function Table3D(
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
+  cloth.castShadow = true;
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
@@ -6218,15 +6219,16 @@ function Table3D(
     textureSize: orientedRailSurface.textureSize,
     woodRepeatScale
   });
+  const plywoodWoodSurface = finishParts.woodSurfaces.frame ?? orientedRailSurface;
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
     applyWoodTextureToMaterial(mesh.material, {
       repeat: new THREE.Vector2(
-        orientedRailSurface.repeat.x,
-        orientedRailSurface.repeat.y
+        plywoodWoodSurface.repeat.x,
+        plywoodWoodSurface.repeat.y
       ),
-      rotation: orientedRailSurface.rotation,
-      textureSize: orientedRailSurface.textureSize,
+      rotation: plywoodWoodSurface.rotation,
+      textureSize: plywoodWoodSurface.textureSize,
       woodRepeatScale
     });
     mesh.material.needsUpdate = true;
@@ -7942,39 +7944,43 @@ function Table3D(
   finishParts.frameMeshes.push(skirt);
 
   if (plywoodDepth > MICRO_EPS) {
-    const plywoodWidth = Math.max(MICRO_EPS, (frameOuterX + baseOverhang) * 2);
-    const plywoodLength = Math.max(MICRO_EPS, (frameOuterZ + baseOverhang) * 2);
-    const plywoodGeo = new THREE.BoxGeometry(plywoodWidth, plywoodDepth, plywoodLength);
-    const naturalPlywoodMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(PLYWOOD_SURFACE_COLOR),
-      roughness: 0.9,
-      metalness: 0.04,
-      side: THREE.DoubleSide,
-      shadowSide: THREE.DoubleSide
+    const plywoodHalfX = Math.max(MICRO_EPS, frameOuterX + baseOverhang);
+    const plywoodHalfZ = Math.max(MICRO_EPS, frameOuterZ + baseOverhang);
+    const plywoodShape = new THREE.Shape();
+    plywoodShape.moveTo(plywoodHalfX, -plywoodHalfZ);
+    plywoodShape.lineTo(plywoodHalfX, plywoodHalfZ);
+    plywoodShape.lineTo(-plywoodHalfX, plywoodHalfZ);
+    plywoodShape.lineTo(-plywoodHalfX, -plywoodHalfZ);
+    plywoodShape.lineTo(plywoodHalfX, -plywoodHalfZ);
+
+    pocketPositions.forEach((p, index) => {
+      if (!p) return;
+      const pocketTopRadius =
+        (index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R) *
+        POCKET_INTERIOR_TOP_SCALE *
+        POCKET_VISUAL_EXPANSION;
+      const plywoodPocketRadius = pocketTopRadius * PLYWOOD_POCKET_EXPANSION;
+      const hole = new THREE.Path();
+      hole.absarc(p.x, p.y, plywoodPocketRadius, 0, Math.PI * 2, true);
+      plywoodShape.holes.push(hole);
     });
-    const plywoodEdgeMat = frameMat.clone();
-    plywoodEdgeMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
-    plywoodEdgeMat.side = THREE.DoubleSide;
-    plywoodEdgeMat.shadowSide = THREE.DoubleSide;
-    const plywoodPlate = new THREE.Mesh(
-      plywoodGeo,
-      [
-        plywoodEdgeMat,
-        plywoodEdgeMat,
-        naturalPlywoodMat,
-        naturalPlywoodMat,
-        plywoodEdgeMat,
-        plywoodEdgeMat
-      ]
-    );
-    plywoodPlate.position.y = plywoodTopY - plywoodDepth / 2;
+
+    const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
+      depth: plywoodDepth,
+      bevelEnabled: false,
+      steps: 1
+    });
+    plywoodGeo.rotateX(-Math.PI / 2);
+    plywoodGeo.translate(0, -plywoodDepth, 0);
+
+    const plywoodMat = frameMat.clone();
+    applyWoodTextureToMaterial(plywoodMat, finishParts.woodSurfaces.frame);
+
+    const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
+    plywoodPlate.position.y = plywoodTopY;
     plywoodPlate.receiveShadow = true;
     plywoodPlate.castShadow = true;
     plywoodPlate.renderOrder = cloth.renderOrder - 0.25;
-    plywoodPlate.userData = {
-      ...(plywoodPlate.userData || {}),
-      skipWoodTexture: true
-    };
     table.add(plywoodPlate);
     finishParts.underlayMeshes.push(plywoodPlate);
   }
@@ -8352,15 +8358,16 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.clothEdgeMat.needsUpdate = true;
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
-    if (!mesh?.material) return;
-    const mat = mesh.material;
-    if (mat.color) {
-      mat.color.copy(clothColor);
+    if (!mesh) return;
+    swapMaterial(mesh, frameMat);
+    if (mesh.material && !mesh.userData?.skipWoodTexture) {
+      const plywoodSurface =
+        finishInfo.parts.woodSurfaces?.frame ?? finishInfo.parts.woodSurfaces?.rail;
+      if (plywoodSurface) {
+        applyWoodTextureToMaterial(mesh.material, plywoodSurface);
+      }
+      mesh.material.needsUpdate = true;
     }
-    if (mat.emissive) {
-      mat.emissive.copy(emissiveColor);
-    }
-    mat.needsUpdate = true;
   });
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
@@ -13776,10 +13783,11 @@ function PoolRoyaleGame({
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
         const lightOffsetX = Math.max(PLAY_W * 0.18, TABLE.THICK * 3.6);
         const lightOffsetZ = Math.max(PLAY_H * 0.16, TABLE.THICK * 3.4);
-        const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 0.5;
+        const shadowHalfSpan = Math.max(roomWidth, roomDepth, PLAY_W * 2) / 2 + TABLE.THICK * 0.5;
+        const shadowCoverage = shadowHalfSpan * 1.18;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
-          lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
+          lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 16;
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.27);
         lightingRig.add(ambient);
@@ -13788,13 +13796,13 @@ function PoolRoyaleGame({
         key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
-        key.shadow.mapSize.set(2048, 2048);
+        key.shadow.mapSize.set(3072, 3072);
         key.shadow.camera.near = 0.1;
         key.shadow.camera.far = shadowDepth;
-        key.shadow.camera.left = -shadowHalfSpan;
-        key.shadow.camera.right = shadowHalfSpan;
-        key.shadow.camera.top = shadowHalfSpan;
-        key.shadow.camera.bottom = -shadowHalfSpan;
+        key.shadow.camera.left = -shadowCoverage;
+        key.shadow.camera.right = shadowCoverage;
+        key.shadow.camera.top = shadowCoverage;
+        key.shadow.camera.bottom = -shadowCoverage;
         key.shadow.bias = -0.00006;
         key.shadow.normalBias = 0.0006;
         key.shadow.camera.updateProjectionMatrix();
@@ -13804,6 +13812,17 @@ function PoolRoyaleGame({
         const fill = new THREE.DirectionalLight(0xffffff, 0.82);
         fill.position.set(-lightOffsetX * 0.32, lightRigHeight * 0.98, lightOffsetZ * 0.24);
         fill.target.position.set(0, targetY, 0);
+        fill.castShadow = true;
+        fill.shadow.mapSize.set(2048, 2048);
+        fill.shadow.camera.near = 0.1;
+        fill.shadow.camera.far = shadowDepth;
+        fill.shadow.camera.left = -shadowCoverage;
+        fill.shadow.camera.right = shadowCoverage;
+        fill.shadow.camera.top = shadowCoverage;
+        fill.shadow.camera.bottom = -shadowCoverage;
+        fill.shadow.bias = -0.00008;
+        fill.shadow.normalBias = 0.0008;
+        fill.shadow.camera.updateProjectionMatrix();
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
