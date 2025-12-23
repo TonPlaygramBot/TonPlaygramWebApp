@@ -992,6 +992,8 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cu
 const STONE_PLATE_THICKNESS = 0; // remove the stone underlay so only cloth fills the pocket sleeves
 const STONE_PLATE_GAP = 0; // no gap required without a stone underlay
 const STONE_PLATE_EXTRA_DROP = 0; // keep the cloth sitting directly atop the playfield base
+const PLYWOOD_THICKNESS = TABLE.THICK * 0.16; // solid plywood sheet beneath the table to seal the underside
+const PLYWOOD_CLEARANCE = TABLE.THICK * 0.08; // leave breathing room beneath the pocket bowls
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -6221,6 +6223,23 @@ function Table3D(
   const outerHalfW = halfW + 2 * longRailW + frameWidthLong;
   const outerHalfH = halfH + 2 * endRailW + frameWidthEnd;
   finishParts.dimensions = { outerHalfW, outerHalfH, railH, frameTopY };
+
+  if (PLYWOOD_THICKNESS > MICRO_EPS) {
+    const plywoodWidth = Math.max(MICRO_EPS, outerHalfW * 2);
+    const plywoodLength = Math.max(MICRO_EPS, outerHalfH * 2);
+    const plywood = new THREE.Mesh(
+      new THREE.BoxGeometry(plywoodWidth, PLYWOOD_THICKNESS, plywoodLength),
+      frameMat.clone()
+    );
+    const pocketBottomY = pocketTopY - TABLE.THICK;
+    const plywoodTopY = pocketBottomY - PLYWOOD_CLEARANCE;
+    plywood.position.set(0, plywoodTopY - PLYWOOD_THICKNESS / 2, 0);
+    plywood.castShadow = false;
+    plywood.receiveShadow = true;
+    plywood.name = 'plywoodUnderlay';
+    table.add(plywood);
+    finishParts.underlayMeshes.push(plywood);
+  }
   // Force the table rails to reuse the exact cue butt wood scale so the grain
   // is just as visible as it is on the stick finish in cue view.
   const baseRailFallback = {
