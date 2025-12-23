@@ -9591,6 +9591,7 @@ function PoolRoyaleGame({
         key,
         fill,
         rim,
+        overhead,
         ambient
       } = rig;
 
@@ -9600,6 +9601,10 @@ function PoolRoyaleGame({
       if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
+      if (settings.downlightColor && overhead)
+        overhead.color.set(settings.downlightColor);
+      if (overhead)
+        overhead.intensity = settings.downlightIntensity ?? overhead.intensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
     },
@@ -13822,11 +13827,31 @@ function PoolRoyaleGame({
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
+        const overhead = new THREE.DirectionalLight(0xf3f7ff, 0.86);
+        overhead.position.set(0, lightRigHeight * 1.02, 0);
+        overhead.target.position.set(0, targetY, 0);
+        overhead.castShadow = true;
+        const overheadHalfSpan = Math.max(PLAY_W, PLAY_H) * 0.62;
+        const overheadShadowDepth = lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 8;
+        overhead.shadow.mapSize.set(3072, 3072);
+        overhead.shadow.camera.near = 0.1;
+        overhead.shadow.camera.far = overheadShadowDepth;
+        overhead.shadow.camera.left = -overheadHalfSpan;
+        overhead.shadow.camera.right = overheadHalfSpan;
+        overhead.shadow.camera.top = overheadHalfSpan;
+        overhead.shadow.camera.bottom = -overheadHalfSpan;
+        overhead.shadow.bias = -0.00014;
+        overhead.shadow.normalBias = 0.0004;
+        overhead.shadow.camera.updateProjectionMatrix();
+        lightingRig.add(overhead);
+        lightingRig.add(overhead.target);
+
         lightingRigRef.current = {
           group: lightingRig,
           key,
           fill,
           rim,
+          overhead,
           ambient
         };
         applyLightingPreset();
