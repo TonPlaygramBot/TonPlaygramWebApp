@@ -4396,9 +4396,6 @@ const AIM_SPIN_PREVIEW_SIDE = 0.22;
 const AIM_SPIN_PREVIEW_FORWARD = 0.12;
 const POCKET_VIEW_SMOOTH_TIME = 0.24; // seconds to ease pocket camera transitions
 const POCKET_CAMERA_FOV = STANDING_VIEW_FOV;
-const POCKET_LIVE_ALIGNMENT = 0.4;
-const POCKET_REPLAY_LEAD_MS = 450;
-const POCKET_REPLAY_HOLD_MS = 900;
 const LONG_SHOT_DISTANCE = PLAY_H * 0.5;
 const LONG_SHOT_ACTIVATION_DELAY_MS = 220;
 const LONG_SHOT_ACTIVATION_TRAVEL = PLAY_H * 0.28;
@@ -9446,10 +9443,7 @@ function PoolRoyaleGame({
   const startUserSuggestionRef = useRef(() => {});
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
-  const aiThinkingHandleRef = useRef(null);
   const inHandCameraRestoreRef = useRef(null);
-  const replayPocketQueueRef = useRef([]);
-  const replayPocketStateRef = useRef(null);
   const initialHudInHand = useMemo(
     () => deriveInHandFromFrame(initialFrame),
     [initialFrame]
@@ -10146,78 +10140,6 @@ function PoolRoyaleGame({
     setHud((prev) => ({ ...prev, over: true }));
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
-  const pottedSummary = useMemo(() => {
-    const meta = frameState.meta;
-    if (meta?.variant === 'uk' && meta.state) {
-      const totals = meta.totals ?? { blue: 7, red: 7 };
-      const remainingRed = meta.state.ballsOnTable?.red?.length ?? totals.red ?? 0;
-      const remainingBlue = meta.state.ballsOnTable?.blue?.length ?? totals.blue ?? 0;
-      const pottedRed = Math.max(0, (totals.red ?? 7) - remainingRed);
-      const pottedBlue = Math.max(0, (totals.blue ?? 7) - remainingBlue);
-      const assignments = meta.state.assignments ?? {};
-      const makeEntry = (id) => {
-        const assignment = assignments[id];
-        const label =
-          assignment === 'red' ? 'Reds' : assignment === 'blue' ? 'Yellows' : 'Open table';
-        const total = assignment === 'red' ? totals.red ?? 7 : assignment === 'blue' ? totals.blue ?? 7 : 0;
-        const count = assignment === 'red' ? pottedRed : assignment === 'blue' ? pottedBlue : 0;
-        const color =
-          assignment === 'red' ? '#ef4444' : assignment === 'blue' ? '#facc15' : '#9ca3af';
-        return { assignment, label, total, count, color };
-      };
-      return {
-        variant: 'uk',
-        A: makeEntry('A'),
-        B: makeEntry('B'),
-        blackDown: meta.state.ballsOnTable ? meta.state.ballsOnTable.black8 === false : false
-      };
-    }
-    if (meta?.variant === 'american' || meta?.variant === '9ball') {
-      const total = meta.variant === '9ball' ? 9 : 15;
-      const tableBalls = Array.isArray(meta.state?.ballsOnTable)
-        ? meta.state.ballsOnTable
-        : Array.from(meta.state?.ballsOnTable ?? []);
-      const onTable = new Set(tableBalls);
-      const sharedPotted = [];
-      for (let i = 1; i <= total; i++) {
-        if (!onTable.has(i)) sharedPotted.push(i);
-      }
-      return { variant: meta.variant, sharedPotted, total };
-    }
-    return null;
-  }, [frameState]);
-  const statusMessages = useMemo(() => {
-    const messages = [];
-    const meta = frameState.meta ?? {};
-    const variant = meta.variant ?? variantKey;
-    const activeId = frameState.activePlayer === 'B' ? 'B' : 'A';
-    const localId = localSeat === 'B' ? 'B' : 'A';
-    const activeLabel = activeId === localId ? player.name || 'You' : opponentDisplayName;
-    if (frameState.foul) {
-      messages.push(frameState.foul.reason ? `Foul: ${frameState.foul.reason}` : 'Foul');
-    }
-    if (variant === 'uk' && meta.state) {
-      const shots = meta.state.shotsRemaining ?? 1;
-      if (activeId === localId && shots > 1) {
-        messages.push(`${activeLabel} has ${shots} shots`);
-      }
-      const assignments = meta.state.assignments ?? {};
-      const assignment = assignments[localId];
-      if (assignment === 'red') messages.push('You are reds');
-      else if (assignment === 'blue') messages.push('You are yellows');
-      else messages.push('Open table');
-      if (meta.state.mustPlayFromBaulk && activeId === localId) {
-        messages.push('Play from baulk');
-      }
-    } else if (
-      (variant === 'american' || variant === '9ball') &&
-      meta.state?.ballInHand &&
-      activeId === localId
-    ) {
-      messages.push('Ball in hand');
-    }
-    return messages;
-  }, [frameState, localSeat, opponentDisplayName, player.name, variantKey]);
 
   const applyRemoteState = useCallback(
     ({ state, hud: incomingHud }) => {
@@ -10254,61 +10176,6 @@ function PoolRoyaleGame({
     if (!state) return;
     socket.emit('poolShot', { tableId, state });
   }, [isOnlineMatch, tableId]);
-  const renderPottedRow = (playerId) => {
-    if (!pottedSummary) return null;
-    if (pottedSummary.variant === 'uk') {
-      const entry = pottedSummary[playerId];
-      if (!entry) return null;
-      const dots = [];
-      for (let i = 0; i < entry.total; i++) {
-        const filled = i < entry.count;
-        dots.push(
-          <span
-            key={`${entry.assignment || 'open'}-${i}`}
-            className={`h-2.5 w-2.5 rounded-full ${filled ? '' : 'opacity-25'} shadow`}
-            style={{ backgroundColor: entry.color }}
-            aria-hidden="true"
-          />
-        );
-      }
-      if (pottedSummary.blackDown && entry.assignment) {
-        dots.push(
-          <span
-            key="black"
-            className="h-2.5 w-2.5 rounded-full bg-black shadow"
-            aria-label="Black ball potted"
-          />
-        );
-      }
-      return (
-        <div className="flex flex-wrap items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/80">
-          <span>{entry.label}</span>
-          <div className="flex items-center gap-1">{dots}</div>
-        </div>
-      );
-    }
-    if (pottedSummary.sharedPotted) {
-      const displayed = pottedSummary.sharedPotted.slice(-6);
-      return (
-        <div className="flex flex-wrap items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
-          <span>
-            Potted {pottedSummary.sharedPotted.length}/{pottedSummary.total}
-          </span>
-          <div className="flex items-center gap-1">
-            {displayed.map((num) => (
-              <span
-                key={num}
-                className="flex h-4 w-4 items-center justify-center rounded-full bg-white/15 text-[9px] font-semibold text-white shadow"
-              >
-                {num}
-              </span>
-            ))}
-          </div>
-        </div>
-      );
-    }
-    return null;
-  };
 
   useEffect(() => {
     let wakeLock;
@@ -10456,18 +10323,6 @@ function PoolRoyaleGame({
       startAiThinkingRef.current?.();
     }
   }, [frameState, hud.turn, hud.over]);
-  useEffect(() => {
-    if (hud.over) return undefined;
-    const watchdog = window.setInterval(() => {
-      const hudState = hudRef.current;
-      if (!hudState || hudState.over || hudState.turn !== 1) return;
-      if (shootingRef.current) return;
-      if (aiShotTimeoutRef.current || aiShotPreviewRef.current) return;
-      if (aiThinkingHandleRef.current) return;
-      startAiThinkingRef.current?.();
-    }, 1200);
-    return () => window.clearInterval(watchdog);
-  }, [hud.over]);
 
   useEffect(() => {
     const sph = sphRef.current;
@@ -11912,9 +11767,7 @@ function PoolRoyaleGame({
         };
 
         const updateCamera = () => {
-          const replayActive =
-            Boolean(replayPlaybackRef.current) &&
-            (!activeShotView || activeShotView.mode !== 'pocket');
+          const replayActive = Boolean(replayPlaybackRef.current);
           let renderCamera = camera;
           let lookTarget = null;
           let broadcastArgs = {
@@ -12609,7 +12462,7 @@ function PoolRoyaleGame({
               cuePhi,
               azimuth
             );
-            let desiredPosition = focusTarget
+            const desiredPosition = focusTarget
               .clone()
               .add(new THREE.Vector3().setFromSpherical(spherical));
             const outwardOffsetMagnitude =
@@ -12633,13 +12486,6 @@ function PoolRoyaleGame({
               (POCKET_CAM.heightDrop ?? 0) * worldScaleFactor;
             desiredPosition.y =
               loweredY < minHeightWorld ? minHeightWorld : loweredY;
-            if (activeShotView.lockPosition) {
-              if (!activeShotView.lockedPos) {
-                activeShotView.lockedPos = desiredPosition.clone();
-              } else {
-                desiredPosition = activeShotView.lockedPos.clone();
-              }
-            }
             const now = performance.now();
             if (focusBall?.active) {
               activeShotView.completed = false;
@@ -12657,8 +12503,7 @@ function PoolRoyaleGame({
                 ? 1 - Math.exp(-dt / POCKET_VIEW_SMOOTH_TIME)
                 : 1;
             const lerpT = THREE.MathUtils.clamp(smooth, 0, 1);
-            const lockPocketPosition = activeShotView.lockPosition;
-            if (!activeShotView.smoothedPos || lockPocketPosition) {
+            if (!activeShotView.smoothedPos) {
               activeShotView.smoothedPos = desiredPosition.clone();
             } else {
               activeShotView.smoothedPos.lerp(desiredPosition, lerpT);
@@ -13102,37 +12947,23 @@ function PoolRoyaleGame({
         };
         const makePocketCameraView = (ballId, followView, options = {}) => {
           if (!followView) return null;
-          const {
-            forceEarly = false,
-            approachOverride = null,
-            pocketCenterOverride = null,
-            pocketIdOverride = null,
-            lockPosition = false
-          } = options;
-          if (shotPrediction?.railNormal && !forceEarly) return null;
-          if (forceEarly && shotPrediction?.ballId && shotPrediction.ballId !== ballId) return null;
+          const { forceEarly = false } = options;
+          if (shotPrediction?.railNormal) return null;
+          if (forceEarly && shotPrediction?.ballId !== ballId) return null;
           const ballsList = ballsRef.current || [];
           const targetBall = ballsList.find((b) => b.id === ballId);
           if (!targetBall) return null;
-          const centers = pocketCenterOverride ? [pocketCenterOverride.clone()] : pocketCenters();
-          const pos = targetBall.pos.clone();
-          let dir = targetBall.vel.clone();
-          if (dir.lengthSq() < 1e-6 && approachOverride) {
-            dir.copy(approachOverride);
-          }
+          const dir = targetBall.vel.clone();
           if (dir.lengthSq() < 1e-6 && shotPrediction?.ballId === ballId) {
             dir.copy(shotPrediction.dir ?? new THREE.Vector2());
           }
-          if (dir.lengthSq() < 1e-6 && centers.length > 0) {
-            dir.copy(centers[0].clone().sub(pos));
-          }
           if (dir.lengthSq() < 1e-6) return null;
           dir.normalize();
+          const centers = pocketCenters();
+          const pos = targetBall.pos.clone();
           let best = null;
           let bestScore = -Infinity;
-          let bestIndex = -1;
-          for (let i = 0; i < centers.length; i++) {
-            const center = centers[i];
+          for (const center of centers) {
             const toPocket = center.clone().sub(pos);
             const dist = toPocket.length();
             if (dist < BALL_R * 1.5) continue;
@@ -13141,7 +12972,6 @@ function PoolRoyaleGame({
             if (score > bestScore) {
               bestScore = score;
               best = { center, dist, pocketDir };
-              bestIndex = i;
             }
           }
           if (!best || bestScore < POCKET_CAM.dotThreshold) return null;
@@ -13150,11 +12980,9 @@ function PoolRoyaleGame({
               ? shotPrediction.dir.clone().normalize().dot(best.pocketDir)
               : null;
           const isGuaranteedPocket =
-            (shotPrediction?.ballId === ballId &&
-              predictedAlignment != null &&
-              predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT) ||
-            (bestScore >= POCKET_LIVE_ALIGNMENT &&
-              (forceEarly || best.dist <= POCKET_CAM.triggerDist * 1.1));
+            shotPrediction?.ballId === ballId &&
+            predictedAlignment != null &&
+            predictedAlignment >= POCKET_GUARANTEED_ALIGNMENT;
           if (!isGuaranteedPocket) return null;
           const predictedTravelForBall =
             shotPrediction?.ballId === ballId
@@ -13167,11 +12995,8 @@ function PoolRoyaleGame({
           ) {
             return null;
           }
-          const anchorPocketId = pocketIdOverride ?? pocketIdFromCenter(best.center);
-          const approachDir =
-            approachOverride && approachOverride.lengthSq() > 1e-6
-              ? approachOverride.clone().normalize()
-              : best.pocketDir.clone();
+          const anchorPocketId = pocketIdFromCenter(best.center);
+          const approachDir = best.pocketDir.clone();
           const anchorId = resolvePocketCameraAnchor(
             anchorPocketId,
             best.center,
@@ -13228,7 +13053,7 @@ function PoolRoyaleGame({
           return {
             mode: 'pocket',
             ballId,
-            pocketId: anchorPocketId ?? POCKET_IDS[bestIndex] ?? 'TM',
+            pocketId: anchorPocketId,
             pocketCenter: best.center.clone(),
             approach: approachDir,
             heightOffset,
@@ -13251,8 +13076,7 @@ function PoolRoyaleGame({
             lastRailHitAt: targetBall.lastRailHitAt ?? null,
             lastRailHitType: targetBall.lastRailHitType ?? null,
             predictedAlignment,
-            forcedEarly,
-            lockPosition
+            forcedEarly
           };
         };
         const fit = (m = STANDING_VIEW.margin) => {
@@ -13577,46 +13401,6 @@ function PoolRoyaleGame({
           const duration = frames[frames.length - 1]?.t ?? 0;
           return { frames, cuePath, duration };
         };
-        const buildReplayPocketQueue = (frames) => {
-          if (!Array.isArray(frames) || frames.length === 0) return [];
-          const centers = pocketCenters();
-          const queue = [];
-          const lastState = new Map();
-          frames.forEach((frame) => {
-            const ballsFrame = frame?.balls ?? [];
-            ballsFrame.forEach((entry) => {
-              const prev = lastState.get(entry.id);
-              const pos = new THREE.Vector2(entry.pos?.x ?? 0, entry.pos?.y ?? 0);
-              const prevPos = prev?.pos ?? pos;
-              if (prev?.active && entry?.active === false) {
-                let bestIdx = 0;
-                let bestDist = Infinity;
-                centers.forEach((center, idx) => {
-                  const dist = pos.distanceTo(center);
-                  if (dist < bestDist) {
-                    bestDist = dist;
-                    bestIdx = idx;
-                  }
-                });
-                const pocketCenter = centers[bestIdx] ?? centers[0];
-                const approach = pos.clone().sub(prevPos);
-                if (approach.lengthSq() < 1e-6) {
-                  approach.copy(pocketCenter.clone().sub(pos));
-                }
-                queue.push({
-                  t: frame?.t ?? 0,
-                  ballId: entry.id,
-                  pocketCenter: pocketCenter.clone(),
-                  pocketId: POCKET_IDS[bestIdx] ?? null,
-                  approach,
-                  pos
-                });
-              }
-              lastState.set(entry.id, { active: entry?.active, pos });
-            });
-          });
-          return queue.sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
-        };
 
         const storeReplayCameraFrame = () => {
           const activeCamera = activeRenderCameraRef.current ?? camera;
@@ -13658,8 +13442,6 @@ function PoolRoyaleGame({
           const trimmed = trimReplayRecording(shotRecording);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
-          replayPocketQueueRef.current = buildReplayPocketQueue(trimmed.frames);
-          replayPocketStateRef.current = null;
           storeReplayCameraFrame();
           resetCameraForReplay();
           replayPlayback = {
@@ -13728,10 +13510,6 @@ function PoolRoyaleGame({
           shotReplayRef.current = null;
           replayCameraRef.current = null;
           replayFrameCameraRef.current = null;
-          replayPocketQueueRef.current = [];
-          replayPocketStateRef.current = null;
-          updatePocketCameraState(false);
-          activeShotView = null;
         };
 
         const enterTopView = (immediate = false) => {
@@ -15541,8 +15319,7 @@ function PoolRoyaleGame({
           const earlyPocketView =
             !suppressPocketCameras && shotPrediction.ballId && followView
               ? makePocketCameraView(shotPrediction.ballId, followView, {
-                  forceEarly: true,
-                  lockPosition: true
+                  forceEarly: true
                 })
               : null;
           if (actionView && cameraRef.current) {
@@ -16378,12 +16155,10 @@ function PoolRoyaleGame({
             cancelAnimationFrame(aiThinkingHandle);
             aiThinkingHandle = null;
           }
-          aiThinkingHandleRef.current = null;
           clearEarlyAiShot();
         };
         const startAiThinking = () => {
           stopAiThinking();
-          aiThinkingHandleRef.current = null;
           if (!cue?.active) {
             setAiPlanning(null);
             return;
@@ -16407,7 +16182,6 @@ function PoolRoyaleGame({
               setAiPlanning(null);
               aiPlanRef.current = null;
               aiThinkingHandle = null;
-              aiThinkingHandleRef.current = null;
               clearEarlyAiShot();
               return;
             }
@@ -16426,10 +16200,8 @@ function PoolRoyaleGame({
             scheduleEarlyAiShot(plan);
             if (remaining > 0) {
               aiThinkingHandle = requestAnimationFrame(think);
-              aiThinkingHandleRef.current = aiThinkingHandle;
             } else {
               aiThinkingHandle = null;
-              aiThinkingHandleRef.current = null;
               if (!shooting) {
                 aiShoot.current();
               }
@@ -17038,54 +16810,6 @@ function PoolRoyaleGame({
               frameB: frameB?.camera ?? frameA?.camera ?? null,
               alpha
             };
-            const pocketQueue = replayPocketQueueRef.current ?? [];
-            if (
-              (!replayPocketStateRef.current || !replayPocketStateRef.current.view) &&
-              pocketQueue.length > 0
-            ) {
-              const next = pocketQueue[0];
-              const triggerAt = Math.max(0, (next?.t ?? 0) - POCKET_REPLAY_LEAD_MS);
-              if (targetTime >= triggerAt) {
-                replayPocketQueueRef.current = pocketQueue.slice(1);
-                const orbitSnapshot = sphRef.current
-                  ? {
-                      radius: sphRef.current.radius,
-                      phi: sphRef.current.phi,
-                      theta: sphRef.current.theta
-                    }
-                  : null;
-                const followView = orbitSnapshot ? { orbitSnapshot } : null;
-                const pocketView = makePocketCameraView(next.ballId, followView, {
-                  forceEarly: true,
-                  approachOverride: next.approach,
-                  pocketCenterOverride: next.pocketCenter,
-                  pocketIdOverride: next.pocketId,
-                  lockPosition: true
-                });
-                if (pocketView) {
-                  pocketView.holdUntil = (next?.t ?? 0) + POCKET_REPLAY_HOLD_MS;
-                  replayPocketStateRef.current = {
-                    view: pocketView,
-                    startedAt: performance.now(),
-                    endAt: pocketView.holdUntil
-                  };
-                  activeShotView = pocketView;
-                  updatePocketCameraState(true);
-                }
-              }
-            }
-            const replayPocket = replayPocketStateRef.current;
-            if (replayPocket?.view) {
-              activeShotView = replayPocket.view;
-              const endTime = replayPocket.endAt ?? replayPocket.view.holdUntil;
-              if (targetTime >= (endTime ?? targetTime)) {
-                replayPocketStateRef.current = null;
-                activeShotView = null;
-                updatePocketCameraState(false);
-              }
-            } else if (activeShotView?.mode === 'pocket') {
-              activeShotView = null;
-            }
             const frameCamera = updateCamera();
             renderer.render(scene, frameCamera ?? camera);
             const finished = elapsed >= duration || elapsed - duration >= REPLAY_TIMEOUT_GRACE_MS;
@@ -17916,8 +17640,7 @@ function PoolRoyaleGame({
             const resumeView = orbitSnapshot ? { orbitSnapshot } : null;
             const matchesIntent = pocketIntent?.ballId === ball.id;
             const candidate = makePocketCameraView(ball.id, resumeView, {
-              forceEarly: matchesIntent && pocketIntent?.allowEarly,
-              lockPosition: true
+              forceEarly: matchesIntent && pocketIntent?.allowEarly
             });
             if (!candidate) continue;
             const matchesPrediction = shotPrediction?.ballId === ball.id;
@@ -18934,20 +18657,6 @@ function PoolRoyaleGame({
         </div>
       )}
 
-      {statusMessages.length > 0 && (
-        <div
-          className="pointer-events-none absolute left-1/2 top-16 z-40 -translate-x-1/2"
-          style={{
-            transform: `translate(-50%, 0) scale(${uiScale})`,
-            transformOrigin: 'top center'
-          }}
-        >
-          <div className="rounded-full bg-black/75 px-4 py-2 text-sm font-semibold text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur">
-            {statusMessages.join(' • ')}
-          </div>
-        </div>
-      )}
-
       <div
         className="pointer-events-none absolute bottom-4 left-4 z-50 flex flex-col gap-2"
         style={{ transform: `scale(${uiScale})`, transformOrigin: 'bottom left' }}
@@ -19013,12 +18722,9 @@ function PoolRoyaleGame({
                     : 'border-white/40'
                 }`}
               />
-              <div className="flex min-w-0 flex-col">
-                <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                  {player.name}
-                </span>
-                <div className="mt-0.5">{renderPottedRow(localSeat === 'A' ? 'A' : 'B')}</div>
-              </div>
+              <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                {player.name}
+              </span>
             </div>
             <div className="flex h-full items-center gap-2 text-base font-semibold">
               <span className="text-amber-300">{hud.A}</span>
@@ -19043,25 +18749,17 @@ function PoolRoyaleGame({
                         : 'border-white/40'
                     }`}
                   />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                      {opponentDisplayName}
-                    </span>
-                    <div className="mt-0.5">
-                      {renderPottedRow(localSeat === 'A' ? 'B' : 'A')}
-                    </div>
-                  </div>
+                  <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                    {opponentDisplayName}
+                  </span>
                 </>
               ) : (
-                <div className="flex min-w-0 flex-col">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xl leading-none">{aiFlag}</span>
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                      AI
-                    </span>
-                  </div>
-                  <div className="mt-0.5">{renderPottedRow(localSeat === 'A' ? 'B' : 'A')}</div>
-                </div>
+                <>
+                  <span className="text-xl leading-none">{aiFlag}</span>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                    AI
+                  </span>
+                </>
               )}
             </div>
           </div>
