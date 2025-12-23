@@ -6022,7 +6022,6 @@ function Table3D(
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
-  cloth.castShadow = true;
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
