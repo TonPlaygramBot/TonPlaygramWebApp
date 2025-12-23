@@ -990,17 +990,11 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const PLYWOOD_SIZE_MM = Object.freeze({
-  length: 2440,
-  width: 1220,
-  thickness: 18,
-  clothGap: 3,
-  extraDrop: 10
-});
-const PLYWOOD_THICKNESS = PLYWOOD_SIZE_MM.thickness * MM_TO_UNITS; // match the real 18 mm plywood bed thickness
-const PLYWOOD_GAP = PLYWOOD_SIZE_MM.clothGap * MM_TO_UNITS; // keep a small cloth/plywood breathing gap based on measured spacing
-const PLYWOOD_EXTRA_DROP = PLYWOOD_SIZE_MM.extraDrop * MM_TO_UNITS; // drop the plywood to the real-world offset beneath the cloth
-const PLYWOOD_HOLE_SCALE = 1.015; // trim plywood apertures to a closer, real-world clearance while keeping the pockets untouched
+const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
+const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
+const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
+const PLYWOOD_OUTSET = TABLE.THICK * 0.16; // widen the plywood slab so every edge reads as a single, unbroken piece
+const PLYWOOD_HOLE_SCALE = 1.05; // cut plywood apertures 5% larger than the pocket holes to keep the pockets untouched
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -5904,21 +5898,8 @@ function Table3D(
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
   const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
-    const resolveInset = (axis) => {
-      if (typeof edgeInset === 'number') {
-        return edgeInset;
-      }
-      if (edgeInset && typeof edgeInset === 'object') {
-        const candidate = axis === 'x'
-          ? edgeInset.x ?? edgeInset.width
-          : edgeInset.y ?? edgeInset.height;
-        if (Number.isFinite(candidate)) {
-          return candidate;
-        }
-      }
-    };
-    const insetHalfW = Math.max(MICRO_EPS, halfWext - (resolveInset('x') ?? 0));
-    const insetHalfH = Math.max(MICRO_EPS, halfHext - (resolveInset('y') ?? 0));
+    const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
+    const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
 
     const baseRing = [
       [-insetHalfW, -insetHalfH],
@@ -6096,17 +6077,10 @@ function Table3D(
     clothEdgeMat.needsUpdate = true;
   }
 
-  const plywoodHalfW = (PLYWOOD_SIZE_MM.width * MM_TO_UNITS) / 2;
-  const plywoodHalfH = (PLYWOOD_SIZE_MM.length * MM_TO_UNITS) / 2;
-  const plywoodInset = {
-    x: Number.isFinite(plywoodHalfW) ? halfWext - plywoodHalfW : 0,
-    y: Number.isFinite(plywoodHalfH) ? halfHext - plywoodHalfH : 0
-  };
-
   const plywoodDepth = PLYWOOD_THICKNESS;
   if (plywoodDepth > MICRO_EPS) {
     const plywoodHoleRadius = POCKET_HOLE_R * PLYWOOD_HOLE_SCALE;
-    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, plywoodInset);
+    const plywoodShape = buildSurfaceShape(plywoodHoleRadius, -PLYWOOD_OUTSET);
     const plywoodShapes = Array.isArray(plywoodShape) ? plywoodShape : [plywoodShape];
     const plywoodExtrusions = plywoodShapes.map((shape) => {
       const geometry = new THREE.ExtrudeGeometry(shape, {
