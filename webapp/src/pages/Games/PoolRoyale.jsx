@@ -993,7 +993,8 @@ const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cu
 const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
 const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
 const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
-const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // natural plywood tone kept unpainted for the replacement slab
+const PLYWOOD_POCKET_CUT_SCALE = 1.05; // enlarge plywood apertures so cuts stay 5% wider than the pocket bowls
+const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // default fallback tone before the surface is painted to match the table finish
 const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
@@ -7942,38 +7943,43 @@ function Table3D(
   finishParts.frameMeshes.push(skirt);
 
   if (plywoodDepth > MICRO_EPS) {
-    const plywoodWidth = Math.max(MICRO_EPS, (frameOuterX + baseOverhang) * 2);
-    const plywoodLength = Math.max(MICRO_EPS, (frameOuterZ + baseOverhang) * 2);
-    const plywoodGeo = new THREE.BoxGeometry(plywoodWidth, plywoodDepth, plywoodLength);
-    const naturalPlywoodMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(PLYWOOD_SURFACE_COLOR),
-      roughness: 0.9,
-      metalness: 0.04,
-      side: THREE.DoubleSide,
-      shadowSide: THREE.DoubleSide
-    });
-    const plywoodEdgeMat = frameMat.clone();
-    plywoodEdgeMat.color = frameMat.color?.clone() ?? new THREE.Color(0x8a704d);
-    plywoodEdgeMat.side = THREE.DoubleSide;
-    plywoodEdgeMat.shadowSide = THREE.DoubleSide;
-    const plywoodPlate = new THREE.Mesh(
-      plywoodGeo,
-      [
-        plywoodEdgeMat,
-        plywoodEdgeMat,
-        naturalPlywoodMat,
-        naturalPlywoodMat,
-        plywoodEdgeMat,
-        plywoodEdgeMat
-      ]
+    const plywoodShape = buildSurfaceShape(
+      POCKET_HOLE_R * PLYWOOD_POCKET_CUT_SCALE,
+      -POCKET_BOARD_TOUCH_OFFSET
     );
-    plywoodPlate.position.y = plywoodTopY - plywoodDepth / 2;
+    const plywoodShapes = Array.isArray(plywoodShape) ? plywoodShape : [plywoodShape];
+    const plywoodGeos = plywoodShapes.map(
+      (shape) =>
+        new THREE.ExtrudeGeometry(shape, {
+          depth: plywoodDepth,
+          bevelEnabled: false,
+          curveSegments: 96,
+          steps: 1
+        })
+    );
+    let plywoodGeo = plywoodGeos[0];
+    if (plywoodGeos.length > 1) {
+      plywoodGeo = BufferGeometryUtils.mergeGeometries(plywoodGeos, false);
+    }
+    plywoodGeo.translate(0, 0, -plywoodDepth);
+
+    const plywoodMat = frameMat.clone();
+    plywoodMat.color =
+      frameMat.color?.clone() ?? new THREE.Color(PLYWOOD_SURFACE_COLOR);
+    plywoodMat.side = THREE.DoubleSide;
+    plywoodMat.shadowSide = THREE.DoubleSide;
+    applyWoodTextureToMaterial(plywoodMat, synchronizedWoodSurface);
+
+    const plywoodPlate = new THREE.Mesh(plywoodGeo, plywoodMat);
+    plywoodPlate.rotation.x = -Math.PI / 2;
+    plywoodPlate.position.y = plywoodTopY;
     plywoodPlate.receiveShadow = true;
     plywoodPlate.castShadow = true;
     plywoodPlate.renderOrder = cloth.renderOrder - 0.25;
     plywoodPlate.userData = {
       ...(plywoodPlate.userData || {}),
-      skipWoodTexture: true
+      underlayMaterialKey: 'frame',
+      allowWoodTexture: true
     };
     table.add(plywoodPlate);
     finishParts.underlayMeshes.push(plywoodPlate);
@@ -8032,8 +8038,18 @@ function Table3D(
 
   finishParts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-    applyWoodTextureToMaterial(mesh.material, alignedRailSurface);
-    mesh.material.needsUpdate = true;
+    const useRailSurface = mesh.userData?.underlayMaterialKey === 'rail';
+    const surface = useRailSurface ? alignedRailSurface : synchronizedWoodSurface;
+    const applyTexture = (mat) => {
+      if (!mat) return;
+      applyWoodTextureToMaterial(mat, surface);
+      mat.needsUpdate = true;
+    };
+    if (Array.isArray(mesh.material)) {
+      mesh.material.forEach(applyTexture);
+    } else {
+      applyTexture(mesh.material);
+    }
   });
 
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
@@ -8353,14 +8369,40 @@ function applyTableFinishToTable(table, finish) {
   }
   finishInfo.parts.underlayMeshes.forEach((mesh) => {
     if (!mesh?.material) return;
-    const mat = mesh.material;
-    if (mat.color) {
-      mat.color.copy(clothColor);
+    const prefersRail = mesh.userData?.underlayMaterialKey === 'rail';
+    const baseMaterial = prefersRail ? railMat : frameMat;
+    const surface = prefersRail ? woodSurfaces.rail : woodSurfaces.frame;
+    const allowWoodTexture = mesh.userData?.allowWoodTexture !== false;
+
+    const buildMaterial = () => {
+      const next = baseMaterial.clone();
+      if (woodTextureEnabled && surface && allowWoodTexture) {
+        applyWoodTextureToMaterial(next, surface);
+      } else if (!woodTextureEnabled) {
+        stripWoodTextures(next);
+      }
+      if (baseMaterial.color && next.color) {
+        next.color.copy(baseMaterial.color);
+      }
+      if (baseMaterial.emissive && next.emissive) {
+        next.emissive.copy(baseMaterial.emissive);
+      }
+      next.side = THREE.DoubleSide;
+      next.shadowSide = THREE.DoubleSide;
+      next.needsUpdate = true;
+      return next;
+    };
+
+    if (Array.isArray(mesh.material)) {
+      mesh.material.forEach(disposeMaterial);
+      mesh.material = mesh.material.map(() => buildMaterial());
+    } else {
+      disposeMaterial(mesh.material);
+      mesh.material = buildMaterial();
     }
-    if (mat.emissive) {
-      mat.emissive.copy(emissiveColor);
-    }
-    mat.needsUpdate = true;
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
   });
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
@@ -13773,10 +13815,11 @@ function PoolRoyaleGame({
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
-        const lightOffsetX = Math.max(PLAY_W * 0.18, TABLE.THICK * 3.6);
-        const lightOffsetZ = Math.max(PLAY_H * 0.16, TABLE.THICK * 3.4);
-        const shadowHalfSpan = Math.max(roomWidth, roomDepth) / 2 + TABLE.THICK * 0.5;
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.4;
+        const lightOffsetX = Math.max(PLAY_W * 0.22, TABLE.THICK * 3.8);
+        const lightOffsetZ = Math.max(PLAY_H * 0.2, TABLE.THICK * 3.6);
+        const shadowHalfSpan =
+          Math.max(roomWidth, roomDepth) * 0.72 + Math.max(PLAY_W, PLAY_H) * 0.48;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
@@ -13785,7 +13828,7 @@ function PoolRoyaleGame({
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.7);
-        key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
+        key.position.set(lightOffsetX * 0.36, lightRigHeight, lightOffsetZ * 0.32);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(2048, 2048);
@@ -13801,9 +13844,20 @@ function PoolRoyaleGame({
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.82);
-        fill.position.set(-lightOffsetX * 0.32, lightRigHeight * 0.98, lightOffsetZ * 0.24);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.78);
+        fill.position.set(-lightOffsetX * 0.42, lightRigHeight * 1.02, lightOffsetZ * 0.36);
         fill.target.position.set(0, targetY, 0);
+        fill.castShadow = true;
+        fill.shadow.mapSize.set(1024, 1024);
+        fill.shadow.camera.near = 0.1;
+        fill.shadow.camera.far = shadowDepth;
+        fill.shadow.camera.left = -shadowHalfSpan;
+        fill.shadow.camera.right = shadowHalfSpan;
+        fill.shadow.camera.top = shadowHalfSpan;
+        fill.shadow.camera.bottom = -shadowHalfSpan;
+        fill.shadow.bias = -0.00004;
+        fill.shadow.normalBias = 0.00045;
+        fill.shadow.camera.updateProjectionMatrix();
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
