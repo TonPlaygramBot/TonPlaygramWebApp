@@ -5383,6 +5383,7 @@ function Guret(parent, id, color, x, y, options = {}) {
   mesh.position.set(x, BALL_CENTER_Y, y);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+  mesh.layers.set(1); // isolate ball shadows so they don't project onto the carpet
   mesh.traverse((node) => {
     node.userData = node.userData || {};
     node.userData.ballId = id;
@@ -6022,6 +6023,8 @@ function Table3D(
   cloth.rotation.x = -Math.PI / 2;
   cloth.position.y = clothPlaneLocal - CLOTH_DROP;
   cloth.renderOrder = 3;
+  cloth.layers.enable(1); // allow selective ball-shadow lighting while keeping cloth lit by the main rig
+  cloth.castShadow = true;
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
@@ -9563,11 +9566,16 @@ function PoolRoyaleGame({
         key,
         fill,
         rim,
-        ambient
+        ambient,
+        ballShadow
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
       if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
+      if (ballShadow) {
+        if (settings.keyColor) ballShadow.color.set(settings.keyColor);
+        if (settings.keyIntensity) ballShadow.intensity = settings.keyIntensity * 0.9;
+      }
       if (settings.fillColor && fill) fill.color.set(settings.fillColor);
       if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
@@ -13763,12 +13771,14 @@ function PoolRoyaleGame({
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.22);
+        ambient.layers.enable(1);
         lightingRig.add(ambient);
 
         const key = new THREE.DirectionalLight(0xffffff, 1.6);
         key.position.set(lightOffsetX * 0.24, lightRigHeight, lightOffsetZ * 0.2);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
+        key.layers.set(0);
         key.shadow.mapSize.set(2048, 2048);
         key.shadow.camera.near = 0.1;
         key.shadow.camera.far = shadowDepth;
@@ -13781,15 +13791,34 @@ function PoolRoyaleGame({
         lightingRig.add(key);
         lightingRig.add(key.target);
 
+        const ballShadow = new THREE.DirectionalLight(0xffffff, key.intensity * 0.9);
+        ballShadow.position.copy(key.position);
+        ballShadow.target.position.set(0, targetY, 0);
+        ballShadow.castShadow = true;
+        ballShadow.layers.set(1);
+        ballShadow.shadow.mapSize.copy(key.shadow.mapSize);
+        ballShadow.shadow.camera.near = key.shadow.camera.near;
+        ballShadow.shadow.camera.far = key.shadow.camera.far;
+        ballShadow.shadow.camera.left = key.shadow.camera.left;
+        ballShadow.shadow.camera.right = key.shadow.camera.right;
+        ballShadow.shadow.camera.top = key.shadow.camera.top;
+        ballShadow.shadow.camera.bottom = key.shadow.camera.bottom;
+        ballShadow.shadow.bias = key.shadow.bias;
+        ballShadow.shadow.normalBias = key.shadow.normalBias;
+        lightingRig.add(ballShadow);
+        lightingRig.add(ballShadow.target);
+
         const fill = new THREE.DirectionalLight(0xffffff, 0.75);
         fill.position.set(-lightOffsetX * 0.22, lightRigHeight * 0.94, lightOffsetZ * 0.2);
         fill.target.position.set(0, targetY, 0);
+        fill.layers.enable(1);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
         const rim = new THREE.DirectionalLight(0xffffff, 0.55);
         rim.position.set(0, lightRigHeight * 0.98, -lightOffsetZ * 0.32);
         rim.target.position.set(0, targetY, 0);
+        rim.layers.enable(1);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
@@ -13798,7 +13827,8 @@ function PoolRoyaleGame({
           key,
           fill,
           rim,
-          ambient
+          ambient,
+          ballShadow
         };
         applyLightingPreset();
       };
