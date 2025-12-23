@@ -34,7 +34,6 @@ export default function PoolRoyaleLobby() {
   const [playerFlagIndex, setPlayerFlagIndex] = useState(null);
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [variant, setVariant] = useState('uk');
-  const [ballSet, setBallSet] = useState('classic');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
@@ -57,12 +56,6 @@ export default function PoolRoyaleLobby() {
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-
-  useEffect(() => {
-    if (variant !== 'uk') {
-      setBallSet('classic');
-    }
-  }, [variant]);
 
   useEffect(() => {
     try {
@@ -114,7 +107,6 @@ export default function PoolRoyaleLobby() {
     cleanupRef.current?.({ account: accountId, skipRefReset: true });
     const params = new URLSearchParams();
     params.set('variant', variant);
-    if (variant === 'uk' && ballSet) params.set('ballSet', ballSet);
     params.set('type', playType);
     params.set('mode', 'online');
     params.set('tableId', startedId);
@@ -126,7 +118,6 @@ export default function PoolRoyaleLobby() {
     const resolvedAccountId = accountIdRef.current;
     if (resolvedAccountId) params.set('accountId', resolvedAccountId);
     if (tableSize) params.set('tableSize', tableSize);
-    if (variant === 'uk' && ballSet) params.set('ballSet', ballSet);
     params.set('seat', seat);
     params.set('starter', starterSeat);
     const name = (friendlyName || '').trim();
@@ -147,7 +138,6 @@ export default function PoolRoyaleLobby() {
       await runPoolRoyaleOnlineFlow({
         stake,
         variant,
-        ballSet,
         playType,
         mode,
         tableSize,
@@ -196,7 +186,6 @@ export default function PoolRoyaleLobby() {
 
     const params = new URLSearchParams();
     params.set('variant', variant);
-    if (variant === 'uk' && ballSet) params.set('ballSet', ballSet);
     params.set('tableSize', tableSize);
     params.set('type', playType);
     params.set('mode', mode);
@@ -388,28 +377,6 @@ export default function PoolRoyaleLobby() {
           ))}
         </div>
       </div>
-      {variant === 'uk' && (
-        <div className="space-y-2">
-          <h3 className="font-semibold">Ball Set</h3>
-          <div className="flex gap-2 flex-wrap">
-            {[
-              { id: 'classic', label: 'Yellow & Red' },
-              { id: 'american', label: 'American Solids/Stripes' }
-            ].map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setBallSet(id)}
-                className={`lobby-tile ${ballSet === id ? 'lobby-selected' : ''}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-subtext">
-            Keep UK 8-ball rules while choosing between classic red/yellow balls or American billiard colors.
-          </p>
-        </div>
-      )}
       {playType === 'tournament' && (
         <div className="space-y-2">
           <h3 className="font-semibold">Players</h3>
