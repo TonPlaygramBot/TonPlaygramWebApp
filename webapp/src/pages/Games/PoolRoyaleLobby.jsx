@@ -35,7 +35,6 @@ export default function PoolRoyaleLobby() {
   const [aiFlagIndex, setAiFlagIndex] = useState(null);
   const [variant, setVariant] = useState('uk');
   const [ukBallSet, setUkBallSet] = useState('uk');
-  const [ballSetToast, setBallSetToast] = useState('');
   const [playType, setPlayType] = useState(initialPlayType);
   const [players, setPlayers] = useState(8);
   const tableSize = resolveTableSize(searchParams.get('tableSize')).id;
@@ -55,24 +54,9 @@ export default function PoolRoyaleLobby() {
   const stakeDebitRef = useRef(null);
   const matchTimeoutRef = useRef(null);
   const seatTimeoutRef = useRef(null);
-  const ballSetToastRef = useRef(null);
 
   const selectedFlag = playerFlagIndex != null ? FLAG_EMOJIS[playerFlagIndex] : '';
   const selectedAiFlag = aiFlagIndex != null ? FLAG_EMOJIS[aiFlagIndex] : '';
-  const ukBallSetLabel = ukBallSet === 'american' ? 'Solids & Stripes' : 'Yellow & Red';
-  const ukBallPreview = useMemo(
-    () =>
-      ukBallSet === 'american'
-        ? [
-            { color: '#f6d500', pattern: 'solid', number: 1, label: 'Solid 1' },
-            { color: '#8e44ad', pattern: 'stripe', number: 12, label: 'Stripe 12' }
-          ]
-        : [
-            { color: '#d12c2c', pattern: 'solid', number: 3, label: 'Red' },
-            { color: '#ffd700', pattern: 'solid', number: 1, label: 'Yellow' }
-          ],
-    [ukBallSet]
-  );
 
   useEffect(() => {
     try {
@@ -104,74 +88,8 @@ export default function PoolRoyaleLobby() {
   useEffect(() => {
     if (variant !== 'uk') {
       setUkBallSet('uk');
-      setBallSetToast('');
     }
   }, [variant]);
-
-  useEffect(() => {
-    return () => {
-      if (ballSetToastRef.current) {
-        clearTimeout(ballSetToastRef.current);
-      }
-    };
-  }, []);
-
-  const showBallSetComment = (message) => {
-    setBallSetToast(message);
-    if (ballSetToastRef.current) {
-      clearTimeout(ballSetToastRef.current);
-    }
-    ballSetToastRef.current = setTimeout(() => setBallSetToast(''), 3000);
-  };
-
-  const handleUkBallSetChange = (id) => {
-    setUkBallSet(id);
-    const message =
-      id === 'american'
-        ? 'Solids & Stripes visuals selected for UK rules.'
-        : 'UK reds and yellows restored.';
-    showBallSetComment(message);
-  };
-
-  const buildBallBackground = (baseColor, pattern = 'solid') =>
-    pattern === 'stripe'
-      ? `radial-gradient(circle at 30% 30%, #ffffff 0%, #ffffff 16%, rgba(255,255,255,0) 28%),
-         radial-gradient(circle at 70% 70%, rgba(0,0,0,0.22) 0%, rgba(0,0,0,0.22) 24%, rgba(0,0,0,0) 36%),
-         linear-gradient(0deg, ${baseColor} 34%, ${baseColor} 66%, #ffffff 66%, #ffffff 100%),
-         radial-gradient(circle at 50% 45%, ${baseColor} 0%, ${baseColor} 55%, ${baseColor} 100%)`
-      : `radial-gradient(circle at 32% 32%, #ffffff 0%, #ffffff 22%, ${baseColor} 46%, ${baseColor} 100%)`;
-
-  const renderBallIcon = ({ color, pattern, number, label }, idx) => (
-    <div key={`${label}-${idx}`} className="flex flex-col items-center gap-1 text-[10px] text-subtext">
-      <span
-        className="relative inline-flex items-center justify-center"
-        style={{ width: 28, height: 28 }}
-        aria-label={label}
-      >
-        <span
-          className="absolute inset-0 rounded-full shadow-sm"
-          style={{
-            background: buildBallBackground(color, pattern),
-            boxShadow: '0 1px 2px rgba(0,0,0,0.28), inset 0 0 0 0.75px rgba(0,0,0,0.25)'
-          }}
-        />
-        {Number.isFinite(number) && (
-          <span
-            className="relative px-1.5 py-0.5 rounded-full text-[10px] font-semibold"
-            style={{
-              background: '#ffffff',
-              boxShadow: '0 0 0 0.5px rgba(0,0,0,0.35)',
-              color: '#111',
-              lineHeight: 1
-            }}
-          >
-            {number}
-          </span>
-        )}
-      </span>
-      <span>{label}</span>
-    </div>
-  );
 
   const navigateToPoolRoyale = ({ tableId: startedId, roster = [], accountId, currentTurn }) => {
     const selfId = accountId || accountIdRef.current;
@@ -477,19 +395,14 @@ export default function PoolRoyaleLobby() {
         <div className="space-y-2">
           <h3 className="font-semibold">Ball Colors</h3>
           <p className="text-xs text-subtext">
-            Keep UK yellow/red sets or switch to Solids & Stripes visuals while keeping UK rules.
+            Keep UK yellow/red sets or switch to American billiards visuals with the same UK rules.
           </p>
-          {ballSetToast && (
-            <div className="text-xs text-primary transition-opacity duration-300">
-              {ballSetToast}
-            </div>
-          )}
           <div className="flex gap-2">
-            {[{ id: 'uk', label: 'Yellow & Red' }, { id: 'american', label: 'Solids & Stripes' }].map(
+            {[{ id: 'uk', label: 'Yellow & Red' }, { id: 'american', label: 'American Set' }].map(
               ({ id, label }) => (
                 <button
                   key={id}
-                  onClick={() => handleUkBallSetChange(id)}
+                  onClick={() => setUkBallSet(id)}
                   className={`lobby-tile ${ukBallSet === id ? 'lobby-selected' : ''}`}
                 >
                   {label}
@@ -549,15 +462,6 @@ export default function PoolRoyaleLobby() {
               <div className="text-sm text-subtext">Your avatar will appear in the match intro.</div>
             </div>
           )}
-          <div className="pt-2 border-t border-border/60 mt-2 space-y-2">
-            <div className="text-[11px] uppercase tracking-wide text-subtext">8 Pool UK Balls</div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-3">
-                {ukBallPreview.map((ball, idx) => renderBallIcon(ball, idx))}
-              </div>
-              <span className="text-xs text-subtext">{ukBallSetLabel} shown under avatars.</span>
-            </div>
-          </div>
         </div>
       </div>
 
