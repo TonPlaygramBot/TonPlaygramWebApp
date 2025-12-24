@@ -296,6 +296,49 @@ const BUNDLE_TON_MAP = Object.fromEntries(
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 
+function buildLobbyKey(gameType, maxPlayers, stake, options = {}) {
+  const {
+    token = 'TPC',
+    variant = 'default',
+    tableSize = 'standard',
+    playType = 'regular',
+    mode = 'standard',
+    ballSet = ''
+  } = options || {};
+  return [
+    gameType || 'game',
+    maxPlayers || 0,
+    stake ?? 0,
+    token || 'TPC',
+    variant || 'default',
+    tableSize || 'standard',
+    playType || 'regular',
+    mode || 'standard',
+    ballSet || ''
+  ].join('|');
+}
+
+function tableMatchesConfig(table, stake, options = {}) {
+  if (!table) return false;
+  const {
+    token = 'TPC',
+    variant = 'default',
+    tableSize = 'standard',
+    playType = 'regular',
+    mode = 'standard',
+    ballSet = ''
+  } = options || {};
+  return (
+    table.stake === stake &&
+    (table.token || 'TPC') === token &&
+    (table.variant || 'default') === variant &&
+    (table.tableSize || 'standard') === tableSize &&
+    (table.playType || 'regular') === playType &&
+    (table.mode || 'standard') === mode &&
+    (table.ballSet || '') === ballSet
+  );
+}
+
 function isRateLimited(socket, key, cooldownMs) {
   const now = Date.now();
   const last = lastActionBySocket.get(socket.id)?.[key] || 0;
@@ -319,26 +362,33 @@ function ensureRegistered(socket, accountId) {
   return true;
 }
 
-function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
-  const key = `${gameType}-${maxPlayers}`;
-  if (!lobbyTables[key]) lobbyTables[key] = [];
-  const open = lobbyTables[key].find(
-    (t) => t.stake === stake && t.players.length < t.maxPlayers
+function getAvailableTable(gameType, stake = 0, maxPlayers = 4, options = {}) {
+  const lobbyKey = buildLobbyKey(gameType, maxPlayers, stake, options);
+  if (!lobbyTables[lobbyKey]) lobbyTables[lobbyKey] = [];
+  const open = lobbyTables[lobbyKey].find(
+    (t) => t.players.length < t.maxPlayers && tableMatchesConfig(t, stake, options)
   );
   if (open) return open;
   const table = {
     id: randomUUID(),
     gameType,
     stake,
+    token: options.token || 'TPC',
+    variant: options.variant || 'default',
+    tableSize: options.tableSize || 'standard',
+    playType: options.playType || 'regular',
+    mode: options.mode || 'standard',
+    ballSet: options.ballSet || '',
     maxPlayers,
     players: [],
     currentTurn: null,
-    ready: new Set()
+    ready: new Set(),
+    lobbyKey
   };
-  lobbyTables[key].push(table);
+  lobbyTables[lobbyKey].push(table);
   tableMap.set(table.id, table);
   console.log(
-    `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake})`
+    `Created new table: ${table.id} (${gameType}, cap ${maxPlayers}, stake: ${stake}, variant: ${table.variant}, tableSize: ${table.tableSize}, playType: ${table.playType}, mode: ${table.mode}, ballSet: ${table.ballSet || 'default'}, token: ${table.token})`
   );
   return table;
 }
@@ -435,13 +485,14 @@ async function seatTableSocket(
   playerName,
   socket,
   playerAvatar,
-  preferredSide
+  preferredSide,
+  options = {}
 ) {
   if (!accountId) return null;
   console.log(
     `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
   );
-  const table = getAvailableTable(gameType, stake, maxPlayers);
+  const table = getAvailableTable(gameType, stake, maxPlayers, options);
   const tableId = table.id;
   cleanupSeats();
   // Ensure this user is not seated at any other table
@@ -524,8 +575,9 @@ function maybeStartGame(table) {
         stake: table.stake
       });
       tableSeats.delete(table.id);
-      const key = `${table.gameType}-${table.maxPlayers}`;
-      lobbyTables[key] = (lobbyTables[key] || []).filter(
+      const lobbyKey =
+        table.lobbyKey || buildLobbyKey(table.gameType, table.maxPlayers, table.stake, table);
+      lobbyTables[lobbyKey] = (lobbyTables[lobbyKey] || []).filter(
         (t) => t.id !== table.id
       );
       if (table.gameType === 'poolroyale') {
@@ -564,8 +616,9 @@ function unseatTableSocket(accountId, tableId, socketId) {
     }
     if (table.players.length === 0) {
       tableMap.delete(tableId);
-      const key = `${table.gameType}-${table.maxPlayers}`;
-      lobbyTables[key] = (lobbyTables[key] || []).filter(
+      const lobbyKey =
+        table.lobbyKey || buildLobbyKey(table.gameType, table.maxPlayers, table.stake, table);
+      lobbyTables[lobbyKey] = (lobbyTables[lobbyKey] || []).filter(
         (t) => t.id !== tableId
       );
       table.currentTurn = null;
@@ -922,11 +975,25 @@ io.on('connection', (socket) => {
         playerName,
         tableId,
         avatar,
-        preferredSide
+        preferredSide,
+        token,
+        variant,
+        tableSize,
+        playType,
+        mode,
+        ballSet
       },
       cb
     ) => {
       if (!ensureRegistered(socket, accountId)) return cb && cb({ success: false, error: 'register_required' });
+      const config = {
+        token,
+        variant,
+        tableSize,
+        playType,
+        mode,
+        ballSet
+      };
       let table;
       if (tableId) {
         const [gt, capStr] = tableId.split('-');
@@ -938,7 +1005,8 @@ io.on('connection', (socket) => {
           playerName,
           socket,
           avatar,
-          preferredSide
+          preferredSide,
+          config
         );
       } else {
         table = await seatTableSocket(
@@ -949,7 +1017,8 @@ io.on('connection', (socket) => {
           playerName,
           socket,
           avatar,
-          preferredSide
+          preferredSide,
+          config
         );
       }
       if (table && cb) {
