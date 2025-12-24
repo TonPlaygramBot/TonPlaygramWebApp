@@ -3,6 +3,30 @@ using UnityEngine;
 
 public class BilliardLighting : MonoBehaviour
 {
+    static Texture2D squareCookie;
+
+    static Texture2D SquareCookie
+    {
+        get
+        {
+            if (squareCookie == null)
+            {
+                squareCookie = new Texture2D(2, 2, TextureFormat.RGBA32, false, true);
+                Color32[] pixels =
+                {
+                    new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255),
+                    new Color32(255, 255, 255, 255), new Color32(255, 255, 255, 255)
+                };
+                squareCookie.SetPixels32(pixels);
+                squareCookie.wrapMode = TextureWrapMode.Clamp;
+                squareCookie.filterMode = FilterMode.Bilinear;
+                squareCookie.Apply();
+            }
+
+            return squareCookie;
+        }
+    }
+
     void Start()
     {
         // Create three spot lights to highlight the D, blue and black spots on the table
@@ -34,6 +58,7 @@ public class BilliardLighting : MonoBehaviour
         foreach (GameObject ball in balls)
         {
             Renderer renderer = ball.GetComponent<Renderer>();
+            float ballRadius = 0.5f;
             if (renderer != null)
             {
                 Material source = renderer.material;
@@ -45,6 +70,8 @@ public class BilliardLighting : MonoBehaviour
                 mat.EnableKeyword("_EMISSION");
                 mat.SetColor("_EmissionColor", source.color * 0.25f);
                 renderer.material = mat;
+
+                ballRadius = renderer.bounds.extents.x;
             }
 
             // Add a small red aiming dot to the cue ball so it rolls with the surface
@@ -53,14 +80,16 @@ public class BilliardLighting : MonoBehaviour
                 CreateCueBallDot(ball.transform);
             }
 
-            // Position three spot lights so each ball shows three white square reflections
-            const int lightCount = 3;
-            Vector3 basePos = new Vector3(0.5f, 0.8f, 0.6f);
+            // Position four lightweight square highlights in a straight line
+            const int lightCount = 4;
+            const float sizeMultiplier = 0.28f;    // slightly larger reflection footprint
+            const float lightIntensity = 2.25f;    // keep total brightness close to previous setup
+            float spacing = ballRadius * 0.4f;
+            Vector3 basePos = new Vector3(-spacing * 1.5f, 0.8f, 0.6f);
             for (int i = 0; i < lightCount; i++)
             {
-                float angle = (i - (lightCount - 1) / 2f) * 30f;
-                Vector3 pos = Quaternion.Euler(0f, 0f, angle) * basePos;
-                CreateHighlightLight(ball.transform, pos);
+                Vector3 pos = basePos + new Vector3(spacing * i, 0f, 0f);
+                CreateHighlightLight(ball.transform, pos, sizeMultiplier, lightIntensity);
             }
         }
 
@@ -68,7 +97,7 @@ public class BilliardLighting : MonoBehaviour
         EnhanceClothTexture();
     }
 
-    void CreateHighlightLight(Transform parent, Vector3 localPosition)
+    void CreateHighlightLight(Transform parent, Vector3 localPosition, float sizeMultiplier, float intensity)
     {
         GameObject lightObj = new GameObject("HighlightLight");
         lightObj.transform.parent = parent;
@@ -77,14 +106,14 @@ public class BilliardLighting : MonoBehaviour
 
         Light spotLight = lightObj.AddComponent<Light>();
         spotLight.type = LightType.Spot;
-        spotLight.cookie = Texture2D.whiteTexture; // square reflection
-        const float sizeMultiplier = 0.2f;          // 5x smaller highlight
+        spotLight.cookie = SquareCookie;            // crisp square reflection
+        spotLight.cookieSize = 0.35f * sizeMultiplier;
         spotLight.range = 2.5f * sizeMultiplier;
-        spotLight.intensity = 3f;
+        spotLight.intensity = intensity;
         spotLight.spotAngle = 10f * sizeMultiplier;
         spotLight.color = Color.white;
         spotLight.shadows = LightShadows.None;
-        spotLight.renderMode = LightRenderMode.ForcePixel;
+        spotLight.renderMode = LightRenderMode.Auto; // lightweight rendering
     }
 
     // Create a tiny red sphere on the cue ball to help players judge spin
