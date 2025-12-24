@@ -2211,10 +2211,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   freshGreen: Object.freeze({
     id: 'freshGreen',
     palette: {
-      shadow: 0x166c42,
-      base: 0x32a564,
-      accent: 0x4bc07d,
-      highlight: 0x6bd89b
+      shadow: 0x1c7d4e,
+      base: 0x35b26f,
+      accent: 0x5bce8a,
+      highlight: 0x85e7b0
     },
     sparkle: 1,
     stray: 1
@@ -2244,10 +2244,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x245c7c,
-      base: 0x368ec6,
-      accent: 0x63b9e6,
-      highlight: 0x8fd5fb
+      shadow: 0x2c6d98,
+      base: 0x49a7e8,
+      accent: 0x7ccfff,
+      highlight: 0xa8e4ff
     },
     sparkle: 1.05,
     stray: 1.12
@@ -2260,13 +2260,13 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
     label: 'Tour Green',
-    color: 0x4ac286,
+    color: 0x55cf93,
     textureKey: 'freshGreen',
     detail: {
       bumpMultiplier: 1,
-      sheen: 0.48,
-      sheenRoughness: 0.5,
-      emissiveIntensity: 0.34
+      sheen: 0.55,
+      sheenRoughness: 0.46,
+      emissiveIntensity: 0.36
     }
   },
   {
@@ -2283,12 +2283,12 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x5cb3e4,
+    color: 0x6fc5f6,
     textureKey: 'arcticBlue',
     detail: {
-      sheen: 0.6,
-      sheenRoughness: 0.48,
-      envMapIntensity: 0.12
+      sheen: 0.64,
+      sheenRoughness: 0.44,
+      envMapIntensity: 0.16
     }
   }
 ]);
@@ -14922,13 +14922,18 @@ const powerRef = useRef(hud.power);
         cue.active = false;
         updateCuePlacement(clamped);
         inHandDrag.lastPos = clamped;
-        if (commit) {
-          cue.active = true;
-          inHandDrag.lastPos = null;
-          cueBallPlacedFromHandRef.current = true;
+      if (commit) {
+        cue.active = true;
+        inHandDrag.lastPos = null;
+        cueBallPlacedFromHandRef.current = true;
+        if (hudRef.current?.inHand) {
+          const nextHud = { ...hudRef.current, inHand: false };
+          hudRef.current = nextHud;
+          setHud(nextHud);
         }
-        return true;
-      };
+      }
+      return true;
+    };
       const findAiInHandPlacement = () => {
         const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
         const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
@@ -15109,18 +15114,11 @@ const powerRef = useRef(hud.power);
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
+        if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
         if (!p) return;
-        if (!inHandPlacementModeRef.current) {
-          const cuePos = cue?.pos ?? null;
-          const reenterRadius = BALL_R * 3.2;
-          if (!cuePos || cuePos.distanceTo(p) > reenterRadius) return;
-          inHandPlacementModeRef.current = true;
-          setInHandPlacementMode(true);
-        }
-        if (!inHandPlacementModeRef.current) return;
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
@@ -19156,10 +19154,18 @@ const powerRef = useRef(hud.power);
                     isPlayerTurn
                       ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                       : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                  }`}
+                    }`}
                 />
               ) : (
-                renderFlagAvatar(playerFlag, playerFlagLabel, isPlayerTurn)
+                <img
+                  src={resolvedPlayerAvatar || '/assets/icons/profile.svg'}
+                  alt="player avatar"
+                  className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                    isPlayerTurn
+                      ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                      : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                  }`}
+                />
               )}
               <div className="flex min-w-0 flex-col">
                 <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
@@ -19206,7 +19212,15 @@ const powerRef = useRef(hud.power);
               ) : (
                 <>
                   <div className="flex items-center gap-3">
-                    {renderFlagAvatar(aiFlag, aiFlagLabel, isOpponentTurn)}
+                    <img
+                      src={opponentDisplayAvatar || '/assets/icons/profile.svg'}
+                      alt="opponent avatar"
+                      className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                        isOpponentTurn
+                          ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                          : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                      }`}
+                    />
                     <div className="flex min-w-0 flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
