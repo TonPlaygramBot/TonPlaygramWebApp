@@ -6302,9 +6302,17 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.05; // push the cushions further outward so they meet the wooden rails without a gap
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.014; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
+  if (finishParts.underlayMeshes.length > 0) {
+    finishParts.underlayMeshes.forEach((mesh) => {
+      table.remove(mesh);
+      disposeMaterialWithWood(mesh.material);
+      mesh.geometry?.dispose?.();
+    });
+    finishParts.underlayMeshes.length = 0;
+  }
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.065; // push the cushions further outward so they meet the wooden rails without a gap
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.02; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.006; // keep only a light setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
@@ -10353,10 +10361,12 @@ const powerRef = useRef(hud.power);
     const isSoloTraining = isTraining && trainingModeState === 'solo';
     if (hud.over || isSoloTraining) return undefined;
     const playerTurn = hud.turn;
+    const waitingForOpponent = isOnlineMatch && playerTurn === 1;
     const duration = playerTurn === 0 ? 60 : 3;
-    setTimer(duration);
+    setTimer(waitingForOpponent ? 0 : duration);
     timerWarnedRef.current = false;
     clearInterval(timerRef.current);
+    if (waitingForOpponent) return undefined;
     timerRef.current = setInterval(() => {
       setTimer((t) => {
         const next = t <= 1 ? 0 : t - 1;
@@ -10372,8 +10382,10 @@ const powerRef = useRef(hud.power);
         if (next === 0) {
           clearInterval(timerRef.current);
           if (playerTurn === 0) {
-            setHud((s) => ({ ...s, turn: 1 - s.turn }));
-          } else {
+            if (!isOnlineMatch) {
+              setHud((s) => ({ ...s, turn: 1 - s.turn }));
+            }
+          } else if (!isOnlineMatch) {
             aiShoot.current();
           }
           return 0;
@@ -10382,7 +10394,15 @@ const powerRef = useRef(hud.power);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [
+    hud.turn,
+    hud.over,
+    playTurnKnock,
+    isTraining,
+    trainingModeState,
+    turnCycle,
+    isOnlineMatch
+  ]);
 
   useEffect(() => {
     if (hud.over) {
@@ -10392,6 +10412,12 @@ const powerRef = useRef(hud.power);
       return;
     }
     if (hud.turn === 1) {
+      if (isOnlineMatch) {
+        stopAiThinkingRef.current?.();
+        setAiPlanning(null);
+        aiPlanRef.current = null;
+        return;
+      }
       userSuggestionRef.current = null;
       userSuggestionPlanRef.current = null;
       suggestionAimKeyRef.current = null;
@@ -10406,7 +10432,7 @@ const powerRef = useRef(hud.power);
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [hud.turn, hud.over]);
+  }, [hud.turn, hud.over, isOnlineMatch]);
 
   useEffect(() => {
     if (hud.over) return;
@@ -10418,11 +10444,11 @@ const powerRef = useRef(hud.power);
   }, [frameState, hud.turn, hud.over]);
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || isOnlineMatch) return;
     if (hud.turn === 1) {
       startAiThinkingRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, isOnlineMatch]);
 
   useEffect(() => {
     const sph = sphRef.current;
@@ -15600,6 +15626,10 @@ const powerRef = useRef(hud.power);
           return Math.min(maxRemaining, desiredWindow);
         };
         const scheduleEarlyAiShot = (plan) => {
+          if (isOnlineMatch) {
+            clearEarlyAiShot();
+            return;
+          }
           if (!plan || plan.type !== 'pot') {
             clearEarlyAiShot();
             return;
@@ -16519,6 +16549,7 @@ const powerRef = useRef(hud.power);
         startUserSuggestionRef.current = updateUserSuggestion;
 
         aiShoot.current = () => {
+          if (isOnlineMatch) return;
           if (aiRetryTimeoutRef.current) {
             clearTimeout(aiRetryTimeoutRef.current);
             aiRetryTimeoutRef.current = null;
