@@ -4279,6 +4279,7 @@ const BROADCAST_DISTANCE_MULTIPLIER = 0.085;
 // Allow portrait/landscape standing camera framing to pull in closer without clipping the table
 const STANDING_VIEW_MARGIN_LANDSCAPE = 1.0025;
 const STANDING_VIEW_MARGIN_PORTRAIT = 1.002;
+const LANDSCAPE_VIEW_FIELD_EXPANSION = 1.012;
 const BROADCAST_RADIUS_PADDING = TABLE.THICK * 0.02;
 const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely framed within the broadcast crop
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
@@ -4347,6 +4348,20 @@ const TOP_VIEW_SCREEN_OFFSET = Object.freeze({
   x: -BALL_R * 0.85, // nudge the table slightly left in top-down framing
   z: -BALL_R * 7 // push the table downward in 2D view so the lower rail gains space and top/bottom padding is balanced as requested
 });
+const resolveStandingMargin = (aspect) => {
+  let resolvedAspect = aspect;
+  if (!Number.isFinite(resolvedAspect)) {
+    if (typeof window !== 'undefined' && window.innerHeight > 0) {
+      resolvedAspect = window.innerWidth / window.innerHeight;
+    } else {
+      resolvedAspect = 1;
+    }
+  }
+  const isPortrait = resolvedAspect < 1;
+  const baseMargin = isPortrait ? STANDING_VIEW_MARGIN_PORTRAIT : STANDING_VIEW_MARGIN_LANDSCAPE;
+  const expansion = isPortrait ? 1 : LANDSCAPE_VIEW_FIELD_EXPANSION;
+  return Math.max(STANDING_VIEW.margin, baseMargin * expansion);
+};
 // Keep the rail overhead broadcast framing nearly identical to the 2D top view while
 // leaving a small tilt for depth cues.
 const RAIL_OVERHEAD_PHI = TOP_VIEW_RESOLVED_PHI + 0.12;
@@ -4845,6 +4860,12 @@ const pocketCenters = () => {
     new THREE.Vector2(sidePocketCenterX, 0)
   ];
 };
+const pocketCaptureCenters = () =>
+  pocketCenters().map((center) => {
+    const outward = center.clone().normalize();
+    const inset = POCKET_VIS_R * 0.22 * POCKET_VISUAL_EXPANSION;
+    return center.clone().add(outward.multiplyScalar(inset));
+  });
 const pocketEntranceCenters = () =>
   pocketCenters().map((center, index) => {
     const mouthRadius = index >= 4 ? SIDE_POCKET_RADIUS : POCKET_VIS_R;
@@ -6302,7 +6323,8 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // baseline trim for corner cushions to stay clear of the pocket openings
+  const CORNER_CUSHION_EXTRA_TRIM = TABLE.THICK * 0.26; // further cut back corner cushion tips so the jaw edges stay exposed
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
@@ -6345,7 +6367,9 @@ function Table3D(
   );
   const cornerCushionClearance = Math.max(
     0,
-    rawCornerCushionClearance - CUSHION_CORNER_CLEARANCE_REDUCTION
+    rawCornerCushionClearance -
+      CUSHION_CORNER_CLEARANCE_REDUCTION +
+      CORNER_CUSHION_EXTRA_TRIM
   );
   const horizontalCushionLength = Math.max(
     MICRO_EPS,
@@ -8124,7 +8148,7 @@ function Table3D(
   const clothPlaneWorld = cloth.position.y;
 
   table.userData.pockets = [];
-  pocketCenters().forEach((p, index) => {
+  pocketCaptureCenters().forEach((p, index) => {
     const marker = new THREE.Object3D();
     marker.position.set(p.x, clothPlaneWorld - POCKET_VIS_R, p.y);
     marker.userData.captureRadius = index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
@@ -8867,6 +8891,10 @@ function PoolRoyaleGame({
   const [uiScale, setUiScale] = useState(() =>
     detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
   );
+  const [isPortraitScreen, setIsPortraitScreen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.innerHeight >= window.innerWidth;
+  });
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
@@ -8900,6 +8928,22 @@ function PoolRoyaleGame({
       } else if (coarseQuery.removeListener) {
         coarseQuery.removeListener(updateScale);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const updateOrientation = () => {
+      setIsPortraitScreen(window.innerHeight >= window.innerWidth);
+    };
+    updateOrientation();
+    window.addEventListener('resize', updateOrientation);
+    window.addEventListener('orientationchange', updateOrientation);
+    return () => {
+      window.removeEventListener('resize', updateOrientation);
+      window.removeEventListener('orientationchange', updateOrientation);
     };
   }, []);
 
@@ -10144,8 +10188,8 @@ const powerRef = useRef(hud.power);
         return normalized.map((entry) => entry.toLowerCase());
       }
       return normalized.map((entry) => {
-        if (entry === 'YELLOW' || entry === 'BLUE') return 'stripes';
-        if (entry === 'RED') return 'solids';
+        if (entry === 'YELLOW' || entry === 'BLUE') return 'solids';
+        if (entry === 'RED') return 'stripes';
         if (entry === 'BLACK') return '8';
         return entry.toLowerCase();
       });
@@ -13224,26 +13268,16 @@ const powerRef = useRef(hud.power);
         fitRef.current = fit;
         topViewRef.current = false;
         topViewLockedRef.current = false;
-        const margin = Math.max(
-          STANDING_VIEW.margin,
-          topViewRef.current
-            ? TOP_VIEW_MARGIN
-            : window.innerHeight > window.innerWidth
-              ? STANDING_VIEW_MARGIN_PORTRAIT
-              : STANDING_VIEW_MARGIN_LANDSCAPE
-        );
-        fit(margin);
+        const initialMargin = topViewRef.current
+          ? TOP_VIEW_MARGIN
+          : resolveStandingMargin(camera.aspect);
+        fit(initialMargin);
         applyWorldScaleRef.current = () => {
           const changed = applyWorldScale();
           if (changed) {
-            const nextMargin = Math.max(
-              STANDING_VIEW.margin,
-              topViewRef.current
-                ? TOP_VIEW_MARGIN
-                : window.innerHeight > window.innerWidth
-                  ? STANDING_VIEW_MARGIN_PORTRAIT
-                  : STANDING_VIEW_MARGIN_LANDSCAPE
-            );
+            const nextMargin = topViewRef.current
+              ? TOP_VIEW_MARGIN
+              : resolveStandingMargin(camera.aspect);
             fit(nextMargin);
             updateCamera();
           }
@@ -13615,12 +13649,7 @@ const powerRef = useRef(hud.power);
             topViewLockedRef.current = false;
             setIsTopDownView(false);
           }
-          const margin = Math.max(
-            STANDING_VIEW.margin,
-            window.innerHeight > window.innerWidth
-              ? STANDING_VIEW_MARGIN_PORTRAIT
-              : STANDING_VIEW_MARGIN_LANDSCAPE
-          );
+          const margin = resolveStandingMargin(camera.aspect);
           fit(margin);
           if (immediate) {
             syncBlendToSpherical();
@@ -14885,13 +14914,8 @@ const powerRef = useRef(hud.power);
         inHandDrag.lastPos = clamped;
         if (commit) {
           cue.active = true;
-          inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
-          if (hudRef.current?.inHand) {
-            const nextHud = { ...hudRef.current, inHand: false };
-            hudRef.current = nextHud;
-            setHud(nextHud);
-          }
+          inHandDrag.lastPos = null;
         }
         return true;
       };
@@ -15121,7 +15145,6 @@ const powerRef = useRef(hud.power);
         const pos = inHandDrag.lastPos;
         if (pos) {
           tryUpdatePlacement(pos, true);
-          setInHandPlacementMode(false);
           autoAimRequestRef.current = true;
         }
         e.preventDefault?.();
@@ -16684,15 +16707,14 @@ const powerRef = useRef(hud.power);
                     : isOnlineMatch
                       ? opponentDisplayName
                       : 'AI';
-                const isStripeAssign = nextAssign === 'blue';
                 const assignmentLabel =
                   nextAssign === 'blue'
                     ? isUkAmericanSet
-                      ? 'Stripes'
+                      ? 'Solids'
                       : 'Yellows'
                     : nextAssign === 'red'
                       ? isUkAmericanSet
-                        ? 'Solids'
+                        ? 'Stripes'
                         : 'Reds'
                       : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
                 showRuleToast(`${seatLabel} is ${assignmentLabel}`);
@@ -17866,7 +17888,7 @@ const powerRef = useRef(hud.power);
             ? pocketMarkers.map(
                 (marker) => new THREE.Vector2(marker.position.x, marker.position.z)
               )
-            : centers;
+            : pocketCaptureCenters();
         const captureRadii =
           pocketMarkers.length > 0
             ? pocketMarkers.map((marker, idx) =>
@@ -17876,7 +17898,9 @@ const powerRef = useRef(hud.power);
                     ? SIDE_CAPTURE_R
                     : CAPTURE_R
               )
-            : centers.map((_, idx) => (idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R));
+            : pocketCaptureCenters().map((_, idx) =>
+                idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R
+              );
         balls.forEach((b) => {
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
@@ -18089,22 +18113,17 @@ const powerRef = useRef(hud.power);
       // Resize
         const onResize = () => {
           if (disposed || !host) return;
+          const resizeAspect = host.clientWidth / host.clientHeight;
           renderer.setSize(host.clientWidth, host.clientHeight);
           // Update canvas dimensions when the window size changes so the table
           // remains fully visible.
           const scaleChanged = applyWorldScaleRef.current?.() ?? false;
           if (!scaleChanged) {
-            const margin = Math.max(
-              STANDING_VIEW.margin,
-              topViewRef.current
-                ? TOP_VIEW_MARGIN
-                : window.innerHeight > window.innerWidth
-                  ? STANDING_VIEW_MARGIN_PORTRAIT
-                  : STANDING_VIEW_MARGIN_LANDSCAPE
-            );
+            const margin = topViewRef.current
+              ? TOP_VIEW_MARGIN
+              : resolveStandingMargin(resizeAspect);
             fit(margin);
           }
-          const resizeAspect = host.clientWidth / host.clientHeight;
           pocketCamerasRef.current.forEach((entry) => {
             if (!entry?.camera) return;
             entry.camera.aspect = resizeAspect;
@@ -18433,20 +18452,22 @@ const powerRef = useRef(hud.power);
   );
   const renderPottedRow = useCallback(
     (entries = []) => {
+      const gapClass = isPortraitScreen ? 'gap-0.5' : 'gap-1';
+      const ballSizeClass = isPortraitScreen ? 'h-4 w-4' : 'h-5 w-5';
       if (!entries.length) {
         return (
-          <div className="flex items-center gap-1 opacity-70">
+          <div className={`flex items-center ${gapClass} opacity-70`}>
             {Array.from({ length: 4 }).map((_, idx) => (
               <span
                 key={`ghost-${idx}`}
-                className="h-5 w-5 flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner"
+                className={`${ballSizeClass} flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner`}
               />
             ))}
           </div>
         );
       }
       return (
-        <div className="flex items-center gap-1 overflow-hidden whitespace-nowrap">
+        <div className={`flex items-center ${gapClass} overflow-hidden whitespace-nowrap`}>
           {entries.map((entry, index) => {
             const colorKey = String(entry.color || '').toUpperCase();
             const idMatch =
@@ -18494,14 +18515,14 @@ const powerRef = useRef(hud.power);
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="relative flex h-5 w-5 flex-shrink-0 items-center justify-center"
+                className={`relative flex ${ballSizeClass} flex-shrink-0 items-center justify-center`}
                 title={altLabel}
               >
                 {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt={altLabel}
-                    className="h-5 w-5 rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    className={`${ballSizeClass} rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]`}
                   />
                 ) : (
                   <span
@@ -18517,7 +18538,14 @@ const powerRef = useRef(hud.power);
         </div>
       );
     },
-    [americanBallSwatches, ballSwatches, darkenHex, getBallPreview, isUkAmericanSet]
+    [
+      americanBallSwatches,
+      ballSwatches,
+      darkenHex,
+      getBallPreview,
+      isPortraitScreen,
+      isUkAmericanSet
+    ]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
