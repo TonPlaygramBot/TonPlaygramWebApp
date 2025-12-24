@@ -68,25 +68,6 @@ const clamp01 = (value, fallback = 0) => {
   return Math.min(1, Math.max(0, value));
 };
 
-function canUseWebGL() {
-  if (typeof document === 'undefined') return true;
-  try {
-    const canvas = document.createElement('canvas');
-    const options = { failIfMajorPerformanceCaveat: false, powerPreference: 'high-performance' };
-    const gl =
-      canvas.getContext('webgl2', options) ||
-      canvas.getContext('webgl', options) ||
-      canvas.getContext('experimental-webgl', options);
-    if (gl) {
-      gl.getExtension('WEBGL_lose_context')?.loseContext?.();
-      return true;
-    }
-  } catch (error) {
-    console.warn('Chess Battle Royal: WebGL probe failed', error);
-  }
-  return false;
-}
-
 const BASE_BOARD_THEME = Object.freeze({
   light: '#e7e2d3',
   dark: '#776a5a',
@@ -5333,7 +5314,6 @@ function Chess3D({
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
   const rankSwapAppliedRef = useRef(false);
-  const [initError, setInitError] = useState('');
   const [appearance, setAppearance] = useState(() => {
     if (typeof window === 'undefined') return { ...DEFAULT_APPEARANCE };
     try {
@@ -6205,10 +6185,6 @@ function Chess3D({
   useEffect(() => {
     const host = wrapRef.current;
     if (!host) return;
-    if (!canUseWebGL()) {
-      setInitError('This device does not support WebGL acceleration required for Chess Battle Royal.');
-      return () => {};
-    }
     let cancelled = false;
     let scene = null;
     let camera = null;
@@ -6319,108 +6295,78 @@ function Chess3D({
         disposeChessChairMaterials(chairMaterials);
       });
 
-      // ----- Build scene -----
+    // ----- Build scene -----
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance'
+    });
+    applyRendererSRGB(renderer);
+    if (sharedKTX2Loader) {
       try {
-        renderer = new THREE.WebGLRenderer({
-          antialias: true,
-          alpha: false,
-          powerPreference: 'high-performance',
-          failIfMajorPerformanceCaveat: false
-        });
+        sharedKTX2Loader.detectSupport(renderer);
       } catch (error) {
-        if (!cancelled) {
-          console.error('Chess Battle Royal: WebGL renderer creation failed', error);
-          setInitError('We could not start the 3D renderer on this device. Please try again with hardware acceleration enabled.');
-        }
-        renderer?.dispose?.();
-        return;
+        console.warn('Chess Battle Royal: KTX2 support detection failed', error);
       }
-      const glContext = renderer.getContext();
-      if (!glContext) {
-        if (!cancelled) {
-          setInitError('Your browser blocked access to the graphics context needed for Chess Battle Royal.');
-        }
-        renderer?.dispose?.();
-        return;
-      }
-      applyRendererSRGB(renderer);
-      if (sharedKTX2Loader) {
-        try {
-          sharedKTX2Loader.detectSupport(renderer);
-        } catch (error) {
-          console.warn('Chess Battle Royal: KTX2 support detection failed', error);
-        }
-      }
-      const handleContextLost = (event) => {
-        event.preventDefault();
-        cancelled = true;
-        cancelAnimationFrame(rafRef.current);
-        if (!initError) {
-          setInitError('The graphics context was lost. Please reopen the game to continue playing.');
-        }
-      };
-      renderer.domElement.addEventListener('webglcontextlost', handleContextLost, { passive: false });
-      disposers.push(() => {
-        renderer?.domElement?.removeEventListener('webglcontextlost', handleContextLost);
-      });
-      renderer.toneMapping = THREE.ACESFilmicToneMapping;
-      renderer.toneMappingExposure = 1.85;
-      const devicePixelRatio = window.devicePixelRatio || 1;
-      const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
-      const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
-      renderer.setPixelRatio(pixelRatio);
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      // Ensure the canvas covers the entire host element so the board is centered
-      renderer.domElement.style.position = 'absolute';
-      renderer.domElement.style.top = '0';
-      renderer.domElement.style.left = '0';
-      renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = '100%';
-      renderer.domElement.style.zIndex = '0';
-      renderer.domElement.style.touchAction = 'none';
-      renderer.domElement.style.cursor = 'grab';
-      host.appendChild(renderer.domElement);
+    }
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.85;
+    const devicePixelRatio = window.devicePixelRatio || 1;
+    const scaledPixelRatio = devicePixelRatio * pixelRatioScale;
+    const pixelRatio = Math.max(MIN_RENDER_PIXEL_RATIO, Math.min(pixelRatioCap, scaledPixelRatio));
+    renderer.setPixelRatio(pixelRatio);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // Ensure the canvas covers the entire host element so the board is centered
+    renderer.domElement.style.position = 'absolute';
+    renderer.domElement.style.top = '0';
+    renderer.domElement.style.left = '0';
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.zIndex = '0';
+    renderer.domElement.style.touchAction = 'none';
+    renderer.domElement.style.cursor = 'grab';
+    host.appendChild(renderer.domElement);
 
-      scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0b0f16);
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0b0f16);
 
-      const arena = new THREE.Group();
-      scene.add(arena);
+    const arena = new THREE.Group();
+    scene.add(arena);
 
-      const arenaHalfWidth = CHESS_ARENA.width / 2;
-      const arenaHalfDepth = CHESS_ARENA.depth / 2;
-      const wallInset = 0.5;
-      const halfRoomX = (arenaHalfWidth - wallInset) * WALL_PROXIMITY_FACTOR;
-      const halfRoomZ = (arenaHalfDepth - wallInset) * WALL_PROXIMITY_FACTOR;
-      const roomHalfWidth = halfRoomX + wallInset;
-      const roomHalfDepth = halfRoomZ + wallInset;
-      const roomWidth = roomHalfWidth * 2;
-      const roomDepth = roomHalfDepth * 2;
+    const arenaHalfWidth = CHESS_ARENA.width / 2;
+    const arenaHalfDepth = CHESS_ARENA.depth / 2;
+    const wallInset = 0.5;
+    const halfRoomX = (arenaHalfWidth - wallInset) * WALL_PROXIMITY_FACTOR;
+    const halfRoomZ = (arenaHalfDepth - wallInset) * WALL_PROXIMITY_FACTOR;
+    const roomHalfWidth = halfRoomX + wallInset;
+    const roomHalfDepth = halfRoomZ + wallInset;
+    const roomWidth = roomHalfWidth * 2;
+    const roomDepth = roomHalfDepth * 2;
 
-      const floor = new THREE.Mesh(
-        new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
-        new THREE.MeshStandardMaterial({
-          color: 0x0f1222,
-          roughness: 0.95,
-          metalness: 0.05
-        })
-      );
-      floor.rotation.x = -Math.PI / 2;
-      floor.receiveShadow = true;
-      floor.castShadow = false;
-      arena.add(floor);
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(roomHalfWidth * 2, roomHalfDepth * 2),
+      new THREE.MeshStandardMaterial({
+        color: 0x0f1222,
+        roughness: 0.95,
+        metalness: 0.05
+      })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    floor.castShadow = false;
+    arena.add(floor);
 
-      const carpetMat = createArenaCarpetMaterial();
-      const carpet = new THREE.Mesh(
-        new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
-        carpetMat
-      );
-      carpet.rotation.x = -Math.PI / 2;
-      carpet.position.y = 0.002;
-      carpet.receiveShadow = true;
-      carpet.castShadow = false;
-      arena.add(carpet);
+    const carpetMat = createArenaCarpetMaterial();
+    const carpet = new THREE.Mesh(
+      new THREE.PlaneGeometry(roomHalfWidth * 1.2, roomHalfDepth * 1.2),
+      carpetMat
+    );
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = 0.002;
+    carpet.receiveShadow = true;
+    carpet.castShadow = false;
+    arena.add(carpet);
 
     const wallH = 3 * WALL_HEIGHT_MULTIPLIER;
     const wallT = 0.1;
@@ -8203,9 +8149,6 @@ function Chess3D({
 
     setup().catch((error) => {
       console.error('Chess Battle Royal: scene setup failed', error);
-      if (!cancelled) {
-        setInitError('Unable to finish loading the Chess Battle Royal arena on this device.');
-      }
     });
 
     return () => {
@@ -8256,21 +8199,6 @@ function Chess3D({
       clearLaughTimeout();
     };
   }, []);
-
-  if (initError) {
-    return (
-      <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white flex items-center justify-center px-4 text-center">
-        <div className="max-w-md rounded-2xl border border-white/10 bg-black/70 p-6 shadow-2xl backdrop-blur">
-          <h1 className="text-lg font-semibold text-white">Chess Battle Royal unavailable</h1>
-          <p className="mt-2 text-sm text-white/70">{initError}</p>
-          <p className="mt-3 text-xs text-white/60">
-            Please enable WebGL or hardware acceleration in your browser and reopen the game. Lowering the
-            device load by closing other apps may also help.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
