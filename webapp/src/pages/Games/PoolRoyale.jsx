@@ -2211,10 +2211,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   freshGreen: Object.freeze({
     id: 'freshGreen',
     palette: {
-      shadow: 0x1d8048,
-      base: 0x3ab86e,
-      accent: 0x54cf88,
-      highlight: 0x7ef2af
+      shadow: 0x166c42,
+      base: 0x32a564,
+      accent: 0x4bc07d,
+      highlight: 0x6bd89b
     },
     sparkle: 1,
     stray: 1
@@ -2244,10 +2244,10 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x2a668a,
-      base: 0x3d9ed8,
-      accent: 0x7dcaf7,
-      highlight: 0xb4e5ff
+      shadow: 0x245c7c,
+      base: 0x368ec6,
+      accent: 0x63b9e6,
+      highlight: 0x8fd5fb
     },
     sparkle: 1.05,
     stray: 1.12
@@ -2260,13 +2260,13 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
     label: 'Tour Green',
-    color: 0x6bdd9d,
+    color: 0x4ac286,
     textureKey: 'freshGreen',
     detail: {
       bumpMultiplier: 1,
-      sheen: 0.58,
-      sheenRoughness: 0.42,
-      emissiveIntensity: 0.52
+      sheen: 0.48,
+      sheenRoughness: 0.5,
+      emissiveIntensity: 0.34
     }
   },
   {
@@ -2283,12 +2283,12 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x7ac6f5,
+    color: 0x5cb3e4,
     textureKey: 'arcticBlue',
     detail: {
-      sheen: 0.72,
-      sheenRoughness: 0.4,
-      envMapIntensity: 0.22
+      sheen: 0.6,
+      sheenRoughness: 0.48,
+      envMapIntensity: 0.12
     }
   }
 ]);
@@ -5734,11 +5734,11 @@ function Table3D(
   const clothPrimary = new THREE.Color(palette.cloth);
   const cushionPrimary = new THREE.Color(palette.cushion ?? palette.cloth);
   const clothHighlight = new THREE.Color(0xf6fff9);
-  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.32);
-  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.22);
+  const clothColor = clothPrimary.clone().lerp(clothHighlight, 0.26);
+  const cushionColor = cushionPrimary.clone().lerp(clothHighlight, 0.18);
   const sheenColor = clothColor.clone().lerp(clothHighlight, 0.18);
-  const clothSheen = CLOTH_QUALITY.sheen * 0.46;
-  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.12);
+  const clothSheen = CLOTH_QUALITY.sheen * 0.36;
+  const clothSheenRoughness = Math.min(1, CLOTH_QUALITY.sheenRoughness * 1.2);
   const clothMat = new THREE.MeshPhysicalMaterial({
     color: clothColor,
     roughness: 0.985,
@@ -5748,7 +5748,7 @@ function Table3D(
     clearcoat: 0,
     clearcoatRoughness: 0.94,
     envMapIntensity: 0,
-    emissive: clothColor.clone().multiplyScalar(0.04),
+    emissive: clothColor.clone().multiplyScalar(0.03),
     emissiveIntensity: 0.34
   });
   clothMat.side = THREE.DoubleSide;
@@ -10270,10 +10270,38 @@ const powerRef = useRef(hud.power);
       } catch {}
     };
   }, []);
+  const resolveFlagLabel = useCallback((flagEmoji) => {
+    if (!flagEmoji) return 'Flag';
+    try {
+      const codePoints = [...flagEmoji].map((c) => c.codePointAt(0));
+      if (codePoints.length === 2) {
+        const [a, b] = codePoints;
+        const base = 0x1f1e6;
+        const region = String.fromCharCode(a - base + 65, b - base + 65);
+        if (typeof Intl !== 'undefined' && typeof Intl.DisplayNames === 'function') {
+          const display = new Intl.DisplayNames(['en'], { type: 'region' });
+          return display.of(region) || region;
+        }
+        return region;
+      }
+    } catch (err) {
+      console.warn('flag label resolve failed', err);
+    }
+    return flagEmoji;
+  }, []);
+  const playerFlag = useMemo(
+    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
+    []
+  );
+  const playerFlagLabel = useMemo(
+    () => resolveFlagLabel(playerFlag),
+    [playerFlag, resolveFlagLabel]
+  );
   const aiFlag = useMemo(
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
     []
   );
+  const aiFlagLabel = useMemo(() => resolveFlagLabel(aiFlag), [aiFlag, resolveFlagLabel]);
   const aiShoot = useRef(() => {});
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
@@ -10309,13 +10337,13 @@ const powerRef = useRef(hud.power);
     const { A, B, C, D, logo, playerImg } = panels;
     drawHudPanel(A.ctx, logo, playerImg, player.name, hud.A, timer);
     A.tex.needsUpdate = true;
-    drawHudPanel(B.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
+    drawHudPanel(B.ctx, logo, null, aiFlagLabel, hud.B, timer, aiFlag);
     B.tex.needsUpdate = true;
     drawHudPanel(C.ctx, logo, playerImg, player.name, hud.A, timer);
     C.tex.needsUpdate = true;
-    drawHudPanel(D.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
+    drawHudPanel(D.ctx, logo, null, aiFlagLabel, hud.B, timer, aiFlag);
     D.tex.needsUpdate = true;
-  }, [hud.A, hud.B, timer, player.name, aiFlag]);
+  }, [hud.A, hud.B, timer, player.name, aiFlag, aiFlagLabel]);
 
   useEffect(() => {
     updateHudPanels();
@@ -18593,6 +18621,20 @@ const powerRef = useRef(hud.power);
   const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
   const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
+  const renderFlagAvatar = useCallback(
+    (flagEmoji, label, isActive) => (
+      <span
+        className={`${avatarSizeClass} flex items-center justify-center rounded-full border-2 text-xl font-semibold shadow-[0_4px_12px_rgba(0,0,0,0.45)] ${
+          isActive ? 'border-emerald-200 bg-emerald-400/20' : 'border-white/60 bg-white/10'
+        }`}
+        role="img"
+        aria-label={`${label} flag`}
+      >
+        <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]">{flagEmoji || '🏳️'}</span>
+      </span>
+    ),
+    [avatarSizeClass]
+  );
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
@@ -19106,15 +19148,19 @@ const powerRef = useRef(hud.power);
                   : '0 6px 14px rgba(0,0,0,0.35)'
               }}
             >
-              <img
-                src={player.avatar || '/assets/icons/profile.svg'}
-                alt="player avatar"
-                className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                  isPlayerTurn
-                    ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                    : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                }`}
-              />
+              {isOnlineMatch ? (
+                <img
+                  src={player.avatar || '/assets/icons/profile.svg'}
+                  alt="player avatar"
+                  className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                    isPlayerTurn
+                      ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                      : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                  }`}
+                />
+              ) : (
+                renderFlagAvatar(playerFlag, playerFlagLabel, isPlayerTurn)
+              )}
               <div className="flex min-w-0 flex-col">
                 <span className={`${nameWidthClass} truncate text-sm font-semibold tracking-wide`}>
                   {player.name}
@@ -19160,30 +19206,14 @@ const powerRef = useRef(hud.power);
               ) : (
                 <>
                   <div className="flex items-center gap-3">
-                    <div className="relative">
-                      <img
-                        src={opponentDisplayAvatar}
-                        alt="AI avatar"
-                        className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
-                          isOpponentTurn
-                            ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
-                            : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
-                        }`}
-                      />
-                      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/80 text-xs font-semibold leading-none ring-2 ring-white/70">
-                        {aiFlag}
-                      </span>
-                    </div>
+                    {renderFlagAvatar(aiFlag, aiFlagLabel, isOpponentTurn)}
                     <div className="flex min-w-0 flex-col">
                       <div className="flex items-center gap-2">
                         <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                          AI
+                          {aiFlagLabel}
                         </span>
                       </div>
                       <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
-                      <span className="mt-1 text-[11px] text-white/70">
-                        Training partner ready
-                      </span>
                     </div>
                   </div>
                 </>
