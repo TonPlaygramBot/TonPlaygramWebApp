@@ -905,6 +905,7 @@ const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.03; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -1011,9 +1012,9 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
-const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
-const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
+const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
+const PLYWOOD_GAP = 0;
+const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
@@ -1217,8 +1218,8 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (tighten the trim to match the reference cut)
-const DEFAULT_CUSHION_CUT_ANGLE = 29;
+// angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
+const DEFAULT_CUSHION_CUT_ANGLE = 26;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -5947,9 +5948,15 @@ function Table3D(
   );
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
+  const clothPocketPositions = pocketPositions.map((center, index) => {
+    if (index < 4 || !center) return center;
+    const direction = Math.sign(center.x || 1);
+    const pull = Math.min(Math.abs(center.x), SIDE_POCKET_CLOTH_INWARD_PULL) * direction;
+    return center.clone().add(new THREE.Vector2(-pull, 0));
+  });
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
-  const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
+  const buildSurfaceShape = (holeRadius, edgeInset = 0, centers = pocketPositions) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
 
@@ -6026,7 +6033,7 @@ function Table3D(
       return [[closeRing(ring)]];
     };
 
-    const pocketSectors = pocketPositions
+    const pocketSectors = centers
       .map((center, index) => {
         const isSidePocket = index >= 4;
         const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6054,7 +6061,7 @@ function Table3D(
     fallback.lineTo(insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, -insetHalfH);
-    pocketPositions.forEach((p, index) => {
+    centers.forEach((p, index) => {
       const hole = new THREE.Path();
       const isSidePocket = index >= 4;
       const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6065,7 +6072,7 @@ function Table3D(
     return fallback;
   };
 
-  const clothShape = buildSurfaceShape(POCKET_HOLE_R);
+  const clothShape = buildSurfaceShape(POCKET_HOLE_R, 0, clothPocketPositions);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
@@ -6086,7 +6093,7 @@ function Table3D(
   const pocketCutStripes = addPocketCuts(
     table,
     cloth.position.y,
-    pocketPositions,
+    clothPocketPositions,
     clothEdgeMat,
     sideRadiusScale,
     pocketEdgeStopY
@@ -9385,7 +9392,6 @@ function PoolRoyaleGame({
     const params = new URLSearchParams(location.search);
     return params.get('starter') === 'B' ? 'B' : 'A';
   }, [location.search]);
-  const opponentSeat = localSeat === 'A' ? 'B' : 'A';
   const isOnlineMatch = mode === 'online';
   const framePlayerAName = localSeat === 'A' ? playerLabel : opponentLabel;
   const framePlayerBName = localSeat === 'A' ? opponentLabel : playerLabel;
@@ -9444,21 +9450,39 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-  const initialHudInHand = useMemo(
-    () => deriveInHandFromFrame(initialFrame),
-    [initialFrame]
-  );
-  const [hud, setHud] = useState({
-    power: 0.65,
-    A: 0,
-    B: 0,
-    turn: 0,
-    phase: 'reds',
-    next: 'red',
-    inHand: initialHudInHand,
-    over: false
-  });
-  const powerRef = useRef(hud.power);
+const initialHudInHand = useMemo(
+  () => deriveInHandFromFrame(initialFrame),
+  [initialFrame]
+);
+const [hud, setHud] = useState({
+  power: 0.65,
+  A: 0,
+  B: 0,
+  turn: 0,
+  phase: 'reds',
+  next: 'red',
+  inHand: initialHudInHand,
+  over: false
+});
+const [turnCycle, setTurnCycle] = useState(0);
+const [pottedBySeat, setPottedBySeat] = useState({ A: [], B: [] });
+const lastAssignmentsRef = useRef({ A: null, B: null });
+const lastShotReminderRef = useRef({ A: 0, B: 0 });
+const [ruleToast, setRuleToast] = useState(null);
+const ruleToastTimeoutRef = useRef(null);
+const showRuleToast = useCallback((message) => {
+  if (!message) return;
+  if (ruleToastTimeoutRef.current) {
+    clearTimeout(ruleToastTimeoutRef.current);
+    ruleToastTimeoutRef.current = null;
+  }
+  setRuleToast(message);
+  ruleToastTimeoutRef.current = window.setTimeout(() => {
+    setRuleToast(null);
+    ruleToastTimeoutRef.current = null;
+  }, 3000);
+}, []);
+const powerRef = useRef(hud.power);
   const applyPower = useCallback((nextPower) => {
     const clampedPower = THREE.MathUtils.clamp(nextPower ?? 0, 0, 1);
     powerRef.current = clampedPower;
@@ -9474,6 +9498,15 @@ function PoolRoyaleGame({
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
+  useEffect(
+    () => () => {
+      if (ruleToastTimeoutRef.current) {
+        clearTimeout(ruleToastTimeoutRef.current);
+        ruleToastTimeoutRef.current = null;
+      }
+    },
+    []
+  );
   const localSeatRef = useRef(localSeat);
   useEffect(() => {
     localSeatRef.current = localSeat;
@@ -9481,6 +9514,11 @@ function PoolRoyaleGame({
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
+    setPottedBySeat({ A: [], B: [] });
+    lastAssignmentsRef.current = { A: null, B: null };
+    lastShotReminderRef.current = { A: 0, B: 0 };
+    setTurnCycle(0);
+    setRuleToast(null);
     setHud((prev) => ({
       ...prev,
       A: 0,
@@ -10146,6 +10184,7 @@ function PoolRoyaleGame({
       if (!state) return;
       frameRef.current = state;
       setFrameState(state);
+      setTurnCycle((value) => value + 1);
       if (incomingHud) {
         setHud((prev) => ({ ...prev, ...incomingHud }));
       }
@@ -10282,7 +10321,7 @@ function PoolRoyaleGame({
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState]);
+  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
 
   useEffect(() => {
     if (hud.over) {
@@ -16574,6 +16613,84 @@ function PoolRoyaleGame({
             safeState = { ...safeState, activePlayer: 'A' };
           }
         }
+        const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
+        if (potted.length) {
+          const newPots = potted.filter(
+            (entry) => entry && entry.color && entry.color !== 'CUE'
+          );
+          if (newPots.length) {
+            setPottedBySeat((prev) => {
+              const next = {
+                ...prev,
+                [shooterSeat]: [...(prev[shooterSeat] || [])]
+              };
+              const existing = new Set(
+                next[shooterSeat].map((entry) => String(entry.id ?? entry.color))
+              );
+              newPots.forEach((entry) => {
+                const key = String(entry.id ?? entry.color);
+                if (existing.has(key)) return;
+                existing.add(key);
+                next[shooterSeat].push({
+                  id: entry.id ?? key,
+                  color: entry.color,
+                  pocket: entry.pocket
+                });
+              });
+              return next;
+            });
+          }
+        }
+        const metaState =
+          safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
+        if (safeState?.foul) {
+          showRuleToast('Foul');
+        }
+        if (metaState && typeof metaState === 'object') {
+          const assignments = metaState.assignments || null;
+          if (assignments) {
+            ['A', 'B'].forEach((seat) => {
+              const nextAssign = assignments[seat] ?? null;
+              const prevAssign = lastAssignmentsRef.current?.[seat] ?? null;
+              if (nextAssign && nextAssign !== prevAssign) {
+                const seatLabel =
+                  seat === localSeatRef.current
+                    ? player.name || 'You'
+                    : isOnlineMatch
+                      ? opponentDisplayName
+                      : 'AI';
+                const assignmentLabel =
+                  nextAssign === 'blue'
+                    ? 'Yellows'
+                    : nextAssign === 'red'
+                      ? 'Reds'
+                      : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
+                showRuleToast(`${seatLabel} is ${assignmentLabel}`);
+              }
+            });
+            lastAssignmentsRef.current = {
+              ...lastAssignmentsRef.current,
+              ...assignments
+            };
+          }
+          const shotsForPlayer = metaState.currentPlayer === 'B' ? 'B' : 'A';
+          const remainingShots = metaState.shotsRemaining;
+          if (Number.isFinite(remainingShots) && remainingShots > 1) {
+            if (lastShotReminderRef.current[shotsForPlayer] !== remainingShots) {
+              const shooterLabel =
+                shotsForPlayer === localSeatRef.current
+                  ? player.name || 'You'
+                  : isOnlineMatch
+                    ? opponentDisplayName
+                    : 'AI';
+              showRuleToast(`${shooterLabel} has ${remainingShots} shots`);
+              lastShotReminderRef.current[shotsForPlayer] = remainingShots;
+            }
+          } else if (shotsForPlayer) {
+            lastShotReminderRef.current[shotsForPlayer] =
+              Number.isFinite(remainingShots) && remainingShots > 0 ? remainingShots : 0;
+          }
+        }
         shotContextRef.current = {
           placedFromHand: false,
           contactMade: false,
@@ -16684,6 +16801,7 @@ function PoolRoyaleGame({
         } finally {
           frameRef.current = safeState;
           setFrameState(safeState);
+          setTurnCycle((value) => value + 1);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
             socket.emit('poolShot', { tableId, state: safeState });
@@ -18211,6 +18329,64 @@ function PoolRoyaleGame({
     };
   }, [showPlayerControls, updateSpinDotPosition]);
 
+  const ballSwatches = useMemo(
+    () => ({
+      RED: '#d12c2c',
+      YELLOW: '#ffd700',
+      BLUE: '#3b82f6',
+      BLACK: '#0b0b0b',
+      GREEN: '#22c55e',
+      BROWN: '#8b5a2b',
+      PINK: '#ff6ca1',
+      STRIPE: '#fef9c3',
+      SOLID: '#e5e7eb',
+      CUE: '#f8fafc'
+    }),
+    []
+  );
+  const renderPottedRow = useCallback(
+    (entries = []) => {
+      if (!entries.length) {
+        return (
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+            No pots yet
+          </span>
+        );
+      }
+      return (
+        <div className="flex flex-wrap items-center gap-1">
+          {entries.map((entry, index) => {
+            const colorKey = String(entry.color || '').toUpperCase();
+            const colorHex =
+              ballSwatches[colorKey] ??
+              (colorKey.startsWith('BALL_') ? '#f5f5f4' : '#e5e7eb');
+            const label =
+              colorKey.startsWith('BALL_') && colorKey.length > 5
+                ? colorKey.replace('BALL_', '')
+                : colorKey === 'BLACK'
+                  ? '8'
+                  : colorKey.charAt(0);
+            const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
+            return (
+              <span
+                key={`${entry.id ?? colorKey}-${index}`}
+                className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full border border-white/40 px-1 text-[10px] font-bold leading-4 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                style={{ backgroundColor: colorHex, color: textColor }}
+                title={`Pocketed ${colorKey}`}
+              >
+                {label}
+              </span>
+            );
+          })}
+        </div>
+      );
+    },
+    [ballSwatches]
+  );
+  const playerSeatId = localSeat === 'A' ? 'A' : 'B';
+  const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
+  const playerPotted = pottedBySeat[playerSeatId] || [];
+  const opponentPotted = pottedBySeat[opponentSeatId] || [];
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
 
   return (
@@ -18225,6 +18401,13 @@ function PoolRoyaleGame({
             aria-live="polite"
           >
             {replayBanner}
+          </div>
+        </div>
+      )}
+      {ruleToast && (
+        <div className="pointer-events-none absolute top-28 left-1/2 z-50 -translate-x-1/2 px-4">
+          <div className="rounded-full bg-black/80 px-5 py-2 text-sm font-bold uppercase tracking-[0.24em] text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] ring-1 ring-white/20">
+            {ruleToast}
           </div>
         </div>
       )}
@@ -18699,7 +18882,7 @@ function PoolRoyaleGame({
           }}
         >
           <div
-            className="pointer-events-auto flex h-12 max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-2 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${uiScale})`,
               transformOrigin: 'bottom center',
@@ -18707,7 +18890,7 @@ function PoolRoyaleGame({
             }}
           >
             <div
-              className={`flex h-full min-w-0 items-center gap-3 rounded-full px-3 transition-all ${
+              className={`flex min-w-0 items-center gap-3 rounded-full px-3 transition-all ${
                 isPlayerTurn
                   ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
                   : 'text-white/80'
@@ -18722,17 +18905,20 @@ function PoolRoyaleGame({
                     : 'border-white/40'
                 }`}
               />
-              <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                {player.name}
-              </span>
+              <div className="flex min-w-0 flex-col">
+                <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                  {player.name}
+                </span>
+                <div className="mt-1">{renderPottedRow(playerPotted)}</div>
+              </div>
             </div>
-            <div className="flex h-full items-center gap-2 text-base font-semibold">
+            <div className="flex items-center gap-2 text-base font-semibold">
               <span className="text-amber-300">{hud.A}</span>
               <span className="text-white/50">-</span>
               <span>{hud.B}</span>
             </div>
             <div
-              className={`flex h-full items-center gap-2 rounded-full px-3 text-sm transition-all ${
+              className={`flex min-w-0 items-center gap-3 rounded-full px-3 text-sm transition-all ${
                 isOpponentTurn
                   ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
                   : 'text-white/80'
@@ -18749,16 +18935,24 @@ function PoolRoyaleGame({
                         : 'border-white/40'
                     }`}
                   />
-                  <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                    {opponentDisplayName}
-                  </span>
+                  <div className="flex min-w-0 flex-col">
+                    <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                      {opponentDisplayName}
+                    </span>
+                    <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                  </div>
                 </>
               ) : (
                 <>
-                  <span className="text-xl leading-none">{aiFlag}</span>
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                    AI
-                  </span>
+                  <div className="flex min-w-0 flex-col">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl leading-none">{aiFlag}</span>
+                      <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                        AI
+                      </span>
+                    </div>
+                    <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                  </div>
                 </>
               )}
             </div>
