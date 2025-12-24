@@ -10565,6 +10565,7 @@ const powerRef = useRef(hud.power);
       let replayPlayback = null;
       let pausedPocketDrops = null;
       const tmpReplayQuat = new THREE.Quaternion();
+      const tmpReplayQuatB = new THREE.Quaternion();
       const tmpReplayScale = new THREE.Vector3();
       const tmpReplayPos = new THREE.Vector3();
       const setShootingState = (value) => {
@@ -10583,6 +10584,37 @@ const powerRef = useRef(hud.power);
           topViewLockedRef.current = preShotTopViewLockRef.current;
         }
         setShotActive(value);
+      };
+      const serializeVector3Snapshot = (vec, fallback = { x: 0, y: 0, z: 0 }) => ({
+        x: Number.isFinite(vec?.x) ? vec.x : fallback.x ?? 0,
+        y: Number.isFinite(vec?.y) ? vec.y : fallback.y ?? 0,
+        z: Number.isFinite(vec?.z) ? vec.z : fallback.z ?? 0
+      });
+      const serializeQuaternionSnapshot = (quat) => ({
+        x: Number.isFinite(quat?.x) ? quat.x : 0,
+        y: Number.isFinite(quat?.y) ? quat.y : 0,
+        z: Number.isFinite(quat?.z) ? quat.z : 0,
+        w: Number.isFinite(quat?.w) ? quat.w : 1
+      });
+      const normalizeVector3Snapshot = (value, fallback = null) => {
+        if (Array.isArray(value) && value.length >= 3) {
+          const [x, y, z] = value;
+          if ([x, y, z].every(Number.isFinite)) return { x, y, z };
+        } else if (value && typeof value === 'object') {
+          const { x, y, z } = value;
+          if ([x, y, z].every(Number.isFinite)) return { x, y, z };
+        }
+        return fallback;
+      };
+      const normalizeQuaternionSnapshot = (value, fallback = null) => {
+        if (Array.isArray(value) && value.length >= 4) {
+          const [x, y, z, w] = value;
+          if ([x, y, z, w].every(Number.isFinite)) return { x, y, z, w };
+        } else if (value && typeof value === 'object') {
+          const { x, y, z, w } = value;
+          if ([x, y, z, w].every(Number.isFinite)) return { x, y, z, w };
+        }
+        return fallback;
       };
       let activeShotView = null;
       let suspendedActionView = null;
@@ -13357,16 +13389,22 @@ const powerRef = useRef(hud.power);
             id: ball.id,
             active: ball.active,
             pos: { x: ball.pos.x, y: ball.pos.y },
-            mesh: {
-              position: {
-                x: ball.mesh?.position.x ?? 0,
-                y: ball.mesh?.position.y ?? BALL_CENTER_Y,
-                z: ball.mesh?.position.z ?? 0
-              },
-              quaternion: ball.mesh ? ball.mesh.quaternion.clone() : null,
-              scale: ball.mesh ? ball.mesh.scale.clone() : null,
-              visible: ball.mesh ? ball.mesh.visible : false
-            }
+            mesh: ball.mesh
+              ? {
+                  position: serializeVector3Snapshot(ball.mesh.position, {
+                    x: ball.pos.x,
+                    y: BALL_CENTER_Y,
+                    z: ball.pos.y
+                  }),
+                  quaternion: serializeQuaternionSnapshot(ball.mesh.quaternion),
+                  scale: serializeVector3Snapshot(ball.mesh.scale, {
+                    x: 1,
+                    y: 1,
+                    z: 1
+                  }),
+                  visible: ball.mesh.visible
+                }
+              : null
           }));
 
         const captureReplayCameraSnapshot = () => {
@@ -13416,11 +13454,24 @@ const powerRef = useRef(hud.power);
             ball.pos.set(state.pos.x, state.pos.y);
             const meshState = state.mesh;
             if (ball.mesh && meshState) {
-              const { position, quaternion, scale, visible } = meshState;
-              ball.mesh.position.set(position.x, position.y, position.z);
-              if (quaternion) ball.mesh.quaternion.copy(quaternion);
-              if (scale) ball.mesh.scale.copy(scale);
-              if (visible != null) ball.mesh.visible = visible;
+              const position = normalizeVector3Snapshot(meshState.position);
+              if (position) {
+                ball.mesh.position.set(position.x, position.y, position.z);
+              }
+              const quaternion = normalizeQuaternionSnapshot(meshState.quaternion);
+              if (quaternion) {
+                ball.mesh.quaternion.set(
+                  quaternion.x,
+                  quaternion.y,
+                  quaternion.z,
+                  quaternion.w
+                );
+              }
+              const scale = normalizeVector3Snapshot(meshState.scale);
+              if (scale) {
+                ball.mesh.scale.set(scale.x, scale.y, scale.z);
+              }
+              if (meshState.visible != null) ball.mesh.visible = meshState.visible;
             }
           });
         };
@@ -13480,24 +13531,35 @@ const powerRef = useRef(hud.power);
             const meshA = aState.mesh ?? {};
             const meshB = bState?.mesh ?? meshA;
             if (ball.mesh) {
-              const posA3 = meshA.position ?? { x: posX, y: REPLAY_TRAIL_HEIGHT, z: posY };
-              const posB3 = meshB.position ?? posA3;
-              tmpReplayPos.set(
-                THREE.MathUtils.lerp(posA3.x, posB3.x, alpha),
-                THREE.MathUtils.lerp(posA3.y, posB3.y, alpha),
-                THREE.MathUtils.lerp(posA3.z, posB3.z, alpha)
+              const fallbackPos = { x: posX, y: REPLAY_TRAIL_HEIGHT, z: posY };
+              const posA3 = normalizeVector3Snapshot(meshA.position, fallbackPos);
+              const posB3 = normalizeVector3Snapshot(meshB.position, posA3 ?? fallbackPos);
+              if (posA3 && posB3) {
+                tmpReplayPos.set(
+                  THREE.MathUtils.lerp(posA3.x, posB3.x, alpha),
+                  THREE.MathUtils.lerp(posA3.y, posB3.y, alpha),
+                  THREE.MathUtils.lerp(posA3.z, posB3.z, alpha)
+                );
+                ball.mesh.position.copy(tmpReplayPos);
+              }
+              const quatA = normalizeQuaternionSnapshot(meshA.quaternion);
+              const quatB = normalizeQuaternionSnapshot(
+                meshB.quaternion ?? meshA.quaternion,
+                quatA
               );
-              ball.mesh.position.copy(tmpReplayPos);
-              const quatA = meshA.quaternion;
-              const quatB = meshB.quaternion ?? quatA;
               if (quatA && quatB) {
-                tmpReplayQuat.copy(quatA).slerp(quatB, alpha);
+                tmpReplayQuat.set(quatA.x, quatA.y, quatA.z, quatA.w);
+                tmpReplayQuatB.set(quatB.x, quatB.y, quatB.z, quatB.w);
+                tmpReplayQuat.slerp(tmpReplayQuatB, alpha);
                 ball.mesh.quaternion.copy(tmpReplayQuat);
               } else if (quatA) {
-                ball.mesh.quaternion.copy(quatA);
+                ball.mesh.quaternion.set(quatA.x, quatA.y, quatA.z, quatA.w);
               }
-              const scaleA = meshA.scale;
-              const scaleB = meshB.scale ?? scaleA;
+              const scaleA = normalizeVector3Snapshot(meshA.scale);
+              const scaleB = normalizeVector3Snapshot(
+                meshB.scale ?? meshA.scale,
+                scaleA
+              );
               if (scaleA && scaleB) {
                 tmpReplayScale.set(
                   THREE.MathUtils.lerp(scaleA.x, scaleB.x, alpha),
@@ -13505,6 +13567,8 @@ const powerRef = useRef(hud.power);
                   THREE.MathUtils.lerp(scaleA.z, scaleB.z, alpha)
                 );
                 ball.mesh.scale.copy(tmpReplayScale);
+              } else if (scaleA) {
+                ball.mesh.scale.set(scaleA.x, scaleA.y, scaleA.z);
               }
               if (meshB.visible != null) {
                 ball.mesh.visible = meshB.visible;
