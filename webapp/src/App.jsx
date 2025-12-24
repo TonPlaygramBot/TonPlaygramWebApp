@@ -45,12 +45,10 @@ import SnookerClubLobby from './pages/Games/SnookerClubLobby.jsx';
 import Layout from './components/Layout.jsx';
 import useTelegramAuth from './hooks/useTelegramAuth.js';
 import useReferralClaim from './hooks/useReferralClaim.js';
-import useChromeGoogleAuth from './hooks/useChromeGoogleAuth.js';
 
 export default function App() {
   useTelegramAuth();
   useReferralClaim();
-  useChromeGoogleAuth();
 
   const manifestUrl = `${window.location.origin}/tonconnect-manifest.json`;
 

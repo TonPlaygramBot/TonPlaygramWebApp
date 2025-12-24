@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { linkGoogleAccount } from '../utils/api.js';
-import { parseGoogleCredential, persistGoogleProfile } from '../utils/google.js';
 
 export default function LinkGoogleButton({ telegramId, onLinked }) {
   const [ready, setReady] = useState(false);
@@ -9,26 +8,16 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
   useEffect(() => {
     function handleCredential(res) {
       try {
-        const data = parseGoogleCredential(res.credential);
-        if (!data?.sub) return;
-
-        const profile = {
+        const data = JSON.parse(atob(res.credential.split('.')[1]));
+        if (!data.sub) return;
+        localStorage.setItem('googleId', data.sub);
+        linkGoogleAccount({
+          telegramId,
           googleId: data.sub,
           email: data.email,
           firstName: data.given_name,
           lastName: data.family_name,
           photo: data.picture
-        };
-
-        persistGoogleProfile(profile);
-
-        linkGoogleAccount({
-          telegramId,
-          googleId: profile.googleId,
-          email: profile.email,
-          firstName: profile.firstName,
-          lastName: profile.lastName,
-          photo: profile.photo
         }).then(() => {
           if (onLinked) onLinked();
         });
