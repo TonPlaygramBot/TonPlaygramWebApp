@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import QRCode from 'react-qr-code';
 import {
+  createAccount,
   getAccountBalance,
   sendAccountTpc,
   getAccountTransactions,
@@ -14,7 +15,6 @@ import TransactionDetailsPopup from '../components/TransactionDetailsPopup.jsx';
 import NftGiftCard from '../components/NftGiftCard.jsx';
 import { AiOutlineCalendar } from 'react-icons/ai';
 import useTelegramBackButton from '../hooks/useTelegramBackButton.js';
-import { provisionAccount } from '../utils/account.js';
 
 const urlParams = new URLSearchParams(window.location.search);
 const DEV_ACCOUNT_ID =
@@ -93,27 +93,31 @@ export default function Wallet({ hideClaim = false }) {
   const loadBalances = async () => {
     const devMode = urlParams.get('dev') || localStorage.getItem('devAccountId');
     let id = devMode ? DEV_ACCOUNT_ID : localStorage.getItem('accountId');
-    if (!id) {
-      try {
-        const acc = await provisionAccount({ telegramId, googleId });
-        id = acc?.accountId || id;
-      } catch (err) {
-        console.error('Failed to load account:', err);
-        setTpcBalance(0);
+    let acc;
+    if (id) {
+      acc = { accountId: id };
+    } else {
+      acc = await createAccount(telegramId, googleId);
+      if (acc?.error) {
+        console.error('Failed to load account:', acc.error);
         return null;
       }
+      localStorage.setItem('accountId', acc.accountId);
+      if (acc.walletAddress) {
+        localStorage.setItem('walletAddress', acc.walletAddress);
+      }
+      id = acc.accountId;
     }
-    setAccountId(id || '');
-    if (!id) return null;
+    setAccountId(acc.accountId || id);
 
-    const bal = await getAccountBalance(id);
+    const bal = await getAccountBalance(acc.accountId || id);
     if (bal?.error || typeof bal.balance !== 'number') {
       console.error('Failed to load TPC balance:', bal?.error);
       setTpcBalance(0);
     } else {
       setTpcBalance(bal.balance);
     }
-    return id;
+    return acc.accountId || id;
   };
 
   useEffect(() => {
