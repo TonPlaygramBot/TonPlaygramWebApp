@@ -1011,9 +1011,12 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const CAPTURE_R = POCKET_R * 0.98; // pocket capture radius aligned to the pocket interior so balls fall at the throat
-const SIDE_CAPTURE_RADIUS_SCALE = 0.92; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
-const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
+const POCKET_INTERIOR_CAPTURE_R =
+  POCKET_VIS_R * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
+const SIDE_POCKET_INTERIOR_CAPTURE_R =
+  SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
+const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1224,8 +1227,8 @@ const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 27;
-// middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
+// middle pocket cushion cuts now match the corner angle so all six cushions share a consistent nose profile
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 27;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -5256,7 +5259,8 @@ function reflectRails(ball) {
   }
 
   // If the ball is entering a pocket capture zone, skip straight rail reflections
-  const nearPocketRadius = POCKET_VIS_R + BALL_R * 0.25;
+  const nearPocketRadius =
+    Math.max(CAPTURE_R, SIDE_CAPTURE_R) + BALL_R * 0.15;
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < nearPocketRadius
   );
@@ -6304,7 +6308,7 @@ function Table3D(
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.05; // push the cushions further outward so they meet the wooden rails without a gap
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.014; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
