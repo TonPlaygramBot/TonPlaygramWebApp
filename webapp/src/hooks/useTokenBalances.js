@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { createAccount, getAccountBalance, getTonBalance } from '../utils/api.js';
+import { getAccountBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { useTonAddress } from '@tonconnect/ui-react';
+import { provisionAccount, getStoredAccount } from '../utils/account.js';
 
 export default function useTokenBalances() {
   let telegramId;
@@ -20,14 +21,17 @@ export default function useTokenBalances() {
 
   useEffect(() => {
     async function loadTpc() {
-      if (!telegramId && !googleId) return;
       try {
-        const acc = await createAccount(telegramId, googleId);
-        if (acc?.error) throw new Error(acc.error);
-        if (acc.walletAddress) {
-          localStorage.setItem('walletAddress', acc.walletAddress);
+        const { accountId, walletAddress } = await provisionAccount({ telegramId, googleId });
+        const resolvedAccountId = accountId || getStoredAccount().accountId;
+        if (!resolvedAccountId) {
+          setTpcBalance(0);
+          return;
         }
-        const bal = await getAccountBalance(acc.accountId);
+        if (walletAddress) {
+          localStorage.setItem('walletAddress', walletAddress);
+        }
+        const bal = await getAccountBalance(resolvedAccountId);
         if (bal?.error) throw new Error(bal.error);
         setTpcBalance(bal.balance ?? 0);
       } catch (err) {
@@ -36,7 +40,7 @@ export default function useTokenBalances() {
       }
     }
     loadTpc();
-  }, [telegramId]);
+  }, [telegramId, googleId]);
 
   useEffect(() => {
     async function loadExternal() {
