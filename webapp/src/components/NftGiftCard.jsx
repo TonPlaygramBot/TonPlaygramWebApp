@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
-import { getAccountInfo, convertGifts } from '../utils/api.js';
+import { createAccount, getAccountInfo, convertGifts } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { NFT_GIFTS } from '../utils/nftGifts.js';
 import GiftIcon from './GiftIcon.jsx';
 import GiftShopPopup from './GiftShopPopup.jsx';
 import InfoPopup from './InfoPopup.jsx';
 import ConfirmPopup from './ConfirmPopup.jsx';
-import { ensureAccountForUser, persistAccountLocally } from '../utils/account.js';
 
 export default function NftGiftCard({ accountId: propAccountId }) {
   const [accountId, setAccountId] = useState(propAccountId || '');
@@ -22,17 +21,16 @@ export default function NftGiftCard({ accountId: propAccountId }) {
       let id = propAccountId || localStorage.getItem('accountId');
       if (!id) {
         try {
-          const account = await ensureAccountForUser({
-            telegramId: getTelegramId(),
-            googleId: localStorage.getItem('googleId')
-          });
-          if (account?.accountId) {
-            id = account.accountId;
-            persistAccountLocally({
-              ...account,
-              telegramId: account.telegramId,
-              googleId: account.googleId
-            });
+          const acc = await createAccount(
+            getTelegramId(),
+            localStorage.getItem('googleId')
+          );
+          if (acc?.accountId) {
+            id = acc.accountId;
+            localStorage.setItem('accountId', id);
+            if (acc.walletAddress) {
+              localStorage.setItem('walletAddress', acc.walletAddress);
+            }
           }
         } catch {}
       }
