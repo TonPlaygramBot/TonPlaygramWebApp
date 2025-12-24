@@ -449,25 +449,25 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.034;
-const CORNER_POCKET_INWARD_SCALE = 1.008; // ease the corner cuts back toward the rail so the mouth stays as wide as the bowl
-const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
-const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
-const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
-const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
-const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
-const CHROME_CORNER_FIELD_TRIM_SCALE = -0.03; // remove the base trim so the fascia rides the cushion edge without a gap
+const POCKET_VISUAL_EXPANSION = 1; // keep pocket visuals aligned to the official mouth diameter
+const CORNER_POCKET_INWARD_SCALE = 1; // keep the corner cuts aligned to the regulation bowl without extra flaring
+const CORNER_POCKET_SCALE_BOOST = 1; // preserve the exact reference mouth width
+const CORNER_POCKET_EXTRA_SCALE = 1; // keep regulation sizing without stretching the opening
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1; // match fascia cuts to the regulation pocket radius
+const CHROME_CORNER_NOTCH_CENTER_SCALE = 1; // leave chrome notch depth at the official cut
+const CHROME_CORNER_EXPANSION_SCALE = 1; // keep fascia edges flush with the regulation jaw edge
+const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1; // stop side trims from drifting off the regulation cut
+const CHROME_CORNER_FIELD_TRIM_SCALE = 0; // no additional trimming around the regulation fascia
 const CHROME_CORNER_NOTCH_WEDGE_SCALE = 0;
-const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0.034; // extend the fascia slightly farther along the arc so the chrome starts flush with the pocket curve
-const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0.034; // mirror the extension along the second axis so the rounded arc ends stay covered
+const CHROME_CORNER_FIELD_CLIP_WIDTH_SCALE = 0; // keep fascia clips neutral to the reference radius
+const CHROME_CORNER_FIELD_CLIP_DEPTH_SCALE = 0; // keep fascia clips neutral to the reference radius
 const CHROME_CORNER_FIELD_FILLET_SCALE = 0; // match the pocket radius exactly without additional rounding
 const CHROME_CORNER_FIELD_EXTENSION_SCALE = 0; // keep fascia depth identical to snooker
 const CHROME_CORNER_NOTCH_EXPANSION_SCALE = 1; // no scaling so the notch mirrors the pocket radius perfectly
 const CHROME_CORNER_DIMENSION_SCALE = 1; // keep the fascia dimensions identical to the cushion span so both surfaces meet cleanly
-const CHROME_CORNER_WIDTH_SCALE = 0.978; // shave the chrome plate slightly so it ends at the jaw line on the long rail
-const CHROME_CORNER_HEIGHT_SCALE = 0.962; // mirror the trim on the short rail so the fascia meets the jaw corner without overlap
-const CHROME_CORNER_CENTER_OUTSET_SCALE = -0.02; // align corner fascia offset with the snooker chrome plates
+const CHROME_CORNER_WIDTH_SCALE = 1; // align fascia width to the regulation pocket opening
+const CHROME_CORNER_HEIGHT_SCALE = 1; // align fascia height to the regulation pocket opening
+const CHROME_CORNER_CENTER_OUTSET_SCALE = 0; // keep the fascia centred on the regulation cut
 const CHROME_CORNER_SHORT_RAIL_SHIFT_SCALE = 0; // let the corner fascia terminate precisely where the cushion noses stop
 const CHROME_CORNER_SHORT_RAIL_CENTER_PULL_SCALE = 0; // stop pulling the chrome off the short-rail centreline so the jaws stay flush
 const CHROME_CORNER_EDGE_TRIM_SCALE = 0; // do not trim edges beyond the snooker baseline
@@ -497,15 +497,15 @@ const CHROME_SIDE_PLATE_CORNER_BIAS_SCALE = 1.092; // lean the added width furth
 const CHROME_SIDE_PLATE_CORNER_LIMIT_SCALE = 0.04;
 const CHROME_SIDE_PLATE_OUTWARD_SHIFT_SCALE = 0.16; // push the side fascias farther outward so their outer edge follows the relocated middle pocket cuts
 const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full distance from cushion edge to wood rail with no setback
-const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
-const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
-const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
+const CHROME_CORNER_POCKET_CUT_SCALE = 1; // keep the chrome corner cut at regulation size
+const CHROME_SIDE_POCKET_CUT_SCALE = 1; // keep the chrome side cut at regulation size
+const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0; // leave the side fascia centred on the regulation pocket line
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // align wooden rail cuts to the regulation pocket reveal
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // align wood relief to the regulation pocket reveal
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.018; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.08; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep the middle rail rounded cuts aligned to the regulation reveal
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // leave the side cutouts centred on the regulation pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -849,10 +849,10 @@ const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thi
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.46; // trim the corner jaw reach so the entry width matches the visible bowl
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
-const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
+const SIDE_POCKET_JAW_RADIUS_EXPANSION = 1; // keep the middle jaw arc radius aligned with regulation
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
-const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
+const SIDE_POCKET_JAW_OUTWARD_SHIFT = 0; // keep middle pocket jaws centred on the regulation line
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
 const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
@@ -906,9 +906,9 @@ const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
-const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.03; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
+const SIDE_POCKET_OUTWARD_BIAS = 0; // keep middle pocket centres on the regulation line
+const SIDE_POCKET_FIELD_PULL = 0; // keep pocket centres anchored without offset
+const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep cloth cuts aligned to regulation pocket centres
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -923,19 +923,16 @@ const CHALK_RING_OPACITY = 0.18;
 const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
-const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // shrink the middle pocket mouth width a touch more so the radius tightens up further
-const POCKET_SIDE_MOUTH_SCALE =
-  (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
-  POCKET_CORNER_MOUTH_SCALE *
-  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.968; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
+const POCKET_CORNER_MOUTH_SCALE = 1; // keep the corner mouth at the official 4.5" span
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // keep the side mouth at the official 5" span
+const POCKET_SIDE_MOUTH_SCALE = 1; // keep the middle pocket mouth at regulation size
+const SIDE_POCKET_CUT_SCALE = 1; // match the middle cloth/rail cutouts to the official mouth
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
-const POCKET_R = POCKET_VIS_R * 0.985;
+const POCKET_INTERIOR_TOP_SCALE = 1; // keep the interior diameter at regulation size
+const POCKET_R = POCKET_VIS_R;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
@@ -967,7 +964,7 @@ const ACTION_CAMERA_START_BLEND = 1;
 const CLOTH_DROP = BALL_R * 0.18; // lower the cloth surface slightly for added depth
 const CLOTH_TOP_LOCAL = FRAME_TOP_Y + BALL_R * 0.09523809523809523;
 const MICRO_EPS = BALL_R * 0.022857142857142857;
-const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the now-wider interior pocket diameter at the rim
+const POCKET_CUT_EXPANSION = POCKET_INTERIOR_TOP_SCALE; // align cloth apertures to the regulation interior pocket diameter at the rim
 const CLOTH_REFLECTION_LIMITS = Object.freeze({
   clearcoatMax: 0.028,
   clearcoatRoughnessMin: 0.48,
@@ -4284,8 +4281,8 @@ const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely fra
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
-  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.985 }),
-  landscape: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 1.0 }),
+  nearLandscape: Object.freeze({ cue: 0.85, broadcast: 0.9, margin: 0.97 }),
+  landscape: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.965 }),
   portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
   ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
 });
@@ -6306,10 +6303,10 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
-  const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = 0; // keep corner cushion reach at the regulation notch
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = 0; // keep middle cushion reach aligned to regulation pocket jaws
+  const SIDE_CUSHION_RAIL_REACH = 0; // keep cushion contact points in their regulation positions
+  const SIDE_CUSHION_CORNER_SHIFT = 0; // keep cushion endpoints centred on the regulation pocket line
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
   finishParts.accentParent = railsGroup;
@@ -14504,6 +14501,18 @@ const powerRef = useRef(hud.power);
       cueMaterialsRef.current.stripe = stripeOverlay.material;
       cueBody.add(stripeOverlay);
 
+      const enableCueShadows = () => {
+        cueStick.castShadow = true;
+        cueStick.receiveShadow = false;
+        cueStick.traverse((child) => {
+          if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = false;
+          }
+        });
+      };
+      enableCueShadows();
+
       cueStick.position.set(cue.pos.x, CUE_Y, cue.pos.y + 1.2 * SCALE);
       applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
@@ -19028,23 +19037,23 @@ const powerRef = useRef(hud.power);
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute bottom-6 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
           style={{
-            left: 'max(4.5rem, 11vw)',
-            right: 'max(8.5rem, 18vw)'
+            left: 'max(4rem, 10vw)',
+            right: 'max(7rem, 15vw)'
           }}
         >
           <div
-            className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-2 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex min-h-[3.75rem] max-w-full items-center justify-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_16px_40px_rgba(0,0,0,0.48)] backdrop-blur"
             style={{
               transform: `scale(${uiScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: 'min(26rem, 100%)'
+              maxWidth: 'min(28rem, 100%)'
             }}
           >
             <div
-              className={`flex min-w-0 items-center gap-3 rounded-full px-3 transition-all ${
+              className={`flex min-w-0 items-center gap-4 rounded-full px-4 py-1.5 transition-all ${
                 isPlayerTurn
                   ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
                   : 'text-white/80'
@@ -19053,26 +19062,26 @@ const powerRef = useRef(hud.power);
               <img
                 src={player.avatar || '/assets/icons/profile.svg'}
                 alt="player avatar"
-                className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                className={`h-11 w-11 rounded-full border object-cover transition-shadow ${
                   isPlayerTurn
                     ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
                     : 'border-white/40'
                 }`}
               />
               <div className="flex min-w-0 flex-col">
-                <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                <span className="max-w-[10rem] truncate text-base font-semibold tracking-wide">
                   {player.name}
                 </span>
                 <div className="mt-1">{renderPottedRow(playerPotted)}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 text-base font-semibold">
+            <div className="flex items-center gap-3 text-lg font-semibold">
               <span className="text-amber-300">{hud.A}</span>
               <span className="text-white/50">-</span>
               <span>{hud.B}</span>
             </div>
             <div
-              className={`flex min-w-0 items-center gap-3 rounded-full px-3 text-sm transition-all ${
+              className={`flex min-w-0 items-center gap-4 rounded-full px-4 py-1.5 text-sm transition-all ${
                 isOpponentTurn
                   ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
                   : 'text-white/80'
@@ -19083,14 +19092,14 @@ const powerRef = useRef(hud.power);
                   <img
                     src={opponentDisplayAvatar}
                     alt="opponent avatar"
-                    className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                    className={`h-11 w-11 rounded-full border object-cover transition-shadow ${
                       isOpponentTurn
                         ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
                         : 'border-white/40'
                     }`}
                   />
                   <div className="flex min-w-0 flex-col">
-                    <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                    <span className="max-w-[10rem] truncate text-base font-semibold tracking-wide">
                       {opponentDisplayName}
                     </span>
                     <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
