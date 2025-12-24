@@ -905,7 +905,6 @@ const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
 const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
 const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INSET = TABLE.THICK * 0.06; // pull the middle cloth cutouts slightly toward the table centre without moving hardware
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -1012,9 +1011,9 @@ const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails sta
 const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
-const PLYWOOD_THICKNESS = 0; // plywood layer removed for a cleaner under-bed
-const PLYWOOD_GAP = 0; // no plywood gap needed once the layer is removed
-const PLYWOOD_EXTRA_DROP = 0; // no plywood offset once removed
+const PLYWOOD_THICKNESS = TABLE.THICK * 0.22; // thicken the plywood bed so the entire slab renders and casts contact shadows
+const PLYWOOD_GAP = TABLE.THICK * 0.025; // pull the plywood closer to the cloth so its presence reads on the felt
+const PLYWOOD_EXTRA_DROP = TABLE.THICK * 0.2; // keep the plywood dropped enough to sit behind the pocket bowls without disappearing
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
@@ -1218,8 +1217,8 @@ const TOPSPIN_MULTIPLIER = 1.3;
 const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
-// angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the mouth at corners)
-const DEFAULT_CUSHION_CUT_ANGLE = 27;
+// angle for cushion cuts guiding balls into corner pockets (tighten the trim to match the reference cut)
+const DEFAULT_CUSHION_CUT_ANGLE = 29;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -5948,14 +5947,9 @@ function Table3D(
   );
   const sidePocketCenterX = halfW + sidePocketShift;
   const pocketPositions = pocketCenters();
-  const clothPocketPositions = pocketPositions.map((center, index) => {
-    if (index < 4) return center;
-    const direction = center.x >= 0 ? -1 : 1;
-    return center.clone().add(new THREE.Vector2(direction * SIDE_POCKET_CLOTH_INSET, 0));
-  });
   const sideRadiusScale =
     POCKET_VIS_R > MICRO_EPS ? (SIDE_POCKET_RADIUS / POCKET_VIS_R) * SIDE_POCKET_CUT_SCALE : 1;
-  const buildSurfaceShape = (holeRadius, edgeInset = 0, centers = pocketPositions) => {
+  const buildSurfaceShape = (holeRadius, edgeInset = 0) => {
     const insetHalfW = Math.max(MICRO_EPS, halfWext - edgeInset);
     const insetHalfH = Math.max(MICRO_EPS, halfHext - edgeInset);
 
@@ -6032,7 +6026,7 @@ function Table3D(
       return [[closeRing(ring)]];
     };
 
-    const pocketSectors = centers
+    const pocketSectors = pocketPositions
       .map((center, index) => {
         const isSidePocket = index >= 4;
         const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6060,7 +6054,7 @@ function Table3D(
     fallback.lineTo(insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, insetHalfH);
     fallback.lineTo(-insetHalfW, -insetHalfH);
-    centers.forEach((p, index) => {
+    pocketPositions.forEach((p, index) => {
       const hole = new THREE.Path();
       const isSidePocket = index >= 4;
       const radius = isSidePocket ? holeRadius * sideRadiusScale : holeRadius;
@@ -6071,7 +6065,7 @@ function Table3D(
     return fallback;
   };
 
-  const clothShape = buildSurfaceShape(POCKET_HOLE_R, 0, clothPocketPositions);
+  const clothShape = buildSurfaceShape(POCKET_HOLE_R);
   const clothGeo = new THREE.ExtrudeGeometry(clothShape, {
     depth: CLOTH_EXTENDED_DEPTH,
     bevelEnabled: false,
@@ -6092,7 +6086,7 @@ function Table3D(
   const pocketCutStripes = addPocketCuts(
     table,
     cloth.position.y,
-    clothPocketPositions,
+    pocketPositions,
     clothEdgeMat,
     sideRadiusScale,
     pocketEdgeStopY
@@ -9421,8 +9415,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     aiPlanningRef.current = aiPlanning;
   }, [aiPlanning]);
-  const [pottedByPlayer, setPottedByPlayer] = useState({ A: [], B: [] });
-  const pottedByPlayerRef = useRef({ A: new Set(), B: new Set() });
   const userSuggestionPlanRef = useRef(null);
     const shotContextRef = useRef({
       placedFromHand: false,
@@ -9433,18 +9425,12 @@ function PoolRoyaleGame({
   const replayPlaybackRef = useRef(null);
   const [replayBanner, setReplayBanner] = useState(null);
   const replayBannerTimeoutRef = useRef(null);
-  const [centerMessage, setCenterMessage] = useState(null);
-  const centerMessageTimeoutRef = useRef(null);
   const [inHandPlacementMode, setInHandPlacementMode] = useState(false);
   useEffect(
     () => () => {
       if (replayBannerTimeoutRef.current) {
         clearTimeout(replayBannerTimeoutRef.current);
         replayBannerTimeoutRef.current = null;
-      }
-      if (centerMessageTimeoutRef.current) {
-        clearTimeout(centerMessageTimeoutRef.current);
-        centerMessageTimeoutRef.current = null;
       }
     },
     []
@@ -9458,17 +9444,6 @@ function PoolRoyaleGame({
   const autoAimRequestRef = useRef(false);
   const aiTelemetryRef = useRef({ key: null, countdown: 0 });
   const inHandCameraRestoreRef = useRef(null);
-  const showCenterMessage = useCallback((text) => {
-    if (!text) return;
-    setCenterMessage(text);
-    if (centerMessageTimeoutRef.current) {
-      clearTimeout(centerMessageTimeoutRef.current);
-    }
-    centerMessageTimeoutRef.current = window.setTimeout(() => {
-      setCenterMessage(null);
-      centerMessageTimeoutRef.current = null;
-    }, 3000);
-  }, []);
   const initialHudInHand = useMemo(
     () => deriveInHandFromFrame(initialFrame),
     [initialFrame]
@@ -9506,8 +9481,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     const nextInHand = deriveInHandFromFrame(initialFrame);
     cueBallPlacedFromHandRef.current = !nextInHand;
-    pottedByPlayerRef.current = { A: new Set(), B: new Set() };
-    setPottedByPlayer({ A: [], B: [] });
     setHud((prev) => ({
       ...prev,
       A: 0,
@@ -9998,52 +9971,6 @@ function PoolRoyaleGame({
   useEffect(() => {
     document.title = 'Pool Royale 3D';
   }, []);
-  const queueRuleMessage = useCallback(
-    (prevState, nextState, nextInHandFlag = false) => {
-      if (!nextState) return;
-      const messages = [];
-      if (nextState.foul) {
-        messages.push('Foul');
-      }
-      const prevInHand = deriveInHandFromFrame(prevState || {});
-      if (nextInHandFlag && !prevInHand) {
-        messages.push('Ball in hand');
-      }
-      const meta = nextState.meta && typeof nextState.meta === 'object' ? nextState.meta : null;
-      if (meta?.variant === 'uk' && meta.state) {
-        const shotsRemaining = Number.isFinite(meta.state.shotsRemaining)
-          ? meta.state.shotsRemaining
-          : 1;
-        const prevShots =
-          prevState?.meta?.variant === 'uk' && prevState.meta?.state
-            ? prevState.meta.state.shotsRemaining ?? 1
-            : 1;
-        const activeSeat = meta.state.currentPlayer || nextState.activePlayer || 'A';
-        const activeLabel =
-          activeSeat === localSeatRef.current ? 'You' : opponentLabel || 'Opponent';
-        if (shotsRemaining > 1 && shotsRemaining !== prevShots) {
-          const shotLabel = shotsRemaining === 2 ? 'two shots' : `${shotsRemaining} shots`;
-          messages.push(`${activeLabel} have ${shotLabel}`);
-        }
-        const nextAssign =
-          meta.state.assignments && typeof meta.state.assignments === 'object'
-            ? meta.state.assignments[localSeatRef.current]
-            : null;
-        const prevAssign =
-          prevState?.meta?.variant === 'uk' && prevState.meta?.state
-            ? prevState.meta.state.assignments?.[localSeatRef.current]
-            : null;
-        if (nextAssign && nextAssign !== prevAssign) {
-          const groupLabel = nextAssign === 'red' ? 'solids' : 'stripes';
-          messages.push(`You are ${groupLabel}`);
-        }
-      }
-      if (messages.length > 0) {
-        showCenterMessage(messages[0]);
-      }
-    },
-    [opponentLabel, showCenterMessage]
-  );
   useEffect(() => {
     const nextName = playerName || getTelegramUsername() || 'Player';
     const nextAvatar = playerAvatar || getTelegramPhotoUrl();
@@ -10324,12 +10251,12 @@ function PoolRoyaleGame({
 
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
-    clearInterval(timerRef.current);
-    if (hud.over || isSoloTraining || shotActive) return undefined;
+    if (hud.over || isSoloTraining) return undefined;
     const playerTurn = hud.turn;
     const duration = playerTurn === 0 ? 60 : 3;
     setTimer(duration);
     timerWarnedRef.current = false;
+    clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       setTimer((t) => {
         const next = t <= 1 ? 0 : t - 1;
@@ -10355,7 +10282,7 @@ function PoolRoyaleGame({
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, shotActive, frameState]);
+  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState]);
 
   useEffect(() => {
     if (hud.over) {
@@ -16755,33 +16682,6 @@ function PoolRoyaleGame({
         } catch (err) {
           console.error('Pool Royale post-resolution update failed:', err);
         } finally {
-          const shooterSeat = currentState?.activePlayer === 'B' ? 'B' : 'A';
-          const pottedTracker = pottedByPlayerRef.current;
-          const seatSet =
-            pottedTracker?.[shooterSeat] instanceof Set
-              ? pottedTracker[shooterSeat]
-              : new Set();
-          let trackerChanged = false;
-          potted.forEach((entry) => {
-            if (!entry) return;
-            const normalized = toBallColorId(entry.id);
-            if (!normalized || normalized === 'CUE') return;
-            if (!seatSet.has(normalized)) {
-              seatSet.add(normalized);
-              trackerChanged = true;
-            }
-          });
-          if (trackerChanged) {
-            pottedByPlayerRef.current = {
-              ...pottedTracker,
-              [shooterSeat]: seatSet
-            };
-            setPottedByPlayer({
-              A: Array.from(pottedByPlayerRef.current.A ?? []),
-              B: Array.from(pottedByPlayerRef.current.B ?? [])
-            });
-          }
-          queueRuleMessage(currentState, safeState, nextInHand);
           frameRef.current = safeState;
           setFrameState(safeState);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
@@ -18312,100 +18212,11 @@ function PoolRoyaleGame({
   }, [showPlayerControls, updateSpinDotPosition]);
 
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
-  const sortBallIds = (a, b) => {
-    const normA = toBallColorId(a) || '';
-    const normB = toBallColorId(b) || '';
-    const matchA = /^BALL_(\d+)/.exec(normA);
-    const matchB = /^BALL_(\d+)/.exec(normB);
-    const numA = matchA ? parseInt(matchA[1], 10) : null;
-    const numB = matchB ? parseInt(matchB[1], 10) : null;
-    if (numA != null && numB != null) return numA - numB;
-    if (numA != null) return -1;
-    if (numB != null) return 1;
-    return normA.localeCompare(normB);
-  };
-  const sortedPotted = useMemo(
-    () => ({
-      A: [...(pottedByPlayer?.A ?? [])].sort(sortBallIds),
-      B: [...(pottedByPlayer?.B ?? [])].sort(sortBallIds)
-    }),
-    [pottedByPlayer]
-  );
-  const resolveBallColorHex = useCallback(
-    (ballId) => {
-      const normalized = toBallColorId(ballId);
-      if (!normalized) return '#d1d5db';
-      const match = /^BALL_(\d+)/.exec(normalized);
-      if (match && activeVariant?.objectColors?.length) {
-        const idx = Math.max(0, Math.min(activeVariant.objectColors.length - 1, parseInt(match[1], 10) - 1));
-        const hexVal = activeVariant.objectColors[idx];
-        if (typeof hexVal === 'number') {
-          return `#${hexVal.toString(16).padStart(6, '0')}`;
-        }
-      }
-      const colorMap = {
-        RED: '#ef4444',
-        YELLOW: '#facc15',
-        BLUE: '#3b82f6',
-        GREEN: '#22c55e',
-        BROWN: '#92400e',
-        PINK: '#ec4899',
-        BLACK: '#000000',
-        STRIPE: '#fef08a',
-        SOLID: '#ef4444'
-      };
-      return colorMap[normalized] || '#d1d5db';
-    },
-    [activeVariant]
-  );
-  const formatBallBadge = useCallback(
-    (ballId) => {
-      const normalized = toBallColorId(ballId);
-      if (!normalized) return { label: '', color: '#d1d5db' };
-      const match = /^BALL_(\d+)/.exec(normalized);
-      const label = match ? match[1] : normalized.replace(/_/g, ' ');
-      return { label, color: resolveBallColorHex(normalized) };
-    },
-    [resolveBallColorHex]
-  );
-  const renderPottedBadges = useCallback(
-    (ids = []) => {
-      if (!ids.length) {
-        return <span className="text-[10px] text-white/60">No pots yet</span>;
-      }
-      return ids.map((ballId) => {
-        const { label, color } = formatBallBadge(ballId);
-        const key = `${ballId}-${label}`;
-        return (
-          <span
-            key={key}
-            className="flex items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2 py-1 text-[10px] font-semibold leading-none text-white shadow-sm"
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full"
-              style={{ backgroundColor: color }}
-              aria-hidden="true"
-            />
-            <span className="uppercase tracking-[0.08em]">{label}</span>
-          </span>
-        );
-      });
-    },
-    [formatBallBadge]
-  );
 
   return (
     <div className="w-full h-[100vh] bg-black text-white overflow-hidden select-none">
       {/* Canvas host now stretches full width so table reaches the slider */}
       <div ref={mountRef} className="absolute inset-0" />
-
-      {centerMessage && (
-        <div className="pointer-events-none absolute inset-0 z-50 flex items-start justify-center pt-10">
-          <div className="rounded-full bg-white/90 px-6 py-3 text-base font-semibold uppercase tracking-[0.2em] text-gray-900 shadow-[0_12px_32px_rgba(0,0,0,0.35)]">
-            {centerMessage}
-          </div>
-        </div>
-      )}
 
       {replayBanner && (
         <div className="pointer-events-none absolute top-14 left-1/2 z-50 -translate-x-1/2">
@@ -18911,12 +18722,9 @@ function PoolRoyaleGame({
                     : 'border-white/40'
                 }`}
               />
-              <div className="flex min-w-0 flex-col">
-                <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                  {player.name}
-                </span>
-                <div className="mt-1 flex flex-wrap gap-1">{renderPottedBadges(sortedPotted.A)}</div>
-              </div>
+              <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                {player.name}
+              </span>
             </div>
             <div className="flex h-full items-center gap-2 text-base font-semibold">
               <span className="text-amber-300">{hud.A}</span>
@@ -18941,26 +18749,16 @@ function PoolRoyaleGame({
                         : 'border-white/40'
                     }`}
                   />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
-                      {opponentDisplayName}
-                    </span>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {renderPottedBadges(sortedPotted.B)}
-                    </div>
-                  </div>
+                  <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                    {opponentDisplayName}
+                  </span>
                 </>
               ) : (
                 <>
                   <span className="text-xl leading-none">{aiFlag}</span>
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                      AI
-                    </span>
-                    <div className="mt-1 flex flex-wrap gap-1">
-                      {renderPottedBadges(sortedPotted.B)}
-                    </div>
-                  </div>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                    AI
+                  </span>
                 </>
               )}
             </div>
