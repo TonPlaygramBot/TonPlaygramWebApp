@@ -299,22 +299,17 @@ export function getBallMaterial({
     variantKey
   });
 
-  const isPoolVariant = variantKey === 'pool';
-  const roughness = isPoolVariant ? 0.075 : 0.06;
-  const clearcoatRoughness = isPoolVariant ? 0.022 : 0.015;
-  const envMapIntensity = isPoolVariant ? 1.22 : 1.18;
-
   const material = new THREE.MeshPhysicalMaterial({
     color: 0xffffff,
     map,
     clearcoat: 1,
-    clearcoatRoughness,
+    clearcoatRoughness: 0.015,
     metalness: 0.24,
-    roughness,
+    roughness: 0.06,
     reflectivity: 1,
     sheen: 0.18,
     sheenColor: new THREE.Color(0xf8f9ff),
-    envMapIntensity
+    envMapIntensity: 1.18
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);

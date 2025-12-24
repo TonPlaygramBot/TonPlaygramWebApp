@@ -8,7 +8,6 @@ import React, {
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -2370,9 +2369,7 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.84,
       rimColor: 0xffffff,
       rimIntensity: 0.6,
-      ambientIntensity: 0.2,
-      panelColor: DEFAULT_PANEL_LIGHT_COLOR,
-      panelIntensity: DEFAULT_PANEL_LIGHT_INTENSITY
+      ambientIntensity: 0.2
     }
   },
   {
@@ -2386,9 +2383,7 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.62,
       rimColor: 0xf7fbff,
       rimIntensity: 0.78,
-      ambientIntensity: 0.16,
-      panelColor: DEFAULT_PANEL_LIGHT_COLOR,
-      panelIntensity: DEFAULT_PANEL_LIGHT_INTENSITY
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2402,9 +2397,7 @@ const LIGHTING_OPTIONS = Object.freeze([
       fillIntensity: 0.82,
       rimColor: 0xf5f8ff,
       rimIntensity: 0.5,
-      ambientIntensity: 0.18,
-      panelColor: DEFAULT_PANEL_LIGHT_COLOR,
-      panelIntensity: DEFAULT_PANEL_LIGHT_INTENSITY
+      ambientIntensity: 0.18
     }
   }
 ]);
@@ -2414,12 +2407,6 @@ const LIGHTING_PRESET_MAP = Object.freeze(
     return acc;
   }, {})
 );
-const PANEL_LIGHT_COUNT = 4;
-const PANEL_LIGHT_SIZE_SCALE = 0.18;
-const PANEL_LIGHT_SPREAD = 0.72;
-const DEFAULT_PANEL_LIGHT_INTENSITY = 0.3;
-const DEFAULT_PANEL_LIGHT_COLOR = 0xffffff;
-let rectAreaLightLibInitialized = false;
 
 const FRAME_RATE_STORAGE_KEY = 'snookerFrameRate';
 const FRAME_RATE_OPTIONS = Object.freeze([
@@ -9716,8 +9703,7 @@ const powerRef = useRef(hud.power);
         key,
         fill,
         rim,
-        ambient,
-        panelLights
+        ambient
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
@@ -9728,14 +9714,6 @@ const powerRef = useRef(hud.power);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
-      if (panelLights?.length) {
-        const color = settings.panelColor ?? DEFAULT_PANEL_LIGHT_COLOR;
-        const intensity = settings.panelIntensity ?? DEFAULT_PANEL_LIGHT_INTENSITY;
-        panelLights.forEach((light) => {
-          light.color.set(color);
-          light.intensity = intensity;
-        });
-      }
     },
     [lightingId]
   );
@@ -14001,37 +13979,13 @@ const powerRef = useRef(hud.power);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
-        if (!rectAreaLightLibInitialized && RectAreaLightUniformsLib?.init) {
-          RectAreaLightUniformsLib.init();
-          rectAreaLightLibInitialized = true;
-        }
-        const panelSize = Math.min(PLAY_W, PLAY_H) * PANEL_LIGHT_SIZE_SCALE;
-        const panelSpacing =
-          (PLAY_H * PANEL_LIGHT_SPREAD) / Math.max(1, PANEL_LIGHT_COUNT - 1);
-        const panelStart = -panelSpacing * ((PANEL_LIGHT_COUNT - 1) / 2);
-        const panelLights = [];
-        for (let idx = 0; idx < PANEL_LIGHT_COUNT; idx++) {
-          const z = panelStart + idx * panelSpacing;
-          const panel = new THREE.RectAreaLight(
-            DEFAULT_PANEL_LIGHT_COLOR,
-            DEFAULT_PANEL_LIGHT_INTENSITY,
-            panelSize,
-            panelSize
-          );
-          panel.position.set(0, lightRigHeight * 0.98, z);
-          panel.lookAt(new THREE.Vector3(0, targetY, z));
-          panel.castShadow = false;
-          lightingRig.add(panel);
-          panelLights.push(panel);
-        }
 
         lightingRigRef.current = {
           group: lightingRig,
           key,
           fill,
           rim,
-          ambient,
-          panelLights
+          ambient
         };
         applyLightingPreset();
       };
