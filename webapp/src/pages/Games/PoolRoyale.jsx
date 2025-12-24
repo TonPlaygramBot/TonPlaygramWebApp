@@ -8,7 +8,6 @@ import React, {
 import * as THREE from 'three';
 import polygonClipping from 'polygon-clipping';
 import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { PoolRoyalePowerSlider } from '../../../../pool-royale-power-slider.js';
 import '../../../../pool-royale-power-slider.css';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -2351,14 +2350,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
       keyColor: 0xf5f7fb,
-      keyIntensity: 1.18,
+      keyIntensity: 1.28,
       fillColor: 0xf5f7fb,
-      fillIntensity: 0.7,
+      fillIntensity: 0.76,
       rimColor: 0xfafcff,
-      rimIntensity: 0.5,
-      ambientIntensity: 0.18,
-      areaLightColor: 0xfafafa,
-      areaLightIntensity: 0.26
+      rimIntensity: 0.54,
+      ambientIntensity: 0.18
     }
   },
   {
@@ -2367,14 +2364,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
       keyColor: 0xf6f8ff,
-      keyIntensity: 1.48,
+      keyIntensity: 1.64,
       fillColor: 0xf6f8ff,
-      fillIntensity: 0.76,
+      fillIntensity: 0.84,
       rimColor: 0xffffff,
-      rimIntensity: 0.52,
-      ambientIntensity: 0.2,
-      areaLightColor: 0xfafafa,
-      areaLightIntensity: 0.28
+      rimIntensity: 0.6,
+      ambientIntensity: 0.2
     }
   },
   {
@@ -2383,14 +2378,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'High-contrast stage look with tight rim control.',
     settings: {
       keyColor: 0xf2f5ff,
-      keyIntensity: 1.56,
+      keyIntensity: 1.74,
       fillColor: 0xf2f5ff,
-      fillIntensity: 0.56,
+      fillIntensity: 0.62,
       rimColor: 0xf7fbff,
-      rimIntensity: 0.68,
-      ambientIntensity: 0.16,
-      areaLightColor: 0xfafafa,
-      areaLightIntensity: 0.26
+      rimIntensity: 0.78,
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2399,14 +2392,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
       keyColor: 0xeaf1ff,
-      keyIntensity: 1.28,
+      keyIntensity: 1.42,
       fillColor: 0xeaf1ff,
-      fillIntensity: 0.74,
+      fillIntensity: 0.82,
       rimColor: 0xf5f8ff,
-      rimIntensity: 0.46,
-      ambientIntensity: 0.18,
-      areaLightColor: 0xfafafa,
-      areaLightIntensity: 0.24
+      rimIntensity: 0.5,
+      ambientIntensity: 0.18
     }
   }
 ]);
@@ -9712,8 +9703,7 @@ const powerRef = useRef(hud.power);
         key,
         fill,
         rim,
-        ambient,
-        areaLights
+        ambient
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
@@ -9724,14 +9714,6 @@ const powerRef = useRef(hud.power);
       if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
       if (settings.ambientIntensity && ambient)
         ambient.intensity = settings.ambientIntensity;
-      if (Array.isArray(areaLights)) {
-        areaLights.forEach((light) => {
-          if (!light) return;
-          if (settings.areaLightColor) light.color.set(settings.areaLightColor);
-          if (settings.areaLightIntensity)
-            light.intensity = settings.areaLightIntensity;
-        });
-      }
     },
     [lightingId]
   );
@@ -10472,7 +10454,6 @@ const powerRef = useRef(hud.power);
         alpha: false,
         powerPreference: 'high-performance'
       });
-      RectAreaLightUniformsLib.init();
       renderer.useLegacyLights = false;
       applyRendererSRGB(renderer);
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -13966,7 +13947,6 @@ const powerRef = useRef(hud.power);
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
-        const areaLightHeight = lightRigHeight * 0.96;
 
         const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
@@ -14000,34 +13980,12 @@ const powerRef = useRef(hud.power);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
 
-        const areaLights = [];
-        const areaCount = 4;
-        const rectSize = Math.max(PLAY_W, PLAY_H) * 0.22;
-        const laneLength = PLAY_H * 0.72;
-        const laneStart = -laneLength / 2;
-        const laneStep = laneLength / (areaCount - 1);
-        for (let i = 0; i < areaCount; i++) {
-          const z = laneStart + laneStep * i;
-          const rect = new THREE.RectAreaLight(
-            0xfafafa,
-            LIGHTING_PRESET_MAP[DEFAULT_LIGHTING_ID]?.settings?.areaLightIntensity ?? 0.26,
-            rectSize,
-            rectSize
-          );
-          rect.position.set(0, areaLightHeight, z);
-          rect.lookAt(0, targetY, z);
-          rect.name = `pool-rect-light-${i + 1}`;
-          lightingRig.add(rect);
-          areaLights.push(rect);
-        }
-
         lightingRigRef.current = {
           group: lightingRig,
           key,
           fill,
           rim,
-          ambient,
-          areaLights
+          ambient
         };
         applyLightingPreset();
       };
