@@ -296,6 +296,25 @@ const BUNDLE_TON_MAP = Object.fromEntries(
 const lastActionBySocket = new Map();
 const rollRateLimitMs = Number(process.env.SOCKET_ROLL_COOLDOWN_MS) || 800;
 
+const MATCH_META_KEYS = ['mode', 'playType', 'variant', 'tableSize', 'ballSet', 'token'];
+
+function normalizeMatchMeta(rawMeta = {}) {
+  const normalized = {};
+  MATCH_META_KEYS.forEach((key) => {
+    const value = rawMeta[key];
+    if (typeof value === 'string' && value.trim()) {
+      normalized[key] = value.trim().toLowerCase();
+    }
+  });
+  return normalized;
+}
+
+function isMatchMetaCompatible(existing = {}, requested = {}) {
+  const entries = Object.entries(requested);
+  if (!entries.length) return true;
+  return entries.every(([key, value]) => (existing?.[key] || '') === value);
+}
+
 function isRateLimited(socket, key, cooldownMs) {
   const now = Date.now();
   const last = lastActionBySocket.get(socket.id)?.[key] || 0;
@@ -319,11 +338,15 @@ function ensureRegistered(socket, accountId) {
   return true;
 }
 
-function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
+function getAvailableTable(gameType, stake = 0, maxPlayers = 4, matchMeta = {}) {
+  const normalizedMeta = normalizeMatchMeta(matchMeta);
   const key = `${gameType}-${maxPlayers}`;
   if (!lobbyTables[key]) lobbyTables[key] = [];
   const open = lobbyTables[key].find(
-    (t) => t.stake === stake && t.players.length < t.maxPlayers
+    (t) =>
+      t.stake === stake &&
+      t.players.length < t.maxPlayers &&
+      isMatchMetaCompatible(t.meta, normalizedMeta)
   );
   if (open) return open;
   const table = {
@@ -333,7 +356,8 @@ function getAvailableTable(gameType, stake = 0, maxPlayers = 4) {
     maxPlayers,
     players: [],
     currentTurn: null,
-    ready: new Set()
+    ready: new Set(),
+    meta: normalizedMeta
   };
   lobbyTables[key].push(table);
   tableMap.set(table.id, table);
@@ -435,13 +459,14 @@ async function seatTableSocket(
   playerName,
   socket,
   playerAvatar,
-  preferredSide
+  preferredSide,
+  matchMeta = {}
 ) {
   if (!accountId) return null;
   console.log(
     `Seating player ${playerName || accountId} at ${gameType}-${maxPlayers} (stake ${stake})`
   );
-  const table = getAvailableTable(gameType, stake, maxPlayers);
+  const table = getAvailableTable(gameType, stake, maxPlayers, matchMeta);
   const tableId = table.id;
   cleanupSeats();
   // Ensure this user is not seated at any other table
@@ -492,11 +517,15 @@ async function seatTableSocket(
   console.log(`Player ${playerName || accountId} joined table ${tableId}`);
   socket?.join(tableId);
   table.ready.delete(String(accountId));
+  if (!table.meta) {
+    table.meta = normalizeMatchMeta(matchMeta);
+  }
   io.to(tableId).emit('lobbyUpdate', {
     tableId,
     players: table.players,
     currentTurn: table.currentTurn,
-    ready: Array.from(table.ready)
+    ready: Array.from(table.ready),
+    meta: table.meta
   });
   return table;
 }
@@ -521,7 +550,8 @@ function maybeStartGame(table) {
         tableId: table.id,
         players: table.players,
         currentTurn: table.currentTurn,
-        stake: table.stake
+        stake: table.stake,
+        meta: table.meta
       });
       tableSeats.delete(table.id);
       const key = `${table.gameType}-${table.maxPlayers}`;
@@ -577,7 +607,8 @@ function unseatTableSocket(accountId, tableId, socketId) {
       tableId,
       players: table.players,
       currentTurn: table.currentTurn,
-      ready: Array.from(table.ready || [])
+      ready: Array.from(table.ready || []),
+      meta: table.meta
     });
     if (accountId && table.currentTurn && table.currentTurn !== accountId) {
       io.to(tableId).emit('turnUpdate', { currentTurn: table.currentTurn });
@@ -922,7 +953,13 @@ io.on('connection', (socket) => {
         playerName,
         tableId,
         avatar,
-        preferredSide
+        preferredSide,
+        variant,
+        mode,
+        playType,
+        tableSize,
+        ballSet,
+        token
       },
       cb
     ) => {
@@ -938,7 +975,8 @@ io.on('connection', (socket) => {
           playerName,
           socket,
           avatar,
-          preferredSide
+          preferredSide,
+          { variant, mode, playType, tableSize, ballSet, token }
         );
       } else {
         table = await seatTableSocket(
@@ -949,7 +987,8 @@ io.on('connection', (socket) => {
           playerName,
           socket,
           avatar,
-          preferredSide
+          preferredSide,
+          { variant, mode, playType, tableSize, ballSet, token }
         );
       }
       if (table && cb) {
@@ -958,7 +997,8 @@ io.on('connection', (socket) => {
           tableId: table.id,
           players: table.players,
           currentTurn: table.currentTurn,
-          ready: Array.from(table.ready)
+          ready: Array.from(table.ready),
+          meta: table.meta
         });
       } else if (cb) {
         cb({ success: false, error: 'table_join_failed' });

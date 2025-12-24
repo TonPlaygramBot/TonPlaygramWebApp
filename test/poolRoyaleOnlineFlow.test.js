@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'events';
 import { setTimeout as delay } from 'timers/promises';
 import { runPoolRoyaleOnlineFlow } from '../webapp/src/pages/Games/poolRoyaleOnlineFlow.js';
+import { socket as realSocket } from '../webapp/src/utils/socket.js';
 
 class MockSocket extends EventEmitter {
   constructor() {
@@ -74,6 +75,11 @@ function createRefs() {
   };
 }
 
+test.after(() => {
+  realSocket?.disconnect?.();
+  realSocket?.close?.();
+});
+
 test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async () => {
   const mockSocket = new MockSocket();
   const refs = createRefs();
@@ -96,6 +102,7 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   await runPoolRoyaleOnlineFlow({
     stake: { token: 'TPC', amount: 100 },
     variant: 'uk',
+    ballSet: 'american',
     playType: 'regular',
     mode: 'online',
     tableSize: 'medium',
@@ -108,6 +115,12 @@ test('runPoolRoyaleOnlineFlow debits once and keeps stake for game start', async
   });
 
   assert.equal(mockSocket.seatRequests.length, 1);
+  const seatPayload = mockSocket.seatRequests[0].payload;
+  assert.equal(seatPayload.ballSet, 'american');
+  assert.equal(seatPayload.variant, 'uk');
+  assert.equal(seatPayload.mode, 'online');
+  assert.equal(seatPayload.tableSize, 'medium');
+  assert.equal(seatPayload.playType, 'regular');
   const seatCb = mockSocket.seatRequests[0].cb;
   seatCb({
     success: true,
@@ -158,6 +171,7 @@ test('runPoolRoyaleOnlineFlow refunds when matchmaking times out', async () => {
   await runPoolRoyaleOnlineFlow({
     stake: { token: 'TPC', amount: 75 },
     variant: 'uk',
+    ballSet: 'uk',
     playType: 'regular',
     mode: 'online',
     tableSize: 'medium',
