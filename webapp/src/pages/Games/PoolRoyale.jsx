@@ -449,10 +449,10 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.034;
-const CORNER_POCKET_INWARD_SCALE = 1.008; // ease the corner cuts back toward the rail so the mouth stays as wide as the bowl
-const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
-const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
+const POCKET_VISUAL_EXPANSION = 1.0; // keep pocket visuals locked to the official mouth measurements
+const CORNER_POCKET_INWARD_SCALE = 1.0; // ease corner cuts directly to the rail line per regulation
+const CORNER_POCKET_SCALE_BOOST = 1.0; // preserve the exact WPA mouth width without extra flare
+const CORNER_POCKET_EXTRA_SCALE = 1.0; // remove additional widening so pocket geometry matches regulation
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
@@ -906,9 +906,9 @@ const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
-const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
-const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.03; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
+const SIDE_POCKET_OUTWARD_BIAS = 0; // keep middle pocket centres at regulation positions
+const SIDE_POCKET_FIELD_PULL = 0; // avoid tugging pockets off the official line
+const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // leave cloth cutouts flush with regulation spacing
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -924,17 +924,17 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // shrink the middle pocket mouth width a touch more so the radius tightens up further
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // mirror the official 5" side pocket mouth relative to ball size
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.968; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
+const SIDE_POCKET_CUT_SCALE = 1; // keep side pocket cloth/rail cuts at official spacing
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
+const POCKET_INTERIOR_TOP_SCALE = 1.0; // hold the interior rim to the official diameter
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
@@ -1223,9 +1223,9 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 32;
-// middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
+const DEFAULT_CUSHION_CUT_ANGLE = 35; // recut corner cushions to the standard facing angle
+// middle pocket cushion cuts now follow the official facing spec as well
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 32;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -14277,6 +14277,10 @@ const powerRef = useRef(hud.power);
       const cueLen = 1.5 * SCALE * CUE_LENGTH_MULTIPLIER;
       const cueStick = new THREE.Group();
       const cueBody = new THREE.Group();
+      cueStick.castShadow = true;
+      cueStick.receiveShadow = true;
+      cueBody.castShadow = true;
+      cueBody.receiveShadow = true;
       cueStick.add(cueBody);
       cueStick.userData.body = cueBody;
       cueBodyRef.current = cueBody;
@@ -14356,6 +14360,7 @@ const powerRef = useRef(hud.power);
           new THREE.CylinderGeometry(joinRadius, buttShaftRadius, rearShaftLength, 32),
           shaftMaterial
         );
+        rearShaft.castShadow = true;
         rearShaft.rotation.x = -Math.PI / 2;
         rearShaft.position.z = rearStart + rearShaftLength / 2;
         cueBody.add(rearShaft);
@@ -14372,6 +14377,7 @@ const powerRef = useRef(hud.power);
           new THREE.CylinderGeometry(tipShaftRadius, joinRadius, frontLength, 32),
           shaftMaterial
         );
+        frontShaft.castShadow = true;
         frontShaft.rotation.x = -Math.PI / 2;
         frontShaft.position.z = frontLength / 2;
         tipGroup.add(frontShaft);
@@ -14420,6 +14426,7 @@ const powerRef = useRef(hud.power);
           map: tipTex
         })
       );
+      tip.castShadow = true;
       tip.rotation.x = -Math.PI / 2;
       tip.position.z = -(tipCylinderLen / 2 + tipRadius + connectorHeight);
       tipGroup.add(tip);
@@ -14437,6 +14444,7 @@ const powerRef = useRef(hud.power);
           roughness: 0.5
         })
       );
+      connector.castShadow = true;
       connector.rotation.x = -Math.PI / 2;
       connector.position.z = -connectorHeight / 2;
       tipGroup.add(connector);
@@ -14456,6 +14464,7 @@ const powerRef = useRef(hud.power);
           new THREE.CylinderGeometry(buttShaftRadius, buttShaftRadius, buttLength, 48),
           buttMaterial
         );
+        butt.castShadow = true;
         butt.rotation.x = -Math.PI / 2;
         butt.position.z = rearStart + rearShaftLength + buttLength / 2;
         cueBody.add(butt);
@@ -14465,6 +14474,7 @@ const powerRef = useRef(hud.power);
         new THREE.TorusGeometry(buttShaftRadius * 1.05, buttShaftRadius * 0.16, 24, 64),
         new THREE.MeshPhysicalMaterial({ color: 0xd7b86a, metalness: 1.0, roughness: 0.22 })
       );
+      buttRing.castShadow = true;
       buttRing.position.z = rearStart + rearShaftLength + Math.max(buttLength * 0.18, buttShaftRadius * 0.6);
       cueBody.add(buttRing);
       cueMaterialsRef.current.buttRingMaterial = buttRing.material;
@@ -14473,6 +14483,7 @@ const powerRef = useRef(hud.power);
         new THREE.SphereGeometry(0.03 * SCALE, 32, 16),
         buttMaterial.clone()
       );
+      buttCap.castShadow = true;
       buttCap.position.z = cueLen / 2;
       cueBody.add(buttCap);
       cueMaterialsRef.current.buttCapMaterial = buttCap.material;
@@ -14498,6 +14509,7 @@ const powerRef = useRef(hud.power);
           polygonOffsetUnits: -0.5
         })
       );
+      stripeOverlay.castShadow = true;
       stripeOverlay.rotation.x = -Math.PI / 2;
       stripeOverlay.position.z = frontLength / 2 + rearLength * 0.32;
       stripeOverlay.userData.isCueStripe = true;
