@@ -449,11 +449,11 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.02;
-const CORNER_POCKET_INWARD_SCALE = 1; // keep corner pocket chamfers aligned to official cushion nose cuts
-const CORNER_POCKET_SCALE_BOOST = 1; // keep corner mouth strictly on the WPA reference
-const CORNER_POCKET_EXTRA_SCALE = 1; // avoid over-widening the mouth so it matches the official cut
-const CHROME_CORNER_POCKET_RADIUS_SCALE = 1;
+const POCKET_VISUAL_EXPANSION = 1.034;
+const CORNER_POCKET_INWARD_SCALE = 1.008; // ease the corner cuts back toward the rail so the mouth stays as wide as the bowl
+const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
+const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
+const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
 const CHROME_CORNER_SIDE_EXPANSION_SCALE = 1.002; // mirror the lighter reach so the chrome stops exactly where the jaw shoulder begins
@@ -500,12 +500,12 @@ const CHROME_OUTER_FLUSH_TRIM_SCALE = 0; // allow the fascia to run the full dis
 const CHROME_CORNER_POCKET_CUT_SCALE = 1.02; // open the rounded chrome corner cut a little more so the chrome reveal reads larger at each corner
 const CHROME_SIDE_POCKET_CUT_SCALE = CHROME_CORNER_POCKET_CUT_SCALE * 1.012; // open the rounded chrome cut slightly wider on the middle pockets only
 const CHROME_SIDE_POCKET_CUT_CENTER_PULL_SCALE = 0.04; // pull the rounded chrome cutouts inward so they sit deeper into the fascia mass
-const WOOD_RAIL_POCKET_RELIEF_SCALE = 1; // keep wooden rail pocket relief at the official depth
-const WOOD_CORNER_RELIEF_INWARD_SCALE = 1; // keep the wooden corner relief aligned to the official profile
+const WOOD_RAIL_POCKET_RELIEF_SCALE = 0.9; // ease the wooden rail pocket relief so the rounded corner cuts expand a hair and keep pace with the broader chrome reveal
+const WOOD_CORNER_RELIEF_INWARD_SCALE = 0.984; // ease the wooden corner relief fractionally less so chrome widening does not alter the wood cut
 const WOOD_CORNER_RAIL_POCKET_RELIEF_SCALE =
   (1 / WOOD_RAIL_POCKET_RELIEF_SCALE) * WOOD_CORNER_RELIEF_INWARD_SCALE; // corner wood arches now sit a hair inside the chrome radius so the rounded cut creeps inward
-const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1; // keep the middle rail rounded cuts on the official centreline
-const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = 0; // align the wood cutouts directly to the pocket centres
+const WOOD_SIDE_RAIL_POCKET_RELIEF_SCALE = 1.018; // push the middle rail rounded cuts slightly farther outward so they sit farther from the table centre while keeping their slim profile
+const WOOD_SIDE_POCKET_CUT_CENTER_OUTSET_SCALE = -0.08; // offset the wood cutouts outward so the rounded relief tracks the shifted middle pocket line
 
 function buildChromePlateGeometry({
   width,
@@ -875,8 +875,8 @@ const TABLE_RAIL_TOP_Y = FRAME_TOP_Y + RAIL_HEIGHT;
   const D_RADIUS_REF = 292;
   const PINK_FROM_TOP_REF = 737;
   const BLACK_FROM_TOP_REF = 324; // Black spot distance from the top cushion (12.75")
-  const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (WPA reference)
-  const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (WPA reference)
+  const CORNER_MOUTH_REF = 114.3; // 4.5" corner pocket mouth between cushion noses (Pool Royale match)
+  const SIDE_MOUTH_REF = 127; // 5" side pocket mouth between cushion noses (Pool Royale match)
   const SIDE_RAIL_INNER_REDUCTION = 0.72; // nudge the rails further inward so the cloth footprint tightens slightly more
   const SIDE_RAIL_INNER_SCALE = 1 - SIDE_RAIL_INNER_REDUCTION;
   const SIDE_RAIL_INNER_THICKNESS = TABLE.WALL * SIDE_RAIL_INNER_SCALE;
@@ -906,9 +906,9 @@ const BALL_SHADOW_RADIUS_MULTIPLIER = 0.92;
 const BALL_SHADOW_OPACITY = 0.25;
 const BALL_SHADOW_LIFT = BALL_R * 0.02;
 const SIDE_POCKET_EXTRA_SHIFT = 0; // align middle pocket centres flush with the reference layout
-const SIDE_POCKET_OUTWARD_BIAS = 0; // keep middle pocket centres exactly on the official midpoints
-const SIDE_POCKET_FIELD_PULL = 0; // avoid offsetting the pocket cuts away from the official layout
-const SIDE_POCKET_CLOTH_INWARD_PULL = 0; // keep cloth apertures centred on the pocket positions
+const SIDE_POCKET_OUTWARD_BIAS = TABLE.THICK * 0.05; // push the middle pocket centres and cloth cutouts slightly outward away from the table midpoint
+const SIDE_POCKET_FIELD_PULL = TABLE.THICK * 0.02; // gently bias the middle pocket centres and cuts back toward the playfield
+const SIDE_POCKET_CLOTH_INWARD_PULL = TABLE.THICK * 0.03; // pull only the middle pocket cloth cutouts slightly toward the playfield centre
 const CHALK_TOP_COLOR = 0x1f6d86;
 const CHALK_SIDE_COLOR = 0x162b36;
 const CHALK_SIDE_ACTIVE_COLOR = 0x1f4b5d;
@@ -924,21 +924,20 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 1; // keep the side pocket mouth at the official 5" span
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // shrink the middle pocket mouth width a touch more so the radius tightens up further
 const POCKET_SIDE_MOUTH_SCALE =
-  POCKET_CORNER_MOUTH_SCALE * SIDE_POCKET_MOUTH_REDUCTION_SCALE; // preserve the official side mouth width relative to the ball size
-const SIDE_POCKET_CUT_SCALE = 1; // keep the middle cloth/rail cuts at the official geometry
-const OFFICIAL_CORNER_MOUTH_RATIO = CORNER_MOUTH_REF / BALL_D_REF;
-const OFFICIAL_SIDE_MOUTH_RATIO = SIDE_MOUTH_REF / BALL_D_REF;
+  (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
+  POCKET_CORNER_MOUTH_SCALE *
+  SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
+const SIDE_POCKET_CUT_SCALE = 0.968; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
-  BALL_DIAMETER * OFFICIAL_CORNER_MOUTH_RATIO * POCKET_CORNER_MOUTH_SCALE;
-const POCKET_SIDE_MOUTH =
-  BALL_DIAMETER * OFFICIAL_SIDE_MOUTH_RATIO * POCKET_SIDE_MOUTH_SCALE;
+  CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
+const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 1; // keep the interior opening flush with the official cut
-const POCKET_R = POCKET_VIS_R * 0.99;
+const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
+const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
-  POCKET_VIS_R * 0.28 * POCKET_VISUAL_EXPANSION; // keep the corner pocket centres aligned to official nose chamfers
+  POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
 const SIDE_POCKET_RADIUS = POCKET_SIDE_MOUTH / 2;
 const CORNER_CHROME_NOTCH_RADIUS =
   POCKET_VIS_R * POCKET_VISUAL_EXPANSION * CORNER_POCKET_INWARD_SCALE;
@@ -4285,8 +4284,8 @@ const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely fra
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
-  nearLandscape: Object.freeze({ cue: 0.86, broadcast: 0.91, margin: 0.975 }),
-  landscape: Object.freeze({ cue: 0.84, broadcast: 0.9, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.985 }),
+  landscape: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 1.0 }),
   portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
   ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
 });
@@ -14281,32 +14280,6 @@ const powerRef = useRef(hud.power);
       cueStick.add(cueBody);
       cueStick.userData.body = cueBody;
       cueBodyRef.current = cueBody;
-      const cueShadowHeight = BALL_SHADOW_Y + BALL_R * 0.04;
-      const cueShadow = new THREE.Mesh(
-        new THREE.PlaneGeometry(cueLen * 0.94, BALL_R * 1.1),
-        new THREE.MeshBasicMaterial({
-          color: 0x000000,
-          transparent: true,
-          opacity: 0.22,
-          depthWrite: false
-        })
-      );
-      cueShadow.rotation.x = -Math.PI / 2;
-      cueShadow.position.y = cueShadowHeight;
-      cueShadow.visible = false;
-      cueShadow.renderOrder = 0.25;
-      table.add(cueShadow);
-      const syncCueShadow = (dirVec = new THREE.Vector3(0, 0, 1)) => {
-        if (!cueShadow) return;
-        const yaw = Math.atan2(dirVec.x, dirVec.z) + Math.PI;
-        cueShadow.visible = cueStick.visible;
-        cueShadow.position.set(
-          cueStick.position.x,
-          cueShadowHeight,
-          cueStick.position.z
-        );
-        cueShadow.rotation.y = yaw;
-      };
       const buttLift = Math.min(CUE_BUTT_LIFT, cueLen);
       const buttTilt = Math.asin(
         Math.min(1, buttLift / Math.max(cueLen, 1e-4))
@@ -14535,7 +14508,6 @@ const powerRef = useRef(hud.power);
       applyCueButtTilt(cueStick);
       // thin side already faces the cue ball so no extra rotation
       cueStick.visible = false;
-      syncCueShadow();
       table.add(cueStick);
       applySelectedCueStyle(cueStyleIndexRef.current ?? cueStyleIndex);
 
@@ -15536,7 +15508,6 @@ const powerRef = useRef(hud.power);
               endPos,
               animFrame / animSteps
             );
-            syncCueShadow(dir);
             if (animFrame < animSteps) {
               requestAnimationFrame(animateCue);
             } else {
@@ -15548,13 +15519,11 @@ const powerRef = useRef(hud.power);
                   startPos,
                   backFrame / animSteps
                 );
-                syncCueShadow(dir);
                 if (backFrame < animSteps) requestAnimationFrame(animateBack);
                 else {
                   cuePullCurrentRef.current = 0;
                   cuePullTargetRef.current = 0;
                   cueStick.visible = false;
-                  cueShadow.visible = false;
                   cueAnimating = false;
                   if (cameraRef.current && sphRef.current) {
                     topViewRef.current = false;
@@ -17273,7 +17242,6 @@ const powerRef = useRef(hud.power);
           const extraTilt = MAX_BACKSPIN_TILT * tiltAmount;
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
-          syncCueShadow(dir);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
@@ -17373,7 +17341,6 @@ const powerRef = useRef(hud.power);
           }
           updateChalkVisibility(visibleChalkIndex);
           cueStick.visible = true;
-          syncCueShadow(dir);
           if (targetDir && targetBall) {
             const travelScale = BALL_R * (14 + powerStrength * 22);
             const tDir = new THREE.Vector3(targetDir.x, 0, targetDir.y);
@@ -17471,12 +17438,10 @@ const powerRef = useRef(hud.power);
           const extraTilt = MAX_BACKSPIN_TILT * Math.min(tiltAmount, 1);
           applyCueButtTilt(cueStick, extraTilt);
           cueStick.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI;
-          syncCueShadow(dir);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
           cueStick.visible = true;
-          syncCueShadow(dir);
         } else {
           aimFocusRef.current = null;
           aim.visible = false;
@@ -17493,10 +17458,7 @@ const powerRef = useRef(hud.power);
           if (tipGroupRef.current) {
             tipGroupRef.current.position.set(0, 0, -cueLen / 2);
           }
-          if (!cueAnimating) {
-            cueStick.visible = false;
-            cueShadow.visible = false;
-          }
+          if (!cueAnimating) cueStick.visible = false;
           updateChalkVisibility(null);
         }
 
@@ -19066,19 +19028,19 @@ const powerRef = useRef(hud.power);
 
       {bottomHudVisible && (
         <div
-          className={`absolute bottom-5 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
           style={{
-            left: 'max(3.5rem, 9vw)',
-            right: 'max(7rem, 14vw)'
+            left: 'max(4.5rem, 11vw)',
+            right: 'max(8.5rem, 18vw)'
           }}
         >
           <div
-            className="pointer-events-auto flex min-h-[3.75rem] max-w-full items-center justify-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-2 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${uiScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: 'min(30rem, 100%)'
+              maxWidth: 'min(26rem, 100%)'
             }}
           >
             <div
@@ -19091,7 +19053,7 @@ const powerRef = useRef(hud.power);
               <img
                 src={player.avatar || '/assets/icons/profile.svg'}
                 alt="player avatar"
-                className={`h-11 w-11 rounded-full border object-cover transition-shadow ${
+                className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
                   isPlayerTurn
                     ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
                     : 'border-white/40'
@@ -19121,7 +19083,7 @@ const powerRef = useRef(hud.power);
                   <img
                     src={opponentDisplayAvatar}
                     alt="opponent avatar"
-                    className={`h-11 w-11 rounded-full border object-cover transition-shadow ${
+                    className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
                       isOpponentTurn
                         ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
                         : 'border-white/40'
