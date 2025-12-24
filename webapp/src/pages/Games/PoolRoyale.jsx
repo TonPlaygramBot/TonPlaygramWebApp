@@ -1219,7 +1219,7 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 38;
+const DEFAULT_CUSHION_CUT_ANGLE = 26;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -1284,7 +1284,7 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
   },
   american: {
     id: 'american',
-    label: 'Solids & Stripes',
+    label: 'American 8-Ball',
     cueColor: 0xffffff,
     rackLayout: 'triangle',
     disableSnookerMarkings: true,
@@ -4876,37 +4876,6 @@ const BALL_LABELS = Object.freeze({
 const formatBallLabel = (colorId) => {
   if (!colorId) return '';
   return BALL_LABELS[colorId] || colorId.charAt(0) + colorId.slice(1).toLowerCase();
-};
-const usesSolidsAndStripes = (variantConfig) => {
-  if (!variantConfig) return false;
-  if (variantConfig.id === 'american') return true;
-  if (variantConfig.id === 'uk' && variantConfig.ballSet === 'american') return true;
-  return false;
-};
-const formatAssignmentLabel = (assignment, variantConfig) => {
-  const normalized = typeof assignment === 'string' ? assignment.toLowerCase() : '';
-  const solidsAndStripes = usesSolidsAndStripes(variantConfig);
-  if (solidsAndStripes) {
-    if (
-      normalized.includes('stripe') ||
-      normalized.includes('high') ||
-      normalized === 'blue' ||
-      normalized === 'yellow'
-    ) {
-      return 'Stripes';
-    }
-    if (
-      normalized.includes('solid') ||
-      normalized.includes('low') ||
-      normalized === 'red'
-    ) {
-      return 'Solids';
-    }
-  }
-  if (normalized === 'blue' || normalized === 'yellow') return 'Yellows';
-  if (normalized === 'red') return 'Reds';
-  if (normalized === 'black') return 'Black';
-  return normalized ? normalized.charAt(0).toUpperCase() + normalized.slice(1) : '';
 };
 const getPocketCenterById = (id) => {
   switch (id) {
@@ -16690,10 +16659,12 @@ const powerRef = useRef(hud.power);
                     : isOnlineMatch
                       ? opponentDisplayName
                       : 'AI';
-                const assignmentLabel = formatAssignmentLabel(
-                  nextAssign,
-                  activeVariantRef.current
-                );
+                const assignmentLabel =
+                  nextAssign === 'blue'
+                    ? 'Yellows'
+                    : nextAssign === 'red'
+                      ? 'Reds'
+                      : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
                 showRuleToast(`${seatLabel} is ${assignmentLabel}`);
               }
             });
@@ -17855,16 +17826,11 @@ const powerRef = useRef(hud.power);
           }
         }
         // Pocket capture
-        const centers = pocketCenters();
-        const captureRadii = centers.map((_, index) =>
-          index >= 4 ? SIDE_CAPTURE_R : CAPTURE_R
-        );
         balls.forEach((b) => {
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
-            const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
-            if (b.pos.distanceTo(c) < captureRadius) {
+            if (b.pos.distanceTo(c) < CAPTURE_R) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
@@ -18380,72 +18346,35 @@ const powerRef = useRef(hud.power);
   );
   const renderPottedRow = useCallback(
     (entries = []) => {
-      const adjustColor = (hex, amount) => {
-        if (typeof hex !== 'string' || hex.length < 6) return hex;
-        const normalized = hex.startsWith('#') ? hex.slice(1) : hex;
-        const num = Number.parseInt(normalized, 16);
-        if (Number.isNaN(num)) return hex;
-        const clamp = (v) => Math.max(0, Math.min(255, v));
-        const shift = Math.round(255 * amount);
-        const r = clamp(((num >> 16) & 0xff) + shift);
-        const g = clamp(((num >> 8) & 0xff) + shift);
-        const b = clamp((num & 0xff) + shift);
-        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-      };
-      const buildBallStyle = (colorHex, pattern) => {
-        const base = typeof colorHex === 'string' ? colorHex : '#e5e7eb';
-        const shine = adjustColor(base, 0.2);
-        const shadow = adjustColor(base, -0.18);
-        const stripe = adjustColor(base, 0.06);
-        const isStripe = pattern === 'stripe';
-        const backgroundImage = isStripe
-          ? `linear-gradient(90deg, transparent 28%, ${stripe} 28%, ${stripe} 72%, transparent 72%), radial-gradient(circle at 32% 28%, ${shine} 0%, ${shine} 30%, ${base} 58%, ${shadow} 100%)`
-          : `radial-gradient(circle at 32% 28%, ${shine} 0%, ${shine} 30%, ${base} 58%, ${shadow} 100%)`;
-        return {
-          backgroundImage,
-          boxShadow:
-            'inset 0 0 0 1px rgba(255,255,255,0.32), inset 0 -1px 4px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.5)'
-        };
-      };
-      const placeholders = Array.from({ length: 5 }).map((_, index) => ({
-        id: `placeholder-${index}`,
-        color: 'CUE',
-        placeholder: true
-      }));
-      const items = entries.length ? entries : placeholders;
-      const opacity = entries.length ? 1 : 0.45;
+      if (!entries.length) {
+        return (
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
+            No pots yet
+          </span>
+        );
+      }
       return (
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5">
-          {items.map((entry, index) => {
+        <div className="flex flex-wrap items-center gap-1">
+          {entries.map((entry, index) => {
             const colorKey = String(entry.color || '').toUpperCase();
             const colorHex =
               ballSwatches[colorKey] ??
               (colorKey.startsWith('BALL_') ? '#f5f5f4' : '#e5e7eb');
-            const numberMatch =
+            const label =
               colorKey.startsWith('BALL_') && colorKey.length > 5
                 ? colorKey.replace('BALL_', '')
-                : null;
-            const pattern =
-              colorKey === 'STRIPE' ||
-              (numberMatch && Number.parseInt(numberMatch, 10) >= 9) ||
-              entry.pattern === 'stripe'
-                ? 'stripe'
-                : 'solid';
-            const label =
-              numberMatch || colorKey === 'BLACK'
-                ? numberMatch || '8'
-                : pattern === 'stripe'
-                  ? 'S'
+                : colorKey === 'BLACK'
+                  ? '8'
                   : colorKey.charAt(0);
             const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="flex h-6 w-6 flex-none items-center justify-center rounded-full text-[10px] font-black leading-none ring-1 ring-white/25"
-                style={{ ...buildBallStyle(colorHex, pattern), color: textColor, opacity }}
-                title={entries.length ? `Pocketed ${colorKey}` : undefined}
+                className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full border border-white/40 px-1 text-[10px] font-bold leading-4 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                style={{ backgroundColor: colorHex, color: textColor }}
+                title={`Pocketed ${colorKey}`}
               >
-                {entry.placeholder ? '' : label}
+                {label}
               </span>
             );
           })}
