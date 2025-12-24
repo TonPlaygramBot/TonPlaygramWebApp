@@ -1019,9 +1019,6 @@ const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to
 const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
-const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
-const PLYWOOD_GAP = 0;
-const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
@@ -6094,9 +6091,8 @@ function Table3D(
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-  const plywoodDepth = PLYWOOD_ENABLED ? PLYWOOD_THICKNESS : 0;
-  const plywoodTopY =
-    clothBottomY - (PLYWOOD_ENABLED ? PLYWOOD_GAP + PLYWOOD_EXTRA_DROP : 0);
+  const plywoodDepth = 0; // plywood bed fully removed so no underlayment renders beneath the cloth
+  const plywoodTopY = clothBottomY;
   const pocketEdgeStopY = plywoodTopY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketCutStripes = addPocketCuts(
     table,
@@ -6302,9 +6298,9 @@ function Table3D(
     mesh.material.needsUpdate = true;
   });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
-  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.05; // push the cushions further outward so they meet the wooden rails without a gap
-  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.014; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
-  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
+  const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.065; // push the cushions further outward so they meet the wooden rails without a gap
+  const CUSHION_SHORT_RAIL_CENTER_NUDGE = -TABLE.THICK * 0.02; // push the short-rail cushions slightly farther from center so their noses sit flush against the rails
+  const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.008; // keep a subtle setback along the long rails to prevent overlap
   const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
@@ -8744,6 +8740,10 @@ function PoolRoyaleGame({
   const trainingProgressRef = useRef(trainingProgress);
   const trainingLevelRef = useRef(trainingLevel);
   const trainingCompletionHandledRef = useRef(false);
+  const opponentIsAi = useMemo(
+    () => (isTraining ? trainingModeState === 'ai' : mode === 'ai'),
+    [isTraining, mode, trainingModeState]
+  );
   useEffect(() => {
     trainingProgressRef.current = trainingProgress;
   }, [trainingProgress]);
@@ -10353,7 +10353,7 @@ const powerRef = useRef(hud.power);
     const isSoloTraining = isTraining && trainingModeState === 'solo';
     if (hud.over || isSoloTraining) return undefined;
     const playerTurn = hud.turn;
-    const duration = playerTurn === 0 ? 60 : 3;
+    const duration = playerTurn === 0 || !opponentIsAi ? 60 : 3;
     setTimer(duration);
     timerWarnedRef.current = false;
     clearInterval(timerRef.current);
@@ -10371,9 +10371,9 @@ const powerRef = useRef(hud.power);
         }
         if (next === 0) {
           clearInterval(timerRef.current);
-          if (playerTurn === 0) {
+          if (playerTurn === 0 && opponentIsAi) {
             setHud((s) => ({ ...s, turn: 1 - s.turn }));
-          } else {
+          } else if (opponentIsAi) {
             aiShoot.current();
           }
           return 0;
@@ -10382,7 +10382,15 @@ const powerRef = useRef(hud.power);
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [hud.turn, hud.over, playTurnKnock, isTraining, trainingModeState, turnCycle]);
+  }, [
+    hud.turn,
+    hud.over,
+    playTurnKnock,
+    isTraining,
+    trainingModeState,
+    turnCycle,
+    opponentIsAi
+  ]);
 
   useEffect(() => {
     if (hud.over) {
@@ -10397,7 +10405,12 @@ const powerRef = useRef(hud.power);
       suggestionAimKeyRef.current = null;
       autoAimRequestRef.current = false;
       stopAiThinkingRef.current?.();
-      startAiThinkingRef.current?.();
+      if (opponentIsAi) {
+        startAiThinkingRef.current?.();
+      } else {
+        setAiPlanning(null);
+        aiPlanRef.current = null;
+      }
     } else {
       stopAiThinkingRef.current?.();
       setAiPlanning(null);
@@ -10406,7 +10419,7 @@ const powerRef = useRef(hud.power);
       autoAimRequestRef.current = true;
       startUserSuggestionRef.current?.();
     }
-  }, [hud.turn, hud.over]);
+  }, [hud.turn, hud.over, opponentIsAi]);
 
   useEffect(() => {
     if (hud.over) return;
@@ -10418,11 +10431,11 @@ const powerRef = useRef(hud.power);
   }, [frameState, hud.turn, hud.over]);
 
   useEffect(() => {
-    if (hud.over) return;
+    if (hud.over || !opponentIsAi) return;
     if (hud.turn === 1) {
       startAiThinkingRef.current?.();
     }
-  }, [frameState, hud.turn, hud.over]);
+  }, [frameState, hud.turn, hud.over, opponentIsAi]);
 
   useEffect(() => {
     const sph = sphRef.current;
