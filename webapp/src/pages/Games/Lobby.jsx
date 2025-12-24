@@ -48,6 +48,7 @@ export default function Lobby() {
   const [readyList, setReadyList] = useState([]);
   const [confirmed, setConfirmed] = useState(false);
   const [joinedTableId, setJoinedTableId] = useState(null);
+  const [joinedCapacity, setJoinedCapacity] = useState(null);
   const startedRef = useRef(false);
 
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function Lobby() {
     setConfirmed(false);
     setReadyList([]);
     setJoinedTableId(null);
+    setJoinedCapacity(null);
     setPlayers([]);
     setCurrentTurn(null);
   }, [game, table]);
@@ -211,6 +213,8 @@ export default function Lobby() {
       ) {
         const params = new URLSearchParams();
         params.set('table', idToMatch);
+        const cap = joinedCapacity || table?.capacity;
+        if (cap) params.set('capacity', String(cap));
         if (stake.token) params.set('token', stake.token);
         if (stake.amount) params.set('amount', stake.amount);
         startedRef.current = true;
@@ -223,7 +227,7 @@ export default function Lobby() {
       socket.off('lobbyUpdate', onUpdate);
       socket.off('gameStart', onStart);
     };
-  }, [table, stake, game, navigate, joinedTableId, confirmed]);
+  }, [table, stake, game, navigate, joinedTableId, joinedCapacity, confirmed]);
 
   useEffect(() => {
     if (game !== 'snake' || !table || table.id === 'single') return;
@@ -254,6 +258,7 @@ export default function Lobby() {
     if (game === 'snake' && table && table.id !== 'single') {
       const accountId = await ensureAccountId().catch(() => null);
       if (!accountId) return;
+      socket.emit('register', { playerId: accountId });
       socket.emit(
         'seatTable',
         {
@@ -267,11 +272,17 @@ export default function Lobby() {
         },
         (res) => {
           if (res && res.success) {
+            const resolvedTableId = res.tableId || table.id;
+            const resolvedCapacity = res.maxPlayers ?? table.capacity ?? null;
             setPlayers(res.players || []);
             setCurrentTurn(res.currentTurn);
             setReadyList(res.ready || []);
-            setJoinedTableId(res.tableId);
-            socket.emit('confirmReady', { accountId, tableId: res.tableId });
+            setJoinedTableId(resolvedTableId);
+            setJoinedCapacity(resolvedCapacity);
+            if (resolvedTableId) {
+              localStorage.setItem('snakeCurrentTable', resolvedTableId);
+            }
+            socket.emit('confirmReady', { accountId, tableId: resolvedTableId });
             setConfirmed(true);
           }
         }
