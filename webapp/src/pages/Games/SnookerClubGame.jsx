@@ -2149,13 +2149,13 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   freshGreen: Object.freeze({
     id: 'freshGreen',
     palette: {
-      shadow: 0x17683a,
-      base: 0x2e9d64,
-      accent: 0x46b97d,
-      highlight: 0x6fd49c
+      shadow: 0x1d8048,
+      base: 0x3ab86e,
+      accent: 0x54cf88,
+      highlight: 0x7ef2af
     },
-    sparkle: 0.9,
-    stray: 0.94
+    sparkle: 1,
+    stray: 1
   }),
   snookerGreen: Object.freeze({
     id: 'snookerGreen',
@@ -2182,13 +2182,13 @@ const CLOTH_TEXTURE_PRESETS = Object.freeze({
   arcticBlue: Object.freeze({
     id: 'arcticBlue',
     palette: {
-      shadow: 0x1f567a,
-      base: 0x348fc5,
-      accent: 0x5ab5e4,
-      highlight: 0x8cd6ff
+      shadow: 0x2a668a,
+      base: 0x3d9ed8,
+      accent: 0x7dcaf7,
+      highlight: 0xb4e5ff
     },
-    sparkle: 1,
-    stray: 1.02
+    sparkle: 1.05,
+    stray: 1.12
   })
 });
 
@@ -2200,14 +2200,13 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'freshGreen',
     label: 'Tour Green',
-    color: 0x4ebc84,
+    color: 0x6bdd9d,
     textureKey: 'freshGreen',
     detail: {
       bumpMultiplier: 1,
-      sheen: 0.5,
-      sheenRoughness: 0.52,
-      emissiveIntensity: 0.34,
-      envMapIntensity: 0.14
+      sheen: 0.58,
+      sheenRoughness: 0.42,
+      emissiveIntensity: 0.52
     }
   },
   {
@@ -2224,14 +2223,12 @@ const CLOTH_COLOR_OPTIONS = Object.freeze([
   {
     id: 'arcticBlue',
     label: 'Arctic Blue',
-    color: 0x5fb5e6,
+    color: 0x7ac6f5,
     textureKey: 'arcticBlue',
     detail: {
-      bumpMultiplier: 1.05,
-      sheen: 0.6,
-      sheenRoughness: 0.52,
-      emissiveIntensity: 0.36,
-      envMapIntensity: 0.16
+      sheen: 0.72,
+      sheenRoughness: 0.4,
+      envMapIntensity: 0.22
     }
   }
 ]);
@@ -9871,39 +9868,6 @@ export function PoolRoyaleGame({
     () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
     []
   );
-  const playerFlag = useMemo(
-    () => FLAG_EMOJIS[Math.floor(Math.random() * FLAG_EMOJIS.length)],
-    []
-  );
-  const regionDisplayNames = useMemo(() => {
-    if (typeof Intl === 'undefined' || typeof Intl.DisplayNames !== 'function') return null;
-    const locale = (typeof navigator !== 'undefined' && navigator.language) || 'en';
-    return new Intl.DisplayNames([locale], { type: 'region' });
-  }, []);
-  const flagToRegionCode = useCallback((flagEmoji) => {
-    if (!flagEmoji) return '';
-    const codePoints = Array.from(flagEmoji).map((cp) => cp.codePointAt(0));
-    if (codePoints.length !== 2) return '';
-    return codePoints
-      .map((cp) => String.fromCharCode(cp - 0x1f1e6 + 0x41))
-      .join('');
-  }, []);
-  const resolveFlagName = useCallback(
-    (flagEmoji) => {
-      const region = flagToRegionCode(flagEmoji);
-      if (!region) return 'Flag';
-      if (regionDisplayNames) {
-        return regionDisplayNames.of(region) ?? region;
-      }
-      return region;
-    },
-    [flagToRegionCode, regionDisplayNames]
-  );
-  const aiFlagName = useMemo(() => resolveFlagName(aiFlag), [aiFlag, resolveFlagName]);
-  const playerFlagName = useMemo(
-    () => resolveFlagName(playerFlag),
-    [playerFlag, resolveFlagName]
-  );
   const aiShoot = useRef(() => {});
 
   const drawHudPanel = (ctx, logo, avatarImg, name, score, t, emoji) => {
@@ -9936,27 +9900,16 @@ export function PoolRoyaleGame({
   const updateHudPanels = useCallback(() => {
     const panels = panelsRef.current;
     if (!panels) return;
-    const { A, B, C, D, logo } = panels;
-    const playerLabel =
-      typeof player.name === 'string' && player.name.trim() ? player.name : playerFlagName;
-    drawHudPanel(A.ctx, logo, null, playerLabel, hud.A, timer, playerFlag);
+    const { A, B, C, D, logo, playerImg } = panels;
+    drawHudPanel(A.ctx, logo, playerImg, player.name, hud.A, timer);
     A.tex.needsUpdate = true;
-    drawHudPanel(B.ctx, logo, null, aiFlagName, hud.B, timer, aiFlag);
+    drawHudPanel(B.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
     B.tex.needsUpdate = true;
-    drawHudPanel(C.ctx, logo, null, playerLabel, hud.A, timer, playerFlag);
+    drawHudPanel(C.ctx, logo, playerImg, player.name, hud.A, timer);
     C.tex.needsUpdate = true;
-    drawHudPanel(D.ctx, logo, null, aiFlagName, hud.B, timer, aiFlag);
+    drawHudPanel(D.ctx, logo, null, 'AI', hud.B, timer, aiFlag);
     D.tex.needsUpdate = true;
-  }, [
-    hud.A,
-    hud.B,
-    timer,
-    player.name,
-    aiFlag,
-    aiFlagName,
-    playerFlag,
-    playerFlagName
-  ]);
+  }, [hud.A, hud.B, timer, player.name, aiFlag]);
 
   useEffect(() => {
     updateHudPanels();
