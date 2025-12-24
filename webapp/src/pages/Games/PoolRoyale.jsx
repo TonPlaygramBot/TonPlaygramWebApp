@@ -13937,18 +13937,18 @@ const powerRef = useRef(hud.power);
         world.add(lightingRig);
 
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 5.8;
-        const lightOffsetX = Math.max(PLAY_W * 0.2, TABLE.THICK * 3.8);
-        const lightOffsetZ = Math.max(PLAY_H * 0.18, TABLE.THICK * 3.6);
+        const lightOffsetX = Math.max(PLAY_W * 0.22, TABLE.THICK * 4.2);
+        const lightOffsetZ = Math.max(PLAY_H * 0.2, TABLE.THICK * 3.9);
         const shadowHalfSpan = Math.max(roomWidth, roomDepth) * 0.65 + TABLE.THICK * 3.2;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.27);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.7);
-        key.position.set(lightOffsetX * 0.28, lightRigHeight, lightOffsetZ * 0.2);
+        const key = new THREE.DirectionalLight(0xffffff, 1.85);
+        key.position.set(lightOffsetX * 0.32, lightRigHeight, lightOffsetZ * 0.24);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(4096, 4096);
@@ -13964,14 +13964,14 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.82);
-        fill.position.set(-lightOffsetX * 0.32, lightRigHeight * 0.98, lightOffsetZ * 0.24);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.92);
+        fill.position.set(-lightOffsetX * 0.36, lightRigHeight * 0.98, lightOffsetZ * 0.28);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.62);
-        rim.position.set(0, lightRigHeight * 1.04, -lightOffsetZ * 0.34);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.7);
+        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -16434,8 +16434,12 @@ const powerRef = useRef(hud.power);
           const summary = summarizePlan(plan);
           userSuggestionRef.current = summary;
           if (autoAimRequestRef.current) {
-            const autoDir = resolveAutoAimDirection();
             autoAimRequestRef.current = false;
+            const plannedDir =
+              plan?.aimDir && plan.aimDir.lengthSq() > 1e-6
+                ? plan.aimDir.clone().normalize()
+                : null;
+            const autoDir = plannedDir || resolveAutoAimDirection();
             suggestionAimKeyRef.current = null;
             if (autoDir) {
               aimDirRef.current.copy(autoDir);
@@ -18445,6 +18449,11 @@ const powerRef = useRef(hud.power);
   );
   const pottedTokenSize = isPortrait ? 18 : 20;
   const pottedGap = isPortrait ? 6 : 8;
+  const hudAvatarSize = isPortrait ? 44 : 48;
+  const hudScale = isPortrait ? uiScale * 0.92 : uiScale;
+  const hudSideOffsets = isPortrait
+    ? { left: 'max(2.75rem, 7vw)', right: 'max(6.5rem, 14vw)' }
+    : { left: 'max(4.5rem, 11vw)', right: 'max(8.5rem, 18vw)' };
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
@@ -19035,14 +19044,14 @@ const powerRef = useRef(hud.power);
           className={`absolute bottom-4 flex justify-center pointer-events-none z-50 transition-opacity duration-200 ${pocketCameraActive ? 'opacity-0' : 'opacity-100'}`}
           aria-hidden={pocketCameraActive}
           style={{
-            left: 'max(4.5rem, 11vw)',
-            right: 'max(8.5rem, 18vw)'
+            left: hudSideOffsets.left,
+            right: hudSideOffsets.right
           }}
         >
           <div
             className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
-              transform: `scale(${uiScale})`,
+              transform: `scale(${hudScale})`,
               transformOrigin: 'bottom center',
               maxWidth: 'min(30rem, 100%)'
             }}
@@ -19062,11 +19071,12 @@ const powerRef = useRef(hud.power);
               <img
                 src={player.avatar || '/assets/icons/profile.svg'}
                 alt="player avatar"
-                className={`h-12 w-12 rounded-full border-2 object-cover transition-all duration-150 ${
+                className={`rounded-full border-2 object-cover transition-all duration-150 ${
                   isPlayerTurn
                     ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                     : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
                 }`}
+                style={{ width: hudAvatarSize, height: hudAvatarSize }}
               />
               <div className="flex min-w-0 flex-col">
                 <span className="max-w-[8.75rem] truncate text-sm font-semibold tracking-wide">
@@ -19097,11 +19107,12 @@ const powerRef = useRef(hud.power);
                   <img
                     src={opponentDisplayAvatar}
                     alt="opponent avatar"
-                    className={`h-12 w-12 rounded-full border-2 object-cover transition-all duration-150 ${
+                    className={`rounded-full border-2 object-cover transition-all duration-150 ${
                       isOpponentTurn
                         ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
                         : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
                     }`}
+                    style={{ width: hudAvatarSize, height: hudAvatarSize }}
                   />
                   <div className="flex min-w-0 flex-col">
                     <span className="max-w-[8.75rem] truncate text-sm font-semibold tracking-wide">
