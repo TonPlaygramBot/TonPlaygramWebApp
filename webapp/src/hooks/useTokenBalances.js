@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { createAccount, getAccountBalance, getTonBalance } from '../utils/api.js';
+import { getAccountBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { useTonAddress } from '@tonconnect/ui-react';
+import { ensureAccountForUser } from '../utils/account.js';
 
 export default function useTokenBalances() {
   let telegramId;
@@ -22,11 +23,7 @@ export default function useTokenBalances() {
     async function loadTpc() {
       if (!telegramId && !googleId) return;
       try {
-        const acc = await createAccount(telegramId, googleId);
-        if (acc?.error) throw new Error(acc.error);
-        if (acc.walletAddress) {
-          localStorage.setItem('walletAddress', acc.walletAddress);
-        }
+        const acc = await ensureAccountForUser({ telegramId, googleId });
         const bal = await getAccountBalance(acc.accountId);
         if (bal?.error) throw new Error(bal.error);
         setTpcBalance(bal.balance ?? 0);

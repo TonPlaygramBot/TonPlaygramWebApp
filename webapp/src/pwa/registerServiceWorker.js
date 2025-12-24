@@ -1,4 +1,4 @@
-const TELEGRAM_ONLY = true;
+const TELEGRAM_ONLY = false;
 const REFRESH_FLAG_KEY = 'tonplaygram-sw-refreshed';
 
 function shouldRegisterForTelegram() {
@@ -70,4 +70,3 @@ export async function registerTelegramServiceWorker() {
     console.error('Service worker registration failed', err);
   }
 }
-

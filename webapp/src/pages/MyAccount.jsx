@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getAccountInfo,
-  createAccount,
   updateProfile,
   fetchTelegramInfo,
   depositAccount,
@@ -27,6 +26,7 @@ import InfluencerClaimsCard from '../components/InfluencerClaimsCard.jsx';
 import DevTasksModal from '../components/DevTasksModal.jsx';
 import Wallet from './Wallet.jsx';
 import LinkGoogleButton from '../components/LinkGoogleButton.jsx';
+import { ensureAccountForUser, persistAccountLocally } from '../utils/account.js';
 import {
   getDefaultPoolRoyalLoadout,
   getPoolRoyalInventory,
@@ -149,16 +149,13 @@ export default function MyAccount() {
 
   useEffect(() => {
     async function load() {
-      const acc = await createAccount(telegramId, googleId);
-      if (acc?.error) {
-        console.error('Failed to load account:', acc.error);
+      let acc;
+      try {
+        acc = await ensureAccountForUser({ telegramId, googleId });
+        persistAccountLocally({ ...acc, telegramId, googleId });
+      } catch (err) {
+        console.error('Failed to load account:', err);
         return;
-      }
-      if (acc.accountId) {
-        localStorage.setItem('accountId', acc.accountId);
-      }
-      if (acc.walletAddress) {
-        localStorage.setItem('walletAddress', acc.walletAddress);
       }
 
       const data = await getAccountInfo(acc.accountId);
