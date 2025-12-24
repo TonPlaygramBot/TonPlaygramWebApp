@@ -559,7 +559,7 @@ function maybeStartGame(table) {
         (t) => t.id !== table.id
       );
       if (table.gameType === 'poolroyale') {
-        poolStates.set(table.id, { state: null, hud: null, snapshot: null, recording: null, actorId: null, ts: Date.now() });
+        poolStates.set(table.id, { state: null, hud: null, ts: Date.now() });
       }
       table.startTimeout = null;
     }, 1000);
@@ -1107,9 +1107,6 @@ io.on('connection', (socket) => {
         tableId,
         state: cached.state,
         hud: cached.hud,
-        snapshot: cached.snapshot,
-        recording: cached.recording,
-        actorId: cached.actorId,
         updatedAt: cached.ts
       });
     }
@@ -1123,33 +1120,20 @@ io.on('connection', (socket) => {
         tableId,
         state: cached.state,
         hud: cached.hud,
-        snapshot: cached.snapshot,
-        recording: cached.recording,
-        actorId: cached.actorId,
         updatedAt: cached.ts
       });
     }
   });
 
-  socket.on('poolShot', ({ tableId, state, hud, snapshot, recording, actorId }) => {
+  socket.on('poolShot', ({ tableId, state, hud }) => {
     if (!tableId || !state) return;
     const payload = {
       tableId,
       state,
       hud: hud || null,
-      snapshot: snapshot || null,
-      recording: recording || null,
-      actorId: actorId || null,
       updatedAt: Date.now()
     };
-    poolStates.set(tableId, {
-      state,
-      hud: hud || null,
-      snapshot: snapshot || null,
-      recording: recording || null,
-      actorId: actorId || null,
-      ts: payload.updatedAt
-    });
+    poolStates.set(tableId, { state, hud: hud || null, ts: payload.updatedAt });
     socket.to(tableId).emit('poolState', payload);
   });
 
