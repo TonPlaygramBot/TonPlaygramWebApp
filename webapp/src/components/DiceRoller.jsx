@@ -13,6 +13,7 @@ export default function DiceRoller({
   showButton = true,
   muted = false,
   emitRollEvent = false,
+  rollPayload,
   divRef,
   className = '',
   diceTransparent = false,
@@ -92,7 +93,7 @@ export default function DiceRoller({
           startValuesRef.current = results;
           onRollEnd && onRollEnd(results);
           if (emitRollEvent) {
-            socket.emit('rollDice');
+            socket.emit('rollDice', rollPayload || {});
           }
         }, tick);
       }
