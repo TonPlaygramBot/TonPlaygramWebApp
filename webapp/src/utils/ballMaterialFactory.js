@@ -190,19 +190,27 @@ function drawDefaultBallTexture(ctx, size, baseColor, pattern, number) {
 
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
-  const highlight = ctx.createRadialGradient(
-    size * 0.3,
-    size * 0.26,
-    size * 0.035,
-    size * 0.3,
-    size * 0.26,
-    size * 0.32
-  );
-  highlight.addColorStop(0, 'rgba(255,255,255,1)');
-  highlight.addColorStop(0.45, 'rgba(255,255,255,0.26)');
-  highlight.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = highlight;
-  ctx.fillRect(0, 0, size, size);
+  const hx = size * 0.32;
+  const hy = size * 0.26;
+  const half = size * 0.2;
+  const soft = size * 0.08;
+
+  // square highlight core with a gentle falloff to keep energy low while growing the footprint
+  const squareGrad = ctx.createLinearGradient(hx - half, hy - half, hx + half, hy + half);
+  squareGrad.addColorStop(0, 'rgba(255,255,255,0.82)');
+  squareGrad.addColorStop(0.35, 'rgba(255,255,255,0.35)');
+  squareGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = squareGrad;
+  ctx.fillRect(hx - half, hy - half, half * 2, half * 2);
+
+  // soft outer wrap keeps the square silhouette visible without raising overall brightness
+  const wrapGrad = ctx.createRadialGradient(hx, hy, half, hx, hy, half + soft);
+  wrapGrad.addColorStop(0, 'rgba(255,255,255,0.16)');
+  wrapGrad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = wrapGrad;
+  ctx.beginPath();
+  ctx.rect(hx - half - soft, hy - half - soft, (half + soft) * 2, (half + soft) * 2);
+  ctx.fill();
   ctx.restore();
 
   ctx.save();
