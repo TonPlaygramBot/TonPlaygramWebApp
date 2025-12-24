@@ -1009,7 +1009,7 @@ const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up ca
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
 const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
-const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
+const SIDE_CAPTURE_RADIUS_SCALE = 0.96; // widen middle pocket capture slightly to prevent stalls on side drops
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -1219,7 +1219,7 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 26;
+const DEFAULT_CUSHION_CUT_ANGLE = 38;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -1239,48 +1239,68 @@ const DEFAULT_POOL_VARIANT = 'american';
 const UK_POOL_RED = 0xd12c2c;
 const UK_POOL_YELLOW = 0xffd700;
 const UK_POOL_BLACK = 0x000000;
+const AMERICAN_BALL_COLORS = [
+  0xffc52c,
+  0x0a58ff,
+  0xd32232,
+  0x8f32d6,
+  0xff7c1f,
+  0x0faa60,
+  0x651f28,
+  0x111111,
+  0xffc52c,
+  0x0a58ff,
+  0xd32232,
+  0x8f32d6,
+  0xff7c1f,
+  0x0faa60,
+  0x651f28
+];
+const AMERICAN_BALL_NUMBERS = [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  11,
+  12,
+  13,
+  14,
+  15
+];
+const AMERICAN_BALL_PATTERNS = [
+  'solid',
+  'solid',
+  'solid',
+  'solid',
+  'solid',
+  'solid',
+  'solid',
+  'solid',
+  'stripe',
+  'stripe',
+  'stripe',
+  'stripe',
+  'stripe',
+  'stripe',
+  'stripe'
+];
 const POOL_VARIANT_COLOR_SETS = Object.freeze({
   uk: {
     id: 'uk',
-    label: '8-Ball UK',
+    label: '8-Ball UK (Solids & Stripes)',
     cueColor: 0xffffff,
     rackLayout: 'triangle',
     disableSnookerMarkings: true,
-    objectColors: [
-      UK_POOL_YELLOW,
-      UK_POOL_YELLOW,
-      UK_POOL_RED,
-      UK_POOL_YELLOW,
-      UK_POOL_BLACK,
-      UK_POOL_RED,
-      UK_POOL_RED,
-      UK_POOL_YELLOW,
-      UK_POOL_RED,
-      UK_POOL_YELLOW,
-      UK_POOL_RED,
-      UK_POOL_YELLOW,
-      UK_POOL_RED,
-      UK_POOL_YELLOW,
-      UK_POOL_RED
-    ],
-    objectNumbers: [
-      null,
-      null,
-      null,
-      null,
-      8,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null
-    ],
-    objectPatterns: new Array(15).fill('solid')
+    ballSet: 'american',
+    objectColors: AMERICAN_BALL_COLORS,
+    objectNumbers: AMERICAN_BALL_NUMBERS,
+    objectPatterns: AMERICAN_BALL_PATTERNS
   },
   american: {
     id: 'american',
@@ -1288,57 +1308,9 @@ const POOL_VARIANT_COLOR_SETS = Object.freeze({
     cueColor: 0xffffff,
     rackLayout: 'triangle',
     disableSnookerMarkings: true,
-    objectColors: [
-      0xffc52c,
-      0x0a58ff,
-      0xd32232,
-      0x8f32d6,
-      0xff7c1f,
-      0x0faa60,
-      0x651f28,
-      0x111111,
-      0xffc52c,
-      0x0a58ff,
-      0xd32232,
-      0x8f32d6,
-      0xff7c1f,
-      0x0faa60,
-      0x651f28
-    ],
-    objectNumbers: [
-      1,
-      2,
-      3,
-      4,
-      5,
-      6,
-      7,
-      8,
-      9,
-      10,
-      11,
-      12,
-      13,
-      14,
-      15
-    ],
-    objectPatterns: [
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'solid',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe',
-      'stripe'
-    ]
+    objectColors: AMERICAN_BALL_COLORS,
+    objectNumbers: AMERICAN_BALL_NUMBERS,
+    objectPatterns: AMERICAN_BALL_PATTERNS
   },
   '9ball': {
     id: '9ball',
@@ -2343,12 +2315,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
       keyColor: 0xf5f7fb,
-      keyIntensity: 1.36,
+      keyIntensity: 1.3,
       fillColor: 0xf5f7fb,
-      fillIntensity: 0.82,
+      fillIntensity: 0.78,
       rimColor: 0xfafcff,
-      rimIntensity: 0.58,
-      ambientIntensity: 0.2
+      rimIntensity: 0.54,
+      ambientIntensity: 0.18
     }
   },
   {
@@ -2357,12 +2329,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
       keyColor: 0xf6f8ff,
-      keyIntensity: 1.72,
+      keyIntensity: 1.64,
       fillColor: 0xf6f8ff,
-      fillIntensity: 0.9,
+      fillIntensity: 0.86,
       rimColor: 0xffffff,
-      rimIntensity: 0.64,
-      ambientIntensity: 0.22
+      rimIntensity: 0.6,
+      ambientIntensity: 0.2
     }
   },
   {
@@ -2371,12 +2343,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'High-contrast stage look with tight rim control.',
     settings: {
       keyColor: 0xf2f5ff,
-      keyIntensity: 1.82,
+      keyIntensity: 1.72,
       fillColor: 0xf2f5ff,
-      fillIntensity: 0.66,
+      fillIntensity: 0.62,
       rimColor: 0xf7fbff,
-      rimIntensity: 0.82,
-      ambientIntensity: 0.18
+      rimIntensity: 0.76,
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2385,12 +2357,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
       keyColor: 0xeaf1ff,
-      keyIntensity: 1.48,
+      keyIntensity: 1.42,
       fillColor: 0xeaf1ff,
-      fillIntensity: 0.88,
+      fillIntensity: 0.84,
       rimColor: 0xf5f8ff,
-      rimIntensity: 0.54,
-      ambientIntensity: 0.2
+      rimIntensity: 0.5,
+      ambientIntensity: 0.18
     }
   }
 ]);
@@ -10129,6 +10101,20 @@ const powerRef = useRef(hud.power);
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
     setHud((prev) => {
+      const prettifyBallOn = (value) => {
+        const upper = typeof value === 'string' ? value.toUpperCase() : String(value);
+        const variant = activeVariantRef.current;
+        const isUkStripesSolids =
+          variant?.id === 'uk' && variant?.ballSet === 'american';
+        if (isUkStripesSolids) {
+          if (upper === 'RED') return 'Solids';
+          if (upper === 'YELLOW' || upper === 'BLUE') return 'Stripes';
+        }
+        if (upper === 'BLACK') return 'Black';
+        if (upper === 'CUE') return 'Cue';
+        if (upper.startsWith('BALL_')) return upper.replace('BALL_', '');
+        return upper.charAt(0) + upper.slice(1).toLowerCase();
+      };
       const hudMeta =
         frameState.meta && typeof frameState.meta === 'object'
           ? frameState.meta.hud
@@ -10138,9 +10124,7 @@ const powerRef = useRef(hud.power);
       const nextLabel = hudMeta?.next
         ? hudMeta.next
         : frameState.ballOn.length > 0
-            ? frameState.ballOn
-                .map((c) => (typeof c === 'string' ? c.toLowerCase() : String(c)))
-              .join(' / ')
+            ? frameState.ballOn.map((c) => prettifyBallOn(c)).join(' / ')
           : prev.next;
       const phaseLabel = hudMeta?.phase
         ? hudMeta.phase
@@ -16661,9 +16645,9 @@ const powerRef = useRef(hud.power);
                       : 'AI';
                 const assignmentLabel =
                   nextAssign === 'blue'
-                    ? 'Yellows'
+                    ? 'Stripes'
                     : nextAssign === 'red'
-                      ? 'Reds'
+                      ? 'Solids'
                       : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
                 showRuleToast(`${seatLabel} is ${assignmentLabel}`);
               }
@@ -17830,7 +17814,8 @@ const powerRef = useRef(hud.power);
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
             const c = centers[pocketIndex];
-            if (b.pos.distanceTo(c) < CAPTURE_R) {
+            const captureRadius = pocketIndex >= 4 ? SIDE_CAPTURE_R : CAPTURE_R;
+            if (b.pos.distanceTo(c) < captureRadius) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
@@ -18346,15 +18331,8 @@ const powerRef = useRef(hud.power);
   );
   const renderPottedRow = useCallback(
     (entries = []) => {
-      if (!entries.length) {
-        return (
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
-            No pots yet
-          </span>
-        );
-      }
       return (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex min-h-[1.75rem] items-center gap-2 overflow-x-auto whitespace-nowrap pr-1">
           {entries.map((entry, index) => {
             const colorKey = String(entry.color || '').toUpperCase();
             const colorHex =
@@ -18367,11 +18345,21 @@ const powerRef = useRef(hud.power);
                   ? '8'
                   : colorKey.charAt(0);
             const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
+            const gloss =
+              'radial-gradient(circle at 32% 30%, rgba(255,255,255,0.9), rgba(255,255,255,0) 58%)';
+            const shade =
+              'radial-gradient(circle at 72% 70%, rgba(0,0,0,0.36), rgba(0,0,0,0) 60%)';
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full border border-white/40 px-1 text-[10px] font-bold leading-4 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                style={{ backgroundColor: colorHex, color: textColor }}
+                className="flex h-7 w-7 items-center justify-center rounded-full border border-white/60 text-[10px] font-bold leading-4 shadow-[0_2px_8px_rgba(0,0,0,0.4)]"
+                style={{
+                  backgroundColor: colorHex,
+                  color: textColor,
+                  backgroundImage: `${gloss}, ${shade}`,
+                  boxShadow:
+                    'inset 0 0 6px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.35)'
+                }}
                 title={`Pocketed ${colorKey}`}
               >
                 {label}

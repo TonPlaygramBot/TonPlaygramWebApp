@@ -434,7 +434,7 @@ export default function PoolRoyaleLobby() {
           <h3 className="font-semibold">Stake</h3>
           <RoomSelector selected={stake} onSelect={setStake} tokens={['TPC']} />
           <p className="text-center text-xs text-subtext">
-            Online games use your TPC stake as escrow, while AI matches stay free like Chess Battle Royal.
+            Online games use your TPC stake as escrow, while AI matches stay free.
           </p>
         </div>
       )}
@@ -468,7 +468,7 @@ export default function PoolRoyaleLobby() {
       <div className="space-y-2">
         <h3 className="font-semibold">AI Avatar Flags</h3>
         <p className="text-sm text-subtext">
-          Pick the country flag for the AI rival so it matches the Chess Battle Royal lobby experience.
+          Pick the country flag for the AI rival so it matches the experience you prefer.
         </p>
         <button
           type="button"
