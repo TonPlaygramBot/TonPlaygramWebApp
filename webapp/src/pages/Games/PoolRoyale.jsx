@@ -1219,7 +1219,7 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 26;
+const DEFAULT_CUSHION_CUT_ANGLE = 38;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -2343,12 +2343,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Gentle TV studio fill with reduced contrast for practice.',
     settings: {
       keyColor: 0xf5f7fb,
-      keyIntensity: 1.36,
+      keyIntensity: 1.28,
       fillColor: 0xf5f7fb,
-      fillIntensity: 0.82,
+      fillIntensity: 0.76,
       rimColor: 0xfafcff,
-      rimIntensity: 0.58,
-      ambientIntensity: 0.2
+      rimIntensity: 0.54,
+      ambientIntensity: 0.18
     }
   },
   {
@@ -2357,12 +2357,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Tour stadium key with crisp specular pickup.',
     settings: {
       keyColor: 0xf6f8ff,
-      keyIntensity: 1.72,
+      keyIntensity: 1.64,
       fillColor: 0xf6f8ff,
-      fillIntensity: 0.9,
+      fillIntensity: 0.84,
       rimColor: 0xffffff,
-      rimIntensity: 0.64,
-      ambientIntensity: 0.22
+      rimIntensity: 0.6,
+      ambientIntensity: 0.2
     }
   },
   {
@@ -2371,12 +2371,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'High-contrast stage look with tight rim control.',
     settings: {
       keyColor: 0xf2f5ff,
-      keyIntensity: 1.82,
+      keyIntensity: 1.74,
       fillColor: 0xf2f5ff,
-      fillIntensity: 0.66,
+      fillIntensity: 0.62,
       rimColor: 0xf7fbff,
-      rimIntensity: 0.82,
-      ambientIntensity: 0.18
+      rimIntensity: 0.78,
+      ambientIntensity: 0.16
     }
   },
   {
@@ -2385,12 +2385,12 @@ const LIGHTING_OPTIONS = Object.freeze([
     description: 'Cool broadcast grade with soft rim and wider beam.',
     settings: {
       keyColor: 0xeaf1ff,
-      keyIntensity: 1.48,
+      keyIntensity: 1.42,
       fillColor: 0xeaf1ff,
-      fillIntensity: 0.88,
+      fillIntensity: 0.82,
       rimColor: 0xf5f8ff,
-      rimIntensity: 0.54,
-      ambientIntensity: 0.2
+      rimIntensity: 0.5,
+      ambientIntensity: 0.18
     }
   }
 ]);
@@ -8475,6 +8475,10 @@ function PoolRoyaleGame({
     () => resolvePoolVariant(variantKey, ballSetKey),
     [variantKey, ballSetKey]
   );
+  const isUkAmericanSet = useMemo(
+    () => activeVariant?.id === 'uk' && activeVariant?.ballSet === 'american',
+    [activeVariant]
+  );
   const activeTableSize = useMemo(
     () => resolveTableSize(tableSizeKey),
     [tableSizeKey]
@@ -10126,6 +10130,23 @@ const powerRef = useRef(hud.power);
       ctx.close().catch(() => {});
     };
   }, [stopActiveCrowdSound]);
+  const formatBallOnLabel = useCallback(
+    (rawList = []) => {
+      const normalized = rawList
+        .map((c) => (typeof c === 'string' ? c.toUpperCase() : String(c)))
+        .filter(Boolean);
+      if (!isUkAmericanSet) {
+        return normalized.map((entry) => entry.toLowerCase());
+      }
+      return normalized.map((entry) => {
+        if (entry === 'YELLOW' || entry === 'BLUE') return 'stripes';
+        if (entry === 'RED') return 'solids';
+        if (entry === 'BLACK') return '8';
+        return entry.toLowerCase();
+      });
+    },
+    [isUkAmericanSet]
+  );
   useEffect(() => {
     const isSoloTraining = isTraining && trainingModeState === 'solo';
     setHud((prev) => {
@@ -10135,13 +10156,12 @@ const powerRef = useRef(hud.power);
           : null;
       const metaInHand = deriveInHandFromFrame(frameState);
       const resolvedInHand = typeof metaInHand === 'boolean' ? metaInHand : prev.inHand;
+      const nextTargets = formatBallOnLabel(frameState.ballOn);
       const nextLabel = hudMeta?.next
         ? hudMeta.next
-        : frameState.ballOn.length > 0
-            ? frameState.ballOn
-                .map((c) => (typeof c === 'string' ? c.toLowerCase() : String(c)))
-              .join(' / ')
-          : prev.next;
+        : nextTargets.length > 0
+            ? nextTargets.join(' / ')
+            : prev.next;
       const phaseLabel = hudMeta?.phase
         ? hudMeta.phase
         : frameState.phase === 'REDS_AND_COLORS'
@@ -10163,7 +10183,7 @@ const powerRef = useRef(hud.power);
         over: isTraining ? false : frameState.frameOver
       };
     });
-  }, [frameState, isTraining, trainingModeState]);
+  }, [formatBallOnLabel, frameState, isTraining, trainingModeState]);
   useEffect(() => {
     if (!frameState.frameOver) {
       gameOverHandledRef.current = false;
@@ -17826,11 +17846,32 @@ const powerRef = useRef(hud.power);
           }
         }
         // Pocket capture
+        const pocketMarkers =
+          table?.userData?.pockets && Array.isArray(table.userData.pockets)
+            ? table.userData.pockets
+            : [];
+        const captureCenters =
+          pocketMarkers.length > 0
+            ? pocketMarkers.map(
+                (marker) => new THREE.Vector2(marker.position.x, marker.position.z)
+              )
+            : centers;
+        const captureRadii =
+          pocketMarkers.length > 0
+            ? pocketMarkers.map((marker, idx) =>
+                typeof marker?.userData?.captureRadius === 'number'
+                  ? marker.userData.captureRadius
+                  : idx >= 4
+                    ? SIDE_CAPTURE_R
+                    : CAPTURE_R
+              )
+            : centers.map((_, idx) => (idx >= 4 ? SIDE_CAPTURE_R : CAPTURE_R));
         balls.forEach((b) => {
           if (!b.active) return;
-          for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
-            const c = centers[pocketIndex];
-            if (b.pos.distanceTo(c) < CAPTURE_R) {
+          for (let pocketIndex = 0; pocketIndex < captureCenters.length; pocketIndex++) {
+            const c = captureCenters[pocketIndex];
+            const captureRadius = captureRadii[pocketIndex] ?? CAPTURE_R;
+            if (b.pos.distanceTo(c) < captureRadius) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
@@ -18329,6 +18370,13 @@ const powerRef = useRef(hud.power);
     };
   }, [showPlayerControls, updateSpinDotPosition]);
 
+  const americanBallSwatches = useMemo(() => {
+    const colors = POOL_VARIANT_COLOR_SETS.american.objectColors || [];
+    return colors.reduce((acc, hex, idx) => {
+      acc[idx + 1] = `#${hex.toString(16).padStart(6, '0')}`;
+      return acc;
+    }, {});
+  }, []);
   const ballSwatches = useMemo(
     () => ({
       RED: '#d12c2c',
@@ -18344,44 +18392,84 @@ const powerRef = useRef(hud.power);
     }),
     []
   );
+  const darkenHex = useCallback((hex, factor = 0.82) => {
+    const normalized = hex.startsWith('#') ? hex.slice(1) : hex;
+    const num = parseInt(normalized, 16);
+    if (Number.isNaN(num) || normalized.length > 6) return hex;
+    const r = Math.max(0, Math.min(255, Math.round(((num >> 16) & 0xff) * factor)));
+    const g = Math.max(0, Math.min(255, Math.round(((num >> 8) & 0xff) * factor)));
+    const b = Math.max(0, Math.min(255, Math.round((num & 0xff) * factor)));
+    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+  }, []);
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
         return (
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
-            No pots yet
-          </span>
+          <div className="flex items-center gap-1 opacity-70">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <span
+                key={`ghost-${idx}`}
+                className="h-6 w-6 flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner"
+              />
+            ))}
+          </div>
         );
       }
       return (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex items-center gap-1 overflow-hidden whitespace-nowrap">
           {entries.map((entry, index) => {
             const colorKey = String(entry.color || '').toUpperCase();
-            const colorHex =
-              ballSwatches[colorKey] ??
+            const idMatch =
+              typeof entry.id === 'string'
+                ? /(\d+)/.exec(entry.id)
+                : colorKey.startsWith('BALL_')
+                  ? /BALL_(\d+)/.exec(colorKey)
+                  : null;
+            const ballNumber = idMatch ? parseInt(idMatch[1], 10) : null;
+            const isStripe =
+              (isUkAmericanSet && ballNumber != null && ballNumber >= 9) ||
+              colorKey === 'STRIPE';
+            const isSolid =
+              (isUkAmericanSet && ballNumber != null && ballNumber > 0 && ballNumber < 9) ||
+              colorKey === 'SOLID';
+            let colorHex =
+              (isUkAmericanSet && ballNumber != null
+                ? americanBallSwatches[ballNumber]
+                : null) ||
+              ballSwatches[colorKey] ||
+              (ballNumber != null ? americanBallSwatches[ballNumber] : null) ||
               (colorKey.startsWith('BALL_') ? '#f5f5f4' : '#e5e7eb');
             const label =
-              colorKey.startsWith('BALL_') && colorKey.length > 5
-                ? colorKey.replace('BALL_', '')
+              ballNumber != null
+                ? ballNumber
                 : colorKey === 'BLACK'
                   ? '8'
-                  : colorKey.charAt(0);
+                  : isStripe
+                    ? 'ST'
+                    : isSolid
+                      ? 'SO'
+                      : colorKey.charAt(0);
             const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
+            const shade = darkenHex(colorHex, 0.6);
+            const gloss = isStripe
+              ? `linear-gradient(90deg, transparent 28%, rgba(255,255,255,0.9) 28%, rgba(255,255,255,0.9) 72%, transparent 72%), `
+              : '';
+            const background = `${gloss}radial-gradient(circle at 30% 30%, rgba(255,255,255,0.82) 0, rgba(255,255,255,0.58) 36%, ${colorHex} 62%, ${shade} 94%)`;
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full border border-white/40 px-1 text-[10px] font-bold leading-4 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                style={{ backgroundColor: colorHex, color: textColor }}
-                title={`Pocketed ${colorKey}`}
+                className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white/40 text-[10px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                style={{ background, color: textColor }}
+                title={`Pocketed ${label}`}
               >
-                {label}
+                <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{label}</span>
               </span>
             );
           })}
         </div>
       );
     },
-    [ballSwatches]
+    [americanBallSwatches, ballSwatches, darkenHex, isUkAmericanSet]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
