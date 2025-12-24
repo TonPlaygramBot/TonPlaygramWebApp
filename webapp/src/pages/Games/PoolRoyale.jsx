@@ -9838,6 +9838,9 @@ const powerRef = useRef(hud.power);
   const cueRef = useRef(null);
   const ballsRef = useRef([]);
   const pocketDropRef = useRef(new Map());
+  const captureBallSnapshotRef = useRef(null);
+  const applyBallSnapshotRef = useRef(null);
+  const pendingLayoutRef = useRef(null);
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
     cue: null,
@@ -10213,24 +10216,29 @@ const powerRef = useRef(hud.power);
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
-  const applyRemoteState = useCallback(
-    ({ state, hud: incomingHud }) => {
-      if (!state) return;
-      frameRef.current = state;
-      setFrameState(state);
-      setTurnCycle((value) => value + 1);
-      if (incomingHud) {
-        setHud((prev) => ({ ...prev, ...incomingHud }));
+  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
+    if (!state) return;
+    frameRef.current = state;
+    setFrameState(state);
+    setTurnCycle((value) => value + 1);
+    if (incomingHud) {
+      setHud((prev) => ({ ...prev, ...incomingHud }));
+    }
+    if (Array.isArray(layout)) {
+      const applySnapshot = applyBallSnapshotRef.current;
+      if (applySnapshot) {
+        applySnapshot(layout);
+      } else {
+        pendingLayoutRef.current = layout;
       }
-    },
-    []
-  );
+    }
+  }, []);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud });
+      applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10247,7 +10255,10 @@ const powerRef = useRef(hud.power);
     if (!isOnlineMatch || !tableId) return;
     const state = frameRef.current;
     if (!state) return;
-    socket.emit('poolShot', { tableId, state });
+    const layout = captureBallSnapshotRef.current
+      ? captureBallSnapshotRef.current()
+      : null;
+    socket.emit('poolShot', { tableId, state, hud: hudRef.current, layout });
   }, [isOnlineMatch, tableId]);
 
   useEffect(() => {
@@ -13406,6 +13417,15 @@ const powerRef = useRef(hud.power);
             }
           });
         };
+
+        captureBallSnapshotRef.current = captureBallSnapshot;
+        applyBallSnapshotRef.current = (snapshot) => {
+          applyBallSnapshot(snapshot);
+        };
+        if (pendingLayoutRef.current) {
+          applyBallSnapshotRef.current(pendingLayoutRef.current);
+          pendingLayoutRef.current = null;
+        }
 
         const recordReplayFrame = (timestamp) => {
           if (!shotRecording) return;
@@ -16947,7 +16967,13 @@ const powerRef = useRef(hud.power);
           setTurnCycle((value) => value + 1);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
-            socket.emit('poolShot', { tableId, state: safeState });
+            const layout = captureBallSnapshot();
+            socket.emit('poolShot', {
+              tableId,
+              state: safeState,
+              hud: hudRef.current,
+              layout
+            });
           }
           setShootingState(false);
           shotPrediction = null;
@@ -18235,6 +18261,9 @@ const powerRef = useRef(hud.power);
           updatePocketCameraState(false);
           pocketCamerasRef.current.clear();
           pocketDropRef.current.clear();
+          captureBallSnapshotRef.current = null;
+          applyBallSnapshotRef.current = null;
+          pendingLayoutRef.current = null;
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;
