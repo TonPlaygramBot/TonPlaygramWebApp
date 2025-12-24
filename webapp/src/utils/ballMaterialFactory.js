@@ -303,13 +303,13 @@ export function getBallMaterial({
     color: 0xffffff,
     map,
     clearcoat: 1,
-    clearcoatRoughness: 0.015,
+    clearcoatRoughness: 0.042,
     metalness: 0.24,
-    roughness: 0.06,
+    roughness: 0.082,
     reflectivity: 1,
-    sheen: 0.18,
+    sheen: 0.22,
     sheenColor: new THREE.Color(0xf8f9ff),
-    envMapIntensity: 1.18
+    envMapIntensity: 1.28
   });
   material.needsUpdate = true;
   BALL_MATERIAL_CACHE.set(cacheKey, material);
