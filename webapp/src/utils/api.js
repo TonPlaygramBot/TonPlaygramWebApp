@@ -546,10 +546,19 @@ export function registerWalletPasskey(telegramId, passkeyId, publicKey) {
 
 // ----- Account based wallet -----
 
-export function createAccount(telegramId, googleId) {
-  const body = {};
-  if (telegramId) body.telegramId = telegramId;
-  if (googleId) body.googleId = googleId;
+export function createAccount(telegramId, googleId, accountId) {
+  let body = {};
+  if (telegramId && typeof telegramId === 'object') {
+    body = { ...telegramId };
+  } else {
+    if (telegramId) body.telegramId = telegramId;
+    if (googleId) body.googleId = googleId;
+    if (accountId) body.accountId = accountId;
+  }
+  if (!body.accountId && typeof window !== 'undefined') {
+    const stored = localStorage.getItem('accountId');
+    if (stored) body.accountId = stored;
+  }
   return post('/api/account/create', body);
 }
 

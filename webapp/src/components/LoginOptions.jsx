@@ -1,20 +1,14 @@
 import React, { useEffect } from 'react';
-import { createAccount } from '../utils/api.js';
-import { ensureAccountId } from '../utils/telegram.js';
+import { provisionAccount } from '../utils/account.js';
 
 export default function LoginOptions() {
   useEffect(() => {
     (async () => {
-      const accountId = await ensureAccountId();
+      const alreadyProvisioned = localStorage.getItem('accountProvisioned') === 'true';
       try {
-        const res = await createAccount(undefined, localStorage.getItem('googleId'));
-        if (res?.accountId) {
-          localStorage.setItem('accountId', res.accountId);
-        } else if (accountId) {
-          localStorage.setItem('accountId', accountId);
-        }
-        if (res?.walletAddress) {
-          localStorage.setItem('walletAddress', res.walletAddress);
+        await provisionAccount({ googleId: localStorage.getItem('googleId') });
+        if (!alreadyProvisioned) {
+          window.location.reload();
         }
       } catch (err) {
         console.error('Account setup failed', err);
