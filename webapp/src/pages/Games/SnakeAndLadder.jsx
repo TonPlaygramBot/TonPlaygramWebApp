@@ -713,7 +713,10 @@ export default function SnakeAndLadder() {
 
   useEffect(() => {
     const onDisc = () => setConnectionLost(true);
-    const onRec = () => setConnectionLost(false);
+    const onRec = () => {
+      setConnectionLost(false);
+      setReconnectSeq((seq) => seq + 1);
+    };
     socket.on('disconnect', onDisc);
     socket.io.on('reconnect', onRec);
     return () => {
@@ -721,6 +724,10 @@ export default function SnakeAndLadder() {
       socket.io.off('reconnect', onRec);
     };
   }, []);
+
+  useEffect(() => {
+    playerDiceCountsRef.current = playerDiceCounts;
+  }, [playerDiceCounts]);
   const [pos, setPos] = useState(0);
   const [highlight, setHighlight] = useState(null); // { cell: number, type: string }
   const [trail, setTrail] = useState([]);
@@ -737,6 +744,7 @@ export default function SnakeAndLadder() {
   const [leftWinner, setLeftWinner] = useState(null);
   const [disconnectMsg, setDisconnectMsg] = useState(null);
   const [connectionLost, setConnectionLost] = useState(false);
+  const [reconnectSeq, setReconnectSeq] = useState(0);
   const [forfeitMsg, setForfeitMsg] = useState(false);
   const [cheatMsg, setCheatMsg] = useState(null);
   const [showInfo, setShowInfo] = useState(false);
@@ -780,6 +788,7 @@ export default function SnakeAndLadder() {
   const [rewardDice, setRewardDice] = useState(0);
   const [diceCount, setDiceCount] = useState(2);
   const [playerDiceCounts, setPlayerDiceCounts] = useState([2]);
+  const playerDiceCountsRef = useRef([]);
   const [gameOver, setGameOver] = useState(false);
   const [ai, setAi] = useState(0);
   const [aiPositions, setAiPositions] = useState([]);
@@ -1307,6 +1316,74 @@ export default function SnakeAndLadder() {
   }, [isMultiplayer, playersNeeded, setupPhase, watchOnly]);
 
   useEffect(() => {
+    if (!isMultiplayer || watchOnly) return undefined;
+    const playerId = accountId || getPlayerId();
+    if (!playerId || !tableId) return undefined;
+    let active = true;
+    const friendlyName = myName || `Player ${playerId}`;
+    const seatPayload = {
+      accountId: playerId,
+      gameType: 'snake',
+      stake: pot || 0,
+      maxPlayers: tableCapacityRef.current || DEFAULT_CAPACITY,
+      playerName: friendlyName,
+      tableId,
+      avatar: photoUrl
+    };
+
+    socket.emit('register', { playerId });
+    socket.emit('seatTable', seatPayload, (res = {}) => {
+      if (!active) return;
+      const {
+        tableId: joinedId,
+        players: list,
+        currentTurn: seatTurn,
+        maxPlayers,
+        capacity
+      } = res || {};
+      const effectiveTable = joinedId || tableId;
+      const capacityHint = maxPlayers ?? capacity;
+      if (effectiveTable && effectiveTable !== tableId) {
+        setTableId(effectiveTable);
+        localStorage.setItem('snakeCurrentTable', effectiveTable);
+      }
+      if (capacityHint) applyTableCapacity(capacityHint);
+      if (Array.isArray(list)) {
+        const mapped = list.map((p) => ({
+          id: p.playerId ?? p.id,
+          name: p.name || 'Player',
+          photoUrl: p.avatar || p.photoUrl || '/assets/icons/profile.svg',
+          position: p.position || 0
+        }));
+        updateMpPlayers(mapped, capacityHint);
+      }
+      if (Number.isInteger(seatTurn)) {
+        const nextDice = playerDiceCountsRef.current[seatTurn] ?? 2;
+        setCurrentTurn(seatTurn);
+        setDiceCount(nextDice);
+      }
+      if (effectiveTable) {
+        socket.emit('confirmReady', { accountId: playerId, tableId: effectiveTable });
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [
+    accountId,
+    applyTableCapacity,
+    isMultiplayer,
+    myName,
+    photoUrl,
+    pot,
+    reconnectSeq,
+    tableId,
+    updateMpPlayers,
+    watchOnly
+  ]);
+
+  useEffect(() => {
     if (!isMultiplayer) return;
     const myAccountId = accountId || getPlayerId();
     const name = myName;
@@ -1603,6 +1680,10 @@ export default function SnakeAndLadder() {
       setDiceCells(normalizeDiceCells(updated || {}));
     });
 
+    if (myAccountId) {
+      socket.emit('register', { playerId: myAccountId });
+    }
+
     if (watchOnly) {
       socket.emit('watchRoom', { roomId: tableId });
       getSnakeLobby(tableId)
@@ -1655,7 +1736,7 @@ export default function SnakeAndLadder() {
         }
       }
     };
-  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, refreshPlayersNeeded, tableId, updateMpPlayers, watchOnly]);
+  }, [accountId, applyTableCapacity, isMultiplayer, myName, photoUrl, reconnectSeq, refreshPlayersNeeded, tableId, updateMpPlayers, watchOnly]);
 
   const fastForward = (elapsed, state) => {
     let p = state.pos ?? 0;
@@ -3066,6 +3147,7 @@ export default function SnakeAndLadder() {
                   showButton={false}
                   muted={muted}
                   emitRollEvent
+                  rollPayload={{ accountId: accountId || getPlayerId(), tableId }}
                   divRef={diceRollerDivRef}
                   renderVisual={false}
                   placeholder={
