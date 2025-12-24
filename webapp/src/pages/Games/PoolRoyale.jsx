@@ -1016,7 +1016,7 @@ const POCKET_INTERIOR_CAPTURE_R =
 const SIDE_POCKET_INTERIOR_CAPTURE_R =
   SIDE_POCKET_RADIUS * POCKET_INTERIOR_TOP_SCALE * POCKET_VISUAL_EXPANSION;
 const CAPTURE_R = POCKET_INTERIOR_CAPTURE_R; // pocket capture radius aligned to the interior bowl so balls fall at the throat
-const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R; // middle pocket capture now matches the bowl opening instead of scaling from corners
+const SIDE_CAPTURE_R = SIDE_POCKET_INTERIOR_CAPTURE_R * 1.08; // widen middle pocket capture so entries near the jaws still fall cleanly
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
@@ -4273,7 +4273,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.26; // ease the downward sweep limit so the cue camera stays a touch higher than the cloth
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -5220,7 +5220,7 @@ function reflectRails(ball) {
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
   for (const { sx, sy } of SIDE_POCKET_SIGNS) {
-    if (sy * ball.pos.y <= 0) continue;
+    if (sy * ball.pos.y <= -BALL_R * 0.35) continue;
     TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
     TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
     if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
@@ -9436,6 +9436,7 @@ function PoolRoyaleGame({
   );
   const opponentDisplayName = opponentProfile?.name || opponentLabel;
   const opponentDisplayAvatar = opponentProfile?.avatar || opponentAvatar || '/assets/icons/profile.svg';
+  const aiAvatarSrc = opponentDisplayAvatar;
   const [aiPlanning, setAiPlanning] = useState(null);
   const aiPlanRef = useRef(null);
   const aiPlanningRef = useRef(null);
@@ -18593,8 +18594,8 @@ const powerRef = useRef(hud.power);
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
   const bottomHudScale = isPortrait ? uiScale * 0.94 : uiScale;
   const bottomHudInsets = isPortrait
-    ? { left: 'max(2.75rem, 6vw)', right: 'max(4.5rem, 12vw)' }
-    : { left: 'max(4.5rem, 11vw)', right: 'max(8.5rem, 18vw)' };
+    ? { left: 'max(2.75rem, 6vw)', right: 'max(3rem, 8vw)' }
+    : { left: 'max(4.25rem, 10vw)', right: 'max(6.5rem, 15vw)' };
   const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
   const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
@@ -19096,7 +19097,7 @@ const powerRef = useRef(hud.power);
             style={{
               transform: `scale(${bottomHudScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: 'min(30rem, 100%)'
+              maxWidth: 'min(32rem, 100%)'
             }}
           >
             <div
@@ -19164,10 +19165,19 @@ const powerRef = useRef(hud.power);
                 </>
               ) : (
                 <>
+                  <img
+                    src={aiAvatarSrc}
+                    alt="AI opponent avatar"
+                    className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                      isOpponentTurn
+                        ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                        : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                    }`}
+                  />
                   <div className="flex min-w-0 flex-col">
                     <div className="flex items-center gap-2">
                       <span className="text-xl leading-none">{aiFlag}</span>
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                      <span className={`${nameWidthClass} truncate text-[11px] font-semibold uppercase tracking-[0.32em]`}>
                         AI
                       </span>
                     </div>
