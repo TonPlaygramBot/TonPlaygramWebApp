@@ -5496,7 +5496,17 @@ function Chess3D({
       socket.emit('chessSyncRequest', { tableId: target });
     };
 
-    socket.emit('register', { playerId: accountId });
+    socket.on('gameStart', handleGameStart);
+    socket.on('chessState', handleChessState);
+    socket.on('chessMove', handleChessState);
+
+    cleanups.push(() => {
+      socket.off('gameStart', handleGameStart);
+      socket.off('chessState', handleChessState);
+      socket.off('chessMove', handleChessState);
+      if (tableJoin.current)
+        socket.emit('leaveLobby', { accountId, tableId: tableJoin.current });
+    });
 
     const joinExistingTable = (tableIdToJoin) => {
       setTableId(tableIdToJoin);
@@ -5506,6 +5516,8 @@ function Chess3D({
       socket.emit('joinChessRoom', { tableId: tableIdToJoin, accountId });
       onlineRef.current.requestSync?.();
     };
+
+    socket.emit('register', { playerId: accountId });
 
     if (initialTableId) {
       joinExistingTable(initialTableId);
@@ -5531,18 +5543,6 @@ function Chess3D({
         }
       );
     }
-
-    socket.on('gameStart', handleGameStart);
-    socket.on('chessState', handleChessState);
-    socket.on('chessMove', handleChessState);
-
-    cleanups.push(() => {
-      socket.off('gameStart', handleGameStart);
-      socket.off('chessState', handleChessState);
-      socket.off('chessMove', handleChessState);
-      if (tableJoin.current)
-        socket.emit('leaveLobby', { accountId, tableId: tableJoin.current });
-    });
 
     return () => {
       active = false;
