@@ -1195,6 +1195,7 @@ export default function SnakeAndLadder() {
     const flagsParam = params.get('flags');
     const tableParam = params.get("table");
     const capacityParam = params.get('capacity');
+    const isMp = Boolean(tableParam && !aiParam);
     if (t) setToken(t.toUpperCase());
     if (amt) setPot(Number(amt));
     const aiCount = aiParam
@@ -1203,7 +1204,7 @@ export default function SnakeAndLadder() {
         ? 0
         : 1;
     setAi(aiCount);
-    setIsMultiplayer(tableParam && !aiParam);
+    setIsMultiplayer(isMp);
     const watching = watchParam === "1";
     setWatchOnly(watching);
     if (watching) {
@@ -1250,14 +1251,18 @@ export default function SnakeAndLadder() {
         }
       }
     }
+  }, []);
+
+  useEffect(() => {
+    if (!tableId) return;
+    let canceled = false;
     const boardPromise = isMultiplayer
-      ? getSnakeBoard(table)
+      ? getSnakeBoard(tableId)
       : Promise.resolve(generateBoardLocal());
     boardPromise
       .then(({ snakes: snakesObj = {}, ladders: laddersObj = {}, diceCells: diceCellsObj = {} }) => {
-        const limit = (obj) => {
-          return Object.fromEntries(Object.entries(obj).slice(0, 8));
-        };
+        if (canceled) return;
+        const limit = (obj) => Object.fromEntries(Object.entries(obj).slice(0, 8));
         const snakesLim = limit(snakesObj);
         const laddersLim = limit(laddersObj);
         setSnakes(snakesLim);
@@ -1280,7 +1285,10 @@ export default function SnakeAndLadder() {
         setDiceCells(diceSource);
       })
       .catch(() => {});
-  }, []);
+    return () => {
+      canceled = true;
+    };
+  }, [isMultiplayer, tableId]);
 
   useEffect(() => {
     tableCapacityRef.current = tableCapacity;
@@ -1311,6 +1319,9 @@ export default function SnakeAndLadder() {
     const myAccountId = accountId || getPlayerId();
     const name = myName;
     const initialCapacity = tableCapacityRef.current;
+    if (myAccountId) {
+      socket.emit('register', { playerId: myAccountId });
+    }
     if (!watchOnly) {
       setWaitingForPlayers(true);
       refreshPlayersNeeded(playersRef.current, initialCapacity);
