@@ -9513,6 +9513,11 @@ const powerRef = useRef(hud.power);
     powerRef.current = hud.power;
   }, [hud.power]);
   const hudRef = useRef(hud);
+  const captureSnapshotRef = useRef(null);
+  const playbackApiRef = useRef({ applySnapshot: null, playRecording: null });
+  const remoteShotPayloadRef = useRef(null);
+  const [remoteShotTick, setRemoteShotTick] = useState(0);
+  const [playbackReady, setPlaybackReady] = useState(false);
   useEffect(() => {
     hudRef.current = hud;
   }, [hud]);
@@ -10214,7 +10219,7 @@ const powerRef = useRef(hud.power);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
   const applyRemoteState = useCallback(
-    ({ state, hud: incomingHud }) => {
+    ({ state, hud: incomingHud, snapshot, recording, actorId }) => {
       if (!state) return;
       frameRef.current = state;
       setFrameState(state);
@@ -10222,15 +10227,42 @@ const powerRef = useRef(hud.power);
       if (incomingHud) {
         setHud((prev) => ({ ...prev, ...incomingHud }));
       }
+      if (snapshot || recording) {
+        remoteShotPayloadRef.current = { snapshot, recording, actorId };
+        setRemoteShotTick((value) => value + 1);
+      }
     },
     []
   );
 
   useEffect(() => {
+    if (!isOnlineMatch || !playbackReady) return;
+    const payload = remoteShotPayloadRef.current;
+    if (!payload) return;
+    if (payload.actorId && accountId && String(payload.actorId) === String(accountId)) {
+      return;
+    }
+    const { recording, snapshot } = payload;
+    const { playRecording, applySnapshot } = playbackApiRef.current || {};
+    if (recording && typeof playRecording === 'function') {
+      playRecording(recording, snapshot);
+    } else if (snapshot && typeof applySnapshot === 'function') {
+      applySnapshot(snapshot);
+    }
+    remoteShotPayloadRef.current = null;
+  }, [accountId, isOnlineMatch, playbackReady, remoteShotTick]);
+
+  useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
     const handlePoolState = (payload = {}) => {
       if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteState({ state: payload.state, hud: payload.hud });
+      applyRemoteState({
+        state: payload.state,
+        hud: payload.hud,
+        snapshot: payload.snapshot,
+        recording: payload.recording,
+        actorId: payload.actorId
+      });
     };
 
     socket.emit('register', { playerId: accountId });
@@ -10247,8 +10279,16 @@ const powerRef = useRef(hud.power);
     if (!isOnlineMatch || !tableId) return;
     const state = frameRef.current;
     if (!state) return;
-    socket.emit('poolShot', { tableId, state });
-  }, [isOnlineMatch, tableId]);
+    const snapshot = captureSnapshotRef.current ? captureSnapshotRef.current() : null;
+    const hudPayload = hudRef.current ?? null;
+    socket.emit('poolShot', {
+      tableId,
+      state,
+      hud: hudPayload,
+      snapshot,
+      actorId: accountId
+    });
+  }, [accountId, isOnlineMatch, tableId]);
 
   useEffect(() => {
     let wakeLock;
@@ -13569,10 +13609,11 @@ const powerRef = useRef(hud.power);
           updateCamera();
         };
 
-        const startShotReplay = (postShotSnapshot) => {
+        const startShotReplay = (postShotSnapshot, recordingOverride = null) => {
+          const recordingToPlay = recordingOverride || shotRecording;
           if (replayPlaybackRef.current) return;
-          if (!shotRecording || !shotRecording.frames?.length) return;
-          const trimmed = trimReplayRecording(shotRecording);
+          if (!recordingToPlay || !recordingToPlay.frames?.length) return;
+          const trimmed = trimReplayRecording(recordingToPlay);
           const duration = trimmed.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
           storeReplayCameraFrame();
@@ -13583,16 +13624,30 @@ const powerRef = useRef(hud.power);
             duration,
             startedAt: performance.now(),
             lastIndex: 0,
-            postState: postShotSnapshot,
+            postState: postShotSnapshot ?? recordingToPlay.postState ?? null,
             pocketDrops: pausedPocketDrops ?? pocketDropRef.current
           };
           pausedPocketDrops = pocketDropRef.current;
           pocketDropRef.current = new Map();
           replayPlaybackRef.current = replayPlayback;
-          shotReplayRef.current = shotRecording;
-          applyBallSnapshot(shotRecording.startState ?? []);
+          shotReplayRef.current = recordingToPlay;
+          applyBallSnapshot(recordingToPlay.startState ?? []);
           updateReplayTrail(replayPlayback.cuePath, 0);
         };
+
+        captureSnapshotRef.current = captureBallSnapshot;
+        playbackApiRef.current = {
+          applySnapshot: applyBallSnapshot,
+          playRecording: (recording, snapshotOverride = null) => {
+            if (!recording) {
+              if (snapshotOverride) applyBallSnapshot(snapshotOverride);
+              return;
+            }
+            const postState = snapshotOverride ?? recording.postState ?? null;
+            startShotReplay(postState, recording);
+          }
+        };
+        setPlaybackReady(true);
 
         const waitMs = (ms = 0) =>
           new Promise((resolve) => window.setTimeout(resolve, Math.max(0, ms)));
@@ -16683,39 +16738,40 @@ const powerRef = useRef(hud.power);
             (shotRecording?.frames?.length ?? 0) > 1;
           const replayBannerText = replayDecision?.banner ?? selectReplayBanner('default');
           let postShotSnapshot = null;
-        if (firstContactColor || firstHit) {
-          shotEvents.push({
-            type: 'HIT',
-            firstContact: firstContactColor,
-            ballId: firstHit ?? null
+          let outboundRecording = null;
+          if (firstContactColor || firstHit) {
+            shotEvents.push({
+              type: 'HIT',
+              firstContact: firstContactColor,
+              ballId: firstHit ?? null
+            });
+          }
+          potted.forEach((entry) => {
+            const pocket = entry.pocket ?? 'TM';
+            shotEvents.push({
+              type: 'POTTED',
+              ball: entry.color,
+              pocket,
+              ballId: entry.id
+            });
           });
-        }
-        potted.forEach((entry) => {
-          const pocket = entry.pocket ?? 'TM';
-          shotEvents.push({
-            type: 'POTTED',
-            ball: entry.color,
-            pocket,
-            ballId: entry.id
-          });
-        });
-        const currentState = frameRef.current ?? frameState;
-        const cueBallPotted =
-          potted.some((entry) => entry.color === 'CUE') || !cue.active;
-        const noCushionAfterContact =
-          shotContextRef.current.contactMade &&
-          !shotContextRef.current.cushionAfterContact &&
-          potted.every((entry) => entry.id !== 'cue');
-        const shotContext = {
-          placedFromHand: shotContextRef.current.placedFromHand,
-          cueBallPotted,
-          contactMade: shotContextRef.current.contactMade,
-          cushionAfterContact: shotContextRef.current.cushionAfterContact,
-          noCushionAfterContact,
-          variant: variantId
-        };
-        let safeState = currentState;
-        let shotResolved = false;
+          const currentState = frameRef.current ?? frameState;
+          const cueBallPotted =
+            potted.some((entry) => entry.color === 'CUE') || !cue.active;
+          const noCushionAfterContact =
+            shotContextRef.current.contactMade &&
+            !shotContextRef.current.cushionAfterContact &&
+            potted.every((entry) => entry.id !== 'cue');
+          const shotContext = {
+            placedFromHand: shotContextRef.current.placedFromHand,
+            cueBallPotted,
+            contactMade: shotContextRef.current.contactMade,
+            cushionAfterContact: shotContextRef.current.cushionAfterContact,
+            noCushionAfterContact,
+            variant: variantId
+          };
+          let safeState = currentState;
+          let shotResolved = false;
         try {
           const resolved = rules.applyShot(currentState, shotEvents, shotContext);
           if (resolved && typeof resolved === 'object') {
@@ -16925,8 +16981,16 @@ const powerRef = useRef(hud.power);
               cue.impacted = false;
               cue.launchDir = null;
             }
-            if (shouldStartReplay) {
-              postShotSnapshot = captureBallSnapshot();
+            postShotSnapshot = captureBallSnapshot();
+            if (shotRecording) {
+              const trimmedRecording = trimReplayRecording(shotRecording);
+              outboundRecording = {
+                ...trimmedRecording,
+                replayTags: shotRecording.replayTags ?? [],
+                zoomOnly: Boolean(shotRecording.zoomOnly),
+                startState: shotRecording.startState ?? [],
+                postState: postShotSnapshot
+              };
             }
             const nextMeta = safeState.meta;
             if (nextMeta && typeof nextMeta === 'object') {
@@ -16947,7 +17011,18 @@ const powerRef = useRef(hud.power);
           setTurnCycle((value) => value + 1);
           setHud((prev) => ({ ...prev, inHand: nextInHand }));
           if (isOnlineMatch && tableId) {
-            socket.emit('poolShot', { tableId, state: safeState });
+            const hudPayload = hudRef.current ?? null;
+            const snapshotPayload =
+              postShotSnapshot ??
+              (captureSnapshotRef.current ? captureSnapshotRef.current() : null);
+            socket.emit('poolShot', {
+              tableId,
+              state: safeState,
+              hud: hudPayload,
+              snapshot: snapshotPayload,
+              recording: outboundRecording,
+              actorId: accountId
+            });
           }
           setShootingState(false);
           shotPrediction = null;
@@ -18227,6 +18302,7 @@ const powerRef = useRef(hud.power);
 
         return () => {
           disposed = true;
+          setPlaybackReady(false);
           applyWorldScaleRef.current = () => {};
           topViewControlsRef.current = { enter: () => {}, exit: () => {} };
           cameraUpdateRef.current = () => {};
