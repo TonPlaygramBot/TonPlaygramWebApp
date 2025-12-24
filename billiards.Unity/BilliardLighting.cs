@@ -19,7 +19,7 @@ public class BilliardLighting : MonoBehaviour
             Light spotLight = lightObj.AddComponent<Light>();
             spotLight.type = LightType.Spot;
             spotLight.color = Color.white;
-            spotLight.intensity = 2.1f;        // brightness trimmed slightly for softer highlights
+            spotLight.intensity = 2.25f;       // brightness reduced by 10%
             spotLight.range = 15f;             // distance
             spotLight.spotAngle = 60f;         // cone size
             spotLight.shadows = LightShadows.Soft;
