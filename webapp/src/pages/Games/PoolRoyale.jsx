@@ -1227,8 +1227,8 @@ const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
 const DEFAULT_CUSHION_CUT_ANGLE = 27;
-// middle pocket cushion cuts now match the corner angle so all six cushions share a consistent nose profile
-const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 27;
+// middle pocket cushion cuts are sharpened to a 31° cut to align the side-rail cushions with the updated spec
+const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 31;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
 let SIDE_CUSHION_CUT_ANGLE = DEFAULT_SIDE_CUSHION_CUT_ANGLE;
 const CUSHION_BACK_TRIM = 0.8; // trim 20% off the cushion back that meets the rails
@@ -19040,31 +19040,36 @@ const powerRef = useRef(hud.power);
           }}
         >
           <div
-            className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-4 rounded-full border border-emerald-400/40 bg-black/70 px-5 py-2 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
+            className="pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center gap-5 rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur"
             style={{
               transform: `scale(${uiScale})`,
               transformOrigin: 'bottom center',
-              maxWidth: 'min(26rem, 100%)'
+              maxWidth: 'min(30rem, 100%)'
             }}
           >
             <div
-              className={`flex min-w-0 items-center gap-3 rounded-full px-3 transition-all ${
+              className={`flex min-w-0 items-center gap-4 rounded-full transition-all ${
                 isPlayerTurn
-                  ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
-                  : 'text-white/80'
+                  ? 'bg-emerald-400/20 pl-4 pr-3 text-white ring-2 ring-emerald-300/70'
+                  : 'pl-3.5 pr-3 text-white/80'
               }`}
+              style={{
+                boxShadow: isPlayerTurn
+                  ? '0 0 18px rgba(16,185,129,0.35), -14px 0 22px rgba(16,185,129,0.28)'
+                  : '0 6px 14px rgba(0,0,0,0.35)'
+              }}
             >
               <img
                 src={player.avatar || '/assets/icons/profile.svg'}
                 alt="player avatar"
-                className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                className={`h-12 w-12 rounded-full border-2 object-cover transition-all duration-150 ${
                   isPlayerTurn
-                    ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
-                    : 'border-white/40'
+                    ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                    : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
                 }`}
               />
               <div className="flex min-w-0 flex-col">
-                <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                <span className="max-w-[8.75rem] truncate text-sm font-semibold tracking-wide">
                   {player.name}
                 </span>
                 <div className="mt-1">{renderPottedRow(playerPotted)}</div>
@@ -19076,25 +19081,30 @@ const powerRef = useRef(hud.power);
               <span>{hud.B}</span>
             </div>
             <div
-              className={`flex min-w-0 items-center gap-3 rounded-full px-3 text-sm transition-all ${
+              className={`flex min-w-0 items-center gap-4 rounded-full text-sm transition-all ${
                 isOpponentTurn
-                  ? 'bg-emerald-400/20 text-white shadow-[0_0_18px_rgba(16,185,129,0.35)]'
-                  : 'text-white/80'
+                  ? 'bg-emerald-400/20 pl-3 pr-4 text-white ring-2 ring-emerald-300/70'
+                  : 'pl-3 pr-3.5 text-white/80'
               }`}
+              style={{
+                boxShadow: isOpponentTurn
+                  ? '0 0 18px rgba(16,185,129,0.35), 14px 0 22px rgba(16,185,129,0.28)'
+                  : '0 6px 14px rgba(0,0,0,0.35)'
+              }}
             >
               {isOnlineMatch ? (
                 <>
                   <img
                     src={opponentDisplayAvatar}
                     alt="opponent avatar"
-                    className={`h-9 w-9 rounded-full border object-cover transition-shadow ${
+                    className={`h-12 w-12 rounded-full border-2 object-cover transition-all duration-150 ${
                       isOpponentTurn
-                        ? 'border-emerald-300/80 shadow-[0_0_12px_rgba(16,185,129,0.45)]'
-                        : 'border-white/40'
+                        ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                        : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
                     }`}
                   />
                   <div className="flex min-w-0 flex-col">
-                    <span className="max-w-[9rem] truncate text-sm font-semibold tracking-wide">
+                    <span className="max-w-[8.75rem] truncate text-sm font-semibold tracking-wide">
                       {opponentDisplayName}
                     </span>
                     <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
