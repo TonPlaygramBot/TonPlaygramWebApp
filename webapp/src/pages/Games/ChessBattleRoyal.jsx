@@ -286,6 +286,22 @@ function getDisplayMetrics() {
   };
 }
 
+function shouldUseLightweightChessAssets() {
+  if (typeof navigator === 'undefined') return false;
+  const memory = navigator.deviceMemory;
+  const cores = navigator.hardwareConcurrency;
+  const connection =
+    navigator.connection || navigator.mozConnection || navigator.webkitConnection || null;
+  const saveData = Boolean(connection?.saveData);
+  const slowConnection =
+    typeof connection?.effectiveType === 'string' &&
+    (connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g');
+  const lowMemory = typeof memory === 'number' && memory > 0 && memory < 4;
+  const lowCores = typeof cores === 'number' && cores > 0 && cores <= 4;
+  const coarsePointer = detectCoarsePointer();
+  return saveData || slowConnection || lowMemory || lowCores || (coarsePointer && (lowMemory || lowCores));
+}
+
 function detectRefreshRateHint() {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
     return null;
@@ -2036,6 +2052,16 @@ function createChessPalette(appearance = DEFAULT_APPEARANCE) {
   };
 }
 
+function createWebGLRendererSafely(options = {}) {
+  if (typeof document === 'undefined') return null;
+  try {
+    return new THREE.WebGLRenderer(options);
+  } catch (error) {
+    console.warn('Chess Battle Royal: WebGL renderer unavailable', error);
+    return null;
+  }
+}
+
 let sharedKTX2Loader = null;
 
 function createConfiguredGLTFLoader(renderer = null) {
@@ -2051,11 +2077,13 @@ function createConfiguredGLTFLoader(renderer = null) {
     sharedKTX2Loader.setTranscoderPath(
       'https://cdn.jsdelivr.net/npm/three@0.164.0/examples/jsm/libs/basis/'
     );
-    const supportRenderer = renderer || (typeof document !== 'undefined'
-      ? new THREE.WebGLRenderer({ antialias: false, alpha: true })
-      : null);
+    const supportRenderer = renderer || createWebGLRendererSafely({ antialias: false, alpha: true });
     if (supportRenderer) {
-      sharedKTX2Loader.detectSupport(supportRenderer);
+      try {
+        sharedKTX2Loader.detectSupport(supportRenderer);
+      } catch (error) {
+        console.warn('Chess Battle Royal: KTX2 probe failed', error);
+      }
       if (!renderer) supportRenderer.dispose();
     }
   }
@@ -5310,6 +5338,8 @@ function Chess3D({
     pixelRatioCap: DEFAULT_RENDER_PIXEL_RATIO_CAP,
     pixelRatioScale: RENDER_PIXEL_RATIO_SCALE
   });
+  const [renderError, setRenderError] = useState('');
+  const lightweightAssets = useMemo(() => shouldUseLightweightChessAssets(), []);
   const aiMovingRef = useRef(false);
   const boardMaterialCacheRef = useRef({ gltf: new Map(), procedural: null });
   const pawnHeadMaterialCacheRef = useRef(new Map());
@@ -6006,7 +6036,7 @@ function Chess3D({
     }
     const pieceSetOption =
       PIECE_STYLE_OPTIONS[normalized.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-    const nextPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
+    const nextPieceSetId = lightweightAssets ? 'proceduralStaunton' : BEAUTIFUL_GAME_SWAP_SET_ID;
     const isBeautifulGameSet = (arena.activePieceSetId || nextPieceSetId || '').startsWith('beautifulGame');
     const woodOption = TABLE_WOOD_OPTIONS[normalized.tableWood] ?? TABLE_WOOD_OPTIONS[0];
     const clothOption = TABLE_CLOTH_OPTIONS[normalized.tableCloth] ?? TABLE_CLOTH_OPTIONS[0];
@@ -6016,8 +6046,12 @@ function Chess3D({
     const boardTheme = palette.board ?? BEAUTIFUL_GAME_THEME;
     const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
     const headPreset = palette.head ?? HEAD_PRESET_OPTIONS[0].preset;
-    const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-    const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
+    const pieceSetLoader = (size) =>
+      lightweightAssets
+        ? Promise.resolve(buildStauntonFallbackAssets(size, pieceStyleOption, nextPieceSetId))
+        : resolveBeautifulGameAssets(size);
+    const loadPieceSet = (size = RAW_BOARD_SIZE) =>
+      Promise.resolve().then(() => pieceSetLoader(size));
 
     if (shapeOption) {
       const shapeChanged = shapeOption.id !== arena.tableShapeId;
@@ -6224,6 +6258,7 @@ function Chess3D({
     };
 
     const setup = async () => {
+      setRenderError('');
       const performanceProfile = selectPerformanceProfile(activeGraphicsOption);
       const renderSettings = {
         targetFrameIntervalMs: 1000 / performanceProfile.targetFps,
@@ -6241,9 +6276,14 @@ function Chess3D({
       const pieceStyleOption = palette.pieces ?? DEFAULT_PIECE_STYLE;
       const pieceSetOption =
         PIECE_STYLE_OPTIONS[normalizedAppearance.whitePieceStyle] ?? PIECE_STYLE_OPTIONS[0];
-      const initialPieceSetId = BEAUTIFUL_GAME_SWAP_SET_ID;
-      const pieceSetLoader = (size) => resolveBeautifulGameAssets(size);
-      const loadPieceSet = (size = RAW_BOARD_SIZE) => Promise.resolve().then(() => pieceSetLoader(size));
+      const preferLightweightPieces = lightweightAssets;
+      const initialPieceSetId = preferLightweightPieces ? 'proceduralStaunton' : BEAUTIFUL_GAME_SWAP_SET_ID;
+      const pieceSetLoader = (size) =>
+        preferLightweightPieces
+          ? Promise.resolve(buildStauntonFallbackAssets(size, pieceStyleOption, initialPieceSetId))
+          : resolveBeautifulGameAssets(size);
+      const loadPieceSet = (size = RAW_BOARD_SIZE) =>
+        Promise.resolve().then(() => pieceSetLoader(size));
       const initialPlayerFlag =
         playerFlag ||
         resolvedInitialFlag ||
@@ -6296,11 +6336,15 @@ function Chess3D({
       });
 
     // ----- Build scene -----
-    renderer = new THREE.WebGLRenderer({
+    renderer = createWebGLRendererSafely({
       antialias: true,
       alpha: false,
       powerPreference: 'high-performance'
     });
+    if (!renderer) {
+      setRenderError('Your device blocked WebGL. Please enable hardware acceleration or try a lighter device.');
+      return;
+    }
     applyRendererSRGB(renderer);
     if (sharedKTX2Loader) {
       try {
@@ -8149,6 +8193,7 @@ function Chess3D({
 
     setup().catch((error) => {
       console.error('Chess Battle Royal: scene setup failed', error);
+      setRenderError('Chess couldn’t start the 3D scene on this device. Please reload or enable hardware acceleration.');
     });
 
     return () => {
@@ -8202,6 +8247,17 @@ function Chess3D({
 
   return (
     <div ref={wrapRef} className="fixed inset-0 bg-[#0c1020] text-white touch-none select-none">
+      {renderError && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/80 px-6 text-center">
+          <div className="max-w-md space-y-2 rounded-2xl border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur">
+            <p className="text-sm font-semibold text-white">Rendering unavailable</p>
+            <p className="text-xs leading-relaxed text-white/80">{renderError}</p>
+            <p className="text-[11px] text-white/60">
+              We automatically switch to the lightweight chess set on low-power devices. Enable WebGL to restore full fidelity.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-4 left-4 z-20 flex flex-col items-start gap-3 pointer-events-none">
           <div className="pointer-events-none rounded bg-white/10 px-3 py-2 text-xs">
