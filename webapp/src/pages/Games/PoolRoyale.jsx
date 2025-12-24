@@ -1011,8 +1011,8 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const CAPTURE_R = POCKET_R * 0.92; // pocket capture radius trimmed so rails stay playable up to the lip
-const SIDE_CAPTURE_RADIUS_SCALE = 0.84; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
+const CAPTURE_R = POCKET_R * 0.98; // pocket capture radius aligned to the pocket interior so balls fall at the throat
+const SIDE_CAPTURE_RADIUS_SCALE = 0.92; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
 const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
@@ -1223,7 +1223,7 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 38;
+const DEFAULT_CUSHION_CUT_ANGLE = 32;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -4284,7 +4284,8 @@ const BROADCAST_PAIR_MARGIN = BALL_R * 5; // keep the cue/target pair safely fra
 const BROADCAST_ORBIT_FOCUS_BIAS = 0.6; // prefer the orbit camera's subject framing when updating broadcast heads
 const CAMERA_ZOOM_PROFILES = Object.freeze({
   default: Object.freeze({ cue: 0.86, broadcast: 0.9, margin: 0.97 }),
-  nearLandscape: Object.freeze({ cue: 0.84, broadcast: 0.89, margin: 0.97 }),
+  nearLandscape: Object.freeze({ cue: 0.88, broadcast: 0.92, margin: 0.985 }),
+  landscape: Object.freeze({ cue: 0.9, broadcast: 0.94, margin: 1.0 }),
   portrait: Object.freeze({ cue: 0.82, broadcast: 0.88, margin: 0.96 }),
   ultraPortrait: Object.freeze({ cue: 0.8, broadcast: 0.87, margin: 0.955 })
 });
@@ -4292,14 +4293,17 @@ const resolveCameraZoomProfile = (aspect) => {
   if (!Number.isFinite(aspect)) {
     return CAMERA_ZOOM_PROFILES.default;
   }
+  if (aspect >= 1.35) {
+    return CAMERA_ZOOM_PROFILES.landscape;
+  }
+  if (aspect >= 1.1) {
+    return CAMERA_ZOOM_PROFILES.nearLandscape;
+  }
   if (aspect <= 0.7) {
     return CAMERA_ZOOM_PROFILES.ultraPortrait;
   }
   if (aspect <= 0.85) {
     return CAMERA_ZOOM_PROFILES.portrait;
-  }
-  if (aspect < 1.1) {
-    return CAMERA_ZOOM_PROFILES.nearLandscape;
   }
   return CAMERA_ZOOM_PROFILES.default;
 };
@@ -6302,7 +6306,7 @@ function Table3D(
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.26; // shorten the corner cushions more so the noses stay clear of the pocket openings
   const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
   const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
@@ -8867,6 +8871,9 @@ function PoolRoyaleGame({
   const [uiScale, setUiScale] = useState(() =>
     detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE
   );
+  const [isPortrait, setIsPortrait] = useState(
+    () => (typeof window === 'undefined' ? true : window.innerHeight >= window.innerWidth)
+  );
   const [isTopDownView, setIsTopDownView] = useState(false);
   const [isLookMode, setIsLookMode] = useState(false);
   const lookModeRef = useRef(false);
@@ -8876,6 +8883,7 @@ function PoolRoyaleGame({
     }
     const updateScale = () => {
       setUiScale(detectCoarsePointer() ? TOUCH_UI_SCALE : POINTER_UI_SCALE);
+      setIsPortrait(window.innerHeight >= window.innerWidth);
     };
     updateScale();
     window.addEventListener('resize', updateScale);
@@ -14887,11 +14895,6 @@ const powerRef = useRef(hud.power);
           cue.active = true;
           inHandDrag.lastPos = null;
           cueBallPlacedFromHandRef.current = true;
-          if (hudRef.current?.inHand) {
-            const nextHud = { ...hudRef.current, inHand: false };
-            hudRef.current = nextHud;
-            setHud(nextHud);
-          }
         }
         return true;
       };
@@ -15075,11 +15078,18 @@ const powerRef = useRef(hud.power);
       const handleInHandDown = (e) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return;
-        if (!inHandPlacementModeRef.current) return;
         if (shooting) return;
         if (e.button != null && e.button !== 0) return;
         const p = project(e);
         if (!p) return;
+        if (!inHandPlacementModeRef.current) {
+          const cuePos = cue?.pos ?? null;
+          const reenterRadius = BALL_R * 3.2;
+          if (!cuePos || cuePos.distanceTo(p) > reenterRadius) return;
+          inHandPlacementModeRef.current = true;
+          setInHandPlacementMode(true);
+        }
+        if (!inHandPlacementModeRef.current) return;
         if (!tryUpdatePlacement(p, false)) return;
         inHandDrag.active = true;
         inHandDrag.pointerId = e.pointerId ?? 'mouse';
@@ -16684,17 +16694,15 @@ const powerRef = useRef(hud.power);
                     : isOnlineMatch
                       ? opponentDisplayName
                       : 'AI';
-                const isStripeAssign = nextAssign === 'blue';
-                const assignmentLabel =
-                  nextAssign === 'blue'
-                    ? isUkAmericanSet
-                      ? 'Stripes'
-                      : 'Yellows'
-                    : nextAssign === 'red'
-                      ? isUkAmericanSet
-                        ? 'Solids'
-                        : 'Reds'
-                      : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
+                const assignmentLabel = (() => {
+                  if (nextAssign === 'blue') {
+                    return isUkAmericanSet ? 'Solids' : 'Yellows';
+                  }
+                  if (nextAssign === 'red') {
+                    return isUkAmericanSet ? 'Stripes' : 'Reds';
+                  }
+                  return nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
+                })();
                 showRuleToast(`${seatLabel} is ${assignmentLabel}`);
               }
             });
@@ -18431,22 +18439,31 @@ const powerRef = useRef(hud.power);
     },
     [ballPreviewCache]
   );
+  const pottedTokenSize = isPortrait ? 18 : 20;
+  const pottedGap = isPortrait ? 6 : 8;
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
         return (
-          <div className="flex items-center gap-1 opacity-70">
+          <div
+            className="flex items-center opacity-70"
+            style={{ gap: `${Math.max(2, pottedGap * 0.5)}px` }}
+          >
             {Array.from({ length: 4 }).map((_, idx) => (
               <span
                 key={`ghost-${idx}`}
-                className="h-5 w-5 flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner"
+                className="flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner"
+                style={{ width: pottedTokenSize, height: pottedTokenSize }}
               />
             ))}
           </div>
         );
       }
       return (
-        <div className="flex items-center gap-1 overflow-hidden whitespace-nowrap">
+        <div
+          className="flex items-center overflow-hidden whitespace-nowrap"
+          style={{ gap: `${pottedGap}px` }}
+        >
           {entries.map((entry, index) => {
             const colorKey = String(entry.color || '').toUpperCase();
             const idMatch =
@@ -18494,14 +18511,15 @@ const powerRef = useRef(hud.power);
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="relative flex h-5 w-5 flex-shrink-0 items-center justify-center"
+                className="relative flex flex-shrink-0 items-center justify-center"
+                style={{ width: pottedTokenSize, height: pottedTokenSize }}
                 title={altLabel}
               >
                 {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt={altLabel}
-                    className="h-5 w-5 rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    className="h-full w-full rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
                   />
                 ) : (
                   <span
@@ -18517,7 +18535,7 @@ const powerRef = useRef(hud.power);
         </div>
       );
     },
-    [americanBallSwatches, ballSwatches, darkenHex, getBallPreview, isUkAmericanSet]
+    [americanBallSwatches, ballSwatches, darkenHex, getBallPreview, isUkAmericanSet, pottedGap, pottedTokenSize]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
