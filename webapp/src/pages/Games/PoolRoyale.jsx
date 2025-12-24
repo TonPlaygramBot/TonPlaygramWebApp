@@ -4273,7 +4273,7 @@ const STANDING_VIEW_MARGIN = 0.0024;
 const STANDING_VIEW_FOV = 66;
 const CAMERA_ABS_MIN_PHI = 0.1;
 const CAMERA_MIN_PHI = Math.max(CAMERA_ABS_MIN_PHI, STANDING_VIEW_PHI - 0.48);
-const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.22; // halt the downward sweep sooner so the lowest angle stays slightly higher
+const CAMERA_MAX_PHI = CUE_SHOT_PHI - 0.26; // halt the downward sweep sooner so the lowest angle stays slightly higher
 // Bring the cue camera in closer so the player view sits right against the rail on portrait screens.
 const PLAYER_CAMERA_DISTANCE_FACTOR = 0.022; // pull the player orbit nearer to the cloth while keeping the frame airy
 const BROADCAST_RADIUS_LIMIT_MULTIPLIER = 1.14;
@@ -4541,12 +4541,6 @@ const CORNER_SIGNS = [
   { sx: -1, sy: -1 },
   { sx: 1, sy: -1 },
   { sx: -1, sy: 1 },
-  { sx: 1, sy: 1 }
-];
-const SIDE_POCKET_SIGNS = [
-  { sx: -1, sy: -1 },
-  { sx: -1, sy: 1 },
-  { sx: 1, sy: -1 },
   { sx: 1, sy: 1 }
 ];
 const fitRadius = (camera, margin = 1.1, distanceScale = 0.65) => {
@@ -5216,30 +5210,31 @@ function reflectRails(ball) {
     SIDE_POCKET_RADIUS * 0.86 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06; // soften the capture window around middle jaws
   const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.12);
   const sideDepthLimit = POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION;
-  const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
-  const sideCos = Math.cos(sideRad);
-  const sideSin = Math.sin(sideRad);
-  for (const { sx, sy } of SIDE_POCKET_SIGNS) {
-    if (sy * ball.pos.y <= 0) continue;
-    TMP_VEC2_C.set(sx * limX, sy * (SIDE_POCKET_RADIUS + BALL_R * 0.25));
-    TMP_VEC2_A.copy(ball.pos).sub(TMP_VEC2_C);
-    if (sx * TMP_VEC2_A.x < -BALL_R * 0.4) continue;
-    TMP_VEC2_B.set(-sx * sideCos, -sy * sideSin);
-    const distNormal = TMP_VEC2_A.dot(TMP_VEC2_B);
+  const sidePocketCenters = pocketCenters().slice(4);
+  for (const center of sidePocketCenters) {
+    TMP_VEC2_A.copy(ball.pos).sub(center);
+    TMP_VEC2_C.copy(center).multiplyScalar(-1);
+    if (TMP_VEC2_C.lengthSq() < MICRO_EPS * MICRO_EPS) {
+      TMP_VEC2_C.set(center.x >= 0 ? -1 : 1, 0);
+    }
+    TMP_VEC2_C.normalize();
+    const normal = TMP_VEC2_C;
+    const tangent = TMP_VEC2_D.set(-normal.y, normal.x);
+    const distNormal = TMP_VEC2_A.dot(normal);
     if (distNormal >= BALL_R) continue;
-    TMP_VEC2_D.set(-TMP_VEC2_B.y, TMP_VEC2_B.x);
-    const lateral = Math.abs(TMP_VEC2_A.dot(TMP_VEC2_D));
+    const lateral = Math.abs(TMP_VEC2_A.dot(tangent));
     if (lateral < sideGuardClearance) continue;
     if (lateral <= sideSpan) continue;
     if (distNormal < -sideDepthLimit) continue;
     const push = BALL_R - distNormal;
-    ball.pos.addScaledVector(TMP_VEC2_B, push);
-    const vn = ball.vel.dot(TMP_VEC2_B);
+    ball.pos.addScaledVector(normal, push);
+    const vn = ball.vel.dot(normal);
     if (vn < 0) {
       const restitution = CUSHION_RESTITUTION;
-      ball.vel.addScaledVector(TMP_VEC2_B, -(1 + restitution) * vn);
-      const vt = TMP_VEC2_D.copy(ball.vel).sub(
-        TMP_VEC2_B.clone().multiplyScalar(ball.vel.dot(TMP_VEC2_B))
+      ball.vel.addScaledVector(normal, -(1 + restitution) * vn);
+      TMP_VEC2_LIMIT.copy(normal).multiplyScalar(ball.vel.dot(normal));
+      const vt = TMP_VEC2_B.copy(ball.vel).sub(
+        TMP_VEC2_LIMIT
       );
       const tangentDamping = 0.96;
       ball.vel
@@ -18593,8 +18588,8 @@ const powerRef = useRef(hud.power);
   const bottomHudVisible = hud.turn != null && !hud.over && !shotActive;
   const bottomHudScale = isPortrait ? uiScale * 0.94 : uiScale;
   const bottomHudInsets = isPortrait
-    ? { left: 'max(2.75rem, 6vw)', right: 'max(4.5rem, 12vw)' }
-    : { left: 'max(4.5rem, 11vw)', right: 'max(8.5rem, 18vw)' };
+    ? { left: 'max(2.5rem, 6vw)', right: 'max(3.75rem, 9vw)' }
+    : { left: 'max(4rem, 10vw)', right: 'max(6.75rem, 14vw)' };
   const avatarSizeClass = isPortrait ? 'h-11 w-11' : 'h-12 w-12';
   const nameWidthClass = isPortrait ? 'max-w-[7.75rem]' : 'max-w-[8.75rem]';
   const hudGapClass = isPortrait ? 'gap-4' : 'gap-5';
@@ -19093,12 +19088,12 @@ const powerRef = useRef(hud.power);
         >
           <div
             className={`pointer-events-auto flex min-h-[3.25rem] max-w-full items-center justify-center ${hudGapClass} rounded-full border border-emerald-400/40 bg-black/70 px-6 py-2.5 text-white shadow-[0_12px_32px_rgba(0,0,0,0.45)] backdrop-blur`}
-            style={{
-              transform: `scale(${bottomHudScale})`,
-              transformOrigin: 'bottom center',
-              maxWidth: 'min(30rem, 100%)'
-            }}
-          >
+          style={{
+            transform: `scale(${bottomHudScale})`,
+            transformOrigin: 'bottom center',
+            maxWidth: 'min(32rem, 100%)'
+          }}
+        >
             <div
               className={`flex min-w-0 items-center gap-4 rounded-full transition-all ${
                 isPlayerTurn
@@ -19164,14 +19159,32 @@ const powerRef = useRef(hud.power);
                 </>
               ) : (
                 <>
-                  <div className="flex min-w-0 flex-col">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl leading-none">{aiFlag}</span>
-                      <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
-                        AI
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <img
+                        src={opponentDisplayAvatar}
+                        alt="AI avatar"
+                        className={`${avatarSizeClass} rounded-full border-2 object-cover transition-all duration-150 ${
+                          isOpponentTurn
+                            ? 'border-emerald-200 shadow-[0_0_16px_rgba(16,185,129,0.55)]'
+                            : 'border-white/50 shadow-[0_4px_10px_rgba(0,0,0,0.45)]'
+                        }`}
+                      />
+                      <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/80 text-xs font-semibold leading-none ring-2 ring-white/70">
+                        {aiFlag}
                       </span>
                     </div>
-                    <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                    <div className="flex min-w-0 flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.32em]">
+                          AI
+                        </span>
+                      </div>
+                      <div className="mt-1">{renderPottedRow(opponentPotted)}</div>
+                      <span className="mt-1 text-[11px] text-white/70">
+                        Training partner ready
+                      </span>
+                    </div>
                   </div>
                 </>
               )}
