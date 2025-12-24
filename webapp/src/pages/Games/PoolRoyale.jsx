@@ -818,7 +818,7 @@ const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outwa
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
 const POCKET_JAW_CORNER_INNER_SCALE = 1.428; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
-const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.18; // slim the middle jaws further inside while keeping the chrome-facing fascia untouched
+const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.033; // round the middle jaws slightly more while keeping the corner match
 const POCKET_JAW_CORNER_OUTER_SCALE = 1.88; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
@@ -833,8 +833,8 @@ const POCKET_JAW_EDGE_FLUSH_END = 1; // ensure the jaw finish meets the chrome t
 const POCKET_JAW_EDGE_TAPER_SCALE = 0.12; // thin the outer lips more aggressively while leaving the centre crown unchanged
 const POCKET_JAW_CENTER_TAPER_HOLD = 0.32; // start easing earlier so the mass flows gradually from the centre toward the chrome plates
 const POCKET_JAW_EDGE_TAPER_PROFILE_POWER = 1.25; // smooth the taper curve so thickness falls away progressively instead of dropping late
-const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = 0.18; // start tapering sooner on middle jaws so they thin toward the mouth
-const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = 0.1; // increase taper on side jaws so the inside edge slims down noticeably
+const POCKET_JAW_SIDE_CENTER_TAPER_HOLD = POCKET_JAW_CENTER_TAPER_HOLD; // keep the taper hold consistent so the middle jaw crown mirrors the corners
+const POCKET_JAW_SIDE_EDGE_TAPER_SCALE = POCKET_JAW_EDGE_TAPER_SCALE; // reuse the corner taper scale so edge thickness matches exactly
 const POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // maintain the identical taper curve across all six jaws
 const POCKET_JAW_CENTER_THICKNESS_MIN = 0.42; // let the inner arc sit leaner while preserving the curved silhouette across the pocket
 const POCKET_JAW_CENTER_THICKNESS_MAX = 0.74; // keep a pronounced middle section while slimming the jaw before tapering toward the edges
@@ -850,11 +850,11 @@ const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror
 const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.46; // trim the corner jaw reach so the entry width matches the visible bowl
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
-const SIDE_POCKET_JAW_DEPTH_EXPANSION = 0.96; // shave a hint of depth off middle jaws so the silhouette reads thinner at the mouth
+const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
 const SIDE_POCKET_JAW_VERTICAL_TWEAK = TABLE.THICK * 0.02; // lift the middle jaws so their rims sit level with the cloth like the corner pockets
 const SIDE_POCKET_JAW_OUTWARD_SHIFT = TABLE.THICK * 0.12; // push the middle pocket jaws farther outward so the midpoint jaws open up away from centre
 const SIDE_POCKET_JAW_EDGE_TRIM_START = POCKET_JAW_EDGE_FLUSH_START; // reuse the corner jaw shoulder timing
-const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.72; // taper the middle jaw edges sooner so they finish where the rails stop while slimming the inner lip
+const SIDE_POCKET_JAW_EDGE_TRIM_SCALE = 0.86; // taper the middle jaw edges sooner so they finish where the rails stop
 const SIDE_POCKET_JAW_EDGE_TRIM_CURVE = POCKET_JAW_EDGE_TAPER_PROFILE_POWER; // mirror the taper curve from the corner profile
 const CORNER_JAW_ARC_DEG = 120; // base corner jaw span; lateral expansion yields 180° (50% circle) coverage
 const SIDE_JAW_ARC_DEG = CORNER_JAW_ARC_DEG; // match the middle pocket jaw span to the corner profile
@@ -7112,7 +7112,6 @@ function Table3D(
       ? POCKET_JAW_SIDE_EDGE_TAPER_PROFILE_POWER
       : POCKET_JAW_EDGE_TAPER_PROFILE_POWER;
 
-    const centerEase = isMiddle ? 0.28 : 0.36;
     const jawShape = buildPocketJawShape({
       center,
       baseRadius: effectiveBaseRadius,
@@ -7123,7 +7122,7 @@ function Table3D(
       steps,
       sideThinFactor: wide ? POCKET_JAW_SIDE_EDGE_FACTOR : POCKET_JAW_CORNER_EDGE_FACTOR,
       middleThinFactor: wide ? POCKET_JAW_SIDE_MIDDLE_FACTOR : POCKET_JAW_CORNER_MIDDLE_FACTOR,
-      centerEase,
+      centerEase: 0.36,
       clampOuter: localClampOuter,
       outerExpansion: outerExpansion,
       taperHoldOverride,
@@ -13938,8 +13937,8 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 1.16;
-        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.08;
+        const lightSpreadBoost = 1.08;
+        const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.1;
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
@@ -13949,11 +13948,11 @@ const powerRef = useRef(hud.power);
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.28);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.64);
-        key.position.set(lightOffsetX * 0.34, lightRigHeight, lightOffsetZ * 0.26);
+        const key = new THREE.DirectionalLight(0xffffff, 1.82);
+        key.position.set(lightOffsetX * 0.3, lightRigHeight, lightOffsetZ * 0.24);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(4096, 4096);
@@ -13963,20 +13962,20 @@ const powerRef = useRef(hud.power);
         key.shadow.camera.right = shadowHalfSpan;
         key.shadow.camera.top = shadowHalfSpan;
         key.shadow.camera.bottom = -shadowHalfSpan;
-        key.shadow.bias = -0.00005;
-        key.shadow.normalBias = 0.00055;
+        key.shadow.bias = -0.00006;
+        key.shadow.normalBias = 0.0006;
         key.shadow.camera.updateProjectionMatrix();
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.76);
-        fill.position.set(-lightOffsetX * 0.36, lightRigHeight * 1.02, lightOffsetZ * 0.32);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+        fill.position.set(-lightOffsetX * 0.34, lightRigHeight * 1.02, lightOffsetZ * 0.28);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.6);
-        rim.position.set(0, lightRigHeight * 1.08, -lightOffsetZ * 0.4);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.72);
+        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -14839,10 +14838,9 @@ const powerRef = useRef(hud.power);
         return false;
       };
 
-      const cueClearance = BALL_R * 2.02;
-
-      const isSpotFree = (point, clearance = cueClearance) => {
+      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
         if (!point) return false;
+        const clearance = BALL_R * clearanceMultiplier;
         for (const ball of balls) {
           if (!ball.active || ball === cue) continue;
           if (point.distanceTo(ball.pos) <= clearance) {
@@ -14851,14 +14849,12 @@ const powerRef = useRef(hud.power);
         }
         return true;
       };
-
       const clampInHandPosition = (point) => {
         if (!point) return null;
         const clamped = point.clone();
         const limitX = PLAY_W / 2 - BALL_R;
         clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
-        const fullTable = allowFullTableInHand();
-        if (fullTable) {
+        if (allowFullTableInHand()) {
           const limitZ = PLAY_H / 2 - BALL_R;
           clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
         } else {
@@ -14875,96 +14871,10 @@ const powerRef = useRef(hud.power);
         }
         return clamped;
       };
-
-      const defaultInHandPosition = () => {
-        const fullTable = allowFullTableInHand();
-        const base = new THREE.Vector2(0, fullTable ? 0 : baulkZ);
-        return clampInHandPosition(base);
-      };
-
-      const evaluateInHandCandidate = (candidate) => {
-        if (!candidate) return { score: -Infinity, pos: null };
-        const clamped = clampInHandPosition(candidate);
-        if (!clamped) return { score: -Infinity, pos: null };
-        if (!isSpotFree(clamped, cueClearance)) return { score: -Infinity, pos: null };
-
-        let minGap = Infinity;
-        let avgGap = 0;
-        let count = 0;
-        for (const ball of balls) {
-          if (!ball.active || ball === cue) continue;
-          const gap = Math.max(0, clamped.distanceTo(ball.pos) - BALL_R * 2);
-          minGap = Math.min(minGap, gap);
-          avgGap += gap;
-          count += 1;
-        }
-        if (count > 0) {
-          avgGap /= count;
-        } else {
-          const openSpace = Math.min(PLAY_W, PLAY_H) * 0.5;
-          minGap = cueClearance;
-          avgGap = openSpace;
-        }
-
-        const railX = (PLAY_W / 2 - BALL_R) - Math.abs(clamped.x);
-        const railZ = (PLAY_H / 2 - BALL_R) - Math.abs(clamped.y);
-        const railGap = Math.max(0, Math.min(railX, railZ));
-
-        // prefer central, open space with extra weight on minimum separation
-        const score = minGap * 0.72 + avgGap * 0.2 + railGap * 0.08;
-        return { score, pos: clamped };
-      };
-
-      const buildInHandCandidates = () => {
-        const fullTable = allowFullTableInHand();
-        const candidates = [];
-
-        // core: grid across allowed area
-        const cols = fullTable ? 11 : 9;
-        const rows = fullTable ? 11 : 6;
-        const xMin = -PLAY_W / 2 + BALL_R;
-        const xMax = PLAY_W / 2 - BALL_R;
-        const zMin = fullTable ? -PLAY_H / 2 + BALL_R : baulkZ - D_RADIUS;
-        const zMax = fullTable ? PLAY_H / 2 - BALL_R : baulkZ + BALL_R * 0.1;
-        for (let r = 0; r <= rows; r++) {
-          const z = THREE.MathUtils.lerp(zMin, zMax, r / rows);
-          for (let c = 0; c <= cols; c++) {
-            const x = THREE.MathUtils.lerp(xMin, xMax, c / cols);
-            candidates.push(new THREE.Vector2(x, z));
-          }
-        }
-
-        // diagonals from baulk and centre to spread samples
-        const spreads = [0, Math.PI / 6, -Math.PI / 6, Math.PI / 3, -Math.PI / 3];
-        const radius = Math.max(D_RADIUS - BALL_R * 0.15, BALL_R);
-        for (const angle of spreads) {
-          const x = Math.cos(angle) * radius;
-          const z = baulkZ + Math.sin(angle) * radius;
-          candidates.push(new THREE.Vector2(x, z));
-        }
-
-        if (fullTable) {
-          candidates.push(new THREE.Vector2(0, PLAY_H / 4));
-          candidates.push(new THREE.Vector2(0, -PLAY_H / 4));
-        }
-
-        return candidates;
-      };
-
-      const findBestInHandPlacement = () => {
-        let best = { score: -Infinity, pos: null };
-        for (const candidate of buildInHandCandidates()) {
-          const result = evaluateInHandCandidate(candidate);
-          if (result.score > best.score) {
-            best = result;
-          }
-        }
-        if (best.pos) return best.pos;
-
-        const fallback = defaultInHandPosition();
-        if (fallback && isSpotFree(fallback, cueClearance)) return fallback;
-        return null;
-      };
+      const defaultInHandPosition = () =>
+        clampInHandPosition(
+          new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
+        );
       const inHandDrag = {
         active: false,
         pointerId: null,
@@ -14983,11 +14893,12 @@ const powerRef = useRef(hud.power);
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const { pos } = evaluateInHandCandidate(raw);
-        if (!pos) return false;
+        const clamped = clampInHandPosition(raw);
+        if (!clamped) return false;
+        if (!isSpotFree(clamped)) return false;
         cue.active = false;
-        updateCuePlacement(pos);
-        inHandDrag.lastPos = pos;
+        updateCuePlacement(clamped);
+        inHandDrag.lastPos = clamped;
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
@@ -14995,8 +14906,166 @@ const powerRef = useRef(hud.power);
         }
         return true;
       };
-
-      const findAiInHandPlacement = () => findBestInHandPlacement();
+      const findAiInHandPlacement = () => {
+        const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+        const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
+        const baseCandidates = [];
+        baseCandidates.push(new THREE.Vector2(0, baulkZ));
+        baseCandidates.push(new THREE.Vector2(0, forwardBias));
+        if (allowFullTableInHand()) {
+          baseCandidates.push(new THREE.Vector2(0, 0));
+          baseCandidates.push(new THREE.Vector2(0, PLAY_H / 4));
+          baseCandidates.push(new THREE.Vector2(0, -PLAY_H / 4));
+        }
+        const angles = [0, Math.PI / 8, -Math.PI / 8, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
+        for (const angle of angles) {
+          const candidate = new THREE.Vector2(
+            Math.cos(angle) * radius,
+            baulkZ + Math.sin(angle) * radius
+          );
+          baseCandidates.push(candidate);
+        }
+        const limitX = PLAY_W / 2 - BALL_R;
+        const step = BALL_R * 2.1;
+        for (let x = step; x <= limitX; x += step) {
+          baseCandidates.push(new THREE.Vector2(x, forwardBias));
+          baseCandidates.push(new THREE.Vector2(-x, forwardBias));
+        }
+        const ringCandidates = [];
+        const denseSteps = 12;
+        const radialSteps = 4;
+        for (let rStep = radialSteps; rStep >= 1; rStep--) {
+          const ringRadius = (radius * rStep) / radialSteps;
+          for (let i = 0; i <= denseSteps; i++) {
+            const t = -Math.PI / 2 + (Math.PI * i) / denseSteps;
+            ringCandidates.push(
+              new THREE.Vector2(
+                Math.cos(t) * ringRadius,
+                baulkZ + Math.sin(t) * ringRadius
+              )
+            );
+          }
+        }
+        const gridCandidates = [];
+        const gridCols = Math.max(8, Math.round((limitX * 2) / (BALL_R * 1.25)));
+        const fullTable = allowFullTableInHand();
+        const gridRows = fullTable ? 8 : 5;
+        const gridStart = fullTable ? -PLAY_H / 2 + BALL_R : forwardBias;
+        const gridEnd = fullTable ? PLAY_H / 2 - BALL_R : baulkZ;
+        for (let row = 0; row <= gridRows; row++) {
+          const z = THREE.MathUtils.lerp(gridStart, gridEnd, row / gridRows);
+          for (let col = 0; col <= gridCols; col++) {
+            const x = THREE.MathUtils.lerp(-limitX, limitX, col / gridCols);
+            gridCandidates.push(new THREE.Vector2(x, z));
+          }
+        }
+        const jitter = BALL_R * 0.5;
+        const jitterCandidates = baseCandidates.flatMap((candidate) => [
+          candidate.clone(),
+          candidate.clone().add(new THREE.Vector2(jitter, 0)),
+          candidate.clone().add(new THREE.Vector2(-jitter, 0)),
+          candidate.clone().add(new THREE.Vector2(0, -jitter)),
+          candidate.clone().add(new THREE.Vector2(0, jitter * 0.5))
+        ]);
+        const candidateGroups = [
+          baseCandidates,
+          ringCandidates,
+          gridCandidates,
+          jitterCandidates
+        ];
+        const clearanceLevels = [2.15, 2.1, 2.05, 2.02, 2.0];
+        for (const clearance of clearanceLevels) {
+          for (const group of candidateGroups) {
+            for (const raw of group) {
+              const clamped = clampInHandPosition(raw);
+              if (!clamped) continue;
+              if (!isSpotFree(clamped, clearance)) continue;
+              return clamped;
+            }
+          }
+        }
+        let best = null;
+        let bestGap = -Infinity;
+        const combined = candidateGroups.flat();
+        for (const raw of combined) {
+          const clamped = clampInHandPosition(raw);
+          if (!clamped) continue;
+          let minDist = Infinity;
+          for (const ball of balls) {
+            if (!ball.active || ball === cue) continue;
+            const dist = clamped.distanceTo(ball.pos);
+            if (dist < minDist) minDist = dist;
+          }
+          if (minDist > bestGap) {
+            bestGap = minDist;
+            best = clamped;
+          }
+        }
+        if (best) {
+          if (bestGap < BALL_R * 2.02) {
+            let nearest = null;
+            let nearestDist = Infinity;
+            for (const ball of balls) {
+              if (!ball.active || ball === cue) continue;
+              const dist = best.distanceTo(ball.pos);
+              if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = ball;
+              }
+            }
+            if (nearest) {
+              const offset = best.clone().sub(nearest.pos);
+              if (offset.lengthSq() < 1e-6) {
+                offset.set(1, 0);
+              }
+              offset.setLength(BALL_R * 2.05);
+              const nudged = clampInHandPosition(
+                nearest.pos.clone().add(offset)
+              );
+              if (nudged && isSpotFree(nudged, 2.02)) {
+                return nudged;
+              }
+            }
+            const searchDirs = [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+              [Math.SQRT1_2, Math.SQRT1_2],
+              [Math.SQRT1_2, -Math.SQRT1_2],
+              [-Math.SQRT1_2, Math.SQRT1_2],
+              [-Math.SQRT1_2, -Math.SQRT1_2]
+            ];
+            const stepSize = BALL_R * 0.45;
+            const maxSteps = 10;
+            for (const [dx, dz] of searchDirs) {
+              for (let stepIdx = 1; stepIdx <= maxSteps; stepIdx++) {
+                TMP_VEC2_A.copy(best);
+                TMP_VEC2_A.x += dx * stepSize * stepIdx;
+                TMP_VEC2_A.y += dz * stepSize * stepIdx;
+                const candidate = clampInHandPosition(TMP_VEC2_A);
+                if (!candidate) continue;
+                if (isSpotFree(candidate, 2.02)) {
+                  return candidate;
+                }
+              }
+            }
+          } else {
+            return best;
+          }
+        }
+        const fallback = allowFullTableInHand()
+          ? defaultInHandPosition()
+          : clampInHandPosition(new THREE.Vector2(0, forwardBias));
+        if (fallback && isSpotFree(fallback, 2.0)) {
+          return fallback;
+        }
+        const baulkCenter = defaultInHandPosition();
+        if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
+          return baulkCenter;
+        }
+        return null;
+      };
       const autoPlaceAiCueBall = () => {
         const currentHud = hudRef.current;
         if (!currentHud) return false;
@@ -15081,7 +15150,7 @@ const powerRef = useRef(hud.power);
       dom.addEventListener('pointercancel', endInHandDrag);
       window.addEventListener('pointercancel', endInHandDrag);
       if (hudRef.current?.inHand) {
-        const startPos = findBestInHandPlacement();
+        const startPos = defaultInHandPosition();
         if (startPos) {
           cue.active = false;
           updateCuePlacement(startPos);
