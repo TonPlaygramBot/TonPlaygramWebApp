@@ -1219,7 +1219,7 @@ const CUE_CLEARANCE_PADDING = BALL_R * 0.05;
 const SPIN_CONTROL_DIAMETER_PX = 96;
 const SPIN_DOT_DIAMETER_PX = 10;
 // angle for cushion cuts guiding balls into corner pockets (trimmed further to widen the entrance)
-const DEFAULT_CUSHION_CUT_ANGLE = 26;
+const DEFAULT_CUSHION_CUT_ANGLE = 38;
 // middle pocket cushion cuts mirror the same trimmed angle for consistent pocket reveals
 const DEFAULT_SIDE_CUSHION_CUT_ANGLE = 29;
 let CUSHION_CUT_ANGLE = DEFAULT_CUSHION_CUT_ANGLE;
@@ -2336,6 +2336,7 @@ const resolveRailMarkerColorOption = (id) =>
 
 const DEFAULT_LIGHTING_ID = 'arena-prime';
 const LIGHTING_STORAGE_KEY = 'poolLightingPreset';
+const LIGHT_INTENSITY_SCALE = 0.96;
 const LIGHTING_OPTIONS = Object.freeze([
   {
     id: 'studio-soft',
@@ -9685,13 +9686,16 @@ const powerRef = useRef(hud.power);
       } = rig;
 
       if (settings.keyColor && key) key.color.set(settings.keyColor);
-      if (settings.keyIntensity && key) key.intensity = settings.keyIntensity;
+      if (typeof settings.keyIntensity === 'number' && key)
+        key.intensity = settings.keyIntensity * LIGHT_INTENSITY_SCALE;
       if (settings.fillColor && fill) fill.color.set(settings.fillColor);
-      if (settings.fillIntensity && fill) fill.intensity = settings.fillIntensity;
+      if (typeof settings.fillIntensity === 'number' && fill)
+        fill.intensity = settings.fillIntensity * LIGHT_INTENSITY_SCALE;
       if (settings.rimColor && rim) rim.color.set(settings.rimColor);
-      if (settings.rimIntensity && rim) rim.intensity = settings.rimIntensity;
-      if (settings.ambientIntensity && ambient)
-        ambient.intensity = settings.ambientIntensity;
+      if (typeof settings.rimIntensity === 'number' && rim)
+        rim.intensity = settings.rimIntensity * LIGHT_INTENSITY_SCALE;
+      if (typeof settings.ambientIntensity === 'number' && ambient)
+        ambient.intensity = settings.ambientIntensity * LIGHT_INTENSITY_SCALE;
     },
     [lightingId]
   );
@@ -16648,6 +16652,16 @@ const powerRef = useRef(hud.power);
         }
         if (metaState && typeof metaState === 'object') {
           const assignments = metaState.assignments || null;
+          const variantBallSet = activeVariantRef.current?.ballSet;
+          const mapAssignmentLabel = (group) => {
+            if (variantBallSet === 'american') {
+              if (group === 'blue' || group === 'yellow') return 'Solids';
+              if (group === 'red') return 'Stripes';
+            }
+            if (group === 'blue') return 'Yellows';
+            if (group === 'red') return 'Reds';
+            return group ? group.charAt(0).toUpperCase() + group.slice(1) : '';
+          };
           if (assignments) {
             ['A', 'B'].forEach((seat) => {
               const nextAssign = assignments[seat] ?? null;
@@ -16659,12 +16673,7 @@ const powerRef = useRef(hud.power);
                     : isOnlineMatch
                       ? opponentDisplayName
                       : 'AI';
-                const assignmentLabel =
-                  nextAssign === 'blue'
-                    ? 'Yellows'
-                    : nextAssign === 'red'
-                      ? 'Reds'
-                      : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
+                const assignmentLabel = mapAssignmentLabel(nextAssign);
                 showRuleToast(`${seatLabel} is ${assignmentLabel}`);
               }
             });
@@ -17826,11 +17835,23 @@ const powerRef = useRef(hud.power);
           }
         }
         // Pocket capture
+        const pocketMarkers = Array.isArray(table?.userData?.pockets)
+          ? table.userData.pockets
+          : [];
         balls.forEach((b) => {
           if (!b.active) return;
           for (let pocketIndex = 0; pocketIndex < centers.length; pocketIndex++) {
-            const c = centers[pocketIndex];
-            if (b.pos.distanceTo(c) < CAPTURE_R) {
+            const marker = pocketMarkers[pocketIndex];
+            const captureCenter = marker
+              ? new THREE.Vector2(marker.position.x, marker.position.z)
+              : centers[pocketIndex];
+            if (!captureCenter) continue;
+            const baseCapture =
+              marker?.userData?.captureRadius ??
+              (pocketIndex >= 4 ? SIDE_CAPTURE_R : CAPTURE_R);
+            const captureRadius =
+              pocketIndex >= 4 ? baseCapture * 1.06 : baseCapture;
+            if (b.pos.distanceTo(captureCenter) < captureRadius) {
               const entrySpeed = b.vel.length();
               const pocketVolume = THREE.MathUtils.clamp(
                 entrySpeed / POCKET_DROP_SPEED_REFERENCE,
@@ -17861,6 +17882,7 @@ const powerRef = useRef(hud.power);
                 POCKET_DROP_MIN_MS,
                 speedFactor
               );
+              const dropCenter = centers[pocketIndex] ?? captureCenter;
               const dropEntry = {
                 start: dropStart,
                 duration: dropDuration,
@@ -17868,8 +17890,8 @@ const powerRef = useRef(hud.power);
                 toY: BALL_CENTER_Y - POCKET_DROP_DEPTH,
                 fromX,
                 fromZ,
-                toX: c.x,
-                toZ: c.y,
+                toX: dropCenter.x,
+                toZ: dropCenter.y,
                 mesh: b.mesh,
                 endScale: POCKET_DROP_SCALE,
                 entrySpeed
@@ -18329,50 +18351,129 @@ const powerRef = useRef(hud.power);
     };
   }, [showPlayerControls, updateSpinDotPosition]);
 
-  const ballSwatches = useMemo(
+  const buildBallPalette = useCallback((hex) => {
+    const baseColor = new THREE.Color(hex);
+    const highlight = baseColor.clone().lerp(new THREE.Color(0xffffff), 0.32);
+    const rim = baseColor.clone().lerp(new THREE.Color(0x000000), 0.18);
+    return {
+      base: baseColor.getStyle(),
+      highlight: highlight.getStyle(),
+      rim: rim.getStyle()
+    };
+  }, []);
+  const ballPalettes = useMemo(
     () => ({
-      RED: '#d12c2c',
-      YELLOW: '#ffd700',
-      BLUE: '#3b82f6',
-      BLACK: '#0b0b0b',
-      GREEN: '#22c55e',
-      BROWN: '#8b5a2b',
-      PINK: '#ff6ca1',
-      STRIPE: '#fef9c3',
-      SOLID: '#e5e7eb',
-      CUE: '#f8fafc'
+      RED: buildBallPalette(UK_POOL_RED),
+      YELLOW: buildBallPalette(UK_POOL_YELLOW),
+      BLUE: buildBallPalette(0x3b82f6),
+      BLACK: buildBallPalette(UK_POOL_BLACK),
+      GREEN: buildBallPalette(0x22c55e),
+      BROWN: buildBallPalette(0x8b5a2b),
+      PINK: buildBallPalette(0xff6ca1),
+      STRIPE: buildBallPalette(0xfef9c3),
+      SOLID: buildBallPalette(0xe5e7eb),
+      CUE: buildBallPalette(0xf8fafc)
     }),
-    []
+    [buildBallPalette]
+  );
+  const resolveBallPalette = useCallback(
+    (colorKey) => {
+      const key = String(colorKey || '').toUpperCase();
+      if (key.startsWith('BALL_')) {
+        const number = Number.parseInt(key.replace('BALL_', ''), 10);
+        const variant = activeVariantRef.current;
+        if (
+          Number.isFinite(number) &&
+          variant?.objectColors?.length
+        ) {
+          const idx = THREE.MathUtils.clamp(
+            number - 1,
+            0,
+            variant.objectColors.length - 1
+          );
+          const colorValue = variant.objectColors[idx];
+          if (typeof colorValue === 'number') {
+            return buildBallPalette(colorValue);
+          }
+        }
+      }
+      if (ballPalettes[key]) return ballPalettes[key];
+      return buildBallPalette('#e5e7eb');
+    },
+    [ballPalettes, buildBallPalette]
   );
   const renderPottedRow = useCallback(
     (entries = []) => {
+      const variant = activeVariantRef.current;
+      const usingUkSolidsStripes =
+        variant?.id === 'uk' && variant?.ballSet === 'american';
       if (!entries.length) {
-        return (
-          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/60">
-            No pots yet
-          </span>
-        );
+        return <div className="flex min-h-[1.5rem] flex-nowrap items-center gap-1" />;
       }
       return (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex min-h-[1.5rem] flex-nowrap items-center gap-1 overflow-x-auto">
           {entries.map((entry, index) => {
             const colorKey = String(entry.color || '').toUpperCase();
-            const colorHex =
-              ballSwatches[colorKey] ??
-              (colorKey.startsWith('BALL_') ? '#f5f5f4' : '#e5e7eb');
-            const label =
-              colorKey.startsWith('BALL_') && colorKey.length > 5
+            const palette = resolveBallPalette(colorKey);
+            const numberMatch = colorKey.startsWith('BALL_')
+              ? Number.parseInt(colorKey.replace('BALL_', ''), 10)
+              : null;
+            let pattern = null;
+            if (numberMatch != null && variant?.objectPatterns?.length) {
+              const idx = THREE.MathUtils.clamp(
+                numberMatch - 1,
+                0,
+                variant.objectPatterns.length - 1
+              );
+              pattern = variant.objectPatterns[idx] || null;
+            }
+            const isStripe =
+              pattern === 'stripe' ||
+              colorKey === 'STRIPE' ||
+              (usingUkSolidsStripes && colorKey === 'RED');
+            const baseColor = palette?.base || '#e5e7eb';
+            const luminanceColor = new THREE.Color(baseColor);
+            const luminance =
+              luminanceColor.r * 0.299 +
+              luminanceColor.g * 0.587 +
+              luminanceColor.b * 0.114;
+            const textColor = luminance < 0.42 ? '#f8fafc' : '#0f172a';
+            let label = '';
+            if (numberMatch != null && !Number.isNaN(numberMatch)) {
+              label = `${numberMatch}`;
+            } else if (colorKey === 'BLACK') {
+              label = '8';
+            } else if (usingUkSolidsStripes) {
+              label = colorKey === 'RED' ? 'ST' : colorKey === 'YELLOW' ? 'S' : colorKey.charAt(0);
+            } else {
+              label = colorKey.startsWith('BALL_')
                 ? colorKey.replace('BALL_', '')
-                : colorKey === 'BLACK'
-                  ? '8'
-                  : colorKey.charAt(0);
-            const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
+                : colorKey.charAt(0);
+            }
+            const titleLabel =
+              usingUkSolidsStripes && (colorKey === 'RED' || colorKey === 'YELLOW')
+                ? colorKey === 'RED'
+                  ? 'Stripe'
+                  : 'Solid'
+                : colorKey;
+            const backgroundLayers = [
+              `radial-gradient(circle at 30% 30%, ${palette?.highlight || '#ffffff'}, ${baseColor})`
+            ];
+            if (isStripe) {
+              backgroundLayers.push(
+                `linear-gradient(90deg, transparent 26%, ${palette?.highlight || '#ffffff'} 26%, ${palette?.highlight || '#ffffff'} 74%, transparent 74%)`
+              );
+            }
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="flex h-5 min-w-[1.5rem] items-center justify-center rounded-full border border-white/40 px-1 text-[10px] font-bold leading-4 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                style={{ backgroundColor: colorHex, color: textColor }}
-                title={`Pocketed ${colorKey}`}
+                className="flex h-7 w-7 flex-none items-center justify-center rounded-full border border-white/40 text-[10px] font-bold leading-4 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                style={{
+                  background: backgroundLayers.join(', '),
+                  color: textColor,
+                  boxShadow: `0 2px 6px rgba(0,0,0,0.45), inset 0 -1px 2px ${palette?.rim || 'rgba(0,0,0,0.25)'}`
+                }}
+                title={`Pocketed ${titleLabel}`}
               >
                 {label}
               </span>
@@ -18381,7 +18482,7 @@ const powerRef = useRef(hud.power);
         </div>
       );
     },
-    [ballSwatches]
+    [resolveBallPalette]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
