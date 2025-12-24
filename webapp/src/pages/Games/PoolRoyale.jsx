@@ -5161,9 +5161,9 @@ function reflectRails(ball) {
   const cornerCos = Math.cos(cornerRad);
   const cornerSin = Math.sin(cornerRad);
   const pocketGuard =
-    POCKET_VIS_R * 0.8 * POCKET_VISUAL_EXPANSION + BALL_R * 0.04; // trim the guard so the pocket mouth matches the visible opening
-  const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.05);
-  const cornerDepthLimit = POCKET_VIS_R * 1.5 * POCKET_VISUAL_EXPANSION;
+    POCKET_VIS_R * 0.88 * POCKET_VISUAL_EXPANSION + BALL_R * 0.08; // widen the safe zone so balls don't bounce before reaching the jaw
+  const guardClearance = Math.max(0, pocketGuard - BALL_R * 0.1);
+  const cornerDepthLimit = POCKET_VIS_R * 1.75 * POCKET_VISUAL_EXPANSION;
   for (const { sx, sy } of CORNER_SIGNS) {
     TMP_VEC2_C.set(sx * limX, sy * limY);
     TMP_VEC2_B.set(-sx * cornerCos, -sy * cornerSin);
@@ -5200,11 +5200,11 @@ function reflectRails(ball) {
     return 'corner';
   }
 
-  const sideSpan = SIDE_POCKET_RADIUS * 0.9 + BALL_R * 0.42; // tighten the middle pocket guard so bounces mirror the corner flow
+  const sideSpan = SIDE_POCKET_RADIUS * 0.92 + BALL_R * 0.55; // tighten the middle pocket guard so bounces mirror the corner flow
   const sidePocketGuard =
-    SIDE_POCKET_RADIUS * 0.8 * POCKET_VISUAL_EXPANSION + BALL_R * 0.04; // soften the capture window around middle jaws
-  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.06);
-  const sideDepthLimit = POCKET_VIS_R * 1.42 * POCKET_VISUAL_EXPANSION;
+    SIDE_POCKET_RADIUS * 0.86 * POCKET_VISUAL_EXPANSION + BALL_R * 0.06; // soften the capture window around middle jaws
+  const sideGuardClearance = Math.max(0, sidePocketGuard - BALL_R * 0.12);
+  const sideDepthLimit = POCKET_VIS_R * 1.58 * POCKET_VISUAL_EXPANSION;
   const sideRad = THREE.MathUtils.degToRad(SIDE_CUSHION_CUT_ANGLE);
   const sideCos = Math.cos(sideRad);
   const sideSin = Math.sin(sideRad);
@@ -5248,7 +5248,7 @@ function reflectRails(ball) {
   }
 
   // If the ball is entering a pocket capture zone, skip straight rail reflections
-  const nearPocketRadius = POCKET_VIS_R + BALL_R * 0.14;
+  const nearPocketRadius = POCKET_VIS_R + BALL_R * 0.25;
   const nearPocket = pocketCenters().some(
     (c) => ball.pos.distanceTo(c) < nearPocketRadius
   );
@@ -6278,30 +6278,28 @@ function Table3D(
     textureSize: orientedRailSurface.textureSize,
     woodRepeatScale
   });
-  if (PLYWOOD_THICKNESS > MICRO_EPS) {
-    finishParts.underlayMeshes.forEach((mesh) => {
-      if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-      const underlaySurface =
-        mesh.userData?.baseMaterialKey === 'frame' ? initialFrameSurface : orientedRailSurface;
-      applyWoodTextureToMaterial(mesh.material, {
-        repeat: new THREE.Vector2(
-          underlaySurface.repeat.x,
-          underlaySurface.repeat.y
-        ),
-        rotation: underlaySurface.rotation,
-        textureSize: underlaySurface.textureSize,
-        woodRepeatScale
-      });
-      mesh.material.needsUpdate = true;
+  finishParts.underlayMeshes.forEach((mesh) => {
+    if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
+    const underlaySurface =
+      mesh.userData?.baseMaterialKey === 'frame' ? initialFrameSurface : orientedRailSurface;
+    applyWoodTextureToMaterial(mesh.material, {
+      repeat: new THREE.Vector2(
+        underlaySurface.repeat.x,
+        underlaySurface.repeat.y
+      ),
+      rotation: underlaySurface.rotation,
+      textureSize: underlaySurface.textureSize,
+      woodRepeatScale
     });
-  }
+    mesh.material.needsUpdate = true;
+  });
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(orientedRailSurface);
   const CUSHION_RAIL_FLUSH = -TABLE.THICK * 0.02; // push the cushions further outward so they meet the wooden rails without a gap
   const CUSHION_SHORT_RAIL_CENTER_NUDGE = 0; // pull the short rail cushions tight so they meet the wood with no visible gap
   const CUSHION_LONG_RAIL_CENTER_NUDGE = TABLE.THICK * 0.012; // keep a subtle setback along the long rails to prevent overlap
-  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.24; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
-  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.18; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
-  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.052; // press the side cushions firmly into the rails without creating overlap
+  const CUSHION_CORNER_CLEARANCE_REDUCTION = TABLE.THICK * 0.18; // shorten the corner cushions slightly so the noses stay clear of the pocket openings
+  const SIDE_CUSHION_POCKET_REACH_REDUCTION = TABLE.THICK * 0.14; // trim the cushion tips near middle pockets slightly further while keeping their cut angle intact
+  const SIDE_CUSHION_RAIL_REACH = TABLE.THICK * 0.042; // press the side cushions firmly into the rails without creating overlap
   const SIDE_CUSHION_CORNER_SHIFT = BALL_R * 0.18; // slide the side cushions toward the middle pockets so each cushion end lines up flush with the pocket jaws
   const SHORT_CUSHION_HEIGHT_SCALE = 1; // keep short rail cushions flush with the new trimmed cushion profile
   const railsGroup = new THREE.Group();
@@ -8084,17 +8082,15 @@ function Table3D(
 
   applyWoodTextureToMaterial(railMat, alignedRailSurface);
 
-  if (PLYWOOD_THICKNESS > MICRO_EPS) {
-    finishParts.underlayMeshes.forEach((mesh) => {
-      if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
-      const underlaySurface =
-        mesh.userData?.baseMaterialKey === 'frame'
-          ? synchronizedWoodSurface
-          : alignedRailSurface;
-      applyWoodTextureToMaterial(mesh.material, underlaySurface);
-      mesh.material.needsUpdate = true;
-    });
-  }
+  finishParts.underlayMeshes.forEach((mesh) => {
+    if (!mesh?.material || mesh.userData?.skipWoodTexture) return;
+    const underlaySurface =
+      mesh.userData?.baseMaterialKey === 'frame'
+        ? synchronizedWoodSurface
+        : alignedRailSurface;
+    applyWoodTextureToMaterial(mesh.material, underlaySurface);
+    mesh.material.needsUpdate = true;
+  });
 
   finishParts.woodSurfaces.rail = cloneWoodSurfaceConfig(alignedRailSurface);
   [...finishParts.railMeshes, ...finishParts.frameMeshes].forEach((mesh) => {
@@ -8304,28 +8300,26 @@ function applyTableFinishToTable(table, finish) {
 
     applyWoodTextureToMaterial(railMat, synchronizedRailSurface);
     applyWoodTextureToMaterial(frameMat, synchronizedFrameSurface);
-    if (PLYWOOD_THICKNESS > MICRO_EPS) {
-      finishInfo.parts.underlayMeshes.forEach((mesh) => {
-        if (!mesh) return;
-        const baseMaterialKey = mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
-        const sourceMaterial = baseMaterialKey === 'frame' ? frameMat : railMat;
-        if (sourceMaterial) {
-          const nextMaterial = sourceMaterial.clone();
-          nextMaterial.side = mesh.material?.side ?? THREE.DoubleSide;
-          nextMaterial.shadowSide = mesh.material?.shadowSide ?? THREE.DoubleSide;
-          disposeMaterial(mesh.material);
-          mesh.material = nextMaterial;
-        }
-        if (!mesh.material || mesh.userData?.skipWoodTexture) return;
-        const underlaySurface =
-          baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
-        applyWoodTextureToMaterial(mesh.material, underlaySurface);
-        if (mesh.material.color && sourceMaterial?.color) {
-          mesh.material.color.copy(sourceMaterial.color);
-        }
-        mesh.material.needsUpdate = true;
-      });
-    }
+    finishInfo.parts.underlayMeshes.forEach((mesh) => {
+      if (!mesh) return;
+      const baseMaterialKey = mesh.userData?.baseMaterialKey === 'frame' ? 'frame' : 'rail';
+      const sourceMaterial = baseMaterialKey === 'frame' ? frameMat : railMat;
+      if (sourceMaterial) {
+        const nextMaterial = sourceMaterial.clone();
+        nextMaterial.side = mesh.material?.side ?? THREE.DoubleSide;
+        nextMaterial.shadowSide = mesh.material?.shadowSide ?? THREE.DoubleSide;
+        disposeMaterial(mesh.material);
+        mesh.material = nextMaterial;
+      }
+      if (!mesh.material || mesh.userData?.skipWoodTexture) return;
+      const underlaySurface =
+        baseMaterialKey === 'frame' ? synchronizedFrameSurface : synchronizedRailSurface;
+      applyWoodTextureToMaterial(mesh.material, underlaySurface);
+      if (mesh.material.color && sourceMaterial?.color) {
+        mesh.material.color.copy(sourceMaterial.color);
+      }
+      mesh.material.needsUpdate = true;
+    });
     if (legMat !== frameMat) {
       applyWoodTextureToMaterial(legMat, synchronizedFrameSurface);
     }
@@ -8338,15 +8332,13 @@ function applyTableFinishToTable(table, finish) {
     stripWoodTextures(railMat);
     stripWoodTextures(frameMat);
     stripWoodTextures(legMat);
-    if (PLYWOOD_THICKNESS > MICRO_EPS) {
-      finishInfo.parts.underlayMeshes.forEach((mesh) => {
-        if (!mesh?.material) return;
-        stripWoodTextures(mesh.material);
-        if (mesh.material.color && railMat.color) {
-          mesh.material.color.copy(railMat.color);
-        }
-      });
-    }
+    finishInfo.parts.underlayMeshes.forEach((mesh) => {
+      if (!mesh?.material) return;
+      stripWoodTextures(mesh.material);
+      if (mesh.material.color && railMat.color) {
+        mesh.material.color.copy(railMat.color);
+      }
+    });
     woodSurfaces.rail = null;
     woodSurfaces.frame = null;
     finishInfo.woodTextureId = null;
@@ -8426,19 +8418,17 @@ function applyTableFinishToTable(table, finish) {
     finishInfo.clothEdgeMat.reflectivity = 0;
     finishInfo.clothEdgeMat.needsUpdate = true;
   }
-  if (PLYWOOD_THICKNESS > MICRO_EPS) {
-    finishInfo.parts.underlayMeshes.forEach((mesh) => {
-      if (!mesh?.material) return;
-      const mat = mesh.material;
-      if (mat.color) {
-        mat.color.copy(clothColor);
-      }
-      if (mat.emissive) {
-        mat.emissive.copy(emissiveColor);
-      }
-      mat.needsUpdate = true;
-    });
-  }
+  finishInfo.parts.underlayMeshes.forEach((mesh) => {
+    if (!mesh?.material) return;
+    const mat = mesh.material;
+    if (mat.color) {
+      mat.color.copy(clothColor);
+    }
+    if (mat.emissive) {
+      mat.emissive.copy(emissiveColor);
+    }
+    mat.needsUpdate = true;
+  });
   if (typeof finishInfo.applyClothDetail === 'function') {
     finishInfo.applyClothDetail(resolvedFinish?.clothDetail ?? null);
   }
@@ -16674,27 +16664,7 @@ const powerRef = useRef(hud.power);
         const metaState =
           safeState && typeof safeState.meta === 'object' ? safeState.meta.state : null;
         if (safeState?.foul) {
-          const shooterLabel =
-            shooterSeat === localSeatRef.current
-              ? player.name || 'You'
-              : isOnlineMatch
-                ? opponentDisplayName
-                : 'AI';
-          const foulReason =
-            typeof safeState.foul.reason === 'string' && safeState.foul.reason.trim().length
-              ? safeState.foul.reason.trim()
-              : '';
-          const foulActor =
-            shooterLabel === 'You' || shooterLabel === 'Player'
-              ? 'You committed'
-              : `${shooterLabel} committed`;
-          const formattedReason = foulReason
-            ? foulReason.charAt(0).toUpperCase() + foulReason.slice(1)
-            : '';
-          const foulMessage = formattedReason
-            ? `${foulActor} a foul (${formattedReason}).`
-            : `${foulActor} a foul.`;
-          showRuleToast(foulMessage);
+          showRuleToast('Foul');
         }
         if (metaState && typeof metaState === 'object') {
           const assignments = metaState.assignments || null;
@@ -16703,9 +16673,8 @@ const powerRef = useRef(hud.power);
               const nextAssign = assignments[seat] ?? null;
               const prevAssign = lastAssignmentsRef.current?.[seat] ?? null;
               if (nextAssign && nextAssign !== prevAssign) {
-                const isLocalSeat = seat === localSeatRef.current;
                 const seatLabel =
-                  isLocalSeat
+                  seat === localSeatRef.current
                     ? player.name || 'You'
                     : isOnlineMatch
                       ? opponentDisplayName
@@ -16716,9 +16685,7 @@ const powerRef = useRef(hud.power);
                     : nextAssign === 'red'
                       ? 'Reds'
                       : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
-                const assignmentVerb =
-                  isLocalSeat && (!player.name || player.name === 'You') ? 'are' : 'is';
-                showRuleToast(`${seatLabel} ${assignmentVerb} ${assignmentLabel}`);
+                showRuleToast(`${seatLabel} is ${assignmentLabel}`);
               }
             });
             lastAssignmentsRef.current = {
@@ -16736,8 +16703,7 @@ const powerRef = useRef(hud.power);
                   : isOnlineMatch
                     ? opponentDisplayName
                     : 'AI';
-              const verb = shooterLabel === 'You' ? 'have' : 'has';
-              showRuleToast(`${shooterLabel} ${verb} ${remainingShots} shots`);
+              showRuleToast(`${shooterLabel} has ${remainingShots} shots`);
               lastShotReminderRef.current[shotsForPlayer] = remainingShots;
             }
           } else if (shotsForPlayer) {
@@ -18435,140 +18401,6 @@ const powerRef = useRef(hud.power);
     const b = Math.max(0, Math.min(255, Math.round((num & 0xff) * factor)));
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
   }, []);
-  const lightenHex = useCallback((hex, amount = 0.22) => {
-    const normalized = hex.startsWith('#') ? hex.slice(1) : hex;
-    const num = parseInt(normalized, 16);
-    if (Number.isNaN(num) || normalized.length > 6) return hex;
-    const lift = (channel) =>
-      Math.max(0, Math.min(255, Math.round(channel + (255 - channel) * amount)));
-    const r = lift((num >> 16) & 0xff);
-    const g = lift((num >> 8) & 0xff);
-    const b = lift(num & 0xff);
-    return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
-  }, []);
-  const ballIconCacheRef = useRef(new Map());
-  const createBallIcon = useCallback(
-    ({ color, pattern, number }) => {
-      if (!color) return '';
-      const normalized = color.startsWith('#') ? color : `#${color}`;
-      const key = `${pattern}|${number ?? 'none'}|${normalized}`;
-      if (ballIconCacheRef.current.has(key)) {
-        return ballIconCacheRef.current.get(key);
-      }
-      if (typeof document === 'undefined') return '';
-      const canvas = document.createElement('canvas');
-      const size = 96;
-      canvas.width = canvas.height = size;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return '';
-      const radius = size * 0.46;
-      const cx = size / 2;
-      const cy = size / 2;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-
-      if (pattern === 'stripe') {
-        ctx.fillStyle = '#f8fafc';
-        ctx.fillRect(0, 0, size, size);
-        ctx.fillStyle = normalized;
-        const stripeHeight = size * 0.44;
-        const stripeY = (size - stripeHeight) / 2;
-        ctx.fillRect(0, stripeY, size, stripeHeight);
-      } else {
-        const radial = ctx.createRadialGradient(
-          cx - radius * 0.28,
-          cy - radius * 0.28,
-          radius * 0.08,
-          cx,
-          cy,
-          radius
-        );
-        radial.addColorStop(0, lightenHex(normalized, 0.34));
-        radial.addColorStop(0.5, normalized);
-        radial.addColorStop(1, darkenHex(normalized, 0.76));
-        ctx.fillStyle = radial;
-        ctx.fillRect(0, 0, size, size);
-      }
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'multiply';
-      const rimShade = ctx.createRadialGradient(
-        cx + radius * 0.2,
-        cy + radius * 0.2,
-        radius * 0.1,
-        cx + radius * 0.2,
-        cy + radius * 0.2,
-        radius
-      );
-      rimShade.addColorStop(0, 'rgba(0,0,0,0)');
-      rimShade.addColorStop(1, 'rgba(0,0,0,0.22)');
-      ctx.fillStyle = rimShade;
-      ctx.fillRect(0, 0, size, size);
-      ctx.restore();
-
-      if (pattern === 'stripe') {
-        ctx.lineWidth = size * 0.024;
-        ctx.strokeStyle = '#00000022';
-        const stripeHeight = size * 0.44;
-        const stripeY = (size - stripeHeight) / 2;
-        ctx.beginPath();
-        ctx.moveTo(0, stripeY);
-        ctx.lineTo(size, stripeY);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, stripeY + stripeHeight);
-        ctx.lineTo(size, stripeY + stripeHeight);
-        ctx.stroke();
-      }
-
-      ctx.save();
-      ctx.globalCompositeOperation = 'screen';
-      const highlight = ctx.createRadialGradient(
-        cx - radius * 0.2,
-        cy - radius * 0.24,
-        radius * 0.05,
-        cx - radius * 0.2,
-        cy - radius * 0.24,
-        radius * 0.4
-      );
-      highlight.addColorStop(0, 'rgba(255,255,255,0.9)');
-      highlight.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = highlight;
-      ctx.fillRect(0, 0, size, size);
-      ctx.restore();
-
-      if (Number.isFinite(number)) {
-        const badgeR = size * 0.11;
-        const badgeStretch = 1.26;
-        ctx.fillStyle = '#f8fafc';
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, badgeR, badgeR * badgeStretch, 0, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.lineWidth = size * 0.018;
-        ctx.strokeStyle = '#0f172a';
-        ctx.stroke();
-        ctx.save();
-        ctx.translate(cx, cy + size * 0.002);
-        ctx.scale(1, badgeStretch);
-        ctx.fillStyle = '#0f172a';
-        ctx.font = `800 ${number >= 10 ? size * 0.18 : size * 0.2}px "Inter", "Arial", sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(number), 0, 0);
-        ctx.restore();
-      }
-
-      const dataUrl = canvas.toDataURL('image/png');
-      ballIconCacheRef.current.set(key, dataUrl);
-      return dataUrl;
-    },
-    [darkenHex, lightenHex]
-  );
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
@@ -18577,7 +18409,7 @@ const powerRef = useRef(hud.power);
             {Array.from({ length: 4 }).map((_, idx) => (
               <span
                 key={`ghost-${idx}`}
-                className="h-5 w-5 flex-shrink-0 rounded-full border border-white/20 bg-white/10 shadow-inner"
+                className="h-6 w-6 flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner"
               />
             ))}
           </div>
@@ -18612,23 +18444,11 @@ const powerRef = useRef(hud.power);
                 ? ballNumber
                 : colorKey === 'BLACK'
                   ? '8'
-                : isStripe
-                  ? 'ST'
-                  : isSolid
-                    ? 'SO'
-                    : colorKey.charAt(0);
-            const pattern = isStripe ? 'stripe' : 'solid';
-            const displayNumber =
-              ballNumber != null
-                ? ballNumber
-                : colorKey === 'BLACK'
-                  ? 8
-                  : null;
-            const iconSrc = createBallIcon({
-              color: colorHex,
-              pattern,
-              number: displayNumber
-            });
+                  : isStripe
+                    ? 'ST'
+                    : isSolid
+                      ? 'SO'
+                      : colorKey.charAt(0);
             const textColor = colorKey === 'BLACK' ? '#f8fafc' : '#0f172a';
             const shade = darkenHex(colorHex, 0.6);
             const gloss = isStripe
@@ -18638,39 +18458,18 @@ const powerRef = useRef(hud.power);
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="relative flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/30 bg-white/5 shadow-[0_1px_4px_rgba(0,0,0,0.35)]"
+                className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white/40 text-[10px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                style={{ background, color: textColor }}
                 title={`Pocketed ${label}`}
               >
-                {iconSrc ? (
-                  <img
-                    src={iconSrc}
-                    alt={`Pocketed ${label}`}
-                    className="absolute inset-0 h-full w-full object-cover"
-                    draggable={false}
-                  />
-                ) : (
-                  <span
-                    className="absolute inset-0"
-                    style={{ background }}
-                    aria-hidden="true"
-                  />
-                )}
-                {!iconSrc && (
-                  <span
-                    className="relative z-10 text-[9px] font-bold leading-none drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]"
-                    style={{ color: textColor }}
-                  >
-                    {label}
-                  </span>
-                )}
-                <span className="sr-only">{`Pocketed ${label}`}</span>
+                <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{label}</span>
               </span>
             );
           })}
         </div>
       );
     },
-    [americanBallSwatches, ballSwatches, createBallIcon, darkenHex, isUkAmericanSet]
+    [americanBallSwatches, ballSwatches, darkenHex, isUkAmericanSet]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';
