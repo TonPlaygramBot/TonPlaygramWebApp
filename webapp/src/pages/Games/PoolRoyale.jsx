@@ -9841,8 +9841,6 @@ const powerRef = useRef(hud.power);
   const captureBallSnapshotRef = useRef(null);
   const applyBallSnapshotRef = useRef(null);
   const pendingLayoutRef = useRef(null);
-  const liveLayoutBroadcastRef = useRef({ lastSentAt: 0 });
-  const liveLayoutBroadcastRef = useRef({ lastSentAt: 0 });
   const audioContextRef = useRef(null);
   const audioBuffersRef = useRef({
     cue: null,
@@ -9856,7 +9854,6 @@ const powerRef = useRef(hud.power);
   const muteRef = useRef(isGameMuted());
   const volumeRef = useRef(getGameVolume());
   const railSoundTimeRef = useRef(new Map());
-  const liveBroadcastFnRef = useRef(() => {});
   const [player, setPlayer] = useState({ name: '', avatar: '' });
   const playerInfoRef = useRef(player);
   useEffect(() => {
@@ -10219,69 +10216,23 @@ const powerRef = useRef(hud.power);
     window.setTimeout(goToLobby, 1200);
   }, [frameState.frameOver, frameState.winner, goToLobby, isTraining]);
 
-  const applyLayoutSnapshot = useCallback((layout) => {
-    if (!Array.isArray(layout)) return;
-    const applySnapshot = applyBallSnapshotRef.current;
-    if (applySnapshot) {
-      applySnapshot(layout);
-    } else {
-      pendingLayoutRef.current = layout;
+  const applyRemoteState = useCallback(({ state, hud: incomingHud, layout }) => {
+    if (!state) return;
+    frameRef.current = state;
+    setFrameState(state);
+    setTurnCycle((value) => value + 1);
+    if (incomingHud) {
+      setHud((prev) => ({ ...prev, ...incomingHud }));
+    }
+    if (Array.isArray(layout)) {
+      const applySnapshot = applyBallSnapshotRef.current;
+      if (applySnapshot) {
+        applySnapshot(layout);
+      } else {
+        pendingLayoutRef.current = layout;
+      }
     }
   }, []);
-
-  const applyRemoteFrame = useCallback(
-    ({ state, hud: incomingHud, layout }) => {
-      if (state) {
-        frameRef.current = state;
-      }
-      if (incomingHud) {
-        hudRef.current = { ...hudRef.current, ...incomingHud };
-        setHud((prev) => ({ ...prev, ...incomingHud }));
-      }
-      applyLayoutSnapshot(layout);
-    },
-    [applyLayoutSnapshot]
-  );
-
-  const applyRemoteState = useCallback(
-    ({ state, hud: incomingHud, layout }) => {
-      if (!state) return;
-      frameRef.current = state;
-      setFrameState(state);
-      setTurnCycle((value) => value + 1);
-      if (incomingHud) {
-        setHud((prev) => ({ ...prev, ...incomingHud }));
-      }
-      applyLayoutSnapshot(layout);
-    },
-    [applyLayoutSnapshot]
-  );
-
-  const broadcastLiveLayout = useCallback(() => {
-    if (!isOnlineMatch || !tableId) return;
-    const captureLayout = captureBallSnapshotRef.current;
-    if (typeof captureLayout !== 'function') return;
-    const now = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-    const targetMs = Number.isFinite(frameTimingRef.current?.targetMs)
-      ? frameTimingRef.current.targetMs
-      : 1000 / 60;
-    const minInterval = Math.max(4, targetMs);
-    if (now - (liveLayoutBroadcastRef.current.lastSentAt || 0) < minInterval) {
-      return;
-    }
-    const layout = captureLayout();
-    if (!Array.isArray(layout) || layout.length === 0) return;
-    liveLayoutBroadcastRef.current.lastSentAt = now;
-    socket.emit('poolFrame', {
-      tableId,
-      layout,
-      hud: hudRef.current || null
-    });
-  }, [isOnlineMatch, tableId]);
-
-  useEffect(() => {
-    liveBroadcastFnRef.current = broadcastLiveLayout;
-  }, [broadcastLiveLayout]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return undefined;
@@ -10289,22 +10240,16 @@ const powerRef = useRef(hud.power);
       if (payload.tableId && payload.tableId !== tableId) return;
       applyRemoteState({ state: payload.state, hud: payload.hud, layout: payload.layout });
     };
-    const handlePoolFrame = (payload = {}) => {
-      if (payload.tableId && payload.tableId !== tableId) return;
-      applyRemoteFrame({ state: payload.state, hud: payload.hud, layout: payload.layout });
-    };
 
     socket.emit('register', { playerId: accountId });
     socket.emit('joinPoolTable', { tableId, accountId });
     socket.emit('poolSyncRequest', { tableId });
     socket.on('poolState', handlePoolState);
-    socket.on('poolFrame', handlePoolFrame);
 
     return () => {
       socket.off('poolState', handlePoolState);
-      socket.off('poolFrame', handlePoolFrame);
     };
-  }, [accountId, applyRemoteFrame, applyRemoteState, isOnlineMatch, tableId]);
+  }, [accountId, applyRemoteState, isOnlineMatch, tableId]);
 
   useEffect(() => {
     if (!isOnlineMatch || !tableId) return;
@@ -18273,9 +18218,6 @@ const powerRef = useRef(hud.power);
           }
           const frameCamera = updateCamera();
           renderer.render(scene, frameCamera ?? camera);
-          if (isOnlineMatch && tableId && typeof liveBroadcastFnRef.current === 'function') {
-            liveBroadcastFnRef.current();
-          }
           if (!disposed) {
             rafRef.current = requestAnimationFrame(step);
           }
@@ -18322,7 +18264,6 @@ const powerRef = useRef(hud.power);
           captureBallSnapshotRef.current = null;
           applyBallSnapshotRef.current = null;
           pendingLayoutRef.current = null;
-          liveLayoutBroadcastRef.current.lastSentAt = 0;
           lightingRigRef.current = null;
           worldRef.current = null;
           activeRenderCameraRef.current = null;

@@ -1145,32 +1145,6 @@ io.on('connection', (socket) => {
     socket.to(tableId).emit('poolState', payload);
   });
 
-  socket.on('poolFrame', ({ tableId, state, hud, layout }) => {
-    if (!tableId || !Array.isArray(layout)) return;
-    const existing = poolStates.get(tableId) || {
-      state: null,
-      hud: null,
-      layout: null,
-      ts: 0
-    };
-    const nextState = state || existing.state;
-    const nextHud = hud || existing.hud;
-    const payload = {
-      tableId,
-      state: nextState,
-      hud: nextHud,
-      layout,
-      updatedAt: Date.now()
-    };
-    poolStates.set(tableId, {
-      state: nextState,
-      hud: nextHud,
-      layout,
-      ts: payload.updatedAt
-    });
-    socket.to(tableId).emit('poolFrame', payload);
-  });
-
   socket.on('chessMove', ({ tableId, move }) => {
     if (!tableId || !move) return;
     const next = updateChessState(tableId, {
