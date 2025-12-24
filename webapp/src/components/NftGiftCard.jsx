@@ -6,6 +6,7 @@ import GiftIcon from './GiftIcon.jsx';
 import GiftShopPopup from './GiftShopPopup.jsx';
 import InfoPopup from './InfoPopup.jsx';
 import ConfirmPopup from './ConfirmPopup.jsx';
+import { loadGoogleProfile } from '../utils/google.js';
 
 export default function NftGiftCard({ accountId: propAccountId }) {
   const [accountId, setAccountId] = useState(propAccountId || '');
@@ -23,7 +24,7 @@ export default function NftGiftCard({ accountId: propAccountId }) {
         try {
           const acc = await createAccount(
             getTelegramId(),
-            localStorage.getItem('googleId')
+            loadGoogleProfile()
           );
           if (acc?.accountId) {
             id = acc.accountId;

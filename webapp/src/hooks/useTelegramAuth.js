@@ -1,9 +1,22 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { socket } from '../utils/socket.js';
 import { createAccount } from '../utils/api.js';
 import { ensureAccountId } from '../utils/telegram.js';
+import { loadGoogleProfile } from '../utils/google.js';
 
 export default function useTelegramAuth() {
+  const [googleProfile, setGoogleProfile] = useState(() => loadGoogleProfile());
+
+  useEffect(() => {
+    const refresh = () => setGoogleProfile(loadGoogleProfile());
+    window.addEventListener('googleProfileUpdated', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('googleProfileUpdated', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, []);
+
   useEffect(() => {
     const user = window?.Telegram?.WebApp?.initDataUnsafe?.user;
     const acc = localStorage.getItem('accountId');
@@ -17,9 +30,8 @@ export default function useTelegramAuth() {
       (async () => {
         const accountId = acc || (await ensureAccountId());
         socket.emit('register', { playerId: accountId });
-        const googleId = localStorage.getItem('googleId');
         try {
-          const res = await createAccount(undefined, googleId);
+          const res = await createAccount(undefined, googleProfile);
           if (res?.accountId) {
             localStorage.setItem('accountId', res.accountId);
           }
@@ -43,5 +55,5 @@ export default function useTelegramAuth() {
     if (user) {
       localStorage.setItem('telegramUserData', JSON.stringify(user));
     }
-  }, []);
+  }, [googleProfile?.id]);
 }

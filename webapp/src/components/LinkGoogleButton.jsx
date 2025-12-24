@@ -1,26 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createAccount } from '../utils/api.js';
 import { linkGoogleAccount } from '../utils/api.js';
+import { decodeGoogleCredential, storeGoogleProfile } from '../utils/google.js';
 
-export default function LinkGoogleButton({ telegramId, onLinked }) {
+export default function LinkGoogleButton({
+  telegramId,
+  onLinked,
+  onAuthenticated,
+  label = 'Link Google'
+}) {
   const [ready, setReady] = useState(false);
   const initialized = useRef(false);
 
   useEffect(() => {
     function handleCredential(res) {
       try {
-        const data = JSON.parse(atob(res.credential.split('.')[1]));
-        if (!data.sub) return;
-        localStorage.setItem('googleId', data.sub);
-        linkGoogleAccount({
-          telegramId,
-          googleId: data.sub,
-          email: data.email,
-          firstName: data.given_name,
-          lastName: data.family_name,
-          photo: data.picture
-        }).then(() => {
-          if (onLinked) onLinked();
-        });
+        const profile = decodeGoogleCredential(res?.credential);
+        if (!profile?.id) return;
+        storeGoogleProfile(profile);
+        if (telegramId) {
+          linkGoogleAccount({
+            telegramId,
+            googleId: profile.id,
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            photo: profile.photo
+          }).then(() => {
+            if (onLinked) onLinked();
+            if (onAuthenticated) onAuthenticated(profile);
+          });
+        } else {
+          // Standalone Chrome flow: create or attach account with Google profile
+          createAccount(undefined, profile).finally(() => {
+            if (onAuthenticated) onAuthenticated(profile);
+          });
+        }
       } catch (err) {
         console.error('Failed to link Google account', err);
       }
@@ -50,7 +65,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       }, 500);
       return () => clearInterval(id);
     }
-  }, [telegramId, onLinked]);
+  }, [telegramId, onLinked, onAuthenticated]);
 
   function handleClick() {
     if (window.google && initialized.current) {
@@ -65,7 +80,7 @@ export default function LinkGoogleButton({ telegramId, onLinked }) {
       disabled={!ready}
       className="px-3 py-1 bg-white text-black rounded disabled:opacity-50"
     >
-      Link Google
+      {label}
     </button>
   );
 }

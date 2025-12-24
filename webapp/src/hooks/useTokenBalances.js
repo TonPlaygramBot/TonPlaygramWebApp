@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { createAccount, getAccountBalance, getTonBalance } from '../utils/api.js';
 import { getTelegramId } from '../utils/telegram.js';
 import { useTonAddress } from '@tonconnect/ui-react';
+import { loadGoogleProfile } from '../utils/google.js';
 
 export default function useTokenBalances() {
   let telegramId;
@@ -10,7 +11,7 @@ export default function useTokenBalances() {
   } catch (err) {
     telegramId = undefined;
   }
-  const googleId = telegramId ? null : localStorage.getItem('googleId');
+  const [googleProfile, setGoogleProfile] = useState(() => (telegramId ? null : loadGoogleProfile()));
 
   const [tpcBalance, setTpcBalance] = useState(null);
   const [tonBalance, setTonBalance] = useState(null);
@@ -20,9 +21,9 @@ export default function useTokenBalances() {
 
   useEffect(() => {
     async function loadTpc() {
-      if (!telegramId && !googleId) return;
+      if (!telegramId && !googleProfile?.id) return;
       try {
-        const acc = await createAccount(telegramId, googleId);
+        const acc = await createAccount(telegramId, googleProfile);
         if (acc?.error) throw new Error(acc.error);
         if (acc.walletAddress) {
           localStorage.setItem('walletAddress', acc.walletAddress);
@@ -36,6 +37,17 @@ export default function useTokenBalances() {
       }
     }
     loadTpc();
+  }, [telegramId, googleProfile?.id]);
+
+  useEffect(() => {
+    if (telegramId) return undefined;
+    const refresh = () => setGoogleProfile(loadGoogleProfile());
+    window.addEventListener('googleProfileUpdated', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('googleProfileUpdated', refresh);
+      window.removeEventListener('storage', refresh);
+    };
   }, [telegramId]);
 
   useEffect(() => {
