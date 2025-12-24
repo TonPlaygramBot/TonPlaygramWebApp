@@ -1655,9 +1655,9 @@ const BASE_BALL_COLORS = Object.freeze({
   pink: 0xff7fc3,
   black: 0x111111
 });
-const CLOTH_TEXTURE_INTENSITY = 0.82;
-const CLOTH_HAIR_INTENSITY = 1.1;
-const CLOTH_BUMP_INTENSITY = 1.28;
+const CLOTH_TEXTURE_INTENSITY = 0.74;
+const CLOTH_HAIR_INTENSITY = 0.7;
+const CLOTH_BUMP_INTENSITY = 0.94;
 const CLOTH_SOFT_BLEND = 0.42;
 
 const CLOTH_QUALITY = (() => {
@@ -2865,11 +2865,8 @@ const ORIGINAL_OUTER_HALF_H =
   ORIGINAL_HALF_H + ORIGINAL_RAIL_WIDTH * 2 + ORIGINAL_FRAME_WIDTH;
 
 const CLOTH_TEXTURE_SIZE = CLOTH_QUALITY.textureSize;
-const CLOTH_THREAD_PITCH = 12 * 1.32 * 3; // triple the thread spacing so the weave reads much larger and coarser
+const CLOTH_THREAD_PITCH = 12 * 1.32; // widen thread spacing (~10% more) for a coarser weave
 const CLOTH_THREADS_PER_TILE = CLOTH_TEXTURE_SIZE / CLOTH_THREAD_PITCH;
-const CLOTH_THREAD_PROFILE_POWER = 0.62; // soften thread falloff to make each strand visibly thicker
-const CLOTH_WEAVE_POWER = 1.24; // lower weave power to keep fibres broad and woolly
-const CLOTH_WOOL_FRAY_POWER = 0.82; // relax cross/diamond shaping to add fuzzy wool fray
 
 const createClothTextures = (() => {
   const cache = new Map();
@@ -2974,11 +2971,11 @@ const createClothTextures = (() => {
       for (let x = 0; x < SIZE; x++) {
         const u = ((x * COS + y * SIN) / THREAD_PITCH) * TAU;
         const v = ((x * COS - y * SIN) / THREAD_PITCH) * TAU;
-        const warp = Math.pow(0.5 + 0.5 * Math.cos(u), CLOTH_THREAD_PROFILE_POWER);
-        const weft = Math.pow(0.5 + 0.5 * Math.cos(v), CLOTH_THREAD_PROFILE_POWER);
-        const weave = Math.pow((warp + weft) * 0.5, CLOTH_WEAVE_POWER);
-        const cross = Math.pow(warp * weft, 0.9 * CLOTH_WOOL_FRAY_POWER);
-        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.6 * CLOTH_WOOL_FRAY_POWER);
+        const warp = 0.5 + 0.5 * Math.cos(u);
+        const weft = 0.5 + 0.5 * Math.cos(v);
+        const weave = Math.pow((warp + weft) * 0.5, 1.68);
+        const cross = Math.pow(warp * weft, 0.9);
+        const diamond = Math.pow(Math.abs(Math.sin(u) * Math.sin(v)), 0.6);
         const fiber = fiberNoise(x, y);
         const micro = microNoise(x + 31.8, y + 17.3);
         const sparkleRaw = sparkleNoise(x * 0.6 + 11.8, y * 0.7 - 4.1);
@@ -5762,19 +5759,16 @@ function Table3D(
   clothMat.side = THREE.DoubleSide;
   const ballDiameter = BALL_R * 2;
   const ballsAcrossWidth = PLAY_W / ballDiameter;
-  const threadsPerBallTarget = 4; // triple the visible weave footprint across each ball width
-  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5 * 1.15; // push tiling down further so the cloth reads as a chunky wool blend
+  const threadsPerBallTarget = 12; // base density before global scaling adjustments
+  const clothPatternUpscale = (1 / 1.3) * 0.5 * 1.25 * 1.5; // double the thread pattern size for a looser, woollier weave
   const clothTextureScale =
     0.032 * 1.35 * 1.56 * 1.12 * clothPatternUpscale; // stretch the weave while keeping the cloth visibly taut
   const baseRepeat =
     ((threadsPerBallTarget * ballsAcrossWidth) / CLOTH_THREADS_PER_TILE) *
     clothTextureScale;
   const repeatRatio = 3.45;
-  const woolBumpScale = 1.18;
   const baseBumpScale =
-    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) *
-    CLOTH_QUALITY.bumpScaleMultiplier *
-    woolBumpScale;
+    (0.64 * 1.52 * 1.34 * 1.26 * 1.18 * 1.12) * CLOTH_QUALITY.bumpScaleMultiplier;
   const flattenedBumpScale = baseBumpScale * 0.48;
   if (clothMap) {
     clothMat.map = clothMap;
@@ -13943,24 +13937,22 @@ const powerRef = useRef(hud.power);
         const lightingRig = new THREE.Group();
         world.add(lightingRig);
 
-        const lightSpreadBoost = 0.96;
+        const lightSpreadBoost = 1.08;
         const lightRigHeight = tableSurfaceY + TABLE.THICK * 6.1;
         const lightOffsetX =
           Math.max(PLAY_W * 0.22, TABLE.THICK * 3.9) * lightSpreadBoost;
         const lightOffsetZ =
           Math.max(PLAY_H * 0.2, TABLE.THICK * 3.8) * lightSpreadBoost;
-        const squareSpreadX = lightOffsetX * 0.22;
-        const squareSpreadZ = lightOffsetZ * 0.22;
         const shadowHalfSpan = Math.max(roomWidth, roomDepth) * 0.65 + TABLE.THICK * 3.2;
         const targetY = tableSurfaceY + TABLE.THICK * 0.2;
         const shadowDepth =
           lightRigHeight + Math.abs(targetY - floorY) + TABLE.THICK * 12;
 
-        const ambient = new THREE.AmbientLight(0xffffff, 0.26);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.32);
         lightingRig.add(ambient);
 
-        const key = new THREE.DirectionalLight(0xffffff, 1.58);
-        key.position.set(squareSpreadX, lightRigHeight, squareSpreadZ);
+        const key = new THREE.DirectionalLight(0xffffff, 1.82);
+        key.position.set(lightOffsetX * 0.3, lightRigHeight, lightOffsetZ * 0.24);
         key.target.position.set(0, targetY, 0);
         key.castShadow = true;
         key.shadow.mapSize.set(4096, 4096);
@@ -13976,14 +13968,14 @@ const powerRef = useRef(hud.power);
         lightingRig.add(key);
         lightingRig.add(key.target);
 
-        const fill = new THREE.DirectionalLight(0xffffff, 0.78);
-        fill.position.set(-squareSpreadX, lightRigHeight * 0.98, squareSpreadZ);
+        const fill = new THREE.DirectionalLight(0xffffff, 0.9);
+        fill.position.set(-lightOffsetX * 0.34, lightRigHeight * 1.02, lightOffsetZ * 0.28);
         fill.target.position.set(0, targetY, 0);
         lightingRig.add(fill);
         lightingRig.add(fill.target);
 
-        const rim = new THREE.DirectionalLight(0xffffff, 0.62);
-        rim.position.set(squareSpreadX, lightRigHeight * 1.04, -squareSpreadZ);
+        const rim = new THREE.DirectionalLight(0xffffff, 0.72);
+        rim.position.set(0, lightRigHeight * 1.06, -lightOffsetZ * 0.38);
         rim.target.position.set(0, targetY, 0);
         lightingRig.add(rim);
         lightingRig.add(rim.target);
@@ -14846,107 +14838,43 @@ const powerRef = useRef(hud.power);
         return false;
       };
 
-      const getInHandRegion = () => {
-        const fullTable = allowFullTableInHand();
-        const limitX = PLAY_W / 2 - BALL_R;
-        const limitZ = PLAY_H / 2 - BALL_R;
-        const baulkRadius = Math.max(D_RADIUS - BALL_R * 0.2, BALL_R);
-        const forwardLimit = baulkZ + Math.max(BALL_R * 0.1, BALL_R * 0.35);
-        const minZ = fullTable ? -limitZ : Math.max(-limitZ, baulkZ - baulkRadius);
-        const maxZ = fullTable ? limitZ : forwardLimit;
-        return {
-          fullTable,
-          bounds: new THREE.Box2(
-            new THREE.Vector2(-limitX, minZ),
-            new THREE.Vector2(limitX, maxZ)
-          ),
-          baulkCenter: new THREE.Vector2(0, baulkZ),
-          baulkRadius
-        };
+      const isSpotFree = (point, clearanceMultiplier = 2.05) => {
+        if (!point) return false;
+        const clearance = BALL_R * clearanceMultiplier;
+        for (const ball of balls) {
+          if (!ball.active || ball === cue) continue;
+          if (point.distanceTo(ball.pos) <= clearance) {
+            return false;
+          }
+        }
+        return true;
       };
-
-      const clampInHandPosition = (point, region = getInHandRegion()) => {
+      const clampInHandPosition = (point) => {
         if (!point) return null;
         const clamped = point.clone();
-        clamped.x = THREE.MathUtils.clamp(clamped.x, region.bounds.min.x, region.bounds.max.x);
-        clamped.y = THREE.MathUtils.clamp(clamped.y, region.bounds.min.y, region.bounds.max.y);
-        if (!region.fullTable) {
-          const offset = clamped.clone().sub(region.baulkCenter);
-          const maxRadius = Math.max(region.baulkRadius, BALL_R);
-          if (offset.lengthSq() > maxRadius * maxRadius) {
-            offset.setLength(maxRadius);
-            clamped.copy(region.baulkCenter.clone().add(offset));
+        const limitX = PLAY_W / 2 - BALL_R;
+        clamped.x = THREE.MathUtils.clamp(clamped.x, -limitX, limitX);
+        if (allowFullTableInHand()) {
+          const limitZ = PLAY_H / 2 - BALL_R;
+          clamped.y = THREE.MathUtils.clamp(clamped.y, -limitZ, limitZ);
+        } else {
+          const maxForward = baulkZ + BALL_R * 0.1;
+          if (clamped.y > maxForward) clamped.y = maxForward;
+          const deltaY = clamped.y - baulkZ;
+          const maxRadius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+          const insideSq = clamped.x * clamped.x + deltaY * deltaY;
+          if (insideSq > maxRadius * maxRadius) {
+            const angle = Math.atan2(deltaY, clamped.x);
+            clamped.x = Math.cos(angle) * maxRadius;
+            clamped.y = baulkZ + Math.sin(angle) * maxRadius;
           }
         }
         return clamped;
       };
-
-      const computeCueClearance = (pos) => {
-        if (!pos) return -Infinity;
-        let minGap = Infinity;
-        for (const ball of balls) {
-          if (!ball.active || ball === cue) continue;
-          minGap = Math.min(minGap, pos.distanceTo(ball.pos) - BALL_R * 2);
-        }
-        const limitX = PLAY_W / 2 - BALL_R;
-        const limitZ = PLAY_H / 2 - BALL_R;
-        const railGap = Math.min(limitX - Math.abs(pos.x), limitZ - Math.abs(pos.y));
-        return Math.min(minGap, railGap);
-      };
-
-      const findNearestLegalPlacement = (
-        preferred,
-        { clearance = BALL_R * 2.05 } = {}
-      ) => {
-        const region = getInHandRegion();
-        const origin = clampInHandPosition(preferred ?? region.baulkCenter, region);
-        const candidates = [];
-        if (origin) candidates.push(origin);
-        const step = BALL_R * 0.55;
-        const rings = 9;
-        for (let ring = 1; ring <= rings; ring++) {
-          const radius = step * ring;
-          const slices = 10 + ring * 6;
-          for (let i = 0; i < slices; i++) {
-            const theta = (i / slices) * Math.PI * 2;
-            TMP_VEC2_A.set(
-              (origin?.x ?? 0) + Math.cos(theta) * radius,
-              (origin?.y ?? region.baulkCenter.y ?? 0) + Math.sin(theta) * radius
-            );
-            const clamped = clampInHandPosition(TMP_VEC2_A, region);
-            if (clamped) candidates.push(clamped.clone());
-          }
-        }
-        let best = null;
-        let bestScore = -Infinity;
-        for (const candidate of candidates) {
-          const gap = computeCueClearance(candidate);
-          if (gap < clearance) continue;
-          const distancePenalty = origin ? origin.distanceTo(candidate) * 0.08 : 0;
-          const railComfort =
-            Math.min(
-              PLAY_W / 2 - BALL_R - Math.abs(candidate.x),
-              PLAY_H / 2 - BALL_R - Math.abs(candidate.y)
-            ) * 0.02;
-          const score = gap - distancePenalty + railComfort;
-          if (score > bestScore) {
-            bestScore = score;
-            best = candidate.clone();
-          }
-        }
-        if (!best && origin) {
-          return clampInHandPosition(origin, region);
-        }
-        return best;
-      };
-
-      const defaultInHandPosition = () => {
-        const region = getInHandRegion();
-        const preferred = region.fullTable
-          ? new THREE.Vector2(0, 0)
-          : region.baulkCenter.clone();
-        return findNearestLegalPlacement(preferred);
-      };
+      const defaultInHandPosition = () =>
+        clampInHandPosition(
+          new THREE.Vector2(0, allowFullTableInHand() ? 0 : baulkZ)
+        );
       const inHandDrag = {
         active: false,
         pointerId: null,
@@ -14965,11 +14893,12 @@ const powerRef = useRef(hud.power);
       const tryUpdatePlacement = (raw, commit = false) => {
         const currentHud = hudRef.current;
         if (!(currentHud?.inHand)) return false;
-        const resolved = findNearestLegalPlacement(raw, { clearance: BALL_R * 2.05 });
-        if (!resolved) return false;
+        const clamped = clampInHandPosition(raw);
+        if (!clamped) return false;
+        if (!isSpotFree(clamped)) return false;
         cue.active = false;
-        updateCuePlacement(resolved);
-        inHandDrag.lastPos = resolved;
+        updateCuePlacement(clamped);
+        inHandDrag.lastPos = clamped;
         if (commit) {
           cue.active = true;
           inHandDrag.lastPos = null;
@@ -14978,52 +14907,164 @@ const powerRef = useRef(hud.power);
         return true;
       };
       const findAiInHandPlacement = () => {
-        const region = getInHandRegion();
-        const seeds = [
-          region.baulkCenter.clone(),
-          new THREE.Vector2(region.bounds.max.x * 0.6, region.baulkCenter.y),
-          new THREE.Vector2(region.bounds.min.x * 0.6, region.baulkCenter.y),
-          new THREE.Vector2(0, THREE.MathUtils.lerp(region.bounds.min.y, region.bounds.max.y, 0.35))
-        ];
-        if (region.fullTable) {
-          seeds.push(new THREE.Vector2(0, 0));
-          seeds.push(new THREE.Vector2(0, region.bounds.max.y * 0.35));
-          seeds.push(new THREE.Vector2(0, region.bounds.min.y * 0.35));
+        const radius = Math.max(D_RADIUS - BALL_R * 0.25, BALL_R);
+        const forwardBias = Math.max(baulkZ - BALL_R * 0.6, -PLAY_H / 2 + BALL_R);
+        const baseCandidates = [];
+        baseCandidates.push(new THREE.Vector2(0, baulkZ));
+        baseCandidates.push(new THREE.Vector2(0, forwardBias));
+        if (allowFullTableInHand()) {
+          baseCandidates.push(new THREE.Vector2(0, 0));
+          baseCandidates.push(new THREE.Vector2(0, PLAY_H / 4));
+          baseCandidates.push(new THREE.Vector2(0, -PLAY_H / 4));
         }
-        const gridCols = 12;
-        const gridRows = region.fullTable ? 8 : 5;
+        const angles = [0, Math.PI / 8, -Math.PI / 8, Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2];
+        for (const angle of angles) {
+          const candidate = new THREE.Vector2(
+            Math.cos(angle) * radius,
+            baulkZ + Math.sin(angle) * radius
+          );
+          baseCandidates.push(candidate);
+        }
+        const limitX = PLAY_W / 2 - BALL_R;
+        const step = BALL_R * 2.1;
+        for (let x = step; x <= limitX; x += step) {
+          baseCandidates.push(new THREE.Vector2(x, forwardBias));
+          baseCandidates.push(new THREE.Vector2(-x, forwardBias));
+        }
+        const ringCandidates = [];
+        const denseSteps = 12;
+        const radialSteps = 4;
+        for (let rStep = radialSteps; rStep >= 1; rStep--) {
+          const ringRadius = (radius * rStep) / radialSteps;
+          for (let i = 0; i <= denseSteps; i++) {
+            const t = -Math.PI / 2 + (Math.PI * i) / denseSteps;
+            ringCandidates.push(
+              new THREE.Vector2(
+                Math.cos(t) * ringRadius,
+                baulkZ + Math.sin(t) * ringRadius
+              )
+            );
+          }
+        }
+        const gridCandidates = [];
+        const gridCols = Math.max(8, Math.round((limitX * 2) / (BALL_R * 1.25)));
+        const fullTable = allowFullTableInHand();
+        const gridRows = fullTable ? 8 : 5;
+        const gridStart = fullTable ? -PLAY_H / 2 + BALL_R : forwardBias;
+        const gridEnd = fullTable ? PLAY_H / 2 - BALL_R : baulkZ;
         for (let row = 0; row <= gridRows; row++) {
-          const z = THREE.MathUtils.lerp(region.bounds.min.y, region.bounds.max.y, row / gridRows);
+          const z = THREE.MathUtils.lerp(gridStart, gridEnd, row / gridRows);
           for (let col = 0; col <= gridCols; col++) {
-            const x = THREE.MathUtils.lerp(region.bounds.min.x, region.bounds.max.x, col / gridCols);
-            seeds.push(new THREE.Vector2(x, z));
+            const x = THREE.MathUtils.lerp(-limitX, limitX, col / gridCols);
+            gridCandidates.push(new THREE.Vector2(x, z));
+          }
+        }
+        const jitter = BALL_R * 0.5;
+        const jitterCandidates = baseCandidates.flatMap((candidate) => [
+          candidate.clone(),
+          candidate.clone().add(new THREE.Vector2(jitter, 0)),
+          candidate.clone().add(new THREE.Vector2(-jitter, 0)),
+          candidate.clone().add(new THREE.Vector2(0, -jitter)),
+          candidate.clone().add(new THREE.Vector2(0, jitter * 0.5))
+        ]);
+        const candidateGroups = [
+          baseCandidates,
+          ringCandidates,
+          gridCandidates,
+          jitterCandidates
+        ];
+        const clearanceLevels = [2.15, 2.1, 2.05, 2.02, 2.0];
+        for (const clearance of clearanceLevels) {
+          for (const group of candidateGroups) {
+            for (const raw of group) {
+              const clamped = clampInHandPosition(raw);
+              if (!clamped) continue;
+              if (!isSpotFree(clamped, clearance)) continue;
+              return clamped;
+            }
           }
         }
         let best = null;
-        let bestScore = -Infinity;
-        for (const seed of seeds) {
-          const placement = findNearestLegalPlacement(seed, { clearance: BALL_R * 2.02 });
-          if (!placement) continue;
-          const gap = computeCueClearance(placement);
-          const railGap = Math.min(
-            PLAY_W / 2 - BALL_R - Math.abs(placement.x),
-            PLAY_H / 2 - BALL_R - Math.abs(placement.y)
-          );
-          const forwardBias = region.fullTable
-            ? THREE.MathUtils.clamp((placement.y + PLAY_H / 2) / PLAY_H, 0, 1)
-            : THREE.MathUtils.clamp(
-                (placement.y - (region.baulkCenter.y - region.baulkRadius)) /
-                  (region.baulkRadius * 2),
-                0,
-                1
-              );
-          const score = gap * 1.1 + railGap * 0.08 + forwardBias * BALL_R;
-          if (score > bestScore) {
-            bestScore = score;
-            best = placement.clone();
+        let bestGap = -Infinity;
+        const combined = candidateGroups.flat();
+        for (const raw of combined) {
+          const clamped = clampInHandPosition(raw);
+          if (!clamped) continue;
+          let minDist = Infinity;
+          for (const ball of balls) {
+            if (!ball.active || ball === cue) continue;
+            const dist = clamped.distanceTo(ball.pos);
+            if (dist < minDist) minDist = dist;
+          }
+          if (minDist > bestGap) {
+            bestGap = minDist;
+            best = clamped;
           }
         }
-        return best ?? defaultInHandPosition();
+        if (best) {
+          if (bestGap < BALL_R * 2.02) {
+            let nearest = null;
+            let nearestDist = Infinity;
+            for (const ball of balls) {
+              if (!ball.active || ball === cue) continue;
+              const dist = best.distanceTo(ball.pos);
+              if (dist < nearestDist) {
+                nearestDist = dist;
+                nearest = ball;
+              }
+            }
+            if (nearest) {
+              const offset = best.clone().sub(nearest.pos);
+              if (offset.lengthSq() < 1e-6) {
+                offset.set(1, 0);
+              }
+              offset.setLength(BALL_R * 2.05);
+              const nudged = clampInHandPosition(
+                nearest.pos.clone().add(offset)
+              );
+              if (nudged && isSpotFree(nudged, 2.02)) {
+                return nudged;
+              }
+            }
+            const searchDirs = [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+              [Math.SQRT1_2, Math.SQRT1_2],
+              [Math.SQRT1_2, -Math.SQRT1_2],
+              [-Math.SQRT1_2, Math.SQRT1_2],
+              [-Math.SQRT1_2, -Math.SQRT1_2]
+            ];
+            const stepSize = BALL_R * 0.45;
+            const maxSteps = 10;
+            for (const [dx, dz] of searchDirs) {
+              for (let stepIdx = 1; stepIdx <= maxSteps; stepIdx++) {
+                TMP_VEC2_A.copy(best);
+                TMP_VEC2_A.x += dx * stepSize * stepIdx;
+                TMP_VEC2_A.y += dz * stepSize * stepIdx;
+                const candidate = clampInHandPosition(TMP_VEC2_A);
+                if (!candidate) continue;
+                if (isSpotFree(candidate, 2.02)) {
+                  return candidate;
+                }
+              }
+            }
+          } else {
+            return best;
+          }
+        }
+        const fallback = allowFullTableInHand()
+          ? defaultInHandPosition()
+          : clampInHandPosition(new THREE.Vector2(0, forwardBias));
+        if (fallback && isSpotFree(fallback, 2.0)) {
+          return fallback;
+        }
+        const baulkCenter = defaultInHandPosition();
+        if (baulkCenter && isSpotFree(baulkCenter, 2.0)) {
+          return baulkCenter;
+        }
+        return null;
       };
       const autoPlaceAiCueBall = () => {
         const currentHud = hudRef.current;
