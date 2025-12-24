@@ -38,7 +38,7 @@ test('after foul player must hit a valid colour first', () => {
   assert.equal(res.reason, 'wrong first contact');
 });
 
-test('no pot and no cushion is foul', () => {
+test('no pot and no cushion stays legal when contact is made', () => {
   const game = new UkPool();
   const res = game.shotTaken({
     contactOrder: ['blue'],
@@ -47,8 +47,9 @@ test('no pot and no cushion is foul', () => {
     noCushionAfterContact: true,
     placedFromHand: false
   });
-  assert.equal(res.foul, true);
-  assert.equal(res.reason, 'no cushion');
+  assert.equal(res.foul, false);
+  assert.equal(res.nextPlayer, 'B');
+  assert.equal(res.shotsRemainingNext, 1);
 });
 
 test('potting opponent ball is foul', () => {

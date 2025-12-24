@@ -23,7 +23,10 @@ import { PoolRoyaleRules } from '../../../../src/rules/PoolRoyaleRules.ts';
 import { useAimCalibration } from '../../hooks/useAimCalibration.js';
 import { resolveTableSize } from '../../config/poolRoyaleTables.js';
 import { isGameMuted, getGameVolume } from '../../utils/sound.js';
-import { getBallMaterial as getBilliardBallMaterial } from '../../utils/ballMaterialFactory.js';
+import {
+  createBallPreviewDataUrl,
+  getBallMaterial as getBilliardBallMaterial
+} from '../../utils/ballMaterialFactory.js';
 import { selectShot as selectUkAiShot } from '../../../../lib/poolUkAdvancedAi.js';
 import { createCueRackDisplay } from '../../utils/createCueRackDisplay.js';
 import { CUE_RACK_PALETTE, CUE_STYLE_PRESETS } from '../../config/cueStyles.js';
@@ -446,10 +449,10 @@ function adjustSideNotchDepth(mp) {
   );
 }
 
-const POCKET_VISUAL_EXPANSION = 1.028;
-const CORNER_POCKET_INWARD_SCALE = 1.015; // push the rounded corner cuts deeper without moving the pocket centers
-const CORNER_POCKET_SCALE_BOOST = 0.994; // ease the restriction so the corner mouth opens slightly wider than before
-const CORNER_POCKET_EXTRA_SCALE = 1.02; // further relax the corner mouth while leaving side pockets unchanged
+const POCKET_VISUAL_EXPANSION = 1.034;
+const CORNER_POCKET_INWARD_SCALE = 1.008; // ease the corner cuts back toward the rail so the mouth stays as wide as the bowl
+const CORNER_POCKET_SCALE_BOOST = 0.998; // open the corner mouth fractionally to match the inner pocket radius
+const CORNER_POCKET_EXTRA_SCALE = 1.028; // further relax the corner mouth while leaving side pockets unchanged
 const CHROME_CORNER_POCKET_RADIUS_SCALE = 1.01;
 const CHROME_CORNER_NOTCH_CENTER_SCALE = 1.08; // mirror snooker notch depth so the rounded chrome cut hugs the cloth identically
 const CHROME_CORNER_EXPANSION_SCALE = 1.002; // trim back the fascia so it now finishes flush with the pocket jaw edge along the long rail
@@ -814,9 +817,9 @@ const RAIL_HEIGHT = TABLE.THICK * 1.82; // return rail height to the lower stanc
 const POCKET_JAW_CORNER_OUTER_LIMIT_SCALE = 1.008; // push the corner jaws outward a touch so the fascia meets the chrome edge cleanly
 const POCKET_JAW_SIDE_OUTER_LIMIT_SCALE =
   POCKET_JAW_CORNER_OUTER_LIMIT_SCALE; // keep the middle jaw clamp as wide as the corners so the fascia mass matches
-const POCKET_JAW_CORNER_INNER_SCALE = 1.472; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
+const POCKET_JAW_CORNER_INNER_SCALE = 1.428; // pull the inner lip slightly farther outward so the jaw thins from the pocket side while keeping the chrome-facing radius and exterior fascia untouched
 const POCKET_JAW_SIDE_INNER_SCALE = POCKET_JAW_CORNER_INNER_SCALE * 1.033; // round the middle jaws slightly more while keeping the corner match
-const POCKET_JAW_CORNER_OUTER_SCALE = 1.92; // preserve the playable mouth while matching the longer corner jaw fascia
+const POCKET_JAW_CORNER_OUTER_SCALE = 1.88; // preserve the playable mouth while matching the longer corner jaw fascia
 const POCKET_JAW_SIDE_OUTER_SCALE =
   POCKET_JAW_CORNER_OUTER_SCALE * 1; // match the middle fascia thickness to the corners so the jaws read equally robust
 const POCKET_JAW_CORNER_OUTER_EXPANSION = TABLE.THICK * 0.016; // flare the exterior jaw edge slightly so the chrome-facing finish broadens without widening the mouth
@@ -844,7 +847,7 @@ const POCKET_JAW_CORNER_EDGE_FACTOR = 0.42; // widen the chamfer so the corner j
 const POCKET_JAW_SIDE_EDGE_FACTOR = POCKET_JAW_CORNER_EDGE_FACTOR; // keep the middle pocket chamfer identical to the corners
 const POCKET_JAW_CORNER_MIDDLE_FACTOR = 0.97; // bias toward the new maximum thickness so the jaw crowns through the pocket centre
 const POCKET_JAW_SIDE_MIDDLE_FACTOR = POCKET_JAW_CORNER_MIDDLE_FACTOR; // mirror the fuller centre section across middle pockets for consistency
-const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.592; // nudge the corner jaw spread farther so the fascia kisses the cushion shoulders without gaps
+const CORNER_POCKET_JAW_LATERAL_EXPANSION = 1.46; // trim the corner jaw reach so the entry width matches the visible bowl
 const SIDE_POCKET_JAW_LATERAL_EXPANSION = 1.26; // trim the middle jaw reach further so it finishes closer to the wood/cloth gap while keeping the jaw radius
 const SIDE_POCKET_JAW_RADIUS_EXPANSION = 0.97; // relax the middle jaw arc radius slightly so side-pocket jaws read a touch wider
 const SIDE_POCKET_JAW_DEPTH_EXPANSION = 1; // keep middle jaw depth identical to the corners
@@ -921,17 +924,17 @@ const BAULK_FROM_BAULK = BAULK_FROM_BAULK_REF * MM_TO_UNITS;
 const D_RADIUS = D_RADIUS_REF * MM_TO_UNITS;
 const BLACK_FROM_TOP = BLACK_FROM_TOP_REF * MM_TO_UNITS;
 const POCKET_CORNER_MOUTH_SCALE = CORNER_POCKET_SCALE_BOOST * CORNER_POCKET_EXTRA_SCALE;
-const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.958; // shrink the middle pocket mouth width a touch more so the radius tightens up further
+const SIDE_POCKET_MOUTH_REDUCTION_SCALE = 0.972; // shrink the middle pocket mouth width a touch more so the radius tightens up further
 const POCKET_SIDE_MOUTH_SCALE =
   (CORNER_MOUTH_REF / SIDE_MOUTH_REF) *
   POCKET_CORNER_MOUTH_SCALE *
   SIDE_POCKET_MOUTH_REDUCTION_SCALE; // keep the middle pocket mouth width identical to the corner pockets
-const SIDE_POCKET_CUT_SCALE = 0.952; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
+const SIDE_POCKET_CUT_SCALE = 0.968; // trim the middle cloth/rail cutouts a bit more so the openings follow the tighter pocket radius
 const POCKET_CORNER_MOUTH =
   CORNER_MOUTH_REF * MM_TO_UNITS * POCKET_CORNER_MOUTH_SCALE;
 const POCKET_SIDE_MOUTH = SIDE_MOUTH_REF * MM_TO_UNITS * POCKET_SIDE_MOUTH_SCALE;
 const POCKET_VIS_R = POCKET_CORNER_MOUTH / 2;
-const POCKET_INTERIOR_TOP_SCALE = 1.01; // gently expand the interior diameter at the top of each pocket for a broader opening
+const POCKET_INTERIOR_TOP_SCALE = 1.012; // gently expand the interior diameter at the top of each pocket for a broader opening
 const POCKET_R = POCKET_VIS_R * 0.985;
 const CORNER_POCKET_CENTER_INSET =
   POCKET_VIS_R * 0.32 * POCKET_VISUAL_EXPANSION; // push the corner pocket centres and cuts a bit farther outward toward the rails
@@ -998,7 +1001,7 @@ BALL_SHADOW_MATERIAL.polygonOffsetFactor = -0.5;
 BALL_SHADOW_MATERIAL.polygonOffsetUnits = -0.5;
 // Match the snooker build so pace and rebound energy stay consistent between modes.
 const FRICTION = 0.993;
-const DEFAULT_CUSHION_RESTITUTION = 0.99;
+const DEFAULT_CUSHION_RESTITUTION = 0.985;
 let CUSHION_RESTITUTION = DEFAULT_CUSHION_RESTITUTION;
 const STOP_EPS = 0.02;
 const STOP_SOFTENING = 0.9; // ease balls into a stop instead of hard-braking at the speed threshold
@@ -1008,17 +1011,18 @@ const MIN_FRAME_SCALE = 1e-6; // prevent zero-length frames from collapsing phys
 const MAX_FRAME_SCALE = 2.4; // clamp slow-frame recovery so physics catch-up cannot stall the render loop
 const MAX_PHYSICS_SUBSTEPS = 5; // keep catch-up updates smooth without exploding work per frame
 const STUCK_SHOT_TIMEOUT_MS = 4500; // auto-resolve shots if motion stops but the turn never clears
-const CAPTURE_R = POCKET_R * 0.94; // pocket capture radius trimmed so rails stay playable up to the lip
-const SIDE_CAPTURE_RADIUS_SCALE = 0.88; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
+const CAPTURE_R = POCKET_R * 0.92; // pocket capture radius trimmed so rails stay playable up to the lip
+const SIDE_CAPTURE_RADIUS_SCALE = 0.84; // shrink middle pocket capture so behaviour matches the smaller side pocket cuts
 const SIDE_CAPTURE_R = CAPTURE_R * SIDE_CAPTURE_RADIUS_SCALE;
 const CLOTH_THICKNESS = TABLE.THICK * 0.12; // match snooker cloth profile so cushions blend seamlessly
+const PLYWOOD_ENABLED = false; // fully disable any plywood underlay beneath the cloth
 const PLYWOOD_THICKNESS = 0; // remove the plywood bed so no underlayment renders beneath the cloth
 const PLYWOOD_GAP = 0;
 const PLYWOOD_EXTRA_DROP = 0;
 const PLYWOOD_SURFACE_COLOR = 0xd8c29b; // fallback plywood tone when a finish color is unavailable
 const PLYWOOD_HOLE_SCALE = 1.05; // plywood pocket cutouts should be 5% larger than the pocket bowls for clearance
 const PLYWOOD_HOLE_R = POCKET_VIS_R * PLYWOOD_HOLE_SCALE * POCKET_VISUAL_EXPANSION;
-const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.362; // preserve the deeper cloth wrap without relying on a stone underlay
+const CLOTH_EXTENDED_DEPTH = TABLE.THICK * 0.26; // slim the cloth wrap to avoid showing any underlay beneath the surface
 const CLOTH_EDGE_TOP_RADIUS_SCALE = 0.986; // pinch the cloth sleeve opening slightly so the pocket lip picks up a soft round-over
 const CLOTH_EDGE_BOTTOM_RADIUS_SCALE = 1.012; // flare the lower sleeve so the wrap hugs the pocket throat before meeting the drop
 const CLOTH_EDGE_CURVE_INTENSITY = 0.012; // shallow easing that rounds the cloth sleeve as it transitions from lip to throat
@@ -1027,9 +1031,9 @@ const CLOTH_EDGE_TINT = 0.18; // keep the pocket sleeves closer to the base felt
 const CLOTH_EDGE_EMISSIVE_MULTIPLIER = 0.02; // soften light spill on the sleeve walls while keeping reflections muted
 const CLOTH_EDGE_EMISSIVE_INTENSITY = 0.24; // further dim emissive brightness so the cutouts stay consistent with the cloth plane
 const CUSHION_OVERLAP = SIDE_RAIL_INNER_THICKNESS * 0.35; // overlap between cushions and rails to hide seams
-const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.085; // lower the cushion base slightly so the lip sits closer to the cloth
-const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.232; // trim the cushion tops further so they sit a touch lower than before
-const CUSHION_FIELD_CLIP_RATIO = 0.158; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
+const CUSHION_EXTRA_LIFT = -TABLE.THICK * 0.072; // lower the cushion base slightly so the lip sits closer to the cloth
+const CUSHION_HEIGHT_DROP = TABLE.THICK * 0.226; // trim the cushion tops further so they sit a touch lower than before
+const CUSHION_FIELD_CLIP_RATIO = 0.152; // trim the cushion extrusion right at the cloth plane so no geometry sinks underneath the surface
 const SIDE_RAIL_EXTRA_DEPTH = TABLE.THICK * 1.12; // deepen side aprons so the lower edge flares out more prominently
 const END_RAIL_EXTRA_DEPTH = SIDE_RAIL_EXTRA_DEPTH; // drop the end rails to match the side apron depth
 const RAIL_OUTER_EDGE_RADIUS_RATIO = 0.18; // round only the exterior rail corners while leaving the playfield edge crisp
@@ -1041,7 +1045,7 @@ const POCKET_DROP_MAX_MS = Math.round(POCKET_DROP_ANIMATION_MS * 1.285);
 const POCKET_DROP_SPEED_REFERENCE = 1.4;
 const POCKET_DROP_DEPTH = TABLE.THICK * 0.9;
 const POCKET_DROP_SCALE = 0.55;
-const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.8 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
+const POCKET_CLOTH_TOP_RADIUS = POCKET_VIS_R * 0.84 * POCKET_VISUAL_EXPANSION; // trim the cloth aperture to match the smaller chrome + rail cuts
 const POCKET_CLOTH_BOTTOM_RADIUS = POCKET_CLOTH_TOP_RADIUS * 0.62;
 const POCKET_DROP_TOP_SCALE = 0.82;
 const POCKET_DROP_BOTTOM_SCALE = 0.48;
@@ -6087,8 +6091,9 @@ function Table3D(
   cloth.receiveShadow = true;
   table.add(cloth);
   const clothBottomY = cloth.position.y - CLOTH_EXTENDED_DEPTH;
-  const plywoodDepth = PLYWOOD_THICKNESS;
-  const plywoodTopY = clothBottomY - PLYWOOD_GAP - PLYWOOD_EXTRA_DROP;
+  const plywoodDepth = PLYWOOD_ENABLED ? PLYWOOD_THICKNESS : 0;
+  const plywoodTopY =
+    clothBottomY - (PLYWOOD_ENABLED ? PLYWOOD_GAP + PLYWOOD_EXTRA_DROP : 0);
   const pocketEdgeStopY = plywoodTopY - POCKET_BOARD_TOUCH_OFFSET;
   const pocketCutStripes = addPocketCuts(
     table,
@@ -8003,7 +8008,7 @@ function Table3D(
   table.add(skirt);
   finishParts.frameMeshes.push(skirt);
 
-  if (plywoodDepth > MICRO_EPS) {
+  if (PLYWOOD_ENABLED && plywoodDepth > MICRO_EPS) {
     const plywoodShape = buildSurfaceShape(PLYWOOD_HOLE_R, -baseOverhang);
     const plywoodGeo = new THREE.ExtrudeGeometry(plywoodShape, {
       depth: plywoodDepth,
@@ -16679,11 +16684,16 @@ const powerRef = useRef(hud.power);
                     : isOnlineMatch
                       ? opponentDisplayName
                       : 'AI';
+                const isStripeAssign = nextAssign === 'blue';
                 const assignmentLabel =
                   nextAssign === 'blue'
-                    ? 'Yellows'
+                    ? isUkAmericanSet
+                      ? 'Stripes'
+                      : 'Yellows'
                     : nextAssign === 'red'
-                      ? 'Reds'
+                      ? isUkAmericanSet
+                        ? 'Solids'
+                        : 'Reds'
                       : nextAssign.charAt(0).toUpperCase() + nextAssign.slice(1);
                 showRuleToast(`${seatLabel} is ${assignmentLabel}`);
               }
@@ -16703,7 +16713,8 @@ const powerRef = useRef(hud.power);
                   : isOnlineMatch
                     ? opponentDisplayName
                     : 'AI';
-              showRuleToast(`${shooterLabel} has ${remainingShots} shots`);
+              const verb = shooterLabel === 'You' ? 'have' : 'has';
+              showRuleToast(`${shooterLabel} ${verb} ${remainingShots} shots`);
               lastShotReminderRef.current[shotsForPlayer] = remainingShots;
             }
           } else if (shotsForPlayer) {
@@ -18377,6 +18388,7 @@ const powerRef = useRef(hud.power);
       return acc;
     }, {});
   }, []);
+  const ballPreviewCache = useRef(new Map());
   const ballSwatches = useMemo(
     () => ({
       RED: '#d12c2c',
@@ -18401,6 +18413,24 @@ const powerRef = useRef(hud.power);
     const b = Math.max(0, Math.min(255, Math.round((num & 0xff) * factor)));
     return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
   }, []);
+  const getBallPreview = useCallback(
+    ({ colorHex, pattern, number }) => {
+      if (!colorHex) return null;
+      const cacheKey = `${pattern}|${number ?? 'none'}|${colorHex}`;
+      const cache = ballPreviewCache.current;
+      if (cache.has(cacheKey)) return cache.get(cacheKey);
+      const preview = createBallPreviewDataUrl({
+        color: colorHex,
+        pattern,
+        number,
+        variantKey: 'pool',
+        size: 128
+      });
+      cache.set(cacheKey, preview || null);
+      return preview;
+    },
+    [ballPreviewCache]
+  );
   const renderPottedRow = useCallback(
     (entries = []) => {
       if (!entries.length) {
@@ -18409,7 +18439,7 @@ const powerRef = useRef(hud.power);
             {Array.from({ length: 4 }).map((_, idx) => (
               <span
                 key={`ghost-${idx}`}
-                className="h-6 w-6 flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner"
+                className="h-5 w-5 flex-shrink-0 rounded-full border border-white/25 bg-white/10 shadow-inner"
               />
             ))}
           </div>
@@ -18455,21 +18485,39 @@ const powerRef = useRef(hud.power);
               ? `linear-gradient(90deg, transparent 28%, rgba(255,255,255,0.9) 28%, rgba(255,255,255,0.9) 72%, transparent 72%), `
               : '';
             const background = `${gloss}radial-gradient(circle at 30% 30%, rgba(255,255,255,0.82) 0, rgba(255,255,255,0.58) 36%, ${colorHex} 62%, ${shade} 94%)`;
+            const previewUrl = getBallPreview({
+              colorHex,
+              pattern: isStripe ? 'stripe' : 'solid',
+              number: ballNumber ?? (colorKey === 'BLACK' ? 8 : null)
+            });
+            const altLabel = `Pocketed ${label}`;
             return (
               <span
                 key={`${entry.id ?? colorKey}-${index}`}
-                className="relative flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border border-white/40 text-[10px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
-                style={{ background, color: textColor }}
-                title={`Pocketed ${label}`}
+                className="relative flex h-5 w-5 flex-shrink-0 items-center justify-center"
+                title={altLabel}
               >
-                <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{label}</span>
+                {previewUrl ? (
+                  <img
+                    src={previewUrl}
+                    alt={altLabel}
+                    className="h-5 w-5 rounded-full border border-white/40 shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                  />
+                ) : (
+                  <span
+                    className="flex h-full w-full items-center justify-center rounded-full border border-white/40 text-[9px] font-bold leading-none shadow-[0_2px_6px_rgba(0,0,0,0.35)]"
+                    style={{ background, color: textColor }}
+                  >
+                    <span className="drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">{label}</span>
+                  </span>
+                )}
               </span>
             );
           })}
         </div>
       );
     },
-    [americanBallSwatches, ballSwatches, darkenHex, isUkAmericanSet]
+    [americanBallSwatches, ballSwatches, darkenHex, getBallPreview, isUkAmericanSet]
   );
   const playerSeatId = localSeat === 'A' ? 'A' : 'B';
   const opponentSeatId = playerSeatId === 'A' ? 'B' : 'A';

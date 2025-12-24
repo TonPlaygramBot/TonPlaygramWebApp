@@ -258,6 +258,28 @@ function createBallTexture({ baseColor, pattern, number, variantKey }) {
   return texture;
 }
 
+export function createBallPreviewDataUrl({
+  color,
+  pattern = 'solid',
+  number = null,
+  variantKey = 'pool',
+  size = 256
+} = {}) {
+  if (typeof document === 'undefined') return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const baseColor = color ?? 0xffffff;
+  if (variantKey === 'pool') {
+    drawPoolBallTexture(ctx, size, baseColor, pattern, number);
+  } else {
+    drawDefaultBallTexture(ctx, size, baseColor, pattern, number);
+  }
+  return canvas.toDataURL('image/png');
+}
+
 export function getBallMaterial({
   color,
   pattern = 'solid',
